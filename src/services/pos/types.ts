@@ -91,6 +91,17 @@ export interface ProdDetail {
   proDetailSTime?: string | null;
   proDetailETime?: string | null;
   defaultQty?: number;
+  // null = ไม่มีกลุ่ม (บังคับรวมเหมือนเดิม) — เฉพาะสินค้าแบบ Set
+  setChoiceGroupUuidFk?: string | null;
+}
+
+export interface ProdSetChoiceGroup {
+  setChoiceGroupUuid: string;
+  groupName?: string;
+  groupNameLa?: string;
+  groupNameEng?: string;
+  maxSelect?: number | string;
+  groupSort?: number | string;
 }
 
 export interface ProdTopping {
@@ -134,6 +145,7 @@ export interface ProdItem {
   details: ProdDetail[];
   toppings: ProdTopping[];
   tastes?: ProdTaste[];
+  setChoiceGroups?: ProdSetChoiceGroup[];
 }
 
 export interface GetProdItemParams {

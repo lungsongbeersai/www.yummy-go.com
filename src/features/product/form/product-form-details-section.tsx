@@ -46,6 +46,7 @@ import { ProductFormSectionHeader } from "./product-form-section-header";
 import type { ProductFormWorkflow } from "./use-product-form-workflow";
 
 const NO_SET_PRODUCT_OPTION_VALUE = "__no-set-products__";
+const NO_CHOICE_GROUP_VALUE = "__no-choice-group__";
 
 export function ProductFormDetailsSection({ form }: { form: ProductFormWorkflow }) {
   const {
@@ -57,6 +58,10 @@ export function ProductFormDetailsSection({ form }: { form: ProductFormWorkflow 
     bulkStockSaving,
     updateAllDetailStockModes,
     addDetail,
+    choiceGroups,
+    addChoiceGroup,
+    updateChoiceGroup,
+    removeChoiceGroup,
     typeLabel,
     detailModeHint,
     sizeOptions,
@@ -104,6 +109,80 @@ export function ProductFormDetailsSection({ form }: { form: ProductFormWorkflow 
             <AlertTitle>{typeLabel}</AlertTitle>
             <AlertDescription>{detailModeHint}</AlertDescription>
           </Alert>
+          {statusSortFk === "2" ? (
+            <FieldSet className="gap-3 rounded-md border border-dashed border-border bg-muted/10 p-4">
+              <div className="flex items-center justify-between gap-3">
+                <div className="min-w-0">
+                  <FieldLegend className="text-sm font-semibold">
+                    {t("product.setChoiceGroups")}
+                  </FieldLegend>
+                  <FieldDescription className="text-xs">
+                    {t("product.setChoiceGroupsHint")}
+                  </FieldDescription>
+                </div>
+                <Button type="button" size="xs" variant="outline" onClick={addChoiceGroup}>
+                  <Plus data-icon="inline-start" />
+                  {t("actions.add")}
+                </Button>
+              </div>
+              {choiceGroups.length ? (
+                <div className="flex flex-col gap-3">
+                  {choiceGroups.map((group) => (
+                    <div
+                      key={group.id}
+                      className="grid gap-3 rounded-md border border-border bg-background p-3 sm:grid-cols-[1fr_1fr_140px_auto] sm:items-end"
+                    >
+                      <Field>
+                        <FieldLabel className="text-xs">{t("fields.nameLa")}</FieldLabel>
+                        <Input
+                          value={group.group_name_la}
+                          autoComplete="off"
+                          onChange={(event) =>
+                            updateChoiceGroup(group.id, { group_name_la: event.target.value })
+                          }
+                        />
+                      </Field>
+                      <Field>
+                        <FieldLabel className="text-xs">{t("fields.nameEn")}</FieldLabel>
+                        <Input
+                          value={group.group_name_eng}
+                          autoComplete="off"
+                          onChange={(event) =>
+                            updateChoiceGroup(group.id, { group_name_eng: event.target.value })
+                          }
+                        />
+                      </Field>
+                      <Field>
+                        <FieldLabel className="text-xs">
+                          {t("product.setChoiceGroupMaxSelect")}
+                        </FieldLabel>
+                        <FormattedNumberInput
+                          min={1}
+                          value={group.max_select}
+                          onValueChange={(value) =>
+                            updateChoiceGroup(group.id, { max_select: value })
+                          }
+                        />
+                      </Field>
+                      <Button
+                        type="button"
+                        size="icon-sm"
+                        variant="ghost"
+                        aria-label={t("actions.delete")}
+                        onClick={() => removeChoiceGroup(group.id)}
+                      >
+                        <Trash2 />
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <FieldDescription className="text-xs">
+                  {t("product.noSetChoiceGroups")}
+                </FieldDescription>
+              )}
+            </FieldSet>
+          ) : null}
           {details.map((row, index) => {
               const selectedSize = sizeOptions.find((size) => sizeUuid(size) === row.size_uuid_fk);
               const selectedSizeLabel = selectedSize
@@ -261,6 +340,38 @@ export function ProductFormDetailsSection({ form }: { form: ProductFormWorkflow 
                       <FieldDescription className="text-xs">
                         {t("product.setQtyCutStockHint")}
                       </FieldDescription>
+                    </Field>
+                  ) : null}
+                  {statusSortFk === "2" ? (
+                    <Field>
+                      <div className={labelRowClass}>
+                        <FieldLabel>{t("product.setChoiceGroupAssign")}</FieldLabel>
+                      </div>
+                      <Select
+                        value={row.set_choice_group_client_ref || NO_CHOICE_GROUP_VALUE}
+                        onValueChange={(value) =>
+                          updateDetail(row.id, {
+                            set_choice_group_client_ref:
+                              value === NO_CHOICE_GROUP_VALUE ? "" : value,
+                          })
+                        }
+                      >
+                        <SelectTrigger className="w-full">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent position="popper">
+                          <SelectGroup>
+                            <SelectItem value={NO_CHOICE_GROUP_VALUE}>
+                              {t("product.setChoiceGroupNone")}
+                            </SelectItem>
+                            {choiceGroups.map((group) => (
+                              <SelectItem key={group.id} value={group.client_ref}>
+                                {group.group_name_la || t("product.setChoiceGroupUnnamed")}
+                              </SelectItem>
+                            ))}
+                          </SelectGroup>
+                        </SelectContent>
+                      </Select>
                     </Field>
                   ) : null}
                   {statusSortFk === "1" ? (

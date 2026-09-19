@@ -27,6 +27,20 @@ export interface DetailRow {
   pro_detail_eDate: string;
   pro_detail_sTime: string;
   pro_detail_eTime: string;
+  // "" = ไม่มีกลุ่ม (บังคับรวมเหมือนเดิม) — เฉพาะสินค้าแบบ Set (statusSortFk "2")
+  // ค่านี้ตรงกับ ChoiceGroupRow.client_ref ของกลุ่มที่แถวนี้อยู่
+  set_choice_group_client_ref: string;
+}
+
+// กลุ่มตัวเลือกในชุดอาหาร (เช่น "เลือกเนื้อสัตว์": ไก่/หมู) — ขอบเขตอยู่แค่สินค้าตัวนี้
+// ไม่ใช่ pool กลางแบบ taste/topping จึงจัดการแบบ local state ในฟอร์มล้วนๆ ไม่มี dialog
+// CRUD แยกกับ backend จนกว่าจะกดบันทึกสินค้าทั้งฟอร์ม
+export interface ChoiceGroupRow {
+  id: string;
+  client_ref: string;
+  group_name_la: string;
+  group_name_eng: string;
+  max_select: string;
 }
 
 export interface ToppingSelection {
@@ -49,6 +63,7 @@ export interface RequiredProductFormState {
   selectedToppings: ToppingSelection[];
   prodTasteMaxSelect?: string;
   selectedTastes?: TasteSelection[];
+  choiceGroups?: ChoiceGroupRow[];
 }
 
 export interface ProductSavePayloadState extends RequiredProductFormState {

@@ -22,6 +22,15 @@ export interface ProductTaste extends ApiEntity {
   taste_sort?: number | string;
 }
 
+export interface ProductSetChoiceGroup extends ApiEntity {
+  set_choice_group_uuid?: string;
+  group_name?: string;
+  group_name_la?: string;
+  group_name_eng?: string;
+  max_select?: number | string;
+  group_sort?: number | string;
+}
+
 export interface ProductDetail extends ApiEntity {
   detail_uuid?: string;
   pro_detail_id?: string;
@@ -49,6 +58,7 @@ export interface ProductDetail extends ApiEntity {
   pro_detail_setqty_cut_stock?: number | string;
   pro_detail_enabled?: number | string;
   pro_detail_enabled_text?: string;
+  set_choice_group_uuid_fk?: string | null;
 }
 
 export interface ProductDetailFormInput extends ApiEntity {}
@@ -85,6 +95,7 @@ export interface Product extends ApiEntity {
   details?: ProductDetail[];
   toppings?: ProductTopping[];
   tastes?: ProductTaste[];
+  set_choice_groups?: ProductSetChoiceGroup[];
 }
 
 export type ProductResponse = ApiListResponse<Product>;
@@ -105,6 +116,17 @@ export interface SaveProductDetailInput extends ApiEntity {
   pro_detail_eDate?: string;
   pro_detail_sTime?: string | null;
   pro_detail_eTime?: string | null;
+  /** Correlates with SaveProductSetChoiceGroupInput.client_ref; "" = no group (always included). */
+  set_choice_group_client_ref?: string;
+}
+
+export interface SaveProductSetChoiceGroupInput extends ApiEntity {
+  /** Client-generated correlation id — groups are fully replaced on every save, so no real uuid is needed. */
+  client_ref: string;
+  group_name_la: string;
+  group_name_eng?: string;
+  max_select: number;
+  group_sort?: number;
 }
 
 export interface SaveProductToppingInput extends ApiEntity {
@@ -139,6 +161,8 @@ export interface SaveProductInput extends ApiEntity {
   /** 0 = disabled, 1 = select at most one taste, 2 = select at most two tastes. */
   prod_taste_max_select?: number;
   tastes?: SaveProductTasteInput[];
+  /** foodSet only (status_sort_fk = 2). Omit/empty = no choice groups (legacy behavior). */
+  set_choice_groups?: SaveProductSetChoiceGroupInput[];
 }
 
 export interface ProductEnabledPatch {

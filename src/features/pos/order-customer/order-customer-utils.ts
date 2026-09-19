@@ -8,6 +8,7 @@ export * from "./product-availability";
 export * from "./product-classification";
 export * from "./product-media";
 export * from "./quantity-rules";
+export * from "./set-choice-selection";
 export * from "./staff-order-payload";
 export * from "./taste-selection";
 export * from "./topping-selection";

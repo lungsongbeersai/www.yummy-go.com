@@ -19,6 +19,7 @@ import {
   getProductActionState,
   getProductBlockedState,
   getProductModalMode,
+  groupedSetDetails,
   MAX_ORDER_QTY,
   nextMenuCategoryUuid,
   normalizeProdItem,
@@ -29,9 +30,14 @@ import {
   productCardPrice,
   productNeedsModal,
   productOptionCount,
+  resolveSetOrderDetails,
   selectedOrderTable,
   selectedTastesFromUuids,
   selectedToppingsFromQtyMap,
+  setChoiceGroupDisplayName,
+  setChoiceGroupMaxSelect,
+  setChoiceGroupUuid,
+  toggleSetChoiceUuid,
   toggleToppingQty,
   toppingQtyCap,
   toppingSelectionLimit,
@@ -47,6 +53,7 @@ import {
   type CateProductItem,
   type ProdDetail,
   type ProdItem,
+  type ProdSetChoiceGroup,
   type ProdTaste,
   type ProdTopping,
 } from "@/services/pos";
@@ -101,6 +108,15 @@ function taste(overrides: Partial<ProdTaste> = {}): ProdTaste {
     tasteUuid: "taste-1",
     tasteName: "Spicy",
     tasteStatus: 1,
+    ...overrides,
+  };
+}
+
+function choiceGroup(overrides: Partial<ProdSetChoiceGroup> = {}): ProdSetChoiceGroup {
+  return {
+    setChoiceGroupUuid: "group-1",
+    groupName: "Choose protein",
+    maxSelect: 1,
     ...overrides,
   };
 }
@@ -732,6 +748,102 @@ describe("order customer helpers", () => {
         order_it_note: "cold",
       },
     ]);
+  });
+
+  it("keeps a set's ungrouped items always included and groups its choice alternatives", () => {
+    const proteinGroup = choiceGroup({
+      setChoiceGroupUuid: "grp-protein",
+      groupName: "Choose protein",
+      maxSelect: 1,
+    });
+    const dessertGroup = choiceGroup({
+      setChoiceGroupUuid: "grp-dessert",
+      groupName: "Choose desserts",
+      maxSelect: 2,
+    });
+    const setProduct: ProdItem = {
+      ...normalizeProdItem(null, product({ statusSortFk: ProductSortStatus.SET })),
+      prodSetPrice: 220000,
+      setChoiceGroups: [dessertGroup, proteinGroup],
+      details: [
+        detail({ proDetailUuid: "rice", price: 0, proDetailSprice: 0 }),
+        detail({
+          proDetailUuid: "chicken",
+          price: 0,
+          proDetailSprice: 0,
+          setChoiceGroupUuidFk: "grp-protein",
+        }),
+        detail({
+          proDetailUuid: "pork",
+          price: 0,
+          proDetailSprice: 0,
+          setChoiceGroupUuidFk: "grp-protein",
+        }),
+        detail({
+          proDetailUuid: "cake",
+          price: 0,
+          proDetailSprice: 0,
+          setChoiceGroupUuidFk: "grp-dessert",
+        }),
+        detail({
+          proDetailUuid: "icecream",
+          price: 0,
+          proDetailSprice: 0,
+          setChoiceGroupUuidFk: "grp-dessert",
+        }),
+        detail({
+          // อ้างกลุ่มที่ไม่มีอยู่จริง (เช่นถูกลบไปแล้ว) — ต้องกลับไปเป็นบังคับรวมเหมือนไม่มีกลุ่ม
+          proDetailUuid: "soup",
+          price: 0,
+          proDetailSprice: 0,
+          setChoiceGroupUuidFk: "grp-deleted",
+        }),
+      ],
+    };
+
+    const grouped = groupedSetDetails(setProduct);
+    expect(grouped.ungrouped.map((d) => d.proDetailUuid)).toEqual(["rice", "soup"]);
+    expect(grouped.groups.map((g) => setChoiceGroupUuid(g.group))).toEqual([
+      "grp-dessert",
+      "grp-protein",
+    ]);
+    expect(setChoiceGroupDisplayName(proteinGroup)).toBe("Choose protein");
+    expect(setChoiceGroupMaxSelect(dessertGroup)).toBe(2);
+
+    // เลือกหมู (ไม่ใช่ไก่) และขนมหวานแค่ 1 จาก 2 ที่เลือกได้ — ไม่บังคับให้เลือกครบ
+    const resolved = resolveSetOrderDetails(setProduct, {
+      "grp-protein": ["pork"],
+      "grp-dessert": ["cake"],
+    });
+    expect(resolved.map((d) => d.proDetailUuid).sort()).toEqual(
+      ["cake", "pork", "rice", "soup"].sort(),
+    );
+
+    // ไม่เลือกอะไรเลยในกลุ่มไหน — เหลือแค่รายการที่ไม่มีกลุ่ม
+    expect(resolveSetOrderDetails(setProduct, {}).map((d) => d.proDetailUuid).sort()).toEqual(
+      ["rice", "soup"].sort(),
+    );
+
+    const items = buildStaffOrderItems({
+      detail: setProduct.details[0],
+      mode: "set",
+      noteText: "",
+      product: setProduct,
+      quantity: 1,
+      selectedSetChoiceUuids: { "grp-protein": ["chicken"] },
+      toppings: [],
+    });
+    expect(items.map((item) => item.prod_detail_uuid_fk).sort()).toEqual(
+      ["chicken", "rice", "soup"].sort(),
+    );
+  });
+
+  it("caps set choice selection at max_select without requiring it to be filled", () => {
+    expect(toggleSetChoiceUuid([], "a", 1)).toEqual(["a"]);
+    expect(toggleSetChoiceUuid(["a"], "a", 1)).toEqual([]);
+    // ครบเพดานแล้ว เลือกตัวใหม่ต้องไม่ทำอะไร (ไม่ใช่แทนที่ตัวเดิม)
+    expect(toggleSetChoiceUuid(["a"], "b", 1)).toEqual(["a"]);
+    expect(toggleSetChoiceUuid(["a"], "b", 2)).toEqual(["a", "b"]);
   });
 
   it("maps product option sheet topping selection predictably", () => {
