@@ -719,21 +719,22 @@ export function emptyDetail(statusSortFk: StatusSortFk = "1"): DetailRow {
     pro_detail_enabled: "1",
     pro_detail_status: statusSortFk === "3" ? "1" : "2",
     set_choice_group_mode: "none",
-    set_choice_group_name: "",
+    set_choice_group_names: [],
     ...EMPTY_PROMOTION_FIELDS,
   };
 }
 
-// หา group ตัวแรกที่แถวนี้เคยผูกไว้ (จาก uuid ที่ backend ส่งกลับ) เพื่อดึงชื่อ/โหมดของมันมา
-// แสดงในฟอร์ม — ถ้าแถวเคยผูกไว้มากกว่า 1 กลุ่ม (ข้อมูลจากช่วงที่ระบบยังรองรับหลายกลุ่มต่อแถว)
-// ฟอร์มนี้จะโชว์ได้แค่กลุ่มแรกเท่านั้น เพราะ UI ใหม่ให้ 1 แถวอยู่ได้แค่ 1 กลุ่ม
-function firstChoiceGroupFor(
+// กลุ่มทั้งหมดที่แถวนี้เคยผูกไว้ (จาก uuid ที่ backend ส่งกลับ) เพื่อดึงชื่อ/โหมดของมันมาแสดง
+// ในฟอร์ม — แถวหนึ่งเป็นสมาชิกได้หลายกลุ่มพร้อมกัน
+function choiceGroupsFor(
   detail: NonNullable<Product["details"]>[number],
   groups: NonNullable<Product["set_choice_groups"]>,
 ) {
-  const uuid = (detail.set_choice_group_uuid_fks ?? [])[0];
-  if (!uuid) return null;
-  return groups.find((group) => group.set_choice_group_uuid === uuid) ?? null;
+  const uuids = new Set(detail.set_choice_group_uuid_fks ?? []);
+  if (!uuids.size) return [];
+  return groups.filter(
+    (group) => !!group.set_choice_group_uuid && uuids.has(group.set_choice_group_uuid),
+  );
 }
 
 export function detailFromProduct(
@@ -741,7 +742,7 @@ export function detailFromProduct(
   statusSortFk: StatusSortFk,
   choiceGroups: NonNullable<Product["set_choice_groups"]> = [],
 ): DetailRow {
-  const matchedGroup = firstChoiceGroupFor(detail, choiceGroups);
+  const matchedGroups = choiceGroupsFor(detail, choiceGroups);
   return {
     id: rid(),
     pro_detail_uuid: productDetailUuid(detail),
@@ -764,14 +765,14 @@ export function detailFromProduct(
     pro_detail_eDate: dateInputValue(detail.pro_detail_eDate),
     pro_detail_sTime: timeInputValue(detail.pro_detail_sTime),
     pro_detail_eTime: timeInputValue(detail.pro_detail_eTime),
-    set_choice_group_mode: !matchedGroup
+    set_choice_group_mode: !matchedGroups.length
       ? "none"
-      : Number(matchedGroup.max_select ?? 1) > 1
+      : matchedGroups.some((group) => Number(group.max_select ?? 1) > 1)
         ? "many"
         : "one",
-    set_choice_group_name: matchedGroup
-      ? String(matchedGroup.group_name_la ?? matchedGroup.group_name ?? "")
-      : "",
+    set_choice_group_names: matchedGroups.map((group) =>
+      String(group.group_name_la ?? group.group_name ?? ""),
+    ),
   };
 }
 
@@ -795,7 +796,7 @@ export function normalizeDetailsForStatus(
       pro_detail_qty_stock: row.pro_detail_qty_stock || "0",
       // กลุ่มตัวเลือกมีความหมายเฉพาะสินค้าแบบ Set — สลับออกจาก Set แล้วต้องล้างทิ้ง
       set_choice_group_mode: targetStatus === "2" ? row.set_choice_group_mode : "none",
-      set_choice_group_name: targetStatus === "2" ? row.set_choice_group_name : "",
+      set_choice_group_names: targetStatus === "2" ? row.set_choice_group_names : [],
     };
 
     if (targetStatus !== "3") {
@@ -887,7 +888,7 @@ export function buildDetailPayload(
       ...base,
       pro_detail_setqty_cut_stock: numberFromFormatted(row.pro_detail_setqty_cut_stock),
       pro_detail_status: 2,
-      set_choice_group_client_refs: choiceGroupNameOf(row) ? [choiceGroupNameOf(row)] : [],
+      set_choice_group_client_refs: choiceGroupNamesOf(row),
     };
   }
 
@@ -904,14 +905,17 @@ export function buildDetailPayload(
   };
 }
 
-// ชื่อกลุ่มมีความหมายเฉพาะตอน mode ไม่ใช่ "none" — แถวที่ปิดตัวเลือกไว้ไม่นับเป็นสมาชิกกลุ่ม
-// แม้จะเคยพิมพ์ชื่อค้างไว้ในช่องก็ตาม
-export function choiceGroupNameOf(row: Pick<DetailRow, "set_choice_group_mode" | "set_choice_group_name">) {
-  return row.set_choice_group_mode === "none" ? "" : row.set_choice_group_name.trim();
+// ชื่อกลุ่มมีความหมายเฉพาะตอน mode ไม่ใช่ "none" — แถวที่ปิดตัวเลือกไว้ไม่นับเป็นสมาชิกกลุ่มไหน
+// เลย แม้จะเคยติ๊กชื่อค้างไว้ก็ตาม แถวหนึ่งเป็นสมาชิกได้หลายกลุ่มพร้อมกัน (ตัดชื่อซ้ำ/ว่างทิ้ง)
+export function choiceGroupNamesOf(
+  row: Pick<DetailRow, "set_choice_group_mode" | "set_choice_group_names">,
+): string[] {
+  if (row.set_choice_group_mode === "none") return [];
+  return Array.from(new Set(row.set_choice_group_names.map((name) => name.trim()).filter(Boolean)));
 }
 
-// กลุ่มไม่มีหน้าจัดการแยกอีกต่อไป — ได้มาจากการไล่ดูชื่อกลุ่มที่แต่ละแถวประกาศไว้เอง แถวที่ตั้ง
-// ชื่อเดียวกัน (ไม่สนตัวพิมพ์เล็ก/ใหญ่หรือช่องว่างหัวท้าย) ถูกจับเป็นกลุ่มเดียวกันโดยอัตโนมัติ
+// กลุ่มไม่มีหน้าจัดการแยกอีกต่อไป — ได้มาจากการไล่ดูชื่อกลุ่มที่แต่ละแถวติ๊กไว้เอง แถวที่ติ๊ก
+// ชื่อเดียวกัน (แม้จะเป็นคนละแถว หรือแถวเดียวกันติ๊กหลายชื่อ) ถูกจับเป็นกลุ่มเดียวกันโดยอัตโนมัติ
 // "เลือกได้หลายรายการ" ไม่มีเลขให้กรอกเอง — max_select ถูกตั้งเท่าจำนวนสมาชิกจริงของกลุ่มนั้น
 // (เท่ากับ "เลือกได้ทั้งหมด" ไปในตัว) ส่วน "เลือกได้ 1" ตั้งค่าคงที่เป็น 1 เสมอ ถ้าแถวในกลุ่ม
 // เดียวกันขัดกัน (บางแถวติ๊ก "เลือกได้ 1" บางแถวติ๊ก "หลายรายการ") ให้ "หลายรายการ" ชนะ
@@ -921,12 +925,12 @@ export function buildChoiceGroupsPayload(
   const membersByName = new Map<string, { rows: DetailRow[]; many: boolean }>();
 
   for (const row of details) {
-    const name = choiceGroupNameOf(row);
-    if (!name) continue;
-    const entry = membersByName.get(name) ?? { rows: [], many: false };
-    entry.rows.push(row);
-    if (row.set_choice_group_mode === "many") entry.many = true;
-    membersByName.set(name, entry);
+    for (const name of choiceGroupNamesOf(row)) {
+      const entry = membersByName.get(name) ?? { rows: [], many: false };
+      entry.rows.push(row);
+      if (row.set_choice_group_mode === "many") entry.many = true;
+      membersByName.set(name, entry);
+    }
   }
 
   return Array.from(membersByName.entries()).map(([name, entry], index) => ({
@@ -1002,7 +1006,7 @@ export function requiredFieldErrorKeys(state: RequiredProductFormState) {
       : null,
     state.statusSortFk === "2" &&
     state.details.some(
-      (row) => row.set_choice_group_mode !== "none" && !row.set_choice_group_name.trim(),
+      (row) => row.set_choice_group_mode !== "none" && !choiceGroupNamesOf(row).length,
     )
       ? "product.setChoiceGroupName"
       : null,
