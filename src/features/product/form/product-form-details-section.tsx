@@ -7,6 +7,7 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   Dialog,
   DialogContent,
@@ -305,30 +306,39 @@ export function ProductFormDetailsSection({ form }: { form: ProductFormWorkflow 
                     </Field>
                   ) : null}
                   {statusSortFk === "2" && row.set_choice_group_mode !== "none" ? (
-                    <Field>
+                    <Field className="md:col-span-2 lg:col-span-3">
                       <div className={labelRowClass}>
                         <FieldLabel>{t("product.setChoiceGroupName")}</FieldLabel>
                       </div>
                       {choiceGroupNameOptions.length ? (
-                        <Select
-                          value={row.set_choice_group_name}
-                          onValueChange={(value) =>
-                            updateDetail(row.id, { set_choice_group_name: value })
-                          }
-                        >
-                          <SelectTrigger className="w-full">
-                            <SelectValue placeholder={t("product.setChoiceGroupName")} />
-                          </SelectTrigger>
-                          <SelectContent position="popper">
-                            <SelectGroup>
-                              {choiceGroupNameOptions.map((option) => (
-                                <SelectItem key={option.uuid} value={option.name}>
-                                  {option.label}
-                                </SelectItem>
-                              ))}
-                            </SelectGroup>
-                          </SelectContent>
-                        </Select>
+                        <div className="flex flex-col gap-2 rounded-md border border-border bg-muted/10 p-2.5">
+                          {choiceGroupNameOptions.map((option) => {
+                            const checked = row.set_choice_group_names.includes(option.name);
+                            const checkboxId = `choice-group-name-${row.id}-${option.uuid}`;
+                            return (
+                              <FieldLabel
+                                key={option.uuid}
+                                htmlFor={checkboxId}
+                                className="min-h-8 cursor-pointer items-center gap-2 text-sm font-normal"
+                              >
+                                <Checkbox
+                                  id={checkboxId}
+                                  checked={checked}
+                                  onCheckedChange={(value) =>
+                                    updateDetail(row.id, {
+                                      set_choice_group_names: value
+                                        ? [...row.set_choice_group_names, option.name]
+                                        : row.set_choice_group_names.filter(
+                                            (name) => name !== option.name,
+                                          ),
+                                    })
+                                  }
+                                />
+                                {option.label}
+                              </FieldLabel>
+                            );
+                          })}
+                        </div>
                       ) : (
                         <FieldDescription className="text-xs">
                           {t("product.noTastesForChoiceGroup")}
