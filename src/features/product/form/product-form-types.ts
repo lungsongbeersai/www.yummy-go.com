@@ -10,6 +10,11 @@ export type SizeSelectOption =
   | SizeOption
   | NonNullable<Product["details"]>[number];
 
+// กลุ่มตัวเลือกในชุดอาหาร (เช่น "เลือกเนื้อสัตว์": ไก่/หมู) ไม่มีหน้าจัดการแยกต่างหาก —
+// แต่ละแถวประกาศชื่อกลุ่มของตัวเองตรงนี้เลย แถวที่พิมพ์/เลือกชื่อกลุ่มเดียวกันจะถูกจับกลุ่ม
+// เข้าด้วยกันโดยอัตโนมัติตอนบันทึก (ดู buildChoiceGroupsPayload ใน product-form-utils.ts)
+export type SetChoiceGroupMode = "none" | "one" | "many";
+
 export interface DetailRow {
   id: string;
   pro_detail_uuid: string;
@@ -27,20 +32,10 @@ export interface DetailRow {
   pro_detail_eDate: string;
   pro_detail_sTime: string;
   pro_detail_eTime: string;
-  // [] = ไม่มีกลุ่ม (บังคับรวมเหมือนเดิม) — เฉพาะสินค้าแบบ Set (statusSortFk "2")
-  // แถวหนึ่งเป็นสมาชิกได้หลายกลุ่มพร้อมกัน ค่าแต่ละตัวตรงกับ ChoiceGroupRow.client_ref
-  set_choice_group_client_refs: string[];
-}
-
-// กลุ่มตัวเลือกในชุดอาหาร (เช่น "เลือกเนื้อสัตว์": ไก่/หมู) — ขอบเขตอยู่แค่สินค้าตัวนี้
-// ไม่ใช่ pool กลางแบบ taste/topping จึงจัดการแบบ local state ในฟอร์มล้วนๆ ไม่มี dialog
-// CRUD แยกกับ backend จนกว่าจะกดบันทึกสินค้าทั้งฟอร์ม
-export interface ChoiceGroupRow {
-  id: string;
-  client_ref: string;
-  group_name_la: string;
-  group_name_eng: string;
-  max_select: string;
+  // "none" = ไม่มีกลุ่ม (บังคับรวมเหมือนเดิม) — เฉพาะสินค้าแบบ Set (statusSortFk "2")
+  set_choice_group_mode: SetChoiceGroupMode;
+  // ชื่อกลุ่ม — มีความหมายเมื่อ mode ไม่ใช่ "none" เท่านั้น
+  set_choice_group_name: string;
 }
 
 export interface ToppingSelection {
@@ -63,7 +58,6 @@ export interface RequiredProductFormState {
   selectedToppings: ToppingSelection[];
   prodTasteMaxSelect?: string;
   selectedTastes?: TasteSelection[];
-  choiceGroups?: ChoiceGroupRow[];
 }
 
 export interface ProductSavePayloadState extends RequiredProductFormState {

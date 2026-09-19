@@ -7,7 +7,6 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { Checkbox } from "@/components/ui/checkbox";
 import {
   Dialog,
   DialogContent,
@@ -36,8 +35,9 @@ import {
 import { Spinner } from "@/components/ui/spinner";
 import { Switch } from "@/components/ui/switch";
 import { cn } from "@/lib/utils";
-import type { BinaryFlag } from "./product-form-types";
+import type { BinaryFlag, SetChoiceGroupMode } from "./product-form-types";
 import {
+  SET_CHOICE_GROUP_MODE_OPTIONS,
   binaryFlag,
   entityLabel,
   sizeName,
@@ -58,10 +58,6 @@ export function ProductFormDetailsSection({ form }: { form: ProductFormWorkflow 
     bulkStockSaving,
     updateAllDetailStockModes,
     addDetail,
-    choiceGroups,
-    addChoiceGroup,
-    updateChoiceGroup,
-    removeChoiceGroup,
     typeLabel,
     detailModeHint,
     sizeOptions,
@@ -94,6 +90,15 @@ export function ProductFormDetailsSection({ form }: { form: ProductFormWorkflow 
   const showNoSetProductOptions = statusSortFk === "2" && !sizeOptions.length;
   const sizeSelectKey = showNoSetProductOptions ? "empty" : sizeOptions.length ? "ready" : "loading";
   const labelRowClass = "flex min-h-7 items-center justify-between gap-2";
+  // ชื่อกลุ่มที่แถวอื่นในสินค้านี้เคยตั้งไว้แล้ว — ใช้เป็น autocomplete ให้พิมพ์ชื่อเดิมซ้ำได้ง่าย
+  // (พิมพ์ชื่อเดียวกัน = จับเข้ากลุ่มเดียวกันอัตโนมัติตอนบันทึก ดู buildChoiceGroupsPayload)
+  const existingChoiceGroupNames = Array.from(
+    new Set(
+      details
+        .map((row) => row.set_choice_group_name.trim())
+        .filter(Boolean),
+    ),
+  );
 
   return (
     <>
@@ -109,80 +114,6 @@ export function ProductFormDetailsSection({ form }: { form: ProductFormWorkflow 
             <AlertTitle>{typeLabel}</AlertTitle>
             <AlertDescription>{detailModeHint}</AlertDescription>
           </Alert>
-          {statusSortFk === "2" ? (
-            <FieldSet className="gap-3 rounded-md border border-dashed border-border bg-muted/10 p-4">
-              <div className="flex items-center justify-between gap-3">
-                <div className="min-w-0">
-                  <FieldLegend className="text-sm font-semibold">
-                    {t("product.setChoiceGroups")}
-                  </FieldLegend>
-                  <FieldDescription className="text-xs">
-                    {t("product.setChoiceGroupsHint")}
-                  </FieldDescription>
-                </div>
-                <Button type="button" size="xs" variant="outline" onClick={addChoiceGroup}>
-                  <Plus data-icon="inline-start" />
-                  {t("actions.add")}
-                </Button>
-              </div>
-              {choiceGroups.length ? (
-                <div className="flex flex-col gap-3">
-                  {choiceGroups.map((group) => (
-                    <div
-                      key={group.id}
-                      className="grid gap-3 rounded-md border border-border bg-background p-3 sm:grid-cols-[1fr_1fr_140px_auto] sm:items-end"
-                    >
-                      <Field>
-                        <FieldLabel className="text-xs">{t("fields.nameLa")}</FieldLabel>
-                        <Input
-                          value={group.group_name_la}
-                          autoComplete="off"
-                          onChange={(event) =>
-                            updateChoiceGroup(group.id, { group_name_la: event.target.value })
-                          }
-                        />
-                      </Field>
-                      <Field>
-                        <FieldLabel className="text-xs">{t("fields.nameEn")}</FieldLabel>
-                        <Input
-                          value={group.group_name_eng}
-                          autoComplete="off"
-                          onChange={(event) =>
-                            updateChoiceGroup(group.id, { group_name_eng: event.target.value })
-                          }
-                        />
-                      </Field>
-                      <Field>
-                        <FieldLabel className="text-xs">
-                          {t("product.setChoiceGroupMaxSelect")}
-                        </FieldLabel>
-                        <FormattedNumberInput
-                          min={1}
-                          value={group.max_select}
-                          onValueChange={(value) =>
-                            updateChoiceGroup(group.id, { max_select: value })
-                          }
-                        />
-                      </Field>
-                      <Button
-                        type="button"
-                        size="icon-sm"
-                        variant="ghost"
-                        aria-label={t("actions.delete")}
-                        onClick={() => removeChoiceGroup(group.id)}
-                      >
-                        <Trash2 />
-                      </Button>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <FieldDescription className="text-xs">
-                  {t("product.noSetChoiceGroups")}
-                </FieldDescription>
-              )}
-            </FieldSet>
-          ) : null}
           {details.map((row, index) => {
               const selectedSize = sizeOptions.find((size) => sizeUuid(size) === row.size_uuid_fk);
               const selectedSizeLabel = selectedSize
@@ -342,38 +273,52 @@ export function ProductFormDetailsSection({ form }: { form: ProductFormWorkflow 
                       </FieldDescription>
                     </Field>
                   ) : null}
-                  {statusSortFk === "2" && choiceGroups.length ? (
+                  {statusSortFk === "2" ? (
                     <Field>
                       <div className={labelRowClass}>
-                        <FieldLabel>{t("product.setChoiceGroupAssign")}</FieldLabel>
+                        <FieldLabel>{t("product.setChoiceGroupMode")}</FieldLabel>
                       </div>
-                      <div className="flex flex-col gap-2 rounded-md border border-border bg-muted/10 p-2.5">
-                        {choiceGroups.map((group) => {
-                          const memberRefs = row.set_choice_group_client_refs ?? [];
-                          const checked = memberRefs.includes(group.client_ref);
-                          const checkboxId = `choice-group-${row.id}-${group.id}`;
-                          return (
-                            <FieldLabel
-                              key={group.id}
-                              htmlFor={checkboxId}
-                              className="min-h-8 cursor-pointer items-center gap-2 text-sm font-normal"
-                            >
-                              <Checkbox
-                                id={checkboxId}
-                                checked={checked}
-                                onCheckedChange={(value) =>
-                                  updateDetail(row.id, {
-                                    set_choice_group_client_refs: value
-                                      ? [...memberRefs, group.client_ref]
-                                      : memberRefs.filter((ref) => ref !== group.client_ref),
-                                  })
-                                }
-                              />
-                              {group.group_name_la || t("product.setChoiceGroupUnnamed")}
-                            </FieldLabel>
-                          );
-                        })}
+                      <Select
+                        value={row.set_choice_group_mode}
+                        onValueChange={(value) =>
+                          updateDetail(row.id, {
+                            set_choice_group_mode: value as SetChoiceGroupMode,
+                          })
+                        }
+                      >
+                        <SelectTrigger className="w-full">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent position="popper">
+                          <SelectGroup>
+                            {SET_CHOICE_GROUP_MODE_OPTIONS.map((mode) => (
+                              <SelectItem key={mode} value={mode}>
+                                {t(`product.setChoiceGroupModeOption.${mode}`)}
+                              </SelectItem>
+                            ))}
+                          </SelectGroup>
+                        </SelectContent>
+                      </Select>
+                    </Field>
+                  ) : null}
+                  {statusSortFk === "2" && row.set_choice_group_mode !== "none" ? (
+                    <Field>
+                      <div className={labelRowClass}>
+                        <FieldLabel>{t("product.setChoiceGroupName")}</FieldLabel>
                       </div>
+                      <Input
+                        list={`choice-group-names-${row.id}`}
+                        value={row.set_choice_group_name}
+                        autoComplete="off"
+                        onChange={(event) =>
+                          updateDetail(row.id, { set_choice_group_name: event.target.value })
+                        }
+                      />
+                      <datalist id={`choice-group-names-${row.id}`}>
+                        {existingChoiceGroupNames.map((name) => (
+                          <option key={name} value={name} />
+                        ))}
+                      </datalist>
                     </Field>
                   ) : null}
                   {statusSortFk === "1" ? (
