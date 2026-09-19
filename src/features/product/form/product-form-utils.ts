@@ -8,6 +8,7 @@ import type {
   ProductTaste,
   ProductTopping,
   SaveProductInput,
+  SaveProductSetChoiceGroupInput,
 } from "@/services/product";
 import type { Size } from "@/services/size";
 import type { Taste } from "@/services/taste";
@@ -15,6 +16,7 @@ import type { Topping } from "@/services/topping";
 import type { Unit } from "@/services/unit";
 import type {
   BinaryFlag,
+  ChoiceGroupRow,
   DetailRow,
   DetailStockSummary,
   ProductSavePayloadState,
@@ -715,7 +717,19 @@ export function emptyDetail(statusSortFk: StatusSortFk = "1"): DetailRow {
     pro_detail_setqty_cut_stock: "1",
     pro_detail_enabled: "1",
     pro_detail_status: statusSortFk === "3" ? "1" : "2",
+    set_choice_group_client_ref: "",
     ...EMPTY_PROMOTION_FIELDS,
+  };
+}
+
+export function emptyChoiceGroup(): ChoiceGroupRow {
+  const ref = rid();
+  return {
+    id: ref,
+    client_ref: ref,
+    group_name_la: "",
+    group_name_eng: "",
+    max_select: "1",
   };
 }
 
@@ -745,7 +759,25 @@ export function detailFromProduct(
     pro_detail_eDate: dateInputValue(detail.pro_detail_eDate),
     pro_detail_sTime: timeInputValue(detail.pro_detail_sTime),
     pro_detail_eTime: timeInputValue(detail.pro_detail_eTime),
+    // ค่า uuid จริงจาก backend ใช้แทน client_ref ได้เลย เพราะกลุ่มถูกลบสร้างใหม่ทุกครั้งที่
+    // บันทึกอยู่แล้ว (ดู buildChoiceGroupsPayload) ค่านี้แค่ต้องตรงกับ ChoiceGroupRow ที่คู่กัน
+    set_choice_group_client_ref: String(detail.set_choice_group_uuid_fk ?? ""),
   };
+}
+
+export function choiceGroupsFromProduct(
+  product: Product | null,
+): ChoiceGroupRow[] {
+  return (product?.set_choice_groups ?? []).map((group) => {
+    const clientRef = String(group.set_choice_group_uuid ?? "");
+    return {
+      id: clientRef || rid(),
+      client_ref: clientRef,
+      group_name_la: String(group.group_name_la ?? ""),
+      group_name_eng: String(group.group_name_eng ?? ""),
+      max_select: String(group.max_select ?? 1),
+    };
+  });
 }
 
 export function normalizeDetailsForStatus(
@@ -766,6 +798,9 @@ export function normalizeDetailsForStatus(
       pro_detail_bprice: row.pro_detail_bprice || "0",
       pro_detail_sprice: row.pro_detail_sprice || "0",
       pro_detail_qty_stock: row.pro_detail_qty_stock || "0",
+      // กลุ่มตัวเลือกมีความหมายเฉพาะสินค้าแบบ Set — สลับออกจาก Set แล้วต้องล้างทิ้ง
+      set_choice_group_client_ref:
+        targetStatus === "2" ? row.set_choice_group_client_ref || "" : "",
     };
 
     if (targetStatus !== "3") {
@@ -857,6 +892,7 @@ export function buildDetailPayload(
       ...base,
       pro_detail_setqty_cut_stock: numberFromFormatted(row.pro_detail_setqty_cut_stock),
       pro_detail_status: 2,
+      set_choice_group_client_ref: row.set_choice_group_client_ref || "",
     };
   }
 
@@ -871,6 +907,18 @@ export function buildDetailPayload(
     pro_detail_sTime: row.pro_detail_status === "2" ? row.pro_detail_sTime : null,
     pro_detail_eTime: row.pro_detail_status === "2" ? row.pro_detail_eTime : null,
   };
+}
+
+export function buildChoiceGroupsPayload(
+  choiceGroups: ChoiceGroupRow[],
+): SaveProductSetChoiceGroupInput[] {
+  return choiceGroups.map((group, index) => ({
+    client_ref: group.client_ref,
+    group_name_la: group.group_name_la.trim(),
+    group_name_eng: group.group_name_eng.trim() || undefined,
+    max_select: Math.max(1, Number(group.max_select) || 1),
+    group_sort: index + 1,
+  }));
 }
 
 export function detailStockSummary(
@@ -936,6 +984,21 @@ export function requiredFieldErrorKeys(state: RequiredProductFormState) {
     (state.selectedTastes ?? []).length < Number(state.prodTasteMaxSelect ?? 0)
       ? "product.sections.tastes"
       : null,
+    state.statusSortFk === "2" &&
+    (state.choiceGroups ?? []).some((group) => !group.group_name_la.trim())
+      ? "product.setChoiceGroupName"
+      : null,
+    state.statusSortFk === "2" &&
+    (state.choiceGroups ?? []).some((group) => {
+      const memberCount = state.details.filter(
+        (row) => row.set_choice_group_client_ref === group.client_ref,
+      ).length;
+      return (
+        memberCount < 1 || Number(group.max_select) > memberCount
+      );
+    })
+      ? "product.setChoiceGroupMembers"
+      : null,
   ].filter(Boolean) as Array<string | string[]>;
 }
 
@@ -987,6 +1050,10 @@ export function buildSaveProductPayload(
             taste_uuid: row.taste_uuid,
             taste_sort: index + 1,
           }))
+        : [],
+    set_choice_groups:
+      state.statusSortFk === "2"
+        ? buildChoiceGroupsPayload(state.choiceGroups ?? [])
         : [],
   };
 }

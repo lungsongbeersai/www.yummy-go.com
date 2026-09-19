@@ -5,6 +5,7 @@ import type {
   PosProduct,
   ProdDetail,
   ProdItem,
+  ProdSetChoiceGroup,
   ProdTaste,
   ProdTopping,
 } from "@/services/pos/types";
@@ -15,6 +16,7 @@ import type {
   ApiPosProduct,
   ApiProdDetail,
   ApiProdItem,
+  ApiProdSetChoiceGroup,
   ApiProdTaste,
   ApiProdTopping,
 } from "@/services/pos/api-types";
@@ -40,6 +42,20 @@ export function mapApiProdDetail(detail: ApiProdDetail): ProdDetail {
     proDetailSTime: detail.pro_detail_sTime,
     proDetailETime: detail.pro_detail_eTime,
     defaultQty: detail.default_qty,
+    setChoiceGroupUuidFk: detail.set_choice_group_uuid_fk ?? null,
+  };
+}
+
+export function mapApiProdSetChoiceGroup(
+  group: ApiProdSetChoiceGroup,
+): ProdSetChoiceGroup {
+  return {
+    setChoiceGroupUuid: group.set_choice_group_uuid,
+    groupName: group.group_name,
+    groupNameLa: group.group_name_la,
+    groupNameEng: group.group_name_eng,
+    maxSelect: group.max_select,
+    groupSort: group.group_sort,
   };
 }
 
@@ -93,6 +109,7 @@ export function mapApiProdItem(product: ApiProdItem): ProdItem {
     ...(product.tastes !== undefined
       ? { tastes: product.tastes.map(mapApiProdTaste) }
       : {}),
+    setChoiceGroups: (product.set_choice_groups ?? []).map(mapApiProdSetChoiceGroup),
   };
 }
 

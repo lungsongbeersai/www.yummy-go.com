@@ -41,6 +41,7 @@ import {
   selectedToppingsFromQtyMap,
   selectedTastesFromUuids,
   tasteSelectionLimit,
+  toggleSetChoiceUuid,
   toggleTasteUuid,
   toggleToppingQty,
   toppingSelectionLimit,
@@ -110,6 +111,9 @@ export function useOrderCustomerWorkflow({
   const [selectedProduct, setSelectedProduct] = useState<ProdItem | null>(null);
   const [detailUuid, setDetailUuid] = useState("");
   const [selectedTasteUuids, setSelectedTasteUuids] = useState<string[]>([]);
+  const [selectedSetChoiceUuids, setSelectedSetChoiceUuids] = useState<
+    Record<string, string[]>
+  >({});
   const [toppingQtyByUuid, setToppingQtyByUuid] = useState<
     Record<string, number>
   >({});
@@ -297,6 +301,7 @@ export function useOrderCustomerWorkflow({
       noteText,
       product,
       quantity,
+      selectedSetChoiceUuids: setChoiceUuids,
       tastes,
       toppings,
     }: {
@@ -305,6 +310,7 @@ export function useOrderCustomerWorkflow({
       noteText: string;
       product?: ProdItem | null;
       quantity: number;
+      selectedSetChoiceUuids?: Record<string, string[]>;
       tastes: ProdTaste[];
       toppings: SelectedTopping[];
     }) => {
@@ -317,6 +323,7 @@ export function useOrderCustomerWorkflow({
           noteText,
           product,
           quantity,
+          selectedSetChoiceUuids: setChoiceUuids,
           tableUuid: initialTableUuid,
           tastes,
           toppings,
@@ -373,6 +380,7 @@ export function useOrderCustomerWorkflow({
       setSelectedTasteUuids([]);
       setToppingQtyByUuid({});
       setRememberedToppingQtyByUuid({});
+      setSelectedSetChoiceUuids({});
       setNote("");
       setProductSheetOpen(true);
     },
@@ -673,6 +681,21 @@ export function useOrderCustomerWorkflow({
     setSelectedTasteUuids((current) => toggleTasteUuid(current, uuid, limit));
   }
 
+  function toggleSetChoice(groupUuid: string, detailUuid: string, maxSelect: number) {
+    const current = selectedSetChoiceUuids[groupUuid] ?? [];
+    if (!current.includes(detailUuid) && current.length >= maxSelect) {
+      showToast({
+        title: t("pos.setChoiceSelectionLimitReached", { count: maxSelect }),
+        tone: "info",
+      });
+      return;
+    }
+    setSelectedSetChoiceUuids((state) => ({
+      ...state,
+      [groupUuid]: toggleSetChoiceUuid(current, detailUuid, maxSelect),
+    }));
+  }
+
   function changeSelectedToppingQty(uuid: string, nextQty: number) {
     setToppingQtyByUuid((current) => changeToppingQty(current, uuid, nextQty));
   }
@@ -715,6 +738,7 @@ export function useOrderCustomerWorkflow({
         noteText: note,
         product: selectedProduct,
         quantity: qty,
+        selectedSetChoiceUuids,
         tastes: selectedTastes,
         toppings: selectedToppings,
       });
@@ -797,6 +821,7 @@ export function useOrderCustomerWorkflow({
     selectedProduct,
     selectedTastes,
     selectedTasteUuids,
+    selectedSetChoiceUuids,
     selectedTable,
     selectedToppings,
     setActiveSort,
@@ -811,6 +836,7 @@ export function useOrderCustomerWorkflow({
     t,
     toggleSelectedTopping,
     toggleSelectedTaste,
+    toggleSetChoice,
     toppingQtyByUuid,
     zones,
   };

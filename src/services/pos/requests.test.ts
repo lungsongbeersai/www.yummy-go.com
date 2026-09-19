@@ -284,9 +284,11 @@ describe("pos requests", () => {
           proDetailEDate: "2026-07-31",
           proDetailSTime: "09:00",
           proDetailETime: "18:00",
-          defaultQty: 2
+          defaultQty: 2,
+          setChoiceGroupUuidFk: null
         }
       ],
+      setChoiceGroups: [],
       tastes: [
         {
           tasteUuid: "taste-1",

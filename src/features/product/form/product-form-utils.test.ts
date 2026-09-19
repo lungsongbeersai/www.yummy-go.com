@@ -4,10 +4,13 @@ import {
   TOPPING_HAS,
   TOPPING_NONE,
   binaryFlag,
+  buildChoiceGroupsPayload,
   buildDetailPayload,
   buildSaveProductPayload,
+  choiceGroupsFromProduct,
   detailFromProduct,
   detailStockSummary,
+  emptyChoiceGroup,
   emptyDetail,
   filterSizeOptionsByText,
   findSizeUuidByName,
@@ -559,5 +562,117 @@ describe("product form validation and payload helpers", () => {
         "set b"
       )
     ).toEqual([{ size_uuid: "size-2", size_name_la: "ຊຸດ B", size_name_eng: "Set B" }]);
+  });
+});
+
+describe("set choice group helpers", () => {
+  it("builds the save payload from local rows, defaulting max_select to at least 1", () => {
+    const group = { ...emptyChoiceGroup(), group_name_la: "ເລືອກເນື້ອສັດ", max_select: "0" };
+    expect(buildChoiceGroupsPayload([group])).toEqual([
+      {
+        client_ref: group.client_ref,
+        group_name_la: "ເລືອກເນື້ອສັດ",
+        group_name_eng: undefined,
+        max_select: 1,
+        group_sort: 1,
+      },
+    ]);
+  });
+
+  it("hydrates local rows from a saved product's set_choice_groups", () => {
+    const product = {
+      prod_uuid: "prod-1",
+      set_choice_groups: [
+        { set_choice_group_uuid: "grp-1", group_name_la: "ໄກ່/ໝູ", max_select: 1 },
+      ],
+    } as unknown as Product;
+
+    expect(choiceGroupsFromProduct(product)).toEqual([
+      {
+        id: "grp-1",
+        client_ref: "grp-1",
+        group_name_la: "ໄກ່/ໝູ",
+        group_name_eng: "",
+        max_select: "1",
+      },
+    ]);
+  });
+
+  it("carries the assigned group through the detail payload only for Set products", () => {
+    const row = detail({ set_choice_group_client_ref: "grp-1" });
+    expect(buildDetailPayload(row, "2")).toMatchObject({
+      set_choice_group_client_ref: "grp-1",
+    });
+    expect(buildDetailPayload(row, "1")).not.toHaveProperty(
+      "set_choice_group_client_ref",
+    );
+  });
+
+  it("flags an unnamed choice group as a required-field error", () => {
+    const state = {
+      prodNameLa: "Set",
+      cateUuidFk: "cate-1",
+      uniteUuidFk: "unit-1",
+      details: [detail({ set_choice_group_client_ref: "grp-1" })],
+      statusSortFk: "2" as const,
+      prodToppingStatus: "1" as const,
+      selectedToppings: [],
+      choiceGroups: [{ ...emptyChoiceGroup(), client_ref: "grp-1", group_name_la: "" }],
+    };
+    expect(requiredFieldErrors(state, t)).toContain("product.setChoiceGroupName");
+  });
+
+  it("flags a choice group whose max_select exceeds how many rows are assigned to it", () => {
+    const state = {
+      prodNameLa: "Set",
+      cateUuidFk: "cate-1",
+      uniteUuidFk: "unit-1",
+      details: [detail({ set_choice_group_client_ref: "grp-1" })],
+      statusSortFk: "2" as const,
+      prodToppingStatus: "1" as const,
+      selectedToppings: [],
+      choiceGroups: [
+        { ...emptyChoiceGroup(), client_ref: "grp-1", group_name_la: "ໄກ່/ໝູ", max_select: "2" },
+      ],
+    };
+    expect(requiredFieldErrors(state, t)).toContain("product.setChoiceGroupMembers");
+  });
+
+  it("only sends set_choice_groups for statusSortFk 2", () => {
+    const choiceGroups = [
+      { ...emptyChoiceGroup(), client_ref: "grp-1", group_name_la: "ໄກ່/ໝູ" },
+    ];
+    const base = {
+      branchUuid: "branch-1",
+      prodCode: "P-1",
+      prodNameLa: "Set",
+      prodNameEng: "",
+      cateUuidFk: "cate-1",
+      uniteUuidFk: "unit-1",
+      prodOrderPoint: "5",
+      prodNotification: "2" as const,
+      prodSetPrice: "0",
+      prodStatusImge: "2" as const,
+      prodImage: "#10b981",
+      details: [detail({ set_choice_group_client_ref: "grp-1" })],
+      prodToppingStatus: "1" as const,
+      selectedToppings: [],
+      choiceGroups,
+    };
+
+    expect(
+      buildSaveProductPayload({ ...base, statusSortFk: "2" }).set_choice_groups,
+    ).toEqual([
+      {
+        client_ref: "grp-1",
+        group_name_la: "ໄກ່/ໝູ",
+        group_name_eng: undefined,
+        max_select: 1,
+        group_sort: 1,
+      },
+    ]);
+    expect(
+      buildSaveProductPayload({ ...base, statusSortFk: "1" }).set_choice_groups,
+    ).toEqual([]);
   });
 });
