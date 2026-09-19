@@ -285,7 +285,7 @@ describe("pos requests", () => {
           proDetailSTime: "09:00",
           proDetailETime: "18:00",
           defaultQty: 2,
-          setChoiceGroupUuidFk: null
+          setChoiceGroupUuidFks: []
         }
       ],
       setChoiceGroups: [],

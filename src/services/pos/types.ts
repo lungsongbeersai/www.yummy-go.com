@@ -91,8 +91,8 @@ export interface ProdDetail {
   proDetailSTime?: string | null;
   proDetailETime?: string | null;
   defaultQty?: number;
-  // null = ไม่มีกลุ่ม (บังคับรวมเหมือนเดิม) — เฉพาะสินค้าแบบ Set
-  setChoiceGroupUuidFk?: string | null;
+  // แถวหนึ่งเป็นสมาชิกได้หลายกลุ่มพร้อมกัน — [] = ไม่มีกลุ่ม (บังคับรวมเหมือนเดิม)
+  setChoiceGroupUuidFks?: string[];
 }
 
 export interface ProdSetChoiceGroup {

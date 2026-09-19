@@ -58,7 +58,8 @@ export interface ProductDetail extends ApiEntity {
   pro_detail_setqty_cut_stock?: number | string;
   pro_detail_enabled?: number | string;
   pro_detail_enabled_text?: string;
-  set_choice_group_uuid_fk?: string | null;
+  // แถวหนึ่งเป็นสมาชิกได้หลายกลุ่มพร้อมกัน — [] หรือไม่ส่งมา = ไม่มีกลุ่ม (บังคับรวมเหมือนเดิม)
+  set_choice_group_uuid_fks?: string[];
 }
 
 export interface ProductDetailFormInput extends ApiEntity {}
@@ -116,8 +117,8 @@ export interface SaveProductDetailInput extends ApiEntity {
   pro_detail_eDate?: string;
   pro_detail_sTime?: string | null;
   pro_detail_eTime?: string | null;
-  /** Correlates with SaveProductSetChoiceGroupInput.client_ref; "" = no group (always included). */
-  set_choice_group_client_ref?: string;
+  /** Correlates with SaveProductSetChoiceGroupInput.client_ref; a row can be in more than one group at once. [] = no group (always included). */
+  set_choice_group_client_refs?: string[];
 }
 
 export interface SaveProductSetChoiceGroupInput extends ApiEntity {

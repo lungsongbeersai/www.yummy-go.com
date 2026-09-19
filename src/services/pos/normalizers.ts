@@ -42,7 +42,7 @@ export function mapApiProdDetail(detail: ApiProdDetail): ProdDetail {
     proDetailSTime: detail.pro_detail_sTime,
     proDetailETime: detail.pro_detail_eTime,
     defaultQty: detail.default_qty,
-    setChoiceGroupUuidFk: detail.set_choice_group_uuid_fk ?? null,
+    setChoiceGroupUuidFks: detail.set_choice_group_uuid_fks ?? [],
   };
 }
 

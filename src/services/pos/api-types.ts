@@ -24,8 +24,8 @@ export interface ApiProdDetail extends ApiEntity {
   pro_detail_sTime?: string | null;
   pro_detail_eTime?: string | null;
   default_qty?: number;
-  // "" ຫຼື null = ไม่มีกลุ่ม (บังคับรวมเหมือนเดิม) — เฉพาะสินค้าแบบ Set
-  set_choice_group_uuid_fk?: string | null;
+  // แถวหนึ่งเป็นสมาชิกได้หลายกลุ่มพร้อมกัน — [] ຫຼື ไม่ส่งมา = ไม่มีกลุ่ม (บังคับรวมเหมือนเดิม)
+  set_choice_group_uuid_fks?: string[];
 }
 
 export interface ApiProdSetChoiceGroup extends ApiEntity {

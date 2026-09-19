@@ -598,13 +598,13 @@ describe("set choice group helpers", () => {
     ]);
   });
 
-  it("carries the assigned group through the detail payload only for Set products", () => {
-    const row = detail({ set_choice_group_client_ref: "grp-1" });
+  it("carries the assigned groups through the detail payload only for Set products", () => {
+    const row = detail({ set_choice_group_client_refs: ["grp-1", "grp-2"] });
     expect(buildDetailPayload(row, "2")).toMatchObject({
-      set_choice_group_client_ref: "grp-1",
+      set_choice_group_client_refs: ["grp-1", "grp-2"],
     });
     expect(buildDetailPayload(row, "1")).not.toHaveProperty(
-      "set_choice_group_client_ref",
+      "set_choice_group_client_refs",
     );
   });
 
@@ -613,7 +613,7 @@ describe("set choice group helpers", () => {
       prodNameLa: "Set",
       cateUuidFk: "cate-1",
       uniteUuidFk: "unit-1",
-      details: [detail({ set_choice_group_client_ref: "grp-1" })],
+      details: [detail({ set_choice_group_client_refs: ["grp-1"] })],
       statusSortFk: "2" as const,
       prodToppingStatus: "1" as const,
       selectedToppings: [],
@@ -627,7 +627,7 @@ describe("set choice group helpers", () => {
       prodNameLa: "Set",
       cateUuidFk: "cate-1",
       uniteUuidFk: "unit-1",
-      details: [detail({ set_choice_group_client_ref: "grp-1" })],
+      details: [detail({ set_choice_group_client_refs: ["grp-1"] })],
       statusSortFk: "2" as const,
       prodToppingStatus: "1" as const,
       selectedToppings: [],
@@ -636,6 +636,23 @@ describe("set choice group helpers", () => {
       ],
     };
     expect(requiredFieldErrors(state, t)).toContain("product.setChoiceGroupMembers");
+  });
+
+  it("lets one row satisfy the member-count requirement of more than one group at once", () => {
+    const state = {
+      prodNameLa: "Set",
+      cateUuidFk: "cate-1",
+      uniteUuidFk: "unit-1",
+      details: [detail({ set_choice_group_client_refs: ["grp-sauce", "grp-spice"] })],
+      statusSortFk: "2" as const,
+      prodToppingStatus: "1" as const,
+      selectedToppings: [],
+      choiceGroups: [
+        { ...emptyChoiceGroup(), client_ref: "grp-sauce", group_name_la: "ນ້ຳຈິ້ມ" },
+        { ...emptyChoiceGroup(), client_ref: "grp-spice", group_name_la: "ລະດັບເຜັດ" },
+      ],
+    };
+    expect(requiredFieldErrors(state, t)).not.toContain("product.setChoiceGroupMembers");
   });
 
   it("only sends set_choice_groups for statusSortFk 2", () => {
@@ -654,7 +671,7 @@ describe("set choice group helpers", () => {
       prodSetPrice: "0",
       prodStatusImge: "2" as const,
       prodImage: "#10b981",
-      details: [detail({ set_choice_group_client_ref: "grp-1" })],
+      details: [detail({ set_choice_group_client_refs: ["grp-1"] })],
       prodToppingStatus: "1" as const,
       selectedToppings: [],
       choiceGroups,
