@@ -42,6 +42,7 @@ import {
   entityLabel,
   sizeName,
   sizeUuid,
+  tasteUuid,
 } from "./product-form-utils";
 import { ProductFormSectionHeader } from "./product-form-section-header";
 import type { ProductFormWorkflow } from "./use-product-form-workflow";
@@ -63,6 +64,7 @@ export function ProductFormDetailsSection({ form }: { form: ProductFormWorkflow 
     sizeOptions,
     setOptionOptions,
     filteredSetOptionOptions,
+    tasteOptions,
     language,
     statusSortFk,
     sizeSaving,
@@ -90,15 +92,16 @@ export function ProductFormDetailsSection({ form }: { form: ProductFormWorkflow 
   const showNoSetProductOptions = statusSortFk === "2" && !sizeOptions.length;
   const sizeSelectKey = showNoSetProductOptions ? "empty" : sizeOptions.length ? "ready" : "loading";
   const labelRowClass = "flex min-h-7 items-center justify-between gap-2";
-  // ชื่อกลุ่มที่แถวอื่นในสินค้านี้เคยตั้งไว้แล้ว — ใช้เป็น autocomplete ให้พิมพ์ชื่อเดิมซ้ำได้ง่าย
-  // (พิมพ์ชื่อเดียวกัน = จับเข้ากลุ่มเดียวกันอัตโนมัติตอนบันทึก ดู buildChoiceGroupsPayload)
-  const existingChoiceGroupNames = Array.from(
-    new Set(
-      details
-        .map((row) => row.set_choice_group_name.trim())
-        .filter(Boolean),
-    ),
-  );
+  // ชื่อกลุ่มมาจากรายการ "รสชาติ" กลางของร้าน (Settings > รสชาติ) ไม่ใช่พิมพ์เอง — เก็บค่าเป็น
+  // taste_name_la เสมอ (ไม่ว่าจะดูฟอร์มเป็นภาษาไหน) เพื่อให้เป็น key ที่คงที่ตอนจับกลุ่มตามชื่อ
+  // (ดู buildChoiceGroupsPayload) ส่วนที่โชว์ในตัวเลือกยังปรับตามภาษาได้ตามปกติ
+  const choiceGroupNameOptions = tasteOptions
+    .map((taste) => ({
+      uuid: tasteUuid(taste),
+      name: String(taste.taste_name_la ?? taste.taste_name_eng ?? "").trim(),
+      label: entityLabel(taste, "taste_name_eng", "taste_name_la", language, ""),
+    }))
+    .filter((option) => option.uuid && option.name);
 
   return (
     <>
@@ -306,19 +309,31 @@ export function ProductFormDetailsSection({ form }: { form: ProductFormWorkflow 
                       <div className={labelRowClass}>
                         <FieldLabel>{t("product.setChoiceGroupName")}</FieldLabel>
                       </div>
-                      <Input
-                        list={`choice-group-names-${row.id}`}
-                        value={row.set_choice_group_name}
-                        autoComplete="off"
-                        onChange={(event) =>
-                          updateDetail(row.id, { set_choice_group_name: event.target.value })
-                        }
-                      />
-                      <datalist id={`choice-group-names-${row.id}`}>
-                        {existingChoiceGroupNames.map((name) => (
-                          <option key={name} value={name} />
-                        ))}
-                      </datalist>
+                      {choiceGroupNameOptions.length ? (
+                        <Select
+                          value={row.set_choice_group_name}
+                          onValueChange={(value) =>
+                            updateDetail(row.id, { set_choice_group_name: value })
+                          }
+                        >
+                          <SelectTrigger className="w-full">
+                            <SelectValue placeholder={t("product.setChoiceGroupName")} />
+                          </SelectTrigger>
+                          <SelectContent position="popper">
+                            <SelectGroup>
+                              {choiceGroupNameOptions.map((option) => (
+                                <SelectItem key={option.uuid} value={option.name}>
+                                  {option.label}
+                                </SelectItem>
+                              ))}
+                            </SelectGroup>
+                          </SelectContent>
+                        </Select>
+                      ) : (
+                        <FieldDescription className="text-xs">
+                          {t("product.noTastesForChoiceGroup")}
+                        </FieldDescription>
+                      )}
                     </Field>
                   ) : null}
                   {statusSortFk === "1" ? (
