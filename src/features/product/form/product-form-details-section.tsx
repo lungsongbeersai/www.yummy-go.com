@@ -331,7 +331,7 @@ export function ProductFormDetailsSection({ form }: { form: ProductFormWorkflow 
                         </Select>
                       ) : (
                         <FieldDescription className="text-xs">
-                          {t("product.noTastes")}
+                          {t("product.noTastesForChoiceGroup")}
                         </FieldDescription>
                       )}
                     </Field>

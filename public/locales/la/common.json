@@ -1784,6 +1784,7 @@
     "tasteMaxSelectHint": "ເລືອກ 0 ເພື່ອປິດ ຫຼື ຈຳກັດໃຫ້ລູກຄ້າເລືອກໄດ້ 1-2 ລົດຊາດ.",
     "tasteSelectedCount": "ລົດຊາດ {{count}} ລາຍການ",
     "noTastes": "ຍັງບໍ່ມີລົດຊາດ.",
+    "noTastesForChoiceGroup": "ຍັງບໍ່ມີລົດຊາດ — ໄປເພີ່ມທີ່ Settings > Taste ກ່ອນ ແລ້ວກັບມາທີ່ນີ້.",
     "unlimited": "ບໍ່ຈຳກັດ",
     "type": "ປະເພດ"
   },

@@ -1787,6 +1787,7 @@
     "tasteMaxSelectHint": "Select 0 to disable tastes, or limit customers to one or two choices.",
     "tasteSelectedCount": "{{count}} taste options",
     "noTastes": "No tastes are available yet.",
+    "noTastesForChoiceGroup": "No tastes yet — add some in Settings > Taste first, then come back here.",
     "unlimited": "Unlimited",
     "type": "Type"
   },
