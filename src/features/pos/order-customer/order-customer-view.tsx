@@ -126,6 +126,7 @@ export function OrderCustomerView({
   const nativeShellActive = useIsNativeShellActive();
   const setHeaderRefreshAction = useNativeHeaderStore((state) => state.setRefreshAction);
   const setHeaderTitle = useNativeHeaderStore((state) => state.setTitle);
+  const setHeaderBackAction = useNativeHeaderStore((state) => state.setBackAction);
   // refreshAll ไม่ได้ห่อ useCallback ในตัว workflow เอง (ได้ reference ใหม่ทุก render) —
   // เก็บ latest ไว้ใน ref แทนใส่ใน deps ตรง ๆ กัน effect ลงทะเบียนด้านล่างยิงซ้ำทุก render
   // โดยไม่จำเป็น — อัปเดต ref ผ่าน effect เปล่า (ไม่ใช่ระหว่าง render ตรง ๆ) ตามกฎ
@@ -133,6 +134,12 @@ export function OrderCustomerView({
   const refreshAllRef = useRef(refreshAll);
   useEffect(() => {
     refreshAllRef.current = refreshAll;
+  });
+  // openTablesPage เดียวกับปุ่มย้อนกลับบนเว็บ (มี cleanup draft ที่ยังไม่ยืนยันของ
+  // ตัวเองอยู่ข้างใน ดู use-draft-cleanup.ts) เก็บ ref ด้วยเหตุผลเดียวกับ refreshAllRef
+  const openTablesPageRef = useRef(openTablesPage);
+  useEffect(() => {
+    openTablesPageRef.current = openTablesPage;
   });
 
   // ปุ่มรีเฟรช/ภาษา/ธีมเดิมอยู่ในเมนู "..." ของแถวค้นหา ซึ่งซ้ำกับสิ่งที่ NativeTopBar
@@ -146,6 +153,15 @@ export function OrderCustomerView({
     });
     return () => setHeaderRefreshAction(null);
   }, [nativeShellActive, loadingTables, loadingMenu, setHeaderRefreshAction]);
+
+  // ปุ่ม Back ของ NativeTopBar ปกติแค่ router.back() เฉย ๆ ซึ่งข้าม cleanup draft
+  // ที่ยังไม่ยืนยันของตัวเองไปเลย (บนเว็บปุ่มย้อนกลับในหน้านี้เรียก openTablesPage
+  // ตรง ๆ อยู่แล้ว) ลงทะเบียน override ผ่าน store กลางแบบเดียวกับปุ่มรีเฟรชด้านบน
+  useEffect(() => {
+    if (!nativeShellActive) return;
+    setHeaderBackAction(() => void openTablesPageRef.current());
+    return () => setHeaderBackAction(null);
+  }, [nativeShellActive, setHeaderBackAction]);
 
   // โชว์ชื่อโต๊ะ (เช่น "T01") ใน top bar แทนหัวข้อ static "ອໍເດີລູກຄ້າ" ของ route —
   // ผู้ใช้ต้องดูออกไวว่ากำลังสั่งให้โต๊ะไหนอยู่ ไม่ใช่แค่ชื่อหน้าเฉย ๆ
