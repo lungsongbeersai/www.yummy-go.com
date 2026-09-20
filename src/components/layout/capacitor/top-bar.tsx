@@ -56,6 +56,7 @@ export function NativeTopBar({
   const user = useAuthStore((state) => state.user);
   const refreshAction = useNativeHeaderStore((state) => state.refreshAction);
   const titleOverride = useNativeHeaderStore((state) => state.title);
+  const backAction = useNativeHeaderStore((state) => state.backAction);
   // useAppShellData ใส่ home ไว้เสมอ อาเรย์จึงไม่มีทางว่าง — ไม่ต้องมี fallback
   const current = breadcrumbs[breadcrumbs.length - 1];
   // หน้าลึก ๆ อย่างอ๋อเดอร์โต๊ะ ลงทะเบียน title ที่จำเพาะกว่า (เช่นชื่อโต๊ะ) ผ่าน
@@ -64,6 +65,13 @@ export function NativeTopBar({
   const showBack = shouldShowBackButton(model, pathname);
 
   function goBack() {
+    // หน้าที่ต้องทำอะไรก่อนออกจากหน้าเสมอ (เช่น cleanup draft ที่ยังไม่ยืนยันของ
+    // อ๋อเดอร์โต๊ะ — ดู use-draft-cleanup.ts) ลงทะเบียน override ไว้ผ่าน store นี้
+    if (backAction) {
+      backAction();
+      return;
+    }
+
     const fallback = backFallbackPath(pathname);
     if (fallback) {
       router.push(internalRoute(fallback));
