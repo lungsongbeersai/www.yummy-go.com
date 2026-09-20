@@ -21,6 +21,7 @@ import { cn } from "@/lib/utils";
 import { optionalString } from "@/lib/values";
 import { useNativeHeaderStore } from "@/stores/native-header-store";
 import { SelectedTableCartPanel } from "../table-selection/selected-table-cart-panel";
+import { DraftCleanupWarningDialog } from "./draft-cleanup-warning-dialog";
 import { productMedia } from "./product-media";
 import {
   PRODUCT_GRID_CLASS,
@@ -85,6 +86,11 @@ export function OrderCustomerView({
     openOrAddProduct,
     openCartSheet,
     openTablesPage,
+    draftCleanupWarningOpen,
+    draftCleanupSecondsLeft,
+    onDraftCleanupExtend,
+    onDraftCleanupDiscardNow,
+    onDraftCleanupConfirmOrder,
     productMode,
     productSheetOpen,
     printerContext,
@@ -227,7 +233,7 @@ export function OrderCustomerView({
                   size="icon"
                   aria-label={t("actions.back")}
                   className="size-11 shrink-0 rounded-full bg-white/15 text-white shadow-sm hover:bg-white/25 hover:text-white dark:bg-card dark:text-foreground dark:hover:bg-accent dark:hover:text-foreground"
-                  onClick={openTablesPage}
+                  onClick={() => void openTablesPage()}
                 >
                   <ArrowLeft data-icon="inline-start" />
                 </Button>
@@ -268,7 +274,7 @@ export function OrderCustomerView({
                 size="icon"
                 aria-label={t("actions.back")}
                 className={headerIconButtonClass(nativeShellActive)}
-                onClick={openTablesPage}
+                onClick={() => void openTablesPage()}
               >
                 <ArrowLeft data-icon="inline-start" />
               </Button>
@@ -510,6 +516,13 @@ export function OrderCustomerView({
           />
         ) : null}
       </ProductOptionsOverlay>
+      <DraftCleanupWarningDialog
+        open={draftCleanupWarningOpen}
+        secondsLeft={draftCleanupSecondsLeft}
+        onConfirmOrder={onDraftCleanupConfirmOrder}
+        onDiscardNow={onDraftCleanupDiscardNow}
+        onKeepGoing={onDraftCleanupExtend}
+      />
     </div>
   );
 }

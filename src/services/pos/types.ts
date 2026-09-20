@@ -406,6 +406,9 @@ export interface CartItemDetail extends ApiEntity {
   order_it_note?: string;
   order_it_status?: number;
   order_it_status_text?: string;
+  // login_uuid ของพนักงานที่เพิ่มรายการนี้ — ใช้แยก draft (WAITING_CONFIRM) ของ
+  // แต่ละคนบนโต๊ะเดียวกัน ดู use-draft-cleanup.ts
+  order_it_created_by?: string | null;
   affects_total?: boolean;
 }
 
@@ -1147,6 +1150,20 @@ export interface CancelOrderItemResponse extends ApiEntity {
   print_job?: ConfirmToKitchenPrintJob;
 
   pending_query?: ConfirmToKitchenPendingQuery;
+}
+
+export interface CleanupDraftOrderItemsInput {
+  order_uuid: string;
+}
+
+export interface CleanupDraftOrderItemsResponse extends ApiEntity {
+  status: string;
+  message: string;
+  order_uuid: string;
+  cleaned_count: number;
+  cleaned_item_uuids: string[];
+  deleted_order: boolean;
+  table_freed: boolean;
 }
 
 export interface PrintInvoiceRequest extends ApiEntity {

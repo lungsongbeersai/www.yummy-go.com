@@ -50,6 +50,7 @@ import {
   type SelectedTopping,
 } from "./order-customer-utils";
 import { cartForTable, cartQuantityCount } from "../table-selection/utils";
+import { useDraftCleanup } from "./use-draft-cleanup";
 import { useOrderCustomerRealtime } from "./use-order-customer-realtime";
 
 export type OrderCustomerWorkflowInput = {
@@ -146,6 +147,10 @@ export function useOrderCustomerWorkflow({
     if (!initialTableUuid) return cart;
     return cartForTable(cart, initialTableUuid);
   }, [cart, initialTableUuid]);
+  const draftCleanup = useDraftCleanup({
+    cart: selectedCart,
+    userUuid: user?.uuid ?? "",
+  });
   const activeProducts = useMemo(
     () => flattenProducts(menuBySort[activeSort]),
     [activeSort, menuBySort],
@@ -592,9 +597,39 @@ export function useOrderCustomerWorkflow({
     };
   }, [language, resolvePrinterDeviceContext, user?.uuid]);
 
-  function openTablesPage() {
+  async function openTablesPage() {
+    // มีรายการที่ตัวเองยังไม่กด "ยืนยันออเดอร์" ค้างอยู่ (WAITING_CONFIRM) — ล้างทิ้ง
+    // ก่อนออกจากหน้านี้เสมอ ไม่ปล่อยให้ค้างจนกว่าจะ timeout (ดู use-draft-cleanup.ts)
+    // cleanup ไม่สำเร็จ = ห้ามออกจากหน้านี้ ให้ toast error แล้วผู้ใช้กดย้อนกลับซ้ำเอง
+    if (draftCleanup.hasPendingDraft) {
+      try {
+        await draftCleanup.cleanupNow();
+      } catch (error) {
+        showToast({
+          title: t("pos.draftCleanupFailed"),
+          description: error instanceof Error ? error.message : "",
+          tone: "error",
+        });
+        return;
+      }
+    }
+
     // ร้านไม่มีโต๊ะไม่มีหน้าเลือกโต๊ะให้กลับไป — ปุ่ม "ย้อนกลับ" จึงออกไปหน้าแรกแทน
     router.replace(user?.store_table_status === 2 ? "/" : "/posAll/tables");
+  }
+
+  // ปุ่ม "ยกเลิกรายการ" ใน dialog เตือน inactivity timeout — อยู่หน้าเดิมต่อ
+  // (ไม่ navigate ออกไปเหมือน openTablesPage) แค่ล้าง draft ของตัวเองทิ้งทันที
+  async function discardDraftNow() {
+    try {
+      await draftCleanup.cleanupNow();
+    } catch (error) {
+      showToast({
+        title: t("pos.draftCleanupFailed"),
+        description: error instanceof Error ? error.message : "",
+        tone: "error",
+      });
+    }
   }
 
   async function refreshAll() {
@@ -808,6 +843,14 @@ export function useOrderCustomerWorkflow({
     openOrAddProduct,
     openCartSheet,
     openTablesPage,
+    draftCleanupWarningOpen: draftCleanup.showWarning,
+    draftCleanupSecondsLeft: draftCleanup.secondsLeft,
+    onDraftCleanupExtend: draftCleanup.extend,
+    onDraftCleanupDiscardNow: () => void discardDraftNow(),
+    onDraftCleanupConfirmOrder: () => {
+      draftCleanup.extend();
+      void openCartSheet();
+    },
     productMode,
     productSheetOpen,
     printerContext,
