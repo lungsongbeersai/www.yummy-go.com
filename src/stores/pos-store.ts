@@ -9,6 +9,7 @@ import type {
   BranchMenuQRResponse,
   CancelOrderItemInput,
   CancelOrderItemResponse,
+  CleanupDraftOrderItemsInput,
   CartOrder,
   CateProductItem,
   CateWithProducts,
@@ -166,6 +167,9 @@ interface PosState {
   reconfirmKitchen: (input: ReconfirmToKitchenInput) => Promise<ReconfirmToKitchenResponse>;
   confirmServed: (input: ConfirmOrderItemServedInput) => ReturnType<typeof posService.confirmOrderItemServed>;
   cancelItem: (input: CancelOrderItemInput) => Promise<CancelOrderItemResponse>;
+  cleanupDraftOrderItems: (
+    input: CleanupDraftOrderItemsInput,
+  ) => ReturnType<typeof posService.cleanupDraftOrderItems>;
   updateNote: (input: UpdateOrderNoteInput) => ReturnType<typeof posService.updateOrderNote>;
   createPayment: (input: PaymentInput) => Promise<PaymentResponse>;
   splitBill: (input: SplitBillInput) => Promise<SplitBillResponse>;
@@ -504,6 +508,7 @@ export const usePosStore = create<PosState>((set, get) => ({
       print_mode: printer?.print_mode ?? input.print_mode,
     });
   },
+  cleanupDraftOrderItems: (input) => posService.cleanupDraftOrderItems(input),
   updateNote: (input) => posService.updateOrderNote(input),
   createPayment: async (input) => {
     const isCurrentSession = createSessionGuard();

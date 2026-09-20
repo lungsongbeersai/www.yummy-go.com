@@ -44,3 +44,9 @@ export const OrderItemStatus = {
   CANCELLED: 9,
 } as const;
 export type OrderItemStatus = (typeof OrderItemStatus)[keyof typeof OrderItemStatus];
+
+// พนักงานเพิ่มสินค้าแล้วไม่กด "ยืนยันออเดอร์" (ค้างที่ OrderItemStatus.WAITING_CONFIRM)
+// เกินเวลานี้ = ถือว่าทิ้งร้าง ล้างให้อัตโนมัติ (ดู use-draft-cleanup.ts) จุดเดียวที่
+// กำหนดค่านี้ทั้งแอป ห้าม hardcode ที่อื่นซ้ำ
+export const DRAFT_INACTIVITY_TIMEOUT_MS = 5 * 60 * 1000;
+export const DRAFT_INACTIVITY_WARNING_MS = 60 * 1000;
