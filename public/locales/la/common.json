@@ -968,7 +968,7 @@
     "confirmOrderItems": "ສົ່ງ {{count}} ລາຍການໃໝ່",
     "draftCleanupWarningTitle": "ມີລາຍການທີ່ຍັງບໍ່ໄດ້ຢືນຢັນ",
     "draftCleanupWarningDescription": "ທ່ານມີລາຍການທີ່ຍັງບໍ່ໄດ້ຢືນຢັນ ຈະຖືກຍົກເລີກໃນ {{count}} ວິນາທີ",
-    "draftCleanupKeepGoing": "ທຳລາຍການຕໍ່",
+    "draftCleanupKeepGoing": "ສັ່ງອໍເດີຕໍ່",
     "draftCleanupDiscardNow": "ຍົກເລີກລາຍການ",
     "draftCleanupFailed": "ລ້າງລາຍການທີ່ຍັງບໍ່ໄດ້ຢືນຢັນບໍ່ສຳເລັດ",
     "allItemsSubmitted": "ສົ່ງລາຍການປັດຈຸບັນທັງໝົດແລ້ວ.",
