@@ -109,6 +109,8 @@ export interface EmployeeSalesReportSummary extends EmployeeSalesSummary {
 
 export interface EmployeeSalesParams {
   branch_uuid_fk: string;
+  zone_uuid_fk?: string;
+  table_uuid_fk?: string;
   login_uuid?: string;
   date_from: string;
   date_to: string;
@@ -119,7 +121,14 @@ export interface EmployeeSalesParams {
 export interface EmployeeSalesResponse {
   user_reports: EmployeeSalesRow[];
   summary: EmployeeSalesReportSummary;
-  filters: { branch_uuid_fk: string; login_uuid: string; date_from: string; date_to: string };
+  filters: {
+    branch_uuid_fk: string;
+    zone_uuid_fk?: string | null;
+    table_uuid_fk?: string | null;
+    login_uuid: string;
+    date_from: string;
+    date_to: string;
+  };
 }
 
 export function getEmployeeSalesReport(params: EmployeeSalesParams) {

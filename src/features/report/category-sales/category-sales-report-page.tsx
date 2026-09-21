@@ -54,6 +54,7 @@ export function CategorySalesReportPage({ initialPagination }: { initialPaginati
           canApply={report.canApply}
           draftFilters={report.draftFilters}
           loading={report.loading}
+          locationOptions={report.locationOptions}
           methodOptions={report.methodOptions}
           onApply={report.applyFilters}
           onDraftChange={report.setDraftFilters}
@@ -67,6 +68,7 @@ export function CategorySalesReportPage({ initialPagination }: { initialPaginati
           canApply={report.canApply}
           draftFilters={report.draftFilters}
           loading={report.loading}
+          locationOptions={report.locationOptions}
           methodOptions={report.methodOptions}
           open={report.mobileFilterOpen}
           onApply={report.applyMobileFilters}

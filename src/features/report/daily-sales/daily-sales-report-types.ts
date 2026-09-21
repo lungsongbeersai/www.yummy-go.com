@@ -7,12 +7,13 @@ import type {
 } from "@/services/report";
 import type { ApiEntity, PageLimit } from "@/services/shared/types";
 import type { DailySalesReportExportData } from "@/stores/report-store";
+import type { ReportLocationFilters } from "../shared/report-location";
 
 export type ReportTab = "bill" | "detail";
 export type ReportPaymentMethodFilter = DailySalesBillPaymentMethod;
 export type DetailReportPaymentMethod = DailySalesPaymentMethod;
 
-export type ReportFilters = {
+export type ReportFilters = ReportLocationFilters & {
   branchUuid: string;
   dateFrom: string;
   dateTo: string;

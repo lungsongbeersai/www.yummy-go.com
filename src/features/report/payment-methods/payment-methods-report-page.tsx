@@ -65,6 +65,7 @@ export function PaymentMethodsReportPage({ initialPagination }: { initialPaginat
           canApply={report.canApply}
           draftFilters={report.draftFilters}
           loading={report.loading}
+          locationOptions={report.locationOptions}
           methodOptions={report.methodOptions}
           onApply={report.applyFilters}
           onDraftChange={report.setDraftFilters}
@@ -78,6 +79,7 @@ export function PaymentMethodsReportPage({ initialPagination }: { initialPaginat
           canApply={report.canApply}
           draftFilters={report.draftFilters}
           loading={report.loading}
+          locationOptions={report.locationOptions}
           methodOptions={report.methodOptions}
           open={report.mobileFilterOpen}
           onApply={report.applyMobileFilters}

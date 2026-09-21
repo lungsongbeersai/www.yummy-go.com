@@ -438,7 +438,9 @@ describe("daily sales report export helpers", () => {
       orderBy: "DESC",
       paymentMethod: "All",
       search: "",
+      tableUuid: "all",
       typePage: "bill",
+      zoneUuid: "all",
     };
     const cards = summaryConfigs(t, "bill");
     const columns = reportColumns(t, "bill");

@@ -20,6 +20,8 @@ import { PAGE_LIMIT_OPTIONS, isAllPageLimit } from "@/lib/pagination";
 import { reportOrderLabel, reportOrderOptions } from "../shared/report-sort-utils";
 import { ReportDateInput } from "../shared/report-date-input";
 import { ReportFilterCard, ReportFilterSheet } from "../shared/report-filter-shell";
+import { ReportLocationFields } from "../shared/report-location-fields";
+import type { ReportLocationOptions } from "../shared/report-location";
 import type {
   DetailPaginationBasis,
   ReportBranchOption,
@@ -38,6 +40,8 @@ function secondaryFilterCount(filters: ReportFilters) {
   if (String(filters.limit) !== String(PAGE_LIMIT_OPTIONS[0])) count += 1;
   if (filters.paymentMethod !== "All") count += 1;
   if (filters.orderBy !== "DESC") count += 1;
+  if (filters.zoneUuid !== "all") count += 1;
+  if (filters.tableUuid !== "all") count += 1;
   return count;
 }
 
@@ -49,6 +53,7 @@ type ReportFilterProps = {
   detailPaginationBasis: DetailPaginationBasis;
   draftFilters: ReportFilters;
   loading: boolean;
+  locationOptions: ReportLocationOptions & { loading: boolean };
   onApply: () => void;
   onDraftChange: (filters: ReportFilters) => void;
 };
@@ -67,6 +72,7 @@ export function DailySalesFilterBar({
   detailPaginationBasis,
   draftFilters,
   loading,
+  locationOptions,
   onApply,
   onDraftChange,
 }: ReportFilterProps & { actions?: ReactNode }) {
@@ -110,6 +116,7 @@ export function DailySalesFilterBar({
               detailPaginationBasis={detailPaginationBasis}
               draftFilters={draftFilters}
               idPrefix="report"
+              locationOptions={locationOptions}
               onDraftChange={onDraftChange}
             />
           </div>
@@ -127,6 +134,7 @@ export function DailySalesFilterSheet({
   detailPaginationBasis,
   draftFilters,
   loading,
+  locationOptions,
   open,
   onApply,
   onDraftChange,
@@ -159,6 +167,7 @@ export function DailySalesFilterSheet({
         detailPaginationBasis={detailPaginationBasis}
         draftFilters={draftFilters}
         idPrefix="report-mobile"
+        locationOptions={locationOptions}
         onDraftChange={onDraftChange}
       />
     </ReportFilterSheet>
@@ -172,10 +181,12 @@ export function AppliedFilterBadges({
   branchLabel,
   detailPaginationBasis,
   filters,
+  locationOptions,
 }: {
   branchLabel: string;
   detailPaginationBasis: DetailPaginationBasis;
   filters: ReportFilters;
+  locationOptions: ReportLocationOptions;
 }) {
   const { t } = useTranslation();
   const limitCount = isAllPageLimit(filters.limit) ? t("common.all") : filters.limit;
@@ -187,6 +198,12 @@ export function AppliedFilterBadges({
       : t("report.rowsPerPageValue", { count: limitCount });
   const badges = [
     branchLabel,
+    filters.zoneUuid === "all"
+      ? null
+      : locationOptions.zoneOptions.find((option) => option.value === filters.zoneUuid)?.label,
+    filters.tableUuid === "all"
+      ? null
+      : locationOptions.tableOptions.find((option) => option.value === filters.tableUuid)?.label,
     paymentMethodLabel(t, filters.paymentMethod),
     reportOrderLabel(t, filters.orderBy),
     limitLabel,
@@ -255,7 +272,7 @@ function DailySalesPrimaryFields({
         <Select
           value={draftFilters.branchUuid}
           disabled={branchLoading || branchLocked || branchOptions.length <= 1}
-          onValueChange={(value) => patch({ branchUuid: value })}
+          onValueChange={(value) => patch({ branchUuid: value, tableUuid: "all", zoneUuid: "all" })}
         >
           {/* data-[size=default]: ต้องคุมทั้งสอง breakpoint — SelectTrigger ฐานมี data-[size=default]:h-7
               เป็น attribute selector (specificity สูงกว่า class เดี่ยว) ถ้า lg ใช้ lg:h-9 เฉยๆ จะแพ้
@@ -314,11 +331,13 @@ function DailySalesSecondaryFields({
   detailPaginationBasis,
   draftFilters,
   idPrefix,
+  locationOptions,
   onDraftChange,
 }: {
   detailPaginationBasis: DetailPaginationBasis;
   draftFilters: ReportFilters;
   idPrefix: string;
+  locationOptions: ReportLocationOptions & { loading: boolean };
   onDraftChange: (filters: ReportFilters) => void;
 }) {
   const { t } = useTranslation();
@@ -329,6 +348,17 @@ function DailySalesSecondaryFields({
 
   return (
     <>
+      <ReportLocationFields
+        branchUuid={draftFilters.branchUuid}
+        idPrefix={idPrefix}
+        loading={locationOptions.loading}
+        tableOptions={locationOptions.tableOptions}
+        tableUuid={draftFilters.tableUuid}
+        zoneOptions={locationOptions.zoneOptions}
+        zoneUuid={draftFilters.zoneUuid}
+        onTableChange={(tableUuid) => patch({ tableUuid })}
+        onZoneChange={(zoneUuid) => patch({ tableUuid: "all", zoneUuid })}
+      />
       <Field className="min-w-0 gap-1.5">
         <FieldLabel
           htmlFor={`${idPrefix}-payment-method`}

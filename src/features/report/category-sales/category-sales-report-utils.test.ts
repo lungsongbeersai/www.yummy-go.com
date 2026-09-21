@@ -72,7 +72,9 @@ describe("category sales report helpers", () => {
       dateTo: "2026-06-28",
       limit: 10,
       orderBy: "ASC",
-      paymentMethod: "all"
+      paymentMethod: "all",
+      tableUuid: "all",
+      zoneUuid: "all"
     };
 
     expect(categorySalesFileBaseName(filters)).toBe("category-sales-all-ASC-2026-05-01-to-2026-06-28");

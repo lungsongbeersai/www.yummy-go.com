@@ -14,6 +14,8 @@ import { useToastStore } from "@/stores/toast-store";
 import { openReceiptPrintWindow, renderReceiptPrintWindow } from "../shared/report-receipt-print";
 import { reportDateDisplayValue } from "../shared/report-date-input";
 import { useReportBranchSelection } from "../shared/use-report-branch-selection";
+import { reportLocationParams } from "../shared/report-location";
+import { useReportLocationOptions } from "../shared/use-report-location-options";
 import type { DailyClosingReportFilters } from "./daily-closing-report-types";
 import {
   buildDailyClosingReportOps,
@@ -52,6 +54,8 @@ export function useDailyClosingReportWorkflow() {
     branchUuid: user?.branch_uuid ?? "",
     dateFrom: today,
     dateTo: today,
+    tableUuid: "all",
+    zoneUuid: "all",
   });
   const [appliedFilters, setAppliedFilters] = useState<DailyClosingReportFilters>(draftFilters);
   const [printing, setPrinting] = useState(false);
@@ -73,6 +77,11 @@ export function useDailyClosingReportWorkflow() {
     [branches, branchStoreUuid, storeUuid],
   );
   const branchUuid = appliedFilters.branchUuid || defaultBranchUuid;
+  const locationOptions = useReportLocationOptions(
+    draftFilters.branchUuid || defaultBranchUuid,
+    draftFilters.zoneUuid,
+    language,
+  );
   const activeBranch = storeBranches.find((branch) => branch.branch_uuid === branchUuid);
   const activeBranchLabel = branchLabelFor(branchUuid);
   const activeBranchAddress =
@@ -155,6 +164,7 @@ export function useDailyClosingReportWorkflow() {
 
     try {
       await loadReport({
+        ...reportLocationParams(appliedFilters),
         branch_uuid_fk: branchUuid,
         date_from: appliedFilters.dateFrom,
         date_to: appliedFilters.dateTo,
@@ -169,7 +179,7 @@ export function useDailyClosingReportWorkflow() {
       });
       return false;
     }
-  }, [appliedFilters.dateFrom, appliedFilters.dateTo, branchUuid, language, loadReport, showToast, t]);
+  }, [appliedFilters, branchUuid, language, loadReport, showToast, t]);
 
   useEffect(() => {
     void load();
@@ -180,7 +190,9 @@ export function useDailyClosingReportWorkflow() {
     const unchanged =
       nextFilters.branchUuid === appliedFilters.branchUuid &&
       nextFilters.dateFrom === appliedFilters.dateFrom &&
-      nextFilters.dateTo === appliedFilters.dateTo;
+      nextFilters.dateTo === appliedFilters.dateTo &&
+      nextFilters.tableUuid === appliedFilters.tableUuid &&
+      nextFilters.zoneUuid === appliedFilters.zoneUuid;
 
     if (nextFilters.branchUuid) setSelectedBranch(nextFilters.branchUuid);
     setDraftFilters(nextFilters);
@@ -308,6 +320,7 @@ export function useDailyClosingReportWorkflow() {
     itemCount,
     load,
     loading,
+    locationOptions,
     previewData,
     printDisabled,
     printReport,

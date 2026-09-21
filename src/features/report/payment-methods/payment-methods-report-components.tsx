@@ -8,6 +8,8 @@ import {
   ReportSignatures,
 } from "@/lib/export/official-layout";
 import { ReportFilterCard, ReportFilterSheet } from "../shared/report-filter-shell";
+import { ReportLocationFields } from "../shared/report-location-fields";
+import type { ReportLocationOptions } from "../shared/report-location";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -57,6 +59,7 @@ type FilterProps = {
   canApply: boolean;
   draftFilters: PaymentMethodsReportFilters;
   loading: boolean;
+  locationOptions: ReportLocationOptions & { loading: boolean };
   methodOptions: PaymentMethodOption[];
   onApply: () => void;
   onDraftChange: (filters: PaymentMethodsReportFilters) => void;
@@ -108,6 +111,7 @@ export function PaymentMethodsFilterSheet({
   canApply,
   draftFilters,
   loading,
+  locationOptions,
   methodOptions,
   open,
   onApply,
@@ -136,6 +140,7 @@ export function PaymentMethodsFilterSheet({
         draftFilters={draftFilters}
         idPrefix="payment-methods-mobile"
         methodOptions={methodOptions}
+        locationOptions={locationOptions}
         onDraftChange={onDraftChange}
       />
     </ReportFilterSheet>
@@ -151,6 +156,7 @@ export function PaymentMethodsFilterBar({
   canApply,
   draftFilters,
   loading,
+  locationOptions,
   methodOptions,
   onApply,
   onDraftChange,
@@ -161,7 +167,7 @@ export function PaymentMethodsFilterBar({
       canApply={canApply}
       actionsClassName="lg:col-span-4 xl:col-span-1"
       className="hidden shrink-0 rounded-none border-x-0 border-t-0 shadow-none lg:block"
-      contentClassName="grid min-w-0 items-end gap-3 px-3 py-3 sm:grid-cols-2 lg:grid-cols-12 xl:grid-cols-[repeat(5,minmax(0,1fr))_auto]"
+      contentClassName="grid min-w-0 items-end gap-3 px-3 py-3 sm:grid-cols-2 lg:grid-cols-12 xl:grid-cols-[repeat(7,minmax(0,1fr))_auto]"
       loading={loading}
       onApply={onApply}
     >
@@ -172,6 +178,7 @@ export function PaymentMethodsFilterBar({
         draftFilters={draftFilters}
         idPrefix="payment-methods"
         methodOptions={methodOptions}
+        locationOptions={locationOptions}
         onDraftChange={onDraftChange}
       />
     </ReportFilterCard>
@@ -184,6 +191,7 @@ export function PaymentMethodsFilterFields({
   branchOptions,
   draftFilters,
   idPrefix,
+  locationOptions,
   methodOptions,
   onDraftChange,
 }: {
@@ -193,6 +201,7 @@ export function PaymentMethodsFilterFields({
   draftFilters: PaymentMethodsReportFilters;
   idPrefix: string;
   methodOptions: PaymentMethodOption[];
+  locationOptions: ReportLocationOptions & { loading: boolean };
   onDraftChange: (filters: PaymentMethodsReportFilters) => void;
 }) {
   function patch(patch: Partial<PaymentMethodsReportFilters>) {
@@ -208,7 +217,19 @@ export function PaymentMethodsFilterFields({
         id={`${idPrefix}-branch`}
         options={branchOptions}
         value={draftFilters.branchUuid}
-        onValueChange={(value) => patch({ branchUuid: value })}
+        onValueChange={(value) => patch({ branchUuid: value, tableUuid: "all", zoneUuid: "all" })}
+      />
+      <ReportLocationFields
+        branchUuid={draftFilters.branchUuid}
+        fieldClassName="min-w-0 gap-1.5 lg:col-span-4 xl:col-span-1"
+        idPrefix={idPrefix}
+        loading={locationOptions.loading}
+        tableOptions={locationOptions.tableOptions}
+        tableUuid={draftFilters.tableUuid}
+        zoneOptions={locationOptions.zoneOptions}
+        zoneUuid={draftFilters.zoneUuid}
+        onTableChange={(tableUuid) => patch({ tableUuid })}
+        onZoneChange={(zoneUuid) => patch({ tableUuid: "all", zoneUuid })}
       />
       <ReportDateRangeFields
         dateFrom={draftFilters.dateFrom}

@@ -71,7 +71,9 @@ describe("payment method report helpers", () => {
       dateFrom: "2026-06-01",
       dateTo: "2026-06-03",
       limit: 20,
-      paymentMethod: "cash"
+      paymentMethod: "cash",
+      tableUuid: "all",
+      zoneUuid: "all"
     };
 
     expect(paymentMethodsFileBaseName(filters)).toBe("payment-methods-cash-2026-06-01-to-2026-06-03");

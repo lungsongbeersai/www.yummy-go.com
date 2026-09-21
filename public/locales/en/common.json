@@ -2401,12 +2401,16 @@
     },
     "filters": {
       "currentFilters": "Filters",
+      "allTables": "All tables",
+      "allZones": "All zones",
       "dateFrom": "Date from",
       "dateTo": "Date to",
       "moreFilters": "More filters",
       "openFilters": "Filter",
       "orderBy": "Sort",
       "paymentMethod": "Payment method",
+      "table": "Table",
+      "zone": "Zone",
       "typePage": "Report type"
     },
     "stuckOrders": {

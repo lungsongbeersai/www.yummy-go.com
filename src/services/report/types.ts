@@ -26,7 +26,12 @@ export type DailySalesBillReportOrder = "ASC" | "DESC";
 export type DailySaleItemsOrder = "ASC" | "DESC";
 export type CategorySalesReportOrder = "ASC" | "DESC";
 
-export interface FetchDailySalesReportParams {
+export interface ReportLocationParams {
+  zone_uuid_fk?: string;
+  table_uuid_fk?: string;
+}
+
+export interface FetchDailySalesReportParams extends ReportLocationParams {
   branch_uuid_fk: string;
   date_from: string;
   date_to: string;
@@ -39,7 +44,7 @@ export interface FetchDailySalesReportParams {
   type_page: DailySalesReportType;
 }
 
-export interface FetchDailySalesBillReportParams {
+export interface FetchDailySalesBillReportParams extends ReportLocationParams {
   branch_uuid_fk: string;
   date_from: string;
   date_to: string;
@@ -51,7 +56,7 @@ export interface FetchDailySalesBillReportParams {
   search?: string;
 }
 
-export interface FetchDailySalesOrderReportParams {
+export interface FetchDailySalesOrderReportParams extends ReportLocationParams {
   branch_uuid_fk: string;
   date_from: string;
   date_to: string;
@@ -63,7 +68,7 @@ export interface FetchDailySalesOrderReportParams {
   search?: string;
 }
 
-export interface FetchDailySaleItemsParams {
+export interface FetchDailySaleItemsParams extends ReportLocationParams {
   branch_uuid_fk: string;
   date_from: string;
   date_to: string;
@@ -75,7 +80,7 @@ export interface FetchDailySaleItemsParams {
   search?: string;
 }
 
-export interface FetchPaymentMethodsReportParams {
+export interface FetchPaymentMethodsReportParams extends ReportLocationParams {
   branch_uuid_fk: string;
   date_from: string;
   date_to: string;
@@ -85,7 +90,7 @@ export interface FetchPaymentMethodsReportParams {
   payment_method: PaymentMethodReportFilter;
 }
 
-export interface FetchCategorySalesReportParams {
+export interface FetchCategorySalesReportParams extends ReportLocationParams {
   branch_uuid_fk: string;
   date_from: string;
   date_to: string;
@@ -96,7 +101,7 @@ export interface FetchCategorySalesReportParams {
   payment_method: PaymentMethodReportFilter;
 }
 
-export interface FetchDailyStoreClosingReportParams {
+export interface FetchDailyStoreClosingReportParams extends ReportLocationParams {
   branch_uuid_fk: string;
   date_from: string;
   date_to: string;

@@ -107,6 +107,7 @@ export function DailySalesReportPage({
               branchLabel={report.activeBranchLabel}
               detailPaginationBasis={report.detailPageBasis}
               filters={report.appliedFilters}
+              locationOptions={report.locationOptions}
             />
           </div>
 
@@ -125,6 +126,7 @@ export function DailySalesReportPage({
             detailPaginationBasis={report.detailPageBasis}
             draftFilters={report.draftFilters}
             loading={report.loading}
+            locationOptions={report.locationOptions}
             onApply={report.applyFilters}
             onDraftChange={report.setDraftFilters}
           />
@@ -137,6 +139,7 @@ export function DailySalesReportPage({
             detailPaginationBasis={report.detailPageBasis}
             draftFilters={report.draftFilters}
             loading={report.loading}
+            locationOptions={report.locationOptions}
             open={report.mobileFilterOpen}
             onApply={report.applyMobileFilters}
             onDraftChange={report.setDraftFilters}

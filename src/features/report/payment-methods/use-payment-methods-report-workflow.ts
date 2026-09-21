@@ -12,7 +12,9 @@ import { usePaymentMethodsReportStore } from "@/stores/report-store";
 import { usePrinterStore } from "@/stores/printer-store";
 import { useToastStore } from "@/stores/toast-store";
 import { exportInfoRows } from "../shared/report-export-info";
+import { reportLocationParams } from "../shared/report-location";
 import { openReceiptPrintWindow, renderReceiptPrintWindow } from "../shared/report-receipt-print";
+import { useReportLocationOptions } from "../shared/use-report-location-options";
 import { useStandardReportWorkflow } from "../shared/use-standard-report-workflow";
 import type { PaymentMethodsExportData, PaymentMethodsReportFilters } from "./payment-methods-report-types";
 import {
@@ -79,7 +81,9 @@ export function usePaymentMethodsReportWorkflow(
       dateFrom: today,
       dateTo: today,
       limit: pagination.limit,
-      paymentMethod: "all"
+      paymentMethod: "all",
+      tableUuid: "all",
+      zoneUuid: "all"
     }),
     initialPagination,
     error,
@@ -90,6 +94,7 @@ export function usePaymentMethodsReportWorkflow(
     totalPages,
     visibleRowCount: rows.length,
     buildLoadParams: ({ branchUuid, filters, language, page }) => ({
+      ...reportLocationParams(filters),
       branch_uuid_fk: branchUuid,
       date_from: filters.dateFrom,
       date_to: filters.dateTo,
@@ -102,6 +107,7 @@ export function usePaymentMethodsReportWorkflow(
     loadFailedTitle: t("report.paymentMethodsReport.loadFailed"),
     exportReportRef,
     buildExportParams: ({ branchUuid, filters, language }) => ({
+      ...reportLocationParams(filters),
       branch_uuid_fk: branchUuid,
       date_from: filters.dateFrom,
       date_to: filters.dateTo,
@@ -148,6 +154,12 @@ export function usePaymentMethodsReportWorkflow(
       );
     }
   });
+
+  const locationOptions = useReportLocationOptions(
+    report.draftFilters.branchUuid || report.defaultBranchUuid,
+    report.draftFilters.zoneUuid,
+    language,
+  );
 
   const methodOptions = paymentMethodOptions(paymentMethods, t);
   const activePaymentMethodLabel = selectedPaymentMethodLabel(paymentMethods, report.appliedFilters.paymentMethod, t);
@@ -290,6 +302,7 @@ export function usePaymentMethodsReportWorkflow(
     exportDisabled: report.exportDisabled || printing,
     exporting: report.exporting ?? (printing ? "print" : null),
     methodOptions,
+    locationOptions,
     printReport,
     renderedExportData: renderedExportData ?? emptyExportData(),
     reportTitle,

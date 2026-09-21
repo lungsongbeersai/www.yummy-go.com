@@ -11,9 +11,11 @@ import {
   type ReportFieldOption,
 } from "@/features/report/shared/report-filter-fields";
 import { ReportFilterCard, ReportFilterSheet } from "@/features/report/shared/report-filter-shell";
+import { ReportLocationFields } from "@/features/report/shared/report-location-fields";
+import type { ReportLocationFilters, ReportLocationOptions } from "@/features/report/shared/report-location";
 import { reportOrderOptions } from "@/features/report/shared/report-sort-utils";
 
-export interface VatReportDraft {
+export interface VatReportDraft extends ReportLocationFilters {
   branchUuid: string;
   dateFrom: string;
   dateTo: string;
@@ -27,6 +29,7 @@ interface FieldsProps {
   branchOptions: ReportFieldOption[];
   draft: VatReportDraft;
   draftBranch: string;
+  locationOptions: ReportLocationOptions & { loading: boolean };
   onDraftChange: (updater: (previous: VatReportDraft) => VatReportDraft) => void;
 }
 
@@ -37,6 +40,7 @@ function VatReportFilterFields({
   draft,
   draftBranch,
   idPrefix,
+  locationOptions,
   onDraftChange,
 }: FieldsProps & { idPrefix: string }) {
   const { t } = useTranslation();
@@ -61,7 +65,23 @@ function VatReportFilterFields({
         branchLocked={branchLocked}
         options={branchOptions}
         value={draftBranch}
-        onValueChange={branchUuid => onDraftChange(previous => ({ ...previous, branchUuid }))}
+        onValueChange={branchUuid => onDraftChange(previous => ({
+          ...previous,
+          branchUuid,
+          tableUuid: "all",
+          zoneUuid: "all",
+        }))}
+      />
+      <ReportLocationFields
+        branchUuid={draftBranch}
+        idPrefix={idPrefix}
+        loading={locationOptions.loading}
+        tableOptions={locationOptions.tableOptions}
+        tableUuid={draft.tableUuid}
+        zoneOptions={locationOptions.zoneOptions}
+        zoneUuid={draft.zoneUuid}
+        onTableChange={tableUuid => onDraftChange(previous => ({ ...previous, tableUuid }))}
+        onZoneChange={zoneUuid => onDraftChange(previous => ({ ...previous, tableUuid: "all", zoneUuid }))}
       />
       <ReportDateRangeFields
         idPrefix={idPrefix}
@@ -94,7 +114,7 @@ export function VatReportFilterBar({
       actions={actions}
       canApply={canApply}
       className="hidden shrink-0 rounded-none border-x-0 border-t-0 shadow-none lg:block"
-      contentClassName="grid min-w-0 items-end gap-3 px-3 py-3 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-[repeat(4,minmax(0,1fr))_auto]"
+      contentClassName="grid min-w-0 items-end gap-3 px-3 py-3 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-[repeat(6,minmax(0,1fr))_auto]"
       loading={loading}
       onApply={onApply}
     >

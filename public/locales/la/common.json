@@ -2405,12 +2405,16 @@
     },
     "filters": {
       "currentFilters": "ຕົວກອງ",
+      "allTables": "ທຸກໂຕະ",
+      "allZones": "ທຸກໂຊນ",
       "dateFrom": "ວັນທີເລີ່ມ",
       "dateTo": "ວັນທີສິ້ນສຸດ",
       "moreFilters": "ຕົວກອງເພີ່ມເຕີມ",
       "openFilters": "ກອງ",
       "orderBy": "ຈັດລຽງ",
       "paymentMethod": "ວິທີຊໍາລະ",
+      "table": "ໂຕະ",
+      "zone": "ໂຊນ",
       "typePage": "ປະເພດລາຍງານ"
     },
     "stuckOrders": {

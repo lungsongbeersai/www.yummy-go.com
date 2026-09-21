@@ -1,12 +1,13 @@
 import type { PaymentMethodReportFilter } from "@/config/report-filters";
 import type { PageLimit } from "@/services/shared/types";
+import type { ReportLocationFilters } from "../shared/report-location";
 import type {
   PaymentMethodReportRow,
   PaymentMethodSummaryCard,
   PaymentMethodsReportExportData
 } from "@/stores/report-store";
 
-export type PaymentMethodsReportFilters = {
+export type PaymentMethodsReportFilters = ReportLocationFilters & {
   branchUuid: string;
   dateFrom: string;
   dateTo: string;

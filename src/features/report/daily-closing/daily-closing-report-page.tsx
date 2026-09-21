@@ -52,6 +52,7 @@ export function DailyClosingReportPage() {
     branchOptions: closing.branchOptions,
     disabled: controlsDisabled,
     draftFilters: closing.draftFilters,
+    locationOptions: closing.locationOptions,
     onDraftChange: closing.setDraftFilters,
   };
 

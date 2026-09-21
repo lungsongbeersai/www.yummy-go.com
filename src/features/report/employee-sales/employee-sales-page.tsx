@@ -8,6 +8,8 @@ import { ReportPageShell } from "@/features/report/shared/report-page-shell";
 import { useReportRowSelection } from "@/features/report/shared/report-row-selection";
 import { ReportTableCard } from "@/features/report/shared/report-table-card";
 import { useReportBranchSelection } from "@/features/report/shared/use-report-branch-selection";
+import { reportLocationParams } from "@/features/report/shared/report-location";
+import { useReportLocationOptions } from "@/features/report/shared/use-report-location-options";
 import { businessDateInputValue } from "@/lib/format";
 import { authStoreUuid, useAuthStore } from "@/stores/auth-store";
 import { useEmployeeSalesReportStore } from "@/stores/report-store";
@@ -46,7 +48,7 @@ function EmployeeSalesReport() {
   const today = businessDateInputValue();
   const [draft, setDraft] = useState<EmployeeSalesDraft>(() => ({
     branchUuid: scope.defaultBranchUuid, loginUuid: "", dateFrom: today, dateTo: today,
-    orderBy: "DESC", limit: PAGE_LIMIT_OPTIONS[0],
+    orderBy: "DESC", limit: PAGE_LIMIT_OPTIONS[0], tableUuid: "all", zoneUuid: "all",
   }));
   const [applied, setApplied] = useState(draft);
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -58,15 +60,17 @@ function EmployeeSalesReport() {
   const draftBranch = scope.normalizeBranchFilters(draft).branchUuid;
   const dateRangeValid = isValidDateRange(draft.dateFrom, draft.dateTo);
   const valid = Boolean(draftBranch) && dateRangeValid;
+  const locationOptions = useReportLocationOptions(draftBranch, draft.zoneUuid, language);
 
   useEffect(() => {
     if (!branchUuid) return;
     void load({
+      ...reportLocationParams({ tableUuid: applied.tableUuid, zoneUuid: applied.zoneUuid }),
       branch_uuid_fk: branchUuid, login_uuid: applied.loginUuid || undefined,
       date_from: applied.dateFrom, date_to: applied.dateTo, lang: language, orderBy: applied.orderBy,
     }).catch(() => undefined);
     return reset;
-  }, [load, reset, branchUuid, applied.loginUuid, applied.dateFrom, applied.dateTo, applied.orderBy, language, refreshToken]);
+  }, [load, reset, branchUuid, applied.loginUuid, applied.dateFrom, applied.dateTo, applied.orderBy, applied.tableUuid, applied.zoneUuid, language, refreshToken]);
 
   const current = report?.filters.branch_uuid_fk === branchUuid &&
     report.filters.date_from === applied.dateFrom && report.filters.date_to === applied.dateTo ? report : null;
@@ -121,6 +125,7 @@ function EmployeeSalesReport() {
     branchOptions: scope.branchOptions,
     draft,
     draftBranch,
+    locationOptions,
     onDraftChange: setDraft,
   };
 

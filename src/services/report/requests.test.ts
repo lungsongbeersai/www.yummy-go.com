@@ -58,6 +58,8 @@ describe("report services", () => {
   it("sends category sales query params expected by the API", async () => {
     await getCategorySalesReport({
       branch_uuid_fk: "branch-1",
+      zone_uuid_fk: "zone-1",
+      table_uuid_fk: "table-1",
       date_from: "2026-05-01",
       date_to: "2026-06-28",
       lang: "la",
@@ -73,6 +75,8 @@ describe("report services", () => {
       {
         params: {
           branch_uuid_fk: "branch-1",
+          zone_uuid_fk: "zone-1",
+          table_uuid_fk: "table-1",
           date_from: "2026-05-01",
           date_to: "2026-06-28",
           lang: "la",
@@ -88,6 +92,8 @@ describe("report services", () => {
   it("sends daily store closing query params expected by the API", async () => {
     await getDailyStoreClosingReport({
       branch_uuid_fk: "branch-1",
+      zone_uuid_fk: "zone-1",
+      table_uuid_fk: "table-1",
       date_from: "2026-07-10",
       date_to: "2026-07-10",
       lang: "en",
@@ -99,6 +105,8 @@ describe("report services", () => {
       {
         params: {
           branch_uuid_fk: "branch-1",
+          zone_uuid_fk: "zone-1",
+          table_uuid_fk: "table-1",
           date_from: "2026-07-10",
           date_to: "2026-07-10",
           lang: "eng",
@@ -110,6 +118,8 @@ describe("report services", () => {
   it("sends payment methods query params expected by the new API", async () => {
     await getPaymentMethodsReport({
       branch_uuid_fk: "branch-1",
+      zone_uuid_fk: "zone-1",
+      table_uuid_fk: "table-1",
       date_from: "2026-06-01",
       date_to: "2026-07-01",
       lang: "la",
@@ -124,6 +134,8 @@ describe("report services", () => {
       {
         params: {
           branch_uuid_fk: "branch-1",
+          zone_uuid_fk: "zone-1",
+          table_uuid_fk: "table-1",
           date_from: "2026-06-01",
           date_to: "2026-07-01",
           lang: "la",
@@ -169,6 +181,8 @@ describe("report services", () => {
   it("sends daily sales bill report query params expected by the API", async () => {
     await getDailySalesBillReport({
       branch_uuid_fk: "branch-1",
+      zone_uuid_fk: "zone-1",
+      table_uuid_fk: "table-1",
       date_from: "2026-06-20",
       date_to: "2026-06-28",
       lang: "la",
@@ -185,6 +199,8 @@ describe("report services", () => {
       {
         params: {
           branch_uuid_fk: "branch-1",
+          zone_uuid_fk: "zone-1",
+          table_uuid_fk: "table-1",
           date_from: "2026-06-20",
           date_to: "2026-06-28",
           lang: "la",

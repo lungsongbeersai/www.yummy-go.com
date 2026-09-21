@@ -35,6 +35,8 @@ export interface VatReportSummary {
 
 export interface VatReportParams {
   branch_uuid_fk: string;
+  zone_uuid_fk?: string;
+  table_uuid_fk?: string;
   search?: string;
   date_from: string;
   date_to: string;
@@ -45,7 +47,14 @@ export interface VatReportParams {
 export interface VatReportResponse {
   vat_rows: VatReportRow[];
   summary: VatReportSummary;
-  filters: { branch_uuid_fk: string; search: string; date_from: string; date_to: string };
+  filters: {
+    branch_uuid_fk: string;
+    zone_uuid_fk?: string | null;
+    table_uuid_fk?: string | null;
+    search: string;
+    date_from: string;
+    date_to: string;
+  };
 }
 
 export function getVatReport(params: VatReportParams) {

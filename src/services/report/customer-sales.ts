@@ -43,6 +43,8 @@ export interface CustomerSalesReportSummary extends CustomerSalesSummary {
 
 export interface CustomerSalesParams {
   branch_uuid_fk: string;
+  zone_uuid_fk?: string;
+  table_uuid_fk?: string;
   customer_uuid?: string;
   search?: string;
   date_from: string;
@@ -54,7 +56,15 @@ export interface CustomerSalesParams {
 export interface CustomerSalesResponse {
   customer_reports: CustomerSalesRow[];
   summary: CustomerSalesReportSummary;
-  filters: { branch_uuid_fk: string; customer_uuid: string | null; search: string; date_from: string; date_to: string };
+  filters: {
+    branch_uuid_fk: string;
+    zone_uuid_fk?: string | null;
+    table_uuid_fk?: string | null;
+    customer_uuid: string | null;
+    search: string;
+    date_from: string;
+    date_to: string;
+  };
 }
 
 export function getCustomerSalesReport(params: CustomerSalesParams) {

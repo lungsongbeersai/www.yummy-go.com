@@ -1,9 +1,10 @@
 import type { PaymentMethodReportFilter } from "@/config/report-filters";
 import type { CategorySalesReportOrder } from "@/services/report";
 import type { PageLimit } from "@/services/shared/types";
+import type { ReportLocationFilters } from "../shared/report-location";
 import type { CategorySalesReportExportData, CategorySalesRow } from "@/stores/report-store";
 
-export type CategorySalesReportFilters = {
+export type CategorySalesReportFilters = ReportLocationFilters & {
   branchUuid: string;
   dateFrom: string;
   dateTo: string;

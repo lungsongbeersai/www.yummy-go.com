@@ -21,6 +21,8 @@ import { useAuthStore } from "@/stores/auth-store";
 import { useBranchStore } from "@/stores/branch-store";
 import { usePrinterStore } from "@/stores/printer-store";
 import { useReportBranchSelection } from "../shared/use-report-branch-selection";
+import { reportLocationParams } from "../shared/report-location";
+import { useReportLocationOptions } from "../shared/use-report-location-options";
 import {
   type DailySalesBillGroup,
   useDailySaleItemsStore,
@@ -126,7 +128,9 @@ export function useDailySalesReportWorkflow(
     orderBy: "DESC",
     paymentMethod: "All",
     search: "",
+    tableUuid: "all",
     typePage: "bill",
+    zoneUuid: "all",
   });
   const [appliedFilters, setAppliedFilters] =
     useState<ReportFilters>(draftFilters);
@@ -143,6 +147,11 @@ export function useDailySalesReportWorkflow(
   );
   const [billPage, setBillPage] = useState(1);
   const [detailPage, setDetailPage] = useState(1);
+  const locationOptions = useReportLocationOptions(
+    draftFilters.branchUuid || defaultBranchUuid,
+    draftFilters.zoneUuid,
+    language,
+  );
 
   const branchUuid = appliedFilters.branchUuid || defaultBranchUuid;
   const activeBranchLabel = useMemo(
@@ -250,6 +259,7 @@ export function useDailySalesReportWorkflow(
     try {
       if (appliedFilters.typePage === "bill") {
         await loadBillReport({
+          ...reportLocationParams(appliedFilters),
           branch_uuid_fk: branchUuid,
           date_from: appliedFilters.dateFrom,
           date_to: appliedFilters.dateTo,
@@ -264,6 +274,7 @@ export function useDailySalesReportWorkflow(
       }
 
       await loadDetailReport({
+        ...reportLocationParams(appliedFilters),
         branch_uuid_fk: branchUuid,
         date_from: appliedFilters.dateFrom,
         date_to: appliedFilters.dateTo,
@@ -320,7 +331,9 @@ export function useDailySalesReportWorkflow(
       appliedFilters.orderBy,
       appliedFilters.paymentMethod,
       appliedFilters.search,
+      appliedFilters.tableUuid,
       appliedFilters.typePage,
+      appliedFilters.zoneUuid,
       branchUuid,
     ],
     () => {
@@ -432,6 +445,7 @@ export function useDailySalesReportWorkflow(
 
     if (typePage === "bill") {
       const data = await loadBillExportData({
+        ...reportLocationParams(appliedFilters),
         branch_uuid_fk: branchUuid,
         date_from: appliedFilters.dateFrom,
         date_to: appliedFilters.dateTo,
@@ -456,6 +470,7 @@ export function useDailySalesReportWorkflow(
     }
 
     const data = await loadDetailExportData({
+      ...reportLocationParams(appliedFilters),
       branch_uuid_fk: branchUuid,
       date_from: appliedFilters.dateFrom,
       date_to: appliedFilters.dateTo,
@@ -684,6 +699,7 @@ export function useDailySalesReportWorkflow(
 
     try {
       await loadDailySaleItems({
+        ...reportLocationParams(appliedFilters),
         branch_uuid_fk: branchUuid,
         date_from: appliedFilters.dateFrom,
         date_to: appliedFilters.dateTo,
@@ -833,6 +849,7 @@ export function useDailySalesReportWorkflow(
     handleMobileFilterOpenChange,
     load,
     loading,
+    locationOptions,
     mobileFilterOpen,
     openMobileFilters,
     page,
@@ -884,6 +901,8 @@ function reportDataFilterKey(filters: ReportFilters) {
     filters.orderBy,
     filters.paymentMethod,
     filters.search,
+    filters.tableUuid,
+    filters.zoneUuid,
   ].join("|");
 }
 

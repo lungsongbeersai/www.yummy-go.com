@@ -13,7 +13,9 @@ import { useCategorySalesReportStore } from "@/stores/report-store";
 import { usePrinterStore } from "@/stores/printer-store";
 import { useToastStore } from "@/stores/toast-store";
 import { exportInfoRows } from "../shared/report-export-info";
+import { reportLocationParams } from "../shared/report-location";
 import { openReceiptPrintWindow, renderReceiptPrintWindow } from "../shared/report-receipt-print";
+import { useReportLocationOptions } from "../shared/use-report-location-options";
 import { useStandardReportWorkflow } from "../shared/use-standard-report-workflow";
 import type { CategorySalesExportData, CategorySalesReportFilters } from "./category-sales-report-types";
 import {
@@ -84,7 +86,9 @@ export function useCategorySalesReportWorkflow(
       dateTo: today,
       limit: pagination.limit,
       orderBy: "DESC",
-      paymentMethod: "all"
+      paymentMethod: "all",
+      tableUuid: "all",
+      zoneUuid: "all"
     }),
     initialPagination,
     error,
@@ -96,6 +100,7 @@ export function useCategorySalesReportWorkflow(
     // ต่างจากรายงานอื่น: นับจำนวนกลุ่มที่เห็นจริงต่อหน้า ไม่ใช่จำนวนแถวสินค้า
     visibleRowCount: groups.length,
     buildLoadParams: ({ branchUuid, filters, language, page }) => ({
+      ...reportLocationParams(filters),
       branch_uuid_fk: branchUuid,
       date_from: filters.dateFrom,
       date_to: filters.dateTo,
@@ -109,6 +114,7 @@ export function useCategorySalesReportWorkflow(
     loadFailedTitle: t("report.categorySales.loadFailed"),
     exportReportRef,
     buildExportParams: ({ branchUuid, filters, language }) => ({
+      ...reportLocationParams(filters),
       branch_uuid_fk: branchUuid,
       date_from: filters.dateFrom,
       date_to: filters.dateTo,
@@ -160,6 +166,12 @@ export function useCategorySalesReportWorkflow(
       );
     }
   });
+
+  const locationOptions = useReportLocationOptions(
+    report.draftFilters.branchUuid || report.defaultBranchUuid,
+    report.draftFilters.zoneUuid,
+    language,
+  );
 
   const methodOptions = paymentMethodFallbackOptions(t);
   const activePaymentMethodLabel = selectedPaymentMethodLabel(methodOptions, report.appliedFilters.paymentMethod, t);
@@ -240,6 +252,7 @@ export function useCategorySalesReportWorkflow(
       // groups/summary บนหน้าจอถูกแบ่งหน้า (จำกัดจำนวนกลุ่มต่อหน้า) ใบพิมพ์ต้องใช้ข้อมูลเต็มเสมอ
       // ไม่งั้นร้านที่มีหลายหมวดหมู่จะพิมพ์ตกกลุ่มที่ไม่ได้อยู่หน้าปัจจุบัน
       const exportData = await loadExportData({
+        ...reportLocationParams(report.appliedFilters),
         branch_uuid_fk: report.branchUuid,
         date_from: report.appliedFilters.dateFrom,
         date_to: report.appliedFilters.dateTo,
@@ -338,6 +351,7 @@ export function useCategorySalesReportWorkflow(
     groups,
     labelOverrides,
     methodOptions,
+    locationOptions,
     printReport,
     renderedExportData,
     reportTitle,

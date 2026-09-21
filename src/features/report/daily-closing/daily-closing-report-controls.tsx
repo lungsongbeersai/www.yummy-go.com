@@ -16,6 +16,8 @@ import {
 import { Spinner } from "@/components/ui/spinner";
 import { ReportFilterCard, ReportFilterSheet } from "../shared/report-filter-shell";
 import { ReportDateRangeFields } from "../shared/report-filter-fields";
+import { ReportLocationFields } from "../shared/report-location-fields";
+import type { ReportLocationOptions } from "../shared/report-location";
 import type { ReportBranchOption } from "../shared/report-branch-options";
 import type { DailyClosingReportFilters } from "./daily-closing-report-types";
 
@@ -25,6 +27,7 @@ interface FieldsProps {
   branchOptions: ReportBranchOption[];
   disabled: boolean;
   draftFilters: DailyClosingReportFilters;
+  locationOptions: ReportLocationOptions & { loading: boolean };
   onDraftChange: (filters: DailyClosingReportFilters) => void;
 }
 
@@ -35,6 +38,7 @@ function DailyClosingFilterFields({
   disabled,
   draftFilters,
   idPrefix,
+  locationOptions,
   onDraftChange,
 }: FieldsProps & { idPrefix: string }) {
   const { t } = useTranslation();
@@ -46,7 +50,12 @@ function DailyClosingFilterFields({
         <Select
           value={draftFilters.branchUuid}
           disabled={branchLocked || branchLoading || disabled}
-          onValueChange={branchUuid => onDraftChange({ ...draftFilters, branchUuid })}
+          onValueChange={branchUuid => onDraftChange({
+            ...draftFilters,
+            branchUuid,
+            tableUuid: "all",
+            zoneUuid: "all",
+          })}
         >
           <SelectTrigger id={`${idPrefix}-branch`} className="w-full">
             <SelectValue placeholder={t("report.dailyClosing.selectBranch")} />
@@ -60,6 +69,18 @@ function DailyClosingFilterFields({
           </SelectContent>
         </Select>
       </Field>
+      <ReportLocationFields
+        branchUuid={draftFilters.branchUuid}
+        disabled={disabled}
+        idPrefix={idPrefix}
+        loading={locationOptions.loading}
+        tableOptions={locationOptions.tableOptions}
+        tableUuid={draftFilters.tableUuid}
+        zoneOptions={locationOptions.zoneOptions}
+        zoneUuid={draftFilters.zoneUuid}
+        onTableChange={tableUuid => onDraftChange({ ...draftFilters, tableUuid })}
+        onZoneChange={zoneUuid => onDraftChange({ ...draftFilters, tableUuid: "all", zoneUuid })}
+      />
       <ReportDateRangeFields
         dateFrom={draftFilters.dateFrom}
         dateTo={draftFilters.dateTo}
@@ -118,7 +139,7 @@ export function DailyClosingFilterBar({
       }
       canApply={canApply}
       className="hidden shrink-0 rounded-none border-x-0 border-t-0 shadow-none lg:block"
-      contentClassName="grid min-w-0 items-end gap-3 px-3 py-3 sm:grid-cols-3"
+      contentClassName="grid min-w-0 items-end gap-3 px-3 py-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5"
       loading={loading}
       onApply={onApply}
     >
