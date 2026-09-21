@@ -738,6 +738,7 @@ describe("order customer helpers", () => {
       {
         prod_detail_uuid_fk: "beer",
         set_instance_uuid: "50000000-0000-4000-8000-000000000001",
+        set_choice_group_uuid_fks: [],
         order_it_qty: 6,
         order_it_status: 1,
         order_it_note: "cold",
@@ -746,6 +747,7 @@ describe("order customer helpers", () => {
       {
         prod_detail_uuid_fk: "ice",
         set_instance_uuid: "50000000-0000-4000-8000-000000000001",
+        set_choice_group_uuid_fks: [],
         order_it_qty: 6,
         order_it_status: 1,
         order_it_note: "cold",
@@ -869,6 +871,14 @@ describe("order customer helpers", () => {
     expect(items.map((item) => item.prod_detail_uuid_fk).sort()).toEqual(
       ["chicken", "rice", "soup"].sort(),
     );
+    expect(
+      items.find((item) => item.prod_detail_uuid_fk === "chicken")
+        ?.set_choice_group_uuid_fks,
+    ).toEqual(["grp-protein"]);
+    expect(
+      items.find((item) => item.prod_detail_uuid_fk === "rice")
+        ?.set_choice_group_uuid_fks,
+    ).toEqual([]);
   });
 
   it("lets one item belong to more than one choice group and dedupes it in the resolved order", () => {
@@ -876,6 +886,7 @@ describe("order customer helpers", () => {
     const spiceGroup = choiceGroup({ setChoiceGroupUuid: "grp-spice", maxSelect: 1 });
     const setProduct: ProdItem = {
       ...normalizeProdItem(null, product({ statusSortFk: ProductSortStatus.SET })),
+      prodSetPrice: 220000,
       setChoiceGroups: [sauceGroup, spiceGroup],
       details: [
         // ไก่ทอดชิ้นเดียวกัน เป็นตัวเลือกได้ทั้งกลุ่มน้ำจิ้มและกลุ่มระดับความเผ็ด
@@ -915,6 +926,78 @@ describe("order customer helpers", () => {
         "grp-spice": ["fried-chicken"],
       }).map((d) => d.proDetailUuid),
     ).toEqual(["fried-chicken"]);
+
+    const items = buildStaffOrderItems({
+      detail: setProduct.details[0],
+      mode: "set",
+      noteText: "",
+      product: setProduct,
+      quantity: 1,
+      selectedSetChoiceUuids: {
+        "grp-sauce": ["fried-chicken"],
+        "grp-spice": ["fried-chicken"],
+      },
+      toppings: [],
+    });
+    expect(items).toHaveLength(1);
+    expect(items[0]?.set_choice_group_uuid_fks).toEqual(["grp-sauce", "grp-spice"]);
+  });
+
+  it("attaches nested sauces to the selected SET option only", () => {
+    const sauceMala = taste({ tasteUuid: "taste-mala", tasteName: "Mala" });
+    const sauceSesame = taste({ tasteUuid: "taste-sesame", tasteName: "Sesame" });
+    const setProduct: ProdItem = {
+      ...normalizeProdItem(null, product({ statusSortFk: ProductSortStatus.SET })),
+      prodSetPrice: 220000,
+      setChoiceGroups: [choiceGroup({ setChoiceGroupUuid: "grp-dumpling" })],
+      details: [
+        detail({
+          proDetailUuid: "chicken",
+          price: 0,
+          proDetailSprice: 0,
+          setChoiceGroupUuidFks: ["grp-dumpling"],
+          setTasteMaxSelect: 1,
+          setTastes: [sauceMala, sauceSesame],
+        }),
+        detail({
+          proDetailUuid: "pork",
+          price: 0,
+          proDetailSprice: 0,
+          setChoiceGroupUuidFks: ["grp-dumpling"],
+          setTasteMaxSelect: 1,
+          setTastes: [sauceMala, sauceSesame],
+        }),
+      ],
+    };
+
+    const items = buildStaffOrderItems({
+      detail: setProduct.details[0],
+      mode: "set",
+      noteText: "",
+      product: setProduct,
+      quantity: 1,
+      selectedSetChoiceUuids: { "grp-dumpling": ["chicken"] },
+      selectedSetChoiceTasteUuids: { chicken: ["taste-sesame"] },
+      toppings: [],
+    });
+
+    expect(items).toHaveLength(1);
+    expect(items[0]).toMatchObject({
+      prod_detail_uuid_fk: "chicken",
+      tastes: [{ taste_uuid_fk: "taste-sesame" }],
+    });
+    expect(() => buildStaffOrderItems({
+      detail: setProduct.details[0],
+      mode: "set",
+      noteText: "",
+      product: setProduct,
+      quantity: 1,
+      selectedSetChoiceUuids: { "grp-dumpling": ["chicken"] },
+      selectedSetChoiceTasteUuids: {
+        chicken: ["taste-mala", "taste-sesame"],
+      },
+      toppings: [],
+    })).toThrow("Invalid SET taste selection");
   });
 
   it("caps set choice selection at max_select without requiring it to be filled", () => {

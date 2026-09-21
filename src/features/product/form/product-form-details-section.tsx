@@ -39,6 +39,7 @@ import { cn } from "@/lib/utils";
 import type { BinaryFlag, SetChoiceGroupMode } from "./product-form-types";
 import {
   SET_CHOICE_GROUP_MODE_OPTIONS,
+  TASTE_MAX_SELECT_OPTIONS,
   binaryFlag,
   entityLabel,
   sizeName,
@@ -66,6 +67,7 @@ export function ProductFormDetailsSection({ form }: { form: ProductFormWorkflow 
     setOptionOptions,
     filteredSetOptionOptions,
     tasteOptions,
+    selectedTasteUuids,
     language,
     statusSortFk,
     sizeSaving,
@@ -93,16 +95,12 @@ export function ProductFormDetailsSection({ form }: { form: ProductFormWorkflow 
   const showNoSetProductOptions = statusSortFk === "2" && !sizeOptions.length;
   const sizeSelectKey = showNoSetProductOptions ? "empty" : sizeOptions.length ? "ready" : "loading";
   const labelRowClass = "flex min-h-7 items-center justify-between gap-2";
-  // ชื่อกลุ่มมาจากรายการ "รสชาติ" กลางของร้าน (Settings > รสชาติ) ไม่ใช่พิมพ์เอง — เก็บค่าเป็น
-  // taste_name_la เสมอ (ไม่ว่าจะดูฟอร์มเป็นภาษาไหน) เพื่อให้เป็น key ที่คงที่ตอนจับกลุ่มตามชื่อ
-  // (ดู buildChoiceGroupsPayload) ส่วนที่โชว์ในตัวเลือกยังปรับตามภาษาได้ตามปกติ
-  const choiceGroupNameOptions = tasteOptions
-    .map((taste) => ({
-      uuid: tasteUuid(taste),
-      name: String(taste.taste_name_la ?? taste.taste_name_eng ?? "").trim(),
-      label: entityLabel(taste, "taste_name_eng", "taste_name_la", language, ""),
-    }))
-    .filter((option) => option.uuid && option.name);
+  const choiceGroupNames = Array.from(
+    new Set(details.flatMap((row) => row.set_choice_group_names).map((name) => name.trim()).filter(Boolean)),
+  );
+  const selectedSetTasteOptions = tasteOptions.filter((taste) =>
+    selectedTasteUuids.has(tasteUuid(taste)),
+  );
 
   return (
     <>
@@ -306,44 +304,98 @@ export function ProductFormDetailsSection({ form }: { form: ProductFormWorkflow 
                     </Field>
                   ) : null}
                   {statusSortFk === "2" && row.set_choice_group_mode !== "none" ? (
-                    <Field className="md:col-span-2 lg:col-span-3">
+                    <Field>
                       <div className={labelRowClass}>
                         <FieldLabel>{t("product.setChoiceGroupName")}</FieldLabel>
                       </div>
-                      {choiceGroupNameOptions.length ? (
-                        <div className="flex flex-col gap-2 rounded-md border border-border bg-muted/10 p-2.5">
-                          {choiceGroupNameOptions.map((option) => {
-                            const checked = row.set_choice_group_names.includes(option.name);
-                            const checkboxId = `choice-group-name-${row.id}-${option.uuid}`;
-                            return (
-                              <FieldLabel
-                                key={option.uuid}
-                                htmlFor={checkboxId}
-                                className="min-h-8 cursor-pointer items-center gap-2 text-sm font-normal"
-                              >
-                                <Checkbox
-                                  id={checkboxId}
-                                  checked={checked}
-                                  onCheckedChange={(value) =>
-                                    updateDetail(row.id, {
-                                      set_choice_group_names: value
-                                        ? [...row.set_choice_group_names, option.name]
-                                        : row.set_choice_group_names.filter(
-                                            (name) => name !== option.name,
-                                          ),
-                                    })
-                                  }
-                                />
-                                {option.label}
-                              </FieldLabel>
-                            );
-                          })}
-                        </div>
-                      ) : (
-                        <FieldDescription className="text-xs">
-                          {t("product.noTastesForChoiceGroup")}
-                        </FieldDescription>
-                      )}
+                      <Input
+                        list={`choice-group-names-${row.id}`}
+                        value={row.set_choice_group_names[0] ?? ""}
+                        autoComplete="off"
+                        placeholder={t("product.setChoiceGroupNamePlaceholder")}
+                        onChange={(event) =>
+                          updateDetail(row.id, {
+                            set_choice_group_names: event.target.value ? [event.target.value] : [],
+                          })
+                        }
+                      />
+                      <datalist id={`choice-group-names-${row.id}`}>
+                        {choiceGroupNames.map((name) => <option key={name} value={name} />)}
+                      </datalist>
+                      <FieldDescription className="text-xs">
+                        {t("product.setChoiceGroupNameHint")}
+                      </FieldDescription>
+                    </Field>
+                  ) : null}
+                  {statusSortFk === "2" ? (
+                    <Field className="md:col-span-2 lg:col-span-3">
+                      <div className={labelRowClass}>
+                        <FieldLabel>{t("product.setDetailTasteMode")}</FieldLabel>
+                      </div>
+                      <Select
+                        value={row.set_taste_max_select}
+                        onValueChange={(value) =>
+                          updateDetail(row.id, {
+                            set_taste_max_select: value,
+                            ...(value === "0" ? { set_taste_uuid_fks: [] } : {}),
+                          })
+                        }
+                      >
+                        <SelectTrigger className="w-full max-w-72">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent position="popper">
+                          <SelectGroup>
+                            {TASTE_MAX_SELECT_OPTIONS.map((value) => (
+                              <SelectItem key={value} value={value}>
+                                {t(`product.tasteMaxSelect.${value}`)}
+                              </SelectItem>
+                            ))}
+                          </SelectGroup>
+                        </SelectContent>
+                      </Select>
+                      {Number(row.set_taste_max_select) > 0 ? (
+                        selectedSetTasteOptions.length ? (
+                          <div className="mt-2 grid gap-2 rounded-md border border-border bg-muted/10 p-2.5 sm:grid-cols-2">
+                            {selectedSetTasteOptions.map((taste) => {
+                              const uuid = tasteUuid(taste);
+                              const label = entityLabel(
+                                taste,
+                                "taste_name_eng",
+                                "taste_name_la",
+                                language,
+                                uuid,
+                              );
+                              const checked = row.set_taste_uuid_fks.includes(uuid);
+                              const checkboxId = `set-detail-taste-${row.id}-${uuid}`;
+                              return (
+                                <FieldLabel
+                                  key={uuid}
+                                  htmlFor={checkboxId}
+                                  className="min-h-8 cursor-pointer items-center gap-2 text-sm font-normal"
+                                >
+                                  <Checkbox
+                                    id={checkboxId}
+                                    checked={checked}
+                                    onCheckedChange={(value) =>
+                                      updateDetail(row.id, {
+                                        set_taste_uuid_fks: value
+                                          ? [...row.set_taste_uuid_fks, uuid]
+                                          : row.set_taste_uuid_fks.filter((item) => item !== uuid),
+                                      })
+                                    }
+                                  />
+                                  {label}
+                                </FieldLabel>
+                              );
+                            })}
+                          </div>
+                        ) : (
+                          <FieldDescription className="mt-2 text-xs">
+                            {t("product.selectSetTastesFirst")}
+                          </FieldDescription>
+                        )
+                      ) : null}
                     </Field>
                   ) : null}
                   {statusSortFk === "1" ? (

@@ -640,6 +640,53 @@ describe("set choice group helpers", () => {
     );
   });
 
+  it("hydrates and saves per-option SET sauces with an independent limit", () => {
+    const hydrated = detailFromProduct(
+      {
+        pro_detail_uuid: "detail-chicken",
+        set_taste_max_select: 2,
+        set_tastes: [
+          { taste_uuid: "taste-mala" },
+          { taste_uuid_fk: "taste-sesame" },
+        ],
+      },
+      "2",
+      [],
+    );
+
+    expect(hydrated.set_taste_max_select).toBe("2");
+    expect(hydrated.set_taste_uuid_fks).toEqual([
+      "taste-mala",
+      "taste-sesame",
+    ]);
+    expect(buildDetailPayload(hydrated, "2")).toMatchObject({
+      set_taste_max_select: 2,
+      set_taste_uuid_fks: ["taste-mala", "taste-sesame"],
+    });
+    expect(buildDetailPayload(hydrated, "1")).not.toHaveProperty(
+      "set_taste_max_select",
+    );
+  });
+
+  it("requires enough allowed sauces for the configured SET option limit", () => {
+    const state = {
+      prodNameLa: "Set",
+      cateUuidFk: "cate-1",
+      uniteUuidFk: "unit-1",
+      details: [
+        detail({
+          set_taste_max_select: "2",
+          set_taste_uuid_fks: ["taste-mala"],
+        }),
+      ],
+      statusSortFk: "2" as const,
+      prodToppingStatus: "1" as const,
+      selectedToppings: [],
+    };
+
+    expect(requiredFieldErrors(state, t)).toContain("product.setDetailTastes");
+  });
+
   it("sends no group refs for a row left in mode none", () => {
     const row = detail({ set_choice_group_mode: "none", set_choice_group_names: ["grp-1"] });
     expect(buildDetailPayload(row, "2")).toMatchObject({

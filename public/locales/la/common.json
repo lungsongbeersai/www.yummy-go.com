@@ -1665,6 +1665,11 @@
       "many": "ເລືອກໄດ້ຫຼາຍລາຍການ"
     },
     "setChoiceGroupName": "ຊື່ກຸ່ມຕົວເລືອກ",
+    "setChoiceGroupNamePlaceholder": "ຕົວຢ່າງ: ກ້ຽວທອດຈຳໂບ້",
+    "setChoiceGroupNameHint": "ລາຍການທີ່ໃຊ້ຊື່ກຸ່ມດຽວກັນ ຈະສະແດງຢູ່ກຸ່ມດຽວກັນໃນ POS.",
+    "setDetailTasteMode": "ນ້ຳຈິ້ມຂອງຕົວເລືອກນີ້",
+    "setDetailTastes": "ນ້ຳຈິ້ມຂອງລາຍການໃນຊຸດ",
+    "selectSetTastesFirst": "ກະລຸນາເລືອກນ້ຳຈິ້ມສຳລັບຊຸດນີ້ໃນຂັ້ນຕອນທີ 3 ກ່ອນ.",
     "searchSetProductOptions": "ຄົ້ນຫາສິນຄ້າໃນຊຸດ",
     "setProductOptions": "ສິນຄ້າໃນຊຸດ",
     "setProductOptionFormHint": "ໃສ່ຊື່ສິນຄ້າທີ່ຈະໃຊ້ເປັນລາຍການໃນຊຸດ.",

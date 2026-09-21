@@ -11,12 +11,15 @@ import {
   type ProdItem,
   type ProdTaste,
 } from "@/services/pos";
-import { optionalString } from "@/lib/values";
+import { optionalNumber, optionalString } from "@/lib/values";
 import { createMutationUuid } from "@/lib/pos/mutation-identity";
 import type { ProductModalMode } from "./menu-structure";
 import { defaultOrderQty } from "./quantity-rules";
 import { getOrderSelectionIssue } from "./order-selection-validation";
-import { resolveSetOrderDetails } from "./set-choice-selection";
+import {
+  resolveSetOrderDetails,
+  selectedSetChoiceGroupUuidsForDetail,
+} from "./set-choice-selection";
 import { toppingUuid, type SelectedTopping } from "./topping-selection";
 import { tasteUuid } from "./taste-selection";
 
@@ -49,6 +52,7 @@ export function buildStaffOrderItems({
   product,
   quantity,
   selectedSetChoiceUuids = {},
+  selectedSetChoiceTasteUuids = {},
   setInstanceUuid,
   tastes = [],
   toppings,
@@ -59,6 +63,7 @@ export function buildStaffOrderItems({
   product?: ProdItem | null;
   quantity: number;
   selectedSetChoiceUuids?: Record<string, string[]>;
+  selectedSetChoiceTasteUuids?: Record<string, string[]>;
   setInstanceUuid?: string;
   tastes?: ProdTaste[];
   toppings: SelectedTopping[];
@@ -80,6 +85,9 @@ export function buildStaffOrderItems({
   const note = noteText.trim() || undefined;
   const orderToppings = buildStaffOrderToppings(toppings);
   const orderTastes = buildStaffOrderTastes(tastes);
+  const hasNestedSetTastes = mode === "set" && details.some(
+    (itemDetail) => (optionalNumber(itemDetail.setTasteMaxSelect) ?? 0) > 0,
+  );
   const resolvedSetInstanceUuid = mode === "set"
     ? setInstanceUuid ?? createMutationUuid()
     : undefined;
@@ -91,7 +99,14 @@ export function buildStaffOrderItems({
     const item: CreateOrderItem = {
       prod_detail_uuid_fk: detailId,
       ...(resolvedSetInstanceUuid
-        ? { set_instance_uuid: resolvedSetInstanceUuid }
+        ? {
+            set_instance_uuid: resolvedSetInstanceUuid,
+            set_choice_group_uuid_fks: selectedSetChoiceGroupUuidsForDetail(
+              product,
+              selectedSetChoiceUuids,
+              detailId,
+            ),
+          }
         : {}),
       order_it_qty:
         mode === "set" ? defaultOrderQty(itemDetail) * quantity : quantity,
@@ -99,8 +114,31 @@ export function buildStaffOrderItems({
       order_it_note: note,
     };
 
+    if (mode === "set" && hasNestedSetTastes) {
+      const rawSelectedTasteUuids = selectedSetChoiceTasteUuids[detailId] ?? [];
+      const selectedTasteUuids = new Set(rawSelectedTasteUuids);
+      const tasteLimit = optionalNumber(itemDetail.setTasteMaxSelect) ?? 0;
+      const allowedTasteUuids = new Set(
+        (itemDetail.setTastes ?? []).map(tasteUuid).filter(Boolean),
+      );
+      if (
+        selectedTasteUuids.size !== rawSelectedTasteUuids.length ||
+        selectedTasteUuids.size > tasteLimit ||
+        [...selectedTasteUuids].some((uuid) => !allowedTasteUuids.has(uuid))
+      ) {
+        throw new Error("Invalid SET taste selection");
+      }
+      const detailTastes = (itemDetail.setTastes ?? []).filter((taste) =>
+        selectedTasteUuids.has(tasteUuid(taste)),
+      );
+      const selectedDetailTastes = buildStaffOrderTastes(detailTastes);
+      if (selectedDetailTastes.length) item.tastes = selectedDetailTastes;
+    }
+
     if (index === 0) {
-      if (orderTastes.length) item.tastes = orderTastes;
+      if ((!resolvedSetInstanceUuid || !hasNestedSetTastes) && orderTastes.length) {
+        item.tastes = orderTastes;
+      }
       item.toppings = orderToppings;
     }
     return item;
@@ -116,6 +154,7 @@ export function buildStaffOrderInput({
   product,
   quantity,
   selectedSetChoiceUuids = {},
+  selectedSetChoiceTasteUuids = {},
   tableUuid,
   tastes = [],
   toppings,
@@ -129,6 +168,7 @@ export function buildStaffOrderInput({
   product?: ProdItem | null;
   quantity: number;
   selectedSetChoiceUuids?: Record<string, string[]>;
+  selectedSetChoiceTasteUuids?: Record<string, string[]>;
   tableUuid: string;
   tastes?: ProdTaste[];
   toppings: SelectedTopping[];
@@ -153,6 +193,7 @@ export function buildStaffOrderInput({
       product,
       quantity,
       selectedSetChoiceUuids,
+      selectedSetChoiceTasteUuids,
       tastes,
       toppings,
     }),

@@ -91,6 +91,10 @@ export interface ProdDetail {
   proDetailSTime?: string | null;
   proDetailETime?: string | null;
   defaultQty?: number;
+  /** Maximum sauces/tastes selectable specifically for this SET option. */
+  setTasteMaxSelect?: number | string;
+  /** Sauces/tastes allowed when this SET option is selected. */
+  setTastes?: ProdTaste[];
   // แถวหนึ่งเป็นสมาชิกได้หลายกลุ่มพร้อมกัน — [] = ไม่มีกลุ่ม (บังคับรวมเหมือนเดิม)
   setChoiceGroupUuidFks?: string[];
 }
@@ -261,6 +265,8 @@ export interface CreateOrderTaste {
 export interface CreateOrderItem extends ApiEntity {
   prod_detail_uuid_fk: string;
   set_instance_uuid?: string;
+  /** Choice groups through which this SET detail was selected. [] marks an always-included detail. */
+  set_choice_group_uuid_fks?: string[];
   order_it_qty: number;
   order_it_status: number;
   order_it_note?: string;

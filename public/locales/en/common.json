@@ -1664,6 +1664,11 @@
       "many": "Pick multiple"
     },
     "setChoiceGroupName": "Choice group name",
+    "setChoiceGroupNamePlaceholder": "For example: Jumbo fried wonton",
+    "setChoiceGroupNameHint": "Options with the same group name are shown together in POS.",
+    "setDetailTasteMode": "Sauces for this option",
+    "setDetailTastes": "Set option sauces",
+    "selectSetTastesFirst": "Select the sauces for this Set in section 3 first.",
     "sortOldest": "Oldest",
     "sortNewest": "Newest",
     "sortHint": "To reorder, select a category, clear the search, use ascending order, and show all rows on one page.",

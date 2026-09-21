@@ -40,6 +40,7 @@ import { Spinner } from "@/components/ui/spinner";
 import { Textarea } from "@/components/ui/textarea";
 import { money } from "@/lib/format";
 import { cn } from "@/lib/utils";
+import { optionalNumber } from "@/lib/values";
 import type { ProdDetail, ProdItem, ProdTaste, ProdTopping } from "@/services/pos";
 import {
   availableProductDetails,
@@ -177,6 +178,7 @@ export function ProductOptionsForm({
   saving,
   selectedDetail,
   selectedSetChoiceUuids,
+  selectedSetChoiceTasteUuids,
   selectedTastes,
   selectedToppings,
   toppingQtyByUuid,
@@ -186,6 +188,7 @@ export function ProductOptionsForm({
   onQtyChange,
   onSubmit,
   onToggleSetChoice,
+  onToggleSetChoiceTaste,
   onToggleTaste,
   onToggleTopping,
 }: {
@@ -197,6 +200,7 @@ export function ProductOptionsForm({
   saving: boolean;
   selectedDetail: ProdDetail;
   selectedSetChoiceUuids: Record<string, string[]>;
+  selectedSetChoiceTasteUuids: Record<string, string[]>;
   selectedTastes: ProdTaste[];
   selectedToppings: SelectedTopping[];
   toppingQtyByUuid: Record<string, number>;
@@ -206,6 +210,11 @@ export function ProductOptionsForm({
   onQtyChange: (qty: number) => void;
   onSubmit: () => void;
   onToggleSetChoice: (groupUuid: string, detailUuid: string, maxSelect: number) => void;
+  onToggleSetChoiceTaste: (
+    detailUuid: string,
+    tasteUuid: string,
+    maxSelect: number,
+  ) => void;
   onToggleTaste: (uuid: string) => void;
   onToggleTopping: (uuid: string) => void;
 }) {
@@ -219,6 +228,11 @@ export function ProductOptionsForm({
   const toppings = (product.toppings ?? []).filter(isToppingAvailable);
   const tastes = (product.tastes ?? []).filter(isTasteAvailable);
   const tasteLimit = tasteSelectionLimit(product);
+  const hasNestedSetTastes = setMode && product.details.some(
+    (detail) =>
+      (optionalNumber(detail.setTasteMaxSelect) ?? 0) > 0 &&
+      (detail.setTastes ?? []).some(isTasteAvailable),
+  );
   const selectedTasteUuids = new Set(selectedTastes.map(tasteUuid));
   const toppingLimit = toppingSelectionLimit(
     toppings.length,
@@ -315,8 +329,23 @@ export function ProductOptionsForm({
                                 label={detail.sizeName || t("pos.product")}
                                 price={price > 0 ? money(price) : t("pos.includedInSet")}
                                 selected={isSelected}
+                                selectedTasteUuids={
+                                  selectedSetChoiceTasteUuids[detail.proDetailUuid] ?? []
+                                }
+                                tastes={(detail.setTastes ?? []).filter(isTasteAvailable)}
+                                tasteLimit={Math.min(
+                                  optionalNumber(detail.setTasteMaxSelect) ?? 0,
+                                  (detail.setTastes ?? []).filter(isTasteAvailable).length,
+                                )}
                                 onToggle={() =>
                                   onToggleSetChoice(groupUuid, detail.proDetailUuid, maxSelect)
+                                }
+                                onToggleTaste={(tasteUuid) =>
+                                  onToggleSetChoiceTaste(
+                                    detail.proDetailUuid,
+                                    tasteUuid,
+                                    optionalNumber(detail.setTasteMaxSelect) ?? 0,
+                                  )
                                 }
                               />
                             );
@@ -379,7 +408,7 @@ export function ProductOptionsForm({
                 </div>
               ) : null}
 
-              {tastes.length && tasteLimit > 0 ? (
+              {(!setMode || !hasNestedSetTastes) && tastes.length && tasteLimit > 0 ? (
                 <FieldSet className="gap-2">
                   <SectionLegend
                     label={t("pos.tastes")}
@@ -610,36 +639,95 @@ function SetChoiceOptionRow({
   label,
   price,
   selected,
+  selectedTasteUuids,
+  tastes,
+  tasteLimit,
   onToggle,
+  onToggleTaste,
 }: {
   blocked: boolean;
   detailUuid: string;
   label: string;
   price: string;
   selected: boolean;
+  selectedTasteUuids: string[];
+  tastes: ProdTaste[];
+  tasteLimit: number;
   onToggle: () => void;
+  onToggleTaste: (tasteUuid: string) => void;
 }) {
+  const { t } = useTranslation();
   const id = `staff-set-choice-${detailUuid}`;
   return (
-    <FieldLabel
-      htmlFor={id}
+    <div
       className={cn(
-        "min-h-12 w-full items-center gap-3 rounded-xl border border-border/70 bg-card px-3.5 py-2.5 text-foreground transition-colors has-data-checked:border-primary has-data-checked:bg-primary/5 has-data-checked:ring-1 has-data-checked:ring-primary/20",
+        "w-full rounded-xl border border-border/70 bg-card text-foreground transition-colors",
+        selected && "border-primary bg-primary/5 ring-1 ring-primary/20",
         blocked && !selected ? "cursor-not-allowed opacity-50" : "cursor-pointer hover:border-primary/40 hover:bg-accent/40",
       )}
     >
-      {/* ไม่ใช้ disabled ของ Radix จริง — ต้องคลิกทะลุถึง onToggle ได้เสมอ เพื่อขึ้น toast
-          เตือนเพดานเมื่อกดตัวที่ครบโควตาแล้ว (เหมือน ToppingOptionRow ด้านล่าง) */}
-      <Checkbox
-        id={id}
-        checked={selected}
-        aria-disabled={blocked && !selected}
-        className="size-4.5"
-        onCheckedChange={onToggle}
-      />
-      <span className="min-w-0 flex-1 truncate text-sm font-semibold">{label}</span>
-      <span className="shrink-0 text-sm font-bold tabular-nums text-primary">{price}</span>
-    </FieldLabel>
+      <FieldLabel
+        htmlFor={id}
+        className={cn(
+          "min-h-12 w-full items-center gap-3 px-3.5 py-2.5",
+          blocked && !selected ? "cursor-not-allowed" : "cursor-pointer",
+        )}
+      >
+        {/* ไม่ใช้ disabled ของ Radix จริง — ต้องคลิกทะลุถึง onToggle ได้เสมอ เพื่อขึ้น toast */}
+        <Checkbox
+          id={id}
+          checked={selected}
+          aria-disabled={blocked && !selected}
+          className="size-4.5"
+          onCheckedChange={onToggle}
+        />
+        <span className="min-w-0 flex-1 truncate text-sm font-semibold">{label}</span>
+        <span className="shrink-0 text-sm font-bold tabular-nums text-primary">{price}</span>
+      </FieldLabel>
+
+      {selected && tastes.length && tasteLimit > 0 ? (
+        <div className="border-t border-border/70 px-3.5 py-3">
+          <div className="mb-2 flex items-center justify-between gap-3 text-xs font-semibold text-muted-foreground">
+            <span>{t("pos.tastes")}</span>
+            <span>
+              {t("pos.selectedOf", {
+                selected: selectedTasteUuids.length,
+                total: tasteLimit,
+              })}
+            </span>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            {tastes.map((taste) => {
+              const uuid = tasteUuid(taste);
+              const tasteSelected = selectedTasteUuids.includes(uuid);
+              const tasteBlocked =
+                !tasteSelected && selectedTasteUuids.length >= tasteLimit;
+              const tasteId = `staff-set-choice-${detailUuid}-taste-${uuid}`;
+              return (
+                <FieldLabel
+                  key={uuid}
+                  htmlFor={tasteId}
+                  className={cn(
+                    "min-h-10 w-fit max-w-full items-center gap-2 rounded-lg border border-border/70 bg-background px-3 text-sm font-semibold transition-colors has-data-checked:border-primary has-data-checked:bg-primary/10 has-data-checked:text-primary",
+                    tasteBlocked
+                      ? "cursor-not-allowed opacity-60"
+                      : "cursor-pointer",
+                  )}
+                >
+                  <Checkbox
+                    id={tasteId}
+                    checked={tasteSelected}
+                    aria-disabled={tasteBlocked}
+                    onCheckedChange={() => onToggleTaste(uuid)}
+                  />
+                  <span className="truncate">{tasteDisplayName(taste)}</span>
+                </FieldLabel>
+              );
+            })}
+          </div>
+        </div>
+      ) : null}
+    </div>
   );
 }
 

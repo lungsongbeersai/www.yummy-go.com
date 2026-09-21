@@ -100,3 +100,19 @@ export function resolveSetOrderDetails(
 
   return [...ungrouped, ...dedupedChosen];
 }
+
+// ส่งกลุ่มที่ผู้ใช้เลือกแถวนี้ผ่านไปกับ create_order ด้วย เพื่อให้ backend ตรวจได้ว่า
+// รายการนั้นเป็นสมาชิกของกลุ่มจริงและแต่ละกลุ่มไม่เกิน max_select หลังจากแถวที่อยู่หลายกลุ่ม
+// ถูก dedupe เหลือ order item เดียวแล้ว
+export function selectedSetChoiceGroupUuidsForDetail(
+  product: ProdItem | null | undefined,
+  selectedSetChoiceUuids: Record<string, string[]>,
+  detailUuid: string,
+): string[] {
+  return groupedSetDetails(product).groups.flatMap(({ group, members }) => {
+    const groupUuid = setChoiceGroupUuid(group);
+    const belongsToGroup = members.some((detail) => detail.proDetailUuid === detailUuid);
+    const selectedInGroup = (selectedSetChoiceUuids[groupUuid] ?? []).includes(detailUuid);
+    return belongsToGroup && selectedInGroup ? [groupUuid] : [];
+  });
+}

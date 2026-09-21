@@ -42,6 +42,12 @@ export function mapApiProdDetail(detail: ApiProdDetail): ProdDetail {
     proDetailSTime: detail.pro_detail_sTime,
     proDetailETime: detail.pro_detail_eTime,
     defaultQty: detail.default_qty,
+    ...(detail.set_taste_max_select !== undefined
+      ? { setTasteMaxSelect: detail.set_taste_max_select }
+      : {}),
+    ...(detail.set_tastes !== undefined
+      ? { setTastes: detail.set_tastes.map(mapApiProdTaste) }
+      : {}),
     setChoiceGroupUuidFks: detail.set_choice_group_uuid_fks ?? [],
   };
 }
@@ -98,12 +104,16 @@ export function mapApiProdItem(product: ApiProdItem): ProdItem {
     uniteName: product.unite_name,
     prodSetPrice: product.prod_set_price,
     proDetailSprice: product.pro_detail_sprice,
-    prodToppingMaxSelect: product.prod_topping_max_select,
+    ...(product.prod_topping_max_select !== undefined
+      ? { prodToppingMaxSelect: product.prod_topping_max_select }
+      : {}),
     ...(product.prod_taste_max_select !== undefined
       ? { prodTasteMaxSelect: product.prod_taste_max_select }
       : {}),
     ...(product.has_tastes !== undefined ? { hasTastes: product.has_tastes } : {}),
-    statusSortFk: product.status_sort_fk,
+    ...(product.status_sort_fk !== undefined
+      ? { statusSortFk: product.status_sort_fk }
+      : {}),
     details: (product.details ?? []).map(mapApiProdDetail),
     toppings: (product.toppings ?? []).map(mapApiProdTopping),
     ...(product.tastes !== undefined

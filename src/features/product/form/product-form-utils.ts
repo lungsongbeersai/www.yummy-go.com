@@ -667,6 +667,10 @@ export function productHydrationKey(row: Product | null | undefined) {
         detail.pro_detail_eDate,
         detail.pro_detail_sTime,
         detail.pro_detail_eTime,
+        detail.set_taste_max_select,
+        (detail.set_tastes ?? [])
+          .map((taste) => String(taste.taste_uuid_fk ?? taste.taste_uuid ?? ""))
+          .join(","),
       ].join(":"),
     )
     .join("|");
@@ -720,6 +724,8 @@ export function emptyDetail(statusSortFk: StatusSortFk = "1"): DetailRow {
     pro_detail_status: statusSortFk === "3" ? "1" : "2",
     set_choice_group_mode: "none",
     set_choice_group_names: [],
+    set_taste_max_select: "0",
+    set_taste_uuid_fks: [],
     ...EMPTY_PROMOTION_FIELDS,
   };
 }
@@ -773,6 +779,10 @@ export function detailFromProduct(
     set_choice_group_names: matchedGroups.map((group) =>
       String(group.group_name_la ?? group.group_name ?? ""),
     ),
+    set_taste_max_select: String(detail.set_taste_max_select ?? 0),
+    set_taste_uuid_fks: (detail.set_tastes ?? [])
+      .map((taste) => String(taste.taste_uuid_fk ?? taste.taste_uuid ?? "").trim())
+      .filter(Boolean),
   };
 }
 
@@ -797,6 +807,8 @@ export function normalizeDetailsForStatus(
       // กลุ่มตัวเลือกมีความหมายเฉพาะสินค้าแบบ Set — สลับออกจาก Set แล้วต้องล้างทิ้ง
       set_choice_group_mode: targetStatus === "2" ? row.set_choice_group_mode : "none",
       set_choice_group_names: targetStatus === "2" ? row.set_choice_group_names : [],
+      set_taste_max_select: targetStatus === "2" ? row.set_taste_max_select : "0",
+      set_taste_uuid_fks: targetStatus === "2" ? row.set_taste_uuid_fks : [],
     };
 
     if (targetStatus !== "3") {
@@ -889,6 +901,9 @@ export function buildDetailPayload(
       pro_detail_setqty_cut_stock: numberFromFormatted(row.pro_detail_setqty_cut_stock),
       pro_detail_status: 2,
       set_choice_group_client_refs: choiceGroupNamesOf(row),
+      set_taste_max_select: Number(row.set_taste_max_select) || 0,
+      set_taste_uuid_fks:
+        Number(row.set_taste_max_select) > 0 ? row.set_taste_uuid_fks : [],
     };
   }
 
@@ -960,6 +975,9 @@ export function nextBulkStockMode(
 }
 
 export function requiredFieldErrorKeys(state: RequiredProductFormState) {
+  const selectedProductTasteUuids = new Set(
+    (state.selectedTastes ?? []).map((taste) => taste.taste_uuid),
+  );
   return [
     !state.prodNameLa.trim() ? "fields.prod_name" : null,
     !state.cateUuidFk ? "nav.category" : null,
@@ -1010,6 +1028,16 @@ export function requiredFieldErrorKeys(state: RequiredProductFormState) {
     )
       ? "product.setChoiceGroupName"
       : null,
+    state.statusSortFk === "2" &&
+    state.details.some(
+      (row) =>
+        Number(row.set_taste_max_select) > 0 &&
+        row.set_taste_uuid_fks.filter((uuid) =>
+          selectedProductTasteUuids.has(uuid),
+        ).length < Number(row.set_taste_max_select),
+    )
+      ? "product.setDetailTastes"
+      : null,
   ].filter(Boolean) as Array<string | string[]>;
 }
 
@@ -1025,6 +1053,9 @@ export function requiredFieldErrors(
 export function buildSaveProductPayload(
   state: ProductSavePayloadState,
 ): SaveProductInput {
+  const selectedProductTasteUuids = new Set(
+    (state.selectedTastes ?? []).map((taste) => taste.taste_uuid),
+  );
   return {
     cate_uuid_fk: state.cateUuidFk,
     unite_uuid_fk: state.uniteUuidFk,
@@ -1039,9 +1070,17 @@ export function buildSaveProductPayload(
     prod_status_imge: Number(state.prodStatusImge),
     prod_image: state.prodImage,
     branch_uuid_fk: state.branchUuid,
-    details: state.details.map((row) =>
-      buildDetailPayload(row, state.statusSortFk),
-    ),
+    details: state.details.map((row) => {
+      const detail = buildDetailPayload(row, state.statusSortFk);
+      return state.statusSortFk === "2"
+        ? {
+            ...detail,
+            set_taste_uuid_fks: row.set_taste_uuid_fks.filter(
+              (uuid) => selectedProductTasteUuids.has(uuid),
+            ),
+          }
+        : detail;
+    }),
     prod_topping_status: Number(state.prodToppingStatus),
     toppings:
       state.prodToppingStatus === TOPPING_HAS
