@@ -674,7 +674,7 @@ describe("set choice group helpers", () => {
     );
   });
 
-  it("saves a selected child SET option and its sauces separately from tastes", () => {
+  it("saves a selected child SET option with sauces from the taste master", () => {
     const row = detail({
       set_option_groups: [
         {
@@ -683,8 +683,7 @@ describe("set choice group helpers", () => {
           group_name_la: "ໄກ່",
           group_name_eng: "Chicken",
           max_select: "1",
-          taste_uuid_fks: [],
-          sauce_uuid_fks: ["sauce-mala", "sauce-sesame"],
+          taste_uuid_fks: ["taste-mala", "taste-sesame"],
         },
       ],
     });
@@ -694,8 +693,7 @@ describe("set choice group helpers", () => {
         {
           size_uuid_fk: "size-chicken",
           max_select: 1,
-          taste_uuid_fks: [],
-          sauce_uuid_fks: ["sauce-mala", "sauce-sesame"],
+          taste_uuid_fks: ["taste-mala", "taste-sesame"],
         },
       ],
     });

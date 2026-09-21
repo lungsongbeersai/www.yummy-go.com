@@ -45,6 +45,7 @@ import {
   entityLabel,
   sizeName,
   sizeUuid,
+  tasteUuid,
 } from "./product-form-utils";
 import { ProductFormSectionHeader } from "./product-form-section-header";
 import type { ProductFormWorkflow } from "./use-product-form-workflow";
@@ -66,21 +67,12 @@ export function ProductFormDetailsSection({ form }: { form: ProductFormWorkflow 
     sizeOptions,
     setOptionOptions,
     filteredSetOptionOptions,
-    sauceOptions,
-    sauceDialogOpen,
-    setSauceDialogOpen,
-    newSauceNameLa,
-    setNewSauceNameLa,
-    newSauceNameEng,
-    setNewSauceNameEng,
-    editingSauceUuid,
-    deletingSauceUuid,
-    setDeletingSauceUuid,
-    resetSauceForm,
-    editSauce,
-    saveSauceFromDialog,
-    deleteSauceFromDialog,
-    sauceSaving,
+    tasteOptions,
+    selectedTasteUuids,
+    prodTasteMaxSelect,
+    setProdTasteMaxSelect,
+    setTasteDialogOpen,
+    resetNewTasteForm,
     language,
     statusSortFk,
     sizeSaving,
@@ -109,9 +101,17 @@ export function ProductFormDetailsSection({ form }: { form: ProductFormWorkflow 
   const showNoSetProductOptions = statusSortFk === "2" && !sizeOptions.length;
   const sizeSelectKey = showNoSetProductOptions ? "empty" : sizeOptions.length ? "ready" : "loading";
   const labelRowClass = "flex min-h-7 items-center justify-between gap-2";
-  const sauceUuid = (sauce: (typeof sauceOptions)[number]) => String(sauce.sauce_uuid ?? "");
-  const sauceLabel = (sauce: (typeof sauceOptions)[number]) =>
-    entityLabel(sauce, "sauce_name_eng", "sauce_name_la", language, sauceUuid(sauce));
+  const sauceOptions = tasteOptions.filter((taste) =>
+    selectedTasteUuids.has(tasteUuid(taste)),
+  );
+  const sauceLabel = (taste: (typeof sauceOptions)[number]) =>
+    entityLabel(
+      taste,
+      "taste_name_eng",
+      "taste_name_la",
+      language,
+      tasteUuid(taste),
+    );
 
   return (
     <>
@@ -594,8 +594,11 @@ export function ProductFormDetailsSection({ form }: { form: ProductFormWorkflow 
                             size="xs"
                             variant="outline"
                             onClick={() => {
-                              resetSauceForm();
-                              setSauceDialogOpen(true);
+                              resetNewTasteForm();
+                              if (Number(prodTasteMaxSelect) === 0) {
+                                setProdTasteMaxSelect("1");
+                              }
+                              setTasteDialogOpen(true);
                             }}
                           >
                             <Plus data-icon="inline-start" />
@@ -605,9 +608,9 @@ export function ProductFormDetailsSection({ form }: { form: ProductFormWorkflow 
                         {sauceOptions.length ? (
                           <div className="mt-3 grid gap-2 rounded-md border border-border bg-muted/10 p-2.5 sm:grid-cols-2 lg:grid-cols-3">
                             {sauceOptions.map((sauce) => {
-                              const uuid = sauceUuid(sauce);
+                              const uuid = tasteUuid(sauce);
                               const label = sauceLabel(sauce);
-                              const checked = group.sauce_uuid_fks.includes(uuid);
+                              const checked = group.taste_uuid_fks.includes(uuid);
                               const checkboxId = `set-child-sauce-${row.id}-${group.id}-${uuid}`;
                               return (
                                 <FieldLabel
@@ -624,9 +627,9 @@ export function ProductFormDetailsSection({ form }: { form: ProductFormWorkflow 
                                           candidate.id === group.id
                                             ? {
                                                 ...candidate,
-                                                sauce_uuid_fks: value
-                                                  ? [...candidate.sauce_uuid_fks, uuid]
-                                                  : candidate.sauce_uuid_fks.filter((item) => item !== uuid),
+                                                taste_uuid_fks: value
+                                                  ? [...candidate.taste_uuid_fks, uuid]
+                                                  : candidate.taste_uuid_fks.filter((item) => item !== uuid),
                                               }
                                             : candidate,
                                         ),
@@ -825,94 +828,6 @@ export function ProductFormDetailsSection({ form }: { form: ProductFormWorkflow 
         onConfirm={() => void deleteSetOptionFromDialog(deletingSetOptionUuid)}
         onOpenChange={(open) => {
           if (!open) setDeletingSetOptionUuid("");
-        }}
-      />
-      <Dialog
-        open={sauceDialogOpen}
-        onOpenChange={(open) => {
-          setSauceDialogOpen(open);
-          if (!open) resetSauceForm();
-        }}
-      >
-        <DialogContent className="max-h-[calc(100vh-2rem)] overflow-y-auto sm:max-w-2xl">
-          <DialogHeader>
-            <DialogTitle>{t("product.manageSauces")}</DialogTitle>
-            <DialogDescription>{t("product.manageSaucesHint")}</DialogDescription>
-          </DialogHeader>
-          <FieldGroup className="grid gap-4 sm:grid-cols-2">
-            <Field>
-              <FieldLabel>{t("fields.nameLa")}</FieldLabel>
-              <Input
-                value={newSauceNameLa}
-                onChange={(event) => setNewSauceNameLa(event.target.value)}
-              />
-            </Field>
-            <Field>
-              <FieldLabel>{t("fields.nameEn")}</FieldLabel>
-              <Input
-                value={newSauceNameEng}
-                onChange={(event) => setNewSauceNameEng(event.target.value)}
-              />
-            </Field>
-          </FieldGroup>
-          <div className="flex max-h-64 flex-col gap-2 overflow-y-auto">
-            {sauceOptions.map((sauce) => (
-              <div
-                key={sauceUuid(sauce)}
-                className="flex items-center gap-2 rounded-md border border-border p-2"
-              >
-                <span className="min-w-0 flex-1 truncate text-sm font-medium">
-                  {sauceLabel(sauce)}
-                </span>
-                <Button
-                  type="button"
-                  size="icon-sm"
-                  variant="ghost"
-                  aria-label={t("actions.edit")}
-                  onClick={() => editSauce(sauce)}
-                >
-                  <Pencil />
-                </Button>
-                <Button
-                  type="button"
-                  size="icon-sm"
-                  variant="destructive"
-                  aria-label={t("actions.delete")}
-                  onClick={() => setDeletingSauceUuid(sauceUuid(sauce))}
-                >
-                  <Trash2 />
-                </Button>
-              </div>
-            ))}
-          </div>
-          <DialogFooter>
-            {editingSauceUuid ? (
-              <Button type="button" variant="outline" onClick={resetSauceForm}>
-                <RefreshCcw data-icon="inline-start" />
-                {t("actions.new")}
-              </Button>
-            ) : null}
-            <Button
-              type="button"
-              disabled={sauceSaving || !newSauceNameLa.trim()}
-              onClick={() => void saveSauceFromDialog()}
-            >
-              {sauceSaving ? <Spinner data-icon="inline-start" /> : <Save data-icon="inline-start" />}
-              {t("actions.save")}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-      <ConfirmDialog
-        open={Boolean(deletingSauceUuid)}
-        title={`${t("actions.delete")} ${t("product.sauces")}`}
-        description={t("settings.deleteConfirm")}
-        cancelLabel={t("actions.cancel")}
-        confirmLabel={t("actions.delete")}
-        confirmPending={sauceSaving}
-        onConfirm={() => void deleteSauceFromDialog(deletingSauceUuid)}
-        onOpenChange={(open) => {
-          if (!open) setDeletingSauceUuid("");
         }}
       />
     </>

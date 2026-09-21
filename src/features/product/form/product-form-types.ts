@@ -22,7 +22,6 @@ export interface SetDetailOptionGroupRow {
   group_name_eng: string;
   max_select: string;
   taste_uuid_fks: string[];
-  sauce_uuid_fks: string[];
 }
 
 export interface DetailRow {

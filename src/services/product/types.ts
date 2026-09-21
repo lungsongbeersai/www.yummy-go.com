@@ -53,6 +53,7 @@ export interface ProductDetailOptionGroup extends ApiEntity {
   max_select?: number | string;
   group_sort?: number | string;
   taste_uuid_fks?: string[];
+  /** Compatibility alias returned by the short-lived separate-sauce API. */
   sauce_uuid_fks?: string[];
   tastes?: ProductDetailTaste[];
 }
@@ -159,7 +160,6 @@ export interface SaveProductDetailInput extends ApiEntity {
     group_name_eng?: string;
     max_select: number;
     taste_uuid_fks: string[];
-    sauce_uuid_fks?: string[];
     group_sort?: number;
   }>;
 }

@@ -11,7 +11,6 @@ import type {
   SaveProductSetChoiceGroupInput,
 } from "@/services/product";
 import type { Size } from "@/services/size";
-import type { Sauce } from "@/services/sauce";
 import type { Taste } from "@/services/taste";
 import type { Topping } from "@/services/topping";
 import type { Unit } from "@/services/unit";
@@ -49,7 +48,6 @@ export const EMPTY_CATEGORIES: Category[] = [];
 export const EMPTY_COLORS: Color[] = [];
 export const EMPTY_GROUPS: Group[] = [];
 export const EMPTY_SIZES: Size[] = [];
-export const EMPTY_SAUCES: Sauce[] = [];
 export const EMPTY_TASTES: Taste[] = [];
 export const EMPTY_TOPPINGS: Topping[] = [];
 export const EMPTY_UNITS: Unit[] = [];
@@ -682,7 +680,6 @@ export function productHydrationKey(row: Product | null | undefined) {
             group.group_name_eng,
             group.max_select,
             (group.taste_uuid_fks ?? []).join(","),
-            (group.sauce_uuid_fks ?? []).join(","),
           ].join("/"))
           .join(";"),
       ].join(":"),
@@ -753,7 +750,6 @@ export function emptySetDetailOptionGroup(): SetDetailOptionGroupRow {
     group_name_eng: "",
     max_select: "1",
     taste_uuid_fks: [],
-    sauce_uuid_fks: [],
   };
 }
 
@@ -790,9 +786,8 @@ export function detailFromProduct(
         group_name_la: String(group.group_name_la ?? group.group_name ?? ""),
         group_name_eng: String(group.group_name_eng ?? ""),
         max_select: String(group.max_select ?? 1),
-        taste_uuid_fks: (group.taste_uuid_fks ?? group.tastes?.map((taste) =>
+        taste_uuid_fks: (group.taste_uuid_fks ?? group.sauce_uuid_fks ?? group.tastes?.map((taste) =>
           String(taste.taste_uuid_fk ?? taste.taste_uuid ?? "")) ?? []).filter(Boolean),
-        sauce_uuid_fks: (group.sauce_uuid_fks ?? []).map(String).filter(Boolean),
       }))
     : Number(detail.set_taste_max_select ?? 0) > 0
       ? [{
@@ -801,7 +796,6 @@ export function detailFromProduct(
           group_name_eng: "Taste / sauce",
           max_select: String(detail.set_taste_max_select ?? 1),
           taste_uuid_fks: legacyTasteUuids,
-          sauce_uuid_fks: [],
         }]
       : [];
   return {
@@ -967,7 +961,6 @@ export function buildDetailPayload(
         group_name_eng: group.group_name_eng.trim() || group.group_name_la.trim(),
         max_select: Number(group.max_select) || 1,
         taste_uuid_fks: group.taste_uuid_fks,
-        sauce_uuid_fks: group.sauce_uuid_fks,
         group_sort: index + 1,
       })),
     };
@@ -1086,7 +1079,9 @@ export function requiredFieldErrorKeys(state: RequiredProductFormState) {
       : null,
     Number(state.prodTasteMaxSelect ?? 0) > 0 &&
     (state.selectedTastes ?? []).length < Number(state.prodTasteMaxSelect ?? 0)
-      ? "product.sections.tastes"
+      ? state.statusSortFk === "2"
+        ? "product.sauces"
+        : "product.sections.tastes"
       : null,
     state.statusSortFk === "2" &&
     state.details.some(
@@ -1114,7 +1109,9 @@ export function requiredFieldErrorKeys(state: RequiredProductFormState) {
     state.details.some((row) =>
       row.set_option_groups.some(
         (group) =>
-          group.sauce_uuid_fks.length < Number(group.max_select),
+          group.taste_uuid_fks.filter((uuid) =>
+            selectedProductTasteUuids.has(uuid),
+          ).length < Number(group.max_select),
       ),
     )
       ? "product.setDetailTastes"
@@ -1168,7 +1165,6 @@ export function buildSaveProductPayload(
               taste_uuid_fks: group.taste_uuid_fks.filter((uuid) =>
                 selectedProductTasteUuids.has(uuid),
               ),
-              sauce_uuid_fks: group.sauce_uuid_fks,
               group_sort: index + 1,
             })),
           }

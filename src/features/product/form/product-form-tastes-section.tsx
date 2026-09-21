@@ -46,6 +46,7 @@ export function ProductFormTastesSection({ form }: { form: ProductFormWorkflow }
   const {
     t,
     language,
+    statusSortFk,
     storeUuid,
     tasteSaving,
     prodTasteMaxSelect,
@@ -72,14 +73,20 @@ export function ProductFormTastesSection({ form }: { form: ProductFormWorkflow }
     deleteTasteFromDialog,
   } = form;
   const enabled = Number(prodTasteMaxSelect) > 0;
+  const isSet = statusSortFk === "2";
+  const optionName = t(isSet ? "product.sauce" : "product.taste");
+  const sectionTitle = t(isSet ? "product.sauces" : "product.sections.tastes");
+  const sectionHint = t(
+    isSet ? "product.sections.saucesHint" : "product.sections.tastesHint",
+  );
 
   return (
     <>
       <Card>
         <ProductFormSectionHeader
           number="3"
-          title={t("product.sections.tastes")}
-          hint={t("product.sections.tastesHint")}
+          title={sectionTitle}
+          hint={sectionHint}
           action={
             <Button
               className="max-sm:w-full"
@@ -93,13 +100,15 @@ export function ProductFormTastesSection({ form }: { form: ProductFormWorkflow }
               }}
             >
               <Plus data-icon="inline-start" />
-              {t("actions.add")} {t("product.taste")}
+              {t("actions.add")} {optionName}
             </Button>
           }
         />
         <CardContent className="flex flex-col gap-4">
           <Field>
-            <FieldLabel htmlFor="prod-taste-max-select">{t("product.tasteMode")}</FieldLabel>
+            <FieldLabel htmlFor="prod-taste-max-select">
+              {t(isSet ? "product.sauceMode" : "product.tasteMode")}
+            </FieldLabel>
             <Select value={prodTasteMaxSelect} onValueChange={setProdTasteMaxSelect}>
               <SelectTrigger id="prod-taste-max-select" className="w-full max-w-72">
                 <SelectValue />
@@ -108,13 +117,15 @@ export function ProductFormTastesSection({ form }: { form: ProductFormWorkflow }
                 <SelectGroup>
                   {TASTE_MAX_SELECT_OPTIONS.map((value) => (
                     <SelectItem key={value} value={value}>
-                      {t(`product.tasteMaxSelect.${value}`)}
+                      {t(`${isSet ? "product.sauceMaxSelect" : "product.tasteMaxSelect"}.${value}`)}
                     </SelectItem>
                   ))}
                 </SelectGroup>
               </SelectContent>
             </Select>
-            <FieldDescription>{t("product.tasteMaxSelectHint")}</FieldDescription>
+            <FieldDescription>
+              {t(isSet ? "product.sauceMaxSelectHint" : "product.tasteMaxSelectHint")}
+            </FieldDescription>
           </Field>
 
           {enabled && selectedTasteBadges.length ? (
@@ -135,7 +146,7 @@ export function ProductFormTastesSection({ form }: { form: ProductFormWorkflow }
                   <Input
                     className="pl-9"
                     value={tasteSearch}
-                    placeholder={t("product.searchTastes")}
+                    placeholder={t(isSet ? "product.searchSauces" : "product.searchTastes")}
                     onChange={(event) => setTasteSearch(event.target.value)}
                   />
                 </div>
@@ -175,7 +186,7 @@ export function ProductFormTastesSection({ form }: { form: ProductFormWorkflow }
                 ) : null}
               </div>
             ) : (
-              <FieldDescription>{t("product.noTastes")}</FieldDescription>
+              <FieldDescription>{t(isSet ? "product.noSauces" : "product.noTastes")}</FieldDescription>
             )
           ) : null}
         </CardContent>
@@ -191,9 +202,9 @@ export function ProductFormTastesSection({ form }: { form: ProductFormWorkflow }
         <DialogContent className="max-h-[calc(100vh-2rem)] overflow-y-auto sm:max-w-4xl">
           <DialogHeader>
             <DialogTitle>
-              {editingTasteUuid ? t("actions.edit") : t("actions.add")} {t("product.taste")}
+              {editingTasteUuid ? t("actions.edit") : t("actions.add")} {optionName}
             </DialogTitle>
-            <DialogDescription>{t("product.sections.tastesHint")}</DialogDescription>
+            <DialogDescription>{sectionHint}</DialogDescription>
           </DialogHeader>
           <div className="grid gap-4 lg:grid-cols-2">
             <FieldSet className="gap-4 rounded-md border bg-muted/10 p-4">
@@ -229,7 +240,7 @@ export function ProductFormTastesSection({ form }: { form: ProductFormWorkflow }
             </FieldSet>
             <div className="flex min-h-0 flex-col gap-3 rounded-md border bg-muted/10 p-4">
               <div className="flex items-center justify-between gap-3">
-                <p className="text-sm font-semibold">{t("product.tastes")}</p>
+                <p className="text-sm font-semibold">{t(isSet ? "product.sauces" : "product.tastes")}</p>
                 <Badge>{t("common.selectedCount", { count: selectedTasteUuids.size })}</Badge>
               </div>
               <div className="relative">
@@ -237,7 +248,7 @@ export function ProductFormTastesSection({ form }: { form: ProductFormWorkflow }
                 <Input
                   className="pl-9"
                   value={tasteSearch}
-                  placeholder={t("product.searchTastes")}
+                  placeholder={t(isSet ? "product.searchSauces" : "product.searchTastes")}
                   onChange={(event) => setTasteSearch(event.target.value)}
                 />
               </div>
@@ -295,7 +306,7 @@ export function ProductFormTastesSection({ form }: { form: ProductFormWorkflow }
 
       <ConfirmDialog
         open={Boolean(deletingTasteUuid)}
-        title={`${t("actions.delete")} ${t("product.taste")}`}
+        title={`${t("actions.delete")} ${optionName}`}
         description={t("settings.deleteConfirm")}
         cancelLabel={t("actions.cancel")}
         confirmLabel={t("actions.delete")}

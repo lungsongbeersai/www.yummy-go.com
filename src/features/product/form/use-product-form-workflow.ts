@@ -70,7 +70,6 @@ import { useProductFormDetails } from "./use-product-form-details";
 import { useProductImageWorkflow } from "./use-product-form-image";
 import { useProductFormReferenceData } from "./use-product-form-reference-data";
 import { useProductSetOptionsWorkflow } from "./use-product-set-options-workflow";
-import { useProductSaucesWorkflow } from "./use-product-sauces-workflow";
 import { useProductTastesWorkflow } from "./use-product-tastes-workflow";
 import { useProductToppingsWorkflow } from "./use-product-toppings-workflow";
 
@@ -119,11 +118,9 @@ export function useProductFormWorkflow() {
     colors,
     createSizeForStatus,
     createTasteRow,
-    createSauceRow,
     createToppingRow,
     deleteSizeForStatus,
     deleteTasteRow,
-    deleteSauceRow,
     deleteToppingRow,
     groups,
     loadCategories,
@@ -131,7 +128,6 @@ export function useProductFormWorkflow() {
     loadSizes,
     loadSizesByStatus,
     loadTastes,
-    loadSauces,
     loadToppings,
     loadUnits,
     productLoading,
@@ -143,8 +139,6 @@ export function useProductFormWorkflow() {
     sizes,
     tasteSaving,
     tastes,
-    sauceSaving,
-    sauces,
     toppingSaving,
     toppings,
     units,
@@ -303,32 +297,6 @@ export function useProductFormWorkflow() {
     storeUuid,
     t,
     tastes,
-  });
-  const {
-    sauceOptions,
-    sauceDialogOpen,
-    setSauceDialogOpen,
-    newSauceNameLa,
-    setNewSauceNameLa,
-    newSauceNameEng,
-    setNewSauceNameEng,
-    editingSauceUuid,
-    deletingSauceUuid,
-    setDeletingSauceUuid,
-    resetSauceForm,
-    editSauce,
-    saveSauceFromDialog,
-    deleteSauceFromDialog,
-  } = useProductSaucesWorkflow({
-    createSauceRow,
-    deleteSauceRow,
-    language,
-    loadSauces,
-    sauces,
-    showToast,
-    setDetails,
-    storeUuid,
-    t,
   });
   const editLoadKeyRef = useRef("");
   const rawExistingImage = rawProductImage(editing);
@@ -843,7 +811,10 @@ export function useProductFormWorkflow() {
     { label: t("nav.unit"), done: Boolean(uniteUuidFk) },
     { label: t("product.sections.image"), done: hasProductMedia },
     { label: t("product.sections.details"), done: hasValidDetails },
-    { label: t("product.sections.tastes"), done: hasTasteSetup },
+    {
+      label: t(statusSortFk === "2" ? "product.sauces" : "product.sections.tastes"),
+      done: hasTasteSetup,
+    },
     { label: t("product.sections.toppings"), done: hasToppingSetup }
   ];
   const completedChecks = requiredChecks.filter((item) => item.done).length;
@@ -1014,21 +985,6 @@ export function useProductFormWorkflow() {
     sizeSaving,
     toppingSaving,
     tasteSaving,
-    sauceSaving,
-    sauceOptions,
-    sauceDialogOpen,
-    setSauceDialogOpen,
-    newSauceNameLa,
-    setNewSauceNameLa,
-    newSauceNameEng,
-    setNewSauceNameEng,
-    editingSauceUuid,
-    deletingSauceUuid,
-    setDeletingSauceUuid,
-    resetSauceForm,
-    editSauce,
-    saveSauceFromDialog,
-    deleteSauceFromDialog,
     colors,
     submit,
     addDetail,
