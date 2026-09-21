@@ -1122,6 +1122,7 @@
     "invalidQuantity": "Choose a valid quantity.",
     "invalidTopping": "One or more toppings are no longer available.",
     "invalidTaste": "One or more tastes are no longer available.",
+    "tasteRequired": "Select at least one taste before adding this item.",
     "tasteLimitExceeded": "You've selected more tastes than this product allows.",
     "tasteSelectionLimitReached": "This item allows only {{count}} taste.",
     "tasteSelectionLimitReached_other": "This item allows only {{count}} tastes.",

@@ -598,6 +598,16 @@ describe("order customer helpers", () => {
       taste({ tasteUuid: "taste-2" }),
     ]);
     expect(
+      getOrderSelectionIssue({
+        detail: detail(),
+        mode: "normal",
+        product: item,
+        quantity: 1,
+        tastes: [],
+        toppings: [],
+      }),
+    ).toBe("taste-required");
+    expect(
       buildStaffOrderItems({
         detail: detail(),
         noteText: "",
@@ -650,6 +660,9 @@ describe("order customer helpers", () => {
     );
     expect(orderSelectionIssueLabel("stock-insufficient", t)).toBe(
       "pos.outOfStock",
+    );
+    expect(orderSelectionIssueLabel("taste-required", t)).toBe(
+      "pos.tasteRequired",
     );
     expect(orderSelectionIssueLabel("topping-limit-exceeded", t)).toBe(
       "pos.toppingLimitExceeded",

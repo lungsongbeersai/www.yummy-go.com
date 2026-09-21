@@ -20,6 +20,7 @@ import {
   getPublicOrderPriceTotals,
   getProductModalMode,
   isDetailAvailable,
+  isRequiredTasteSelectionMissing,
   isToppingAvailable,
   isTasteAvailable,
   maxAvailableQty,
@@ -55,7 +56,8 @@ export type PublicProductSelectionIssue =
   | "noAvailableOptions"
   | "invalidProductPrice"
   | "insufficientStock"
-  | "invalidQuantity";
+  | "invalidQuantity"
+  | "tasteRequired";
 
 export function useProductOrderSheetWorkflow({
   open,
@@ -140,6 +142,7 @@ export function useProductOrderSheetWorkflow({
     maxQty >= minQty
       ? minQty + Math.floor((maxQty - minQty) / qtyStep) * qtyStep
       : minQty;
+  const tasteSelectionLimitNow = tasteSelectionLimit(product);
   let selectionIssue: PublicProductSelectionIssue | null = null;
   if (!product || !selectedDetail || !isDetailAvailable(selectedDetail)) {
     selectionIssue = "noAvailableOptions";
@@ -154,6 +157,11 @@ export function useProductOrderSheetWorkflow({
     (qty - minQty) % qtyStep !== 0
   ) {
     selectionIssue = "invalidQuantity";
+  } else if (
+    mode !== "set" &&
+    isRequiredTasteSelectionMissing(product, selectedTastes.length)
+  ) {
+    selectionIssue = "tasteRequired";
   }
   const canSubmit = !viewOnly && selectionIssue === null && !saving;
   const modeLabel = product ? productModeLabel(mode, product, lang) : "";
@@ -189,7 +197,6 @@ export function useProductOrderSheetWorkflow({
     () => tastes.filter(isTasteAvailable),
     [tastes],
   );
-  const tasteSelectionLimitNow = tasteSelectionLimit(product);
   const canSelectMoreTastesNow = selectedTastes.length < tasteSelectionLimitNow;
 
   const handleTasteToggle = (tasteUuid: string) => {

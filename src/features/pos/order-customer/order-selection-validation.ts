@@ -74,7 +74,11 @@ export function getOrderSelectionIssue({
   if (selectedTastes.some((taste) => !isTasteAvailable(taste))) {
     return "taste-invalid";
   }
-  if (product && selectedTastes.length > tasteSelectionLimit(product)) {
+  const tasteLimit = product ? tasteSelectionLimit(product) : 0;
+  if (mode !== "set" && tasteLimit > 0 && selectedTastes.length === 0) {
+    return "taste-required";
+  }
+  if (product && selectedTastes.length > tasteLimit) {
     return "taste-limit-exceeded";
   }
   if (mode === "set" && product) {
@@ -132,6 +136,7 @@ export function orderSelectionIssueLabel(
   if (issue === "price-invalid") return t("pos.invalidProductPrice");
   if (issue === "stock-insufficient") return t("pos.outOfStock");
   if (issue === "taste-invalid") return t("pos.invalidTaste");
+  if (issue === "taste-required") return t("pos.tasteRequired");
   if (issue === "taste-limit-exceeded") return t("pos.tasteLimitExceeded");
   if (issue === "set-options-incomplete") return t("pos.setOptionsIncomplete");
   if (issue === "quantity-exceeds-stock") {

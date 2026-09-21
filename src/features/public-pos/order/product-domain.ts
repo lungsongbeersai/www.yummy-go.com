@@ -555,6 +555,13 @@ export function tasteSelectionLimit(product?: ProdItem | null) {
   return configured > 0 ? Math.min(configured, available) : 0;
 }
 
+export function isRequiredTasteSelectionMissing(
+  product: ProdItem | null | undefined,
+  selectedCount: number,
+) {
+  return tasteSelectionLimit(product) > 0 && selectedCount < 1;
+}
+
 export function togglePublicTaste(
   current: PublicSelectedTaste[],
   taste: ProdTaste,

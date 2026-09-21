@@ -31,6 +31,7 @@ import {
   getProductModalMode,
   getPublicOrderPriceTotals,
   getRenderedMenuSections,
+  isRequiredTasteSelectionMissing,
   isCanceledCartItem,
   isServedCartItem,
   hasMoreMenuToRender,
@@ -180,6 +181,23 @@ describe("public menu category reset helpers", () => {
 });
 
 describe("public POS product helpers", () => {
+  it("requires one taste when a product has an active taste selector", () => {
+    const item = prodItem({
+      prodTasteMaxSelect: 2,
+      tastes: [
+        { tasteUuid: "taste-1", tasteStatus: 1 },
+        { tasteUuid: "taste-2", tasteStatus: 1 },
+      ],
+    });
+
+    expect(isRequiredTasteSelectionMissing(item, 0)).toBe(true);
+    expect(isRequiredTasteSelectionMissing(item, 1)).toBe(false);
+    expect(isRequiredTasteSelectionMissing(
+      prodItem({ prodTasteMaxSelect: 0, tastes: item.tastes }),
+      0,
+    )).toBe(false);
+  });
+
   it("uses the Kip symbol without abbreviating product prices", () => {
     expect(formatMoney(300_000, "en")).toBe("300,000 ₭");
     expect(formatMoney(899_000, "la")).toBe("899,000 ₭");

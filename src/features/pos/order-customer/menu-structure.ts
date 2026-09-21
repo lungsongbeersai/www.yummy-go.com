@@ -59,6 +59,7 @@ export type OrderSelectionIssue =
   | "quantity-exceeds-stock"
   | "stock-insufficient"
   | "taste-invalid"
+  | "taste-required"
   | "taste-limit-exceeded"
   | "set-options-incomplete"
   | "topping-invalid"
