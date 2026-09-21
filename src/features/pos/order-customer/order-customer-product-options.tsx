@@ -54,9 +54,9 @@ import {
   defaultOrderQty,
   getOrderSelectionIssue,
   getPromoLabel,
-  groupedSetDetails,
   isToppingAvailable,
   isTasteAvailable,
+  orderedSetDetailSections,
   orderQuantityRules,
   orderSelectionIssueLabel,
   productMedia,
@@ -239,9 +239,7 @@ export function ProductOptionsForm({
   const media = productMedia(product);
   const setMode = mode === "set";
   const details = setMode ? [] : availableProductDetails(product);
-  const { ungrouped: setUngroupedDetails, groups: setChoiceGroupEntries } = setMode
-    ? groupedSetDetails(product)
-    : { ungrouped: [], groups: [] };
+  const setDetailSections = setMode ? orderedSetDetailSections(product) : [];
   const toppings = (product.toppings ?? []).filter(isToppingAvailable);
   const tastes = (product.tastes ?? []).filter(isTasteAvailable);
   const tasteLimit = tasteSelectionLimit(product);
@@ -302,61 +300,62 @@ export function ProductOptionsForm({
             />
 
             <FieldGroup className="gap-4">
-              {setMode && setUngroupedDetails.length ? (
-                <FieldSet className="gap-2">
-                  <SectionLegend
-                    label={t("pos.product")}
-                    meta={t("pos.optionCount", { count: setUngroupedDetails.length })}
-                  />
-                  <div className="flex flex-col gap-2">
-                    {setUngroupedDetails.map((detail) => {
-                      return (
-                        <SetProductRow
-                          key={detail.proDetailUuid}
-                          detailUuid={detail.proDetailUuid}
-                          label={detail.sizeName || t("pos.product")}
-                          optionGroups={
-                            detail.setOptionGroups?.length
-                              ? detail.setOptionGroups
-                              : (optionalNumber(detail.setTasteMaxSelect) ?? 0) > 0
-                                ? [{
-                                    setDetailOptionGroupUuid: `legacy:${detail.proDetailUuid}`,
-                                    groupName: t("pos.tastes"),
-                                    maxSelect: detail.setTasteMaxSelect,
-                                    tastes: detail.setTastes ?? [],
-                                  }]
-                                : []
-                          }
-                          quantity={defaultOrderQty(detail)}
-                          childOptionMaxSelect={setChildOptionSelectionLimit(detail)}
-                          selectedOptionGroupUuids={
-                            selectedSetChildOptionGroupUuids[detail.proDetailUuid] ?? []
-                          }
-                          selectedTasteUuids={selectedSetChoiceTasteUuids}
-                          onToggleOptionGroup={(optionGroupUuid, maxSelect) =>
-                            onToggleSetChildOption(
-                              detail.proDetailUuid,
-                              optionGroupUuid,
-                              maxSelect,
-                            )
-                          }
-                          onToggleTaste={(optionGroupUuid, tasteUuid, maxSelect) =>
-                            onToggleSetChoiceTaste(
-                              detail.proDetailUuid,
-                              optionGroupUuid,
-                              tasteUuid,
-                              maxSelect,
-                            )
-                          }
-                        />
-                      );
-                    })}
-                  </div>
-                </FieldSet>
-              ) : null}
-
               {setMode
-                ? setChoiceGroupEntries.map(({ group, members }) => {
+                ? setDetailSections.map((section, sectionIndex) => {
+                    if (section.kind === "fixed") {
+                      return (
+                        <FieldSet key={`fixed-${sectionIndex}`} className="gap-2">
+                          <SectionLegend
+                            label={t("pos.product")}
+                            meta={t("pos.optionCount", { count: section.details.length })}
+                          />
+                          <div className="flex flex-col gap-2">
+                            {section.details.map((detail) => (
+                              <SetProductRow
+                                key={detail.proDetailUuid}
+                                detailUuid={detail.proDetailUuid}
+                                label={detail.sizeName || t("pos.product")}
+                                optionGroups={
+                                  detail.setOptionGroups?.length
+                                    ? detail.setOptionGroups
+                                    : (optionalNumber(detail.setTasteMaxSelect) ?? 0) > 0
+                                      ? [{
+                                          setDetailOptionGroupUuid: `legacy:${detail.proDetailUuid}`,
+                                          groupName: t("pos.tastes"),
+                                          maxSelect: detail.setTasteMaxSelect,
+                                          tastes: detail.setTastes ?? [],
+                                        }]
+                                      : []
+                                }
+                                quantity={defaultOrderQty(detail)}
+                                childOptionMaxSelect={setChildOptionSelectionLimit(detail)}
+                                selectedOptionGroupUuids={
+                                  selectedSetChildOptionGroupUuids[detail.proDetailUuid] ?? []
+                                }
+                                selectedTasteUuids={selectedSetChoiceTasteUuids}
+                                onToggleOptionGroup={(optionGroupUuid, maxSelect) =>
+                                  onToggleSetChildOption(
+                                    detail.proDetailUuid,
+                                    optionGroupUuid,
+                                    maxSelect,
+                                  )
+                                }
+                                onToggleTaste={(optionGroupUuid, tasteUuid, maxSelect) =>
+                                  onToggleSetChoiceTaste(
+                                    detail.proDetailUuid,
+                                    optionGroupUuid,
+                                    tasteUuid,
+                                    maxSelect,
+                                  )
+                                }
+                              />
+                            ))}
+                          </div>
+                        </FieldSet>
+                      );
+                    }
+
+                    const { group, members } = section;
                     const groupUuid = setChoiceGroupUuid(group);
                     const maxSelect = setChoiceGroupMaxSelect(group);
                     const selected = selectedSetChoiceUuids[groupUuid] ?? [];

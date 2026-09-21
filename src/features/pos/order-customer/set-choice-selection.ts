@@ -28,6 +28,10 @@ export interface GroupedSetDetails {
   groups: Array<{ group: ProdSetChoiceGroup; members: ProdDetail[] }>;
 }
 
+export type OrderedSetDetailSection =
+  | { kind: "fixed"; details: ProdDetail[] }
+  | { kind: "group"; group: ProdSetChoiceGroup; members: ProdDetail[] };
+
 // แถวที่ไม่มีกลุ่ม (หรือกลุ่มที่อ้างถึงหายไปแล้ว) ยังคงบังคับรวมเหมือนเดิมเป๊ะ — เฉพาะ
 // แถวที่อยู่ในกลุ่มจริงเท่านั้นที่กลายเป็นตัวเลือกให้กด
 //
@@ -68,6 +72,52 @@ export function groupedSetDetails(product?: ProdItem | null): GroupedSetDetails 
         members: membersByGroupUuid.get(setChoiceGroupUuid(group)) ?? [],
       })),
   };
+}
+
+// Keep the SET modal aligned with the exact row order saved in Product. Choice groups are
+// inserted where their first member occurs; consecutive mandatory rows share one section.
+export function orderedSetDetailSections(
+  product?: ProdItem | null,
+): OrderedSetDetailSection[] {
+  const details = enabledProductDetails(product);
+  const { ungrouped, groups } = groupedSetDetails(product);
+  const ungroupedUuids = new Set(ungrouped.map((detail) => detail.proDetailUuid));
+  const groupsByMemberUuid = new Map<
+    string,
+    Array<{ group: ProdSetChoiceGroup; members: ProdDetail[] }>
+  >();
+
+  for (const entry of groups) {
+    for (const member of entry.members) {
+      const memberGroups = groupsByMemberUuid.get(member.proDetailUuid) ?? [];
+      memberGroups.push(entry);
+      groupsByMemberUuid.set(member.proDetailUuid, memberGroups);
+    }
+  }
+
+  const sections: OrderedSetDetailSection[] = [];
+  const addedGroupUuids = new Set<string>();
+
+  for (const detail of details) {
+    if (ungroupedUuids.has(detail.proDetailUuid)) {
+      const previousSection = sections.at(-1);
+      if (previousSection?.kind === "fixed") {
+        previousSection.details.push(detail);
+      } else {
+        sections.push({ kind: "fixed", details: [detail] });
+      }
+      continue;
+    }
+
+    for (const entry of groupsByMemberUuid.get(detail.proDetailUuid) ?? []) {
+      const groupUuid = setChoiceGroupUuid(entry.group);
+      if (addedGroupUuids.has(groupUuid)) continue;
+      addedGroupUuids.add(groupUuid);
+      sections.push({ kind: "group", ...entry });
+    }
+  }
+
+  return sections;
 }
 
 export function toggleSetChoiceUuid(selected: string[], uuid: string, limit: number): string[] {
@@ -191,14 +241,14 @@ export function resolveSetOrderDetails(
     return members.filter((detail) => selected.has(detail.proDetailUuid));
   });
 
-  const seen = new Set<string>();
-  const dedupedChosen = chosen.filter((detail) => {
-    if (seen.has(detail.proDetailUuid)) return false;
-    seen.add(detail.proDetailUuid);
-    return true;
-  });
+  const includedUuids = new Set([
+    ...ungrouped.map((detail) => detail.proDetailUuid),
+    ...chosen.map((detail) => detail.proDetailUuid),
+  ]);
 
-  return [...ungrouped, ...dedupedChosen];
+  return enabledProductDetails(product).filter((detail) =>
+    includedUuids.has(detail.proDetailUuid)
+  );
 }
 
 // ส่งกลุ่มที่ผู้ใช้เลือกแถวนี้ผ่านไปกับ create_order ด้วย เพื่อให้ backend ตรวจได้ว่า

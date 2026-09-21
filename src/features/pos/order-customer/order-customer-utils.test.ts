@@ -24,6 +24,7 @@ import {
   MAX_ORDER_QTY,
   nextMenuCategoryUuid,
   normalizeProdItem,
+  orderedSetDetailSections,
   orderCustomerUrl,
   orderQuantityRules,
   orderSelectionIssueLabel,
@@ -885,6 +886,52 @@ describe("order customer helpers", () => {
       items.find((item) => item.prod_detail_uuid_fk === "rice")
         ?.set_choice_group_uuid_fks,
     ).toEqual([]);
+  });
+
+  it("keeps SET sections and resolved items in the detail order saved by Product", () => {
+    const proteinGroup = choiceGroup({
+      setChoiceGroupUuid: "grp-protein",
+      groupName: "Choose protein",
+      maxSelect: 1,
+    });
+    const setProduct: ProdItem = {
+      ...normalizeProdItem(null, product({ statusSortFk: ProductSortStatus.SET })),
+      setChoiceGroups: [proteinGroup],
+      details: [
+        detail({ proDetailUuid: "drink", proDetailSort: 4 }),
+        detail({
+          proDetailUuid: "pork",
+          proDetailSort: 3,
+          setChoiceGroupUuidFks: ["grp-protein"],
+        }),
+        detail({ proDetailUuid: "rice", proDetailSort: 1 }),
+        detail({
+          proDetailUuid: "chicken",
+          proDetailSort: 2,
+          setChoiceGroupUuidFks: ["grp-protein"],
+        }),
+      ],
+    };
+
+    const sections = orderedSetDetailSections(setProduct);
+    expect(sections.map((section) => section.kind)).toEqual([
+      "fixed",
+      "group",
+      "fixed",
+    ]);
+    expect(sections[0]?.kind === "fixed" && sections[0].details.map(
+      (item) => item.proDetailUuid,
+    )).toEqual(["rice"]);
+    expect(sections[1]?.kind === "group" && sections[1].members.map(
+      (item) => item.proDetailUuid,
+    )).toEqual(["chicken", "pork"]);
+    expect(sections[2]?.kind === "fixed" && sections[2].details.map(
+      (item) => item.proDetailUuid,
+    )).toEqual(["drink"]);
+
+    expect(resolveSetOrderDetails(setProduct, {
+      "grp-protein": ["pork"],
+    }).map((item) => item.proDetailUuid)).toEqual(["rice", "pork", "drink"]);
   });
 
   it("lets one item belong to more than one choice group and dedupes it in the resolved order", () => {
