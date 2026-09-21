@@ -840,6 +840,9 @@ export function useOrderCustomerWorkflow({
       mode: productMode,
       product: selectedProduct,
       quantity: qty,
+      selectedSetChildOptionGroupUuids,
+      selectedSetChoiceTasteUuids,
+      selectedSetChoiceUuids,
       tastes: selectedTastes,
       toppings: selectedToppings,
     });

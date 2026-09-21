@@ -269,6 +269,9 @@ export function ProductOptionsForm({
     mode,
     product,
     quantity: qty,
+    selectedSetChildOptionGroupUuids,
+    selectedSetChoiceTasteUuids,
+    selectedSetChoiceUuids,
     tastes: selectedTastes,
     toppings: selectedToppings,
   });

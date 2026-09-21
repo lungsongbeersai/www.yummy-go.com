@@ -1130,6 +1130,7 @@
     "toppingSelectionLimitReached_other": "This item allows only {{count}} toppings.",
     "setChoiceSelectionLimitReached": "You can pick up to {{count}} item from this group.",
     "setChoiceSelectionLimitReached_other": "You can pick up to {{count}} items from this group.",
+    "setOptionsIncomplete": "Complete every required SET option before adding this item.",
     "startingAt": "Starting at",
     "includedInSet": "Included in set",
     "promoDeal": "Promotion deal",

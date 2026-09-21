@@ -1,4 +1,5 @@
 import { type ProdDetail, type ProdItem, type ProdTaste } from "@/services/pos";
+import { optionalNumber } from "@/lib/values";
 import {
   MAX_ORDER_QTY,
   type OrderSelectionIssue,
@@ -8,6 +9,7 @@ import {
 import { isDetailAvailable, isDetailEnabled } from "./product-availability";
 import { getModalBasePrice } from "./pricing";
 import { orderQuantityRules, type OrderQuantityRules } from "./quantity-rules";
+import { areSetSelectionsComplete } from "./set-choice-selection";
 import {
   isToppingAvailable,
   toppingPrice,
@@ -21,6 +23,9 @@ export function getOrderSelectionIssue({
   mode,
   product,
   quantity,
+  selectedSetChildOptionGroupUuids = {},
+  selectedSetChoiceTasteUuids = {},
+  selectedSetChoiceUuids = {},
   tastes,
   toppings,
 }: {
@@ -28,6 +33,9 @@ export function getOrderSelectionIssue({
   mode: ProductModalMode;
   product?: ProdItem | null;
   quantity: number;
+  selectedSetChildOptionGroupUuids?: Record<string, string[]>;
+  selectedSetChoiceTasteUuids?: Record<string, string[]>;
+  selectedSetChoiceUuids?: Record<string, string[]>;
   tastes?: ProdTaste[];
   toppings: SelectedTopping[];
 }): OrderSelectionIssue | null {
@@ -69,6 +77,29 @@ export function getOrderSelectionIssue({
   if (product && selectedTastes.length > tasteSelectionLimit(product)) {
     return "taste-limit-exceeded";
   }
+  if (mode === "set" && product) {
+    if (!areSetSelectionsComplete({
+      product,
+      selectedSetChildOptionGroupUuids,
+      selectedSetChoiceTasteUuids,
+      selectedSetChoiceUuids,
+    })) {
+      return "set-options-incomplete";
+    }
+    const hasNestedSelections = product.details.some(
+      (itemDetail) =>
+        (itemDetail.setOptionGroups ?? []).length > 0 ||
+        (optionalNumber(itemDetail.setTasteMaxSelect) ?? 0) > 0,
+    );
+    const requiredSetTasteCount = tasteSelectionLimit(product);
+    if (
+      !hasNestedSelections &&
+      requiredSetTasteCount > 0 &&
+      selectedTastes.length !== requiredSetTasteCount
+    ) {
+      return "set-options-incomplete";
+    }
+  }
 
   // ตรวจเพดานจำนวนชนิดได้ก็ต่อเมื่อรู้จัก product ที่มีลิสต์ toppings จริงให้อ้างอิง — ผู้เรียกบางจุด
   // (เช่น buildStaffOrderItems ที่ประกอบ payload จาก toppings ที่เลือกไว้แล้วโดยตรง) ไม่ได้ส่ง product
@@ -102,6 +133,7 @@ export function orderSelectionIssueLabel(
   if (issue === "stock-insufficient") return t("pos.outOfStock");
   if (issue === "taste-invalid") return t("pos.invalidTaste");
   if (issue === "taste-limit-exceeded") return t("pos.tasteLimitExceeded");
+  if (issue === "set-options-incomplete") return t("pos.setOptionsIncomplete");
   if (issue === "quantity-exceeds-stock") {
     return rules
       ? t("pos.insufficientStockMax", { max: rules.max })

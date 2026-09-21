@@ -1,6 +1,7 @@
 import type { ProdDetail, ProdItem, ProdSetChoiceGroup } from "@/services/pos";
 import { optionalNumber, optionalString } from "@/lib/values";
 import { enabledProductDetails } from "./product-availability";
+import { isTasteAvailable, tasteUuid } from "./taste-selection";
 
 export function setChoiceGroups(product?: ProdItem | null): ProdSetChoiceGroup[] {
   const groups = product?.setChoiceGroups ?? [];
@@ -94,8 +95,90 @@ export function toggleSetChildOptionGroupUuid(
   return toggleSetChoiceUuid(selected, uuid, limit);
 }
 
+function hasExactSelection(
+  selectedUuids: string[],
+  allowedUuids: string[],
+  requiredCount: number,
+) {
+  const selected = new Set(selectedUuids);
+  const allowed = new Set(allowedUuids);
+  return selected.size === selectedUuids.length &&
+    selected.size === requiredCount &&
+    [...selected].every((uuid) => allowed.has(uuid));
+}
+
+export function areSetSelectionsComplete({
+  product,
+  selectedSetChildOptionGroupUuids,
+  selectedSetChoiceTasteUuids,
+  selectedSetChoiceUuids,
+}: {
+  product: ProdItem | null | undefined;
+  selectedSetChildOptionGroupUuids: Record<string, string[]>;
+  selectedSetChoiceTasteUuids: Record<string, string[]>;
+  selectedSetChoiceUuids: Record<string, string[]>;
+}) {
+  if (!product) return true;
+  const { groups } = groupedSetDetails(product);
+
+  for (const { group, members } of groups) {
+    const groupUuid = setChoiceGroupUuid(group);
+    if (!hasExactSelection(
+      selectedSetChoiceUuids[groupUuid] ?? [],
+      members.map((detail) => detail.proDetailUuid),
+      setChoiceGroupMaxSelect(group),
+    )) return false;
+  }
+
+  const selectedDetails = resolveSetOrderDetails(product, selectedSetChoiceUuids);
+  for (const detail of selectedDetails) {
+    const optionGroups = detail.setOptionGroups ?? [];
+    if (optionGroups.length) {
+      const selectedGroupUuids = selectedSetChildOptionGroupUuids[detail.proDetailUuid] ?? [];
+      if (!hasExactSelection(
+        selectedGroupUuids,
+        optionGroups.map((group) => group.setDetailOptionGroupUuid),
+        setChildOptionSelectionLimit(detail),
+      )) return false;
+
+      const selectedGroups = new Set(selectedGroupUuids);
+      for (const group of optionGroups) {
+        if (!selectedGroups.has(group.setDetailOptionGroupUuid)) continue;
+        const selectionKey = `${detail.proDetailUuid}:${group.setDetailOptionGroupUuid}`;
+        const allowedTasteUuids = (group.tastes ?? [])
+          .filter(isTasteAvailable)
+          .map(tasteUuid);
+        const requiredTasteCount = optionalNumber(group.maxSelect) ?? 0;
+        if (!hasExactSelection(
+          selectedSetChoiceTasteUuids[selectionKey] ?? [],
+          allowedTasteUuids,
+          requiredTasteCount,
+        )) return false;
+      }
+      continue;
+    }
+
+    const legacyTasteLimit = optionalNumber(detail.setTasteMaxSelect) ?? 0;
+    if (legacyTasteLimit <= 0) continue;
+    const legacyKey = `${detail.proDetailUuid}:legacy:${detail.proDetailUuid}`;
+    const selectedTasteUuids = selectedSetChoiceTasteUuids[legacyKey]
+      ?? selectedSetChoiceTasteUuids[detail.proDetailUuid]
+      ?? [];
+    const allowedTasteUuids = (detail.setTastes ?? [])
+      .filter(isTasteAvailable)
+      .map(tasteUuid);
+    if (!hasExactSelection(
+      selectedTasteUuids,
+      allowedTasteUuids,
+      legacyTasteLimit,
+    )) return false;
+  }
+
+  return true;
+}
+
 // ตอนยืนยันออเดอร์: รายการที่ไม่มีกลุ่มบังคับรวมเหมือนเดิม + รายการที่ลูกค้าเลือกจริงในแต่ละกลุ่ม
-// (เลือกได้ไม่เกิน max_select แต่ไม่บังคับให้เลือกครบ) — การเลือกในแต่ละกลุ่มเป็นอิสระต่อกัน
+// การเลือกในแต่ละกลุ่มเป็นอิสระต่อกัน และจุดตรวจ areSetSelectionsComplete จะบังคับให้ครบ max_select
 // (แถวเดียวกันอาจถูกเลือกจากกลุ่มหนึ่งแต่ไม่ถูกเลือกจากอีกกลุ่ม) แต่ผลลัพธ์สุดท้ายต้อง
 // dedupe ด้วย proDetailUuid เพราะแถวเดียวกันสร้าง order item ซ้ำสองชิ้นไม่ได้
 export function resolveSetOrderDetails(

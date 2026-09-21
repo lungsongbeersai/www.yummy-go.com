@@ -76,6 +76,9 @@ export function buildStaffOrderItems({
     mode,
     product,
     quantity,
+    selectedSetChildOptionGroupUuids,
+    selectedSetChoiceTasteUuids,
+    selectedSetChoiceUuids,
     tastes,
     toppings,
   });

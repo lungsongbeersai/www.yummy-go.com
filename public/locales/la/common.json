@@ -1131,6 +1131,7 @@
     "toppingLimitExceeded": "ທ່ານເລືອກທັອບປິ້ງເກີນຈຳນວນທີ່ສິນຄ້ານີ້ອະນຸຍາດ",
     "toppingSelectionLimitReached": "ສິນຄ້ານີ້ອະນຸຍາດໃຫ້ເລືອກທັອບປິ້ງໄດ້ພຽງ {{count}} ຢ່າງເທົ່ານັ້ນ",
     "setChoiceSelectionLimitReached": "ກຸ່ມນີ້ເລືອກໄດ້ບໍ່ເກີນ {{count}} ລາຍການ",
+    "setOptionsIncomplete": "ກະລຸນາເລືອກຕົວເລືອກ SET ທີ່ກຳນົດໃຫ້ຄົບກ່ອນເພີ່ມລາຍການ",
     "startingAt": "ເລີ່ມແຕ່",
     "includedInSet": "ລາຍການໃນຊຸດ",
     "promoDeal": "ຂໍ້ສະເໜີໂປຣໂມຊັນ",

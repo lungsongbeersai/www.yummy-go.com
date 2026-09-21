@@ -60,6 +60,7 @@ export type OrderSelectionIssue =
   | "stock-insufficient"
   | "taste-invalid"
   | "taste-limit-exceeded"
+  | "set-options-incomplete"
   | "topping-invalid"
   | "topping-limit-exceeded";
 export type ProductCardPrice =

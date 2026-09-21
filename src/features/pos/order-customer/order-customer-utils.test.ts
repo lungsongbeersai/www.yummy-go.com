@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   availableProductDetails,
+  areSetSelectionsComplete,
   buildStaffOrderItems,
   buildStaffOrderInput,
   canDirectAddFromList,
@@ -847,7 +848,7 @@ describe("order customer helpers", () => {
     expect(setChoiceGroupDisplayName(proteinGroup)).toBe("Choose protein");
     expect(setChoiceGroupMaxSelect(dessertGroup)).toBe(2);
 
-    // เลือกหมู (ไม่ใช่ไก่) และขนมหวานแค่ 1 จาก 2 ที่เลือกได้ — ไม่บังคับให้เลือกครบ
+    // ตัว resolve แยกรายการตาม state อย่างเดียว ส่วนตอนกดเพิ่มจะตรวจว่าทุกกลุ่มครบอีกชั้น
     const resolved = resolveSetOrderDetails(setProduct, {
       "grp-protein": ["pork"],
       "grp-dessert": ["cake"],
@@ -867,11 +868,14 @@ describe("order customer helpers", () => {
       noteText: "",
       product: setProduct,
       quantity: 1,
-      selectedSetChoiceUuids: { "grp-protein": ["chicken"] },
+      selectedSetChoiceUuids: {
+        "grp-protein": ["chicken"],
+        "grp-dessert": ["cake", "icecream"],
+      },
       toppings: [],
     });
     expect(items.map((item) => item.prod_detail_uuid_fk).sort()).toEqual(
-      ["chicken", "rice", "soup"].sort(),
+      ["cake", "chicken", "icecream", "rice", "soup"].sort(),
     );
     expect(
       items.find((item) => item.prod_detail_uuid_fk === "chicken")
@@ -999,7 +1003,7 @@ describe("order customer helpers", () => {
         chicken: ["taste-mala", "taste-sesame"],
       },
       toppings: [],
-    })).toThrow("Invalid SET taste selection");
+    })).toThrow("set-options-incomplete");
   });
 
   it("keeps multiple child option groups separate in the SET order payload", () => {
@@ -1038,6 +1042,9 @@ describe("order customer helpers", () => {
       noteText: "",
       product: setProduct,
       quantity: 1,
+      selectedSetChildOptionGroupUuids: {
+        chicken: ["group-sauce", "group-spice"],
+      },
       selectedSetChoiceUuids: { "grp-main": ["chicken"] },
       selectedSetChoiceTasteUuids: {
         "chicken:group-sauce": ["taste-sesame"],
@@ -1123,7 +1130,55 @@ describe("order customer helpers", () => {
         dumpling: ["child-chicken", "child-pork"],
       },
       toppings: [],
-    })).toThrow("Invalid SET child option selection");
+    })).toThrow("set-options-incomplete");
+  });
+
+  it("requires every SET choice, child option, and sauce before submission", () => {
+    const mala = taste({ tasteUuid: "taste-mala" });
+    const sesame = taste({ tasteUuid: "taste-sesame" });
+    const setProduct: ProdItem = {
+      ...normalizeProdItem(null, product({ statusSortFk: ProductSortStatus.SET })),
+      prodSetPrice: 220000,
+      details: [
+        detail({
+          proDetailUuid: "dumpling",
+          setChildOptionMaxSelect: 1,
+          setOptionGroups: [
+            {
+              setDetailOptionGroupUuid: "chicken",
+              maxSelect: 1,
+              tastes: [mala, sesame],
+            },
+            {
+              setDetailOptionGroupUuid: "pork",
+              maxSelect: 1,
+              tastes: [mala, sesame],
+            },
+          ],
+        }),
+      ],
+    };
+
+    expect(areSetSelectionsComplete({
+      product: setProduct,
+      selectedSetChildOptionGroupUuids: {},
+      selectedSetChoiceTasteUuids: {},
+      selectedSetChoiceUuids: {},
+    })).toBe(false);
+    expect(areSetSelectionsComplete({
+      product: setProduct,
+      selectedSetChildOptionGroupUuids: { dumpling: ["chicken"] },
+      selectedSetChoiceTasteUuids: {},
+      selectedSetChoiceUuids: {},
+    })).toBe(false);
+    expect(areSetSelectionsComplete({
+      product: setProduct,
+      selectedSetChildOptionGroupUuids: { dumpling: ["chicken"] },
+      selectedSetChoiceTasteUuids: {
+        "dumpling:chicken": ["taste-mala"],
+      },
+      selectedSetChoiceUuids: {},
+    })).toBe(true);
   });
 
   it("caps set choice selection at max_select without requiring it to be filled", () => {
