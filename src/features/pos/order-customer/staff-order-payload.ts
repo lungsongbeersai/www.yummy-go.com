@@ -109,6 +109,7 @@ export function buildStaffOrderItems({
       ...(resolvedSetInstanceUuid
         ? {
             set_instance_uuid: resolvedSetInstanceUuid,
+            set_quantity: quantity,
             set_choice_group_uuid_fks: selectedSetChoiceGroupUuidsForDetail(
               product,
               selectedSetChoiceUuids,

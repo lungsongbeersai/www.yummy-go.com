@@ -22,26 +22,8 @@ export const useNetworkStore = create<BackendNetworkStore>()((set) => ({
 // as a failed health probe. That newer HTTP evidence must win in either case.
 let reachabilityRevision = 0;
 
-function navigatorHint() {
-  return typeof navigator === "undefined" ? "unknown" : String(navigator.onLine);
-}
-
-function commit(
-  snapshot: BackendNetworkSnapshot,
-  classification: "CHECKING" | "HTTP_RESPONSE" | "NETWORK_TRANSPORT" | "NON_NETWORK",
-) {
-  const previous = useNetworkStore.getState();
+function commit(snapshot: BackendNetworkSnapshot) {
   useNetworkStore.getState().replaceSnapshot(snapshot);
-  console.info(
-    `[NETWORK] ${previous.state}${previous.state === snapshot.state ? " remains " : " -> "}${snapshot.state}` +
-      ` reason=${snapshot.lastReason}`,
-    {
-      navigatorOnline: navigatorHint(),
-      httpStatus: snapshot.lastHttpStatus,
-      classification,
-      consecutiveFailures: snapshot.consecutiveFailures,
-    },
-  );
   return snapshot;
 }
 
@@ -62,13 +44,12 @@ export const backendNetworkManager = {
   },
   resetChecking(reason = "app_start") {
     reachabilityRevision += 1;
-    return commit(initialBackendNetworkSnapshot(reason), "CHECKING");
+    return commit(initialBackendNetworkSnapshot(reason));
   },
   reportReachable(httpStatus: number | null, reason = "backend_http_response") {
     reachabilityRevision += 1;
     return commit(
       applyBackendReachable(this.getSnapshot(), { httpStatus, reason }),
-      "HTTP_RESPONSE",
     );
   },
   reportTransportFailure(
@@ -84,7 +65,6 @@ export const backendNetworkManager = {
         confirmed,
         ...(failureThreshold ? { failureThreshold } : {}),
       }),
-      "NETWORK_TRANSPORT",
     );
   },
   reportNonNetwork(reason = "non_network_application_error") {
@@ -94,7 +74,7 @@ export const backendNetworkManager = {
       lastHttpStatus: null,
       lastReason: reason,
       lastCheckedAt: Date.now(),
-    }, "NON_NETWORK");
+    });
   },
   isOffline() {
     return this.getSnapshot().state === BACKEND_NETWORK_STATE.OFFLINE;

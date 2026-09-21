@@ -742,6 +742,7 @@ describe("order customer helpers", () => {
       {
         prod_detail_uuid_fk: "beer",
         set_instance_uuid: "50000000-0000-4000-8000-000000000001",
+        set_quantity: 3,
         set_choice_group_uuid_fks: [],
         order_it_qty: 6,
         order_it_status: 1,
@@ -751,6 +752,7 @@ describe("order customer helpers", () => {
       {
         prod_detail_uuid_fk: "ice",
         set_instance_uuid: "50000000-0000-4000-8000-000000000001",
+        set_quantity: 3,
         set_choice_group_uuid_fks: [],
         order_it_qty: 6,
         order_it_status: 1,

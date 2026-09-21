@@ -280,6 +280,8 @@ export interface CreateOrderTaste {
 export interface CreateOrderItem extends ApiEntity {
   prod_detail_uuid_fk: string;
   set_instance_uuid?: string;
+  /** Number of whole SETs selected in the product modal; child order_it_qty keeps its per-SET multiplier. */
+  set_quantity?: number;
   /** Choice groups through which this SET detail was selected. [] marks an always-included detail. */
   set_choice_group_uuid_fks?: string[];
   set_option_group_selections?: Array<{
@@ -415,6 +417,7 @@ export interface CartTaste extends ApiEntity {
 export interface CartItemDetail extends ApiEntity {
   size_name?: string;
   order_it_qty?: number;
+  set_quantity?: number;
   order_it_promo_sale_qty?: number;
   order_it_promo_free_qty?: number;
   total_receive_qty?: number;
@@ -444,6 +447,7 @@ export interface CartItem extends ApiEntity {
   order_it_uuids?: string[];
   order_it_statuses?: number[];
   set_instance_uuid?: string | null;
+  set_quantity?: number;
   prod_uuid?: string;
   prod_uuid_fk?: string;
   pro_detail_uuid?: string;
