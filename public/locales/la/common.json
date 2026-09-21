@@ -2909,6 +2909,8 @@
     "userBulkDuplicateEmails": "ອີເມວຊ້ຳກັນໃນລາຍການ: {{emails}}",
     "userBulkEmailsHint": "ພ້ອມສ້າງ {{count}} ບັນຊີ.",
     "userBulkEmailsLabel": "Gmail/ອີເມວ ແລະ ລະຫັດຜ່ານ",
+    "userBulkExcelPasteHint": "ສຳເນົາຖັນ Gmail ແລະ ລະຫັດຜ່ານຈາກ Excel ແລ້ວວາງໃສ່ຊ່ອງດ້ານລຸ່ມ. ສຳເນົາ 5 ຄົນ ຈະໄດ້ 5 ແຖວຕາມລຳດັບເດີມ.",
+    "userBulkPasteLimit": "ຂໍ້ມູນທີ່ວາງມີ {{pasted}} ແຖວ ແຕ່ຈາກຈຸດນີ້ມີພຽງ {{available}} ແຖວຜູ້ໃຊ້ທີ່ເລືອກ.",
     "userBulkEmailsRequired": "ກະລຸນາໃສ່ອີເມວ ແລະ ລະຫັດຜ່ານຢ່າງໜ້ອຍ 1 ລາຍການ.",
     "userBulkFailedCount": "ຜິດພາດ {{count}}",
     "userBulkIncompleteRows": "ກະລຸນາໃສ່ທັງອີເມວ ແລະ ລະຫັດຜ່ານໃນແຖວ: {{rows}}",

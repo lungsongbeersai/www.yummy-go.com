@@ -92,6 +92,40 @@ export interface BulkCredentialInput {
   loginUuid?: string;
 }
 
+export type BulkCredentialField = "email" | "password";
+
+export interface BulkCredentialPasteRow {
+  email?: string;
+  password?: string;
+}
+
+// Excel and Google Sheets copy cells as tab-separated columns and newline-
+// separated rows. Two copied columns always map to email/password; one copied
+// column follows the input where the paste happened so both workflows keep the
+// spreadsheet row order intact.
+export function parseBulkCredentialPaste(
+  value: string,
+  targetField: BulkCredentialField
+): BulkCredentialPasteRow[] {
+  const normalized = value.replace(/\r\n?/g, "\n");
+  if (!normalized.includes("\n") && !normalized.includes("\t")) return [];
+
+  const lines = normalized.split("\n");
+  while (lines.length > 1 && lines.at(-1) === "") lines.pop();
+  const cells = lines.map((line) => line.split("\t"));
+  const hasEmailAndPasswordColumns = cells.some((row) => row.length > 1);
+
+  return cells.map((row) => {
+    if (hasEmailAndPasswordColumns) {
+      return {
+        email: String(row[0] ?? "").trim(),
+        password: String(row[1] ?? "").trim()
+      };
+    }
+    return { [targetField]: String(row[0] ?? "").trim() };
+  });
+}
+
 export interface BulkCredentialValidation {
   duplicateEmails: string[];
   incompleteRows: number[];

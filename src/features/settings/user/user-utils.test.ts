@@ -4,6 +4,7 @@ import {
   buildBulkUserInput,
   buildUserSaveInput,
   isProtectedUser,
+  parseBulkCredentialPaste,
   roleId,
   roleName,
   userActiveBadgeClass,
@@ -131,6 +132,38 @@ describe("user settings utils", () => {
       invalidPasswordRows: [],
       valid: []
     });
+  });
+
+  it("keeps five copied Excel email/password rows paired and in order", () => {
+    const pasted = [
+      "one@gmail.com\t1111",
+      "two@gmail.com\t2222",
+      "three@gmail.com\t3333",
+      "four@gmail.com\t4444",
+      "five@gmail.com\t5555"
+    ].join("\r\n") + "\r\n";
+
+    expect(parseBulkCredentialPaste(pasted, "email")).toEqual([
+      { email: "one@gmail.com", password: "1111" },
+      { email: "two@gmail.com", password: "2222" },
+      { email: "three@gmail.com", password: "3333" },
+      { email: "four@gmail.com", password: "4444" },
+      { email: "five@gmail.com", password: "5555" }
+    ]);
+  });
+
+  it("maps a copied Excel column to the field where it is pasted", () => {
+    expect(parseBulkCredentialPaste("one@gmail.com\ntwo@gmail.com\nthree@gmail.com", "email")).toEqual([
+      { email: "one@gmail.com" },
+      { email: "two@gmail.com" },
+      { email: "three@gmail.com" }
+    ]);
+    expect(parseBulkCredentialPaste("1111\n2222\n3333", "password")).toEqual([
+      { password: "1111" },
+      { password: "2222" },
+      { password: "3333" }
+    ]);
+    expect(parseBulkCredentialPaste("one@gmail.com", "email")).toEqual([]);
   });
 
   it("allows existing users to keep passwords but still requires a valid email", () => {

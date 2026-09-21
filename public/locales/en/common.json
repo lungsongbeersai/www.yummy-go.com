@@ -2918,6 +2918,8 @@
     "userBulkDuplicateEmails": "Duplicate email(s) in the list: {{emails}}",
     "userBulkEmailsHint": "{{count}} account(s) ready.",
     "userBulkEmailsLabel": "Gmail/email and password",
+    "userBulkExcelPasteHint": "Copy Gmail and password columns from Excel, then paste into a field below. Five copied people create five rows in the same order.",
+    "userBulkPasteLimit": "The paste contains {{pasted}} rows, but only {{available}} selected-user rows are available from here.",
     "userBulkEmailsRequired": "Enter at least one email and password.",
     "userBulkFailedCount": "{{count}} failed",
     "userBulkIncompleteRows": "Enter both email and password on row(s): {{rows}}",

@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useRef, useState } from "react";
+import { useMemo, useRef, useState, type ClipboardEvent } from "react";
 import { AlertCircle, CheckCircle2, CircleDashed, Plus, Trash2, UsersRound, XCircle } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -27,7 +27,9 @@ import type { Zone } from "@/services/zone";
 import { useUserStore } from "@/stores/user-store";
 import {
   type BulkCredentialInput,
+  type BulkCredentialField,
   buildBulkUserInput,
+  parseBulkCredentialPaste,
   roleId,
   roleName,
   userValue,
@@ -173,6 +175,37 @@ export function UserBulkDialog({
     setCredentialRows((current) =>
       current.map((row) => (row.id === id ? { ...row, [field]: value } : row))
     );
+  }
+
+  function pasteCredentialRows(
+    event: ClipboardEvent<HTMLInputElement>,
+    startIndex: number,
+    targetField: BulkCredentialField
+  ) {
+    const pastedRows = parseBulkCredentialPaste(event.clipboardData.getData("text/plain"), targetField);
+    if (!pastedRows.length) return;
+    event.preventDefault();
+
+    const availableRows = Math.max(0, credentialRows.length - startIndex);
+    const rowsToApply = isEditing ? pastedRows.slice(0, availableRows) : pastedRows;
+    if (isEditing && pastedRows.length > availableRows) {
+      setFormError(t("settings.userBulkPasteLimit", { pasted: pastedRows.length, available: availableRows }));
+    } else {
+      setFormError("");
+    }
+
+    setCredentialRows((current) => {
+      const next = current.map((row) => ({ ...row }));
+      let nextId = Math.max(0, ...next.map((row) => row.id)) + 1;
+      while (next.length < startIndex + rowsToApply.length) {
+        next.push({ email: "", id: nextId, password: "" });
+        nextId += 1;
+      }
+      rowsToApply.forEach((pastedRow, offset) => {
+        next[startIndex + offset] = { ...next[startIndex + offset], ...pastedRow };
+      });
+      return next;
+    });
   }
 
   function removeCredentialRow(id: number) {
@@ -404,6 +437,7 @@ export function UserBulkDialog({
                         </Badge>
                       ) : null}
                     </div>
+                    <FieldDescription>{t("settings.userBulkExcelPasteHint")}</FieldDescription>
                     <div className="flex flex-col gap-2 rounded-md border border-border bg-muted/20 p-2">
                       {credentialRows.map((row, index) => (
                         <div
@@ -422,6 +456,7 @@ export function UserBulkDialog({
                             type="email"
                             value={row.email}
                             onChange={(event) => updateCredentialRow(row.id, "email", event.target.value)}
+                            onPaste={(event) => pasteCredentialRows(event, index, "email")}
                           />
                           <Input
                             aria-label={`${t("fields.login_password")} ${index + 1}`}
@@ -431,6 +466,7 @@ export function UserBulkDialog({
                             type="password"
                             value={row.password}
                             onChange={(event) => updateCredentialRow(row.id, "password", event.target.value)}
+                            onPaste={(event) => pasteCredentialRows(event, index, "password")}
                           />
                           <Button
                             aria-label={t("settings.userBulkRemoveRow", { row: index + 1 })}
