@@ -3,25 +3,46 @@
 import { useTranslation } from "react-i18next";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { userInitials } from "@/features/settings/user/user-utils";
 import { money } from "@/lib/format";
+import { cn } from "@/lib/utils";
+import { ReportIndeterminateCheckbox, selectionStateForVisibleIds } from "@/features/report/shared/report-row-selection";
 import type { EmployeeSalesRow } from "@/services/report";
 
 export function EmployeeSalesTable({
   rows,
+  selectedRowIds,
   onSelect,
+  onToggleRow,
+  onToggleRows,
 }: {
   rows: EmployeeSalesRow[];
+  selectedRowIds: Set<string>;
   onSelect: (loginUuid: string) => void;
+  onToggleRow: (row: EmployeeSalesRow, selected: boolean) => void;
+  onToggleRows: (rows: EmployeeSalesRow[], selected: boolean) => void;
 }) {
   const { t } = useTranslation();
+  const { allVisibleSelected, someVisibleSelected } = selectionStateForVisibleIds(
+    rows.map(row => row.login_uuid),
+    selectedRowIds,
+  );
 
   return (
     <div className="hidden shrink-0 overflow-hidden rounded-lg border bg-card md:block">
       <Table>
         <TableHeader>
           <TableRow>
+            <TableHead className="w-10 text-center">
+              <ReportIndeterminateCheckbox
+                aria-label={t("common.selectAll")}
+                checked={allVisibleSelected}
+                indeterminate={!allVisibleSelected && someVisibleSelected}
+                onCheckedChange={checked => onToggleRows(rows, checked as boolean)}
+              />
+            </TableHead>
             <TableHead>{t("employeeSales.employee")}</TableHead>
             <TableHead>{t("employeeSales.billCount")}</TableHead>
             <TableHead>{t("employeeSales.totalQty")}</TableHead>
@@ -37,7 +58,10 @@ export function EmployeeSalesTable({
               key={row.login_uuid}
               role="button"
               tabIndex={0}
-              className="cursor-pointer hover:bg-muted/50 focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50 focus-visible:ring-inset"
+              className={cn(
+                "cursor-pointer hover:bg-muted/50 focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50 focus-visible:ring-inset",
+                selectedRowIds.has(row.login_uuid) && "bg-primary/5 hover:bg-primary/10",
+              )}
               onClick={() => onSelect(row.login_uuid)}
               onKeyDown={event => {
                 if (event.key !== "Enter" && event.key !== " ") return;
@@ -45,6 +69,13 @@ export function EmployeeSalesTable({
                 onSelect(row.login_uuid);
               }}
             >
+              <TableCell className="w-10 text-center" onClick={event => event.stopPropagation()}>
+                <Checkbox
+                  aria-label={t("common.selectRow", { name: row.login_email })}
+                  checked={selectedRowIds.has(row.login_uuid)}
+                  onCheckedChange={checked => onToggleRow(row, checked as boolean)}
+                />
+              </TableCell>
               <TableCell>
                 <div className="flex min-w-0 items-center gap-3">
                   <Avatar>

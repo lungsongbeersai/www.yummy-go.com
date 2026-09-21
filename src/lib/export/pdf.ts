@@ -14,7 +14,7 @@ export async function captureElementToPdf(
 ) {
   const [{ jsPDF }, html2canvasModule] = await Promise.all([
     import("jspdf"),
-    import("html2canvas"),
+    import("html2canvas-pro"),
   ]);
   const canvas = await html2canvasModule.default(element, {
     backgroundColor: "#ffffff",

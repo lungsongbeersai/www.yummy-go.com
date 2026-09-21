@@ -4,16 +4,22 @@ import { useTranslation } from "react-i18next";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
+import { Checkbox } from "@/components/ui/checkbox";
 import { userInitials } from "@/features/settings/user/user-utils";
 import { money } from "@/lib/format";
+import { cn } from "@/lib/utils";
 import type { EmployeeSalesRow } from "@/services/report";
 
 export function EmployeeSalesRowCard({
   rows,
+  selectedRowIds,
   onSelect,
+  onToggleRow,
 }: {
   rows: EmployeeSalesRow[];
+  selectedRowIds: Set<string>;
   onSelect: (loginUuid: string) => void;
+  onToggleRow: (row: EmployeeSalesRow, selected: boolean) => void;
 }) {
   const { t } = useTranslation();
 
@@ -24,7 +30,10 @@ export function EmployeeSalesRowCard({
           key={row.login_uuid}
           role="button"
           tabIndex={0}
-          className="min-h-10 gap-2 px-4 py-3 focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50"
+          className={cn(
+            "min-h-10 gap-2 px-4 py-3 focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50",
+            selectedRowIds.has(row.login_uuid) && "bg-primary/5",
+          )}
           onClick={() => onSelect(row.login_uuid)}
           onKeyDown={event => {
             if (event.key !== "Enter" && event.key !== " ") return;
@@ -33,6 +42,13 @@ export function EmployeeSalesRowCard({
           }}
         >
           <div className="flex min-w-0 items-center gap-3">
+            <div onClick={event => event.stopPropagation()}>
+              <Checkbox
+                aria-label={t("common.selectRow", { name: row.login_email })}
+                checked={selectedRowIds.has(row.login_uuid)}
+                onCheckedChange={checked => onToggleRow(row, checked as boolean)}
+              />
+            </div>
             <Avatar>
               {row.login_profile ? <AvatarImage alt={row.login_email} src={row.login_profile} /> : null}
               <AvatarFallback>{userInitials(row.login_email)}</AvatarFallback>

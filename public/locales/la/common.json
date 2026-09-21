@@ -150,7 +150,11 @@
     "saleDate": "ວັນທີຂາຍ",
     "totalAmount": "ຍອດລວມ",
     "productName": "ສິນຄ້າ",
-    "unitPrice": "ລາຄາຕໍ່ຫົວໜ່ວຍ"
+    "unitPrice": "ລາຄາຕໍ່ຫົວໜ່ວຍ",
+    "rank": "ລຳດັບ",
+    "employeeCount": "ຈຳນວນພະນັກງານ",
+    "percentOfTotal": "% ຂອງຍອດຂາຍລວມ",
+    "averagePerBill": "ຍອດຂາຍສະເລ່ຍ/ບິນ"
   },
   "actions": {
     "add": "ເພີ່ມ",
@@ -2009,7 +2013,8 @@
         "netSale": "ຍອດຂາຍສຸດທິ",
         "serviceCharge": "ຄ່າບໍລິການ",
         "vat": "VAT",
-        "grandTotal": "ຍອດລວມທັງໝົດ"
+        "grandTotal": "ຍອດລວມທັງໝົດ",
+        "rank": "ລຳດັບ"
       }
     },
     "zoneSales": {
@@ -2028,7 +2033,8 @@
         "netSale": "Net Sale",
         "serviceCharge": "Service",
         "vat": "VAT",
-        "grandTotal": "Grand Total"
+        "grandTotal": "Grand Total",
+        "rank": "ລຳດັບ"
       }
     },
     "offlineSync": {
