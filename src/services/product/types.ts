@@ -41,6 +41,17 @@ export interface ProductDetailTaste extends ApiEntity {
   taste_status?: number | string;
 }
 
+export interface ProductDetailOptionGroup extends ApiEntity {
+  set_detail_option_group_uuid?: string;
+  group_name?: string;
+  group_name_la?: string;
+  group_name_eng?: string;
+  max_select?: number | string;
+  group_sort?: number | string;
+  taste_uuid_fks?: string[];
+  tastes?: ProductDetailTaste[];
+}
+
 export interface ProductDetail extends ApiEntity {
   detail_uuid?: string;
   pro_detail_id?: string;
@@ -72,6 +83,7 @@ export interface ProductDetail extends ApiEntity {
   set_choice_group_uuid_fks?: string[];
   set_taste_max_select?: number | string;
   set_tastes?: ProductDetailTaste[];
+  set_option_groups?: ProductDetailOptionGroup[];
 }
 
 export interface ProductDetailFormInput extends ApiEntity {}
@@ -134,6 +146,15 @@ export interface SaveProductDetailInput extends ApiEntity {
   /** SET only: sauces/tastes available after this detail is selected. */
   set_taste_max_select?: number;
   set_taste_uuid_fks?: string[];
+  /** SET only: repeatable child option rows under this parent detail. */
+  set_option_groups?: Array<{
+    client_ref: string;
+    group_name_la: string;
+    group_name_eng?: string;
+    max_select: number;
+    taste_uuid_fks: string[];
+    group_sort?: number;
+  }>;
 }
 
 export interface SaveProductSetChoiceGroupInput extends ApiEntity {

@@ -654,14 +654,20 @@ describe("set choice group helpers", () => {
       [],
     );
 
-    expect(hydrated.set_taste_max_select).toBe("2");
-    expect(hydrated.set_taste_uuid_fks).toEqual([
-      "taste-mala",
-      "taste-sesame",
-    ]);
+    expect(hydrated.set_taste_max_select).toBe("0");
+    expect(hydrated.set_taste_uuid_fks).toEqual([]);
+    expect(hydrated.set_option_groups).toMatchObject([{
+      max_select: "2",
+      taste_uuid_fks: ["taste-mala", "taste-sesame"],
+    }]);
     expect(buildDetailPayload(hydrated, "2")).toMatchObject({
-      set_taste_max_select: 2,
-      set_taste_uuid_fks: ["taste-mala", "taste-sesame"],
+      set_taste_max_select: 0,
+      set_taste_uuid_fks: [],
+      set_option_groups: [{
+        group_name_la: "ລົດຊາດ / ນ້ຳຈິ້ມ",
+        max_select: 2,
+        taste_uuid_fks: ["taste-mala", "taste-sesame"],
+      }],
     });
     expect(buildDetailPayload(hydrated, "1")).not.toHaveProperty(
       "set_taste_max_select",

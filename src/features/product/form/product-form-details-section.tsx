@@ -41,6 +41,7 @@ import {
   SET_CHOICE_GROUP_MODE_OPTIONS,
   TASTE_MAX_SELECT_OPTIONS,
   binaryFlag,
+  emptySetDetailOptionGroup,
   entityLabel,
   sizeName,
   sizeUuid,
@@ -144,16 +145,36 @@ export function ProductFormDetailsSection({ form }: { form: ProductFormWorkflow 
                     <FieldLegend className="mb-1 text-sm font-semibold tabular-nums">#{index + 1}</FieldLegend>
                     <FieldDescription className="text-xs">{selectedSizeLabel}</FieldDescription>
                   </div>
-                  <Button
-                    type="button"
-                    size="icon-sm"
-                    variant="ghost"
-                    disabled={details.length <= 1}
-                    aria-label={t("actions.delete")}
-                    onClick={() => removeDetail(row.id)}
-                  >
-                    <Trash2 />
-                  </Button>
+                  <div className="flex items-center gap-1">
+                    {statusSortFk === "2" ? (
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="outline"
+                        onClick={() =>
+                          updateDetail(row.id, {
+                            set_option_groups: [
+                              ...row.set_option_groups,
+                              emptySetDetailOptionGroup(),
+                            ],
+                          })
+                        }
+                      >
+                        <Plus data-icon="inline-start" />
+                        {t("product.addSetChildOption")}
+                      </Button>
+                    ) : null}
+                    <Button
+                      type="button"
+                      size="icon-sm"
+                      variant="ghost"
+                      disabled={details.length <= 1}
+                      aria-label={t("actions.delete")}
+                      onClick={() => removeDetail(row.id)}
+                    >
+                      <Trash2 />
+                    </Button>
+                  </div>
                 </div>
                 <FieldGroup className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
                   <Field>
@@ -327,77 +348,6 @@ export function ProductFormDetailsSection({ form }: { form: ProductFormWorkflow 
                       </FieldDescription>
                     </Field>
                   ) : null}
-                  {statusSortFk === "2" ? (
-                    <Field className="md:col-span-2 lg:col-span-3">
-                      <div className={labelRowClass}>
-                        <FieldLabel>{t("product.setDetailTasteMode")}</FieldLabel>
-                      </div>
-                      <Select
-                        value={row.set_taste_max_select}
-                        onValueChange={(value) =>
-                          updateDetail(row.id, {
-                            set_taste_max_select: value,
-                            ...(value === "0" ? { set_taste_uuid_fks: [] } : {}),
-                          })
-                        }
-                      >
-                        <SelectTrigger className="w-full max-w-72">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent position="popper">
-                          <SelectGroup>
-                            {TASTE_MAX_SELECT_OPTIONS.map((value) => (
-                              <SelectItem key={value} value={value}>
-                                {t(`product.tasteMaxSelect.${value}`)}
-                              </SelectItem>
-                            ))}
-                          </SelectGroup>
-                        </SelectContent>
-                      </Select>
-                      {Number(row.set_taste_max_select) > 0 ? (
-                        selectedSetTasteOptions.length ? (
-                          <div className="mt-2 grid gap-2 rounded-md border border-border bg-muted/10 p-2.5 sm:grid-cols-2">
-                            {selectedSetTasteOptions.map((taste) => {
-                              const uuid = tasteUuid(taste);
-                              const label = entityLabel(
-                                taste,
-                                "taste_name_eng",
-                                "taste_name_la",
-                                language,
-                                uuid,
-                              );
-                              const checked = row.set_taste_uuid_fks.includes(uuid);
-                              const checkboxId = `set-detail-taste-${row.id}-${uuid}`;
-                              return (
-                                <FieldLabel
-                                  key={uuid}
-                                  htmlFor={checkboxId}
-                                  className="min-h-8 cursor-pointer items-center gap-2 text-sm font-normal"
-                                >
-                                  <Checkbox
-                                    id={checkboxId}
-                                    checked={checked}
-                                    onCheckedChange={(value) =>
-                                      updateDetail(row.id, {
-                                        set_taste_uuid_fks: value
-                                          ? [...row.set_taste_uuid_fks, uuid]
-                                          : row.set_taste_uuid_fks.filter((item) => item !== uuid),
-                                      })
-                                    }
-                                  />
-                                  {label}
-                                </FieldLabel>
-                              );
-                            })}
-                          </div>
-                        ) : (
-                          <FieldDescription className="mt-2 text-xs">
-                            {t("product.selectSetTastesFirst")}
-                          </FieldDescription>
-                        )
-                      ) : null}
-                    </Field>
-                  ) : null}
                   {statusSortFk === "1" ? (
                     <Field>
                       <div className={labelRowClass}>
@@ -507,6 +457,130 @@ export function ProductFormDetailsSection({ form }: { form: ProductFormWorkflow 
                     </>
                   ) : null}
                 </FieldGroup>
+                {statusSortFk === "2" && row.set_option_groups.length ? (
+                  <div className="flex flex-col gap-3 border-t border-border pt-4">
+                    {row.set_option_groups.map((group, groupIndex) => (
+                      <div
+                        key={group.id}
+                        className="rounded-md border border-border bg-background p-3"
+                      >
+                        <div className="mb-3 flex items-center justify-between gap-2">
+                          <p className="text-sm font-semibold">
+                            {t("product.setChildOption")} #{groupIndex + 1}
+                          </p>
+                          <Button
+                            type="button"
+                            size="icon-sm"
+                            variant="ghost"
+                            aria-label={t("actions.delete")}
+                            onClick={() =>
+                              updateDetail(row.id, {
+                                set_option_groups: row.set_option_groups.filter(
+                                  (candidate) => candidate.id !== group.id,
+                                ),
+                              })
+                            }
+                          >
+                            <Trash2 />
+                          </Button>
+                        </div>
+                        <FieldGroup className="grid gap-3 md:grid-cols-[minmax(0,1fr)_18rem]">
+                          <Field>
+                            <FieldLabel>{t("product.setChildGroupName")}</FieldLabel>
+                            <Input
+                              value={group.group_name_la}
+                              placeholder={t("product.setChildGroupNamePlaceholder")}
+                              onChange={(event) =>
+                                updateDetail(row.id, {
+                                  set_option_groups: row.set_option_groups.map((candidate) =>
+                                    candidate.id === group.id
+                                      ? { ...candidate, group_name_la: event.target.value }
+                                      : candidate,
+                                  ),
+                                })
+                              }
+                            />
+                          </Field>
+                          <Field>
+                            <FieldLabel>{t("product.setDetailTasteMode")}</FieldLabel>
+                            <Select
+                              value={group.max_select}
+                              onValueChange={(value) =>
+                                updateDetail(row.id, {
+                                  set_option_groups: row.set_option_groups.map((candidate) =>
+                                    candidate.id === group.id
+                                      ? { ...candidate, max_select: value }
+                                      : candidate,
+                                  ),
+                                })
+                              }
+                            >
+                              <SelectTrigger className="w-full">
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent position="popper">
+                                <SelectGroup>
+                                  {TASTE_MAX_SELECT_OPTIONS.filter((value) => value !== "0").map((value) => (
+                                    <SelectItem key={value} value={value}>
+                                      {t(`product.tasteMaxSelect.${value}`)}
+                                    </SelectItem>
+                                  ))}
+                                </SelectGroup>
+                              </SelectContent>
+                            </Select>
+                          </Field>
+                        </FieldGroup>
+                        {selectedSetTasteOptions.length ? (
+                          <div className="mt-3 grid gap-2 rounded-md border border-border bg-muted/10 p-2.5 sm:grid-cols-2 lg:grid-cols-3">
+                            {selectedSetTasteOptions.map((taste) => {
+                              const uuid = tasteUuid(taste);
+                              const label = entityLabel(
+                                taste,
+                                "taste_name_eng",
+                                "taste_name_la",
+                                language,
+                                uuid,
+                              );
+                              const checked = group.taste_uuid_fks.includes(uuid);
+                              const checkboxId = `set-child-taste-${row.id}-${group.id}-${uuid}`;
+                              return (
+                                <FieldLabel
+                                  key={uuid}
+                                  htmlFor={checkboxId}
+                                  className="min-h-8 cursor-pointer items-center gap-2 text-sm font-normal"
+                                >
+                                  <Checkbox
+                                    id={checkboxId}
+                                    checked={checked}
+                                    onCheckedChange={(value) =>
+                                      updateDetail(row.id, {
+                                        set_option_groups: row.set_option_groups.map((candidate) =>
+                                          candidate.id === group.id
+                                            ? {
+                                                ...candidate,
+                                                taste_uuid_fks: value
+                                                  ? [...candidate.taste_uuid_fks, uuid]
+                                                  : candidate.taste_uuid_fks.filter((item) => item !== uuid),
+                                              }
+                                            : candidate,
+                                        ),
+                                      })
+                                    }
+                                  />
+                                  {label}
+                                </FieldLabel>
+                              );
+                            })}
+                          </div>
+                        ) : (
+                          <FieldDescription className="mt-3 text-xs">
+                            {t("product.selectSetTastesFirst")}
+                          </FieldDescription>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                ) : null}
               </FieldSet>
               );
             })}

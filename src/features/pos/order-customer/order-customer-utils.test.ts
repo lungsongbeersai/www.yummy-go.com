@@ -1000,6 +1000,69 @@ describe("order customer helpers", () => {
     })).toThrow("Invalid SET taste selection");
   });
 
+  it("keeps multiple child option groups separate in the SET order payload", () => {
+    const mala = taste({ tasteUuid: "taste-mala" });
+    const sesame = taste({ tasteUuid: "taste-sesame" });
+    const spicy = taste({ tasteUuid: "taste-spicy" });
+    const setProduct: ProdItem = {
+      ...normalizeProdItem(null, product({ statusSortFk: ProductSortStatus.SET })),
+      prodSetPrice: 220000,
+      setChoiceGroups: [choiceGroup({ setChoiceGroupUuid: "grp-main" })],
+      details: [
+        detail({
+          proDetailUuid: "chicken",
+          setChoiceGroupUuidFks: ["grp-main"],
+          setOptionGroups: [
+            {
+              setDetailOptionGroupUuid: "group-sauce",
+              groupName: "Sauce",
+              maxSelect: 1,
+              tastes: [mala, sesame],
+            },
+            {
+              setDetailOptionGroupUuid: "group-spice",
+              groupName: "Spice",
+              maxSelect: 2,
+              tastes: [mala, spicy],
+            },
+          ],
+        }),
+      ],
+    };
+
+    const items = buildStaffOrderItems({
+      detail: setProduct.details[0],
+      mode: "set",
+      noteText: "",
+      product: setProduct,
+      quantity: 1,
+      selectedSetChoiceUuids: { "grp-main": ["chicken"] },
+      selectedSetChoiceTasteUuids: {
+        "chicken:group-sauce": ["taste-sesame"],
+        "chicken:group-spice": ["taste-mala", "taste-spicy"],
+      },
+      toppings: [],
+    });
+
+    expect(items[0]).toMatchObject({
+      set_option_group_selections: [
+        {
+          set_detail_option_group_uuid_fk: "group-sauce",
+          taste_uuid_fks: ["taste-sesame"],
+        },
+        {
+          set_detail_option_group_uuid_fk: "group-spice",
+          taste_uuid_fks: ["taste-mala", "taste-spicy"],
+        },
+      ],
+      tastes: [
+        { taste_uuid_fk: "taste-sesame" },
+        { taste_uuid_fk: "taste-mala" },
+        { taste_uuid_fk: "taste-spicy" },
+      ],
+    });
+  });
+
   it("caps set choice selection at max_select without requiring it to be filled", () => {
     expect(toggleSetChoiceUuid([], "a", 1)).toEqual(["a"]);
     expect(toggleSetChoiceUuid(["a"], "a", 1)).toEqual([]);

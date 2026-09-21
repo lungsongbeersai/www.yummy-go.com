@@ -26,8 +26,20 @@ export interface ApiProdDetail extends ApiEntity {
   default_qty?: number;
   set_taste_max_select?: number | string;
   set_tastes?: ApiProdTaste[];
+  set_option_groups?: ApiProdSetDetailOptionGroup[];
   // แถวหนึ่งเป็นสมาชิกได้หลายกลุ่มพร้อมกัน — [] ຫຼື ไม่ส่งมา = ไม่มีกลุ่ม (บังคับรวมเหมือนเดิม)
   set_choice_group_uuid_fks?: string[];
+}
+
+export interface ApiProdSetDetailOptionGroup extends ApiEntity {
+  set_detail_option_group_uuid: string;
+  group_name?: string;
+  group_name_la?: string;
+  group_name_eng?: string;
+  max_select?: number | string;
+  group_sort?: number | string;
+  taste_uuid_fks?: string[];
+  tastes?: ApiProdTaste[];
 }
 
 export interface ApiProdSetChoiceGroup extends ApiEntity {

@@ -86,7 +86,9 @@ export function buildStaffOrderItems({
   const orderToppings = buildStaffOrderToppings(toppings);
   const orderTastes = buildStaffOrderTastes(tastes);
   const hasNestedSetTastes = mode === "set" && details.some(
-    (itemDetail) => (optionalNumber(itemDetail.setTasteMaxSelect) ?? 0) > 0,
+    (itemDetail) =>
+      (itemDetail.setOptionGroups ?? []).length > 0 ||
+      (optionalNumber(itemDetail.setTasteMaxSelect) ?? 0) > 0,
   );
   const resolvedSetInstanceUuid = mode === "set"
     ? setInstanceUuid ?? createMutationUuid()
@@ -115,24 +117,63 @@ export function buildStaffOrderItems({
     };
 
     if (mode === "set" && hasNestedSetTastes) {
-      const rawSelectedTasteUuids = selectedSetChoiceTasteUuids[detailId] ?? [];
-      const selectedTasteUuids = new Set(rawSelectedTasteUuids);
-      const tasteLimit = optionalNumber(itemDetail.setTasteMaxSelect) ?? 0;
-      const allowedTasteUuids = new Set(
-        (itemDetail.setTastes ?? []).map(tasteUuid).filter(Boolean),
-      );
-      if (
-        selectedTasteUuids.size !== rawSelectedTasteUuids.length ||
-        selectedTasteUuids.size > tasteLimit ||
-        [...selectedTasteUuids].some((uuid) => !allowedTasteUuids.has(uuid))
-      ) {
-        throw new Error("Invalid SET taste selection");
+      const optionGroups = itemDetail.setOptionGroups ?? [];
+      if (optionGroups.length) {
+        const selectedDetailTastes: ProdTaste[] = [];
+        item.set_option_group_selections = optionGroups.map((group) => {
+          const groupUuid = optionalString(group.setDetailOptionGroupUuid);
+          if (!groupUuid) throw new Error("Invalid SET option group");
+          const selectionKey = `${detailId}:${groupUuid}`;
+          const rawSelectedTasteUuids = selectedSetChoiceTasteUuids[selectionKey] ?? [];
+          const selectedTasteUuids = new Set(rawSelectedTasteUuids);
+          const tasteLimit = optionalNumber(group.maxSelect) ?? 0;
+          const allowedTastes = group.tastes ?? [];
+          const allowedTasteUuids = new Set(
+            allowedTastes.map(tasteUuid).filter(Boolean),
+          );
+          if (
+            selectedTasteUuids.size !== rawSelectedTasteUuids.length ||
+            selectedTasteUuids.size > tasteLimit ||
+            [...selectedTasteUuids].some((uuid) => !allowedTasteUuids.has(uuid))
+          ) {
+            throw new Error("Invalid SET taste selection");
+          }
+          selectedDetailTastes.push(
+            ...allowedTastes.filter((taste) => selectedTasteUuids.has(tasteUuid(taste))),
+          );
+          return {
+            set_detail_option_group_uuid_fk: groupUuid,
+            taste_uuid_fks: [...selectedTasteUuids],
+          };
+        });
+        const uniqueDetailTastes = Array.from(
+          new Map(selectedDetailTastes.map((taste) => [tasteUuid(taste), taste])).values(),
+        );
+        const builtTastes = buildStaffOrderTastes(uniqueDetailTastes);
+        if (builtTastes.length) item.tastes = builtTastes;
+      } else {
+        const legacyKey = `${detailId}:legacy:${detailId}`;
+        const rawSelectedTasteUuids = selectedSetChoiceTasteUuids[legacyKey]
+          ?? selectedSetChoiceTasteUuids[detailId]
+          ?? [];
+        const selectedTasteUuids = new Set(rawSelectedTasteUuids);
+        const tasteLimit = optionalNumber(itemDetail.setTasteMaxSelect) ?? 0;
+        const allowedTasteUuids = new Set(
+          (itemDetail.setTastes ?? []).map(tasteUuid).filter(Boolean),
+        );
+        if (
+          selectedTasteUuids.size !== rawSelectedTasteUuids.length ||
+          selectedTasteUuids.size > tasteLimit ||
+          [...selectedTasteUuids].some((uuid) => !allowedTasteUuids.has(uuid))
+        ) {
+          throw new Error("Invalid SET taste selection");
+        }
+        const detailTastes = (itemDetail.setTastes ?? []).filter((taste) =>
+          selectedTasteUuids.has(tasteUuid(taste)),
+        );
+        const builtTastes = buildStaffOrderTastes(detailTastes);
+        if (builtTastes.length) item.tastes = builtTastes;
       }
-      const detailTastes = (itemDetail.setTastes ?? []).filter((taste) =>
-        selectedTasteUuids.has(tasteUuid(taste)),
-      );
-      const selectedDetailTastes = buildStaffOrderTastes(detailTastes);
-      if (selectedDetailTastes.length) item.tastes = selectedDetailTastes;
     }
 
     if (index === 0) {

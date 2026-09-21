@@ -736,26 +736,34 @@ export function useOrderCustomerWorkflow({
     setSelectedSetChoiceUuids((state) => ({ ...state, [groupUuid]: next }));
     if (!next.includes(detailUuid)) {
       setSelectedSetChoiceTasteUuids((state) => {
-        const nextState = { ...state };
-        delete nextState[detailUuid];
-        return nextState;
+        return Object.fromEntries(
+          Object.entries(state).filter(([key]) => !key.startsWith(`${detailUuid}:`)),
+        );
       });
     }
   }
 
   function toggleSetChoiceTaste(
     detailUuid: string,
+    optionGroupUuid: string,
     tasteUuid: string,
     maxSelect: number,
   ) {
     const detail = selectedProduct?.details.find(
       (candidate) => candidate.proDetailUuid === detailUuid,
     );
-    if (!(detail?.setTastes ?? []).some(
+    const optionGroup = detail?.setOptionGroups?.find(
+      (candidate) => candidate.setDetailOptionGroupUuid === optionGroupUuid,
+    );
+    const allowedTastes = optionGroup?.tastes ?? (
+      optionGroupUuid === `legacy:${detailUuid}` ? detail?.setTastes : []
+    ) ?? [];
+    if (!allowedTastes.some(
       (taste) => taste.tasteUuid === tasteUuid && isTasteAvailable(taste),
     )) return;
 
-    const current = selectedSetChoiceTasteUuids[detailUuid] ?? [];
+    const selectionKey = `${detailUuid}:${optionGroupUuid}`;
+    const current = selectedSetChoiceTasteUuids[selectionKey] ?? [];
     if (!current.includes(tasteUuid) && current.length >= maxSelect) {
       showToast({
         title: t("pos.tasteSelectionLimitReached", { count: maxSelect }),
@@ -765,7 +773,7 @@ export function useOrderCustomerWorkflow({
     }
     setSelectedSetChoiceTasteUuids((state) => ({
       ...state,
-      [detailUuid]: toggleTasteUuid(current, tasteUuid, maxSelect),
+      [selectionKey]: toggleTasteUuid(current, tasteUuid, maxSelect),
     }));
   }
 

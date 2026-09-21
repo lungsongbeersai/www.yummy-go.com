@@ -17,6 +17,7 @@ import type { Unit } from "@/services/unit";
 import type {
   BinaryFlag,
   DetailRow,
+  SetDetailOptionGroupRow,
   DetailStockSummary,
   ProductSavePayloadState,
   RequiredProductFormState,
@@ -671,6 +672,15 @@ export function productHydrationKey(row: Product | null | undefined) {
         (detail.set_tastes ?? [])
           .map((taste) => String(taste.taste_uuid_fk ?? taste.taste_uuid ?? ""))
           .join(","),
+        (detail.set_option_groups ?? [])
+          .map((group) => [
+            group.set_detail_option_group_uuid,
+            group.group_name_la,
+            group.group_name_eng,
+            group.max_select,
+            (group.taste_uuid_fks ?? []).join(","),
+          ].join("/"))
+          .join(";"),
       ].join(":"),
     )
     .join("|");
@@ -726,7 +736,18 @@ export function emptyDetail(statusSortFk: StatusSortFk = "1"): DetailRow {
     set_choice_group_names: [],
     set_taste_max_select: "0",
     set_taste_uuid_fks: [],
+    set_option_groups: [],
     ...EMPTY_PROMOTION_FIELDS,
+  };
+}
+
+export function emptySetDetailOptionGroup(): SetDetailOptionGroupRow {
+  return {
+    id: rid(),
+    group_name_la: "",
+    group_name_eng: "",
+    max_select: "1",
+    taste_uuid_fks: [],
   };
 }
 
@@ -749,6 +770,31 @@ export function detailFromProduct(
   choiceGroups: NonNullable<Product["set_choice_groups"]> = [],
 ): DetailRow {
   const matchedGroups = choiceGroupsFor(detail, choiceGroups);
+  const savedOptionGroups = detail.set_option_groups ?? [];
+  const legacyTasteUuids = (detail.set_tastes ?? [])
+    .map((taste) => String(taste.taste_uuid_fk ?? taste.taste_uuid ?? "").trim())
+    .filter(Boolean);
+  const optionGroups = savedOptionGroups.length
+    ? savedOptionGroups.map((group) => ({
+        id: rid(),
+        set_detail_option_group_uuid: String(
+          group.set_detail_option_group_uuid ?? "",
+        ) || undefined,
+        group_name_la: String(group.group_name_la ?? group.group_name ?? ""),
+        group_name_eng: String(group.group_name_eng ?? ""),
+        max_select: String(group.max_select ?? 1),
+        taste_uuid_fks: (group.taste_uuid_fks ?? group.tastes?.map((taste) =>
+          String(taste.taste_uuid_fk ?? taste.taste_uuid ?? "")) ?? []).filter(Boolean),
+      }))
+    : Number(detail.set_taste_max_select ?? 0) > 0
+      ? [{
+          ...emptySetDetailOptionGroup(),
+          group_name_la: "ລົດຊາດ / ນ້ຳຈິ້ມ",
+          group_name_eng: "Taste / sauce",
+          max_select: String(detail.set_taste_max_select ?? 1),
+          taste_uuid_fks: legacyTasteUuids,
+        }]
+      : [];
   return {
     id: rid(),
     pro_detail_uuid: productDetailUuid(detail),
@@ -779,10 +825,10 @@ export function detailFromProduct(
     set_choice_group_names: matchedGroups.map((group) =>
       String(group.group_name_la ?? group.group_name ?? ""),
     ),
-    set_taste_max_select: String(detail.set_taste_max_select ?? 0),
-    set_taste_uuid_fks: (detail.set_tastes ?? [])
-      .map((taste) => String(taste.taste_uuid_fk ?? taste.taste_uuid ?? "").trim())
-      .filter(Boolean),
+    // แปลงข้อมูลรุ่นเก่าเป็นแถวลูก แล้วบันทึกกลับด้วยโครงสร้างใหม่เท่านั้น
+    set_taste_max_select: "0",
+    set_taste_uuid_fks: [],
+    set_option_groups: optionGroups,
   };
 }
 
@@ -809,6 +855,7 @@ export function normalizeDetailsForStatus(
       set_choice_group_names: targetStatus === "2" ? row.set_choice_group_names : [],
       set_taste_max_select: targetStatus === "2" ? row.set_taste_max_select : "0",
       set_taste_uuid_fks: targetStatus === "2" ? row.set_taste_uuid_fks : [],
+      set_option_groups: targetStatus === "2" ? row.set_option_groups : [],
     };
 
     if (targetStatus !== "3") {
@@ -904,6 +951,14 @@ export function buildDetailPayload(
       set_taste_max_select: Number(row.set_taste_max_select) || 0,
       set_taste_uuid_fks:
         Number(row.set_taste_max_select) > 0 ? row.set_taste_uuid_fks : [],
+      set_option_groups: row.set_option_groups.map((group, index) => ({
+        client_ref: group.id,
+        group_name_la: group.group_name_la.trim(),
+        group_name_eng: group.group_name_eng.trim() || group.group_name_la.trim(),
+        max_select: Number(group.max_select) || 1,
+        taste_uuid_fks: group.taste_uuid_fks,
+        group_sort: index + 1,
+      })),
     };
   }
 
@@ -1038,6 +1093,22 @@ export function requiredFieldErrorKeys(state: RequiredProductFormState) {
     )
       ? "product.setDetailTastes"
       : null,
+    state.statusSortFk === "2" &&
+    state.details.some((row) =>
+      row.set_option_groups.some((group) => !group.group_name_la.trim()),
+    )
+      ? "product.setChildGroupName"
+      : null,
+    state.statusSortFk === "2" &&
+    state.details.some((row) =>
+      row.set_option_groups.some(
+        (group) =>
+          group.taste_uuid_fks.filter((uuid) => selectedProductTasteUuids.has(uuid)).length <
+          Number(group.max_select),
+      ),
+    )
+      ? "product.setDetailTastes"
+      : null,
   ].filter(Boolean) as Array<string | string[]>;
 }
 
@@ -1078,6 +1149,16 @@ export function buildSaveProductPayload(
             set_taste_uuid_fks: row.set_taste_uuid_fks.filter(
               (uuid) => selectedProductTasteUuids.has(uuid),
             ),
+            set_option_groups: row.set_option_groups.map((group, index) => ({
+              client_ref: group.id,
+              group_name_la: group.group_name_la.trim(),
+              group_name_eng: group.group_name_eng.trim() || group.group_name_la.trim(),
+              max_select: Number(group.max_select) || 1,
+              taste_uuid_fks: group.taste_uuid_fks.filter((uuid) =>
+                selectedProductTasteUuids.has(uuid),
+              ),
+              group_sort: index + 1,
+            })),
           }
         : detail;
     }),

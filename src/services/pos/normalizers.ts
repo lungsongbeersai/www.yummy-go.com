@@ -48,6 +48,20 @@ export function mapApiProdDetail(detail: ApiProdDetail): ProdDetail {
     ...(detail.set_tastes !== undefined
       ? { setTastes: detail.set_tastes.map(mapApiProdTaste) }
       : {}),
+    ...(detail.set_option_groups !== undefined
+      ? {
+          setOptionGroups: detail.set_option_groups.map((group) => ({
+            setDetailOptionGroupUuid: group.set_detail_option_group_uuid,
+            groupName: group.group_name,
+            groupNameLa: group.group_name_la,
+            groupNameEng: group.group_name_eng,
+            maxSelect: group.max_select,
+            groupSort: group.group_sort,
+            tasteUuidFks: group.taste_uuid_fks ?? [],
+            tastes: (group.tastes ?? []).map(mapApiProdTaste),
+          })),
+        }
+      : {}),
     setChoiceGroupUuidFks: detail.set_choice_group_uuid_fks ?? [],
   };
 }

@@ -19,6 +19,21 @@ describe("POS product normalizers", () => {
               taste_status: 1,
             },
           ],
+          set_option_groups: [
+            {
+              set_detail_option_group_uuid: "group-sauce",
+              group_name_la: "ນ້ຳຈິ້ມ",
+              max_select: 1,
+              taste_uuid_fks: ["taste-mala"],
+              tastes: [
+                {
+                  taste_uuid: "taste-mala",
+                  taste_name_la: "ແຈ່ວມາລ່າ",
+                  taste_status: 1,
+                },
+              ],
+            },
+          ],
         },
       ],
     });
@@ -31,6 +46,15 @@ describe("POS product normalizers", () => {
           tasteUuid: "taste-mala",
           tasteNameLa: "ແຈ່ວມາລ່າ",
           tasteStatus: 1,
+        },
+      ],
+      setOptionGroups: [
+        {
+          setDetailOptionGroupUuid: "group-sauce",
+          groupNameLa: "ນ້ຳຈິ້ມ",
+          maxSelect: 1,
+          tasteUuidFks: ["taste-mala"],
+          tastes: [{ tasteUuid: "taste-mala" }],
         },
       ],
     });

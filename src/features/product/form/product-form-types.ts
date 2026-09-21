@@ -15,6 +15,15 @@ export type SizeSelectOption =
 // (ดู buildChoiceGroupsPayload ใน product-form-utils.ts)
 export type SetChoiceGroupMode = "none" | "one" | "many";
 
+export interface SetDetailOptionGroupRow {
+  id: string;
+  set_detail_option_group_uuid?: string;
+  group_name_la: string;
+  group_name_eng: string;
+  max_select: string;
+  taste_uuid_fks: string[];
+}
+
 export interface DetailRow {
   id: string;
   pro_detail_uuid: string;
@@ -39,6 +48,8 @@ export interface DetailRow {
   // น้ำจิ้ม/รสชาติที่เลือกได้เฉพาะเมื่อเลือก detail นี้ในสินค้า Set
   set_taste_max_select: string;
   set_taste_uuid_fks: string[];
+  // แถวลูก/ตัวเลือกย่อยของแถวแม่ SET แต่ละแถว
+  set_option_groups: SetDetailOptionGroupRow[];
 }
 
 export interface ToppingSelection {

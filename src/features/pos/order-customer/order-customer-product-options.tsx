@@ -41,7 +41,13 @@ import { Textarea } from "@/components/ui/textarea";
 import { money } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { optionalNumber } from "@/lib/values";
-import type { ProdDetail, ProdItem, ProdTaste, ProdTopping } from "@/services/pos";
+import type {
+  ProdDetail,
+  ProdItem,
+  ProdSetDetailOptionGroup,
+  ProdTaste,
+  ProdTopping,
+} from "@/services/pos";
 import {
   availableProductDetails,
   clampOrderQuantity,
@@ -212,6 +218,7 @@ export function ProductOptionsForm({
   onToggleSetChoice: (groupUuid: string, detailUuid: string, maxSelect: number) => void;
   onToggleSetChoiceTaste: (
     detailUuid: string,
+    optionGroupUuid: string,
     tasteUuid: string,
     maxSelect: number,
   ) => void;
@@ -230,8 +237,14 @@ export function ProductOptionsForm({
   const tasteLimit = tasteSelectionLimit(product);
   const hasNestedSetTastes = setMode && product.details.some(
     (detail) =>
-      (optionalNumber(detail.setTasteMaxSelect) ?? 0) > 0 &&
-      (detail.setTastes ?? []).some(isTasteAvailable),
+      (detail.setOptionGroups ?? []).some(
+        (group) =>
+          (optionalNumber(group.maxSelect) ?? 0) > 0 &&
+          (group.tastes ?? []).some(isTasteAvailable),
+      ) || (
+        (optionalNumber(detail.setTasteMaxSelect) ?? 0) > 0 &&
+        (detail.setTastes ?? []).some(isTasteAvailable)
+      ),
   );
   const selectedTasteUuids = new Set(selectedTastes.map(tasteUuid));
   const toppingLimit = toppingSelectionLimit(
@@ -288,11 +301,33 @@ export function ProductOptionsForm({
                       return (
                         <SetProductRow
                           key={detail.proDetailUuid}
+                          detailUuid={detail.proDetailUuid}
                           label={detail.sizeName || t("pos.product")}
+                          optionGroups={
+                            detail.setOptionGroups?.length
+                              ? detail.setOptionGroups
+                              : (optionalNumber(detail.setTasteMaxSelect) ?? 0) > 0
+                                ? [{
+                                    setDetailOptionGroupUuid: `legacy:${detail.proDetailUuid}`,
+                                    groupName: t("pos.tastes"),
+                                    maxSelect: detail.setTasteMaxSelect,
+                                    tastes: detail.setTastes ?? [],
+                                  }]
+                                : []
+                          }
                           price={
                             price > 0
                               ? money(price)
                               : t("pos.includedInSet")
+                          }
+                          selectedTasteUuids={selectedSetChoiceTasteUuids}
+                          onToggleTaste={(optionGroupUuid, tasteUuid, maxSelect) =>
+                            onToggleSetChoiceTaste(
+                              detail.proDetailUuid,
+                              optionGroupUuid,
+                              tasteUuid,
+                              maxSelect,
+                            )
                           }
                         />
                       );
@@ -329,22 +364,28 @@ export function ProductOptionsForm({
                                 label={detail.sizeName || t("pos.product")}
                                 price={price > 0 ? money(price) : t("pos.includedInSet")}
                                 selected={isSelected}
-                                selectedTasteUuids={
-                                  selectedSetChoiceTasteUuids[detail.proDetailUuid] ?? []
+                                selectedTasteUuids={selectedSetChoiceTasteUuids}
+                                optionGroups={
+                                  detail.setOptionGroups?.length
+                                    ? detail.setOptionGroups
+                                    : (optionalNumber(detail.setTasteMaxSelect) ?? 0) > 0
+                                      ? [{
+                                          setDetailOptionGroupUuid: `legacy:${detail.proDetailUuid}`,
+                                          groupName: t("pos.tastes"),
+                                          maxSelect: detail.setTasteMaxSelect,
+                                          tastes: detail.setTastes ?? [],
+                                        }]
+                                      : []
                                 }
-                                tastes={(detail.setTastes ?? []).filter(isTasteAvailable)}
-                                tasteLimit={Math.min(
-                                  optionalNumber(detail.setTasteMaxSelect) ?? 0,
-                                  (detail.setTastes ?? []).filter(isTasteAvailable).length,
-                                )}
                                 onToggle={() =>
                                   onToggleSetChoice(groupUuid, detail.proDetailUuid, maxSelect)
                                 }
-                                onToggleTaste={(tasteUuid) =>
+                                onToggleTaste={(optionGroupUuid, tasteUuid, maxSelect) =>
                                   onToggleSetChoiceTaste(
                                     detail.proDetailUuid,
+                                    optionGroupUuid,
                                     tasteUuid,
-                                    optionalNumber(detail.setTasteMaxSelect) ?? 0,
+                                    maxSelect,
                                   )
                                 }
                               />
@@ -619,16 +660,38 @@ function SectionLegend({
   );
 }
 
-function SetProductRow({ label, price }: { label: string; price: string }) {
+function SetProductRow({
+  detailUuid,
+  label,
+  optionGroups,
+  price,
+  selectedTasteUuids,
+  onToggleTaste,
+}: {
+  detailUuid: string;
+  label: string;
+  optionGroups: ProdSetDetailOptionGroup[];
+  price: string;
+  selectedTasteUuids: Record<string, string[]>;
+  onToggleTaste: (optionGroupUuid: string, tasteUuid: string, maxSelect: number) => void;
+}) {
   return (
-    <div className="flex min-h-12 w-full items-center justify-between gap-3 rounded-xl border border-primary/20 bg-primary/5 px-3.5 py-2.5 text-foreground">
-      <span className="flex min-w-0 items-center gap-2">
-        <Check aria-hidden="true" className="size-4 shrink-0 text-primary" />
-        <span className="truncate text-sm font-semibold">{label}</span>
-      </span>
-      <span className="shrink-0 text-sm font-bold text-primary tabular-nums">
-        {price}
-      </span>
+    <div className="w-full rounded-xl border border-primary/20 bg-primary/5 text-foreground">
+      <div className="flex min-h-12 items-center justify-between gap-3 px-3.5 py-2.5">
+        <span className="flex min-w-0 items-center gap-2">
+          <Check aria-hidden="true" className="size-4 shrink-0 text-primary" />
+          <span className="truncate text-sm font-semibold">{label}</span>
+        </span>
+        <span className="shrink-0 text-sm font-bold text-primary tabular-nums">
+          {price}
+        </span>
+      </div>
+      <SetDetailOptionGroups
+        detailUuid={detailUuid}
+        optionGroups={optionGroups}
+        selectedTasteUuids={selectedTasteUuids}
+        onToggleTaste={onToggleTaste}
+      />
     </div>
   );
 }
@@ -640,8 +703,7 @@ function SetChoiceOptionRow({
   price,
   selected,
   selectedTasteUuids,
-  tastes,
-  tasteLimit,
+  optionGroups,
   onToggle,
   onToggleTaste,
 }: {
@@ -650,13 +712,11 @@ function SetChoiceOptionRow({
   label: string;
   price: string;
   selected: boolean;
-  selectedTasteUuids: string[];
-  tastes: ProdTaste[];
-  tasteLimit: number;
+  selectedTasteUuids: Record<string, string[]>;
+  optionGroups: ProdSetDetailOptionGroup[];
   onToggle: () => void;
-  onToggleTaste: (tasteUuid: string) => void;
+  onToggleTaste: (optionGroupUuid: string, tasteUuid: string, maxSelect: number) => void;
 }) {
-  const { t } = useTranslation();
   const id = `staff-set-choice-${detailUuid}`;
   return (
     <div
@@ -685,24 +745,60 @@ function SetChoiceOptionRow({
         <span className="shrink-0 text-sm font-bold tabular-nums text-primary">{price}</span>
       </FieldLabel>
 
-      {selected && tastes.length && tasteLimit > 0 ? (
-        <div className="border-t border-border/70 px-3.5 py-3">
-          <div className="mb-2 flex items-center justify-between gap-3 text-xs font-semibold text-muted-foreground">
-            <span>{t("pos.tastes")}</span>
-            <span>
-              {t("pos.selectedOf", {
-                selected: selectedTasteUuids.length,
-                total: tasteLimit,
-              })}
-            </span>
-          </div>
-          <div className="flex flex-wrap gap-2">
-            {tastes.map((taste) => {
+      {selected ? (
+        <SetDetailOptionGroups
+          detailUuid={detailUuid}
+          optionGroups={optionGroups}
+          selectedTasteUuids={selectedTasteUuids}
+          onToggleTaste={onToggleTaste}
+        />
+      ) : null}
+    </div>
+  );
+}
+
+function SetDetailOptionGroups({
+  detailUuid,
+  optionGroups,
+  selectedTasteUuids,
+  onToggleTaste,
+}: {
+  detailUuid: string;
+  optionGroups: ProdSetDetailOptionGroup[];
+  selectedTasteUuids: Record<string, string[]>;
+  onToggleTaste: (optionGroupUuid: string, tasteUuid: string, maxSelect: number) => void;
+}) {
+  const { t } = useTranslation();
+  if (!optionGroups.length) return null;
+  return (
+    <div className="flex flex-col gap-3 border-t border-border/70 px-3.5 py-3">
+      {optionGroups.map((group) => {
+            const tastes = (group.tastes ?? []).filter(isTasteAvailable);
+            const tasteLimit = Math.min(
+              optionalNumber(group.maxSelect) ?? 0,
+              tastes.length,
+            );
+            const selectionKey = `${detailUuid}:${group.setDetailOptionGroupUuid}`;
+            const selectedGroupTasteUuids = selectedTasteUuids[selectionKey] ?? [];
+            if (!tastes.length || tasteLimit <= 0) return null;
+            return (
+              <div key={group.setDetailOptionGroupUuid}>
+                <div className="mb-2 flex items-center justify-between gap-3 text-xs font-semibold text-muted-foreground">
+                  <span>{group.groupName || group.groupNameLa || t("pos.tastes")}</span>
+                  <span>
+                    {t("pos.selectedOf", {
+                      selected: selectedGroupTasteUuids.length,
+                      total: tasteLimit,
+                    })}
+                  </span>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  {tastes.map((taste) => {
               const uuid = tasteUuid(taste);
-              const tasteSelected = selectedTasteUuids.includes(uuid);
+              const tasteSelected = selectedGroupTasteUuids.includes(uuid);
               const tasteBlocked =
-                !tasteSelected && selectedTasteUuids.length >= tasteLimit;
-              const tasteId = `staff-set-choice-${detailUuid}-taste-${uuid}`;
+                !tasteSelected && selectedGroupTasteUuids.length >= tasteLimit;
+              const tasteId = `staff-set-choice-${detailUuid}-${group.setDetailOptionGroupUuid}-taste-${uuid}`;
               return (
                 <FieldLabel
                   key={uuid}
@@ -718,15 +814,18 @@ function SetChoiceOptionRow({
                     id={tasteId}
                     checked={tasteSelected}
                     aria-disabled={tasteBlocked}
-                    onCheckedChange={() => onToggleTaste(uuid)}
+                    onCheckedChange={() =>
+                      onToggleTaste(group.setDetailOptionGroupUuid, uuid, tasteLimit)
+                    }
                   />
                   <span className="truncate">{tasteDisplayName(taste)}</span>
                 </FieldLabel>
               );
-            })}
-          </div>
-        </div>
-      ) : null}
+                  })}
+                </div>
+              </div>
+            );
+      })}
     </div>
   );
 }

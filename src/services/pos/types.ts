@@ -95,8 +95,20 @@ export interface ProdDetail {
   setTasteMaxSelect?: number | string;
   /** Sauces/tastes allowed when this SET option is selected. */
   setTastes?: ProdTaste[];
+  setOptionGroups?: ProdSetDetailOptionGroup[];
   // แถวหนึ่งเป็นสมาชิกได้หลายกลุ่มพร้อมกัน — [] = ไม่มีกลุ่ม (บังคับรวมเหมือนเดิม)
   setChoiceGroupUuidFks?: string[];
+}
+
+export interface ProdSetDetailOptionGroup {
+  setDetailOptionGroupUuid: string;
+  groupName?: string;
+  groupNameLa?: string;
+  groupNameEng?: string;
+  maxSelect?: number | string;
+  groupSort?: number | string;
+  tasteUuidFks?: string[];
+  tastes?: ProdTaste[];
 }
 
 export interface ProdSetChoiceGroup {
@@ -267,6 +279,10 @@ export interface CreateOrderItem extends ApiEntity {
   set_instance_uuid?: string;
   /** Choice groups through which this SET detail was selected. [] marks an always-included detail. */
   set_choice_group_uuid_fks?: string[];
+  set_option_group_selections?: Array<{
+    set_detail_option_group_uuid_fk: string;
+    taste_uuid_fks: string[];
+  }>;
   order_it_qty: number;
   order_it_status: number;
   order_it_note?: string;
