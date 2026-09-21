@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   branchName,
+  buildBulkUserInput,
   buildUserSaveInput,
   isProtectedUser,
   roleId,
@@ -129,6 +130,32 @@ describe("user settings utils", () => {
       invalidEmails: [],
       invalidPasswordRows: [],
       valid: []
+    });
+  });
+
+  it("allows existing users to keep passwords but still requires a valid email", () => {
+    const result = validateBulkCredentials([
+      { loginUuid: "user-1", email: "one@example.com", password: "" },
+      { loginUuid: "user-2", email: "", password: "" },
+      { loginUuid: "user-3", email: "bad", password: "" },
+      { loginUuid: "user-4", email: "two@example.com", password: "123" }
+    ]);
+    expect(result.valid).toEqual([{ loginUuid: "user-1", email: "one@example.com", password: "" }]);
+    expect(result.incompleteRows).toEqual([2]);
+    expect(result.invalidEmails).toEqual(["bad"]);
+    expect(result.invalidPasswordRows).toEqual([4]);
+  });
+
+  it("omits unchanged fields for bulk edits instead of resetting permissions or passwords", () => {
+    const row = { loginUuid: "user-1", email: "one@example.com", password: "" };
+    expect(buildBulkUserInput(row, { branchUuid: "branch-1", role: "keep", active: "keep", zones: null })).toEqual({
+      login_uuid: "user-1", login_email: "one@example.com"
+    });
+    expect(buildBulkUserInput({ ...row, password: "5678" }, { branchUuid: "branch-1", role: "3", active: "2", zones: [] })).toEqual({
+      login_uuid: "user-1", login_email: "one@example.com", login_password: "5678", roles_id_fk: 3, login_active: 2, zone_uuid_fks: []
+    });
+    expect(buildBulkUserInput({ email: "new@example.com", password: "1234" }, { branchUuid: "branch-1", role: "4", active: "1", zones: ["z1", "z2"] })).toEqual({
+      branch_uuid_fk: "branch-1", login_email: "new@example.com", login_password: "1234", roles_id_fk: 4, login_active: 1, zone_uuid_fks: ["z1", "z2"]
     });
   });
 });

@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { AlertCircle, CheckCircle2, CircleDashed, Plus, Trash2, UsersRound, XCircle } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -22,13 +22,15 @@ import {
   SettingsDialogHeader
 } from "@/features/settings/shared/settings-shell";
 import { useResetOnDeps } from "@/hooks/use-reset-on-change";
-import type { Role } from "@/services/user";
+import type { Role, User } from "@/services/user";
 import type { Zone } from "@/services/zone";
 import { useUserStore } from "@/stores/user-store";
 import {
   type BulkCredentialInput,
+  buildBulkUserInput,
   roleId,
   roleName,
+  userValue,
   validateBulkCredentials,
   zoneName
 } from "./user-utils";
@@ -47,7 +49,7 @@ interface CredentialDraft extends BulkCredentialInput {
 
 const INITIAL_CREDENTIAL_ROWS: CredentialDraft[] = [{ email: "", id: 1, password: "" }];
 
-// สถานะแถวรายอีเมวตอนสร้างจริง — ไอคอน/สีต่อสถานะให้เข้าชุดกับ product-import-dialog.tsx
+// Show the result of each independent account save.
 function BulkRowStatusCell({ error, status }: { error?: string; status: BulkRowStatus }) {
   const { t } = useTranslation();
 
@@ -83,8 +85,9 @@ function BulkRowStatusCell({ error, status }: { error?: string; status: BulkRowS
   );
 }
 
-export function UserBulkCreateDialog({
+export function UserBulkDialog({
   branchUuid,
+  editingUsers,
   loggedRoleId,
   onCreated,
   onOpenChange,
@@ -93,6 +96,7 @@ export function UserBulkCreateDialog({
   zoneOptions
 }: {
   branchUuid: string;
+  editingUsers: User[] | null;
   loggedRoleId: number;
   onCreated: () => void;
   onOpenChange: (open: boolean) => void;
@@ -102,19 +106,25 @@ export function UserBulkCreateDialog({
 }) {
   const { t } = useTranslation();
   const saveUserRow = useUserStore((state) => state.save);
+  const isEditing = editingUsers !== null;
+  const submitting = useRef(false);
   const [credentialRows, setCredentialRows] = useState<CredentialDraft[]>(INITIAL_CREDENTIAL_ROWS);
   const [selectedRoleId, setSelectedRoleId] = useState(() => String(loggedRoleId || ""));
   const [selectedZoneUuids, setSelectedZoneUuids] = useState<string[]>([]);
+  const [keepZones, setKeepZones] = useState(isEditing);
+  const [active, setActive] = useState(isEditing ? "keep" : "1");
   const [rows, setRows] = useState<BulkRow[]>([]);
   const [running, setRunning] = useState(false);
   const [formError, setFormError] = useState("");
 
-  // ล้างฟอร์มทุกครั้งที่ dialog ปิด — เปิดใหม่ครั้งถัดไปจึงเริ่มว่างเสมอ
-  useResetOnDeps([open], () => {
-    if (open) return;
-    setCredentialRows(INITIAL_CREDENTIAL_ROWS);
-    setSelectedRoleId(String(loggedRoleId || ""));
+  useResetOnDeps([open, editingUsers], () => {
+    setCredentialRows(editingUsers?.map((user, index) => ({
+      id: index + 1, loginUuid: user.login_uuid, email: userValue(user, "login_email"), password: ""
+    })) ?? INITIAL_CREDENTIAL_ROWS);
+    setSelectedRoleId(isEditing ? "keep" : String(loggedRoleId || ""));
     setSelectedZoneUuids([]);
+    setKeepZones(isEditing);
+    setActive(isEditing ? "keep" : "1");
     setRows([]);
     setRunning(false);
     setFormError("");
@@ -172,29 +182,27 @@ export function UserBulkCreateDialog({
   }
 
   async function handleSubmit() {
+    if (submitting.current || hasStarted) return;
     const message = validate();
     if (message) {
       setFormError(message);
       return;
     }
     setFormError("");
+    submitting.current = true;
 
     const credentials = validation.valid;
     setRows(credentials.map(({ email }) => ({ email, status: "pending" as const })));
     setRunning(true);
 
     const results = await Promise.all(
-      credentials.map(async ({ email, password }, index) => {
+      credentials.map(async (credential, index) => {
         setRows((prev) => prev.map((row, i) => (i === index ? { ...row, status: "running" } : row)));
         try {
-          await saveUserRow({
-            branch_uuid_fk: branchUuid,
-            login_active: 1,
-            login_email: email,
-            login_password: password,
-            roles_id_fk: Number(selectedRoleId),
-            zone_uuid_fks: selectedZoneUuids
-          });
+          await saveUserRow(buildBulkUserInput(credential, {
+            branchUuid, role: selectedRoleId, active,
+            zones: keepZones ? null : selectedZoneUuids
+          }));
           setRows((prev) => prev.map((row, i) => (i === index ? { ...row, status: "success" } : row)));
           return true;
         } catch (error) {
@@ -211,6 +219,7 @@ export function UserBulkCreateDialog({
     );
 
     setRunning(false);
+    submitting.current = false;
     if (results.some(Boolean)) onCreated();
     if (results.every(Boolean)) onOpenChange(false);
   }
@@ -223,7 +232,7 @@ export function UserBulkCreateDialog({
         onOpenChange(next);
       }}
     >
-      <SettingsDialogContent className="sm:max-w-xl">
+      <SettingsDialogContent className="sm:max-w-6xl" showCloseButton={!running}>
         <SettingsDialogForm
           noValidate
           onSubmit={(event) => {
@@ -237,8 +246,8 @@ export function UserBulkCreateDialog({
                 <UsersRound />
               </span>
               <div className="min-w-0">
-                <DialogTitle>{t("settings.userBulkDialogTitle")}</DialogTitle>
-                <DialogDescription>{t("settings.userBulkDialogDescription")}</DialogDescription>
+                <DialogTitle>{t(isEditing ? "settings.userBulkEditTitle" : "settings.userBulkDialogTitle")}</DialogTitle>
+                <DialogDescription>{t(isEditing ? "settings.userBulkEditDescription" : "settings.userBulkDialogDescription")}</DialogDescription>
               </div>
             </div>
           </SettingsDialogHeader>
@@ -302,9 +311,93 @@ export function UserBulkCreateDialog({
             ) : (
               <FieldGroup className="gap-4">
                 <FieldSet className="gap-4 rounded-lg border border-border bg-card p-4">
+                  <div className="grid gap-4 md:grid-cols-2">
+                    <Field>
+                      <FieldLabel htmlFor="bulk_role">{t("fields.roles_id_fk")}</FieldLabel>
+                      <Select disabled={running} value={selectedRoleId} onValueChange={setSelectedRoleId}>
+                        <SelectTrigger id="bulk_role" className="w-full">
+                          <SelectValue placeholder={t("settings.selectRole")} />
+                        </SelectTrigger>
+                        <SelectContent position="popper">
+                          <SelectGroup>
+                            {isEditing ? <SelectItem value="keep">{t("settings.userBulkKeepRole")}</SelectItem> : null}
+                            {roleOptions.map((role) => {
+                              const id = roleId(role);
+                              if (!id) return null;
+                              return (
+                                <SelectItem key={id} value={id}>
+                                  {roleName(role)}
+                                </SelectItem>
+                              );
+                            })}
+                          </SelectGroup>
+                        </SelectContent>
+                      </Select>
+                    </Field>
+                    <Field>
+                      <FieldLabel id="bulk_zone_label">{t("nav.zone")}</FieldLabel>
+                      {isEditing ? (
+                        <label className="flex min-h-10 items-center gap-3 text-sm">
+                          <Checkbox checked={keepZones} onCheckedChange={(checked) => setKeepZones(checked === true)} />
+                          {t("settings.userBulkKeepZones")}
+                        </label>
+                      ) : null}
+                      <div
+                        aria-labelledby="bulk_zone_label"
+                        className="flex max-h-44 flex-col gap-1 overflow-y-auto rounded-md border border-input bg-background p-2"
+                        role="group"
+                      >
+                        <label className="flex min-h-9 cursor-pointer items-center gap-3 rounded-md px-2 py-1.5 hover:bg-muted/60">
+                          <Checkbox
+                            checked={selectedZoneUuids.length === 0}
+                            disabled={running || keepZones}
+                            onCheckedChange={() => setSelectedZoneUuids([])}
+                          />
+                          <span className="text-sm font-medium">{t("settings.allZones")}</span>
+                        </label>
+                        {zoneOptions.map((zone) => (
+                          <label
+                            key={zone.zone_uuid}
+                            className="flex min-h-9 cursor-pointer items-center gap-3 rounded-md px-2 py-1.5 hover:bg-muted/60"
+                          >
+                            <Checkbox
+                              checked={selectedZoneUuids.includes(zone.zone_uuid)}
+                              disabled={running || keepZones}
+                              onCheckedChange={(checked) =>
+                                setSelectedZoneUuids((current) =>
+                                  checked === true
+                                    ? [...new Set([...current, zone.zone_uuid])]
+                                    : current.filter((zoneUuid) => zoneUuid !== zone.zone_uuid)
+                                )
+                              }
+                            />
+                            <span className="text-sm">{zoneName(zone)}</span>
+                          </label>
+                        ))}
+                      </div>
+                      <FieldDescription>{t("settings.userZoneHint")}</FieldDescription>
+                    </Field>
+                    <Field>
+                      <FieldLabel>{t("fields.login_active")}</FieldLabel>
+                      <div className="flex flex-wrap gap-2" role="group" aria-label={t("fields.login_active")}>
+                        {isEditing ? (
+                          <Button type="button" variant={active === "keep" ? "secondary" : "outline"} aria-pressed={active === "keep"} onClick={() => setActive("keep")}>
+                            {t("settings.userBulkKeepActive")}
+                          </Button>
+                        ) : null}
+                        <Button type="button" variant={active === "1" ? "default" : "outline"} aria-pressed={active === "1"} onClick={() => setActive("1")}>
+                          {t("settings.userEnable")}
+                        </Button>
+                        <Button type="button" variant={active === "2" ? "secondary" : "outline"} aria-pressed={active === "2"} onClick={() => setActive("2")}>
+                          {t("settings.userDisable")}
+                        </Button>
+                      </div>
+                    </Field>
+                  </div>
+
                   <Field>
                     <div className="flex flex-wrap items-center justify-between gap-2">
-                      <FieldLabel htmlFor="bulk_email_1">{t("settings.userBulkEmailsLabel")}</FieldLabel>
+                      <FieldLabel>{t("settings.userBulkEmailsLabel")}</FieldLabel>
                       {validation.valid.length ? (
                         <Badge className="border-success/30 bg-success/10 text-success">
                           {t("settings.userBulkEmailsHint", { count: validation.valid.length })}
@@ -334,7 +427,7 @@ export function UserBulkCreateDialog({
                             aria-label={`${t("fields.login_password")} ${index + 1}`}
                             autoComplete="new-password"
                             disabled={running}
-                            placeholder={t("fields.login_password")}
+                            placeholder={t(isEditing ? "settings.userBulkKeepPassword" : "fields.login_password")}
                             type="password"
                             value={row.password}
                             onChange={(event) => updateCredentialRow(row.id, "password", event.target.value)}
@@ -351,74 +444,12 @@ export function UserBulkCreateDialog({
                           </Button>
                         </div>
                       ))}
-                      <Button disabled={running} type="button" variant="outline" onClick={addCredentialRow}>
+                      {!isEditing ? <Button disabled={running} type="button" variant="outline" onClick={addCredentialRow}>
                         <Plus data-icon="inline-start" />
                         {t("settings.userBulkAddRow")}
-                      </Button>
+                      </Button> : null}
                     </div>
                   </Field>
-
-                  <div className="grid gap-4 sm:grid-cols-2">
-                    <Field>
-                      <FieldLabel htmlFor="bulk_role">{t("fields.roles_id_fk")}</FieldLabel>
-                      <Select disabled={running} value={selectedRoleId} onValueChange={setSelectedRoleId}>
-                        <SelectTrigger id="bulk_role" className="w-full">
-                          <SelectValue placeholder={t("settings.selectRole")} />
-                        </SelectTrigger>
-                        <SelectContent position="popper">
-                          <SelectGroup>
-                            {roleOptions.map((role) => {
-                              const id = roleId(role);
-                              if (!id) return null;
-                              return (
-                                <SelectItem key={id} value={id}>
-                                  {roleName(role)}
-                                </SelectItem>
-                              );
-                            })}
-                          </SelectGroup>
-                        </SelectContent>
-                      </Select>
-                    </Field>
-                    <Field>
-                      <FieldLabel id="bulk_zone_label">{t("nav.zone")}</FieldLabel>
-                      <div
-                        aria-labelledby="bulk_zone_label"
-                        className="flex max-h-44 flex-col gap-1 overflow-y-auto rounded-md border border-input bg-background p-2"
-                        role="group"
-                      >
-                        <label className="flex min-h-9 cursor-pointer items-center gap-3 rounded-md px-2 py-1.5 hover:bg-muted/60">
-                          <Checkbox
-                            checked={selectedZoneUuids.length === 0}
-                            disabled={running}
-                            onCheckedChange={() => setSelectedZoneUuids([])}
-                          />
-                          <span className="text-sm font-medium">{t("settings.allZones")}</span>
-                        </label>
-                        {zoneOptions.map((zone) => (
-                          <label
-                            key={zone.zone_uuid}
-                            className="flex min-h-9 cursor-pointer items-center gap-3 rounded-md px-2 py-1.5 hover:bg-muted/60"
-                          >
-                            <Checkbox
-                              checked={selectedZoneUuids.includes(zone.zone_uuid)}
-                              disabled={running}
-                              onCheckedChange={(checked) =>
-                                setSelectedZoneUuids((current) =>
-                                  checked === true
-                                    ? [...new Set([...current, zone.zone_uuid])]
-                                    : current.filter((zoneUuid) => zoneUuid !== zone.zone_uuid)
-                                )
-                              }
-                            />
-                            <span className="text-sm">{zoneName(zone)}</span>
-                          </label>
-                        ))}
-                      </div>
-                      <FieldDescription>{t("settings.userZoneHint")}</FieldDescription>
-                    </Field>
-                  </div>
-
                   {formError ? (
                     <Alert variant="destructive">
                       <AlertCircle />
@@ -431,9 +462,18 @@ export function UserBulkCreateDialog({
           </SettingsDialogBody>
           <SettingsDialogFooter>
             {hasStarted ? (
-              <Button disabled={running} type="button" onClick={() => onOpenChange(false)}>
-                {t("actions.close")}
-              </Button>
+              <>
+                {errorCount ? <Button disabled={running} type="button" variant="outline" onClick={() => {
+                  const failed = new Set(rows.filter((row) => row.status === "error").map((row) => row.email));
+                  setCredentialRows((current) => current.filter((row) => failed.has(row.email.trim())));
+                  setRows([]);
+                }}>
+                  {t("settings.userBulkRetryFailed")}
+                </Button> : null}
+                <Button disabled={running} type="button" onClick={() => onOpenChange(false)}>
+                  {t("actions.close")}
+                </Button>
+              </>
             ) : (
               <>
                 <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
@@ -441,7 +481,7 @@ export function UserBulkCreateDialog({
                 </Button>
                 <Button disabled={!hasCredentialInput || !selectedRoleId} type="submit">
                   <UsersRound data-icon="inline-start" />
-                  {t("settings.userBulkSubmit")}
+                  {t(isEditing ? "actions.save" : "settings.userBulkSubmit")}
                 </Button>
               </>
             )}

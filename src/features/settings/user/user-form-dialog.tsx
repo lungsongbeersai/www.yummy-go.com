@@ -85,7 +85,7 @@ export function UserFormDialog({
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent
-        className="!flex h-[calc(100dvh-1rem-env(safe-area-inset-top,0px)-env(safe-area-inset-bottom,0px))] max-h-[calc(100dvh-1rem-env(safe-area-inset-top,0px)-env(safe-area-inset-bottom,0px))] w-[calc(100vw-1rem)] max-w-5xl flex-col gap-0 overflow-hidden p-0 sm:h-auto sm:max-h-[calc(100dvh-2rem-env(safe-area-inset-top,0px)-env(safe-area-inset-bottom,0px))] sm:w-[calc(100vw-2rem)] sm:max-w-5xl"
+        className="!flex h-[calc(100dvh-1rem-env(safe-area-inset-top,0px)-env(safe-area-inset-bottom,0px))] max-h-[calc(100dvh-1rem-env(safe-area-inset-top,0px)-env(safe-area-inset-bottom,0px))] w-[calc(100vw-1rem)] max-w-6xl flex-col gap-0 overflow-hidden p-0 sm:h-auto sm:max-h-[calc(100dvh-2rem-env(safe-area-inset-top,0px)-env(safe-area-inset-bottom,0px))] sm:w-[calc(100vw-2rem)] sm:max-w-6xl"
         showCloseButton={!saving}
       >
         <DialogHeader className="border-b border-border px-4 py-3 pr-12 sm:px-5">
@@ -118,45 +118,6 @@ export function UserFormDialog({
             </div>
             <div className="min-h-0 p-4 lg:overflow-y-auto lg:p-5">
               <FieldGroup className="gap-4 pb-1">
-                <FieldSet className="gap-4 rounded-lg border border-border bg-card p-4">
-                  <div className="min-w-0">
-                    <FieldLegend className="mb-1 text-sm font-black">{t("settings.userAccountSection")}</FieldLegend>
-                    <FieldDescription>{t("settings.userFormHint")}</FieldDescription>
-                  </div>
-
-                  <div className="grid gap-4 sm:grid-cols-2">
-                    <Field>
-                      <FieldLabel htmlFor="login_email">{t("fields.login_email")}</FieldLabel>
-                      <Input
-                        autoComplete="email"
-                        defaultValue={userValue(editing, "login_email")}
-                        disabled={saving}
-                        id="login_email"
-                        name="login_email"
-                        placeholder={t("settings.emailPlaceholder")}
-                        required
-                        spellCheck={false}
-                        translate="no"
-                        type="email"
-                      />
-                    </Field>
-                    <Field>
-                      <FieldLabel htmlFor="login_password">{t("fields.login_password")}</FieldLabel>
-                      <Input
-                        autoComplete="new-password"
-                        disabled={saving}
-                        id="login_password"
-                        name="login_password"
-                        required={!editing}
-                        type="password"
-                      />
-                      <FieldDescription>
-                        {editing ? t("settings.passwordEditHint") : t("settings.passwordCreateHint")}
-                      </FieldDescription>
-                    </Field>
-                  </div>
-                </FieldSet>
-
                 <FieldSet className="gap-4 rounded-lg border border-border bg-card p-4">
                   <div className="min-w-0">
                     <FieldLegend className="mb-1 text-sm font-black">{t("settings.userAccessSection")}</FieldLegend>
@@ -232,19 +193,54 @@ export function UserFormDialog({
                       <FieldDescription>{t("settings.userZoneHint")}</FieldDescription>
                     </Field>
                     <Field>
-                      <FieldLabel htmlFor="login_active">{t("fields.login_active")}</FieldLabel>
+                      <FieldLabel>{t("fields.login_active")}</FieldLabel>
                       <input name="login_active" type="hidden" value={loginActive} />
-                      <Select disabled={saving} required value={loginActive} onValueChange={setLoginActive}>
-                        <SelectTrigger id="login_active" className="w-full">
-                          <SelectValue placeholder={t("fields.login_active")} />
-                        </SelectTrigger>
-                        <SelectContent position="popper">
-                          <SelectGroup>
-                            <SelectItem value="1">{t("common.active")}</SelectItem>
-                            <SelectItem value="2">{t("common.inactive")}</SelectItem>
-                          </SelectGroup>
-                        </SelectContent>
-                      </Select>
+                      <div className="flex flex-wrap gap-2" role="group" aria-label={t("fields.login_active")}>
+                        <Button disabled={saving} type="button" variant={loginActive === "1" ? "default" : "outline"} aria-pressed={loginActive === "1"} onClick={() => setLoginActive("1")}>
+                          {t("settings.userEnable")}
+                        </Button>
+                        <Button disabled={saving} type="button" variant={loginActive === "2" ? "secondary" : "outline"} aria-pressed={loginActive === "2"} onClick={() => setLoginActive("2")}>
+                          {t("settings.userDisable")}
+                        </Button>
+                      </div>
+                    </Field>
+                  </div>
+                </FieldSet>
+                <FieldSet className="gap-4 rounded-lg border border-border bg-card p-4">
+                  <div className="min-w-0">
+                    <FieldLegend className="mb-1 text-sm font-black">{t("settings.userAccountSection")}</FieldLegend>
+                    <FieldDescription>{t("settings.userFormHint")}</FieldDescription>
+                  </div>
+
+                  <div className="grid gap-4 sm:grid-cols-2">
+                    <Field>
+                      <FieldLabel htmlFor="login_email">{t("fields.login_email")}</FieldLabel>
+                      <Input
+                        autoComplete="email"
+                        defaultValue={userValue(editing, "login_email")}
+                        disabled={saving}
+                        id="login_email"
+                        name="login_email"
+                        placeholder={t("settings.emailPlaceholder")}
+                        required
+                        spellCheck={false}
+                        translate="no"
+                        type="email"
+                      />
+                    </Field>
+                    <Field>
+                      <FieldLabel htmlFor="login_password">{t("fields.login_password")}</FieldLabel>
+                      <Input
+                        autoComplete="new-password"
+                        disabled={saving}
+                        id="login_password"
+                        name="login_password"
+                        required={!editing}
+                        type="password"
+                      />
+                      <FieldDescription>
+                        {editing ? t("settings.passwordEditHint") : t("settings.passwordCreateHint")}
+                      </FieldDescription>
                     </Field>
                   </div>
                 </FieldSet>

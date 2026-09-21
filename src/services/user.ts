@@ -1,7 +1,7 @@
 import { apiRequest, ServiceError } from "@/lib/api";
 import { toFormData } from "@/lib/form-data";
 import { toApiLanguage } from "@/lib/language";
-import { createCrud } from "@/services/shared/crud";
+import { createCrud, saveEntity } from "@/services/shared/crud";
 import { requiredText } from "@/services/shared/validators";
 import type { ApiDataResponse, ApiEntity, ApiListResponse, ApiMessageResponse, FetchParams } from "@/services/shared/types";
 export { getUserProfileUrl } from "@/lib/image";
@@ -111,7 +111,12 @@ export async function getRoles(lang = "la", roles_id: number | string = "") {
   });
   return result.data ?? [];
 }
-export const saveUser = (input: SaveUserInput) => crud.save(input);
+export async function saveUser(input: SaveUserInput) {
+  if (input.login_uuid && !(input.login_profile instanceof File)) {
+    return saveEntity<User>("/api/v1/register/update", input);
+  }
+  return crud.save(input);
+}
 export const deleteUser = (login_uuid: string) => crud.delete(login_uuid);
 export const canCreateUser = (status?: number) => status === 1 || status === 2;
 // self-service เท่านั้น — backend ตรวจ old_password จึงเปลี่ยนได้แค่บัญชีที่ผู้เรียกรู้รหัสเดิม

@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { UsersRound } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
+import { Pencil, Power, PowerOff, UsersRound } from "lucide-react";
 import { useResetOnDeps } from "@/hooks/use-reset-on-change";
 import { useTranslation } from "react-i18next";
 import { ConfirmDialog } from "@/components/common/confirm-dialog";
@@ -26,7 +26,7 @@ import type { Zone } from "@/services/zone";
 import type { SortOrder } from "@/services/shared/types";
 import { useReferenceStore } from "@/stores/reference-store";
 import { useUserStore } from "@/stores/user-store";
-import { UserBulkCreateDialog } from "./user-bulk-create-dialog";
+import { UserBulkDialog } from "./user-bulk-create-dialog";
 import { UserFormDialog } from "./user-form-dialog";
 import { useOfflineReadOnly } from "@/hooks/use-offline-read-only";
 import { UserListSurface } from "./user-list";
@@ -62,11 +62,15 @@ export function UserSettingsPage({ initialPagination }: { initialPagination: Url
   const [crop, setCrop] = useState<CropState>(DEFAULT_CROP);
   const [passwordDialogOpen, setPasswordDialogOpen] = useState(false);
   const [bulkDialogOpen, setBulkDialogOpen] = useState(false);
+  const [bulkEditingUsers, setBulkEditingUsers] = useState<User[] | null>(null);
+  const [activeTarget, setActiveTarget] = useState<{ users: User[]; active: number } | null>(null);
+  const [statusRunning, setStatusRunning] = useState(false);
+  const statusSubmitting = useRef(false);
+  const saveUserRow = useUserStore((state) => state.save);
 
   const title = t("settings.modules.user.title");
   const description = t("settings.modules.user.description");
   const {
-    allSelected,
     applyFilters,
     backgroundLoading,
     changeLimit,
@@ -98,7 +102,6 @@ export function UserSettingsPage({ initialPagination }: { initialPagination: Url
     setPage,
     setSearch,
     showToast,
-    toggleAll,
     toggleSelected,
     total,
     totalPages,
@@ -107,7 +110,7 @@ export function UserSettingsPage({ initialPagination }: { initialPagination: Url
     buildInput: ({ editing: editingRow, formData, user: currentUser }) =>
       buildUserSaveInput({
         active: String(formData.get("login_active") ?? 1),
-        branchUuid: currentUser?.branch_uuid ?? "",
+        branchUuid: editingRow?.branch_uuid_fk || currentUser?.branch_uuid || "",
         editing: editingRow,
         email: String(formData.get("login_email") ?? ""),
         password: String(formData.get("login_password") ?? "").trim(),
@@ -141,6 +144,9 @@ export function UserSettingsPage({ initialPagination }: { initialPagination: Url
   const branchUuid = user?.branch_uuid ?? "";
   const loginBranchName = user?.branch_name || t("settings.currentBranch");
   const currentLoginUuid = user?.uuid ?? "";
+  const selectableUsers = rows.filter((row) => !isProtectedUser(row) && userId(row) !== currentLoginUuid);
+  const selectedUsers = selectableUsers.filter((row) => selectedRows.has(userId(row)));
+  const allSelected = selectableUsers.length > 0 && selectableUsers.every((row) => selectedRows.has(userId(row)));
   const loggedRoleId = Number(user?.status ?? 0);
   // ยังไม่มีสิทธิ์ที่อ้างอิง = ไม่มีตัวเลือก แต่คงค่าที่โหลดไว้ไม่ให้รายการกะพริบตอนสลับ
   const roles = loggedRoleId ? fetchedRoles : EMPTY_ROLES;
@@ -221,7 +227,45 @@ export function UserSettingsPage({ initialPagination }: { initialPagination: Url
       showToast({ title: t("settings.saveFailed"), description: t("settings.createRoleFirst"), tone: "error" });
       return;
     }
+    setBulkEditingUsers(null);
     setBulkDialogOpen(true);
+  }
+
+  function openBulkEdit() {
+    if (!selectedUsers.length || saving || statusRunning) return;
+    setBulkEditingUsers(selectedUsers);
+    setBulkDialogOpen(true);
+  }
+
+  function requestActiveChange(targets: User[], active: number) {
+    if (readOnly || saving || statusRunning) return;
+    const users = targets.filter((row) => !isProtectedUser(row) && userId(row) !== currentLoginUuid && Number(row.login_active ?? 1) !== active);
+    if (users.length) setActiveTarget({ users, active });
+  }
+
+  async function submitActiveChange() {
+    if (!activeTarget || statusSubmitting.current) return;
+    statusSubmitting.current = true;
+    setStatusRunning(true);
+    const results = await Promise.all(activeTarget.users.map(async (row) => {
+      try {
+        await saveUserRow({ login_uuid: userId(row), login_active: activeTarget.active });
+        return { ok: true, error: "" };
+      } catch (error) {
+        return { ok: false, error: `${userValue(row, "login_email")}: ${error instanceof Error ? error.message : t("toasts.pleaseTryAgain")}` };
+      }
+    }));
+    const success = results.filter((result) => result.ok).length;
+    const failed = results.find((result) => !result.ok);
+    showToast({
+      title: t("settings.userBatchSaved", { success, total: results.length }),
+      description: failed?.error,
+      tone: failed ? "error" : "success"
+    });
+    setActiveTarget(null);
+    await load();
+    setStatusRunning(false);
+    statusSubmitting.current = false;
   }
 
   async function submitUserForm(formData: FormData) {
@@ -267,7 +311,7 @@ export function UserSettingsPage({ initialPagination }: { initialPagination: Url
         orderBy,
         limitOptions: PAGE_LIMIT_OPTIONS,
         orderOptions: ORDER_OPTIONS.map((option) => ({ label: t(`common.${option.labelKey}`), value: option.value })),
-        selectedCount: selectedRows.size,
+        selectedCount: selectedUsers.length,
         onApply: applyFilters,
         onLimit: changeLimit,
         onOrder: (nextOrder) => {
@@ -293,8 +337,24 @@ export function UserSettingsPage({ initialPagination }: { initialPagination: Url
       onChangePassword={() => setPasswordDialogOpen(true)}
       onDelete={setDeleteTarget}
       onEdit={openEdit}
-      onToggleAll={toggleAll}
-      onToggleSelected={toggleSelected}
+      onToggleActive={(row) => requestActiveChange([row], Number(row.login_active ?? 1) === 1 ? 2 : 1)}
+      selectionActions={!readOnly && selectedUsers.length ? (
+        <div className="flex flex-wrap gap-2">
+          <Button disabled={saving || statusRunning} size="sm" variant="outline" onClick={openBulkEdit}>
+            <Pencil />{t("settings.userBulkEditLabel", { count: selectedUsers.length })}
+          </Button>
+          <Button disabled={saving || statusRunning || selectedUsers.every((row) => Number(row.login_active ?? 1) === 1)} size="sm" variant="outline" onClick={() => requestActiveChange(selectedUsers, 1)}>
+            <Power />{t("settings.userEnable")}
+          </Button>
+          <Button disabled={saving || statusRunning || selectedUsers.every((row) => Number(row.login_active ?? 1) === 2)} size="sm" variant="outline" onClick={() => requestActiveChange(selectedUsers, 2)}>
+            <PowerOff />{t("settings.userDisable")}
+          </Button>
+        </div>
+      ) : null}
+      onToggleAll={(checked) => selectableUsers.forEach((row) => toggleSelected(userId(row), checked))}
+      onToggleSelected={(id, checked) => {
+        if (selectableUsers.some((row) => userId(row) === id)) toggleSelected(id, checked);
+      }}
     />
   );
 
@@ -351,14 +411,26 @@ export function UserSettingsPage({ initialPagination }: { initialPagination: Url
         onOpenChange={onDialogOpenChange}
         onSubmit={submitUserForm}
       />
-      <UserBulkCreateDialog
+      <UserBulkDialog
         branchUuid={branchUuid}
+        editingUsers={bulkEditingUsers}
         loggedRoleId={loggedRoleId}
         open={bulkDialogOpen}
         roleOptions={roles}
         zoneOptions={zones}
         onCreated={() => void load()}
         onOpenChange={setBulkDialogOpen}
+      />
+      <ConfirmDialog
+        cancelLabel={t("actions.cancel")}
+        confirmLabel={t(activeTarget?.active === 1 ? "settings.userEnable" : "settings.userDisable")}
+        confirmPending={statusRunning}
+        confirmVariant={activeTarget?.active === 1 ? "default" : "destructive"}
+        description={t(activeTarget?.active === 1 ? "settings.userEnableConfirm" : "settings.userDisableConfirm", { count: activeTarget?.users.length ?? 0 })}
+        open={Boolean(activeTarget)}
+        title={t(activeTarget?.active === 1 ? "settings.userEnable" : "settings.userDisable")}
+        onConfirm={() => void submitActiveChange()}
+        onOpenChange={(nextOpen) => { if (!nextOpen && !statusSubmitting.current) setActiveTarget(null); }}
       />
       <UserPasswordDialog
         email={user?.email ?? ""}

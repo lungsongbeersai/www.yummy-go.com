@@ -1,7 +1,7 @@
 "use client";
 
 import type { ReactNode } from "react";
-import { KeyRound, UsersRound } from "lucide-react";
+import { KeyRound, Power, PowerOff, UsersRound } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { useOfflineReadOnly } from "@/hooks/use-offline-read-only";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -34,11 +34,13 @@ export function UserListSurface({
   profileUrl,
   rows,
   selectedRows,
+  selectionActions,
   title,
   toolbar,
   onChangePassword,
   onDelete,
   onEdit,
+  onToggleActive,
   onToggleAll,
   onToggleSelected
 }: {
@@ -49,11 +51,13 @@ export function UserListSurface({
   profileUrl: (profilePath: string | null) => string;
   rows: User[];
   selectedRows: Set<string>;
+  selectionActions: ReactNode;
   title: string;
   toolbar: ReactNode;
   onChangePassword: (row: User) => void;
   onDelete: (row: User) => void;
   onEdit: (row: User) => void;
+  onToggleActive: (row: User) => void;
   onToggleAll: (checked: boolean) => void;
   onToggleSelected: (id: string, checked: boolean) => void;
 }) {
@@ -68,6 +72,7 @@ export function UserListSurface({
           </div>
           <div className="min-w-0 xl:max-w-3xl">{toolbar}</div>
         </div>
+        {selectionActions ? <div className="mt-3">{selectionActions}</div> : null}
         {backgroundLoading ? (
           <div className="mt-2 flex items-center gap-2 text-xs text-muted-foreground">
             <Spinner aria-hidden />
@@ -88,6 +93,7 @@ export function UserListSurface({
               onChangePassword={onChangePassword}
               onDelete={onDelete}
               onEdit={onEdit}
+              onToggleActive={onToggleActive}
               onToggleAll={onToggleAll}
               onToggleSelected={onToggleSelected}
             />
@@ -101,6 +107,7 @@ export function UserListSurface({
               onChangePassword={onChangePassword}
               onDelete={onDelete}
               onEdit={onEdit}
+              onToggleActive={onToggleActive}
               onToggleSelected={onToggleSelected}
             />
           </div>
@@ -119,6 +126,7 @@ function UserRowActions({
   onChangePassword,
   onDelete,
   onEdit,
+  onToggleActive,
   protectedRow,
   row
 }: {
@@ -126,6 +134,7 @@ function UserRowActions({
   onChangePassword: (row: User) => void;
   onDelete: (row: User) => void;
   onEdit: (row: User) => void;
+  onToggleActive: (row: User) => void;
   protectedRow: boolean;
   row: User;
 }) {
@@ -139,18 +148,20 @@ function UserRowActions({
       row={row}
       editDisabled={protectedRow || readOnly}
       deleteDisabled={protectedRow || readOnly}
-      actions={
-        currentRow
-          ? [
-              {
-                label: t("settings.changePassword"),
-                icon: <KeyRound aria-hidden />,
-                disabled: readOnly,
-                onSelect: onChangePassword
-              }
-            ]
-          : undefined
-      }
+      actions={[
+        {
+          label: t(Number(row.login_active ?? 1) === 1 ? "settings.userDisable" : "settings.userEnable"),
+          icon: Number(row.login_active ?? 1) === 1 ? <PowerOff aria-hidden /> : <Power aria-hidden />,
+          disabled: readOnly || protectedRow || currentRow,
+          onSelect: onToggleActive
+        },
+        ...(currentRow ? [{
+          label: t("settings.changePassword"),
+          icon: <KeyRound aria-hidden />,
+          disabled: readOnly,
+          onSelect: onChangePassword
+        }] : [])
+      ]}
       onEdit={onEdit}
       onDelete={onDelete}
     />
@@ -163,6 +174,7 @@ function UserDesktopTable({
   onChangePassword,
   onDelete,
   onEdit,
+  onToggleActive,
   onToggleAll,
   onToggleSelected,
   pageStart,
@@ -175,6 +187,7 @@ function UserDesktopTable({
   onChangePassword: (row: User) => void;
   onDelete: (row: User) => void;
   onEdit: (row: User) => void;
+  onToggleActive: (row: User) => void;
   onToggleAll: (checked: boolean) => void;
   onToggleSelected: (id: string, checked: boolean) => void;
   pageStart: number;
@@ -213,6 +226,7 @@ function UserDesktopTable({
               onChangePassword={onChangePassword}
               onDelete={onDelete}
               onEdit={onEdit}
+              onToggleActive={onToggleActive}
               onToggleSelected={onToggleSelected}
             />
           ))}
@@ -227,6 +241,7 @@ function UserTableRow({
   onChangePassword,
   onDelete,
   onEdit,
+  onToggleActive,
   onToggleSelected,
   profileUrl,
   row,
@@ -237,6 +252,7 @@ function UserTableRow({
   onChangePassword: (row: User) => void;
   onDelete: (row: User) => void;
   onEdit: (row: User) => void;
+  onToggleActive: (row: User) => void;
   onToggleSelected: (id: string, checked: boolean) => void;
   profileUrl: (profilePath: string | null) => string;
   row: User;
@@ -256,7 +272,7 @@ function UserTableRow({
       data-state={selected ? "selected" : undefined}
     >
       <TableCell className="w-10 px-2">
-        <Checkbox aria-label={t("common.selectRow", { name: email })} checked={selected} onCheckedChange={(checked) => onToggleSelected(id, checked as boolean)} />
+        <Checkbox aria-label={t("common.selectRow", { name: email })} checked={selected} disabled={protectedRow || currentRow} onCheckedChange={(checked) => onToggleSelected(id, checked as boolean)} />
       </TableCell>
       <TableCell className="w-px whitespace-nowrap px-2 text-center text-sm font-black text-muted-foreground">{rowNumber}</TableCell>
       <TableCell className="max-w-md">
@@ -283,6 +299,7 @@ function UserTableRow({
           onChangePassword={onChangePassword}
           onDelete={onDelete}
           onEdit={onEdit}
+          onToggleActive={onToggleActive}
         />
       </TableCell>
     </TableRow>
@@ -294,6 +311,7 @@ function UserMobileList({
   onChangePassword,
   onDelete,
   onEdit,
+  onToggleActive,
   onToggleSelected,
   profileUrl,
   rows,
@@ -303,6 +321,7 @@ function UserMobileList({
   onChangePassword: (row: User) => void;
   onDelete: (row: User) => void;
   onEdit: (row: User) => void;
+  onToggleActive: (row: User) => void;
   onToggleSelected: (id: string, checked: boolean) => void;
   profileUrl: (profilePath: string | null) => string;
   rows: User[];
@@ -320,6 +339,7 @@ function UserMobileList({
           onChangePassword={onChangePassword}
           onDelete={onDelete}
           onEdit={onEdit}
+          onToggleActive={onToggleActive}
           onToggleSelected={onToggleSelected}
         />
       ))}
@@ -332,6 +352,7 @@ function UserMobileCard({
   onChangePassword,
   onDelete,
   onEdit,
+  onToggleActive,
   onToggleSelected,
   profileUrl,
   row,
@@ -341,6 +362,7 @@ function UserMobileCard({
   onChangePassword: (row: User) => void;
   onDelete: (row: User) => void;
   onEdit: (row: User) => void;
+  onToggleActive: (row: User) => void;
   onToggleSelected: (id: string, checked: boolean) => void;
   profileUrl: (profilePath: string | null) => string;
   row: User;
@@ -363,16 +385,17 @@ function UserMobileCard({
           onChangePassword={onChangePassword}
           onDelete={onDelete}
           onEdit={onEdit}
+          onToggleActive={onToggleActive}
         />
       }
       badges={<UserBadges currentRow={currentRow} protectedRow={protectedRow} />}
-      checked={selected}
+      checked={protectedRow || currentRow ? undefined : selected}
       className={currentRow ? "bg-primary/5" : undefined}
       leading={<UserAvatar email={email} src={profileUrl(userValue(row, "login_profile"))} />}
       selectLabel={t("common.selectRow", { name: email })}
       selected={selected}
       title={<span translate="no">{email}</span>}
-      onCheckedChange={(checked) => onToggleSelected(id, checked)}
+      onCheckedChange={protectedRow || currentRow ? undefined : (checked) => onToggleSelected(id, checked)}
     >
       <SettingsMobileMetaGrid>
         <SettingsMobileMeta label={t("fields.roles_name")} value={roleName(row)} />

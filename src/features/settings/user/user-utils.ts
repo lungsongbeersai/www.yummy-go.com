@@ -89,6 +89,7 @@ const BULK_PASSWORD_MAX_BYTES = 72;
 export interface BulkCredentialInput {
   email: string;
   password: string;
+  loginUuid?: string;
 }
 
 export interface BulkCredentialValidation {
@@ -113,8 +114,8 @@ export function validateBulkCredentials(rows: BulkCredentialInput[]): BulkCreden
   rows.forEach((row, index) => {
     const email = row.email.trim();
     const password = row.password.trim();
-    if (!email && !password) return;
-    if (!email || !password) {
+    if (!email && !password && !row.loginUuid) return;
+    if (!email || (!password && !row.loginUuid)) {
       incompleteRows.push(index + 1);
       return;
     }
@@ -123,7 +124,7 @@ export function validateBulkCredentials(rows: BulkCredentialInput[]): BulkCreden
       return;
     }
     const passwordBytes = new TextEncoder().encode(password).length;
-    if ([...password].length < BULK_PASSWORD_MIN_LENGTH || passwordBytes > BULK_PASSWORD_MAX_BYTES) {
+    if (password && ([...password].length < BULK_PASSWORD_MIN_LENGTH || passwordBytes > BULK_PASSWORD_MAX_BYTES)) {
       invalidPasswordRows.push(index + 1);
       return;
     }
@@ -133,7 +134,7 @@ export function validateBulkCredentials(rows: BulkCredentialInput[]): BulkCreden
       return;
     }
     seen.add(key);
-    valid.push({ email, password });
+    valid.push({ email, password, ...(row.loginUuid ? { loginUuid: row.loginUuid } : {}) });
   });
 
   return {
@@ -143,6 +144,20 @@ export function validateBulkCredentials(rows: BulkCredentialInput[]): BulkCreden
     invalidPasswordRows,
     valid
   };
+}
+
+export function buildBulkUserInput(
+  row: BulkCredentialInput,
+  options: { branchUuid: string; role: string; active: string; zones: string[] | null }
+): SaveUserInput {
+  const input: SaveUserInput = { login_email: row.email.trim() };
+  if (row.loginUuid) input.login_uuid = row.loginUuid;
+  else input.branch_uuid_fk = options.branchUuid;
+  if (row.password.trim()) input.login_password = row.password.trim();
+  if (options.role !== "keep") input.roles_id_fk = Number(options.role);
+  if (options.active !== "keep") input.login_active = Number(options.active);
+  if (options.zones !== null) input.zone_uuid_fks = [...new Set(options.zones)];
+  return input;
 }
 
 export function buildUserSaveInput({
