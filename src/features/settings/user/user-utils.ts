@@ -24,8 +24,34 @@ export function branchName(row: ApiEntity | null | undefined) {
 }
 
 export function zoneName(row: ApiEntity | null | undefined, unassigned = "-") {
-  if (!userValue(row, "zone_uuid_fk", userValue(row, "zone_uuid"))) return unassigned;
+  const zones = Array.isArray(row?.zones) ? row.zones : [];
+  const names = zones
+    .map((zone) => {
+      if (typeof zone !== "object" || zone === null) return "";
+      const entity = zone as ApiEntity;
+      return userValue(
+        entity,
+        "zone_name",
+        userValue(entity, "zone_name_la", userValue(entity, "zone_name_eng"))
+      );
+    })
+    .filter(Boolean);
+  if (names.length) return [...new Set(names)].join(", ");
+  if (!userZoneUuids(row).length) return unassigned;
   return userValue(row, "zone_name", userValue(row, "zone_name_la", userValue(row, "zone_name_eng", unassigned)));
+}
+
+export function userZoneUuids(row: ApiEntity | null | undefined) {
+  const assigned = Array.isArray(row?.zone_uuid_fks)
+    ? row.zone_uuid_fks
+        .filter((value): value is string => typeof value === "string")
+        .map((value) => value.trim())
+        .filter(Boolean)
+    : [];
+  if (assigned.length) return [...new Set(assigned)];
+
+  const legacy = userValue(row, "zone_uuid_fk", userValue(row, "zone_uuid"));
+  return legacy ? [legacy] : [];
 }
 
 export function isProtectedUser(row: User) {
@@ -102,7 +128,7 @@ export function buildUserSaveInput({
   password,
   profile,
   selectedRoleId,
-  zoneUuid
+  zoneUuids
 }: {
   active: string;
   branchUuid: string;
@@ -111,7 +137,7 @@ export function buildUserSaveInput({
   password: string;
   profile: FormDataEntryValue | null;
   selectedRoleId: string;
-  zoneUuid: string;
+  zoneUuids: string[];
 }): SaveUserInput {
   const id = userId(editing);
   const input: SaveUserInput = {
@@ -119,7 +145,7 @@ export function buildUserSaveInput({
     roles_id_fk: Number(selectedRoleId),
     login_email: email.trim(),
     login_active: Number(active || 1),
-    zone_uuid_fk: zoneUuid.trim() || ""
+    zone_uuid_fks: [...new Set(zoneUuids.map((zoneUuid) => zoneUuid.trim()).filter(Boolean))]
   };
   if (id) input.login_uuid = id;
   if (password.trim()) input.login_password = password.trim();

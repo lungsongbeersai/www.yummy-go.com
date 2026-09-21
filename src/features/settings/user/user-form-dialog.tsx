@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Field, FieldDescription, FieldGroup, FieldLabel, FieldLegend, FieldSet } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
@@ -18,11 +19,10 @@ import {
   roleName,
   userId,
   userRoleOptions,
+  userZoneUuids,
   userValue,
   zoneName
 } from "./user-utils";
-
-const ALL_ZONES_VALUE = "__all_zones__";
 
 export function UserFormDialog({
   crop,
@@ -64,17 +64,23 @@ export function UserFormDialog({
     () => roleId(editing) || String(loggedRoleId || "")
   );
   const [loginActive, setLoginActive] = useState(() => userValue(editing, "login_active", "1"));
-  const [selectedZoneUuid, setSelectedZoneUuid] = useState(
-    () => userValue(editing, "zone_uuid_fk") || ALL_ZONES_VALUE
-  );
+  const [selectedZoneUuids, setSelectedZoneUuids] = useState(() => userZoneUuids(editing));
   const roles = useMemo(() => userRoleOptions(editing, roleOptions), [editing, roleOptions]);
   const formKey = userId(editing) || "new";
 
   useResetOnChange(`${formKey}:${loggedRoleId}:${open}`, () => {
     setSelectedRoleId(roleId(editing) || String(loggedRoleId || ""));
     setLoginActive(userValue(editing, "login_active", "1"));
-    setSelectedZoneUuid(userValue(editing, "zone_uuid_fk") || ALL_ZONES_VALUE);
+    setSelectedZoneUuids(userZoneUuids(editing));
   });
+
+  function toggleZone(zoneUuid: string, checked: boolean) {
+    setSelectedZoneUuids((current) =>
+      checked
+        ? [...new Set([...current, zoneUuid])]
+        : current.filter((assignedZoneUuid) => assignedZoneUuid !== zoneUuid)
+    );
+  }
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -192,27 +198,37 @@ export function UserFormDialog({
                       </Select>
                     </Field>
                     <Field>
-                      <FieldLabel htmlFor="zone_uuid_fk">{t("nav.zone")}</FieldLabel>
-                      <input
-                        name="zone_uuid_fk"
-                        type="hidden"
-                        value={selectedZoneUuid === ALL_ZONES_VALUE ? "" : selectedZoneUuid}
-                      />
-                      <Select disabled={saving} value={selectedZoneUuid} onValueChange={setSelectedZoneUuid}>
-                        <SelectTrigger id="zone_uuid_fk" className="w-full">
-                          <SelectValue placeholder={t("settings.allZones")} />
-                        </SelectTrigger>
-                        <SelectContent position="popper">
-                          <SelectGroup>
-                            <SelectItem value={ALL_ZONES_VALUE}>{t("settings.allZones")}</SelectItem>
-                            {zoneOptions.map((zone) => (
-                              <SelectItem key={zone.zone_uuid} value={zone.zone_uuid}>
-                                {zoneName(zone)}
-                              </SelectItem>
-                            ))}
-                          </SelectGroup>
-                        </SelectContent>
-                      </Select>
+                      <FieldLabel id="zone_uuid_fks_label">{t("nav.zone")}</FieldLabel>
+                      {selectedZoneUuids.map((zoneUuid) => (
+                        <input key={zoneUuid} name="zone_uuid_fks" type="hidden" value={zoneUuid} />
+                      ))}
+                      <div
+                        aria-labelledby="zone_uuid_fks_label"
+                        className="flex max-h-44 flex-col gap-1 overflow-y-auto rounded-md border border-input bg-background p-2"
+                        role="group"
+                      >
+                        <label className="flex min-h-9 cursor-pointer items-center gap-3 rounded-md px-2 py-1.5 hover:bg-muted/60">
+                          <Checkbox
+                            checked={selectedZoneUuids.length === 0}
+                            disabled={saving}
+                            onCheckedChange={() => setSelectedZoneUuids([])}
+                          />
+                          <span className="text-sm font-medium">{t("settings.allZones")}</span>
+                        </label>
+                        {zoneOptions.map((zone) => (
+                          <label
+                            key={zone.zone_uuid}
+                            className="flex min-h-9 cursor-pointer items-center gap-3 rounded-md px-2 py-1.5 hover:bg-muted/60"
+                          >
+                            <Checkbox
+                              checked={selectedZoneUuids.includes(zone.zone_uuid)}
+                              disabled={saving}
+                              onCheckedChange={(checked) => toggleZone(zone.zone_uuid, checked === true)}
+                            />
+                            <span className="text-sm">{zoneName(zone)}</span>
+                          </label>
+                        ))}
+                      </div>
                       <FieldDescription>{t("settings.userZoneHint")}</FieldDescription>
                     </Field>
                     <Field>

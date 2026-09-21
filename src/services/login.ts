@@ -1,7 +1,7 @@
 import { publicApiClient, ServiceError } from "@/lib/api";
 import { classifyBackendError } from "@/lib/network-state";
 import { normalizeLoginEmail } from "@/lib/login-email";
-import type { AuthUser } from "@/stores/auth-store";
+import type { AuthUser, AuthZone } from "@/stores/auth-store";
 import { backendNetworkManager } from "@/stores/network-store";
 
 interface LoginApiResponse {
@@ -13,6 +13,8 @@ interface LoginApiResponse {
   login_status: number;
   login_profile?: string;
   zone_uuid_fk?: string | null;
+  zone_uuid_fks?: string[];
+  zones?: AuthZone[];
   zone_name?: string;
   branch_uuid?: string;
   branch_name?: string;
@@ -51,6 +53,8 @@ function mapLoginResponse(data: LoginApiResponse): LoginResult {
       status: data.login_status,
       profile: data.login_profile ?? "",
       zone_uuid: data.zone_uuid_fk ?? "",
+      zone_uuids: data.zone_uuid_fks ?? [],
+      zones: data.zones ?? [],
       zone_name: data.zone_name ?? "",
       branch_uuid: data.branch_uuid ?? "",
       branch_name: data.branch_name ?? "",

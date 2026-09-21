@@ -113,7 +113,10 @@ export function UserSettingsPage({ initialPagination }: { initialPagination: Url
         password: String(formData.get("login_password") ?? "").trim(),
         profile: formData.get("login_profile"),
         selectedRoleId: String(formData.get("roles_id_fk") ?? "").trim(),
-        zoneUuid: String(formData.get("zone_uuid_fk") ?? "").trim()
+        zoneUuids: formData
+          .getAll("zone_uuid_fks")
+          .map((value) => String(value).trim())
+          .filter(Boolean)
       }),
     idKey: "login_uuid",
     initialOrderBy: "asc",

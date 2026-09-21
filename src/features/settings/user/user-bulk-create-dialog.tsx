@@ -6,6 +6,7 @@ import { useTranslation } from "react-i18next";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Dialog, DialogDescription, DialogTitle } from "@/components/ui/dialog";
 import { Field, FieldDescription, FieldGroup, FieldLabel, FieldSet } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
@@ -26,8 +27,6 @@ import type { Role } from "@/services/user";
 import type { Zone } from "@/services/zone";
 import { useUserStore } from "@/stores/user-store";
 import { parseBulkEmails, roleId, roleName, zoneName } from "./user-utils";
-
-const ALL_ZONES_VALUE = "__all_zones__";
 
 type BulkRowStatus = "pending" | "running" | "success" | "error";
 
@@ -95,7 +94,7 @@ export function UserBulkCreateDialog({
   const [emailsText, setEmailsText] = useState("");
   const [password, setPassword] = useState("");
   const [selectedRoleId, setSelectedRoleId] = useState(() => String(loggedRoleId || ""));
-  const [selectedZoneUuid, setSelectedZoneUuid] = useState(ALL_ZONES_VALUE);
+  const [selectedZoneUuids, setSelectedZoneUuids] = useState<string[]>([]);
   const [rows, setRows] = useState<BulkRow[]>([]);
   const [running, setRunning] = useState(false);
   const [formError, setFormError] = useState("");
@@ -106,7 +105,7 @@ export function UserBulkCreateDialog({
     setEmailsText("");
     setPassword("");
     setSelectedRoleId(String(loggedRoleId || ""));
-    setSelectedZoneUuid(ALL_ZONES_VALUE);
+    setSelectedZoneUuids([]);
     setRows([]);
     setRunning(false);
     setFormError("");
@@ -155,7 +154,7 @@ export function UserBulkCreateDialog({
           login_email: emails[index],
           login_password: password.trim(),
           roles_id_fk: Number(selectedRoleId),
-          zone_uuid_fk: selectedZoneUuid === ALL_ZONES_VALUE ? "" : selectedZoneUuid
+          zone_uuid_fks: selectedZoneUuids
         });
         createdAny = true;
         setRows((prev) => prev.map((row, i) => (i === index ? { ...row, status: "success" } : row)));
@@ -318,22 +317,40 @@ export function UserBulkCreateDialog({
                       </Select>
                     </Field>
                     <Field>
-                      <FieldLabel htmlFor="bulk_zone">{t("nav.zone")}</FieldLabel>
-                      <Select disabled={running} value={selectedZoneUuid} onValueChange={setSelectedZoneUuid}>
-                        <SelectTrigger id="bulk_zone" className="w-full">
-                          <SelectValue placeholder={t("settings.allZones")} />
-                        </SelectTrigger>
-                        <SelectContent position="popper">
-                          <SelectGroup>
-                            <SelectItem value={ALL_ZONES_VALUE}>{t("settings.allZones")}</SelectItem>
-                            {zoneOptions.map((zone) => (
-                              <SelectItem key={zone.zone_uuid} value={zone.zone_uuid}>
-                                {zoneName(zone)}
-                              </SelectItem>
-                            ))}
-                          </SelectGroup>
-                        </SelectContent>
-                      </Select>
+                      <FieldLabel id="bulk_zone_label">{t("nav.zone")}</FieldLabel>
+                      <div
+                        aria-labelledby="bulk_zone_label"
+                        className="flex max-h-44 flex-col gap-1 overflow-y-auto rounded-md border border-input bg-background p-2"
+                        role="group"
+                      >
+                        <label className="flex min-h-9 cursor-pointer items-center gap-3 rounded-md px-2 py-1.5 hover:bg-muted/60">
+                          <Checkbox
+                            checked={selectedZoneUuids.length === 0}
+                            disabled={running}
+                            onCheckedChange={() => setSelectedZoneUuids([])}
+                          />
+                          <span className="text-sm font-medium">{t("settings.allZones")}</span>
+                        </label>
+                        {zoneOptions.map((zone) => (
+                          <label
+                            key={zone.zone_uuid}
+                            className="flex min-h-9 cursor-pointer items-center gap-3 rounded-md px-2 py-1.5 hover:bg-muted/60"
+                          >
+                            <Checkbox
+                              checked={selectedZoneUuids.includes(zone.zone_uuid)}
+                              disabled={running}
+                              onCheckedChange={(checked) =>
+                                setSelectedZoneUuids((current) =>
+                                  checked === true
+                                    ? [...new Set([...current, zone.zone_uuid])]
+                                    : current.filter((zoneUuid) => zoneUuid !== zone.zone_uuid)
+                                )
+                              }
+                            />
+                            <span className="text-sm">{zoneName(zone)}</span>
+                          </label>
+                        ))}
+                      </div>
                       <FieldDescription>{t("settings.userZoneHint")}</FieldDescription>
                     </Field>
                   </div>

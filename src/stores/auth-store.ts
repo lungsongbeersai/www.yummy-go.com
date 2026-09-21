@@ -7,12 +7,21 @@ import { checkLogin } from "@/services/login";
 import { resetSessionStores } from "@/stores/session-store-registry";
 import { errorMessage } from "@/stores/store-utils";
 
+export interface AuthZone {
+  zone_uuid: string;
+  zone_name?: string;
+  zone_name_la?: string;
+  zone_name_eng?: string;
+}
+
 export interface AuthUser {
   uuid: string;
   email: string;
   status: number;
   profile: string;
   zone_uuid?: string;
+  zone_uuids?: string[];
+  zones?: AuthZone[];
   zone_name?: string;
   branch_uuid: string;
   branch_name: string;

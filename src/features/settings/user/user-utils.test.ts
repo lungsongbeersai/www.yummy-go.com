@@ -11,6 +11,7 @@ import {
   userId,
   userInitials,
   userRoleOptions,
+  userZoneUuids,
   userValue
 } from "@/features/settings/user/user-utils";
 import type { Role, User } from "@/services/user";
@@ -29,6 +30,14 @@ describe("user settings utils", () => {
     expect(roleId({ role_id: 4 } as Role)).toBe("4");
     expect(roleName({ roles_name_eng: "Manager" } as Role)).toBe("Manager");
     expect(roleName({} as Role)).toBe("-");
+  });
+
+  it("reads multiple zone assignments and keeps legacy single-zone rows compatible", () => {
+    expect(userZoneUuids({ zone_uuid_fks: ["zone-1", "zone-2", "zone-1"] })).toEqual([
+      "zone-1",
+      "zone-2"
+    ]);
+    expect(userZoneUuids({ zone_uuid_fk: "zone-legacy" })).toEqual(["zone-legacy"]);
   });
 
   it("detects protected users from both backend spellings", () => {
@@ -66,7 +75,7 @@ describe("user settings utils", () => {
         password: " secret ",
         profile: null,
         selectedRoleId: "3",
-        zoneUuid: "zone-1"
+        zoneUuids: ["zone-1", "zone-2", "zone-1"]
       })
     ).toEqual({
       branch_uuid_fk: "branch-1",
@@ -74,7 +83,7 @@ describe("user settings utils", () => {
       login_email: "user@example.com",
       login_active: 2,
       login_password: "secret",
-      zone_uuid_fk: "zone-1"
+      zone_uuid_fks: ["zone-1", "zone-2"]
     });
 
     const editPayload = buildUserSaveInput({
@@ -85,12 +94,12 @@ describe("user settings utils", () => {
         password: "",
         profile: null,
         selectedRoleId: "2",
-        zoneUuid: ""
+        zoneUuids: []
     });
 
     expect(editPayload).toMatchObject({ login_uuid: "login-1" });
     expect(editPayload).not.toHaveProperty("login_password");
-    expect(editPayload.zone_uuid_fk).toBe("");
+    expect(editPayload.zone_uuid_fks).toEqual([]);
   });
 
   it("parses bulk-pasted emails into valid/invalid/duplicate buckets", () => {

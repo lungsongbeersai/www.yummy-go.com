@@ -6,6 +6,13 @@ import { requiredText } from "@/services/shared/validators";
 import type { ApiDataResponse, ApiEntity, ApiListResponse, ApiMessageResponse, FetchParams } from "@/services/shared/types";
 export { getUserProfileUrl } from "@/lib/image";
 
+export interface UserZone extends ApiEntity {
+  zone_uuid: string;
+  zone_name?: string | null;
+  zone_name_la?: string | null;
+  zone_name_eng?: string | null;
+}
+
 export interface User extends ApiEntity {
   login_uuid: string;
   login_email?: string;
@@ -16,6 +23,8 @@ export interface User extends ApiEntity {
   branch_uuid_fk?: string;
   branch_name?: string | null;
   zone_uuid_fk?: string | null;
+  zone_uuid_fks?: string[];
+  zones?: UserZone[];
   zone_name?: string | null;
   zone_name_la?: string | null;
   zone_name_eng?: string | null;
@@ -44,6 +53,7 @@ export interface SaveUserInput extends ApiEntity {
   roles_id_fk?: number | string;
   branch_uuid_fk?: string;
   zone_uuid_fk?: string | null;
+  zone_uuid_fks?: string[];
 }
 export interface FetchUsersParams extends FetchParams {
   roles_id_fk?: number | string;

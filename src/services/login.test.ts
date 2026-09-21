@@ -50,11 +50,25 @@ describe("online-only login service", () => {
   it("maps the online response and store table status", async () => {
     apiMocks.post.mockResolvedValue({
       status: 200,
-      data: loginResponse({ store_table_status: 2, zone_uuid_fk: "zone-1", zone_name: "VIP" })
+      data: loginResponse({
+        store_table_status: 2,
+        zone_uuid_fk: "zone-1",
+        zone_uuid_fks: ["zone-1", "zone-2"],
+        zones: [
+          { zone_uuid: "zone-1", zone_name: "VIP" },
+          { zone_uuid: "zone-2", zone_name: "KTV" }
+        ],
+        zone_name: "VIP"
+      })
     });
     await expect(checkLogin("cashier@example.com", "password")).resolves.toMatchObject({
       source: "online",
-      user: { store_table_status: 2, zone_uuid: "zone-1", zone_name: "VIP" },
+      user: {
+        store_table_status: 2,
+        zone_uuid: "zone-1",
+        zone_uuids: ["zone-1", "zone-2"],
+        zone_name: "VIP"
+      },
     });
   });
 
