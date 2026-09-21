@@ -51,6 +51,7 @@ import type {
 import {
   availableProductDetails,
   clampOrderQuantity,
+  defaultOrderQty,
   getOrderSelectionIssue,
   getPromoLabel,
   groupedSetDetails,
@@ -309,7 +310,6 @@ export function ProductOptionsForm({
                   />
                   <div className="flex flex-col gap-2">
                     {setUngroupedDetails.map((detail) => {
-                      const price = productPriceFromDetail(detail);
                       return (
                         <SetProductRow
                           key={detail.proDetailUuid}
@@ -327,11 +327,7 @@ export function ProductOptionsForm({
                                   }]
                                 : []
                           }
-                          price={
-                            price > 0
-                              ? money(price)
-                              : t("pos.includedInSet")
-                          }
+                          quantity={defaultOrderQty(detail)}
                           childOptionMaxSelect={setChildOptionSelectionLimit(detail)}
                           selectedOptionGroupUuids={
                             selectedSetChildOptionGroupUuids[detail.proDetailUuid] ?? []
@@ -376,7 +372,6 @@ export function ProductOptionsForm({
                         />
                         <div className="flex flex-col gap-2">
                           {members.map((detail) => {
-                            const price = productPriceFromDetail(detail);
                             const isSelected = selected.includes(detail.proDetailUuid);
                             const canSelectMore = isSelected || selected.length < maxSelect;
                             return (
@@ -385,7 +380,7 @@ export function ProductOptionsForm({
                                 blocked={!canSelectMore}
                                 detailUuid={detail.proDetailUuid}
                                 label={detail.sizeName || t("pos.product")}
-                                price={price > 0 ? money(price) : t("pos.includedInSet")}
+                                quantity={defaultOrderQty(detail)}
                                 selected={isSelected}
                                 childOptionMaxSelect={setChildOptionSelectionLimit(detail)}
                                 selectedOptionGroupUuids={
@@ -699,7 +694,7 @@ function SetProductRow({
   detailUuid,
   label,
   optionGroups,
-  price,
+  quantity,
   selectedOptionGroupUuids,
   selectedTasteUuids,
   onToggleOptionGroup,
@@ -709,7 +704,7 @@ function SetProductRow({
   detailUuid: string;
   label: string;
   optionGroups: ProdSetDetailOptionGroup[];
-  price: string;
+  quantity: number;
   selectedOptionGroupUuids: string[];
   selectedTasteUuids: Record<string, string[]>;
   onToggleOptionGroup: (optionGroupUuid: string, maxSelect: number) => void;
@@ -723,7 +718,7 @@ function SetProductRow({
           <span className="truncate text-sm font-semibold">{label}</span>
         </span>
         <span className="shrink-0 text-sm font-bold text-primary tabular-nums">
-          {price}
+          ×{quantity}
         </span>
       </div>
       <SetDetailOptionGroups
@@ -744,7 +739,7 @@ function SetChoiceOptionRow({
   childOptionMaxSelect,
   detailUuid,
   label,
-  price,
+  quantity,
   selected,
   selectedOptionGroupUuids,
   selectedTasteUuids,
@@ -757,7 +752,7 @@ function SetChoiceOptionRow({
   childOptionMaxSelect: number;
   detailUuid: string;
   label: string;
-  price: string;
+  quantity: number;
   selected: boolean;
   selectedOptionGroupUuids: string[];
   selectedTasteUuids: Record<string, string[]>;
@@ -791,7 +786,7 @@ function SetChoiceOptionRow({
           onCheckedChange={onToggle}
         />
         <span className="min-w-0 flex-1 truncate text-sm font-semibold">{label}</span>
-        <span className="shrink-0 text-sm font-bold tabular-nums text-primary">{price}</span>
+        <span className="shrink-0 text-sm font-bold tabular-nums text-primary">×{quantity}</span>
       </FieldLabel>
 
       {selected ? (
