@@ -82,8 +82,9 @@ export function ProductFormTastesSection({ form }: { form: ProductFormWorkflow }
 
   return (
     <>
-      <Card>
-        <ProductFormSectionHeader
+      {!isSet ? (
+        <Card>
+          <ProductFormSectionHeader
           number="3"
           title={sectionTitle}
           hint={sectionHint}
@@ -104,7 +105,7 @@ export function ProductFormTastesSection({ form }: { form: ProductFormWorkflow }
             </Button>
           }
         />
-        <CardContent className="flex flex-col gap-4">
+          <CardContent className="flex flex-col gap-4">
           <Field>
             <FieldLabel htmlFor="prod-taste-max-select">
               {t(isSet ? "product.sauceMode" : "product.tasteMode")}
@@ -189,8 +190,9 @@ export function ProductFormTastesSection({ form }: { form: ProductFormWorkflow }
               <FieldDescription>{t(isSet ? "product.noSauces" : "product.noTastes")}</FieldDescription>
             )
           ) : null}
-        </CardContent>
-      </Card>
+          </CardContent>
+        </Card>
+      ) : null}
 
       <Dialog
         open={tasteDialogOpen}

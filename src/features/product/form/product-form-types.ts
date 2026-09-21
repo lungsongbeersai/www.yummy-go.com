@@ -72,6 +72,7 @@ export interface RequiredProductFormState {
   selectedToppings: ToppingSelection[];
   prodTasteMaxSelect?: string;
   selectedTastes?: TasteSelection[];
+  availableTasteUuids?: string[];
 }
 
 export interface ProductSavePayloadState extends RequiredProductFormState {

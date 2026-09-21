@@ -63,6 +63,7 @@ import {
   rawProductImage,
   requiredFieldErrors as getRequiredFieldErrors,
   sizeUuid,
+  tasteUuid,
   unitUuid,
   writeProductFormDefaults,
 } from "./product-form-utils";
@@ -442,6 +443,7 @@ export function useProductFormWorkflow() {
         selectedToppings,
         prodTasteMaxSelect,
         selectedTastes,
+        availableTasteUuids: tasteOptions.map(tasteUuid),
       },
       t
     );
@@ -603,6 +605,7 @@ export function useProductFormWorkflow() {
         selectedToppings,
         prodTasteMaxSelect,
         selectedTastes,
+        availableTasteUuids: tasteOptions.map(tasteUuid),
       });
       const updateProdUuid = editing?.prod_uuid ?? prodUuid;
       if (isEditing) payload.prod_uuid = updateProdUuid;
@@ -694,7 +697,9 @@ export function useProductFormWorkflow() {
         : t("product.statusSort.general");
   const imageLabel = prodStatusImge === "1" ? t("product.statusImge.image") : t("product.statusImge.color");
   const toppingCount = prodToppingStatus === TOPPING_HAS ? selectedToppings.length : 0;
-  const tasteCount = Number(prodTasteMaxSelect) > 0 ? selectedTastes.length : 0;
+  const tasteCount = statusSortFk === "2"
+    ? 0
+    : Number(prodTasteMaxSelect) > 0 ? selectedTastes.length : 0;
   const validColors = useMemo(() => colors.filter((color) => isHexColor(colorCode(color))), [colors]);
   const categoryOptions = useMemo(
     () => includeSelectedOption(categories, editing, cateUuidFk, categoryUuid),
@@ -811,10 +816,9 @@ export function useProductFormWorkflow() {
     { label: t("nav.unit"), done: Boolean(uniteUuidFk) },
     { label: t("product.sections.image"), done: hasProductMedia },
     { label: t("product.sections.details"), done: hasValidDetails },
-    {
-      label: t(statusSortFk === "2" ? "product.sauces" : "product.sections.tastes"),
-      done: hasTasteSetup,
-    },
+    ...(statusSortFk === "2"
+      ? []
+      : [{ label: t("product.sections.tastes"), done: hasTasteSetup }]),
     { label: t("product.sections.toppings"), done: hasToppingSetup }
   ];
   const completedChecks = requiredChecks.filter((item) => item.done).length;

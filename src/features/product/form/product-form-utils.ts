@@ -1034,8 +1034,17 @@ export function nextBulkStockMode(
 }
 
 export function requiredFieldErrorKeys(state: RequiredProductFormState) {
+  const availableTasteUuids = state.availableTasteUuids
+    ? new Set(state.availableTasteUuids)
+    : null;
+  const setTasteUuids = state.details.flatMap((row) => [
+    ...row.set_taste_uuid_fks,
+    ...row.set_option_groups.flatMap((group) => group.taste_uuid_fks),
+  ]);
   const selectedProductTasteUuids = new Set(
-    (state.selectedTastes ?? []).map((taste) => taste.taste_uuid),
+    state.statusSortFk === "2"
+      ? setTasteUuids.filter((uuid) => !availableTasteUuids || availableTasteUuids.has(uuid))
+      : (state.selectedTastes ?? []).map((taste) => taste.taste_uuid),
   );
   return [
     !state.prodNameLa.trim() ? "fields.prod_name" : null,
@@ -1077,11 +1086,10 @@ export function requiredFieldErrorKeys(state: RequiredProductFormState) {
     state.prodToppingStatus === TOPPING_HAS && !state.selectedToppings.length
       ? "product.sections.toppings"
       : null,
+    state.statusSortFk !== "2" &&
     Number(state.prodTasteMaxSelect ?? 0) > 0 &&
     (state.selectedTastes ?? []).length < Number(state.prodTasteMaxSelect ?? 0)
-      ? state.statusSortFk === "2"
-        ? "product.sauces"
-        : "product.sections.tastes"
+      ? "product.sections.tastes"
       : null,
     state.statusSortFk === "2" &&
     state.details.some(
@@ -1131,8 +1139,26 @@ export function requiredFieldErrors(
 export function buildSaveProductPayload(
   state: ProductSavePayloadState,
 ): SaveProductInput {
+  const availableTasteUuids = state.availableTasteUuids
+    ? new Set(state.availableTasteUuids)
+    : null;
+  const setTasteUuids = Array.from(new Set(
+    state.details.flatMap((row) => [
+      ...row.set_taste_uuid_fks,
+      ...row.set_option_groups.flatMap((group) => group.taste_uuid_fks),
+    ]).filter((uuid) => !availableTasteUuids || availableTasteUuids.has(uuid)),
+  ));
+  const payloadTastes = state.statusSortFk === "2"
+    ? setTasteUuids.map((taste_uuid, index) => ({ taste_uuid, taste_sort: index + 1 }))
+    : (state.selectedTastes ?? []).map((row, index) => ({
+        taste_uuid: row.taste_uuid,
+        taste_sort: index + 1,
+      }));
+  const payloadTasteMaxSelect = state.statusSortFk === "2"
+    ? (payloadTastes.length ? 1 : 0)
+    : Number(state.prodTasteMaxSelect ?? 0) || 0;
   const selectedProductTasteUuids = new Set(
-    (state.selectedTastes ?? []).map((taste) => taste.taste_uuid),
+    payloadTastes.map((taste) => taste.taste_uuid),
   );
   return {
     cate_uuid_fk: state.cateUuidFk,
@@ -1182,13 +1208,10 @@ export function buildSaveProductPayload(
       state.prodToppingStatus === TOPPING_HAS
         ? Number(state.prodToppingMaxSelect) || 0
         : 0,
-    prod_taste_max_select: Number(state.prodTasteMaxSelect ?? 0) || 0,
+    prod_taste_max_select: payloadTasteMaxSelect,
     tastes:
-      Number(state.prodTasteMaxSelect ?? 0) > 0
-        ? (state.selectedTastes ?? []).map((row, index) => ({
-            taste_uuid: row.taste_uuid,
-            taste_sort: index + 1,
-          }))
+      payloadTasteMaxSelect > 0
+        ? payloadTastes
         : [],
     set_choice_groups:
       state.statusSortFk === "2" ? buildChoiceGroupsPayload(state.details) : [],

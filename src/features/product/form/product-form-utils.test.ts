@@ -697,6 +697,37 @@ describe("set choice group helpers", () => {
         },
       ],
     });
+
+    const payload = buildSaveProductPayload({
+      branchUuid: "branch-1",
+      prodCode: "SET-1",
+      prodNameLa: "Set",
+      prodNameEng: "Set",
+      cateUuidFk: "cate-1",
+      uniteUuidFk: "unit-1",
+      prodOrderPoint: "5",
+      prodNotification: "2",
+      statusSortFk: "2",
+      prodSetPrice: "50000",
+      prodStatusImge: "2",
+      prodImage: "#10b981",
+      details: [row],
+      prodToppingStatus: "1",
+      selectedToppings: [],
+      prodTasteMaxSelect: "0",
+      selectedTastes: [],
+      availableTasteUuids: ["taste-mala", "taste-sesame"],
+    });
+
+    expect(payload.prod_taste_max_select).toBe(1);
+    expect(payload.tastes).toEqual([
+      { taste_uuid: "taste-mala", taste_sort: 1 },
+      { taste_uuid: "taste-sesame", taste_sort: 2 },
+    ]);
+    expect(payload.details?.[0]?.set_option_groups?.[0]?.taste_uuid_fks).toEqual([
+      "taste-mala",
+      "taste-sesame",
+    ]);
   });
 
   it("requires enough allowed sauces for the configured SET option limit", () => {

@@ -68,9 +68,6 @@ export function ProductFormDetailsSection({ form }: { form: ProductFormWorkflow 
     setOptionOptions,
     filteredSetOptionOptions,
     tasteOptions,
-    selectedTasteUuids,
-    prodTasteMaxSelect,
-    setProdTasteMaxSelect,
     setTasteDialogOpen,
     resetNewTasteForm,
     language,
@@ -101,9 +98,7 @@ export function ProductFormDetailsSection({ form }: { form: ProductFormWorkflow 
   const showNoSetProductOptions = statusSortFk === "2" && !sizeOptions.length;
   const sizeSelectKey = showNoSetProductOptions ? "empty" : sizeOptions.length ? "ready" : "loading";
   const labelRowClass = "flex min-h-7 items-center justify-between gap-2";
-  const sauceOptions = tasteOptions.filter((taste) =>
-    selectedTasteUuids.has(tasteUuid(taste)),
-  );
+  const sauceOptions = tasteOptions;
   const sauceLabel = (taste: (typeof sauceOptions)[number]) =>
     entityLabel(
       taste,
@@ -595,9 +590,6 @@ export function ProductFormDetailsSection({ form }: { form: ProductFormWorkflow 
                             variant="outline"
                             onClick={() => {
                               resetNewTasteForm();
-                              if (Number(prodTasteMaxSelect) === 0) {
-                                setProdTasteMaxSelect("1");
-                              }
                               setTasteDialogOpen(true);
                             }}
                           >
