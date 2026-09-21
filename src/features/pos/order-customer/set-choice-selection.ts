@@ -77,6 +77,23 @@ export function toggleSetChoiceUuid(selected: string[], uuid: string, limit: num
   return [...selected, uuid];
 }
 
+export function setChildOptionSelectionLimit(detail: ProdDetail) {
+  const optionCount = detail.setOptionGroups?.length ?? 0;
+  if (!optionCount) return 0;
+  const configuredLimit = optionalNumber(detail.setChildOptionMaxSelect) ?? 0;
+  return configuredLimit > 0
+    ? Math.min(configuredLimit, optionCount)
+    : optionCount;
+}
+
+export function toggleSetChildOptionGroupUuid(
+  selected: string[],
+  uuid: string,
+  limit: number,
+): string[] {
+  return toggleSetChoiceUuid(selected, uuid, limit);
+}
+
 // ตอนยืนยันออเดอร์: รายการที่ไม่มีกลุ่มบังคับรวมเหมือนเดิม + รายการที่ลูกค้าเลือกจริงในแต่ละกลุ่ม
 // (เลือกได้ไม่เกิน max_select แต่ไม่บังคับให้เลือกครบ) — การเลือกในแต่ละกลุ่มเป็นอิสระต่อกัน
 // (แถวเดียวกันอาจถูกเลือกจากกลุ่มหนึ่งแต่ไม่ถูกเลือกจากอีกกลุ่ม) แต่ผลลัพธ์สุดท้ายต้อง

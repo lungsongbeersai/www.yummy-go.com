@@ -600,6 +600,39 @@ describe("set choice group helpers", () => {
     expect(buildChoiceGroupsPayload(rows)).toEqual([]);
   });
 
+  it("stores child-option limits on their parent detail instead of a parent choice group", () => {
+    const row = detail({
+      set_choice_group_mode: "one",
+      set_choice_group_names: ["ກ້ຽວທອດຈໍາໂບ້"],
+      set_option_groups: [
+        {
+          id: "child-chicken",
+          set_child_option_uuid_fk: "chicken",
+          group_name_la: "ໄກ່",
+          group_name_eng: "Chicken",
+          max_select: "1",
+          taste_uuid_fks: ["taste-mala"],
+        },
+        {
+          id: "child-pork",
+          set_child_option_uuid_fk: "pork",
+          group_name_la: "ໝູ",
+          group_name_eng: "Pork",
+          max_select: "1",
+          taste_uuid_fks: ["taste-mala"],
+        },
+      ],
+    });
+
+    expect(buildChoiceGroupsPayload([row])).toEqual([]);
+    expect(buildDetailPayload(row, "2")).toMatchObject({
+      set_choice_group_client_refs: [],
+      set_child_option_max_select: 1,
+    });
+    expect(buildDetailPayload({ ...row, set_choice_group_mode: "many" }, "2"))
+      .toMatchObject({ set_child_option_max_select: 2 });
+  });
+
   it("resolves a mixed-mode group to many, since some selection beats forcing exactly one", () => {
     const rows = [
       detail({ id: "chicken", set_choice_group_mode: "one", set_choice_group_names: ["ໄກ່/ໝູ"] }),
@@ -674,6 +707,27 @@ describe("set choice group helpers", () => {
     );
   });
 
+  it("hydrates the saved child-option limit as the row selection mode", () => {
+    const option = {
+      set_child_option_uuid_fk: "child-chicken",
+      group_name_la: "ໄກ່",
+      max_select: 1,
+      taste_uuid_fks: ["taste-mala"],
+    };
+    const hydrated = detailFromProduct(
+      {
+        pro_detail_uuid: "detail-dumpling",
+        set_child_option_max_select: 2,
+        set_option_groups: [option, { ...option, set_child_option_uuid_fk: "child-pork" }],
+      },
+      "2",
+      [],
+    );
+
+    expect(hydrated.set_choice_group_mode).toBe("many");
+    expect(hydrated.set_choice_group_names).toEqual([]);
+  });
+
   it("saves a selected child SET option with sauces from the taste master", () => {
     const row = detail({
       set_option_groups: [
@@ -689,6 +743,7 @@ describe("set choice group helpers", () => {
     });
 
     expect(buildDetailPayload(row, "2")).toMatchObject({
+      set_child_option_max_select: 1,
       set_option_groups: [
         {
           set_child_option_uuid_fk: "child-chicken",

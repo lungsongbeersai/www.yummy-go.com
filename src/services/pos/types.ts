@@ -95,6 +95,8 @@ export interface ProdDetail {
   setTasteMaxSelect?: number | string;
   /** Sauces/tastes allowed when this SET option is selected. */
   setTastes?: ProdTaste[];
+  /** Maximum child SET options selectable below this parent detail. */
+  setChildOptionMaxSelect?: number | string;
   setOptionGroups?: ProdSetDetailOptionGroup[];
   // แถวหนึ่งเป็นสมาชิกได้หลายกลุ่มพร้อมกัน — [] = ไม่มีกลุ่ม (บังคับรวมเหมือนเดิม)
   setChoiceGroupUuidFks?: string[];

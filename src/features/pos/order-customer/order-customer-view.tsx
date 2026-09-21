@@ -102,6 +102,7 @@ export function OrderCustomerView({
     selectedCateUuid,
     selectedDetail,
     selectedProduct,
+    selectedSetChildOptionGroupUuids,
     selectedSetChoiceUuids,
     selectedSetChoiceTasteUuids,
     selectedTastes,
@@ -119,6 +120,7 @@ export function OrderCustomerView({
     t,
     toggleSelectedTopping,
     toggleSelectedTaste,
+    toggleSetChildOption,
     toggleSetChoice,
     toggleSetChoiceTaste,
     toppingQtyByUuid,
@@ -519,6 +521,7 @@ export function OrderCustomerView({
             qty={qty}
             saving={saving}
             selectedDetail={selectedDetail}
+            selectedSetChildOptionGroupUuids={selectedSetChildOptionGroupUuids}
             selectedSetChoiceUuids={selectedSetChoiceUuids}
             selectedSetChoiceTasteUuids={selectedSetChoiceTasteUuids}
             selectedTastes={selectedTastes}
@@ -529,6 +532,7 @@ export function OrderCustomerView({
             onNoteChange={setNote}
             onQtyChange={setQty}
             onSubmit={() => void submitSelectedProduct()}
+            onToggleSetChildOption={toggleSetChildOption}
             onToggleSetChoice={toggleSetChoice}
             onToggleSetChoiceTaste={toggleSetChoiceTaste}
             onToggleTaste={toggleSelectedTaste}

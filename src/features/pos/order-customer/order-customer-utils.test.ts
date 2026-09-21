@@ -34,10 +34,12 @@ import {
   selectedOrderTable,
   selectedTastesFromUuids,
   selectedToppingsFromQtyMap,
+  setChildOptionSelectionLimit,
   setChoiceGroupDisplayName,
   setChoiceGroupMaxSelect,
   setChoiceGroupUuid,
   toggleSetChoiceUuid,
+  toggleSetChildOptionGroupUuid,
   toggleToppingQty,
   toppingQtyCap,
   toppingSelectionLimit,
@@ -1063,12 +1065,81 @@ describe("order customer helpers", () => {
     });
   });
 
+  it("submits only the selected child option and enforces its parent limit", () => {
+    const mala = taste({ tasteUuid: "taste-mala" });
+    const sesame = taste({ tasteUuid: "taste-sesame" });
+    const parentDetail = detail({
+      proDetailUuid: "dumpling",
+      setChildOptionMaxSelect: 1,
+      setOptionGroups: [
+        {
+          setDetailOptionGroupUuid: "child-chicken",
+          groupName: "Chicken",
+          maxSelect: 1,
+          tastes: [mala],
+        },
+        {
+          setDetailOptionGroupUuid: "child-pork",
+          groupName: "Pork",
+          maxSelect: 1,
+          tastes: [sesame],
+        },
+      ],
+    });
+    const setProduct: ProdItem = {
+      ...normalizeProdItem(null, product({ statusSortFk: ProductSortStatus.SET })),
+      prodSetPrice: 220000,
+      details: [parentDetail],
+    };
+
+    const items = buildStaffOrderItems({
+      detail: parentDetail,
+      mode: "set",
+      noteText: "",
+      product: setProduct,
+      quantity: 1,
+      selectedSetChildOptionGroupUuids: {
+        dumpling: ["child-chicken"],
+      },
+      selectedSetChoiceTasteUuids: {
+        "dumpling:child-chicken": ["taste-mala"],
+      },
+      toppings: [],
+    });
+
+    expect(items[0]?.set_option_group_selections).toEqual([
+      {
+        set_detail_option_group_uuid_fk: "child-chicken",
+        taste_uuid_fks: ["taste-mala"],
+      },
+    ]);
+    expect(() => buildStaffOrderItems({
+      detail: parentDetail,
+      mode: "set",
+      noteText: "",
+      product: setProduct,
+      quantity: 1,
+      selectedSetChildOptionGroupUuids: {
+        dumpling: ["child-chicken", "child-pork"],
+      },
+      toppings: [],
+    })).toThrow("Invalid SET child option selection");
+  });
+
   it("caps set choice selection at max_select without requiring it to be filled", () => {
     expect(toggleSetChoiceUuid([], "a", 1)).toEqual(["a"]);
     expect(toggleSetChoiceUuid(["a"], "a", 1)).toEqual([]);
     // ครบเพดานแล้ว เลือกตัวใหม่ต้องไม่ทำอะไร (ไม่ใช่แทนที่ตัวเดิม)
     expect(toggleSetChoiceUuid(["a"], "b", 1)).toEqual(["a"]);
     expect(toggleSetChoiceUuid(["a"], "b", 2)).toEqual(["a", "b"]);
+    expect(setChildOptionSelectionLimit(detail({
+      setChildOptionMaxSelect: 1,
+      setOptionGroups: [
+        { setDetailOptionGroupUuid: "a" },
+        { setDetailOptionGroupUuid: "b" },
+      ],
+    }))).toBe(1);
+    expect(toggleSetChildOptionGroupUuid(["a"], "b", 1)).toEqual(["a"]);
   });
 
   it("maps product option sheet topping selection predictably", () => {

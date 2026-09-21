@@ -45,6 +45,9 @@ export function mapApiProdDetail(detail: ApiProdDetail): ProdDetail {
     ...(detail.set_taste_max_select !== undefined
       ? { setTasteMaxSelect: detail.set_taste_max_select }
       : {}),
+    ...(detail.set_child_option_max_select !== undefined
+      ? { setChildOptionMaxSelect: detail.set_child_option_max_select }
+      : {}),
     ...(detail.set_tastes !== undefined
       ? { setTastes: detail.set_tastes.map(mapApiProdTaste) }
       : {}),

@@ -164,6 +164,11 @@ export function ProductFormDetailsSection({ form }: { form: ProductFormWorkflow 
                         variant="outline"
                         onClick={() =>
                           updateDetail(row.id, {
+                            set_choice_group_mode:
+                              row.set_choice_group_mode === "none"
+                                ? "one"
+                                : row.set_choice_group_mode,
+                            set_choice_group_names: [],
                             set_option_groups: [
                               ...row.set_option_groups,
                               emptySetDetailOptionGroup(),
@@ -220,7 +225,9 @@ export function ProductFormDetailsSection({ form }: { form: ProductFormWorkflow 
                             : value;
                           updateDetail(row.id, {
                             size_uuid_fk: value,
-                            ...(statusSortFk === "2" && row.set_choice_group_mode !== "none"
+                            ...(statusSortFk === "2" &&
+                            !row.set_option_groups.length &&
+                            row.set_choice_group_mode !== "none"
                               ? { set_choice_group_names: [automaticGroupName] }
                               : {}),
                           });
@@ -333,7 +340,9 @@ export function ProductFormDetailsSection({ form }: { form: ProductFormWorkflow 
                           updateDetail(row.id, {
                             set_choice_group_mode: value as SetChoiceGroupMode,
                             set_choice_group_names:
-                              value === "none" ? [] : [selectedSizeLabel],
+                              value === "none" || row.set_option_groups.length
+                                ? []
+                                : [selectedSizeLabel],
                           })
                         }
                       >
@@ -477,13 +486,20 @@ export function ProductFormDetailsSection({ form }: { form: ProductFormWorkflow 
                             size="icon-sm"
                             variant="ghost"
                             aria-label={t("actions.delete")}
-                            onClick={() =>
+                            onClick={() => {
+                              const nextGroups = row.set_option_groups.filter(
+                                (candidate) => candidate.id !== group.id,
+                              );
                               updateDetail(row.id, {
-                                set_option_groups: row.set_option_groups.filter(
-                                  (candidate) => candidate.id !== group.id,
-                                ),
-                              })
-                            }
+                                set_option_groups: nextGroups,
+                                ...(nextGroups.length
+                                  ? {}
+                                  : {
+                                      set_choice_group_mode: "none",
+                                      set_choice_group_names: [],
+                                    }),
+                              });
+                            }}
                           >
                             <Trash2 />
                           </Button>

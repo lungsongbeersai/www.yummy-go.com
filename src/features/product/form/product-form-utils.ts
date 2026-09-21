@@ -689,6 +689,7 @@ export function productHydrationKey(row: Product | null | undefined) {
         detail.pro_detail_sTime,
         detail.pro_detail_eTime,
         detail.set_taste_max_select,
+        detail.set_child_option_max_select,
         (detail.set_tastes ?? [])
           .map((taste) => String(taste.taste_uuid_fk ?? taste.taste_uuid ?? ""))
           .join(","),
@@ -793,6 +794,7 @@ export function detailFromProduct(
 ): DetailRow {
   const matchedGroups = choiceGroupsFor(detail, choiceGroups);
   const savedOptionGroups = detail.set_option_groups ?? [];
+  const savedChildOptionMax = Number(detail.set_child_option_max_select ?? 0);
   const legacyTasteUuids = (detail.set_tastes ?? [])
     .map((taste) => String(taste.taste_uuid_fk ?? taste.taste_uuid ?? "").trim())
     .filter(Boolean);
@@ -842,14 +844,20 @@ export function detailFromProduct(
     pro_detail_eDate: dateInputValue(detail.pro_detail_eDate),
     pro_detail_sTime: timeInputValue(detail.pro_detail_sTime),
     pro_detail_eTime: timeInputValue(detail.pro_detail_eTime),
-    set_choice_group_mode: !matchedGroups.length
-      ? "none"
-      : matchedGroups.some((group) => Number(group.max_select ?? 1) > 1)
+    set_choice_group_mode: savedOptionGroups.length
+      ? savedChildOptionMax > 1
         ? "many"
-        : "one",
-    set_choice_group_names: matchedGroups.map((group) =>
-      String(group.group_name_la ?? group.group_name ?? ""),
-    ),
+        : "one"
+      : !matchedGroups.length
+        ? "none"
+        : matchedGroups.some((group) => Number(group.max_select ?? 1) > 1)
+          ? "many"
+          : "one",
+    set_choice_group_names: savedOptionGroups.length
+      ? []
+      : matchedGroups.map((group) =>
+          String(group.group_name_la ?? group.group_name ?? ""),
+        ),
     // แปลงข้อมูลรุ่นเก่าเป็นแถวลูก แล้วบันทึกกลับด้วยโครงสร้างใหม่เท่านั้น
     set_taste_max_select: "0",
     set_taste_uuid_fks: [],
@@ -968,14 +976,20 @@ export function buildDetailPayload(
   }
 
   if (statusSortFk === "2") {
+    const hasChildOptions = row.set_option_groups.length > 0;
     return {
       ...base,
       pro_detail_setqty_cut_stock: numberFromFormatted(row.pro_detail_setqty_cut_stock),
       pro_detail_status: 2,
-      set_choice_group_client_refs: choiceGroupNamesOf(row),
+      set_choice_group_client_refs: hasChildOptions ? [] : choiceGroupNamesOf(row),
       set_taste_max_select: Number(row.set_taste_max_select) || 0,
       set_taste_uuid_fks:
         Number(row.set_taste_max_select) > 0 ? row.set_taste_uuid_fks : [],
+      set_child_option_max_select: hasChildOptions
+        ? row.set_choice_group_mode === "many"
+          ? row.set_option_groups.length
+          : 1
+        : 0,
       set_option_groups: row.set_option_groups.map((group, index) => ({
         client_ref: group.id,
         set_child_option_uuid_fk: group.set_child_option_uuid_fk,
@@ -1021,6 +1035,7 @@ export function buildChoiceGroupsPayload(
   const membersByName = new Map<string, { rows: DetailRow[]; many: boolean }>();
 
   for (const row of details) {
+    if (row.set_option_groups.length) continue;
     for (const name of choiceGroupNamesOf(row)) {
       const entry = membersByName.get(name) ?? { rows: [], many: false };
       entry.rows.push(row);
@@ -1115,9 +1130,18 @@ export function requiredFieldErrorKeys(state: RequiredProductFormState) {
       : null,
     state.statusSortFk === "2" &&
     state.details.some(
-      (row) => row.set_choice_group_mode !== "none" && !choiceGroupNamesOf(row).length,
+      (row) =>
+        row.set_choice_group_mode !== "none" &&
+        !row.set_option_groups.length &&
+        !choiceGroupNamesOf(row).length,
     )
       ? "product.setChoiceGroupName"
+      : null,
+    state.statusSortFk === "2" &&
+    state.details.some(
+      (row) => row.set_option_groups.length > 0 && row.set_choice_group_mode === "none",
+    )
+      ? "product.setChoiceGroupMode"
       : null,
     state.statusSortFk === "2" &&
     state.details.some(

@@ -41,6 +41,7 @@ import {
   selectedToppingsFromQtyMap,
   selectedTastesFromUuids,
   tasteSelectionLimit,
+  toggleSetChildOptionGroupUuid,
   toggleSetChoiceUuid,
   toggleTasteUuid,
   toggleToppingQty,
@@ -113,6 +114,9 @@ export function useOrderCustomerWorkflow({
   const [detailUuid, setDetailUuid] = useState("");
   const [selectedTasteUuids, setSelectedTasteUuids] = useState<string[]>([]);
   const [selectedSetChoiceUuids, setSelectedSetChoiceUuids] = useState<
+    Record<string, string[]>
+  >({});
+  const [selectedSetChildOptionGroupUuids, setSelectedSetChildOptionGroupUuids] = useState<
     Record<string, string[]>
   >({});
   const [selectedSetChoiceTasteUuids, setSelectedSetChoiceTasteUuids] = useState<
@@ -309,6 +313,7 @@ export function useOrderCustomerWorkflow({
       noteText,
       product,
       quantity,
+      selectedSetChildOptionGroupUuids: setChildOptionGroupUuids,
       selectedSetChoiceUuids: setChoiceUuids,
       selectedSetChoiceTasteUuids: setChoiceTasteUuids,
       tastes,
@@ -319,6 +324,7 @@ export function useOrderCustomerWorkflow({
       noteText: string;
       product?: ProdItem | null;
       quantity: number;
+      selectedSetChildOptionGroupUuids?: Record<string, string[]>;
       selectedSetChoiceUuids?: Record<string, string[]>;
       selectedSetChoiceTasteUuids?: Record<string, string[]>;
       tastes: ProdTaste[];
@@ -333,6 +339,7 @@ export function useOrderCustomerWorkflow({
           noteText,
           product,
           quantity,
+          selectedSetChildOptionGroupUuids: setChildOptionGroupUuids,
           selectedSetChoiceUuids: setChoiceUuids,
           selectedSetChoiceTasteUuids: setChoiceTasteUuids,
           tableUuid: initialTableUuid,
@@ -392,6 +399,7 @@ export function useOrderCustomerWorkflow({
       setToppingQtyByUuid({});
       setRememberedToppingQtyByUuid({});
       setSelectedSetChoiceUuids({});
+      setSelectedSetChildOptionGroupUuids({});
       setSelectedSetChoiceTasteUuids({});
       setNote("");
       setProductSheetOpen(true);
@@ -735,11 +743,51 @@ export function useOrderCustomerWorkflow({
     const next = toggleSetChoiceUuid(current, detailUuid, maxSelect);
     setSelectedSetChoiceUuids((state) => ({ ...state, [groupUuid]: next }));
     if (!next.includes(detailUuid)) {
+      setSelectedSetChildOptionGroupUuids((state) =>
+        Object.fromEntries(
+          Object.entries(state).filter(([key]) => key !== detailUuid),
+        ),
+      );
       setSelectedSetChoiceTasteUuids((state) => {
         return Object.fromEntries(
           Object.entries(state).filter(([key]) => !key.startsWith(`${detailUuid}:`)),
         );
       });
+    }
+  }
+
+  function toggleSetChildOption(
+    detailUuid: string,
+    optionGroupUuid: string,
+    maxSelect: number,
+  ) {
+    const detail = selectedProduct?.details.find(
+      (candidate) => candidate.proDetailUuid === detailUuid,
+    );
+    if (!detail?.setOptionGroups?.some(
+      (group) => group.setDetailOptionGroupUuid === optionGroupUuid,
+    )) return;
+
+    const current = selectedSetChildOptionGroupUuids[detailUuid] ?? [];
+    if (!current.includes(optionGroupUuid) && current.length >= maxSelect) {
+      showToast({
+        title: t("pos.setChoiceSelectionLimitReached", { count: maxSelect }),
+        tone: "info",
+      });
+      return;
+    }
+    const next = toggleSetChildOptionGroupUuid(current, optionGroupUuid, maxSelect);
+    setSelectedSetChildOptionGroupUuids((state) => ({
+      ...state,
+      [detailUuid]: next,
+    }));
+    if (!next.includes(optionGroupUuid)) {
+      const selectionKey = `${detailUuid}:${optionGroupUuid}`;
+      setSelectedSetChoiceTasteUuids((state) =>
+        Object.fromEntries(
+          Object.entries(state).filter(([key]) => key !== selectionKey),
+        ),
+      );
     }
   }
 
@@ -819,6 +867,7 @@ export function useOrderCustomerWorkflow({
         noteText: note,
         product: selectedProduct,
         quantity: qty,
+        selectedSetChildOptionGroupUuids,
         selectedSetChoiceUuids,
         selectedSetChoiceTasteUuids,
         tastes: selectedTastes,
@@ -911,6 +960,7 @@ export function useOrderCustomerWorkflow({
     selectedProduct,
     selectedTastes,
     selectedTasteUuids,
+    selectedSetChildOptionGroupUuids,
     selectedSetChoiceUuids,
     selectedSetChoiceTasteUuids,
     selectedTable,
@@ -927,6 +977,7 @@ export function useOrderCustomerWorkflow({
     t,
     toggleSelectedTopping,
     toggleSelectedTaste,
+    toggleSetChildOption,
     toggleSetChoice,
     toggleSetChoiceTaste,
     toppingQtyByUuid,

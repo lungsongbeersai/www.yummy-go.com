@@ -19,6 +19,7 @@ import { getOrderSelectionIssue } from "./order-selection-validation";
 import {
   resolveSetOrderDetails,
   selectedSetChoiceGroupUuidsForDetail,
+  setChildOptionSelectionLimit,
 } from "./set-choice-selection";
 import { toppingUuid, type SelectedTopping } from "./topping-selection";
 import { tasteUuid } from "./taste-selection";
@@ -51,6 +52,7 @@ export function buildStaffOrderItems({
   noteText,
   product,
   quantity,
+  selectedSetChildOptionGroupUuids = {},
   selectedSetChoiceUuids = {},
   selectedSetChoiceTasteUuids = {},
   setInstanceUuid,
@@ -62,6 +64,7 @@ export function buildStaffOrderItems({
   noteText: string;
   product?: ProdItem | null;
   quantity: number;
+  selectedSetChildOptionGroupUuids?: Record<string, string[]>;
   selectedSetChoiceUuids?: Record<string, string[]>;
   selectedSetChoiceTasteUuids?: Record<string, string[]>;
   setInstanceUuid?: string;
@@ -119,8 +122,32 @@ export function buildStaffOrderItems({
     if (mode === "set" && hasNestedSetTastes) {
       const optionGroups = itemDetail.setOptionGroups ?? [];
       if (optionGroups.length) {
+        const availableGroupUuids = optionGroups.map((group) =>
+          optionalString(group.setDetailOptionGroupUuid),
+        );
+        if (availableGroupUuids.some((uuid) => !uuid)) {
+          throw new Error("Invalid SET option group");
+        }
+        const legacySelectsEveryGroup =
+          itemDetail.setChildOptionMaxSelect === undefined &&
+          selectedSetChildOptionGroupUuids[detailId] === undefined;
+        const rawSelectedGroupUuids = legacySelectsEveryGroup
+          ? availableGroupUuids
+          : selectedSetChildOptionGroupUuids[detailId] ?? [];
+        const selectedGroupUuids = new Set(rawSelectedGroupUuids);
+        const childOptionLimit = setChildOptionSelectionLimit(itemDetail);
+        if (
+          selectedGroupUuids.size !== rawSelectedGroupUuids.length ||
+          selectedGroupUuids.size > childOptionLimit ||
+          [...selectedGroupUuids].some((uuid) => !availableGroupUuids.includes(uuid))
+        ) {
+          throw new Error("Invalid SET child option selection");
+        }
+        const selectedOptionGroups = optionGroups.filter((group) =>
+          selectedGroupUuids.has(group.setDetailOptionGroupUuid),
+        );
         const selectedDetailTastes: ProdTaste[] = [];
-        item.set_option_group_selections = optionGroups.map((group) => {
+        item.set_option_group_selections = selectedOptionGroups.map((group) => {
           const groupUuid = optionalString(group.setDetailOptionGroupUuid);
           if (!groupUuid) throw new Error("Invalid SET option group");
           const selectionKey = `${detailId}:${groupUuid}`;
@@ -194,6 +221,7 @@ export function buildStaffOrderInput({
   noteText,
   product,
   quantity,
+  selectedSetChildOptionGroupUuids = {},
   selectedSetChoiceUuids = {},
   selectedSetChoiceTasteUuids = {},
   tableUuid,
@@ -208,6 +236,7 @@ export function buildStaffOrderInput({
   noteText: string;
   product?: ProdItem | null;
   quantity: number;
+  selectedSetChildOptionGroupUuids?: Record<string, string[]>;
   selectedSetChoiceUuids?: Record<string, string[]>;
   selectedSetChoiceTasteUuids?: Record<string, string[]>;
   tableUuid: string;
@@ -233,6 +262,7 @@ export function buildStaffOrderInput({
       noteText,
       product,
       quantity,
+      selectedSetChildOptionGroupUuids,
       selectedSetChoiceUuids,
       selectedSetChoiceTasteUuids,
       tastes,

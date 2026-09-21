@@ -90,6 +90,7 @@ export interface ProductDetail extends ApiEntity {
   // แถวหนึ่งเป็นสมาชิกได้หลายกลุ่มพร้อมกัน — [] หรือไม่ส่งมา = ไม่มีกลุ่ม (บังคับรวมเหมือนเดิม)
   set_choice_group_uuid_fks?: string[];
   set_taste_max_select?: number | string;
+  set_child_option_max_select?: number | string;
   set_tastes?: ProductDetailTaste[];
   set_option_groups?: ProductDetailOptionGroup[];
 }
@@ -155,6 +156,7 @@ export interface SaveProductDetailInput extends ApiEntity {
   set_taste_max_select?: number;
   set_taste_uuid_fks?: string[];
   /** SET only: repeatable child option rows under this parent detail. */
+  set_child_option_max_select?: number;
   set_option_groups?: Array<{
     client_ref: string;
     set_child_option_uuid_fk: string;

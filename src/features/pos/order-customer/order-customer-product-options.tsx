@@ -61,6 +61,7 @@ import {
   productMedia,
   productModeLabel,
   productPriceFromDetail,
+  setChildOptionSelectionLimit,
   setChoiceGroupDisplayName,
   setChoiceGroupMaxSelect,
   setChoiceGroupUuid,
@@ -183,6 +184,7 @@ export function ProductOptionsForm({
   qty,
   saving,
   selectedDetail,
+  selectedSetChildOptionGroupUuids,
   selectedSetChoiceUuids,
   selectedSetChoiceTasteUuids,
   selectedTastes,
@@ -193,6 +195,7 @@ export function ProductOptionsForm({
   onNoteChange,
   onQtyChange,
   onSubmit,
+  onToggleSetChildOption,
   onToggleSetChoice,
   onToggleSetChoiceTaste,
   onToggleTaste,
@@ -205,6 +208,7 @@ export function ProductOptionsForm({
   qty: number;
   saving: boolean;
   selectedDetail: ProdDetail;
+  selectedSetChildOptionGroupUuids: Record<string, string[]>;
   selectedSetChoiceUuids: Record<string, string[]>;
   selectedSetChoiceTasteUuids: Record<string, string[]>;
   selectedTastes: ProdTaste[];
@@ -215,6 +219,11 @@ export function ProductOptionsForm({
   onNoteChange: (note: string) => void;
   onQtyChange: (qty: number) => void;
   onSubmit: () => void;
+  onToggleSetChildOption: (
+    detailUuid: string,
+    optionGroupUuid: string,
+    maxSelect: number,
+  ) => void;
   onToggleSetChoice: (groupUuid: string, detailUuid: string, maxSelect: number) => void;
   onToggleSetChoiceTaste: (
     detailUuid: string,
@@ -320,7 +329,18 @@ export function ProductOptionsForm({
                               ? money(price)
                               : t("pos.includedInSet")
                           }
+                          childOptionMaxSelect={setChildOptionSelectionLimit(detail)}
+                          selectedOptionGroupUuids={
+                            selectedSetChildOptionGroupUuids[detail.proDetailUuid] ?? []
+                          }
                           selectedTasteUuids={selectedSetChoiceTasteUuids}
+                          onToggleOptionGroup={(optionGroupUuid, maxSelect) =>
+                            onToggleSetChildOption(
+                              detail.proDetailUuid,
+                              optionGroupUuid,
+                              maxSelect,
+                            )
+                          }
                           onToggleTaste={(optionGroupUuid, tasteUuid, maxSelect) =>
                             onToggleSetChoiceTaste(
                               detail.proDetailUuid,
@@ -364,6 +384,10 @@ export function ProductOptionsForm({
                                 label={detail.sizeName || t("pos.product")}
                                 price={price > 0 ? money(price) : t("pos.includedInSet")}
                                 selected={isSelected}
+                                childOptionMaxSelect={setChildOptionSelectionLimit(detail)}
+                                selectedOptionGroupUuids={
+                                  selectedSetChildOptionGroupUuids[detail.proDetailUuid] ?? []
+                                }
                                 selectedTasteUuids={selectedSetChoiceTasteUuids}
                                 optionGroups={
                                   detail.setOptionGroups?.length
@@ -379,6 +403,13 @@ export function ProductOptionsForm({
                                 }
                                 onToggle={() =>
                                   onToggleSetChoice(groupUuid, detail.proDetailUuid, maxSelect)
+                                }
+                                onToggleOptionGroup={(optionGroupUuid, childMaxSelect) =>
+                                  onToggleSetChildOption(
+                                    detail.proDetailUuid,
+                                    optionGroupUuid,
+                                    childMaxSelect,
+                                  )
                                 }
                                 onToggleTaste={(optionGroupUuid, tasteUuid, maxSelect) =>
                                   onToggleSetChoiceTaste(
@@ -661,18 +692,24 @@ function SectionLegend({
 }
 
 function SetProductRow({
+  childOptionMaxSelect,
   detailUuid,
   label,
   optionGroups,
   price,
+  selectedOptionGroupUuids,
   selectedTasteUuids,
+  onToggleOptionGroup,
   onToggleTaste,
 }: {
+  childOptionMaxSelect: number;
   detailUuid: string;
   label: string;
   optionGroups: ProdSetDetailOptionGroup[];
   price: string;
+  selectedOptionGroupUuids: string[];
   selectedTasteUuids: Record<string, string[]>;
+  onToggleOptionGroup: (optionGroupUuid: string, maxSelect: number) => void;
   onToggleTaste: (optionGroupUuid: string, tasteUuid: string, maxSelect: number) => void;
 }) {
   return (
@@ -687,9 +724,12 @@ function SetProductRow({
         </span>
       </div>
       <SetDetailOptionGroups
+        childOptionMaxSelect={childOptionMaxSelect}
         detailUuid={detailUuid}
         optionGroups={optionGroups}
+        selectedOptionGroupUuids={selectedOptionGroupUuids}
         selectedTasteUuids={selectedTasteUuids}
+        onToggleOptionGroup={onToggleOptionGroup}
         onToggleTaste={onToggleTaste}
       />
     </div>
@@ -698,23 +738,29 @@ function SetProductRow({
 
 function SetChoiceOptionRow({
   blocked,
+  childOptionMaxSelect,
   detailUuid,
   label,
   price,
   selected,
+  selectedOptionGroupUuids,
   selectedTasteUuids,
   optionGroups,
   onToggle,
+  onToggleOptionGroup,
   onToggleTaste,
 }: {
   blocked: boolean;
+  childOptionMaxSelect: number;
   detailUuid: string;
   label: string;
   price: string;
   selected: boolean;
+  selectedOptionGroupUuids: string[];
   selectedTasteUuids: Record<string, string[]>;
   optionGroups: ProdSetDetailOptionGroup[];
   onToggle: () => void;
+  onToggleOptionGroup: (optionGroupUuid: string, maxSelect: number) => void;
   onToggleTaste: (optionGroupUuid: string, tasteUuid: string, maxSelect: number) => void;
 }) {
   const id = `staff-set-choice-${detailUuid}`;
@@ -747,9 +793,12 @@ function SetChoiceOptionRow({
 
       {selected ? (
         <SetDetailOptionGroups
+          childOptionMaxSelect={childOptionMaxSelect}
           detailUuid={detailUuid}
           optionGroups={optionGroups}
+          selectedOptionGroupUuids={selectedOptionGroupUuids}
           selectedTasteUuids={selectedTasteUuids}
+          onToggleOptionGroup={onToggleOptionGroup}
           onToggleTaste={onToggleTaste}
         />
       ) : null}
@@ -758,20 +807,37 @@ function SetChoiceOptionRow({
 }
 
 function SetDetailOptionGroups({
+  childOptionMaxSelect,
   detailUuid,
   optionGroups,
+  selectedOptionGroupUuids,
   selectedTasteUuids,
+  onToggleOptionGroup,
   onToggleTaste,
 }: {
+  childOptionMaxSelect: number;
   detailUuid: string;
   optionGroups: ProdSetDetailOptionGroup[];
+  selectedOptionGroupUuids: string[];
   selectedTasteUuids: Record<string, string[]>;
+  onToggleOptionGroup: (optionGroupUuid: string, maxSelect: number) => void;
   onToggleTaste: (optionGroupUuid: string, tasteUuid: string, maxSelect: number) => void;
 }) {
   const { t } = useTranslation();
   if (!optionGroups.length) return null;
   return (
     <div className="flex flex-col gap-3 border-t border-border/70 px-3.5 py-3">
+      {childOptionMaxSelect > 0 ? (
+        <div className="flex items-center justify-between gap-3 text-xs font-semibold text-muted-foreground">
+          <span>{t("product.setChildOption")}</span>
+          <span>
+            {t("pos.selectedOf", {
+              selected: selectedOptionGroupUuids.length,
+              total: childOptionMaxSelect,
+            })}
+          </span>
+        </div>
+      ) : null}
       {optionGroups.map((group) => {
             const tastes = (group.tastes ?? []).filter(isTasteAvailable);
             const tasteLimit = Math.min(
@@ -780,19 +846,59 @@ function SetDetailOptionGroups({
             );
             const selectionKey = `${detailUuid}:${group.setDetailOptionGroupUuid}`;
             const selectedGroupTasteUuids = selectedTasteUuids[selectionKey] ?? [];
-            if (!tastes.length || tasteLimit <= 0) return null;
+            const optionGroupSelected = childOptionMaxSelect <= 0 ||
+              selectedOptionGroupUuids.includes(group.setDetailOptionGroupUuid);
+            const optionGroupBlocked =
+              childOptionMaxSelect > 0 &&
+              !optionGroupSelected &&
+              selectedOptionGroupUuids.length >= childOptionMaxSelect;
             return (
-              <div key={group.setDetailOptionGroupUuid}>
-                <div className="mb-2 flex items-center justify-between gap-3 text-xs font-semibold text-muted-foreground">
-                  <span>{group.groupName || group.groupNameLa || t("pos.tastes")}</span>
-                  <span>
-                    {t("pos.selectedOf", {
-                      selected: selectedGroupTasteUuids.length,
-                      total: tasteLimit,
-                    })}
-                  </span>
-                </div>
-                <div className="flex flex-wrap gap-2">
+              <div
+                key={group.setDetailOptionGroupUuid}
+                className={cn(
+                  childOptionMaxSelect > 0 &&
+                    "rounded-lg border border-border/70 bg-background p-2.5",
+                  optionGroupSelected && childOptionMaxSelect > 0 &&
+                    "border-primary bg-primary/5",
+                  optionGroupBlocked && "opacity-60",
+                )}
+              >
+                {childOptionMaxSelect > 0 ? (
+                  <FieldLabel
+                    htmlFor={`staff-set-child-${detailUuid}-${group.setDetailOptionGroupUuid}`}
+                    className={cn(
+                      "min-h-10 w-full items-center gap-2 text-sm font-semibold",
+                      optionGroupBlocked ? "cursor-not-allowed" : "cursor-pointer",
+                    )}
+                  >
+                    <Checkbox
+                      id={`staff-set-child-${detailUuid}-${group.setDetailOptionGroupUuid}`}
+                      checked={optionGroupSelected}
+                      aria-disabled={optionGroupBlocked}
+                      onCheckedChange={() =>
+                        onToggleOptionGroup(
+                          group.setDetailOptionGroupUuid,
+                          childOptionMaxSelect,
+                        )
+                      }
+                    />
+                    <span className="min-w-0 flex-1 truncate">
+                      {group.groupName || group.groupNameLa || t("product.setChildOption")}
+                    </span>
+                  </FieldLabel>
+                ) : (
+                  <div className="mb-2 flex items-center justify-between gap-3 text-xs font-semibold text-muted-foreground">
+                    <span>{group.groupName || group.groupNameLa || t("pos.tastes")}</span>
+                    <span>
+                      {t("pos.selectedOf", {
+                        selected: selectedGroupTasteUuids.length,
+                        total: tasteLimit,
+                      })}
+                    </span>
+                  </div>
+                )}
+                {optionGroupSelected && tastes.length && tasteLimit > 0 ? (
+                  <div className={cn("flex flex-wrap gap-2", childOptionMaxSelect > 0 && "mt-2")}>
                   {tastes.map((taste) => {
               const uuid = tasteUuid(taste);
               const tasteSelected = selectedGroupTasteUuids.includes(uuid);
@@ -822,7 +928,8 @@ function SetDetailOptionGroups({
                 </FieldLabel>
               );
                   })}
-                </div>
+                  </div>
+                ) : null}
               </div>
             );
       })}

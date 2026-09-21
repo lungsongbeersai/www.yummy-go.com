@@ -12,6 +12,7 @@ describe("POS product normalizers", () => {
         {
           pro_detail_uuid: "detail-chicken",
           set_taste_max_select: 2,
+          set_child_option_max_select: 1,
           set_tastes: [
             {
               taste_uuid: "taste-mala",
@@ -42,6 +43,7 @@ describe("POS product normalizers", () => {
     expect(item.details[0]).toMatchObject({
       proDetailUuid: "detail-chicken",
       setTasteMaxSelect: 2,
+      setChildOptionMaxSelect: 1,
       setTastes: [
         {
           tasteUuid: "taste-mala",
