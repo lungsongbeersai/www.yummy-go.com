@@ -674,6 +674,33 @@ describe("set choice group helpers", () => {
     );
   });
 
+  it("saves a selected child SET option and its sauces separately from tastes", () => {
+    const row = detail({
+      set_option_groups: [
+        {
+          id: "child-row-1",
+          size_uuid_fk: "size-chicken",
+          group_name_la: "ໄກ່",
+          group_name_eng: "Chicken",
+          max_select: "1",
+          taste_uuid_fks: [],
+          sauce_uuid_fks: ["sauce-mala", "sauce-sesame"],
+        },
+      ],
+    });
+
+    expect(buildDetailPayload(row, "2")).toMatchObject({
+      set_option_groups: [
+        {
+          size_uuid_fk: "size-chicken",
+          max_select: 1,
+          taste_uuid_fks: [],
+          sauce_uuid_fks: ["sauce-mala", "sauce-sesame"],
+        },
+      ],
+    });
+  });
+
   it("requires enough allowed sauces for the configured SET option limit", () => {
     const state = {
       prodNameLa: "Set",

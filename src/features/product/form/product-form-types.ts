@@ -10,18 +10,19 @@ export type SizeSelectOption =
   | SizeOption
   | NonNullable<Product["details"]>[number];
 
-// กลุ่มตัวเลือกในชุดอาหาร (เช่น "ກ້ຽວທອດຈຳໂບ້": ไก่/หมู) ไม่มีหน้าจัดการแยก —
-// ใส่ชื่อกลุ่มในแต่ละแถว และแถวที่ใช้ชื่อเดียวกันจะถูกจับกลุ่มอัตโนมัติตอนบันทึก
-// (ดู buildChoiceGroupsPayload ใน product-form-utils.ts)
+// กลุ่มตัวเลือกในชุดอาหารไม่มีช่องกรอกชื่อแล้ว ชื่อภายในถูกสร้างจากรายการ SET
+// ที่เลือกในแถวแม่เพื่อคงสัญญา API เดิมไว้
 export type SetChoiceGroupMode = "none" | "one" | "many";
 
 export interface SetDetailOptionGroupRow {
   id: string;
   set_detail_option_group_uuid?: string;
+  size_uuid_fk: string;
   group_name_la: string;
   group_name_eng: string;
   max_select: string;
   taste_uuid_fks: string[];
+  sauce_uuid_fks: string[];
 }
 
 export interface DetailRow {

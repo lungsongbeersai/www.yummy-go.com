@@ -43,12 +43,17 @@ export interface ProductDetailTaste extends ApiEntity {
 
 export interface ProductDetailOptionGroup extends ApiEntity {
   set_detail_option_group_uuid?: string;
+  size_uuid_fk?: string;
+  size_name?: string;
+  size_name_la?: string;
+  size_name_eng?: string;
   group_name?: string;
   group_name_la?: string;
   group_name_eng?: string;
   max_select?: number | string;
   group_sort?: number | string;
   taste_uuid_fks?: string[];
+  sauce_uuid_fks?: string[];
   tastes?: ProductDetailTaste[];
 }
 
@@ -149,10 +154,12 @@ export interface SaveProductDetailInput extends ApiEntity {
   /** SET only: repeatable child option rows under this parent detail. */
   set_option_groups?: Array<{
     client_ref: string;
+    size_uuid_fk?: string;
     group_name_la: string;
     group_name_eng?: string;
     max_select: number;
     taste_uuid_fks: string[];
+    sauce_uuid_fks?: string[];
     group_sort?: number;
   }>;
 }

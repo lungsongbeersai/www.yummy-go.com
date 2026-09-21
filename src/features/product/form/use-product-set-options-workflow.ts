@@ -41,6 +41,7 @@ export function useProductSetOptionsWorkflow({
 }: ProductSetOptionsWorkflowOptions) {
   const [setOptionDialogOpen, setSetOptionDialogOpen] = useState(false);
   const [setOptionDetailId, setSetOptionDetailId] = useState("");
+  const [setOptionChildId, setSetOptionChildId] = useState("");
   const [setOptionNameLa, setSetOptionNameLa] = useState("");
   const [setOptionNameEng, setSetOptionNameEng] = useState("");
   const [setOptionSearch, setSetOptionSearch] = useState("");
@@ -67,14 +68,16 @@ export function useProductSetOptionsWorkflow({
     setSetOptionDialogOpen(open);
     if (!open) {
       setSetOptionDetailId("");
+      setSetOptionChildId("");
       setSetOptionSearch("");
       setDeletingSetOptionUuid("");
       resetSetOptionForm();
     }
   }
 
-  function openSetOptionDialog(detailId: string) {
+  function openSetOptionDialog(detailId: string, childId = "") {
     setSetOptionDetailId(detailId);
+    setSetOptionChildId(childId);
     resetSetOptionForm();
     setSetOptionDialogOpen(true);
     if (storeUuid) {
@@ -131,7 +134,24 @@ export function useProductSetOptionsWorkflow({
         throw new Error(t("toasts.pleaseTryAgain"));
       }
 
-      if (!editingSetOptionUuid) updateDetail(setOptionDetailId, { size_uuid_fk: savedUuid });
+      if (!editingSetOptionUuid) {
+        if (setOptionChildId) {
+          setDetails((current) => current.map((row) =>
+            row.id === setOptionDetailId
+              ? {
+                  ...row,
+                  set_option_groups: row.set_option_groups.map((group) =>
+                    group.id === setOptionChildId
+                      ? { ...group, size_uuid_fk: savedUuid }
+                      : group,
+                  ),
+                }
+              : row,
+          ));
+        } else {
+          updateDetail(setOptionDetailId, { size_uuid_fk: savedUuid });
+        }
+      }
       showToast({
         title: editingSetOptionUuid ? t("settings.saved") : t("product.setProductOptionSaved"),
         tone: "success"
@@ -155,7 +175,13 @@ export function useProductSetOptionsWorkflow({
     try {
       await deleteSizeForStatus(uuid);
       setDetails((current) =>
-        current.map((row) => (row.size_uuid_fk === uuid ? { ...row, size_uuid_fk: "" } : row))
+        current.map((row) => ({
+          ...row,
+          size_uuid_fk: row.size_uuid_fk === uuid ? "" : row.size_uuid_fk,
+          set_option_groups: row.set_option_groups.map((group) =>
+            group.size_uuid_fk === uuid ? { ...group, size_uuid_fk: "" } : group,
+          ),
+        }))
       );
       if (editingSetOptionUuid === uuid) resetSetOptionForm();
       await loadSizesByStatus(storeUuid, 2, language);

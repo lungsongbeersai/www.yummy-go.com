@@ -11,6 +11,7 @@ import type {
   SaveProductSetChoiceGroupInput,
 } from "@/services/product";
 import type { Size } from "@/services/size";
+import type { Sauce } from "@/services/sauce";
 import type { Taste } from "@/services/taste";
 import type { Topping } from "@/services/topping";
 import type { Unit } from "@/services/unit";
@@ -48,6 +49,7 @@ export const EMPTY_CATEGORIES: Category[] = [];
 export const EMPTY_COLORS: Color[] = [];
 export const EMPTY_GROUPS: Group[] = [];
 export const EMPTY_SIZES: Size[] = [];
+export const EMPTY_SAUCES: Sauce[] = [];
 export const EMPTY_TASTES: Taste[] = [];
 export const EMPTY_TOPPINGS: Topping[] = [];
 export const EMPTY_UNITS: Unit[] = [];
@@ -675,10 +677,12 @@ export function productHydrationKey(row: Product | null | undefined) {
         (detail.set_option_groups ?? [])
           .map((group) => [
             group.set_detail_option_group_uuid,
+            group.size_uuid_fk,
             group.group_name_la,
             group.group_name_eng,
             group.max_select,
             (group.taste_uuid_fks ?? []).join(","),
+            (group.sauce_uuid_fks ?? []).join(","),
           ].join("/"))
           .join(";"),
       ].join(":"),
@@ -744,10 +748,12 @@ export function emptyDetail(statusSortFk: StatusSortFk = "1"): DetailRow {
 export function emptySetDetailOptionGroup(): SetDetailOptionGroupRow {
   return {
     id: rid(),
+    size_uuid_fk: "",
     group_name_la: "",
     group_name_eng: "",
     max_select: "1",
     taste_uuid_fks: [],
+    sauce_uuid_fks: [],
   };
 }
 
@@ -780,11 +786,13 @@ export function detailFromProduct(
         set_detail_option_group_uuid: String(
           group.set_detail_option_group_uuid ?? "",
         ) || undefined,
+        size_uuid_fk: String(group.size_uuid_fk ?? ""),
         group_name_la: String(group.group_name_la ?? group.group_name ?? ""),
         group_name_eng: String(group.group_name_eng ?? ""),
         max_select: String(group.max_select ?? 1),
         taste_uuid_fks: (group.taste_uuid_fks ?? group.tastes?.map((taste) =>
           String(taste.taste_uuid_fk ?? taste.taste_uuid ?? "")) ?? []).filter(Boolean),
+        sauce_uuid_fks: (group.sauce_uuid_fks ?? []).map(String).filter(Boolean),
       }))
     : Number(detail.set_taste_max_select ?? 0) > 0
       ? [{
@@ -793,6 +801,7 @@ export function detailFromProduct(
           group_name_eng: "Taste / sauce",
           max_select: String(detail.set_taste_max_select ?? 1),
           taste_uuid_fks: legacyTasteUuids,
+          sauce_uuid_fks: [],
         }]
       : [];
   return {
@@ -953,10 +962,12 @@ export function buildDetailPayload(
         Number(row.set_taste_max_select) > 0 ? row.set_taste_uuid_fks : [],
       set_option_groups: row.set_option_groups.map((group, index) => ({
         client_ref: group.id,
+        size_uuid_fk: group.size_uuid_fk,
         group_name_la: group.group_name_la.trim(),
         group_name_eng: group.group_name_eng.trim() || group.group_name_la.trim(),
         max_select: Number(group.max_select) || 1,
         taste_uuid_fks: group.taste_uuid_fks,
+        sauce_uuid_fks: group.sauce_uuid_fks,
         group_sort: index + 1,
       })),
     };
@@ -975,8 +986,8 @@ export function buildDetailPayload(
   };
 }
 
-// ชื่อกลุ่มมีความหมายเฉพาะตอน mode ไม่ใช่ "none" — แถวที่ปิดตัวเลือกไว้ไม่นับเป็นสมาชิกกลุ่มไหน
-// เลย แม้จะเคยติ๊กชื่อค้างไว้ก็ตาม แถวหนึ่งเป็นสมาชิกได้หลายกลุ่มพร้อมกัน (ตัดชื่อซ้ำ/ว่างทิ้ง)
+// ชื่อกลุ่มภายในมีความหมายเฉพาะตอน mode ไม่ใช่ "none" และถูกสร้างจากชื่อรายการ SET
+// ของแถวแม่ ฟังก์ชันนี้ยังตัดค่าซ้ำ/ว่างเพื่อรองรับข้อมูลเดิมที่หนึ่งแถวอาจอยู่หลายกลุ่ม
 export function choiceGroupNamesOf(
   row: Pick<DetailRow, "set_choice_group_mode" | "set_choice_group_names">,
 ): string[] {
@@ -984,8 +995,8 @@ export function choiceGroupNamesOf(
   return Array.from(new Set(row.set_choice_group_names.map((name) => name.trim()).filter(Boolean)));
 }
 
-// กลุ่มไม่มีหน้าจัดการแยกอีกต่อไป — ได้มาจากการไล่ดูชื่อกลุ่มที่แต่ละแถวติ๊กไว้เอง แถวที่ติ๊ก
-// ชื่อเดียวกัน (แม้จะเป็นคนละแถว หรือแถวเดียวกันติ๊กหลายชื่อ) ถูกจับเป็นกลุ่มเดียวกันโดยอัตโนมัติ
+// กลุ่มไม่มีช่องกรอกชื่ออีกต่อไป — แถวใหม่ใช้ชื่อรายการ SET เป็น client_ref โดยอัตโนมัติ
+// ส่วนข้อมูลเดิมที่มีชื่อเดียวกันยังถูกจับเป็นกลุ่มเดียวกันตอนบันทึก
 // "เลือกได้หลายรายการ" ไม่มีเลขให้กรอกเอง — max_select ถูกตั้งเท่าจำนวนสมาชิกจริงของกลุ่มนั้น
 // (เท่ากับ "เลือกได้ทั้งหมด" ไปในตัว) ส่วน "เลือกได้ 1" ตั้งค่าคงที่เป็น 1 เสมอ ถ้าแถวในกลุ่ม
 // เดียวกันขัดกัน (บางแถวติ๊ก "เลือกได้ 1" บางแถวติ๊ก "หลายรายการ") ให้ "หลายรายการ" ชนะ
@@ -1095,7 +1106,7 @@ export function requiredFieldErrorKeys(state: RequiredProductFormState) {
       : null,
     state.statusSortFk === "2" &&
     state.details.some((row) =>
-      row.set_option_groups.some((group) => !group.group_name_la.trim()),
+      row.set_option_groups.some((group) => !group.size_uuid_fk),
     )
       ? "product.setChildGroupName"
       : null,
@@ -1103,8 +1114,7 @@ export function requiredFieldErrorKeys(state: RequiredProductFormState) {
     state.details.some((row) =>
       row.set_option_groups.some(
         (group) =>
-          group.taste_uuid_fks.filter((uuid) => selectedProductTasteUuids.has(uuid)).length <
-          Number(group.max_select),
+          group.sauce_uuid_fks.length < Number(group.max_select),
       ),
     )
       ? "product.setDetailTastes"
@@ -1151,12 +1161,14 @@ export function buildSaveProductPayload(
             ),
             set_option_groups: row.set_option_groups.map((group, index) => ({
               client_ref: group.id,
+              size_uuid_fk: group.size_uuid_fk,
               group_name_la: group.group_name_la.trim(),
               group_name_eng: group.group_name_eng.trim() || group.group_name_la.trim(),
               max_select: Number(group.max_select) || 1,
               taste_uuid_fks: group.taste_uuid_fks.filter((uuid) =>
                 selectedProductTasteUuids.has(uuid),
               ),
+              sauce_uuid_fks: group.sauce_uuid_fks,
               group_sort: index + 1,
             })),
           }

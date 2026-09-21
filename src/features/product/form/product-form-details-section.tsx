@@ -45,7 +45,6 @@ import {
   entityLabel,
   sizeName,
   sizeUuid,
-  tasteUuid,
 } from "./product-form-utils";
 import { ProductFormSectionHeader } from "./product-form-section-header";
 import type { ProductFormWorkflow } from "./use-product-form-workflow";
@@ -67,8 +66,21 @@ export function ProductFormDetailsSection({ form }: { form: ProductFormWorkflow 
     sizeOptions,
     setOptionOptions,
     filteredSetOptionOptions,
-    tasteOptions,
-    selectedTasteUuids,
+    sauceOptions,
+    sauceDialogOpen,
+    setSauceDialogOpen,
+    newSauceNameLa,
+    setNewSauceNameLa,
+    newSauceNameEng,
+    setNewSauceNameEng,
+    editingSauceUuid,
+    deletingSauceUuid,
+    setDeletingSauceUuid,
+    resetSauceForm,
+    editSauce,
+    saveSauceFromDialog,
+    deleteSauceFromDialog,
+    sauceSaving,
     language,
     statusSortFk,
     sizeSaving,
@@ -91,17 +103,15 @@ export function ProductFormDetailsSection({ form }: { form: ProductFormWorkflow 
     saveSetOptionFromDialog,
     deleteSetOptionFromDialog,
     openSizeDialog,
+    openSetChildOptionDialog,
   } = form;
   const detailItemLabel = statusSortFk === "2" ? t("pos.product") : t("fields.size");
   const showNoSetProductOptions = statusSortFk === "2" && !sizeOptions.length;
   const sizeSelectKey = showNoSetProductOptions ? "empty" : sizeOptions.length ? "ready" : "loading";
   const labelRowClass = "flex min-h-7 items-center justify-between gap-2";
-  const choiceGroupNames = Array.from(
-    new Set(details.flatMap((row) => row.set_choice_group_names).map((name) => name.trim()).filter(Boolean)),
-  );
-  const selectedSetTasteOptions = tasteOptions.filter((taste) =>
-    selectedTasteUuids.has(tasteUuid(taste)),
-  );
+  const sauceUuid = (sauce: (typeof sauceOptions)[number]) => String(sauce.sauce_uuid ?? "");
+  const sauceLabel = (sauce: (typeof sauceOptions)[number]) =>
+    entityLabel(sauce, "sauce_name_eng", "sauce_name_la", language, sauceUuid(sauce));
 
   return (
     <>
@@ -197,7 +207,22 @@ export function ProductFormDetailsSection({ form }: { form: ProductFormWorkflow 
                         value={row.size_uuid_fk}
                         onValueChange={(value) => {
                           if (value === NO_SET_PRODUCT_OPTION_VALUE) return;
-                          updateDetail(row.id, { size_uuid_fk: value });
+                          const selectedOption = sizeOptions.find((size) => sizeUuid(size) === value);
+                          const automaticGroupName = selectedOption
+                            ? entityLabel(
+                                selectedOption,
+                                "size_name_eng",
+                                "size_name_la",
+                                language,
+                                value,
+                              )
+                            : value;
+                          updateDetail(row.id, {
+                            size_uuid_fk: value,
+                            ...(statusSortFk === "2" && row.set_choice_group_mode !== "none"
+                              ? { set_choice_group_names: [automaticGroupName] }
+                              : {}),
+                          });
                         }}
                       >
                         <SelectTrigger className="min-w-0 flex-1">
@@ -306,6 +331,8 @@ export function ProductFormDetailsSection({ form }: { form: ProductFormWorkflow 
                         onValueChange={(value) =>
                           updateDetail(row.id, {
                             set_choice_group_mode: value as SetChoiceGroupMode,
+                            set_choice_group_names:
+                              value === "none" ? [] : [selectedSizeLabel],
                           })
                         }
                       >
@@ -322,30 +349,6 @@ export function ProductFormDetailsSection({ form }: { form: ProductFormWorkflow 
                           </SelectGroup>
                         </SelectContent>
                       </Select>
-                    </Field>
-                  ) : null}
-                  {statusSortFk === "2" && row.set_choice_group_mode !== "none" ? (
-                    <Field>
-                      <div className={labelRowClass}>
-                        <FieldLabel>{t("product.setChoiceGroupName")}</FieldLabel>
-                      </div>
-                      <Input
-                        list={`choice-group-names-${row.id}`}
-                        value={row.set_choice_group_names[0] ?? ""}
-                        autoComplete="off"
-                        placeholder={t("product.setChoiceGroupNamePlaceholder")}
-                        onChange={(event) =>
-                          updateDetail(row.id, {
-                            set_choice_group_names: event.target.value ? [event.target.value] : [],
-                          })
-                        }
-                      />
-                      <datalist id={`choice-group-names-${row.id}`}>
-                        {choiceGroupNames.map((name) => <option key={name} value={name} />)}
-                      </datalist>
-                      <FieldDescription className="text-xs">
-                        {t("product.setChoiceGroupNameHint")}
-                      </FieldDescription>
                     </Field>
                   ) : null}
                   {statusSortFk === "1" ? (
@@ -486,23 +489,77 @@ export function ProductFormDetailsSection({ form }: { form: ProductFormWorkflow 
                         </div>
                         <FieldGroup className="grid gap-3 md:grid-cols-[minmax(0,1fr)_18rem]">
                           <Field>
-                            <FieldLabel>{t("product.setChildGroupName")}</FieldLabel>
-                            <Input
-                              value={group.group_name_la}
-                              placeholder={t("product.setChildGroupNamePlaceholder")}
-                              onChange={(event) =>
+                            <div className={labelRowClass}>
+                              <FieldLabel>{t("product.setChildOption")}</FieldLabel>
+                              <Button
+                                type="button"
+                                size="xs"
+                                variant="outline"
+                                disabled={setOptionSaving}
+                                onClick={() => openSetChildOptionDialog(row.id, group.id)}
+                              >
+                                <Plus data-icon="inline-start" />
+                                {t("actions.add")}
+                              </Button>
+                            </div>
+                            <Select
+                              value={group.size_uuid_fk}
+                              onValueChange={(value) => {
+                                const selected = setOptionOptions.find(
+                                  (option) => sizeUuid(option) === value,
+                                );
+                                const nameLa = selected
+                                  ? String(selected.size_name_la ?? sizeName(selected) ?? value)
+                                  : value;
+                                const nameEng = selected
+                                  ? String(selected.size_name_eng ?? nameLa)
+                                  : nameLa;
                                 updateDetail(row.id, {
                                   set_option_groups: row.set_option_groups.map((candidate) =>
                                     candidate.id === group.id
-                                      ? { ...candidate, group_name_la: event.target.value }
+                                      ? {
+                                          ...candidate,
+                                          size_uuid_fk: value,
+                                          group_name_la: nameLa,
+                                          group_name_eng: nameEng,
+                                        }
                                       : candidate,
                                   ),
-                                })
-                              }
-                            />
+                                });
+                              }}
+                            >
+                              <SelectTrigger className="w-full">
+                                <SelectValue placeholder={t("product.selectSetChildOption")} />
+                              </SelectTrigger>
+                              <SelectContent position="popper">
+                                <SelectGroup>
+                                  {setOptionOptions.filter((option) => {
+                                    const uuid = sizeUuid(option);
+                                    return !row.set_option_groups.some(
+                                      (candidate) =>
+                                        candidate.id !== group.id &&
+                                        candidate.size_uuid_fk === uuid,
+                                    );
+                                  }).map((option) => {
+                                    const uuid = sizeUuid(option);
+                                    return (
+                                      <SelectItem key={uuid} value={uuid}>
+                                        {entityLabel(
+                                          option,
+                                          "size_name_eng",
+                                          "size_name_la",
+                                          language,
+                                          sizeName(option) || uuid,
+                                        )}
+                                      </SelectItem>
+                                    );
+                                  })}
+                                </SelectGroup>
+                              </SelectContent>
+                            </Select>
                           </Field>
                           <Field>
-                            <FieldLabel>{t("product.setDetailTasteMode")}</FieldLabel>
+                            <FieldLabel>{t("product.setSauceMaxSelect")}</FieldLabel>
                             <Select
                               value={group.max_select}
                               onValueChange={(value) =>
@@ -530,19 +587,28 @@ export function ProductFormDetailsSection({ form }: { form: ProductFormWorkflow 
                             </Select>
                           </Field>
                         </FieldGroup>
-                        {selectedSetTasteOptions.length ? (
+                        <div className="mt-3 flex items-center justify-between gap-2">
+                          <FieldLabel>{t("product.sauces")}</FieldLabel>
+                          <Button
+                            type="button"
+                            size="xs"
+                            variant="outline"
+                            onClick={() => {
+                              resetSauceForm();
+                              setSauceDialogOpen(true);
+                            }}
+                          >
+                            <Plus data-icon="inline-start" />
+                            {t("actions.add")}
+                          </Button>
+                        </div>
+                        {sauceOptions.length ? (
                           <div className="mt-3 grid gap-2 rounded-md border border-border bg-muted/10 p-2.5 sm:grid-cols-2 lg:grid-cols-3">
-                            {selectedSetTasteOptions.map((taste) => {
-                              const uuid = tasteUuid(taste);
-                              const label = entityLabel(
-                                taste,
-                                "taste_name_eng",
-                                "taste_name_la",
-                                language,
-                                uuid,
-                              );
-                              const checked = group.taste_uuid_fks.includes(uuid);
-                              const checkboxId = `set-child-taste-${row.id}-${group.id}-${uuid}`;
+                            {sauceOptions.map((sauce) => {
+                              const uuid = sauceUuid(sauce);
+                              const label = sauceLabel(sauce);
+                              const checked = group.sauce_uuid_fks.includes(uuid);
+                              const checkboxId = `set-child-sauce-${row.id}-${group.id}-${uuid}`;
                               return (
                                 <FieldLabel
                                   key={uuid}
@@ -558,9 +624,9 @@ export function ProductFormDetailsSection({ form }: { form: ProductFormWorkflow 
                                           candidate.id === group.id
                                             ? {
                                                 ...candidate,
-                                                taste_uuid_fks: value
-                                                  ? [...candidate.taste_uuid_fks, uuid]
-                                                  : candidate.taste_uuid_fks.filter((item) => item !== uuid),
+                                                sauce_uuid_fks: value
+                                                  ? [...candidate.sauce_uuid_fks, uuid]
+                                                  : candidate.sauce_uuid_fks.filter((item) => item !== uuid),
                                               }
                                             : candidate,
                                         ),
@@ -574,7 +640,7 @@ export function ProductFormDetailsSection({ form }: { form: ProductFormWorkflow 
                           </div>
                         ) : (
                           <FieldDescription className="mt-3 text-xs">
-                            {t("product.selectSetTastesFirst")}
+                            {t("product.noSauces")}
                           </FieldDescription>
                         )}
                       </div>
@@ -759,6 +825,94 @@ export function ProductFormDetailsSection({ form }: { form: ProductFormWorkflow 
         onConfirm={() => void deleteSetOptionFromDialog(deletingSetOptionUuid)}
         onOpenChange={(open) => {
           if (!open) setDeletingSetOptionUuid("");
+        }}
+      />
+      <Dialog
+        open={sauceDialogOpen}
+        onOpenChange={(open) => {
+          setSauceDialogOpen(open);
+          if (!open) resetSauceForm();
+        }}
+      >
+        <DialogContent className="max-h-[calc(100vh-2rem)] overflow-y-auto sm:max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>{t("product.manageSauces")}</DialogTitle>
+            <DialogDescription>{t("product.manageSaucesHint")}</DialogDescription>
+          </DialogHeader>
+          <FieldGroup className="grid gap-4 sm:grid-cols-2">
+            <Field>
+              <FieldLabel>{t("fields.nameLa")}</FieldLabel>
+              <Input
+                value={newSauceNameLa}
+                onChange={(event) => setNewSauceNameLa(event.target.value)}
+              />
+            </Field>
+            <Field>
+              <FieldLabel>{t("fields.nameEn")}</FieldLabel>
+              <Input
+                value={newSauceNameEng}
+                onChange={(event) => setNewSauceNameEng(event.target.value)}
+              />
+            </Field>
+          </FieldGroup>
+          <div className="flex max-h-64 flex-col gap-2 overflow-y-auto">
+            {sauceOptions.map((sauce) => (
+              <div
+                key={sauceUuid(sauce)}
+                className="flex items-center gap-2 rounded-md border border-border p-2"
+              >
+                <span className="min-w-0 flex-1 truncate text-sm font-medium">
+                  {sauceLabel(sauce)}
+                </span>
+                <Button
+                  type="button"
+                  size="icon-sm"
+                  variant="ghost"
+                  aria-label={t("actions.edit")}
+                  onClick={() => editSauce(sauce)}
+                >
+                  <Pencil />
+                </Button>
+                <Button
+                  type="button"
+                  size="icon-sm"
+                  variant="destructive"
+                  aria-label={t("actions.delete")}
+                  onClick={() => setDeletingSauceUuid(sauceUuid(sauce))}
+                >
+                  <Trash2 />
+                </Button>
+              </div>
+            ))}
+          </div>
+          <DialogFooter>
+            {editingSauceUuid ? (
+              <Button type="button" variant="outline" onClick={resetSauceForm}>
+                <RefreshCcw data-icon="inline-start" />
+                {t("actions.new")}
+              </Button>
+            ) : null}
+            <Button
+              type="button"
+              disabled={sauceSaving || !newSauceNameLa.trim()}
+              onClick={() => void saveSauceFromDialog()}
+            >
+              {sauceSaving ? <Spinner data-icon="inline-start" /> : <Save data-icon="inline-start" />}
+              {t("actions.save")}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+      <ConfirmDialog
+        open={Boolean(deletingSauceUuid)}
+        title={`${t("actions.delete")} ${t("product.sauces")}`}
+        description={t("settings.deleteConfirm")}
+        cancelLabel={t("actions.cancel")}
+        confirmLabel={t("actions.delete")}
+        confirmPending={sauceSaving}
+        onConfirm={() => void deleteSauceFromDialog(deletingSauceUuid)}
+        onOpenChange={(open) => {
+          if (!open) setDeletingSauceUuid("");
         }}
       />
     </>

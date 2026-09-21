@@ -70,6 +70,7 @@ import { useProductFormDetails } from "./use-product-form-details";
 import { useProductImageWorkflow } from "./use-product-form-image";
 import { useProductFormReferenceData } from "./use-product-form-reference-data";
 import { useProductSetOptionsWorkflow } from "./use-product-set-options-workflow";
+import { useProductSaucesWorkflow } from "./use-product-sauces-workflow";
 import { useProductTastesWorkflow } from "./use-product-tastes-workflow";
 import { useProductToppingsWorkflow } from "./use-product-toppings-workflow";
 
@@ -118,9 +119,11 @@ export function useProductFormWorkflow() {
     colors,
     createSizeForStatus,
     createTasteRow,
+    createSauceRow,
     createToppingRow,
     deleteSizeForStatus,
     deleteTasteRow,
+    deleteSauceRow,
     deleteToppingRow,
     groups,
     loadCategories,
@@ -128,6 +131,7 @@ export function useProductFormWorkflow() {
     loadSizes,
     loadSizesByStatus,
     loadTastes,
+    loadSauces,
     loadToppings,
     loadUnits,
     productLoading,
@@ -139,6 +143,8 @@ export function useProductFormWorkflow() {
     sizes,
     tasteSaving,
     tastes,
+    sauceSaving,
+    sauces,
     toppingSaving,
     toppings,
     units,
@@ -297,6 +303,32 @@ export function useProductFormWorkflow() {
     storeUuid,
     t,
     tastes,
+  });
+  const {
+    sauceOptions,
+    sauceDialogOpen,
+    setSauceDialogOpen,
+    newSauceNameLa,
+    setNewSauceNameLa,
+    newSauceNameEng,
+    setNewSauceNameEng,
+    editingSauceUuid,
+    deletingSauceUuid,
+    setDeletingSauceUuid,
+    resetSauceForm,
+    editSauce,
+    saveSauceFromDialog,
+    deleteSauceFromDialog,
+  } = useProductSaucesWorkflow({
+    createSauceRow,
+    deleteSauceRow,
+    language,
+    loadSauces,
+    sauces,
+    showToast,
+    setDetails,
+    storeUuid,
+    t,
   });
   const editLoadKeyRef = useRef("");
   const rawExistingImage = rawProductImage(editing);
@@ -982,6 +1014,21 @@ export function useProductFormWorkflow() {
     sizeSaving,
     toppingSaving,
     tasteSaving,
+    sauceSaving,
+    sauceOptions,
+    sauceDialogOpen,
+    setSauceDialogOpen,
+    newSauceNameLa,
+    setNewSauceNameLa,
+    newSauceNameEng,
+    setNewSauceNameEng,
+    editingSauceUuid,
+    deletingSauceUuid,
+    setDeletingSauceUuid,
+    resetSauceForm,
+    editSauce,
+    saveSauceFromDialog,
+    deleteSauceFromDialog,
     colors,
     submit,
     addDetail,
@@ -992,6 +1039,7 @@ export function useProductFormWorkflow() {
     saveUnitFromDialog,
     saveSizeFromDialog,
     openSizeDialog,
+    openSetChildOptionDialog: openSetOptionDialog,
     toggleTopping,
     updateToppingPrice,
     resetNewToppingForm,
