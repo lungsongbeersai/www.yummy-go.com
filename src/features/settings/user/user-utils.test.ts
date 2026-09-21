@@ -3,7 +3,6 @@ import {
   branchName,
   buildUserSaveInput,
   isProtectedUser,
-  parseBulkEmails,
   roleId,
   roleName,
   userActiveBadgeClass,
@@ -12,7 +11,8 @@ import {
   userInitials,
   userRoleOptions,
   userZoneUuids,
-  userValue
+  userValue,
+  validateBulkCredentials
 } from "@/features/settings/user/user-utils";
 import type { Role, User } from "@/services/user";
 
@@ -102,14 +102,33 @@ describe("user settings utils", () => {
     expect(editPayload.zone_uuid_fks).toEqual([]);
   });
 
-  it("parses bulk-pasted emails into valid/invalid/duplicate buckets", () => {
+  it("validates independent email and password rows for bulk creation", () => {
     expect(
-      parseBulkEmails("happy10005@gmail.com\nnot-an-email\nHAPPY10005@gmail.com\n\nmick10336@gmail.com")
+      validateBulkCredentials([
+        { email: " happy10005@gmail.com ", password: " 1111 " },
+        { email: "not-an-email", password: "2222" },
+        { email: "HAPPY10005@gmail.com", password: "3333" },
+        { email: "missing-password@gmail.com", password: "" },
+        { email: "short-password@gmail.com", password: "123" },
+        { email: "mick10336@gmail.com", password: "4444" },
+        { email: "", password: "" }
+      ])
     ).toEqual({
-      duplicates: ["HAPPY10005@gmail.com"],
-      invalidLines: ["not-an-email"],
-      valid: ["happy10005@gmail.com", "mick10336@gmail.com"]
+      duplicateEmails: ["HAPPY10005@gmail.com"],
+      incompleteRows: [4],
+      invalidEmails: ["not-an-email"],
+      invalidPasswordRows: [5],
+      valid: [
+        { email: "happy10005@gmail.com", password: "1111" },
+        { email: "mick10336@gmail.com", password: "4444" }
+      ]
     });
-    expect(parseBulkEmails("")).toEqual({ duplicates: [], invalidLines: [], valid: [] });
+    expect(validateBulkCredentials([])).toEqual({
+      duplicateEmails: [],
+      incompleteRows: [],
+      invalidEmails: [],
+      invalidPasswordRows: [],
+      valid: []
+    });
   });
 });

@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { AlertCircle, CheckCircle2, CircleDashed, UsersRound, XCircle } from "lucide-react";
+import { AlertCircle, CheckCircle2, CircleDashed, Plus, Trash2, UsersRound, XCircle } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
@@ -14,7 +14,6 @@ import { Progress } from "@/components/ui/progress";
 import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Spinner } from "@/components/ui/spinner";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Textarea } from "@/components/ui/textarea";
 import {
   SettingsDialogBody,
   SettingsDialogContent,
@@ -26,7 +25,13 @@ import { useResetOnDeps } from "@/hooks/use-reset-on-change";
 import type { Role } from "@/services/user";
 import type { Zone } from "@/services/zone";
 import { useUserStore } from "@/stores/user-store";
-import { parseBulkEmails, roleId, roleName, zoneName } from "./user-utils";
+import {
+  type BulkCredentialInput,
+  roleId,
+  roleName,
+  validateBulkCredentials,
+  zoneName
+} from "./user-utils";
 
 type BulkRowStatus = "pending" | "running" | "success" | "error";
 
@@ -35,6 +40,12 @@ interface BulkRow {
   error?: string;
   status: BulkRowStatus;
 }
+
+interface CredentialDraft extends BulkCredentialInput {
+  id: number;
+}
+
+const INITIAL_CREDENTIAL_ROWS: CredentialDraft[] = [{ email: "", id: 1, password: "" }];
 
 // สถานะแถวรายอีเมวตอนสร้างจริง — ไอคอน/สีต่อสถานะให้เข้าชุดกับ product-import-dialog.tsx
 function BulkRowStatusCell({ error, status }: { error?: string; status: BulkRowStatus }) {
@@ -91,8 +102,7 @@ export function UserBulkCreateDialog({
 }) {
   const { t } = useTranslation();
   const saveUserRow = useUserStore((state) => state.save);
-  const [emailsText, setEmailsText] = useState("");
-  const [password, setPassword] = useState("");
+  const [credentialRows, setCredentialRows] = useState<CredentialDraft[]>(INITIAL_CREDENTIAL_ROWS);
   const [selectedRoleId, setSelectedRoleId] = useState(() => String(loggedRoleId || ""));
   const [selectedZoneUuids, setSelectedZoneUuids] = useState<string[]>([]);
   const [rows, setRows] = useState<BulkRow[]>([]);
@@ -102,8 +112,7 @@ export function UserBulkCreateDialog({
   // ล้างฟอร์มทุกครั้งที่ dialog ปิด — เปิดใหม่ครั้งถัดไปจึงเริ่มว่างเสมอ
   useResetOnDeps([open], () => {
     if (open) return;
-    setEmailsText("");
-    setPassword("");
+    setCredentialRows(INITIAL_CREDENTIAL_ROWS);
     setSelectedRoleId(String(loggedRoleId || ""));
     setSelectedZoneUuids([]);
     setRows([]);
@@ -111,25 +120,55 @@ export function UserBulkCreateDialog({
     setFormError("");
   });
 
-  const parsed = useMemo(() => parseBulkEmails(emailsText), [emailsText]);
+  const validation = useMemo(() => validateBulkCredentials(credentialRows), [credentialRows]);
+  const hasCredentialInput = credentialRows.some((row) => row.email.trim() || row.password.trim());
   const hasStarted = rows.length > 0;
   const successCount = rows.filter((row) => row.status === "success").length;
   const errorCount = rows.filter((row) => row.status === "error").length;
   const pendingCount = rows.length - successCount - errorCount;
   const progressValue = rows.length ? Math.round(((successCount + errorCount) / rows.length) * 100) : 0;
-  const stoppedRow = rows.find((row) => row.status === "error");
+  const failedRow = rows.find((row) => row.status === "error");
 
   function validate(): string | null {
-    if (!parsed.valid.length && !parsed.invalidLines.length) return t("settings.userBulkEmailsRequired");
-    if (parsed.invalidLines.length) {
-      return t("settings.userBulkInvalidEmails", { emails: parsed.invalidLines.join(", ") });
+    if (!hasCredentialInput) return t("settings.userBulkEmailsRequired");
+    if (validation.incompleteRows.length) {
+      return t("settings.userBulkIncompleteRows", { rows: validation.incompleteRows.join(", ") });
     }
-    if (parsed.duplicates.length) {
-      return t("settings.userBulkDuplicateEmails", { emails: parsed.duplicates.join(", ") });
+    if (validation.invalidEmails.length) {
+      return t("settings.userBulkInvalidEmails", { emails: validation.invalidEmails.join(", ") });
     }
-    if (!password.trim()) return t("settings.passwordRequired");
+    if (validation.invalidPasswordRows.length) {
+      return t("settings.userBulkInvalidPasswordRows", { rows: validation.invalidPasswordRows.join(", ") });
+    }
+    if (validation.duplicateEmails.length) {
+      return t("settings.userBulkDuplicateEmails", { emails: validation.duplicateEmails.join(", ") });
+    }
+    if (!validation.valid.length) return t("settings.userBulkEmailsRequired");
     if (!selectedRoleId) return t("settings.createRoleFirst");
     return null;
+  }
+
+  function addCredentialRow() {
+    setCredentialRows((current) => [
+      ...current,
+      {
+        email: "",
+        id: Math.max(0, ...current.map((row) => row.id)) + 1,
+        password: ""
+      }
+    ]);
+  }
+
+  function updateCredentialRow(id: number, field: "email" | "password", value: string) {
+    setCredentialRows((current) =>
+      current.map((row) => (row.id === id ? { ...row, [field]: value } : row))
+    );
+  }
+
+  function removeCredentialRow(id: number) {
+    setCredentialRows((current) =>
+      current.length === 1 ? INITIAL_CREDENTIAL_ROWS : current.filter((row) => row.id !== id)
+    );
   }
 
   async function handleSubmit() {
@@ -140,41 +179,40 @@ export function UserBulkCreateDialog({
     }
     setFormError("");
 
-    const emails = parsed.valid;
-    setRows(emails.map((email) => ({ email, status: "pending" as const })));
+    const credentials = validation.valid;
+    setRows(credentials.map(({ email }) => ({ email, status: "pending" as const })));
     setRunning(true);
 
-    let createdAny = false;
-    for (let index = 0; index < emails.length; index += 1) {
-      setRows((prev) => prev.map((row, i) => (i === index ? { ...row, status: "running" } : row)));
-      try {
-        await saveUserRow({
-          branch_uuid_fk: branchUuid,
-          login_active: 1,
-          login_email: emails[index],
-          login_password: password.trim(),
-          roles_id_fk: Number(selectedRoleId),
-          zone_uuid_fks: selectedZoneUuids
-        });
-        createdAny = true;
-        setRows((prev) => prev.map((row, i) => (i === index ? { ...row, status: "success" } : row)));
-      } catch (error) {
-        setRows((prev) =>
-          prev.map((row, i) =>
-            i === index
-              ? { ...row, error: error instanceof Error ? error.message : t("toasts.pleaseTryAgain"), status: "error" }
-              : row
-          )
-        );
-        setRunning(false);
-        if (createdAny) onCreated();
-        return;
-      }
-    }
+    const results = await Promise.all(
+      credentials.map(async ({ email, password }, index) => {
+        setRows((prev) => prev.map((row, i) => (i === index ? { ...row, status: "running" } : row)));
+        try {
+          await saveUserRow({
+            branch_uuid_fk: branchUuid,
+            login_active: 1,
+            login_email: email,
+            login_password: password,
+            roles_id_fk: Number(selectedRoleId),
+            zone_uuid_fks: selectedZoneUuids
+          });
+          setRows((prev) => prev.map((row, i) => (i === index ? { ...row, status: "success" } : row)));
+          return true;
+        } catch (error) {
+          setRows((prev) =>
+            prev.map((row, i) =>
+              i === index
+                ? { ...row, error: error instanceof Error ? error.message : t("toasts.pleaseTryAgain"), status: "error" }
+                : row
+            )
+          );
+          return false;
+        }
+      })
+    );
 
     setRunning(false);
-    onCreated();
-    onOpenChange(false);
+    if (results.some(Boolean)) onCreated();
+    if (results.every(Boolean)) onOpenChange(false);
   }
 
   return (
@@ -187,6 +225,7 @@ export function UserBulkCreateDialog({
     >
       <SettingsDialogContent className="sm:max-w-xl">
         <SettingsDialogForm
+          noValidate
           onSubmit={(event) => {
             event.preventDefault();
             void handleSubmit();
@@ -225,14 +264,14 @@ export function UserBulkCreateDialog({
 
                 <Progress value={progressValue} />
 
-                {stoppedRow ? (
+                {failedRow ? (
                   <Alert variant="destructive">
                     <AlertCircle />
                     <AlertTitle>
                       {t("settings.userBulkStoppedTitle", { success: successCount, total: rows.length })}
                     </AlertTitle>
                     <AlertDescription>
-                      {stoppedRow.email}: {stoppedRow.error}
+                      {failedRow.email}: {failedRow.error}
                     </AlertDescription>
                   </Alert>
                 ) : null}
@@ -265,36 +304,61 @@ export function UserBulkCreateDialog({
                 <FieldSet className="gap-4 rounded-lg border border-border bg-card p-4">
                   <Field>
                     <div className="flex flex-wrap items-center justify-between gap-2">
-                      <FieldLabel htmlFor="bulk_emails">{t("settings.userBulkEmailsLabel")}</FieldLabel>
-                      {parsed.valid.length ? (
+                      <FieldLabel htmlFor="bulk_email_1">{t("settings.userBulkEmailsLabel")}</FieldLabel>
+                      {validation.valid.length ? (
                         <Badge className="border-success/30 bg-success/10 text-success">
-                          {t("settings.userBulkEmailsHint", { count: parsed.valid.length })}
+                          {t("settings.userBulkEmailsHint", { count: validation.valid.length })}
                         </Badge>
                       ) : null}
                     </div>
-                    <Textarea
-                      className="min-h-40 font-mono text-sm"
-                      disabled={running}
-                      id="bulk_emails"
-                      placeholder={t("settings.userBulkEmailsPlaceholder")}
-                      value={emailsText}
-                      onChange={(event) => setEmailsText(event.target.value)}
-                    />
+                    <div className="flex flex-col gap-2 rounded-md border border-border bg-muted/20 p-2">
+                      {credentialRows.map((row, index) => (
+                        <div
+                          key={row.id}
+                          className="grid grid-cols-1 gap-2 rounded-md border border-border bg-card p-2 sm:grid-cols-[2rem_minmax(0,1fr)_minmax(0,1fr)_2.5rem] sm:items-center"
+                        >
+                          <span className="text-center text-sm font-black text-muted-foreground">{index + 1}</span>
+                          <Input
+                            aria-label={`${t("fields.login_email")} ${index + 1}`}
+                            autoComplete="email"
+                            disabled={running}
+                            id={`bulk_email_${row.id}`}
+                            placeholder="name@gmail.com"
+                            spellCheck={false}
+                            translate="no"
+                            type="email"
+                            value={row.email}
+                            onChange={(event) => updateCredentialRow(row.id, "email", event.target.value)}
+                          />
+                          <Input
+                            aria-label={`${t("fields.login_password")} ${index + 1}`}
+                            autoComplete="new-password"
+                            disabled={running}
+                            placeholder={t("fields.login_password")}
+                            type="password"
+                            value={row.password}
+                            onChange={(event) => updateCredentialRow(row.id, "password", event.target.value)}
+                          />
+                          <Button
+                            aria-label={t("settings.userBulkRemoveRow", { row: index + 1 })}
+                            disabled={running || credentialRows.length === 1}
+                            size="icon"
+                            type="button"
+                            variant="ghost"
+                            onClick={() => removeCredentialRow(row.id)}
+                          >
+                            <Trash2 />
+                          </Button>
+                        </div>
+                      ))}
+                      <Button disabled={running} type="button" variant="outline" onClick={addCredentialRow}>
+                        <Plus data-icon="inline-start" />
+                        {t("settings.userBulkAddRow")}
+                      </Button>
+                    </div>
                   </Field>
 
                   <div className="grid gap-4 sm:grid-cols-2">
-                    <Field>
-                      <FieldLabel htmlFor="bulk_password">{t("fields.login_password")}</FieldLabel>
-                      <Input
-                        autoComplete="new-password"
-                        disabled={running}
-                        id="bulk_password"
-                        type="password"
-                        value={password}
-                        onChange={(event) => setPassword(event.target.value)}
-                      />
-                      <FieldDescription>{t("settings.userBulkPasswordHint")}</FieldDescription>
-                    </Field>
                     <Field>
                       <FieldLabel htmlFor="bulk_role">{t("fields.roles_id_fk")}</FieldLabel>
                       <Select disabled={running} value={selectedRoleId} onValueChange={setSelectedRoleId}>
@@ -375,7 +439,7 @@ export function UserBulkCreateDialog({
                 <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
                   {t("actions.cancel")}
                 </Button>
-                <Button disabled={!emailsText.trim() || !password.trim() || !selectedRoleId} type="submit">
+                <Button disabled={!hasCredentialInput || !selectedRoleId} type="submit">
                   <UsersRound data-icon="inline-start" />
                   {t("settings.userBulkSubmit")}
                 </Button>

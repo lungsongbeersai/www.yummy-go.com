@@ -83,41 +83,66 @@ export function userRoleOptions(editing: User | null, roleOptions: Role[]) {
 }
 
 const BULK_EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const BULK_PASSWORD_MIN_LENGTH = 4;
+const BULK_PASSWORD_MAX_BYTES = 72;
 
-export interface BulkEmailParseResult {
-  duplicates: string[];
-  invalidLines: string[];
-  valid: string[];
+export interface BulkCredentialInput {
+  email: string;
+  password: string;
 }
 
-// แยกอีเมวที่วางแบบหลายแถว (1 ແຖວ/ອີເມວ) ອອກເປັນລາຍການທີ່ໃຊ້ໄດ້, ລາຍການບໍ່ຖືກຮູບແບບ,
-// ແລະ ລາຍການທີ່ຊ້ຳກັນ (case-insensitive) — ໃຊ້ກວດກ່ອນສ້າງຜູ້ໃຊ້ຫຼາຍຄົນພ້ອມກັນ
-export function parseBulkEmails(raw: string): BulkEmailParseResult {
-  const lines = raw
-    .split("\n")
-    .map((line) => line.trim())
-    .filter(Boolean);
+export interface BulkCredentialValidation {
+  duplicateEmails: string[];
+  incompleteRows: number[];
+  invalidEmails: string[];
+  invalidPasswordRows: number[];
+  valid: BulkCredentialInput[];
+}
 
+// Validate each independent email/password row before starting a multi-user
+// create. Password bounds mirror Backend bcrypt validation so one bad row does
+// not interrupt the rest of a batch after requests have already started.
+export function validateBulkCredentials(rows: BulkCredentialInput[]): BulkCredentialValidation {
   const seen = new Set<string>();
-  const duplicates: string[] = [];
-  const invalidLines: string[] = [];
-  const valid: string[] = [];
+  const duplicateEmails: string[] = [];
+  const incompleteRows: number[] = [];
+  const invalidEmails: string[] = [];
+  const invalidPasswordRows: number[] = [];
+  const valid: BulkCredentialInput[] = [];
 
-  for (const line of lines) {
-    if (!BULK_EMAIL_RE.test(line)) {
-      invalidLines.push(line);
-      continue;
+  rows.forEach((row, index) => {
+    const email = row.email.trim();
+    const password = row.password.trim();
+    if (!email && !password) return;
+    if (!email || !password) {
+      incompleteRows.push(index + 1);
+      return;
     }
-    const key = line.toLowerCase();
+    if (!BULK_EMAIL_RE.test(email)) {
+      invalidEmails.push(email);
+      return;
+    }
+    const passwordBytes = new TextEncoder().encode(password).length;
+    if ([...password].length < BULK_PASSWORD_MIN_LENGTH || passwordBytes > BULK_PASSWORD_MAX_BYTES) {
+      invalidPasswordRows.push(index + 1);
+      return;
+    }
+    const key = email.toLowerCase();
     if (seen.has(key)) {
-      if (!duplicates.includes(line)) duplicates.push(line);
-      continue;
+      if (!duplicateEmails.includes(email)) duplicateEmails.push(email);
+      return;
     }
     seen.add(key);
-    valid.push(line);
-  }
+    valid.push({ email, password });
+  });
 
-  return { duplicates, invalidLines, valid };
+  return {
+    duplicateEmails,
+    incompleteRows,
+    invalidEmails,
+    invalidPasswordRows,
+    valid
+  };
 }
 
 export function buildUserSaveInput({
