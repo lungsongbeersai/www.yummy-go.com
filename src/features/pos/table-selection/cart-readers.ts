@@ -248,6 +248,21 @@ export function cartItemActionUuid(item: CartItem) {
   return optionalString(item.order_it_uuid);
 }
 
+export function cartItemActionUuids(item: CartItem) {
+  const groupedUuids = Array.isArray(item.order_it_uuids)
+    ? item.order_it_uuids.map((uuid) => optionalString(uuid)).filter(Boolean)
+    : [];
+  const fallbackUuid = cartItemActionUuid(item);
+
+  return [
+    ...new Set(
+      (groupedUuids.length ? groupedUuids : [fallbackUuid]).filter(
+        (uuid): uuid is string => Boolean(uuid),
+      ),
+    ),
+  ];
+}
+
 export function cartItemStatus(item: CartItem) {
   return optionalNumber(
     item.detail?.order_it_status,
@@ -336,10 +351,13 @@ export function newOrderConfirmGroups(orders: CartOrder[]) {
   return orders
     .map((order) => ({
       orderUuid: optionalString(order.order_uuid),
-      itemUuids: (order.items ?? [])
-        .filter(isNewOrderCartItem)
-        .map(cartItemUuid)
-        .filter((uuid): uuid is string => Boolean(uuid)),
+      itemUuids: [
+        ...new Set(
+          (order.items ?? [])
+            .filter(isNewOrderCartItem)
+            .flatMap(cartItemActionUuids),
+        ),
+      ],
     }))
     .filter(
       (group) => Boolean(group.orderUuid) && group.itemUuids.length > 0,

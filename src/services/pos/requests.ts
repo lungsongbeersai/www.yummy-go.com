@@ -155,17 +155,25 @@ export const joinTableMulti = (input: JoinTableMultiInput) =>
   apiRequest<JoinTableMultiResponse>("post", "/api/v1/posAll/join_table_multi", { data: input });
 
 export const confirmToKitchen = (input: ConfirmToKitchenInput) =>
-  apiRequest<ConfirmToKitchenResponse>("patch", "/api/v1/posAll/confirm_to_kitchen", {
-    data: {
-      order_uuid: input.order_uuid,
-      login_uuid_fk: input.login_uuid_fk,
-      lang: toApiLanguage(input.lang),
-      device_code: input.device_code,
-      agent_id: input.agent_id,
-      print_mode: input.print_mode,
-      ...(input.order_item_uuids?.length ? { order_item_uuids: input.order_item_uuids } : {})
-    }
-  });
+  apiRequest<ConfirmToKitchenResponse>(
+    "patch",
+    input.order_item_uuids?.length
+      ? "/api/v1/posAll/confirm_to_kitchen_batch"
+      : "/api/v1/posAll/confirm_to_kitchen",
+    {
+      data: {
+        order_uuid: input.order_uuid,
+        login_uuid_fk: input.login_uuid_fk,
+        lang: toApiLanguage(input.lang),
+        device_code: input.device_code,
+        agent_id: input.agent_id,
+        print_mode: input.print_mode,
+        ...(input.order_item_uuids?.length
+          ? { order_item_uuids: input.order_item_uuids }
+          : {}),
+      },
+    },
+  );
 
 // เอกสารพิมพ์ครัวซ้ำ — คนละ endpoint/method จาก confirm_to_kitchen (POST ไม่ใช่
 // PATCH) เพราะไม่ apply สถานะ/ตัด stock ซ้ำ แค่ยิงรายการที่ยืนยันแล้วเข้าคิวพิมพ์ใหม่

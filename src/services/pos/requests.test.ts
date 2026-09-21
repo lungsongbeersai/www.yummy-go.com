@@ -406,7 +406,7 @@ describe("pos requests", () => {
       print_mode: "agent"
     });
 
-    expect(apiMocks.apiRequest).toHaveBeenCalledWith("patch", "/api/v1/posAll/confirm_to_kitchen", {
+    expect(apiMocks.apiRequest).toHaveBeenCalledWith("patch", "/api/v1/posAll/confirm_to_kitchen_batch", {
       data: {
         order_uuid: "order-1",
         login_uuid_fk: "login-1",
@@ -614,7 +614,7 @@ describe("pos requests", () => {
       print_mode: "mobile_wifi"
     });
 
-    expect(apiMocks.apiRequest).toHaveBeenCalledWith("patch", "/api/v1/posAll/confirm_to_kitchen", {
+    expect(apiMocks.apiRequest).toHaveBeenCalledWith("patch", "/api/v1/posAll/confirm_to_kitchen_batch", {
       data: {
         order_uuid: "order-1",
         login_uuid_fk: "login-1",

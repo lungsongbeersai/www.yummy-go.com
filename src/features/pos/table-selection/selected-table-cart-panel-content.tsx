@@ -450,11 +450,15 @@ export function SelectedTableCartPanelContent({
       />
       <CartQuantityDialog
         item={
-          workflow.itemActionTarget?.action === "cancel"
+          workflow.itemActionTarget?.action === "cancel" &&
+          !workflow.actionTargetIsSet
             ? workflow.itemActionTarget.item
             : null
         }
-        open={workflow.itemActionTarget?.action === "cancel"}
+        open={
+          workflow.itemActionTarget?.action === "cancel" &&
+          !workflow.actionTargetIsSet
+        }
         pending={Boolean(workflow.actingItemUuid)}
         purpose="cancel"
         onOpenChange={(nextOpen) => {
@@ -462,6 +466,23 @@ export function SelectedTableCartPanelContent({
           if (!nextOpen) workflow.setItemActionTarget(null);
         }}
         onSubmit={(qty) => void workflow.confirmItemAction(qty)}
+      />
+      <ConfirmDialog
+        cancelLabel={t("actions.cancel")}
+        confirmDisabled={!workflow.actionTargetUuid}
+        confirmLabel={t("pos.cancelItem")}
+        confirmPending={Boolean(workflow.actingItemUuid)}
+        description={t("pos.cancelItemConfirm")}
+        open={
+          workflow.itemActionTarget?.action === "cancel" &&
+          workflow.actionTargetIsSet
+        }
+        title={t("pos.cancelItem")}
+        onConfirm={() => void workflow.confirmItemAction()}
+        onOpenChange={(nextOpen) => {
+          if (workflow.actingItemUuid) return;
+          if (!nextOpen) workflow.setItemActionTarget(null);
+        }}
       />
       <CartNoteDialog
         note={workflow.noteDraft}

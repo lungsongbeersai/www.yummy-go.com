@@ -182,6 +182,42 @@ describe("table selection utils", () => {
     ]);
   });
 
+  // ยืนยันออเดอร์ต้องส่งรายการใหม่ทั้งหมดของบิลเดียวกันเป็น order_item_uuids
+  // ก้อนเดียว (ดู confirmNewOrder ใน use-selected-table-cart-panel-workflow.ts) —
+  // กดครั้งเดียวต้องได้ 1 group ต่อ order ไม่ว่าจะมีกี่รายการย่อยอยู่ในนั้น ไม่ใช่
+  // 1 group ต่อ 1 รายการ (ซึ่งจะบังคับให้กดยืนยันทีละรายการ)
+  it("collapses every new item of the same order into a single confirm group", () => {
+    const manyNewItems = Array.from({ length: 10 }, (_, index) => ({
+      order_it_uuid: `new-item-${index}`,
+      detail: { order_it_status: 1, net_total: 10000 },
+    })) as CartItem[];
+    const cart = cartOrder({ items: manyNewItems, totals: undefined });
+
+    const groups = newOrderConfirmGroups([cart]);
+
+    expect(groups).toHaveLength(1);
+    expect(groups[0].orderUuid).toBe("order-1");
+    expect(groups[0].itemUuids).toEqual(
+      manyNewItems.map((item) => item.order_it_uuid),
+    );
+  });
+
+  it("expands one visible SET row into all child UUIDs in the same batch", () => {
+    const setItem = {
+      order_it_uuid: "set-child-1",
+      order_it_uuids: ["set-child-1", "set-child-2", "set-child-3"],
+      set_instance_uuid: "50000000-0000-4000-8000-000000000001",
+      detail: { order_it_status: 1, net_total: 10000 },
+    } as CartItem;
+
+    expect(newOrderConfirmGroups([
+      cartOrder({ items: [setItem], totals: undefined }),
+    ])).toEqual([{
+      orderUuid: "order-1",
+      itemUuids: ["set-child-1", "set-child-2", "set-child-3"],
+    }]);
+  });
+
   it("keeps waiting items at the bottom of the new order tab", () => {
     const waitingItem = {
       order_it_uuid: "waiting",

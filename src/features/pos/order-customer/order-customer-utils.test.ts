@@ -729,6 +729,7 @@ describe("order customer helpers", () => {
       noteText: " cold ",
       product: setProduct,
       quantity: 3,
+      setInstanceUuid: "50000000-0000-4000-8000-000000000001",
       toppings: [{ topping: topping(), qty: 1 }],
     });
 
@@ -736,6 +737,7 @@ describe("order customer helpers", () => {
     expect(items).toEqual([
       {
         prod_detail_uuid_fk: "beer",
+        set_instance_uuid: "50000000-0000-4000-8000-000000000001",
         order_it_qty: 6,
         order_it_status: 1,
         order_it_note: "cold",
@@ -743,11 +745,42 @@ describe("order customer helpers", () => {
       },
       {
         prod_detail_uuid_fk: "ice",
+        set_instance_uuid: "50000000-0000-4000-8000-000000000001",
         order_it_qty: 6,
         order_it_status: 1,
         order_it_note: "cold",
       },
     ]);
+  });
+
+  it("assigns one SET instance UUID to every child without reusing another instance", () => {
+    const setProduct: ProdItem = {
+      ...normalizeProdItem(null, product({ statusSortFk: ProductSortStatus.SET })),
+      prodSetPrice: 220000,
+      details: [
+        detail({ proDetailUuid: "set-child-1", price: 0, proDetailSprice: 0 }),
+        detail({ proDetailUuid: "set-child-2", price: 0, proDetailSprice: 0 }),
+      ],
+    };
+    const build = (setInstanceUuid: string) => buildStaffOrderItems({
+      detail: setProduct.details[0],
+      mode: "set",
+      noteText: "",
+      product: setProduct,
+      quantity: 1,
+      setInstanceUuid,
+      toppings: [],
+    });
+
+    const first = build("50000000-0000-4000-8000-000000000001");
+    const second = build("50000000-0000-4000-8000-000000000002");
+
+    expect(new Set(first.map((item) => item.set_instance_uuid))).toEqual(
+      new Set(["50000000-0000-4000-8000-000000000001"]),
+    );
+    expect(new Set(second.map((item) => item.set_instance_uuid))).toEqual(
+      new Set(["50000000-0000-4000-8000-000000000002"]),
+    );
   });
 
   it("keeps a set's ungrouped items always included and groups its choice alternatives", () => {

@@ -36,6 +36,7 @@ import {
   cartDisplaySummary,
   cartItemsQty,
   cartItemActionUuid,
+  cartItemActionUuids,
   cartItemDiscountMaxAmount,
   cartItemQty,
   cartItemUuid,
@@ -260,6 +261,7 @@ export function useSelectedTableCartPanelWorkflow({
   const actionTargetUuid = itemActionTarget
     ? cartItemActionUuid(itemActionTarget.item)
     : null;
+  const actionTargetIsSet = Boolean(itemActionTarget?.item.set_instance_uuid);
   const cartActionsLocked = Boolean(
     !hasSelectedTable ||
     updatingItemUuid ||
@@ -731,7 +733,7 @@ export function useSelectedTableCartPanelWorkflow({
       const response = await confirmKitchen({
         order_uuid: orderUuid,
         login_uuid_fk: user.uuid,
-        order_item_uuids: [itemUuid],
+        order_item_uuids: cartItemActionUuids(item),
         device_code: activePrinterContext?.device_code,
         agent_id: activePrinterContext?.agent_id,
         print_mode: activePrinterContext?.print_mode,
@@ -845,7 +847,7 @@ export function useSelectedTableCartPanelWorkflow({
       const response = await reconfirmKitchen({
         order_uuid: orderUuid,
         login_uuid_fk: user.uuid,
-        order_item_uuids: [itemUuid],
+        order_item_uuids: cartItemActionUuids(item),
         device_code: activePrinterContext?.device_code,
         agent_id: activePrinterContext?.agent_id,
         print_mode: activePrinterContext?.print_mode,
@@ -874,18 +876,20 @@ export function useSelectedTableCartPanelWorkflow({
         await deleteItem(actionTargetUuid);
       } else {
         const availableQuantity = cartItemQty(itemActionTarget.item);
-        if (
+        if (!actionTargetIsSet && (
           !Number.isInteger(cancelQuantity) ||
           Number(cancelQuantity) < 1 ||
           Number(cancelQuantity) > availableQuantity
-        ) {
+        )) {
           throw new Error(
             t("pos.cancelItemQuantityHelp", { max: availableQuantity }),
           );
         }
         const response = await cancelItem({
           order_it_uuid: actionTargetUuid,
-          order_it_qty: Number(cancelQuantity),
+          ...(actionTargetIsSet
+            ? {}
+            : { order_it_qty: Number(cancelQuantity) }),
           login_uuid_fk: user?.uuid,
         });
         cancelPrintResult = await executeCancelReceiptPrint(response, user?.uuid ?? "", activePrinterContext);
@@ -1209,6 +1213,7 @@ export function useSelectedTableCartPanelWorkflow({
   }
 
   return {
+    actionTargetIsSet,
     actionTargetUuid,
     activeTab,
     actingItemUuid,

@@ -260,6 +260,7 @@ export interface CreateOrderTaste {
 
 export interface CreateOrderItem extends ApiEntity {
   prod_detail_uuid_fk: string;
+  set_instance_uuid?: string;
   order_it_qty: number;
   order_it_status: number;
   order_it_note?: string;
@@ -415,6 +416,9 @@ export interface CartItemDetail extends ApiEntity {
 export interface CartItem extends ApiEntity {
   order_item_uuid?: string;
   order_it_uuid?: string;
+  order_it_uuids?: string[];
+  order_it_statuses?: number[];
+  set_instance_uuid?: string | null;
   prod_uuid?: string;
   prod_uuid_fk?: string;
   pro_detail_uuid?: string;
