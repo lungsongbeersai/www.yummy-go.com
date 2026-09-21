@@ -150,7 +150,11 @@
     "saleDate": "Sale date",
     "totalAmount": "Total amount",
     "productName": "Product",
-    "unitPrice": "Unit price"
+    "unitPrice": "Unit price",
+    "rank": "No.",
+    "employeeCount": "Employees",
+    "percentOfTotal": "% of total sales",
+    "averagePerBill": "Average per bill"
   },
   "actions": {
     "add": "Add",
@@ -1982,7 +1986,8 @@
         "netSale": "Net Sale",
         "serviceCharge": "Service Charge",
         "vat": "VAT",
-        "grandTotal": "Grand Total"
+        "grandTotal": "Grand Total",
+        "rank": "No."
       }
     },
     "zoneSales": {
@@ -2001,7 +2006,8 @@
         "netSale": "Net Sale",
         "serviceCharge": "Service Charge",
         "vat": "VAT",
-        "grandTotal": "Grand Total"
+        "grandTotal": "Grand Total",
+        "rank": "No."
       }
     },
     "offlineSync": {

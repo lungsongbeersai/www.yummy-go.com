@@ -1,8 +1,11 @@
 "use client";
 
 import { useTranslation } from "react-i18next";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Table, TableBody, TableCell, TableFooter, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { money } from "@/lib/format";
+import { cn } from "@/lib/utils";
+import { ReportIndeterminateCheckbox, selectionStateForVisibleIds } from "@/features/report/shared/report-row-selection";
 import type { ZoneSalesRow, ZoneSalesSummary } from "@/services/report";
 import { zoneOptionLabel } from "./zone-sales-utils";
 
@@ -10,18 +13,36 @@ export function ZoneSalesTable({
   rows,
   summary,
   language,
+  selectedRowIds,
+  onToggleRow,
+  onToggleRows,
 }: {
   rows: ZoneSalesRow[];
   summary: ZoneSalesSummary;
   language: string;
+  selectedRowIds: Set<string>;
+  onToggleRow: (row: ZoneSalesRow, selected: boolean) => void;
+  onToggleRows: (rows: ZoneSalesRow[], selected: boolean) => void;
 }) {
   const { t } = useTranslation();
+  const { allVisibleSelected, someVisibleSelected } = selectionStateForVisibleIds(
+    rows.map(row => row.zone_uuid),
+    selectedRowIds,
+  );
 
   return (
     <div className="hidden shrink-0 overflow-hidden rounded-lg border bg-card md:block">
       <Table>
         <TableHeader>
           <TableRow>
+            <TableHead className="w-10 text-center">
+              <ReportIndeterminateCheckbox
+                aria-label={t("common.selectAll")}
+                checked={allVisibleSelected}
+                indeterminate={!allVisibleSelected && someVisibleSelected}
+                onCheckedChange={checked => onToggleRows(rows, checked as boolean)}
+              />
+            </TableHead>
             <TableHead>{t("report.zoneSales.zone")}</TableHead>
             <TableHead className="text-right">{t("report.zoneSales.columns.billCount")}</TableHead>
             <TableHead className="text-right">{t("report.zoneSales.columns.customerCount")}</TableHead>
@@ -34,7 +55,17 @@ export function ZoneSalesTable({
         </TableHeader>
         <TableBody>
           {rows.map(row => (
-            <TableRow key={row.zone_uuid}>
+            <TableRow
+              key={row.zone_uuid}
+              className={cn(selectedRowIds.has(row.zone_uuid) && "bg-primary/5 hover:bg-primary/10")}
+            >
+              <TableCell className="w-10 text-center">
+                <Checkbox
+                  aria-label={t("common.selectRow", { name: zoneOptionLabel(row, language) })}
+                  checked={selectedRowIds.has(row.zone_uuid)}
+                  onCheckedChange={checked => onToggleRow(row, checked as boolean)}
+                />
+              </TableCell>
               <TableCell className="font-medium">{zoneOptionLabel(row, language)}</TableCell>
               <TableCell className="text-right tabular-nums">{row.bill_count}</TableCell>
               <TableCell className="text-right tabular-nums">{row.customer_count}</TableCell>
@@ -48,6 +79,7 @@ export function ZoneSalesTable({
         </TableBody>
         <TableFooter>
           <TableRow>
+            <TableCell />
             <TableCell className="font-semibold">{t("common.total")}</TableCell>
             <TableCell className="text-right font-semibold tabular-nums">{summary.bill_count}</TableCell>
             <TableCell className="text-right font-semibold tabular-nums">{summary.customer_count}</TableCell>
@@ -66,17 +98,34 @@ export function ZoneSalesTable({
 export function ZoneSalesRowCard({
   rows,
   language,
+  selectedRowIds,
+  onToggleRow,
 }: {
   rows: ZoneSalesRow[];
   language: string;
+  selectedRowIds: Set<string>;
+  onToggleRow: (row: ZoneSalesRow, selected: boolean) => void;
 }) {
   const { t } = useTranslation();
 
   return (
     <div className="flex flex-col gap-2 md:hidden">
       {rows.map(row => (
-        <div key={row.zone_uuid} className="min-h-10 rounded-lg border bg-card px-4 py-3">
-          <p className="truncate font-medium">{zoneOptionLabel(row, language)}</p>
+        <div
+          key={row.zone_uuid}
+          className={cn(
+            "min-h-10 rounded-lg border bg-card px-4 py-3",
+            selectedRowIds.has(row.zone_uuid) && "bg-primary/5",
+          )}
+        >
+          <div className="flex items-center gap-2">
+            <Checkbox
+              aria-label={t("common.selectRow", { name: zoneOptionLabel(row, language) })}
+              checked={selectedRowIds.has(row.zone_uuid)}
+              onCheckedChange={checked => onToggleRow(row, checked as boolean)}
+            />
+            <p className="truncate font-medium">{zoneOptionLabel(row, language)}</p>
+          </div>
           <div className="mt-2 grid grid-cols-2 gap-x-3 gap-y-1 text-sm">
             <p className="text-muted-foreground">{t("report.zoneSales.columns.billCount")}: <span className="text-foreground">{row.bill_count}</span></p>
             <p className="text-muted-foreground">{t("report.zoneSales.columns.customerCount")}: <span className="text-foreground">{row.customer_count}</span></p>

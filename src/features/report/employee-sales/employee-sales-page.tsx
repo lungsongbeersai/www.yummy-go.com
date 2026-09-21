@@ -1,22 +1,30 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { AppPagination } from "@/components/common/app-pagination";
-import { EmptyState } from "@/components/common/empty-state";
 import { PAGE_LIMIT_OPTIONS, pageLimitSize, pageRange, pageTotalPages } from "@/lib/pagination";
 import { ReportPageShell } from "@/features/report/shared/report-page-shell";
+import { useReportRowSelection } from "@/features/report/shared/report-row-selection";
+import { ReportTableCard } from "@/features/report/shared/report-table-card";
 import { useReportBranchSelection } from "@/features/report/shared/use-report-branch-selection";
-import { businessDateInputValue, money } from "@/lib/format";
+import { businessDateInputValue } from "@/lib/format";
 import { authStoreUuid, useAuthStore } from "@/stores/auth-store";
 import { useEmployeeSalesReportStore } from "@/stores/report-store";
+import type { EmployeeSalesRow } from "@/services/report";
 import { EmployeeSalesDetailSheet } from "./employee-sales-detail-sheet";
+import { emptyEmployeeSalesSummary, employeeSalesRowId } from "./employee-sales-report-excel";
+import { EmployeeSalesExportSurface } from "./employee-sales-report-components";
 import { EmployeeSalesFilterBar, EmployeeSalesFilterSheet, type EmployeeSalesDraft } from "./employee-sales-filter-sheet";
 import { EmployeeSalesRowCard } from "./employee-sales-row-card";
 import { EmployeeSalesSkeleton } from "./employee-sales-skeleton";
 import { EmployeeSalesTable } from "./employee-sales-table";
+import { useEmployeeSalesReportExport } from "./use-employee-sales-report-export";
 
 const SUMMARY_ID = "employee-sales-summary";
+// อ้างอิงเดิมทุกครั้งตอนยังไม่มีข้อมูล — ป้องกัน useReportRowSelection มองว่า "rows" เปลี่ยนทุก
+// render (อาร์เรย์ [] ใหม่ทุกครั้ง) แล้ว reset ค่าเลือกไว้วนไม่รู้จบ (useResetOnChange เทียบด้วย reference)
+const EMPTY_ROWS: EmployeeSalesRow[] = [];
 
 export function EmployeeSalesPage() {
   const user = useAuthStore(state => state.user);
@@ -34,6 +42,7 @@ function EmployeeSalesReport() {
   const language = i18n.language;
   const scope = useReportBranchSelection();
   const { load, reset, loading, error, report } = useEmployeeSalesReportStore();
+  const exportReportRef = useRef<HTMLDivElement>(null);
   const today = businessDateInputValue();
   const [draft, setDraft] = useState<EmployeeSalesDraft>(() => ({
     branchUuid: scope.defaultBranchUuid, loginUuid: "", dateFrom: today, dateTo: today,
@@ -61,7 +70,7 @@ function EmployeeSalesReport() {
 
   const current = report?.filters.branch_uuid_fk === branchUuid &&
     report.filters.date_from === applied.dateFrom && report.filters.date_to === applied.dateTo ? report : null;
-  const rows = current?.user_reports ?? [];
+  const rows = current?.user_reports ?? EMPTY_ROWS;
   // จำนวนแถวมาจากการโหลดทั้งหมดในครั้งเดียว (API ไม่รองรับ page/limit) จึงแบ่งหน้าฝั่งเว็บเอง
   const pageSize = pageLimitSize(applied.limit, rows.length);
   const totalPages = pageTotalPages(0, rows.length, pageSize);
@@ -69,6 +78,28 @@ function EmployeeSalesReport() {
   const pagedRows = rows.slice(pageStart, pageStart + pageSize);
   const range = pageRange(pagedRows.length, page, pageSize);
   const selected = current?.user_reports.find(row => row.login_uuid === selectedId) ?? null;
+  const reportTitle = t("employeeSales.title");
+  const branchLabel = scope.branchLabelFor(branchUuid);
+  const rowSelection = useReportRowSelection({ getRowId: employeeSalesRowId, rows });
+  const exportHook = useEmployeeSalesReportExport({
+    branchLabel,
+    branchUuid,
+    current,
+    dateFrom: applied.dateFrom,
+    dateTo: applied.dateTo,
+    exportReportRef,
+    loading,
+    orderBy: applied.orderBy,
+    reportTitle,
+    selectedCount: rowSelection.selectedCount,
+    selectedRowIds: rowSelection.selectedRowIds,
+  });
+  const exportTitle =
+    exportHook.exporting === "excel"
+      ? t("report.exportingExcel")
+      : exportHook.exporting === "pdf"
+        ? t("report.exportingPdf")
+        : t("report.preparingPrint");
 
   function apply() {
     if (!valid) return;
@@ -101,8 +132,8 @@ function EmployeeSalesReport() {
         dateFrom={applied.dateFrom}
         dateTo={applied.dateTo}
         loading={loading}
-        exporting={false}
-        exportingTitle=""
+        exporting={Boolean(exportHook.exporting)}
+        exportingTitle={exportTitle}
         errors={[
           !branchUuid ? t("report.branchRequired") : null,
           scope.branchError,
@@ -131,31 +162,64 @@ function EmployeeSalesReport() {
         summaryCardsId={SUMMARY_ID}
         summaryVisible={summaryVisible}
         onToggleSummary={() => setSummaryVisible(visible => !visible)}
-        summary={
-          current ? (
-            <p className="text-sm text-muted-foreground">
-              {t("employeeSales.summaryLine", { employeeCount: current.summary.employee_count, billCount: current.summary.bill_count })}
-              {" · "}{t("employeeSales.grandTotal")}: {money(current.summary.grand_total)}
-            </p>
-          ) : null
-        }
+        summary={null}
         onOpenFilters={() => setMobileFilterOpen(true)}
         onRefresh={refresh}
         table={
-          <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-auto p-3 md:p-4">
-            {loading ? <EmployeeSalesSkeleton /> : current ? <>
-              {pagedRows.length ? <>
-                <EmployeeSalesTable rows={pagedRows} onSelect={setSelectedId} />
-                <EmployeeSalesRowCard rows={pagedRows} onSelect={setSelectedId} />
-                <AppPagination
-                  page={page}
-                  totalPages={totalPages}
-                  rangeLabel={t("common.showingRange", { start: range.start, end: range.end, total: rows.length })}
-                  onPageChange={setPage}
-                />
-              </> : <EmptyState title={t("employeeSales.empty")} description={t("employeeSales.emptyDescription")} />}
-            </> : null}
-          </div>
+          <ReportTableCard
+            cardClassName="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden rounded-none border-x-0 border-b-0 border-border bg-card shadow-none"
+            contentClassName="flex min-h-0 flex-1 flex-col p-0"
+            contentWrapperClassName="flex min-h-0 flex-1 flex-col gap-3 overflow-auto p-3 md:p-4"
+            headerVariant="compact"
+            title={reportTitle}
+            skeletonMode="whenEmpty"
+            renderLoading={() => <EmployeeSalesSkeleton />}
+            emptyTitle={t("employeeSales.empty")}
+            emptyDescription={t("employeeSales.emptyDescription")}
+            loading={loading}
+            rowsLength={pagedRows.length}
+            selectedCount={rowSelection.selectedCount}
+            exportDisabled={exportHook.exportDisabled}
+            exporting={exportHook.exporting}
+            footer={
+              <AppPagination
+                page={page}
+                totalPages={totalPages}
+                rangeLabel={t("common.showingRange", { start: range.start, end: range.end, total: rows.length })}
+                onPageChange={setPage}
+              />
+            }
+            onClearSelection={rowSelection.clearSelection}
+            onExportExcel={() => void exportHook.exportExcel()}
+            onExportPdf={() => void exportHook.exportPdf()}
+            onExportPrint={() => void exportHook.printReport()}
+          >
+            <EmployeeSalesTable
+              rows={pagedRows}
+              selectedRowIds={rowSelection.selectedRowIds}
+              onSelect={setSelectedId}
+              onToggleRow={rowSelection.toggleRow}
+              onToggleRows={rowSelection.toggleRows}
+            />
+            <EmployeeSalesRowCard
+              rows={pagedRows}
+              selectedRowIds={rowSelection.selectedRowIds}
+              onSelect={setSelectedId}
+              onToggleRow={rowSelection.toggleRow}
+            />
+          </ReportTableCard>
+        }
+        exportSurface={
+          exportHook.exporting === "pdf" || exportHook.exporting === "print" ? (
+            <EmployeeSalesExportSurface
+              containerRef={exportReportRef}
+              dateRange={`${t("report.reportDate")}: ${applied.dateFrom} - ${applied.dateTo}`}
+              rows={exportHook.exportData?.rows ?? current?.user_reports ?? []}
+              showSummary={summaryVisible}
+              summary={exportHook.exportData?.summary ?? current?.summary ?? emptyEmployeeSalesSummary}
+              title={exportHook.exportData?.reportName || reportTitle}
+            />
+          ) : undefined
         }
       />
 
