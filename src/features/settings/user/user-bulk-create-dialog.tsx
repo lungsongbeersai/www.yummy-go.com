@@ -23,8 +23,11 @@ import {
 } from "@/features/settings/shared/settings-shell";
 import { useResetOnDeps } from "@/hooks/use-reset-on-change";
 import type { Role } from "@/services/user";
+import type { Zone } from "@/services/zone";
 import { useUserStore } from "@/stores/user-store";
-import { parseBulkEmails, roleId, roleName } from "./user-utils";
+import { parseBulkEmails, roleId, roleName, zoneName } from "./user-utils";
+
+const ALL_ZONES_VALUE = "__all_zones__";
 
 type BulkRowStatus = "pending" | "running" | "success" | "error";
 
@@ -76,7 +79,8 @@ export function UserBulkCreateDialog({
   onCreated,
   onOpenChange,
   open,
-  roleOptions
+  roleOptions,
+  zoneOptions
 }: {
   branchUuid: string;
   loggedRoleId: number;
@@ -84,12 +88,14 @@ export function UserBulkCreateDialog({
   onOpenChange: (open: boolean) => void;
   open: boolean;
   roleOptions: Role[];
+  zoneOptions: Zone[];
 }) {
   const { t } = useTranslation();
   const saveUserRow = useUserStore((state) => state.save);
   const [emailsText, setEmailsText] = useState("");
   const [password, setPassword] = useState("");
   const [selectedRoleId, setSelectedRoleId] = useState(() => String(loggedRoleId || ""));
+  const [selectedZoneUuid, setSelectedZoneUuid] = useState(ALL_ZONES_VALUE);
   const [rows, setRows] = useState<BulkRow[]>([]);
   const [running, setRunning] = useState(false);
   const [formError, setFormError] = useState("");
@@ -100,6 +106,7 @@ export function UserBulkCreateDialog({
     setEmailsText("");
     setPassword("");
     setSelectedRoleId(String(loggedRoleId || ""));
+    setSelectedZoneUuid(ALL_ZONES_VALUE);
     setRows([]);
     setRunning(false);
     setFormError("");
@@ -147,7 +154,8 @@ export function UserBulkCreateDialog({
           login_active: 1,
           login_email: emails[index],
           login_password: password.trim(),
-          roles_id_fk: Number(selectedRoleId)
+          roles_id_fk: Number(selectedRoleId),
+          zone_uuid_fk: selectedZoneUuid === ALL_ZONES_VALUE ? "" : selectedZoneUuid
         });
         createdAny = true;
         setRows((prev) => prev.map((row, i) => (i === index ? { ...row, status: "success" } : row)));
@@ -308,6 +316,25 @@ export function UserBulkCreateDialog({
                           </SelectGroup>
                         </SelectContent>
                       </Select>
+                    </Field>
+                    <Field>
+                      <FieldLabel htmlFor="bulk_zone">{t("nav.zone")}</FieldLabel>
+                      <Select disabled={running} value={selectedZoneUuid} onValueChange={setSelectedZoneUuid}>
+                        <SelectTrigger id="bulk_zone" className="w-full">
+                          <SelectValue placeholder={t("settings.allZones")} />
+                        </SelectTrigger>
+                        <SelectContent position="popper">
+                          <SelectGroup>
+                            <SelectItem value={ALL_ZONES_VALUE}>{t("settings.allZones")}</SelectItem>
+                            {zoneOptions.map((zone) => (
+                              <SelectItem key={zone.zone_uuid} value={zone.zone_uuid}>
+                                {zoneName(zone)}
+                              </SelectItem>
+                            ))}
+                          </SelectGroup>
+                        </SelectContent>
+                      </Select>
+                      <FieldDescription>{t("settings.userZoneHint")}</FieldDescription>
                     </Field>
                   </div>
 

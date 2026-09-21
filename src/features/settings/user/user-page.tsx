@@ -22,6 +22,7 @@ import { PAGE_LIMIT_OPTIONS } from "@/lib/pagination";
 import type { ChangePasswordValues } from "@/lib/password";
 import type { UrlPaginationState } from "@/lib/url-pagination";
 import type { FetchUsersParams, Role, SaveUserInput, User } from "@/services/user";
+import type { Zone } from "@/services/zone";
 import type { SortOrder } from "@/services/shared/types";
 import { useReferenceStore } from "@/stores/reference-store";
 import { useUserStore } from "@/stores/user-store";
@@ -43,6 +44,7 @@ const ORDER_OPTIONS: Array<{ labelKey: "asc" | "desc"; value: SortOrder }> = [
 ];
 
 const EMPTY_ROLES: Role[] = [];
+const EMPTY_ZONES: Zone[] = [];
 
 export function UserSettingsPage({ initialPagination }: { initialPagination: UrlPaginationState }) {
   const { t } = useTranslation();
@@ -50,10 +52,12 @@ export function UserSettingsPage({ initialPagination }: { initialPagination: Url
   // the offline transport, so the Add button goes away rather than failing.
   const readOnly = useOfflineReadOnly();
   const loadRoles = useReferenceStore((state) => state.loadRoles);
+  const loadZones = useReferenceStore((state) => state.loadZones);
   const userProfileUrl = useReferenceStore((state) => state.userProfileUrl);
   const changePassword = useReferenceStore((state) => state.changePassword);
   const changingPassword = useReferenceStore((state) => Boolean(state.loadingKeys.password));
   const [fetchedRoles, setFetchedRoles] = useState<Role[]>([]);
+  const [fetchedZones, setFetchedZones] = useState<Zone[]>([]);
   const [selectedProfileImage, setSelectedProfileImage] = useState<File | null>(null);
   const [crop, setCrop] = useState<CropState>(DEFAULT_CROP);
   const [passwordDialogOpen, setPasswordDialogOpen] = useState(false);
@@ -108,7 +112,8 @@ export function UserSettingsPage({ initialPagination }: { initialPagination: Url
         email: String(formData.get("login_email") ?? ""),
         password: String(formData.get("login_password") ?? "").trim(),
         profile: formData.get("login_profile"),
-        selectedRoleId: String(formData.get("roles_id_fk") ?? "").trim()
+        selectedRoleId: String(formData.get("roles_id_fk") ?? "").trim(),
+        zoneUuid: String(formData.get("zone_uuid_fk") ?? "").trim()
       }),
     idKey: "login_uuid",
     initialOrderBy: "asc",
@@ -136,6 +141,7 @@ export function UserSettingsPage({ initialPagination }: { initialPagination: Url
   const loggedRoleId = Number(user?.status ?? 0);
   // ยังไม่มีสิทธิ์ที่อ้างอิง = ไม่มีตัวเลือก แต่คงค่าที่โหลดไว้ไม่ให้รายการกะพริบตอนสลับ
   const roles = loggedRoleId ? fetchedRoles : EMPTY_ROLES;
+  const zones = branchUuid ? fetchedZones : EMPTY_ZONES;
 
   useEffect(() => {
     if (!loggedRoleId) return;
@@ -157,6 +163,27 @@ export function UserSettingsPage({ initialPagination }: { initialPagination: Url
       active = false;
     };
   }, [language, loadRoles, loggedRoleId, showToast, t]);
+
+  useEffect(() => {
+    if (!branchUuid) return;
+
+    let active = true;
+    loadZones(language, branchUuid)
+      .then((nextZones) => {
+        if (active) setFetchedZones(nextZones);
+      })
+      .catch((error) => {
+        showToast({
+          title: t("settings.loadFailed", { title: t("nav.zone") }),
+          description: error instanceof Error ? error.message : t("toasts.pleaseTryAgain"),
+          tone: "error"
+        });
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [branchUuid, language, loadZones, showToast, t]);
 
   // เปิด/ปิด dialog หรือสลับผู้ใช้ที่แก้ไข = ล้างรูปที่เลือกและกรอบครอปค้างไว้
   useResetOnDeps([dialogOpen, editing], () => {
@@ -315,6 +342,7 @@ export function UserSettingsPage({ initialPagination }: { initialPagination: Url
         saving={saving}
         selectedProfileImage={selectedProfileImage}
         title={title}
+        zoneOptions={zones}
         onCropChange={setCrop}
         onFileChange={setSelectedProfileImage}
         onOpenChange={onDialogOpenChange}
@@ -325,6 +353,7 @@ export function UserSettingsPage({ initialPagination }: { initialPagination: Url
         loggedRoleId={loggedRoleId}
         open={bulkDialogOpen}
         roleOptions={roles}
+        zoneOptions={zones}
         onCreated={() => void load()}
         onOpenChange={setBulkDialogOpen}
       />

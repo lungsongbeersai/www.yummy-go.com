@@ -11,6 +11,8 @@ interface LoginApiResponse {
   login_email: string;
   login_status: number;
   login_profile?: string;
+  zone_uuid_fk?: string | null;
+  zone_name?: string;
   branch_uuid?: string;
   branch_name?: string;
   branch_tel?: string;
@@ -47,6 +49,8 @@ function mapLoginResponse(data: LoginApiResponse): LoginResult {
       email: data.login_email,
       status: data.login_status,
       profile: data.login_profile ?? "",
+      zone_uuid: data.zone_uuid_fk ?? "",
+      zone_name: data.zone_name ?? "",
       branch_uuid: data.branch_uuid ?? "",
       branch_name: data.branch_name ?? "",
       branch_tel: data.branch_tel ?? "",

@@ -15,6 +15,10 @@ export interface User extends ApiEntity {
   roles_id_fk?: number;
   branch_uuid_fk?: string;
   branch_name?: string | null;
+  zone_uuid_fk?: string | null;
+  zone_name?: string | null;
+  zone_name_la?: string | null;
+  zone_name_eng?: string | null;
   roles_name?: string;
   roles_name_la?: string;
   roles_name_eng?: string;
@@ -39,6 +43,7 @@ export interface SaveUserInput extends ApiEntity {
   login_profile?: File | string;
   roles_id_fk?: number | string;
   branch_uuid_fk?: string;
+  zone_uuid_fk?: string | null;
 }
 export interface FetchUsersParams extends FetchParams {
   roles_id_fk?: number | string;

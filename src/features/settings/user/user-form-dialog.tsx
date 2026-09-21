@@ -12,13 +12,17 @@ import { AVATAR_CROP_ASPECT, AVATAR_CROP_ASPECT_CLASS } from "@/config/image-cro
 import { SettingsImageCropPanel, type CropState } from "@/features/settings/shared/settings-image-crop";
 import { useResetOnChange } from "@/hooks/use-reset-on-change";
 import type { Role, User } from "@/services/user";
+import type { Zone } from "@/services/zone";
 import {
   roleId,
   roleName,
   userId,
   userRoleOptions,
-  userValue
+  userValue,
+  zoneName
 } from "./user-utils";
+
+const ALL_ZONES_VALUE = "__all_zones__";
 
 export function UserFormDialog({
   crop,
@@ -35,7 +39,8 @@ export function UserFormDialog({
   roleOptions,
   saving,
   selectedProfileImage,
-  title
+  title,
+  zoneOptions
 }: {
   crop: CropState;
   currentBranchName: string;
@@ -52,18 +57,23 @@ export function UserFormDialog({
   saving: boolean;
   selectedProfileImage: File | null;
   title: string;
+  zoneOptions: Zone[];
 }) {
   const { t } = useTranslation();
   const [selectedRoleId, setSelectedRoleId] = useState(
     () => roleId(editing) || String(loggedRoleId || "")
   );
   const [loginActive, setLoginActive] = useState(() => userValue(editing, "login_active", "1"));
+  const [selectedZoneUuid, setSelectedZoneUuid] = useState(
+    () => userValue(editing, "zone_uuid_fk") || ALL_ZONES_VALUE
+  );
   const roles = useMemo(() => userRoleOptions(editing, roleOptions), [editing, roleOptions]);
   const formKey = userId(editing) || "new";
 
   useResetOnChange(`${formKey}:${loggedRoleId}:${open}`, () => {
     setSelectedRoleId(roleId(editing) || String(loggedRoleId || ""));
     setLoginActive(userValue(editing, "login_active", "1"));
+    setSelectedZoneUuid(userValue(editing, "zone_uuid_fk") || ALL_ZONES_VALUE);
   });
 
   return (
@@ -180,6 +190,30 @@ export function UserFormDialog({
                           </SelectGroup>
                         </SelectContent>
                       </Select>
+                    </Field>
+                    <Field>
+                      <FieldLabel htmlFor="zone_uuid_fk">{t("nav.zone")}</FieldLabel>
+                      <input
+                        name="zone_uuid_fk"
+                        type="hidden"
+                        value={selectedZoneUuid === ALL_ZONES_VALUE ? "" : selectedZoneUuid}
+                      />
+                      <Select disabled={saving} value={selectedZoneUuid} onValueChange={setSelectedZoneUuid}>
+                        <SelectTrigger id="zone_uuid_fk" className="w-full">
+                          <SelectValue placeholder={t("settings.allZones")} />
+                        </SelectTrigger>
+                        <SelectContent position="popper">
+                          <SelectGroup>
+                            <SelectItem value={ALL_ZONES_VALUE}>{t("settings.allZones")}</SelectItem>
+                            {zoneOptions.map((zone) => (
+                              <SelectItem key={zone.zone_uuid} value={zone.zone_uuid}>
+                                {zoneName(zone)}
+                              </SelectItem>
+                            ))}
+                          </SelectGroup>
+                        </SelectContent>
+                      </Select>
+                      <FieldDescription>{t("settings.userZoneHint")}</FieldDescription>
                     </Field>
                     <Field>
                       <FieldLabel htmlFor="login_active">{t("fields.login_active")}</FieldLabel>

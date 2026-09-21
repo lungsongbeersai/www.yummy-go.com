@@ -65,14 +65,16 @@ describe("user settings utils", () => {
         email: " user@example.com ",
         password: " secret ",
         profile: null,
-        selectedRoleId: "3"
+        selectedRoleId: "3",
+        zoneUuid: "zone-1"
       })
     ).toEqual({
       branch_uuid_fk: "branch-1",
       roles_id_fk: 3,
       login_email: "user@example.com",
       login_active: 2,
-      login_password: "secret"
+      login_password: "secret",
+      zone_uuid_fk: "zone-1"
     });
 
     const editPayload = buildUserSaveInput({
@@ -82,11 +84,13 @@ describe("user settings utils", () => {
         email: "user@example.com",
         password: "",
         profile: null,
-        selectedRoleId: "2"
+        selectedRoleId: "2",
+        zoneUuid: ""
     });
 
     expect(editPayload).toMatchObject({ login_uuid: "login-1" });
     expect(editPayload).not.toHaveProperty("login_password");
+    expect(editPayload.zone_uuid_fk).toBe("");
   });
 
   it("parses bulk-pasted emails into valid/invalid/duplicate buckets", () => {

@@ -2895,6 +2895,7 @@
     "refreshingTableList": "Refreshing tables",
     "refreshingZoneList": "Refreshing zones",
     "title": "Settings",
+    "allZones": "All zones (unrestricted)",
     "userAccessSection": "Access details",
     "userAccountSection": "Account details",
     "userBulkAddLabel": "Add multiple users",
@@ -2920,6 +2921,7 @@
     "userFormHint": "Set the user account, role, and active state.",
     "userList": "User list",
     "userProfileSection": "Profile image",
+    "userZoneHint": "Leave as all zones for unrestricted POS access, or assign one zone so this user can only see and sell from tables in that zone.",
     "storeBranch": {
       "addBranch": "Add branch",
       "addStore": "Add store",

@@ -22,7 +22,8 @@ import {
   isProtectedUser,
   roleName,
   userId,
-  userValue
+  userValue,
+  zoneName
 } from "./user-utils";
 
 export function UserListSurface({
@@ -195,6 +196,7 @@ function UserDesktopTable({
             <TableHead className="pl-5">{t("nav.user")}</TableHead>
             <TableHead>{t("fields.roles_name")}</TableHead>
             <TableHead>{t("nav.branch")}</TableHead>
+            <TableHead>{t("nav.zone")}</TableHead>
             <TableHead>{t("fields.login_active")}</TableHead>
             <TableHead className="w-16 text-right">{t("common.actions")}</TableHead>
           </TableRow>
@@ -267,6 +269,9 @@ function UserTableRow({
       </TableCell>
       <TableCell className="max-w-72 truncate text-muted-foreground">{roleName(row)}</TableCell>
       <TableCell className="max-w-72 truncate text-muted-foreground">{branchName(row)}</TableCell>
+      <TableCell className="max-w-72 truncate text-muted-foreground">
+        {zoneName(row, t("settings.allZones"))}
+      </TableCell>
       <TableCell>
         <UserActiveBadge status={userValue(row, "login_active", "1")} />
       </TableCell>
@@ -372,6 +377,7 @@ function UserMobileCard({
       <SettingsMobileMetaGrid>
         <SettingsMobileMeta label={t("fields.roles_name")} value={roleName(row)} />
         <SettingsMobileMeta label={t("nav.branch")} value={branchName(row)} />
+        <SettingsMobileMeta label={t("nav.zone")} value={zoneName(row, t("settings.allZones"))} />
         <SettingsMobileMeta
           label={t("fields.login_active")}
           value={<UserActiveBadge status={userValue(row, "login_active", "1")} />}

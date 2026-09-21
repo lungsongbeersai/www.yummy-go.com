@@ -12,6 +12,8 @@ export interface AuthUser {
   email: string;
   status: number;
   profile: string;
+  zone_uuid?: string;
+  zone_name?: string;
   branch_uuid: string;
   branch_name: string;
   branch_tel: string;

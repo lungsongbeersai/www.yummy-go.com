@@ -2899,6 +2899,7 @@
     "refreshingTableList": "ກຳລັງໂຫຼດໂຕະໃໝ່",
     "refreshingZoneList": "ກຳລັງໂຫຼດໂຊນໃໝ່",
     "title": "ຕັ້ງຄ່າ",
+    "allZones": "ທຸກໂຊນ (ບໍ່ຈຳກັດ)",
     "userAccessSection": "ລາຍລະອຽດສິດເຂົ້າໃຊ້",
     "userAccountSection": "ລາຍລະອຽດບັນຊີ",
     "userBulkAddLabel": "ເພີ່ມຜູ້ໃຊ້ຫຼາຍຄົນ",
@@ -2924,6 +2925,7 @@
     "userFormHint": "ກຳນົດບັນຊີຜູ້ໃຊ້, ບົດບາດ ແລະ ສະຖານະໃຊ້ງານ.",
     "userList": "ລາຍການຜູ້ໃຊ້",
     "userProfileSection": "ຮູບໂປຣໄຟລ໌",
+    "userZoneHint": "ເລືອກທຸກໂຊນເພື່ອບໍ່ຈຳກັດ POS ຫຼື ເລືອກໜຶ່ງໂຊນເພື່ອໃຫ້ຜູ້ໃຊ້ເຫັນ ແລະ ຂາຍໄດ້ສະເພາະໂຕະໃນໂຊນນັ້ນ.",
     "storeBranch": {
       "addBranch": "ເພີ່ມສາຂາ",
       "addStore": "ເພີ່ມຮ້ານ",

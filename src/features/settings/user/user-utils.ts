@@ -23,6 +23,11 @@ export function branchName(row: ApiEntity | null | undefined) {
   return userValue(row, "branch_name", userValue(row, "branch_name_la", userValue(row, "branch_name_eng", "-")));
 }
 
+export function zoneName(row: ApiEntity | null | undefined, unassigned = "-") {
+  if (!userValue(row, "zone_uuid_fk", userValue(row, "zone_uuid"))) return unassigned;
+  return userValue(row, "zone_name", userValue(row, "zone_name_la", userValue(row, "zone_name_eng", unassigned)));
+}
+
 export function isProtectedUser(row: User) {
   const raw = row.btn_disabled ?? row.btn_disible;
   if (raw === null || raw === undefined) return false;
@@ -96,7 +101,8 @@ export function buildUserSaveInput({
   email,
   password,
   profile,
-  selectedRoleId
+  selectedRoleId,
+  zoneUuid
 }: {
   active: string;
   branchUuid: string;
@@ -105,13 +111,15 @@ export function buildUserSaveInput({
   password: string;
   profile: FormDataEntryValue | null;
   selectedRoleId: string;
+  zoneUuid: string;
 }): SaveUserInput {
   const id = userId(editing);
   const input: SaveUserInput = {
     branch_uuid_fk: branchUuid,
     roles_id_fk: Number(selectedRoleId),
     login_email: email.trim(),
-    login_active: Number(active || 1)
+    login_active: Number(active || 1),
+    zone_uuid_fk: zoneUuid.trim() || ""
   };
   if (id) input.login_uuid = id;
   if (password.trim()) input.login_password = password.trim();
