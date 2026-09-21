@@ -20,6 +20,7 @@ import {
 } from "@/lib/installed-app-version";
 import { internalRoute } from "@/lib/routes";
 import { safeInternalRedirect } from "@/lib/safe-internal-redirect";
+import { normalizeLoginEmail } from "@/lib/login-email";
 import { authStoreUuid, type AuthUser, useAuthStore } from "@/stores/auth-store";
 import { usePermissionsSidebarStore } from "@/stores/permissions-sidebar-store";
 import { useToastStore } from "@/stores/toast-store";
@@ -107,9 +108,11 @@ export function LoginClient() {
 
   async function onSubmit(event: React.FormEvent) {
     event.preventDefault();
+    const normalizedEmail = normalizeLoginEmail(email);
+    setEmail(normalizedEmail);
 
     try {
-      const loggedInUser = await loginWithPassword(email, password, remember);
+      const loggedInUser = await loginWithPassword(normalizedEmail, password, remember);
       if (!loggedInUser) return;
 
       // เด้งหน้าจริงปล่อยให้ effect ด้านบนทำ (มันฟัง isLoggedIn/user อยู่แล้ว) —
@@ -177,7 +180,7 @@ export function LoginClient() {
                 </p>
               </div>
 
-              <form className="flex flex-col gap-5" onSubmit={onSubmit}>
+              <form className="flex flex-col gap-5" noValidate onSubmit={onSubmit}>
                 <Field>
                   <FieldLabel htmlFor="login-email" className="text-sm font-black text-muted-foreground">
                     {t("auth.email")} <span className="text-destructive">*</span>
@@ -187,6 +190,7 @@ export function LoginClient() {
                     id="login-email"
                     name="email"
                     value={email}
+                    onBlur={() => setEmail((value) => normalizeLoginEmail(value))}
                     onChange={(event) => setEmail(event.target.value)}
                     type="email"
                     autoComplete="email"

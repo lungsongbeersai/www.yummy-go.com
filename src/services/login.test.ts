@@ -1,6 +1,7 @@
 import axios from "axios";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { backendNetworkManager } from "@/stores/network-store";
+import { normalizeLoginEmail } from "@/lib/login-email";
 
 const apiMocks = vi.hoisted(() => ({ post: vi.fn() }));
 
@@ -55,6 +56,19 @@ describe("online-only login service", () => {
       source: "online",
       user: { store_table_status: 2, zone_uuid: "zone-1", zone_name: "VIP" },
     });
+  });
+
+  it("normalizes hidden characters, full-width symbols, and an accidental dot before @", async () => {
+    expect(normalizeLoginEmail(" \u200b55174733.＠gmail。com\u00a0")).toBe("55174733@gmail.com");
+
+    apiMocks.post.mockResolvedValue({ status: 200, data: loginResponse() });
+    await checkLogin(" \u200b55174733.＠gmail。com\u00a0", "0000");
+
+    expect(apiMocks.post).toHaveBeenCalledWith(
+      "/api/v1/login/check_login",
+      { login_email: "55174733@gmail.com", login_password: "0000" },
+      { timeout: 8000 }
+    );
   });
 
   it("defaults a legacy response to a store with tables", async () => {
