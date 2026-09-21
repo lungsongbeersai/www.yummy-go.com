@@ -102,6 +102,7 @@ export interface ProdDetail {
 
 export interface ProdSetDetailOptionGroup {
   setDetailOptionGroupUuid: string;
+  setChildOptionUuidFk?: string;
   groupName?: string;
   groupNameLa?: string;
   groupNameEng?: string;

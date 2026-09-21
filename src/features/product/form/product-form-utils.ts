@@ -88,6 +88,11 @@ export const TASTE_NAME_KEYS = [
   "taste_name_eng",
 ];
 export const SIZE_NAME_KEYS = ["size_name", "size_name_la", "size_name_eng"];
+export const SET_CHILD_OPTION_NAME_KEYS = [
+  "set_child_option_name",
+  "set_child_option_name_la",
+  "set_child_option_name_eng",
+];
 export const EMPTY_PROMOTION_FIELDS = {
   pro_detail_cus_qtyBuy: "0",
   pro_detail_cus_qtyFree: "0",
@@ -258,6 +263,12 @@ export function sizeName(
   return firstText(row, SIZE_NAME_KEYS);
 }
 
+export function setChildOptionName(
+  row: { [key: string]: unknown } | null | undefined,
+) {
+  return firstText(row, SET_CHILD_OPTION_NAME_KEYS);
+}
+
 export function productToppingName(
   row: { [key: string]: unknown } | null | undefined,
 ) {
@@ -389,6 +400,15 @@ export function sizeUuid(
   row: { [key: string]: unknown } | null | undefined,
 ) {
   return firstText(row, ["size_uuid", "size_uuid_fk"]);
+}
+
+export function setChildOptionUuid(
+  row: { [key: string]: unknown } | null | undefined,
+) {
+  return firstText(row, [
+    "set_child_option_uuid",
+    "set_child_option_uuid_fk",
+  ]);
 }
 
 export function detailSizeUuid(
@@ -675,7 +695,7 @@ export function productHydrationKey(row: Product | null | undefined) {
         (detail.set_option_groups ?? [])
           .map((group) => [
             group.set_detail_option_group_uuid,
-            group.size_uuid_fk,
+            group.set_child_option_uuid_fk ?? group.size_uuid_fk,
             group.group_name_la,
             group.group_name_eng,
             group.max_select,
@@ -745,7 +765,7 @@ export function emptyDetail(statusSortFk: StatusSortFk = "1"): DetailRow {
 export function emptySetDetailOptionGroup(): SetDetailOptionGroupRow {
   return {
     id: rid(),
-    size_uuid_fk: "",
+    set_child_option_uuid_fk: "",
     group_name_la: "",
     group_name_eng: "",
     max_select: "1",
@@ -782,7 +802,9 @@ export function detailFromProduct(
         set_detail_option_group_uuid: String(
           group.set_detail_option_group_uuid ?? "",
         ) || undefined,
-        size_uuid_fk: String(group.size_uuid_fk ?? ""),
+        set_child_option_uuid_fk: String(
+          group.set_child_option_uuid_fk ?? group.size_uuid_fk ?? "",
+        ),
         group_name_la: String(group.group_name_la ?? group.group_name ?? ""),
         group_name_eng: String(group.group_name_eng ?? ""),
         max_select: String(group.max_select ?? 1),
@@ -956,7 +978,7 @@ export function buildDetailPayload(
         Number(row.set_taste_max_select) > 0 ? row.set_taste_uuid_fks : [],
       set_option_groups: row.set_option_groups.map((group, index) => ({
         client_ref: group.id,
-        size_uuid_fk: group.size_uuid_fk,
+        set_child_option_uuid_fk: group.set_child_option_uuid_fk,
         group_name_la: group.group_name_la.trim(),
         group_name_eng: group.group_name_eng.trim() || group.group_name_la.trim(),
         max_select: Number(group.max_select) || 1,
@@ -1109,7 +1131,7 @@ export function requiredFieldErrorKeys(state: RequiredProductFormState) {
       : null,
     state.statusSortFk === "2" &&
     state.details.some((row) =>
-      row.set_option_groups.some((group) => !group.size_uuid_fk),
+      row.set_option_groups.some((group) => !group.set_child_option_uuid_fk),
     )
       ? "product.setChildGroupName"
       : null,
@@ -1184,7 +1206,7 @@ export function buildSaveProductPayload(
             ),
             set_option_groups: row.set_option_groups.map((group, index) => ({
               client_ref: group.id,
-              size_uuid_fk: group.size_uuid_fk,
+              set_child_option_uuid_fk: group.set_child_option_uuid_fk,
               group_name_la: group.group_name_la.trim(),
               group_name_eng: group.group_name_eng.trim() || group.group_name_la.trim(),
               max_select: Number(group.max_select) || 1,

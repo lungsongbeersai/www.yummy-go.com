@@ -17,7 +17,7 @@ export type SetChoiceGroupMode = "none" | "one" | "many";
 export interface SetDetailOptionGroupRow {
   id: string;
   set_detail_option_group_uuid?: string;
-  size_uuid_fk: string;
+  set_child_option_uuid_fk: string;
   group_name_la: string;
   group_name_eng: string;
   max_select: string;

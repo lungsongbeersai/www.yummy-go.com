@@ -52,6 +52,8 @@ export function mapApiProdDetail(detail: ApiProdDetail): ProdDetail {
       ? {
           setOptionGroups: detail.set_option_groups.map((group) => ({
             setDetailOptionGroupUuid: group.set_detail_option_group_uuid,
+            setChildOptionUuidFk:
+              group.set_child_option_uuid_fk ?? group.size_uuid_fk,
             groupName: group.group_name,
             groupNameLa: group.group_name_la,
             groupNameEng: group.group_name_eng,

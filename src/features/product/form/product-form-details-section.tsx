@@ -43,6 +43,8 @@ import {
   binaryFlag,
   emptySetDetailOptionGroup,
   entityLabel,
+  setChildOptionName,
+  setChildOptionUuid,
   sizeName,
   sizeUuid,
   tasteUuid,
@@ -66,7 +68,9 @@ export function ProductFormDetailsSection({ form }: { form: ProductFormWorkflow 
     detailModeHint,
     sizeOptions,
     setOptionOptions,
+    setChildOptionOptions,
     filteredSetOptionOptions,
+    isSetChildOptionDialog,
     tasteOptions,
     setTasteDialogOpen,
     resetNewTasteForm,
@@ -112,16 +116,18 @@ export function ProductFormDetailsSection({ form }: { form: ProductFormWorkflow 
     <>
       <Card>
         <ProductFormSectionHeader
-          number="4"
+          number={statusSortFk === "2" ? "3" : "4"}
           title={t("product.sections.details")}
           hint={t("product.sections.detailsHint")}
         />
         <CardContent className="flex flex-col gap-4">
-          <Alert>
-            <Info />
-            <AlertTitle>{typeLabel}</AlertTitle>
-            <AlertDescription>{detailModeHint}</AlertDescription>
-          </Alert>
+          {statusSortFk !== "2" ? (
+            <Alert>
+              <Info />
+              <AlertTitle>{typeLabel}</AlertTitle>
+              <AlertDescription>{detailModeHint}</AlertDescription>
+            </Alert>
+          ) : null}
           {details.map((row, index) => {
               const selectedSize = sizeOptions.find((size) => sizeUuid(size) === row.size_uuid_fk);
               const selectedSizeLabel = selectedSize
@@ -498,23 +504,27 @@ export function ProductFormDetailsSection({ form }: { form: ProductFormWorkflow 
                               </Button>
                             </div>
                             <Select
-                              value={group.size_uuid_fk}
+                              value={group.set_child_option_uuid_fk}
                               onValueChange={(value) => {
-                                const selected = setOptionOptions.find(
-                                  (option) => sizeUuid(option) === value,
+                                const selected = setChildOptionOptions.find(
+                                  (option) => setChildOptionUuid(option) === value,
                                 );
                                 const nameLa = selected
-                                  ? String(selected.size_name_la ?? sizeName(selected) ?? value)
+                                  ? String(
+                                      selected.set_child_option_name_la ??
+                                      setChildOptionName(selected) ??
+                                      value,
+                                    )
                                   : value;
                                 const nameEng = selected
-                                  ? String(selected.size_name_eng ?? nameLa)
+                                  ? String(selected.set_child_option_name_eng ?? nameLa)
                                   : nameLa;
                                 updateDetail(row.id, {
                                   set_option_groups: row.set_option_groups.map((candidate) =>
                                     candidate.id === group.id
                                       ? {
                                           ...candidate,
-                                          size_uuid_fk: value,
+                                          set_child_option_uuid_fk: value,
                                           group_name_la: nameLa,
                                           group_name_eng: nameEng,
                                         }
@@ -528,23 +538,23 @@ export function ProductFormDetailsSection({ form }: { form: ProductFormWorkflow 
                               </SelectTrigger>
                               <SelectContent position="popper">
                                 <SelectGroup>
-                                  {setOptionOptions.filter((option) => {
-                                    const uuid = sizeUuid(option);
+                                  {setChildOptionOptions.filter((option) => {
+                                    const uuid = setChildOptionUuid(option);
                                     return !row.set_option_groups.some(
                                       (candidate) =>
                                         candidate.id !== group.id &&
-                                        candidate.size_uuid_fk === uuid,
+                                        candidate.set_child_option_uuid_fk === uuid,
                                     );
                                   }).map((option) => {
-                                    const uuid = sizeUuid(option);
+                                    const uuid = setChildOptionUuid(option);
                                     return (
                                       <SelectItem key={uuid} value={uuid}>
                                         {entityLabel(
                                           option,
-                                          "size_name_eng",
-                                          "size_name_la",
+                                          "set_child_option_name_eng",
+                                          "set_child_option_name_la",
                                           language,
-                                          sizeName(option) || uuid,
+                                          setChildOptionName(option) || uuid,
                                         )}
                                       </SelectItem>
                                     );
@@ -683,8 +693,12 @@ export function ProductFormDetailsSection({ form }: { form: ProductFormWorkflow 
       <Dialog open={setOptionDialogOpen} onOpenChange={handleSetOptionDialogOpen}>
         <DialogContent className="max-h-[calc(100vh-2rem)] overflow-y-auto sm:max-w-4xl">
           <DialogHeader>
-            <DialogTitle>{t("product.addSetProductOption")}</DialogTitle>
-            <DialogDescription>{t("product.setProductOptionHint")}</DialogDescription>
+            <DialogTitle>
+              {t(isSetChildOptionDialog ? "product.manageSetChildOptions" : "product.addSetProductOption")}
+            </DialogTitle>
+            <DialogDescription>
+              {t(isSetChildOptionDialog ? "product.setChildOptionMasterHint" : "product.setProductOptionHint")}
+            </DialogDescription>
           </DialogHeader>
           <div className="grid gap-4 lg:grid-cols-2">
             <FieldSet className="gap-4 rounded-md border bg-muted/10 p-4">
@@ -729,10 +743,25 @@ export function ProductFormDetailsSection({ form }: { form: ProductFormWorkflow 
             <div className="flex min-h-0 flex-col gap-3 rounded-md border bg-muted/10 p-4">
               <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0">
-                  <p className="text-sm font-semibold">{t("product.setProductOptions")}</p>
-                  <p className="text-xs text-muted-foreground">{t("common.total")}: {setOptionOptions.length}</p>
+                  <p className="text-sm font-semibold">
+                    {t(isSetChildOptionDialog ? "product.setChildOptions" : "product.setProductOptions")}
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    {t("common.total")}: {isSetChildOptionDialog ? setChildOptionOptions.length : setOptionOptions.length}
+                  </p>
                 </div>
-                <Badge>{t("common.selectedCount", { count: details.filter((row) => row.size_uuid_fk).length })}</Badge>
+                <Badge>
+                  {t("common.selectedCount", {
+                    count: isSetChildOptionDialog
+                      ? details.reduce(
+                          (total, row) => total + row.set_option_groups.filter(
+                            (group) => group.set_child_option_uuid_fk,
+                          ).length,
+                          0,
+                        )
+                      : details.filter((row) => row.size_uuid_fk).length,
+                  })}
+                </Badge>
               </div>
               <div className="relative">
                 <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
@@ -744,10 +773,16 @@ export function ProductFormDetailsSection({ form }: { form: ProductFormWorkflow 
                 />
               </div>
               <div className="flex max-h-80 flex-col gap-2 overflow-y-auto pr-1">
-                {filteredSetOptionOptions.map((size) => {
-                  const uuid = sizeUuid(size);
-                  const label = entityLabel(size, "size_name_eng", "size_name_la", language, sizeName(size) || uuid);
-                  const selected = details.some((row) => row.size_uuid_fk === uuid);
+                {filteredSetOptionOptions.map((option) => {
+                  const uuid = option.uuid;
+                  const label = language.startsWith("en")
+                    ? option.nameEng || option.nameLa || option.name
+                    : option.nameLa || option.nameEng || option.name;
+                  const selected = isSetChildOptionDialog
+                    ? details.some((row) => row.set_option_groups.some(
+                        (group) => group.set_child_option_uuid_fk === uuid,
+                      ))
+                    : details.some((row) => row.size_uuid_fk === uuid);
                   const editing = editingSetOptionUuid === uuid;
 
                   return (
@@ -762,11 +797,11 @@ export function ProductFormDetailsSection({ form }: { form: ProductFormWorkflow 
                         type="button"
                         variant="ghost"
                         className="h-auto min-w-0 flex-1 flex-col items-start justify-start px-0 py-0 text-left hover:bg-transparent"
-                        onClick={() => editSetOption(size)}
+                        onClick={() => editSetOption(option)}
                       >
                         <span className="block truncate text-sm font-semibold">{label}</span>
                         <span className="mt-1 block truncate text-xs text-muted-foreground">
-                          {String(size.size_name_eng ?? "") || t("fields.nameEn")}
+                          {option.nameEng || t("fields.nameEn")}
                         </span>
                       </Button>
                       {selected ? <Badge className="shrink-0">{t("common.active")}</Badge> : null}
@@ -776,7 +811,7 @@ export function ProductFormDetailsSection({ form }: { form: ProductFormWorkflow 
                         variant="ghost"
                         aria-label={t("actions.edit")}
                         disabled={setOptionSaving}
-                        onClick={() => editSetOption(size)}
+                        onClick={() => editSetOption(option)}
                       >
                         <Pencil />
                       </Button>
@@ -812,7 +847,7 @@ export function ProductFormDetailsSection({ form }: { form: ProductFormWorkflow 
       </Dialog>
       <ConfirmDialog
         open={Boolean(deletingSetOptionUuid)}
-        title={`${t("actions.delete")} ${t("product.setProductOptions")}`}
+        title={`${t("actions.delete")} ${t(isSetChildOptionDialog ? "product.setChildOptions" : "product.setProductOptions")}`}
         description={t("settings.deleteConfirm")}
         cancelLabel={t("actions.cancel")}
         confirmLabel={t("actions.delete")}

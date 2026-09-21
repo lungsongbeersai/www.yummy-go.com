@@ -33,6 +33,9 @@ export interface ApiProdDetail extends ApiEntity {
 
 export interface ApiProdSetDetailOptionGroup extends ApiEntity {
   set_detail_option_group_uuid: string;
+  set_child_option_uuid_fk?: string;
+  /** Compatibility alias used before SET child options had their own master. */
+  size_uuid_fk?: string;
   group_name?: string;
   group_name_la?: string;
   group_name_eng?: string;

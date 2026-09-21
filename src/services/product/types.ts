@@ -43,6 +43,8 @@ export interface ProductDetailTaste extends ApiEntity {
 
 export interface ProductDetailOptionGroup extends ApiEntity {
   set_detail_option_group_uuid?: string;
+  set_child_option_uuid_fk?: string;
+  /** Compatibility alias used before SET child options had their own master. */
   size_uuid_fk?: string;
   size_name?: string;
   size_name_la?: string;
@@ -155,7 +157,7 @@ export interface SaveProductDetailInput extends ApiEntity {
   /** SET only: repeatable child option rows under this parent detail. */
   set_option_groups?: Array<{
     client_ref: string;
-    size_uuid_fk?: string;
+    set_child_option_uuid_fk: string;
     group_name_la: string;
     group_name_eng?: string;
     max_select: number;

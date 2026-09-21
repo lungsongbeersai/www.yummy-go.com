@@ -1,16 +1,18 @@
 "use client";
 
-import { useEffect } from "react";
+import { useCallback, useEffect } from "react";
 import type { TFunction } from "i18next";
 import type { Category } from "@/services/category";
 import type { Color } from "@/services/color";
 import type { Group } from "@/services/group";
+import type { SetChildOption } from "@/services/set-child-option";
 import type { Size } from "@/services/size";
 import type { Taste } from "@/services/taste";
 import type { Topping } from "@/services/topping";
 import type { Unit } from "@/services/unit";
 import { useProductStore } from "@/stores/product-store";
 import { useReferenceStore } from "@/stores/reference-store";
+import { useSetChildOptionStore } from "@/stores/set-child-option-store";
 import type { ToastInput } from "@/stores/toast-store";
 import { useToppingStore } from "@/stores/topping-store";
 import { useTasteStore } from "@/stores/taste-store";
@@ -71,6 +73,17 @@ export function useProductFormReferenceData({
   const createTasteRow = useTasteStore((state) => state.save);
   const deleteTasteRow = useTasteStore((state) => state.remove);
   const tasteSaving = useTasteStore((state) => state.saving);
+  const setChildOptions = useSetChildOptionStore((state) => state.rows) as SetChildOption[];
+  const loadSetChildOptionRows = useSetChildOptionStore((state) => state.load);
+  const createSetChildOption = useSetChildOptionStore((state) => state.save);
+  const deleteSetChildOption = useSetChildOptionStore((state) => state.remove);
+
+  const loadSetChildOptions = useCallback((lang: string, targetStoreUuid: string) =>
+    loadSetChildOptionRows({
+      lang,
+      store_uuid_fk: targetStoreUuid,
+      limit: "All",
+    }), [loadSetChildOptionRows]);
 
   useEffect(() => {
     if (!storeUuid) return;
@@ -82,6 +95,9 @@ export function useProductFormReferenceData({
       loadSizes(language, storeUuid),
       loadToppings(language, storeUuid),
       loadTastes(language, storeUuid),
+      ...(statusSortFk === "2"
+        ? [loadSetChildOptions(language, storeUuid)]
+        : []),
     ]).catch((error) => {
       showToast({
         title: t("settings.loadFailed", { title: t("product.title") }),
@@ -89,7 +105,7 @@ export function useProductFormReferenceData({
         tone: "error"
       });
     });
-  }, [language, loadCategories, loadColors, loadGroups, loadSizes, loadTastes, loadToppings, loadUnits, showToast, storeUuid, t]);
+  }, [language, loadCategories, loadColors, loadGroups, loadSetChildOptions, loadSizes, loadTastes, loadToppings, loadUnits, showToast, statusSortFk, storeUuid, t]);
 
   useEffect(() => {
     if (!storeUuid) return;
@@ -132,5 +148,9 @@ export function useProductFormReferenceData({
     createTasteRow,
     deleteTasteRow,
     tasteSaving,
+    setChildOptions,
+    loadSetChildOptions,
+    createSetChildOption,
+    deleteSetChildOption,
   };
 }

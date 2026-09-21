@@ -22,6 +22,7 @@ describe("POS product normalizers", () => {
           set_option_groups: [
             {
               set_detail_option_group_uuid: "group-sauce",
+              set_child_option_uuid_fk: "child-chicken",
               group_name_la: "ນ້ຳຈິ້ມ",
               max_select: 1,
               taste_uuid_fks: ["taste-mala"],
@@ -51,6 +52,7 @@ describe("POS product normalizers", () => {
       setOptionGroups: [
         {
           setDetailOptionGroupUuid: "group-sauce",
+          setChildOptionUuidFk: "child-chicken",
           groupNameLa: "ນ້ຳຈິ້ມ",
           maxSelect: 1,
           tasteUuidFks: ["taste-mala"],

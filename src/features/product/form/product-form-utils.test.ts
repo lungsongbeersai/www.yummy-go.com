@@ -679,7 +679,7 @@ describe("set choice group helpers", () => {
       set_option_groups: [
         {
           id: "child-row-1",
-          size_uuid_fk: "size-chicken",
+          set_child_option_uuid_fk: "child-chicken",
           group_name_la: "ໄກ່",
           group_name_eng: "Chicken",
           max_select: "1",
@@ -691,7 +691,7 @@ describe("set choice group helpers", () => {
     expect(buildDetailPayload(row, "2")).toMatchObject({
       set_option_groups: [
         {
-          size_uuid_fk: "size-chicken",
+          set_child_option_uuid_fk: "child-chicken",
           max_select: 1,
           taste_uuid_fks: ["taste-mala", "taste-sesame"],
         },
