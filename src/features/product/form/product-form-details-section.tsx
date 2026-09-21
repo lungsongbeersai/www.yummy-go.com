@@ -7,6 +7,7 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   Dialog,
   DialogContent,
@@ -35,12 +36,14 @@ import {
 import { Spinner } from "@/components/ui/spinner";
 import { Switch } from "@/components/ui/switch";
 import { cn } from "@/lib/utils";
-import type { BinaryFlag } from "./product-form-types";
+import type { BinaryFlag, SetChoiceGroupMode } from "./product-form-types";
 import {
+  SET_CHOICE_GROUP_MODE_OPTIONS,
   binaryFlag,
   entityLabel,
   sizeName,
   sizeUuid,
+  tasteUuid,
 } from "./product-form-utils";
 import { ProductFormSectionHeader } from "./product-form-section-header";
 import type { ProductFormWorkflow } from "./use-product-form-workflow";
@@ -62,6 +65,7 @@ export function ProductFormDetailsSection({ form }: { form: ProductFormWorkflow 
     sizeOptions,
     setOptionOptions,
     filteredSetOptionOptions,
+    tasteOptions,
     language,
     statusSortFk,
     sizeSaving,
@@ -89,6 +93,16 @@ export function ProductFormDetailsSection({ form }: { form: ProductFormWorkflow 
   const showNoSetProductOptions = statusSortFk === "2" && !sizeOptions.length;
   const sizeSelectKey = showNoSetProductOptions ? "empty" : sizeOptions.length ? "ready" : "loading";
   const labelRowClass = "flex min-h-7 items-center justify-between gap-2";
+  // ชื่อกลุ่มมาจากรายการ "รสชาติ" กลางของร้าน (Settings > รสชาติ) ไม่ใช่พิมพ์เอง — เก็บค่าเป็น
+  // taste_name_la เสมอ (ไม่ว่าจะดูฟอร์มเป็นภาษาไหน) เพื่อให้เป็น key ที่คงที่ตอนจับกลุ่มตามชื่อ
+  // (ดู buildChoiceGroupsPayload) ส่วนที่โชว์ในตัวเลือกยังปรับตามภาษาได้ตามปกติ
+  const choiceGroupNameOptions = tasteOptions
+    .map((taste) => ({
+      uuid: tasteUuid(taste),
+      name: String(taste.taste_name_la ?? taste.taste_name_eng ?? "").trim(),
+      label: entityLabel(taste, "taste_name_eng", "taste_name_la", language, ""),
+    }))
+    .filter((option) => option.uuid && option.name);
 
   return (
     <>
@@ -248,6 +262,90 @@ export function ProductFormDetailsSection({ form }: { form: ProductFormWorkflow 
                       </div>
                     )}
                   </Field>
+                  {statusSortFk === "2" ? (
+                    <Field>
+                      <div className={labelRowClass}>
+                        <FieldLabel>{t("product.setQtyCutStock")}</FieldLabel>
+                      </div>
+                      <FormattedNumberInput
+                        min={1}
+                        value={row.pro_detail_setqty_cut_stock}
+                        onValueChange={(value) => updateDetail(row.id, { pro_detail_setqty_cut_stock: value })}
+                      />
+                      <FieldDescription className="text-xs">
+                        {t("product.setQtyCutStockHint")}
+                      </FieldDescription>
+                    </Field>
+                  ) : null}
+                  {statusSortFk === "2" ? (
+                    <Field>
+                      <div className={labelRowClass}>
+                        <FieldLabel>{t("product.setChoiceGroupMode")}</FieldLabel>
+                      </div>
+                      <Select
+                        value={row.set_choice_group_mode}
+                        onValueChange={(value) =>
+                          updateDetail(row.id, {
+                            set_choice_group_mode: value as SetChoiceGroupMode,
+                          })
+                        }
+                      >
+                        <SelectTrigger className="w-full">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent position="popper">
+                          <SelectGroup>
+                            {SET_CHOICE_GROUP_MODE_OPTIONS.map((mode) => (
+                              <SelectItem key={mode} value={mode}>
+                                {t(`product.setChoiceGroupModeOption.${mode}`)}
+                              </SelectItem>
+                            ))}
+                          </SelectGroup>
+                        </SelectContent>
+                      </Select>
+                    </Field>
+                  ) : null}
+                  {statusSortFk === "2" && row.set_choice_group_mode !== "none" ? (
+                    <Field className="md:col-span-2 lg:col-span-3">
+                      <div className={labelRowClass}>
+                        <FieldLabel>{t("product.setChoiceGroupName")}</FieldLabel>
+                      </div>
+                      {choiceGroupNameOptions.length ? (
+                        <div className="flex flex-col gap-2 rounded-md border border-border bg-muted/10 p-2.5">
+                          {choiceGroupNameOptions.map((option) => {
+                            const checked = row.set_choice_group_names.includes(option.name);
+                            const checkboxId = `choice-group-name-${row.id}-${option.uuid}`;
+                            return (
+                              <FieldLabel
+                                key={option.uuid}
+                                htmlFor={checkboxId}
+                                className="min-h-8 cursor-pointer items-center gap-2 text-sm font-normal"
+                              >
+                                <Checkbox
+                                  id={checkboxId}
+                                  checked={checked}
+                                  onCheckedChange={(value) =>
+                                    updateDetail(row.id, {
+                                      set_choice_group_names: value
+                                        ? [...row.set_choice_group_names, option.name]
+                                        : row.set_choice_group_names.filter(
+                                            (name) => name !== option.name,
+                                          ),
+                                    })
+                                  }
+                                />
+                                {option.label}
+                              </FieldLabel>
+                            );
+                          })}
+                        </div>
+                      ) : (
+                        <FieldDescription className="text-xs">
+                          {t("product.noTastesForChoiceGroup")}
+                        </FieldDescription>
+                      )}
+                    </Field>
+                  ) : null}
                   {statusSortFk === "1" ? (
                     <Field>
                       <div className={labelRowClass}>

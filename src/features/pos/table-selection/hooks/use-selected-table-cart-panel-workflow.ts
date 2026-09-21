@@ -189,6 +189,7 @@ export function useSelectedTableCartPanelWorkflow({
   const [billDiscountPending, setBillDiscountPending] = useState(false);
   const [tableActionsOpen, setTableActionsOpen] = useState(false);
   const [tableQrOpen, setTableQrOpen] = useState(false);
+  const [depositDialogOpen, setDepositDialogOpen] = useState(false);
   // ไม่ผูกกับ selectedTable — QR เมนูอย่างเดียวเป็นระดับสาขา ใช้ได้แม้ไม่มีโต๊ะ
   // เลือกอยู่ หรือร้านไม่มีโต๊ะ (store_table_status === 2)
   const [branchMenuQrOpen, setBranchMenuQrOpen] = useState(false);
@@ -394,6 +395,7 @@ export function useSelectedTableCartPanelWorkflow({
     setTableActionsOpen(false);
     setTableQrOpen(false);
     setBranchMenuQrOpen(false);
+    setDepositDialogOpen(false);
     setPaymentContext(null);
     setSplitSelectedItemUuids(new Map());
     setConfirmAllProgress(null);
@@ -1233,6 +1235,8 @@ export function useSelectedTableCartPanelWorkflow({
     reprintSingleItemToKitchen,
     currentOrderUuid,
     customerDisplay,
+    depositDialogOpen,
+    displayItems,
     displaySummary,
     handlePaymentCompleted,
     handleTabChange,
@@ -1278,6 +1282,7 @@ export function useSelectedTableCartPanelWorkflow({
     setItemDiscountTarget,
     setNoteDraft,
     setNoteTarget,
+    setDepositDialogOpen,
     setPaymentContext,
     setQuantityTarget,
     setSplitItemQuantity,

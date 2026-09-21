@@ -91,6 +91,17 @@ export interface ProdDetail {
   proDetailSTime?: string | null;
   proDetailETime?: string | null;
   defaultQty?: number;
+  // แถวหนึ่งเป็นสมาชิกได้หลายกลุ่มพร้อมกัน — [] = ไม่มีกลุ่ม (บังคับรวมเหมือนเดิม)
+  setChoiceGroupUuidFks?: string[];
+}
+
+export interface ProdSetChoiceGroup {
+  setChoiceGroupUuid: string;
+  groupName?: string;
+  groupNameLa?: string;
+  groupNameEng?: string;
+  maxSelect?: number | string;
+  groupSort?: number | string;
 }
 
 export interface ProdTopping {
@@ -134,6 +145,7 @@ export interface ProdItem {
   details: ProdDetail[];
   toppings: ProdTopping[];
   tastes?: ProdTaste[];
+  setChoiceGroups?: ProdSetChoiceGroup[];
 }
 
 export interface GetProdItemParams {
@@ -394,6 +406,9 @@ export interface CartItemDetail extends ApiEntity {
   order_it_note?: string;
   order_it_status?: number;
   order_it_status_text?: string;
+  // login_uuid ของพนักงานที่เพิ่มรายการนี้ — ใช้แยก draft (WAITING_CONFIRM) ของ
+  // แต่ละคนบนโต๊ะเดียวกัน ดู use-draft-cleanup.ts
+  order_it_created_by?: string | null;
   affects_total?: boolean;
 }
 
@@ -404,6 +419,8 @@ export interface CartItem extends ApiEntity {
   prod_uuid_fk?: string;
   pro_detail_uuid?: string;
   pro_detail_uuid_fk?: string;
+  // 1 = สินค้าตัดสต๊อกจริง (เช่นขวดเครื่องดื่ม), 0 = ไม่มีสต๊อกให้นับ (อาหารปรุงสด)
+  pro_detail_stock?: number;
   prod_name?: string;
   title?: string;
   prod_image?: string;
@@ -1133,6 +1150,20 @@ export interface CancelOrderItemResponse extends ApiEntity {
   print_job?: ConfirmToKitchenPrintJob;
 
   pending_query?: ConfirmToKitchenPendingQuery;
+}
+
+export interface CleanupDraftOrderItemsInput {
+  order_uuid: string;
+}
+
+export interface CleanupDraftOrderItemsResponse extends ApiEntity {
+  status: string;
+  message: string;
+  order_uuid: string;
+  cleaned_count: number;
+  cleaned_item_uuids: string[];
+  deleted_order: boolean;
+  table_freed: boolean;
 }
 
 export interface PrintInvoiceRequest extends ApiEntity {

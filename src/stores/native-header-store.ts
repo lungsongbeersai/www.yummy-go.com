@@ -14,6 +14,12 @@ interface NativeHeaderState {
   // ("ອໍເດີລູກຄ້າ") — null = ไม่ override ใช้หัวข้อ route ปกติ
   title: string | null;
   setTitle: (title: string | null) => void;
+  // หน้าอ๋อเดอร์โต๊ะต้อง cleanup draft ที่ยังไม่ยืนยันของตัวเองก่อนออกจากหน้าเสมอ
+  // (ดู use-draft-cleanup.ts) — ปุ่ม Back ของ NativeTopBar ปกติแค่ router.back() เฉย ๆ
+  // จึงต้องให้หน้าลงทะเบียน override ตรงนี้แทนพฤติกรรมเดิม null = ใช้ router.back()/
+  // fallback ปกติของ top bar เอง
+  backAction: (() => void) | null;
+  setBackAction: (backAction: (() => void) | null) => void;
 }
 
 // NativeTopBar (capacitor/top-bar.tsx) เป็น shell chrome ที่ render แยกต้นไม้จาก
@@ -26,5 +32,7 @@ export const useNativeHeaderStore = create<NativeHeaderState>((set) => ({
   refreshAction: null,
   setRefreshAction: (refreshAction) => set({ refreshAction }),
   title: null,
-  setTitle: (title) => set({ title })
+  setTitle: (title) => set({ title }),
+  backAction: null,
+  setBackAction: (backAction) => set({ backAction })
 }));

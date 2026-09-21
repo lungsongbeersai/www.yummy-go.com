@@ -52,6 +52,7 @@ const Menu: MenuItem[] = [
       { path: "/posAll/tables", title: "open_table_sale" },
       { path: "/order_manage", title: "order_queue" },
       { path: "/sales/sales-list", title: "sales_list" },
+      { path: "/sales/deposit", title: "deposit" },
       { path: "/sales/cancel-sale", title: "cancel_sale" },
       { path: "/sales/cancel-history", title: "cancel_history" }
     ]

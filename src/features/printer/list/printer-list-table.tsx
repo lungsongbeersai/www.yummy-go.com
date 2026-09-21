@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useTranslation } from "react-i18next";
 import {
+  Banknote,
   Power,
   PowerOff,
   Printer as PrinterIcon,
@@ -41,10 +42,12 @@ interface PrinterListTableProps {
   roleItemsByPrinter: Map<string, Array<{ label: string; value: string }>>;
   statusLabels: { active: string; inactive: string };
   testingUuid: string;
+  testingDrawerUuid: string;
   togglingUuid: string;
   userUuid?: string;
   onDelete: (row: Printer) => void;
   onTest: (row: Printer) => void;
+  onTestDrawer: (row: Printer) => void;
   onToggle: (row: Printer) => void;
 }
 
@@ -57,10 +60,12 @@ export function PrinterListTable({
   roleItemsByPrinter,
   statusLabels,
   testingUuid,
+  testingDrawerUuid,
   togglingUuid,
   userUuid,
   onDelete,
   onTest,
+  onTestDrawer,
   onToggle,
 }: PrinterListTableProps) {
   const { t } = useTranslation();
@@ -268,6 +273,31 @@ export function PrinterListTable({
               (row.is_shared !== true && row.is_local_device === false),
             keepOpenOnSelect: true,
             onSelect: (row) => void onTest(row),
+          },
+          {
+            id: "test-drawer",
+            label: (row) =>
+              testingDrawerUuid === row.print_config_uuid
+                ? t("printer.testingDrawer")
+                : t("printer.testDrawer"),
+            icon: (row) =>
+              testingDrawerUuid === row.print_config_uuid ? (
+                <Spinner />
+              ) : (
+                <Banknote />
+              ),
+            disabled: (row) =>
+              readOnly ||
+              printing ||
+              Boolean(testingUuid) ||
+              Boolean(testingDrawerUuid) ||
+              Boolean(togglingUuid) ||
+              !userUuid ||
+              !row.print_config_uuid ||
+              (row.is_shared === true && row.agent_online === false) ||
+              (row.is_shared !== true && row.is_local_device === false),
+            keepOpenOnSelect: true,
+            onSelect: (row) => void onTestDrawer(row),
           },
           {
             id: "toggle-active",

@@ -73,10 +73,12 @@ export function PrinterPage() {
     roleItemsByPrinter: printer.roleItemsByPrinter,
     statusLabels: printer.statusLabels,
     testingUuid: printer.testingUuid,
+    testingDrawerUuid: printer.testingDrawerUuid,
     togglingUuid: printer.togglingUuid,
     userUuid: printer.user?.uuid,
     onDelete: printer.setDeleteTarget,
     onTest: printer.testPrinter,
+    onTestDrawer: printer.testDrawer,
     onToggle: printer.togglePrinter,
   };
 

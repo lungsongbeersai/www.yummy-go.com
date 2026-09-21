@@ -10,6 +10,12 @@ export type SizeSelectOption =
   | SizeOption
   | NonNullable<Product["details"]>[number];
 
+// กลุ่มตัวเลือกในชุดอาหาร (เช่น "เลือกเนื้อสัตว์": ไก่/หมู) ไม่มีหน้าจัดการแยกต่างหาก —
+// แต่ละแถวติ๊กชื่อกลุ่ม (มาจากรายการ "รสชาติ" กลางของร้าน) ที่ตัวเองเป็นสมาชิกอยู่ตรงนี้เลย
+// แถวหนึ่งเป็นสมาชิกได้หลายกลุ่มพร้อมกัน แถวที่ติ๊กชื่อเดียวกันจะถูกจับกลุ่มเข้าด้วยกันโดย
+// อัตโนมัติตอนบันทึก (ดู buildChoiceGroupsPayload ใน product-form-utils.ts)
+export type SetChoiceGroupMode = "none" | "one" | "many";
+
 export interface DetailRow {
   id: string;
   pro_detail_uuid: string;
@@ -18,6 +24,7 @@ export interface DetailRow {
   pro_detail_sprice: string;
   pro_detail_qty_stock: string;
   pro_detail_stock: BinaryFlag;
+  pro_detail_setqty_cut_stock: string;
   pro_detail_enabled: BinaryFlag;
   pro_detail_status: BinaryFlag;
   pro_detail_cus_qtyBuy: string;
@@ -26,6 +33,10 @@ export interface DetailRow {
   pro_detail_eDate: string;
   pro_detail_sTime: string;
   pro_detail_eTime: string;
+  // "none" = ไม่มีกลุ่ม (บังคับรวมเหมือนเดิม) — เฉพาะสินค้าแบบ Set (statusSortFk "2")
+  set_choice_group_mode: SetChoiceGroupMode;
+  // ชื่อกลุ่มที่แถวนี้เป็นสมาชิก (0 ตัวขึ้นไป) — มีความหมายเมื่อ mode ไม่ใช่ "none" เท่านั้น
+  set_choice_group_names: string[];
 }
 
 export interface ToppingSelection {

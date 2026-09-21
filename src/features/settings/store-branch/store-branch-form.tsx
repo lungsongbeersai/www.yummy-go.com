@@ -190,6 +190,7 @@ function EntityForm({
   const [storeStatus, setStoreStatus] = useState("2");
   const [storeActive, setStoreActive] = useState("1");
   const [storeTableStatus, setStoreTableStatus] = useState("1");
+  const [depositExpireDays, setDepositExpireDays] = useState("");
   const [vatStatus, setVatStatus] = useState(String(VAT_EXEMPT));
   const [vatPercent, setVatPercent] = useState("0");
   const [chargeStatus, setChargeStatus] = useState("2");
@@ -216,6 +217,7 @@ function EntityForm({
     setStoreStatus(String(storeBranchNumber(editing, "store_status", 2)));
     setStoreActive(String(storeBranchNumber(editing, "store_active", 1)));
     setStoreTableStatus(String(storeTableStatusValue(storeBranchValue(editing, "store_table_status", "1"))));
+    setDepositExpireDays(storeBranchValue(editing, "deposit_expire_days"));
     setVatStatus(
       String(
         resolveBranchVatStatus(
@@ -420,6 +422,22 @@ function EntityForm({
                       { label: labels.noTables, value: "2" }
                     ]}
                   />
+                  <Field className="sm:col-span-2">
+                    <FieldLabel htmlFor={`${recordKey}-deposit-expire-days`}>{labels.depositExpireDays}</FieldLabel>
+                    <FormattedNumberInput
+                      id={`${recordKey}-deposit-expire-days`}
+                      name="deposit_expire_days"
+                      autoComplete="off"
+                      disabled={disabled}
+                      min="1"
+                      placeholder={labels.depositExpireDaysPlaceholder}
+                      step="1"
+                      translate="no"
+                      value={depositExpireDays}
+                      onValueChange={setDepositExpireDays}
+                    />
+                    <FieldDescription>{labels.depositExpireDaysHint}</FieldDescription>
+                  </Field>
                 </FieldGroup>
               </FieldSet>
             ) : (

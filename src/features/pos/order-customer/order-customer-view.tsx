@@ -21,6 +21,7 @@ import { cn } from "@/lib/utils";
 import { optionalString } from "@/lib/values";
 import { useNativeHeaderStore } from "@/stores/native-header-store";
 import { SelectedTableCartPanel } from "../table-selection/selected-table-cart-panel";
+import { DraftCleanupWarningDialog } from "./draft-cleanup-warning-dialog";
 import { productMedia } from "./product-media";
 import {
   PRODUCT_GRID_CLASS,
@@ -85,6 +86,11 @@ export function OrderCustomerView({
     openOrAddProduct,
     openCartSheet,
     openTablesPage,
+    draftCleanupWarningOpen,
+    draftCleanupSecondsLeft,
+    onDraftCleanupExtend,
+    onDraftCleanupDiscardNow,
+    onDraftCleanupConfirmOrder,
     productMode,
     productSheetOpen,
     printerContext,
@@ -96,6 +102,7 @@ export function OrderCustomerView({
     selectedCateUuid,
     selectedDetail,
     selectedProduct,
+    selectedSetChoiceUuids,
     selectedTastes,
     selectedTable,
     selectedToppings,
@@ -111,6 +118,7 @@ export function OrderCustomerView({
     t,
     toggleSelectedTopping,
     toggleSelectedTaste,
+    toggleSetChoice,
     toppingQtyByUuid,
     zones,
   } = workflow;
@@ -118,6 +126,7 @@ export function OrderCustomerView({
   const nativeShellActive = useIsNativeShellActive();
   const setHeaderRefreshAction = useNativeHeaderStore((state) => state.setRefreshAction);
   const setHeaderTitle = useNativeHeaderStore((state) => state.setTitle);
+  const setHeaderBackAction = useNativeHeaderStore((state) => state.setBackAction);
   // refreshAll ไม่ได้ห่อ useCallback ในตัว workflow เอง (ได้ reference ใหม่ทุก render) —
   // เก็บ latest ไว้ใน ref แทนใส่ใน deps ตรง ๆ กัน effect ลงทะเบียนด้านล่างยิงซ้ำทุก render
   // โดยไม่จำเป็น — อัปเดต ref ผ่าน effect เปล่า (ไม่ใช่ระหว่าง render ตรง ๆ) ตามกฎ
@@ -125,6 +134,12 @@ export function OrderCustomerView({
   const refreshAllRef = useRef(refreshAll);
   useEffect(() => {
     refreshAllRef.current = refreshAll;
+  });
+  // openTablesPage เดียวกับปุ่มย้อนกลับบนเว็บ (มี cleanup draft ที่ยังไม่ยืนยันของ
+  // ตัวเองอยู่ข้างใน ดู use-draft-cleanup.ts) เก็บ ref ด้วยเหตุผลเดียวกับ refreshAllRef
+  const openTablesPageRef = useRef(openTablesPage);
+  useEffect(() => {
+    openTablesPageRef.current = openTablesPage;
   });
 
   // ปุ่มรีเฟรช/ภาษา/ธีมเดิมอยู่ในเมนู "..." ของแถวค้นหา ซึ่งซ้ำกับสิ่งที่ NativeTopBar
@@ -138,6 +153,15 @@ export function OrderCustomerView({
     });
     return () => setHeaderRefreshAction(null);
   }, [nativeShellActive, loadingTables, loadingMenu, setHeaderRefreshAction]);
+
+  // ปุ่ม Back ของ NativeTopBar ปกติแค่ router.back() เฉย ๆ ซึ่งข้าม cleanup draft
+  // ที่ยังไม่ยืนยันของตัวเองไปเลย (บนเว็บปุ่มย้อนกลับในหน้านี้เรียก openTablesPage
+  // ตรง ๆ อยู่แล้ว) ลงทะเบียน override ผ่าน store กลางแบบเดียวกับปุ่มรีเฟรชด้านบน
+  useEffect(() => {
+    if (!nativeShellActive) return;
+    setHeaderBackAction(() => void openTablesPageRef.current());
+    return () => setHeaderBackAction(null);
+  }, [nativeShellActive, setHeaderBackAction]);
 
   // โชว์ชื่อโต๊ะ (เช่น "T01") ใน top bar แทนหัวข้อ static "ອໍເດີລູກຄ້າ" ของ route —
   // ผู้ใช้ต้องดูออกไวว่ากำลังสั่งให้โต๊ะไหนอยู่ ไม่ใช่แค่ชื่อหน้าเฉย ๆ
@@ -225,7 +249,7 @@ export function OrderCustomerView({
                   size="icon"
                   aria-label={t("actions.back")}
                   className="size-11 shrink-0 rounded-full bg-white/15 text-white shadow-sm hover:bg-white/25 hover:text-white dark:bg-card dark:text-foreground dark:hover:bg-accent dark:hover:text-foreground"
-                  onClick={openTablesPage}
+                  onClick={() => void openTablesPage()}
                 >
                   <ArrowLeft data-icon="inline-start" />
                 </Button>
@@ -266,7 +290,7 @@ export function OrderCustomerView({
                 size="icon"
                 aria-label={t("actions.back")}
                 className={headerIconButtonClass(nativeShellActive)}
-                onClick={openTablesPage}
+                onClick={() => void openTablesPage()}
               >
                 <ArrowLeft data-icon="inline-start" />
               </Button>
@@ -493,6 +517,7 @@ export function OrderCustomerView({
             qty={qty}
             saving={saving}
             selectedDetail={selectedDetail}
+            selectedSetChoiceUuids={selectedSetChoiceUuids}
             selectedTastes={selectedTastes}
             selectedToppings={selectedToppings}
             toppingQtyByUuid={toppingQtyByUuid}
@@ -501,11 +526,19 @@ export function OrderCustomerView({
             onNoteChange={setNote}
             onQtyChange={setQty}
             onSubmit={() => void submitSelectedProduct()}
+            onToggleSetChoice={toggleSetChoice}
             onToggleTaste={toggleSelectedTaste}
             onToggleTopping={toggleSelectedTopping}
           />
         ) : null}
       </ProductOptionsOverlay>
+      <DraftCleanupWarningDialog
+        open={draftCleanupWarningOpen}
+        secondsLeft={draftCleanupSecondsLeft}
+        onConfirmOrder={onDraftCleanupConfirmOrder}
+        onDiscardNow={onDraftCleanupDiscardNow}
+        onKeepGoing={onDraftCleanupExtend}
+      />
     </div>
   );
 }

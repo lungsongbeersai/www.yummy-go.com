@@ -25,6 +25,10 @@ export const routeBreadcrumbs: Record<string, RouteBreadcrumbItem[]> = {
     { disabled: true, title: "sales" },
     { path: "/sales/sales-list", title: "sales_list" }
   ],
+  "/sales/deposit": [
+    { disabled: true, title: "sales" },
+    { path: "/sales/deposit", title: "deposit" }
+  ],
   "/report/daily-closing": [
     { disabled: true, title: "report_menu" },
     { path: "/report/daily-closing", title: "daily_store_closing_report" }

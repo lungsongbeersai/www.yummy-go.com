@@ -41,6 +41,7 @@ import {
   selectedToppingsFromQtyMap,
   selectedTastesFromUuids,
   tasteSelectionLimit,
+  toggleSetChoiceUuid,
   toggleTasteUuid,
   toggleToppingQty,
   toppingSelectionLimit,
@@ -49,6 +50,7 @@ import {
   type SelectedTopping,
 } from "./order-customer-utils";
 import { cartForTable, cartQuantityCount } from "../table-selection/utils";
+import { useDraftCleanup } from "./use-draft-cleanup";
 import { useOrderCustomerRealtime } from "./use-order-customer-realtime";
 
 export type OrderCustomerWorkflowInput = {
@@ -110,6 +112,9 @@ export function useOrderCustomerWorkflow({
   const [selectedProduct, setSelectedProduct] = useState<ProdItem | null>(null);
   const [detailUuid, setDetailUuid] = useState("");
   const [selectedTasteUuids, setSelectedTasteUuids] = useState<string[]>([]);
+  const [selectedSetChoiceUuids, setSelectedSetChoiceUuids] = useState<
+    Record<string, string[]>
+  >({});
   const [toppingQtyByUuid, setToppingQtyByUuid] = useState<
     Record<string, number>
   >({});
@@ -142,6 +147,10 @@ export function useOrderCustomerWorkflow({
     if (!initialTableUuid) return cart;
     return cartForTable(cart, initialTableUuid);
   }, [cart, initialTableUuid]);
+  const draftCleanup = useDraftCleanup({
+    cart: selectedCart,
+    userUuid: user?.uuid ?? "",
+  });
   const activeProducts = useMemo(
     () => flattenProducts(menuBySort[activeSort]),
     [activeSort, menuBySort],
@@ -297,6 +306,7 @@ export function useOrderCustomerWorkflow({
       noteText,
       product,
       quantity,
+      selectedSetChoiceUuids: setChoiceUuids,
       tastes,
       toppings,
     }: {
@@ -305,6 +315,7 @@ export function useOrderCustomerWorkflow({
       noteText: string;
       product?: ProdItem | null;
       quantity: number;
+      selectedSetChoiceUuids?: Record<string, string[]>;
       tastes: ProdTaste[];
       toppings: SelectedTopping[];
     }) => {
@@ -317,6 +328,7 @@ export function useOrderCustomerWorkflow({
           noteText,
           product,
           quantity,
+          selectedSetChoiceUuids: setChoiceUuids,
           tableUuid: initialTableUuid,
           tastes,
           toppings,
@@ -373,6 +385,7 @@ export function useOrderCustomerWorkflow({
       setSelectedTasteUuids([]);
       setToppingQtyByUuid({});
       setRememberedToppingQtyByUuid({});
+      setSelectedSetChoiceUuids({});
       setNote("");
       setProductSheetOpen(true);
     },
@@ -584,9 +597,39 @@ export function useOrderCustomerWorkflow({
     };
   }, [language, resolvePrinterDeviceContext, user?.uuid]);
 
-  function openTablesPage() {
+  async function openTablesPage() {
+    // มีรายการที่ตัวเองยังไม่กด "ยืนยันออเดอร์" ค้างอยู่ (WAITING_CONFIRM) — ล้างทิ้ง
+    // ก่อนออกจากหน้านี้เสมอ ไม่ปล่อยให้ค้างจนกว่าจะ timeout (ดู use-draft-cleanup.ts)
+    // cleanup ไม่สำเร็จ = ห้ามออกจากหน้านี้ ให้ toast error แล้วผู้ใช้กดย้อนกลับซ้ำเอง
+    if (draftCleanup.hasPendingDraft) {
+      try {
+        await draftCleanup.cleanupNow();
+      } catch (error) {
+        showToast({
+          title: t("pos.draftCleanupFailed"),
+          description: error instanceof Error ? error.message : "",
+          tone: "error",
+        });
+        return;
+      }
+    }
+
     // ร้านไม่มีโต๊ะไม่มีหน้าเลือกโต๊ะให้กลับไป — ปุ่ม "ย้อนกลับ" จึงออกไปหน้าแรกแทน
     router.replace(user?.store_table_status === 2 ? "/" : "/posAll/tables");
+  }
+
+  // ปุ่ม "ยกเลิกรายการ" ใน dialog เตือน inactivity timeout — อยู่หน้าเดิมต่อ
+  // (ไม่ navigate ออกไปเหมือน openTablesPage) แค่ล้าง draft ของตัวเองทิ้งทันที
+  async function discardDraftNow() {
+    try {
+      await draftCleanup.cleanupNow();
+    } catch (error) {
+      showToast({
+        title: t("pos.draftCleanupFailed"),
+        description: error instanceof Error ? error.message : "",
+        tone: "error",
+      });
+    }
   }
 
   async function refreshAll() {
@@ -673,6 +716,21 @@ export function useOrderCustomerWorkflow({
     setSelectedTasteUuids((current) => toggleTasteUuid(current, uuid, limit));
   }
 
+  function toggleSetChoice(groupUuid: string, detailUuid: string, maxSelect: number) {
+    const current = selectedSetChoiceUuids[groupUuid] ?? [];
+    if (!current.includes(detailUuid) && current.length >= maxSelect) {
+      showToast({
+        title: t("pos.setChoiceSelectionLimitReached", { count: maxSelect }),
+        tone: "info",
+      });
+      return;
+    }
+    setSelectedSetChoiceUuids((state) => ({
+      ...state,
+      [groupUuid]: toggleSetChoiceUuid(current, detailUuid, maxSelect),
+    }));
+  }
+
   function changeSelectedToppingQty(uuid: string, nextQty: number) {
     setToppingQtyByUuid((current) => changeToppingQty(current, uuid, nextQty));
   }
@@ -715,6 +773,7 @@ export function useOrderCustomerWorkflow({
         noteText: note,
         product: selectedProduct,
         quantity: qty,
+        selectedSetChoiceUuids,
         tastes: selectedTastes,
         toppings: selectedToppings,
       });
@@ -784,6 +843,14 @@ export function useOrderCustomerWorkflow({
     openOrAddProduct,
     openCartSheet,
     openTablesPage,
+    draftCleanupWarningOpen: draftCleanup.showWarning,
+    draftCleanupSecondsLeft: draftCleanup.secondsLeft,
+    onDraftCleanupExtend: draftCleanup.extend,
+    onDraftCleanupDiscardNow: () => void discardDraftNow(),
+    onDraftCleanupConfirmOrder: () => {
+      draftCleanup.extend();
+      void openCartSheet();
+    },
     productMode,
     productSheetOpen,
     printerContext,
@@ -797,6 +864,7 @@ export function useOrderCustomerWorkflow({
     selectedProduct,
     selectedTastes,
     selectedTasteUuids,
+    selectedSetChoiceUuids,
     selectedTable,
     selectedToppings,
     setActiveSort,
@@ -811,6 +879,7 @@ export function useOrderCustomerWorkflow({
     t,
     toggleSelectedTopping,
     toggleSelectedTaste,
+    toggleSetChoice,
     toppingQtyByUuid,
     zones,
   };

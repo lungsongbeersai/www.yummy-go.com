@@ -1,6 +1,6 @@
 "use client";
 
-import { BadgePercent, BookOpen, Check, CreditCard, Monitor, MoreHorizontal, QrCode, ShoppingCart, Shuffle, SplitSquareHorizontal } from "lucide-react";
+import { BadgePercent, BookOpen, Check, CreditCard, Monitor, MoreHorizontal, QrCode, ShoppingCart, Shuffle, SplitSquareHorizontal, Wine } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -35,6 +35,7 @@ export function CartSummaryDock({
   onCreateTableQr,
   onCreateBranchMenuQr,
   onCreateEmployeeOrder,
+  onCreateDeposit,
   onCustomerDisplay,
   onPayBill,
   onPaySplitSelection,
@@ -62,6 +63,7 @@ export function CartSummaryDock({
   onCreateTableQr?: () => void;
   onCreateBranchMenuQr?: () => void;
   onCreateEmployeeOrder?: () => void;
+  onCreateDeposit?: () => void;
   onCustomerDisplay: () => void;
   onPayBill: () => void;
   onPaySplitSelection?: () => void;
@@ -245,6 +247,12 @@ export function CartSummaryDock({
               ) : null}
               {onTableActions || onCreateTableQr || onCreateBranchMenuQr ? (
                 <DropdownMenuSeparator />
+              ) : null}
+              {onCreateDeposit ? (
+                <DropdownMenuItem onSelect={onCreateDeposit}>
+                  <Wine data-icon="inline-start" />
+                  <span>{t("deposit.createTitle")}</span>
+                </DropdownMenuItem>
               ) : null}
               <DropdownMenuItem disabled={actionsDisabled} onSelect={onCustomerDisplay}>
                 <Monitor data-icon="inline-start" />

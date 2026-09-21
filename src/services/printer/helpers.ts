@@ -142,6 +142,10 @@ export function mapPrinter(item: Record<string, unknown>): Printer {
     cash_drawer_enabled: item.cash_drawer_enabled === undefined
       ? true
       : Boolean(item.cash_drawer_enabled),
+    buzzer_on_cut: Boolean(item.buzzer_on_cut),
+    cut_feed_lines: item.cut_feed_lines === undefined || item.cut_feed_lines === null
+      ? null
+      : Number(item.cut_feed_lines),
     is_active: Boolean(item.is_active),
     is_active_label: activeLabel(item),
     created_at: item.created_at === undefined ? undefined : String(item.created_at),

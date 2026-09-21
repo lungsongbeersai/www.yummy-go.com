@@ -82,6 +82,10 @@ export interface Printer extends ApiEntity {
   kitchen_cut_mode?: PrinterKitchenCutMode;
   // ค่าเดิมของเครื่องพิมพ์ก่อนมี option นี้คือเปิดลิ้นชักเมื่อเช็กบิล/รับเงิน
   cash_drawer_enabled?: boolean;
+  // เครื่องรุ่นที่ต้องการเสียงเตือนตอนตัดกระดาษ (เช่น Rongta RP325) — ค่าเดิมคือปิด
+  buzzer_on_cut?: boolean;
+  // ระยะป้อนกระดาษก่อนตัด (หน่วยบรรทัด) เฉพาะเครื่องนี้ — null/undefined = ใช้ค่ากลางของระบบ
+  cut_feed_lines?: number | null;
   is_active: boolean;
   is_active_label?: string;
   created_at?: string;
@@ -161,6 +165,8 @@ export interface SavePrinterInput extends ApiEntity {
   paper_width_mm: number;
   kitchen_cut_mode: PrinterKitchenCutMode;
   cash_drawer_enabled?: boolean;
+  buzzer_on_cut?: boolean;
+  cut_feed_lines?: number | null;
   role_codes: string[];
   // ไม่ส่งเลย (undefined) เมื่อผู้ใช้ไม่ได้เปิดผูกกับเมนู (ค่าเริ่มต้น "OFF" ในฟอร์ม) — ต่างจาก
   // CATEGORY ที่เป็นการเลือกจริง savePrinter() ใน config-api.ts ต้องคง key นี้หายไปทั้งหมดบน wire
@@ -193,6 +199,7 @@ export interface BuildTestJobRequest extends ApiEntity {
   login_uuid_fk: string;
   print_config_uuid?: string;
   lang?: string;
+  open_cash_drawer?: boolean;
   text?: string;
   display_name?: string;
   printer_name?: string;
@@ -291,7 +298,7 @@ export interface PrintOpsBatchAgentResponse extends ApiEntity {
   error?: string;
   message?: string;
 }
-export interface BuildTestJobResponse extends ApiEntity { data: { printer: ApiEntity; job: PrintJob; routing_warning?: string | null } }
+export interface BuildTestJobResponse extends ApiEntity { data: { printer: ApiEntity; job: PrintJob; routing_warning?: string | null; cash_drawer_enabled?: boolean } }
 export interface MobileEscposRenderResponse extends ApiEntity {
   data?: {
     escpos_base64?: string | null;

@@ -13,9 +13,9 @@ import {
 } from "@/services/pos";
 import { optionalString } from "@/lib/values";
 import type { ProductModalMode } from "./menu-structure";
-import { enabledProductDetails } from "./product-availability";
 import { defaultOrderQty } from "./quantity-rules";
 import { getOrderSelectionIssue } from "./order-selection-validation";
+import { resolveSetOrderDetails } from "./set-choice-selection";
 import { toppingUuid, type SelectedTopping } from "./topping-selection";
 import { tasteUuid } from "./taste-selection";
 
@@ -47,6 +47,7 @@ export function buildStaffOrderItems({
   noteText,
   product,
   quantity,
+  selectedSetChoiceUuids = {},
   tastes = [],
   toppings,
 }: {
@@ -55,6 +56,7 @@ export function buildStaffOrderItems({
   noteText: string;
   product?: ProdItem | null;
   quantity: number;
+  selectedSetChoiceUuids?: Record<string, string[]>;
   tastes?: ProdTaste[];
   toppings: SelectedTopping[];
 }) {
@@ -68,7 +70,8 @@ export function buildStaffOrderItems({
   });
   if (issue) throw new Error(`Invalid order selection: ${issue}`);
 
-  const details = mode === "set" ? enabledProductDetails(product) : [detail];
+  const details =
+    mode === "set" ? resolveSetOrderDetails(product, selectedSetChoiceUuids) : [detail];
   if (!details.length) throw new Error("pro_detail_uuid is required");
 
   const note = noteText.trim() || undefined;
@@ -103,6 +106,7 @@ export function buildStaffOrderInput({
   noteText,
   product,
   quantity,
+  selectedSetChoiceUuids = {},
   tableUuid,
   tastes = [],
   toppings,
@@ -115,6 +119,7 @@ export function buildStaffOrderInput({
   noteText: string;
   product?: ProdItem | null;
   quantity: number;
+  selectedSetChoiceUuids?: Record<string, string[]>;
   tableUuid: string;
   tastes?: ProdTaste[];
   toppings: SelectedTopping[];
@@ -138,6 +143,7 @@ export function buildStaffOrderInput({
       noteText,
       product,
       quantity,
+      selectedSetChoiceUuids,
       tastes,
       toppings,
     }),

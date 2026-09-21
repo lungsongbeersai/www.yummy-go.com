@@ -16,6 +16,8 @@ import type {
   CancelOrderItemInput,
   CancelOrderItemResponse,
   CartOrder,
+  CleanupDraftOrderItemsInput,
+  CleanupDraftOrderItemsResponse,
   ConfirmOrderItemServedInput,
   ConfirmToKitchenInput,
   ConfirmToKitchenResponse,
@@ -187,6 +189,16 @@ export const confirmOrderItemServed = (input: ConfirmOrderItemServedInput) =>
 
 export const cancelOrderItem = (input: CancelOrderItemInput) =>
   apiRequest<CancelOrderItemResponse>("patch", "/api/v1/posAll/cancel_order_item", { data: input });
+
+// ล้างเฉพาะ order_item ของผู้เรียก (login token) ที่ยังไม่ยืนยัน (WAITING_CONFIRM)
+// บนบิลนี้ — เรียกตอนกด Back ออกจากหน้ารับออเดอร์ หรือ inactivity timeout
+// (ดู use-draft-cleanup.ts) ไม่แตะรายการของพนักงานคนอื่นหรือที่ยืนยันไปแล้ว
+export const cleanupDraftOrderItems = (input: CleanupDraftOrderItemsInput) =>
+  apiRequest<CleanupDraftOrderItemsResponse>(
+    "patch",
+    "/api/v1/posAll/order_item/cleanup_draft",
+    { data: input },
+  );
 
 export const updateOrderNote = (input: UpdateOrderNoteInput) =>
   apiRequest<UpdateOrderNoteResponse>("patch", "/api/v1/posAll/update_note", { data: input });

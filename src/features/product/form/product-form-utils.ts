@@ -8,6 +8,7 @@ import type {
   ProductTaste,
   ProductTopping,
   SaveProductInput,
+  SaveProductSetChoiceGroupInput,
 } from "@/services/product";
 import type { Size } from "@/services/size";
 import type { Taste } from "@/services/taste";
@@ -19,6 +20,7 @@ import type {
   DetailStockSummary,
   ProductSavePayloadState,
   RequiredProductFormState,
+  SetChoiceGroupMode,
   SizeSelectOption,
   StatusSortFk,
   TasteSelection,
@@ -35,6 +37,7 @@ export const TOPPING_MAX_SELECT_OPTIONS = Array.from(
 );
 export const TOPPING_MAX_SELECT_UNLIMITED = "0";
 export const TASTE_MAX_SELECT_OPTIONS = ["0", "1", "2"] as const;
+export const SET_CHOICE_GROUP_MODE_OPTIONS: SetChoiceGroupMode[] = ["none", "one", "many"];
 export const DEFAULT_COLOR = "#10b981";
 export const CUSTOM_COLOR_VALUE = "__custom__";
 export const TOPPING_NONE = "1";
@@ -712,16 +715,34 @@ export function emptyDetail(statusSortFk: StatusSortFk = "1"): DetailRow {
     pro_detail_sprice: "0",
     pro_detail_qty_stock: "0",
     pro_detail_stock: DEFAULT_DETAIL_STOCK_MODE,
+    pro_detail_setqty_cut_stock: "1",
     pro_detail_enabled: "1",
     pro_detail_status: statusSortFk === "3" ? "1" : "2",
+    set_choice_group_mode: "none",
+    set_choice_group_names: [],
     ...EMPTY_PROMOTION_FIELDS,
   };
+}
+
+// กลุ่มทั้งหมดที่แถวนี้เคยผูกไว้ (จาก uuid ที่ backend ส่งกลับ) เพื่อดึงชื่อ/โหมดของมันมาแสดง
+// ในฟอร์ม — แถวหนึ่งเป็นสมาชิกได้หลายกลุ่มพร้อมกัน
+function choiceGroupsFor(
+  detail: NonNullable<Product["details"]>[number],
+  groups: NonNullable<Product["set_choice_groups"]>,
+) {
+  const uuids = new Set(detail.set_choice_group_uuid_fks ?? []);
+  if (!uuids.size) return [];
+  return groups.filter(
+    (group) => !!group.set_choice_group_uuid && uuids.has(group.set_choice_group_uuid),
+  );
 }
 
 export function detailFromProduct(
   detail: NonNullable<Product["details"]>[number],
   statusSortFk: StatusSortFk,
+  choiceGroups: NonNullable<Product["set_choice_groups"]> = [],
 ): DetailRow {
+  const matchedGroups = choiceGroupsFor(detail, choiceGroups);
   return {
     id: rid(),
     pro_detail_uuid: productDetailUuid(detail),
@@ -732,6 +753,7 @@ export function detailFromProduct(
       detail.pro_detail_qty_stock ?? detail.qty_stock ?? 0,
     ),
     pro_detail_stock: binaryFlag(detail.pro_detail_stock, DEFAULT_DETAIL_STOCK_MODE),
+    pro_detail_setqty_cut_stock: String(detail.pro_detail_setqty_cut_stock ?? 1),
     pro_detail_enabled: binaryFlag(detail.pro_detail_enabled, "1"),
     pro_detail_status: binaryFlag(
       detail.pro_detail_status,
@@ -743,6 +765,14 @@ export function detailFromProduct(
     pro_detail_eDate: dateInputValue(detail.pro_detail_eDate),
     pro_detail_sTime: timeInputValue(detail.pro_detail_sTime),
     pro_detail_eTime: timeInputValue(detail.pro_detail_eTime),
+    set_choice_group_mode: !matchedGroups.length
+      ? "none"
+      : matchedGroups.some((group) => Number(group.max_select ?? 1) > 1)
+        ? "many"
+        : "one",
+    set_choice_group_names: matchedGroups.map((group) =>
+      String(group.group_name_la ?? group.group_name ?? ""),
+    ),
   };
 }
 
@@ -759,10 +789,14 @@ export function normalizeDetailsForStatus(
       size_uuid_fk:
         targetStatus === "2" && sourceStatus !== "2" ? "" : row.size_uuid_fk,
       pro_detail_stock: row.pro_detail_stock || DEFAULT_DETAIL_STOCK_MODE,
+      pro_detail_setqty_cut_stock: row.pro_detail_setqty_cut_stock || "1",
       pro_detail_enabled: row.pro_detail_enabled || "1",
       pro_detail_bprice: row.pro_detail_bprice || "0",
       pro_detail_sprice: row.pro_detail_sprice || "0",
       pro_detail_qty_stock: row.pro_detail_qty_stock || "0",
+      // กลุ่มตัวเลือกมีความหมายเฉพาะสินค้าแบบ Set — สลับออกจาก Set แล้วต้องล้างทิ้ง
+      set_choice_group_mode: targetStatus === "2" ? row.set_choice_group_mode : "none",
+      set_choice_group_names: targetStatus === "2" ? row.set_choice_group_names : [],
     };
 
     if (targetStatus !== "3") {
@@ -852,7 +886,9 @@ export function buildDetailPayload(
   if (statusSortFk === "2") {
     return {
       ...base,
+      pro_detail_setqty_cut_stock: numberFromFormatted(row.pro_detail_setqty_cut_stock),
       pro_detail_status: 2,
+      set_choice_group_client_refs: choiceGroupNamesOf(row),
     };
   }
 
@@ -867,6 +903,42 @@ export function buildDetailPayload(
     pro_detail_sTime: row.pro_detail_status === "2" ? row.pro_detail_sTime : null,
     pro_detail_eTime: row.pro_detail_status === "2" ? row.pro_detail_eTime : null,
   };
+}
+
+// ชื่อกลุ่มมีความหมายเฉพาะตอน mode ไม่ใช่ "none" — แถวที่ปิดตัวเลือกไว้ไม่นับเป็นสมาชิกกลุ่มไหน
+// เลย แม้จะเคยติ๊กชื่อค้างไว้ก็ตาม แถวหนึ่งเป็นสมาชิกได้หลายกลุ่มพร้อมกัน (ตัดชื่อซ้ำ/ว่างทิ้ง)
+export function choiceGroupNamesOf(
+  row: Pick<DetailRow, "set_choice_group_mode" | "set_choice_group_names">,
+): string[] {
+  if (row.set_choice_group_mode === "none") return [];
+  return Array.from(new Set(row.set_choice_group_names.map((name) => name.trim()).filter(Boolean)));
+}
+
+// กลุ่มไม่มีหน้าจัดการแยกอีกต่อไป — ได้มาจากการไล่ดูชื่อกลุ่มที่แต่ละแถวติ๊กไว้เอง แถวที่ติ๊ก
+// ชื่อเดียวกัน (แม้จะเป็นคนละแถว หรือแถวเดียวกันติ๊กหลายชื่อ) ถูกจับเป็นกลุ่มเดียวกันโดยอัตโนมัติ
+// "เลือกได้หลายรายการ" ไม่มีเลขให้กรอกเอง — max_select ถูกตั้งเท่าจำนวนสมาชิกจริงของกลุ่มนั้น
+// (เท่ากับ "เลือกได้ทั้งหมด" ไปในตัว) ส่วน "เลือกได้ 1" ตั้งค่าคงที่เป็น 1 เสมอ ถ้าแถวในกลุ่ม
+// เดียวกันขัดกัน (บางแถวติ๊ก "เลือกได้ 1" บางแถวติ๊ก "หลายรายการ") ให้ "หลายรายการ" ชนะ
+export function buildChoiceGroupsPayload(
+  details: DetailRow[],
+): SaveProductSetChoiceGroupInput[] {
+  const membersByName = new Map<string, { rows: DetailRow[]; many: boolean }>();
+
+  for (const row of details) {
+    for (const name of choiceGroupNamesOf(row)) {
+      const entry = membersByName.get(name) ?? { rows: [], many: false };
+      entry.rows.push(row);
+      if (row.set_choice_group_mode === "many") entry.many = true;
+      membersByName.set(name, entry);
+    }
+  }
+
+  return Array.from(membersByName.entries()).map(([name, entry], index) => ({
+    client_ref: name,
+    group_name_la: name,
+    max_select: entry.many ? entry.rows.length : 1,
+    group_sort: index + 1,
+  }));
 }
 
 export function detailStockSummary(
@@ -905,6 +977,14 @@ export function requiredFieldErrorKeys(state: RequiredProductFormState) {
     state.details.some((row) => row.pro_detail_sprice.trim() === "")
       ? "fields.sprice"
       : null,
+    state.statusSortFk === "2" &&
+    state.details.some(
+      (row) =>
+        row.pro_detail_stock === "1" &&
+        Number(numberFromFormatted(row.pro_detail_setqty_cut_stock)) <= 0,
+    )
+      ? "product.setQtyCutStock"
+      : null,
     state.statusSortFk === "3" &&
     state.details.some((row) => !row.pro_detail_sDate || !row.pro_detail_eDate)
       ? ["product.startDate", "product.endDate"]
@@ -923,6 +1003,12 @@ export function requiredFieldErrorKeys(state: RequiredProductFormState) {
     Number(state.prodTasteMaxSelect ?? 0) > 0 &&
     (state.selectedTastes ?? []).length < Number(state.prodTasteMaxSelect ?? 0)
       ? "product.sections.tastes"
+      : null,
+    state.statusSortFk === "2" &&
+    state.details.some(
+      (row) => row.set_choice_group_mode !== "none" && !choiceGroupNamesOf(row).length,
+    )
+      ? "product.setChoiceGroupName"
       : null,
   ].filter(Boolean) as Array<string | string[]>;
 }
@@ -976,6 +1062,8 @@ export function buildSaveProductPayload(
             taste_sort: index + 1,
           }))
         : [],
+    set_choice_groups:
+      state.statusSortFk === "2" ? buildChoiceGroupsPayload(state.details) : [],
   };
 }
 

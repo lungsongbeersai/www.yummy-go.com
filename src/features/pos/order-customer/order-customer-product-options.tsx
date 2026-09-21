@@ -44,9 +44,9 @@ import type { ProdDetail, ProdItem, ProdTaste, ProdTopping } from "@/services/po
 import {
   availableProductDetails,
   clampOrderQuantity,
-  enabledProductDetails,
   getOrderSelectionIssue,
   getPromoLabel,
+  groupedSetDetails,
   isToppingAvailable,
   isTasteAvailable,
   orderQuantityRules,
@@ -54,6 +54,9 @@ import {
   productMedia,
   productModeLabel,
   productPriceFromDetail,
+  setChoiceGroupDisplayName,
+  setChoiceGroupMaxSelect,
+  setChoiceGroupUuid,
   toppingDisplayName,
   toppingPrice,
   toppingQtyCap,
@@ -173,6 +176,7 @@ export function ProductOptionsForm({
   qty,
   saving,
   selectedDetail,
+  selectedSetChoiceUuids,
   selectedTastes,
   selectedToppings,
   toppingQtyByUuid,
@@ -181,6 +185,7 @@ export function ProductOptionsForm({
   onNoteChange,
   onQtyChange,
   onSubmit,
+  onToggleSetChoice,
   onToggleTaste,
   onToggleTopping,
 }: {
@@ -191,6 +196,7 @@ export function ProductOptionsForm({
   qty: number;
   saving: boolean;
   selectedDetail: ProdDetail;
+  selectedSetChoiceUuids: Record<string, string[]>;
   selectedTastes: ProdTaste[];
   selectedToppings: SelectedTopping[];
   toppingQtyByUuid: Record<string, number>;
@@ -199,15 +205,17 @@ export function ProductOptionsForm({
   onNoteChange: (note: string) => void;
   onQtyChange: (qty: number) => void;
   onSubmit: () => void;
+  onToggleSetChoice: (groupUuid: string, detailUuid: string, maxSelect: number) => void;
   onToggleTaste: (uuid: string) => void;
   onToggleTopping: (uuid: string) => void;
 }) {
   const { t } = useTranslation();
   const media = productMedia(product);
   const setMode = mode === "set";
-  const details = setMode
-    ? enabledProductDetails(product)
-    : availableProductDetails(product);
+  const details = setMode ? [] : availableProductDetails(product);
+  const { ungrouped: setUngroupedDetails, groups: setChoiceGroupEntries } = setMode
+    ? groupedSetDetails(product)
+    : { ungrouped: [], groups: [] };
   const toppings = (product.toppings ?? []).filter(isToppingAvailable);
   const tastes = (product.tastes ?? []).filter(isTasteAvailable);
   const tasteLimit = tasteSelectionLimit(product);
@@ -254,14 +262,14 @@ export function ProductOptionsForm({
             />
 
             <FieldGroup className="gap-4">
-              {setMode && details.length ? (
+              {setMode && setUngroupedDetails.length ? (
                 <FieldSet className="gap-2">
                   <SectionLegend
                     label={t("pos.product")}
-                    meta={t("pos.optionCount", { count: details.length })}
+                    meta={t("pos.optionCount", { count: setUngroupedDetails.length })}
                   />
                   <div className="flex flex-col gap-2">
-                    {details.map((detail) => {
+                    {setUngroupedDetails.map((detail) => {
                       const price = productPriceFromDetail(detail);
                       return (
                         <SetProductRow
@@ -278,6 +286,46 @@ export function ProductOptionsForm({
                   </div>
                 </FieldSet>
               ) : null}
+
+              {setMode
+                ? setChoiceGroupEntries.map(({ group, members }) => {
+                    const groupUuid = setChoiceGroupUuid(group);
+                    const maxSelect = setChoiceGroupMaxSelect(group);
+                    const selected = selectedSetChoiceUuids[groupUuid] ?? [];
+                    return (
+                      <FieldSet key={groupUuid} className="gap-2">
+                        <SectionLegend
+                          label={setChoiceGroupDisplayName(group) || t("pos.product")}
+                          meta={t("pos.selectedOf", {
+                            selected: selected.length,
+                            total: maxSelect,
+                          })}
+                          metaEmphasis={selected.length >= maxSelect}
+                        />
+                        <div className="flex flex-col gap-2">
+                          {members.map((detail) => {
+                            const price = productPriceFromDetail(detail);
+                            const isSelected = selected.includes(detail.proDetailUuid);
+                            const canSelectMore = isSelected || selected.length < maxSelect;
+                            return (
+                              <SetChoiceOptionRow
+                                key={detail.proDetailUuid}
+                                blocked={!canSelectMore}
+                                detailUuid={detail.proDetailUuid}
+                                label={detail.sizeName || t("pos.product")}
+                                price={price > 0 ? money(price) : t("pos.includedInSet")}
+                                selected={isSelected}
+                                onToggle={() =>
+                                  onToggleSetChoice(groupUuid, detail.proDetailUuid, maxSelect)
+                                }
+                              />
+                            );
+                          })}
+                        </div>
+                      </FieldSet>
+                    );
+                  })
+                : null}
 
               {!setMode && details.length > 1 ? (
                 <FieldSet className="gap-2">
@@ -553,6 +601,45 @@ function SetProductRow({ label, price }: { label: string; price: string }) {
         {price}
       </span>
     </div>
+  );
+}
+
+function SetChoiceOptionRow({
+  blocked,
+  detailUuid,
+  label,
+  price,
+  selected,
+  onToggle,
+}: {
+  blocked: boolean;
+  detailUuid: string;
+  label: string;
+  price: string;
+  selected: boolean;
+  onToggle: () => void;
+}) {
+  const id = `staff-set-choice-${detailUuid}`;
+  return (
+    <FieldLabel
+      htmlFor={id}
+      className={cn(
+        "min-h-12 w-full items-center gap-3 rounded-xl border border-border/70 bg-card px-3.5 py-2.5 text-foreground transition-colors has-data-checked:border-primary has-data-checked:bg-primary/5 has-data-checked:ring-1 has-data-checked:ring-primary/20",
+        blocked && !selected ? "cursor-not-allowed opacity-50" : "cursor-pointer hover:border-primary/40 hover:bg-accent/40",
+      )}
+    >
+      {/* ไม่ใช้ disabled ของ Radix จริง — ต้องคลิกทะลุถึง onToggle ได้เสมอ เพื่อขึ้น toast
+          เตือนเพดานเมื่อกดตัวที่ครบโควตาแล้ว (เหมือน ToppingOptionRow ด้านล่าง) */}
+      <Checkbox
+        id={id}
+        checked={selected}
+        aria-disabled={blocked && !selected}
+        className="size-4.5"
+        onCheckedChange={onToggle}
+      />
+      <span className="min-w-0 flex-1 truncate text-sm font-semibold">{label}</span>
+      <span className="shrink-0 text-sm font-bold tabular-nums text-primary">{price}</span>
+    </FieldLabel>
   );
 }
 

@@ -221,6 +221,20 @@ export function cashDrawerEnabledOf(printer: Printer | null) {
   return printer?.cash_drawer_enabled !== false;
 }
 
+// เครื่องใหม่: ให้ดังสียงตอนตัดเป็นค่าเริ่มต้น — เครื่องที่เคยบันทึกไว้แล้วยังคงใช้ค่าจริงที่
+// บันทึกไว้ (ไม่เปิดสียงย้อนหลังให้เครื่องเก่าที่ไม่เคยตั้งค่านี้)
+export function buzzerOnCutOf(printer: Printer | null) {
+  if (printer === null) return true;
+  return printer.buzzer_on_cut === true;
+}
+
+// ไม่มีค่า (เครื่องใหม่ หรือเครื่องเก่าที่ไม่เคยตั้งไว้) ให้ใส่ 8 เป็นค่าจริงในช่องเลย
+// แทนที่จะปล่อยว่างไว้แค่ placeholder
+export function cutFeedLinesOf(printer: Printer | null) {
+  const value = printer?.cut_feed_lines;
+  return value === null || value === undefined ? "8" : String(value);
+}
+
 // cate_uuid_fk มีความหมายทั้งสอง mapping_type แล้ว — ZONE ก็บังคับเลือกหมวดหมู่คู่กับโซนด้วย
 // (backend contract ใหม่) จึงอ่านได้ตรงๆ ไม่ต้องกรองตาม mapping_type อีกต่อไป
 export function categoryUuids(printer: Printer | null) {
@@ -257,6 +271,8 @@ export function printerFormValues(printer: Printer | null) {
     paperWidth: String(printer?.paper_width_mm ?? 80),
     kitchenCutMode: kitchenCutModeOf(printer),
     cashDrawerEnabled: cashDrawerEnabledOf(printer),
+    buzzerOnCut: buzzerOnCutOf(printer),
+    cutFeedLines: cutFeedLinesOf(printer),
     selectedRoles: printer?.role_codes ?? [],
     mappingType: initialMappingSelection(printer),
     sharingMode: sharingModeOf(printer),

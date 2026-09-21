@@ -35,8 +35,10 @@ import { useResetOnDeps } from "@/hooks/use-reset-on-change";
 import {
   arraysHaveSameValues,
   assignedPrinterNamesByValue,
+  buzzerOnCutOf,
   cashDrawerEnabledOf,
   categoryLabel,
+  cutFeedLinesOf,
   initialPrinterFormValues,
   kitchenCutModeOf,
   mappingTypeOf,
@@ -181,6 +183,8 @@ export function usePrinterForm() {
   const [cashDrawerEnabled, setCashDrawerEnabled] = useState(
     initialForm.cashDrawerEnabled,
   );
+  const [buzzerOnCut, setBuzzerOnCut] = useState(initialForm.buzzerOnCut);
+  const [cutFeedLines, setCutFeedLines] = useState(initialForm.cutFeedLines);
   const [selectedRoles, setSelectedRoles] = useState<string[]>(
     initialForm.selectedRoles,
   );
@@ -305,6 +309,8 @@ export function usePrinterForm() {
     setPaperWidth(values.paperWidth);
     setKitchenCutMode(kitchenCutModeOf(editing));
     setCashDrawerEnabled(cashDrawerEnabledOf(editing));
+    setBuzzerOnCut(buzzerOnCutOf(editing));
+    setCutFeedLines(cutFeedLinesOf(editing));
     setSelectedRoles(values.selectedRoles);
     setMappingType(values.mappingType);
     setSharingMode(values.sharingMode);
@@ -409,6 +415,8 @@ export function usePrinterForm() {
     paperWidth !== baseline.paperWidth ||
     kitchenCutMode !== baseline.kitchenCutMode ||
     cashDrawerEnabled !== baseline.cashDrawerEnabled ||
+    buzzerOnCut !== baseline.buzzerOnCut ||
+    cutFeedLines !== baseline.cutFeedLines ||
     mappingType !== baseline.mappingType ||
     sharingMode !== baseline.sharingMode ||
     selectedDevice !== baseline.selectedDevice ||
@@ -574,6 +582,8 @@ export function usePrinterForm() {
         paper_width_mm: Number(paperWidth || 80),
         kitchen_cut_mode: kitchenCutMode,
         cash_drawer_enabled: cashDrawerEnabled,
+        buzzer_on_cut: buzzerOnCut,
+        cut_feed_lines: cutFeedLines.trim() ? Number(cutFeedLines) : null,
         role_codes: selectedRoles,
         // "OFF" (ค่าเริ่มต้น ไม่ผูกกับเมนู) ต้องไม่ส่ง mapping_type เลย ไม่ใช่ส่งเป็นค่าใดค่าหนึ่ง —
         // backend บังคับ: ZONE ส่งทั้งโซนและหมวดหมู่ที่เลือกไว้, CATEGORY ส่งแค่หมวดหมู่
@@ -639,6 +649,10 @@ export function usePrinterForm() {
     setKitchenCutMode,
     cashDrawerEnabled,
     setCashDrawerEnabled,
+    buzzerOnCut,
+    setBuzzerOnCut,
+    cutFeedLines,
+    setCutFeedLines,
     selectedRoles,
     setSelectedRoles,
     selectedCategories,

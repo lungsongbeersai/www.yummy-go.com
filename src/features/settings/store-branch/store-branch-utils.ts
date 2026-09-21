@@ -39,8 +39,17 @@ export function storeAuthUserUpdate(row: StoreBranchRow) {
   return {
     store_logo: storeBranchValue(row, "store_logo"),
     store_name: storeBranchName(row, "store"),
-    store_table_status: storeTableStatusValue(row?.store_table_status)
+    store_table_status: storeTableStatusValue(row?.store_table_status),
+    deposit_expire_days: depositExpireDaysValue(row?.deposit_expire_days)
   };
+}
+
+// ค่าจาก backend อาจเป็น null (ร้านยังไม่ได้ตั้ง default) หรือตัวเลขจาก
+// tb_stores.deposit_expire_days แปลงเป็นตัวเลขหรือ null ให้ AuthUser ใช้ตรงๆ
+export function depositExpireDaysValue(value: unknown): number | null {
+  if (value === null || value === undefined || value === "") return null;
+  const parsed = Number(value);
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : null;
 }
 
 export function storeBranchMediaKey(row: StoreBranchRow, kind: StoreBranchKind) {
@@ -112,6 +121,7 @@ export function missingBranchField({ name, storeUuid }: { name: string; storeUui
 
 export function buildStorePayload({
   active,
+  depositExpireDays,
   editing,
   email,
   logo,
@@ -121,6 +131,7 @@ export function buildStorePayload({
   tableStatus
 }: {
   active: string;
+  depositExpireDays: string;
   editing: StoreBranchRow;
   email: string;
   logo?: File | null;
@@ -136,7 +147,9 @@ export function buildStorePayload({
     store_email: email.trim(),
     store_status: Number(status || 2),
     store_active: Number(active || 1),
-    store_table_status: storeTableStatusValue(tableStatus)
+    store_table_status: storeTableStatusValue(tableStatus),
+    // ว่าง = ไม่แก้ค่าเดิม (backend เก็บค่าเดิมไว้เหมือน store_table_status) ไม่ใช่ล้างเป็นไม่มี default
+    deposit_expire_days: depositExpireDays.trim() ? Number(depositExpireDays) : null
   };
   if (id) payload.store_uuid = id;
   if (logo) payload.store_logo = logo;

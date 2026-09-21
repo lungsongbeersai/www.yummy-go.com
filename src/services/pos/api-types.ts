@@ -24,6 +24,17 @@ export interface ApiProdDetail extends ApiEntity {
   pro_detail_sTime?: string | null;
   pro_detail_eTime?: string | null;
   default_qty?: number;
+  // แถวหนึ่งเป็นสมาชิกได้หลายกลุ่มพร้อมกัน — [] ຫຼື ไม่ส่งมา = ไม่มีกลุ่ม (บังคับรวมเหมือนเดิม)
+  set_choice_group_uuid_fks?: string[];
+}
+
+export interface ApiProdSetChoiceGroup extends ApiEntity {
+  set_choice_group_uuid: string;
+  group_name?: string;
+  group_name_la?: string;
+  group_name_eng?: string;
+  max_select?: number | string;
+  group_sort?: number | string;
 }
 
 export interface ApiProdTopping extends ApiEntity {
@@ -71,6 +82,8 @@ export interface ApiProdItem extends ApiEntity {
   details?: ApiProdDetail[];
   toppings?: ApiProdTopping[];
   tastes?: ApiProdTaste[];
+  // เฉพาะสินค้าแบบ Set (status_sort_fk = 2) — ไม่ส่งมาเลย = ยังไม่มีกลุ่มตัวเลือก
+  set_choice_groups?: ApiProdSetChoiceGroup[];
 }
 
 export interface ApiPosProduct extends ApiEntity {

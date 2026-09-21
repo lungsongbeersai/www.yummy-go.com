@@ -411,7 +411,10 @@ export function useProductFormWorkflow() {
     setSelectedImage(null);
     setCrop(DEFAULT_CROP);
     if (editing.details?.length) {
-      setDetails(editing.details.map((detail) => detailFromProduct(detail, nextStatus)));
+      const choiceGroups = nextStatus === "2" ? editing.set_choice_groups ?? [] : [];
+      setDetails(
+        editing.details.map((detail) => detailFromProduct(detail, nextStatus, choiceGroups)),
+      );
     }
   }, { runOnMount: true });
 

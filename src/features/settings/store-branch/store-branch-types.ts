@@ -25,6 +25,9 @@ export interface StoreBranchLabels {
   delete: string;
   deleteConfirm: string;
   deleteFailed: string;
+  depositExpireDays: string;
+  depositExpireDaysHint: string;
+  depositExpireDaysPlaceholder: string;
   email: string;
   emailPlaceholder: string;
   general: string;

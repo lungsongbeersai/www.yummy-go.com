@@ -19,6 +19,7 @@ interface LoginApiResponse {
   store_name?: string;
   store_logo?: string;
   store_table_status?: number;
+  deposit_expire_days?: number | null;
 }
 
 export interface LoginResult {
@@ -55,6 +56,7 @@ function mapLoginResponse(data: LoginApiResponse): LoginResult {
       store_name: data.store_name ?? "",
       store_logo: data.store_logo ?? "",
       store_table_status: Number(data.store_table_status) === 2 ? 2 : 1,
+      deposit_expire_days: data.deposit_expire_days ?? null,
     },
   };
 }
