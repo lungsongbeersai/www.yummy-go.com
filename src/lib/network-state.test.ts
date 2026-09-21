@@ -8,6 +8,7 @@ import {
   initialBackendNetworkSnapshot,
   navigatorReportsOffline,
   shouldUseConfirmedOfflineFallback,
+  SLOW_RESPONSE_THRESHOLD_MS,
 } from "@/lib/network-state";
 
 describe("Backend network state", () => {
@@ -124,5 +125,45 @@ describe("Backend network state", () => {
       },
       BACKEND_NETWORK_STATE.OFFLINE,
     )).toBe(false);
+  });
+
+  describe("isSlow", () => {
+    it("flags ONLINE as slow when a measured probe crosses the threshold, without changing state", () => {
+      const snapshot = applyBackendReachable(initialBackendNetworkSnapshot(), {
+        httpStatus: 200,
+        durationMs: SLOW_RESPONSE_THRESHOLD_MS,
+      });
+      expect(snapshot.state).toBe(BACKEND_NETWORK_STATE.ONLINE);
+      expect(snapshot.isSlow).toBe(true);
+    });
+
+    it("clears isSlow once a fast probe follows a slow one", () => {
+      const slow = applyBackendReachable(initialBackendNetworkSnapshot(), {
+        durationMs: 3000,
+      });
+      const fast = applyBackendReachable(slow, { durationMs: 100 });
+      expect(slow.isSlow).toBe(true);
+      expect(fast.isSlow).toBe(false);
+    });
+
+    it("leaves the previous isSlow verdict untouched for calls that don't measure duration (ordinary API responses)", () => {
+      const slow = applyBackendReachable(initialBackendNetworkSnapshot(), {
+        durationMs: 3000,
+      });
+      const untouched = applyBackendReachable(slow, { httpStatus: 200 });
+      expect(untouched.isSlow).toBe(true);
+    });
+
+    it("resets isSlow once OFFLINE is confirmed", () => {
+      const slow = applyBackendReachable(initialBackendNetworkSnapshot(), {
+        durationMs: 3000,
+      });
+      const offline = applyBackendTransportFailure(slow, {
+        confirmed: true,
+        failureThreshold: 1,
+      });
+      expect(offline.state).toBe(BACKEND_NETWORK_STATE.OFFLINE);
+      expect(offline.isSlow).toBe(false);
+    });
   });
 });

@@ -3041,5 +3041,11 @@
       "emailLabel": "Support Email",
       "email": "support@yummy-go.com"
     }
+  },
+  "connectivity": {
+    "offlineTitle": "No internet connection",
+    "offlineDescription": "Retrying automatically…",
+    "slowTitle": "Slow connection",
+    "slowDescription": "Some actions may take longer than usual."
   }
 }

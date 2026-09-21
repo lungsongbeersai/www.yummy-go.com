@@ -58,16 +58,21 @@ export const backendNetworkManager = {
       lastHttpStatus: snapshot.lastHttpStatus,
       lastReason: snapshot.lastReason,
       lastCheckedAt: snapshot.lastCheckedAt,
+      isSlow: snapshot.isSlow,
     };
   },
   resetChecking(reason = "app_start") {
     reachabilityRevision += 1;
     return commit(initialBackendNetworkSnapshot(reason), "CHECKING");
   },
-  reportReachable(httpStatus: number | null, reason = "backend_http_response") {
+  reportReachable(
+    httpStatus: number | null,
+    reason = "backend_http_response",
+    durationMs?: number,
+  ) {
     reachabilityRevision += 1;
     return commit(
-      applyBackendReachable(this.getSnapshot(), { httpStatus, reason }),
+      applyBackendReachable(this.getSnapshot(), { httpStatus, reason, durationMs }),
       "HTTP_RESPONSE",
     );
   },

@@ -16,7 +16,17 @@ export interface BackendNetworkSnapshot {
   lastHttpStatus: number | null;
   lastReason: string;
   lastCheckedAt: number | null;
+  // Additive UI hint only — never gates sync/print/transport eligibility (see
+  // the many `state === ONLINE` checks in offline-transport-monitor.ts). A
+  // new `state` value there would silently treat "reachable but slow" as
+  // OFFLINE for all of that business logic; this flag exists so only the
+  // connectivity banner reacts to it, and reachability itself is unaffected.
+  isSlow: boolean;
 }
+
+// A confirmed health-probe response slower than this still counts as ONLINE
+// (reachability unchanged) but flips `isSlow` for the banner.
+export const SLOW_RESPONSE_THRESHOLD_MS = 1500;
 
 export type BackendErrorClassification =
   | "HTTP_RESPONSE"
@@ -58,6 +68,7 @@ export function initialBackendNetworkSnapshot(
     lastHttpStatus: null,
     lastReason: reason,
     lastCheckedAt: null,
+    isSlow: false,
   };
 }
 
@@ -67,11 +78,17 @@ export function applyBackendReachable(
     httpStatus = null,
     reason = "backend_http_response",
     successThreshold = 1,
+    // Only the dedicated /sync/health probe measures this (see
+    // offline-transport-monitor.ts) — ordinary API calls omit it, which
+    // leaves the last known isSlow verdict untouched instead of resetting it
+    // to false on every unrelated successful request.
+    durationMs,
     now = Date.now(),
   }: {
     httpStatus?: number | null;
     reason?: string;
     successThreshold?: number;
+    durationMs?: number;
     now?: number;
   } = {},
 ): BackendNetworkSnapshot {
@@ -86,6 +103,8 @@ export function applyBackendReachable(
     lastHttpStatus: httpStatus,
     lastReason: reason,
     lastCheckedAt: now,
+    isSlow:
+      durationMs === undefined ? snapshot.isSlow : durationMs >= SLOW_RESPONSE_THRESHOLD_MS,
   };
 }
 
@@ -132,6 +151,7 @@ export function applyBackendTransportFailure(
     lastHttpStatus: null,
     lastReason: reason,
     lastCheckedAt: now,
+    isSlow: false,
   };
 }
 

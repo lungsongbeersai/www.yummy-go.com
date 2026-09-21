@@ -85,6 +85,10 @@ export interface BackendProbeResult {
   httpStatus: number | null;
   classification: BackendErrorClassification;
   reason: string;
+  // Round-trip time of this probe's own fetch, ms. Only set when reachable —
+  // feeds the SLOW_RESPONSE_THRESHOLD_MS check in applyBackendReachable, kept
+  // separate from ordinary API call latency (see the comment there).
+  durationMs?: number;
 }
 
 interface BackendNetworkMonitorOptions {
@@ -146,6 +150,16 @@ export function requestImmediateReconcile() {
   window.dispatchEvent(new Event(RECONCILE_NOW_EVENT));
 }
 
+// Narrower than requestImmediateReconcile: wakes only the Backend health probe
+// (same as the existing window "online"/"offline" hints below), without also
+// firing RECONCILE_NOW_EVENT. Used by the native (@capacitor/network) listener,
+// which should behave exactly like those browser hints — a signal to re-verify
+// reachability now, never an authority that mutates network state directly.
+export function requestImmediateBackendProbe() {
+  if (typeof window === "undefined") return;
+  window.dispatchEvent(new Event(BACKEND_PROBE_NOW_EVENT));
+}
+
 function backendBaseUrl() {
   return process.env.NEXT_PUBLIC_BASE_URL ??
     (typeof window !== "undefined" ? window.location.origin : "");
@@ -172,6 +186,7 @@ export async function probeBackendReachability(
     headers["x-access-token"] = auth.token;
   }
 
+  const startedAt = performance.now();
   try {
     const target = new URL("/api/v1/sync/health", backendBaseUrl());
     target.searchParams.set("network_probe", String(Date.now()));
@@ -189,6 +204,7 @@ export async function probeBackendReachability(
         response.ok
           ? "backend_health_success"
           : `http_${response.status}_backend_reachable`,
+      durationMs: performance.now() - startedAt,
     };
   } catch (error) {
     const classification = classifyBackendError(error);
@@ -226,7 +242,7 @@ function applyProbeResult(result: BackendProbeResult, startedAtRevision: number)
     return backendNetworkManager.getSnapshot();
   }
   const snapshot = result.reachable
-    ? backendNetworkManager.reportReachable(result.httpStatus, result.reason)
+    ? backendNetworkManager.reportReachable(result.httpStatus, result.reason, result.durationMs)
     : result.classification === "NETWORK_TRANSPORT"
       // Only consecutive health-probe failures can declare OFFLINE. Browser
       // hints and ordinary request failures cannot bypass the debounce.

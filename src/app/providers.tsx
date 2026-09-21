@@ -21,6 +21,8 @@ import { useAppStore, type FontScale, type ThemeColor, type ThemeMode } from "@/
 import { Toaster } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { AppUpdateChecker } from "@/features/app-update/app-update-checker";
+import { ConnectivityBanner } from "@/features/offline/connectivity-banner";
+import { ConnectivityRuntime } from "@/features/offline/connectivity-runtime";
 import { OnlineOnlyCutoverRuntime } from "@/features/online-only/online-only-cutover-runtime";
 
 interface ProvidersProps {
@@ -227,8 +229,10 @@ export function Providers({ children, initialLanguage }: ProvidersProps) {
   return (
     <I18nextProvider i18n={i18n}>
       <TooltipProvider delayDuration={150}>
+        <ConnectivityBanner />
         {children}
         <OnlineOnlyCutoverRuntime />
+        <ConnectivityRuntime />
         <AppUpdateChecker />
         <Toaster />
       </TooltipProvider>

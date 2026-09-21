@@ -3046,5 +3046,11 @@
       "emailLabel": "ອີເມວສະໜັບສະໜູນ",
       "email": "support@yummy-go.com"
     }
+  },
+  "connectivity": {
+    "offlineTitle": "ບໍ່ມີການເຊື່ອມຕໍ່ອິນເຕີເນັດ",
+    "offlineDescription": "ກຳລັງລອງເຊື່ອມຕໍ່ໃໝ່ອັດຕະໂນມັດ...",
+    "slowTitle": "ການເຊື່ອມຕໍ່ອິນເຕີເນັດຊ້າ",
+    "slowDescription": "ບາງຄຳສັ່ງອາດໃຊ້ເວລາດົນກວ່າປົກກະຕິ"
   }
 }

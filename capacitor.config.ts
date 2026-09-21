@@ -16,6 +16,12 @@ const config: CapacitorConfig = {
 
     androidScheme: "https",
     iosScheme: "https",
+
+    // ตอน server.url ข้างบนโหลดไม่ติดเลย (ไม่มีเน็ตตั้งแต่ต้น) WebView native ทั้งสอง
+    // แพลตฟอร์มจะ redirect มาไฟล์ local นี้แทนหน้า error ดิบของระบบ (BridgeWebViewClient
+    // .onReceivedError บน Android, didFail(Provisional)Navigation บน iOS) — ยังไม่มี
+    // Next.js/React ให้ใช้ตรงนี้ ต้องเป็น static HTML ล้วนๆ ใน capacitor-web/offline.html
+    errorPath: "offline.html",
   },
 
   android: {
