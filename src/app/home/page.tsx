@@ -1,6 +1,6 @@
 import { Suspense } from "react";
 import type { Metadata } from "next";
-import { JetBrains_Mono, Space_Grotesk } from "next/font/google";
+import localFont from "next/font/local";
 import { LoadingState } from "@/components/common/loading-state";
 import { LandingPage } from "@/features/landing/landing-page";
 
@@ -11,17 +11,17 @@ import { LandingPage } from "@/features/landing/landing-page";
 // ฟอนต์สำรองพวกนี้อ้างอิงฟอนต์ระบบซึ่งเรนเดอร์อักษรลาวได้ เบราว์เซอร์จึงหยุดที่ตัวนั้น
 // ไม่เคยไปถึง Noto Sans Lao ที่เราวางไว้ถัดไป → อักษรลาวตกไปใช้ DokChampa ของ Windows
 // ปิดทิ้งแล้วสแตกจะเหลือ "ฟอนต์ละติน → Noto Sans Lao" ซึ่งได้ทั้งสองภาษาถูกต้อง
-const spaceGrotesk = Space_Grotesk({
-  subsets: ["latin"],
-  weight: ["400", "500", "600", "700"],
+const spaceGrotesk = localFont({
+  src: "../../design-system/font-files/space-grotesk-variable.ttf",
+  weight: "400 700",
   display: "swap",
   adjustFontFallback: false,
   variable: "--font-space-grotesk"
 });
 
-const jetbrainsMono = JetBrains_Mono({
-  subsets: ["latin"],
-  weight: ["400", "500"],
+const jetbrainsMono = localFont({
+  src: "../../design-system/font-files/jetbrains-mono-variable.ttf",
+  weight: "400 500",
   display: "swap",
   adjustFontFallback: false,
   variable: "--font-jetbrains-mono"
