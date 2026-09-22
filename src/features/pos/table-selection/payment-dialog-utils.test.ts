@@ -32,6 +32,7 @@ import {
   preserveFirstCustomerAutoSelect,
   quickCashAmounts,
   rawCaretFromDisplayCaret,
+  remainingCurrencyInput,
   withReceiptPrintLabels,
 } from "./payment-dialog-utils";
 
@@ -274,6 +275,19 @@ describe("payment dialog helpers", () => {
     );
     expect(rawCaretFromDisplayCaret("1,234", 5, false)).toBe(4);
     expect(displayCaretFromRawCaret("1234", 3, LAK_CURRENCY_OPTION)).toBe(4);
+  });
+
+  it("computes the remaining amount for the complementary split field", () => {
+    expect(remainingCurrencyInput(50000, "20000", LAK_CURRENCY_OPTION)).toBe(
+      "30000",
+    );
+    expect(remainingCurrencyInput(50000, "", LAK_CURRENCY_OPTION)).toBe(
+      "50000",
+    );
+    expect(remainingCurrencyInput(50000, "60000", LAK_CURRENCY_OPTION)).toBe(
+      "0",
+    );
+    expect(remainingCurrencyInput(50000, "1", usd)).toBe("1.5");
   });
 
   it("builds quick amounts, money labels, and payment notes", () => {
