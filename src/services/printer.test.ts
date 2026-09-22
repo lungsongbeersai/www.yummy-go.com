@@ -877,7 +877,8 @@ describe("printer service dispatch", () => {
           login_uuid_fk: "login-1",
           device_code: "OWNER-PC",
           agent_id: "owner-agent",
-          print_mode: "windows_agent"
+          print_mode: "windows_agent",
+          remote_shared_print: true
         }
       })
     ).resolves.toEqual({ successCount: 1, failedCount: 0, total: 1 });
