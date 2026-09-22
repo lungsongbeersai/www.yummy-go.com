@@ -308,10 +308,17 @@ function batchPrintJobItemUuids(batch: PrintOpsBatchPayload) {
       ? batch.print_job_item_uuids
       : []),
     ...(Array.isArray(batch.jobs)
-      ? batch.jobs.flatMap((job) => [
-        textValue(job.print_job_item_uuid),
-        textValue(job.meta?.print_job_item_uuid),
-      ])
+      ? batch.jobs.flatMap((job) => {
+        const groupedItemUuids = Array.isArray(job.meta?.print_job_item_uuids)
+          ? job.meta.print_job_item_uuids.map(textValue)
+          : [];
+
+        return [
+          ...groupedItemUuids,
+          textValue(job.print_job_item_uuid),
+          textValue(job.meta?.print_job_item_uuid),
+        ];
+      })
       : []),
   ].filter(Boolean);
 
