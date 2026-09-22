@@ -133,7 +133,10 @@ export async function getPendingPrintJobs(params: PendingPrintJobsParams): Promi
       login_uuid_fk: params.login_uuid_fk,
       device_code: params.device_code,
       agent_id: params.agent_id,
-      print_mode: params.print_mode
+      print_mode: params.print_mode,
+      ...(params.relay_device_code
+        ? { relay_device_code: params.relay_device_code }
+        : {}),
     }
   });
   const hasBatchPayloads = Array.isArray(result.print_batch_payloads);
@@ -518,18 +521,31 @@ async function executePrintJobs(
     };
   }
 
-  if (
+  const remoteSharedPrint =
     input.pending_query?.remote_shared_print === true ||
-    input.print_job?.remote_shared_print === true
-  ) {
-    return {
-      successCount: 0,
-      failedCount: 0,
-      total: 0,
-      // The owner device still has to print and ACK this job. Do not let the
-      // requesting cashier present a queued REQUIRED print as completed.
-      pending: true,
-    };
+    input.print_job?.remote_shared_print === true;
+  let remoteRelayAgent: AgentInfo | null = null;
+
+  if (remoteSharedPrint) {
+    // A desktop requester can hand the batch to its local Agent, which relays
+    // it to the printer-owning Agent. This avoids stranding the kitchen job
+    // until the owner web UI happens to be open and polling.
+    if (!Capacitor.isNativePlatform()) {
+      try {
+        remoteRelayAgent = await getLocalAgentInfo();
+      } catch {
+        // Without a requester-side Agent, preserve the owner polling fallback.
+      }
+    }
+
+    if (!remoteRelayAgent) {
+      return {
+        successCount: 0,
+        failedCount: 0,
+        total: 0,
+        pending: true,
+      };
+    }
   }
 
   input.onProgress?.({
@@ -556,7 +572,12 @@ async function executePrintJobs(
         })),
       };
 
-  const pendingResult = await getPendingPrintJobs(pendingParams);
+  const pendingResult = await getPendingPrintJobs({
+    ...pendingParams,
+    ...(remoteRelayAgent?.device_code
+      ? { relay_device_code: remoteRelayAgent.device_code }
+      : {}),
+  });
 
   const pending = pendingResult.jobs;
   const batchPayloads = splitOversizedAgentBatches(pendingResult.batchPayloads);
@@ -617,7 +638,9 @@ async function executePrintJobs(
     let failedCount = 0;
     let hasPendingDelivery = false;
     let lastErrorMessage: string | undefined;
-    let localAgentPromise: Promise<AgentInfo> | null = null;
+    let localAgentPromise: Promise<AgentInfo> | null = remoteRelayAgent
+      ? Promise.resolve(remoteRelayAgent)
+      : null;
     const sharedLocalAgent = () => {
       // One pending response can contain several physical USB/TCP printers.
       // They all go through the same local Agent, so resolve its identity once

@@ -361,6 +361,7 @@ export interface PendingPrintJobsParams {
   device_code?: string;
   agent_id?: string;
   print_mode?: string;
+  relay_device_code?: string;
 }
 export interface PendingPrintJobsResult {
   jobs: PendingPrintJobData[];
