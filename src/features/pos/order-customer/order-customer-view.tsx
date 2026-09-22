@@ -88,13 +88,12 @@ export function OrderCustomerView({
     openOrAddProduct,
     openCartSheet,
     openTablesPage,
-    onDraftExitConfirmKitchen,
+    onDraftExitContinue,
     onDraftExitLeaveTable,
     productMode,
     productSheetOpen,
     printerContext,
     qty,
-    registerDraftConfirmAction,
     refreshAll,
     saving,
     search,
@@ -436,7 +435,6 @@ export function OrderCustomerView({
               showTableFeatures={showTableFeatures}
               table={selectedTable}
               onCartRefresh={loadCart}
-              onConfirmActionChange={registerDraftConfirmAction}
               onTableActionComplete={handleTableActionComplete}
             />
           </div>
@@ -544,7 +542,7 @@ export function OrderCustomerView({
       <DraftExitWarningDialog
         leavePending={draftExitCleanupPending}
         open={draftExitWarningOpen}
-        onConfirmKitchen={onDraftExitConfirmKitchen}
+        onContinue={onDraftExitContinue}
         onLeaveTable={onDraftExitLeaveTable}
       />
     </div>

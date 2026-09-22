@@ -61,6 +61,7 @@ function cartOrder(overrides: Partial<CartOrder> = {}): CartOrder {
         detail: {
           order_it_qty: 1,
           order_it_status: 1,
+          order_it_created_by: "login-1",
           gross_total: 8000,
           net_total: 8000,
         },
@@ -177,7 +178,7 @@ describe("table selection utils", () => {
   });
 
   it("extracts confirmable new order groups", () => {
-    expect(newOrderConfirmGroups([cartOrder()])).toEqual([
+    expect(newOrderConfirmGroups([cartOrder()], "login-1")).toEqual([
       { orderUuid: "order-1", itemUuids: ["item-2"] },
     ]);
   });
@@ -189,11 +190,15 @@ describe("table selection utils", () => {
   it("collapses every new item of the same order into a single confirm group", () => {
     const manyNewItems = Array.from({ length: 10 }, (_, index) => ({
       order_it_uuid: `new-item-${index}`,
-      detail: { order_it_status: 1, net_total: 10000 },
+      detail: {
+        order_it_status: 1,
+        order_it_created_by: "login-1",
+        net_total: 10000,
+      },
     })) as CartItem[];
     const cart = cartOrder({ items: manyNewItems, totals: undefined });
 
-    const groups = newOrderConfirmGroups([cart]);
+    const groups = newOrderConfirmGroups([cart], "login-1");
 
     expect(groups).toHaveLength(1);
     expect(groups[0].orderUuid).toBe("order-1");
@@ -207,12 +212,16 @@ describe("table selection utils", () => {
       order_it_uuid: "set-child-1",
       order_it_uuids: ["set-child-1", "set-child-2", "set-child-3"],
       set_instance_uuid: "50000000-0000-4000-8000-000000000001",
-      detail: { order_it_status: 1, net_total: 10000 },
+      detail: {
+        order_it_status: 1,
+        order_it_created_by: "login-1",
+        net_total: 10000,
+      },
     } as CartItem;
 
     expect(newOrderConfirmGroups([
       cartOrder({ items: [setItem], totals: undefined }),
-    ])).toEqual([{
+    ], "login-1")).toEqual([{
       orderUuid: "order-1",
       itemUuids: ["set-child-1", "set-child-2", "set-child-3"],
     }]);
@@ -225,7 +234,11 @@ describe("table selection utils", () => {
     } as CartItem;
     const newItem = {
       order_it_uuid: "new",
-      detail: { order_it_status: 1, net_total: 8000 },
+      detail: {
+        order_it_status: 1,
+        order_it_created_by: "login-1",
+        net_total: 8000,
+      },
     } as CartItem;
     const historyItem = {
       order_it_uuid: "history",
@@ -242,9 +255,27 @@ describe("table selection utils", () => {
     expect(visibleCartItems(cart).filter(isOrderHistoryCartItem)).toEqual([historyItem]);
     expect(newOrderTabItems(visibleCartItems(cart))).toEqual([newItem, waitingItem]);
     expect(cartSummary(cart).subtotal).toBe(40000);
-    expect(newOrderConfirmGroups([cart])).toEqual([
+    expect(newOrderConfirmGroups([cart], "login-1")).toEqual([
       { orderUuid: "order-1", itemUuids: ["new"] },
     ]);
+  });
+
+  it("confirms only status-1 drafts owned by the current employee", () => {
+    const own = {
+      order_it_uuid: "own-draft",
+      detail: { order_it_status: 1, order_it_created_by: "login-1" },
+    } as CartItem;
+    const other = {
+      order_it_uuid: "other-draft",
+      detail: { order_it_status: 1, order_it_created_by: "login-2" },
+    } as CartItem;
+
+    expect(
+      newOrderConfirmGroups(
+        [cartOrder({ items: [own, other], totals: undefined })],
+        "login-1",
+      ),
+    ).toEqual([{ orderUuid: "order-1", itemUuids: ["own-draft"] }]);
   });
 
   it("counts cart quantity from order totals and item quantities", () => {

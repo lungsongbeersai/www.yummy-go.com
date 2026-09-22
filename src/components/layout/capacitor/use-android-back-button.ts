@@ -10,6 +10,7 @@ import {
 import { isCapacitorNativeApp } from "@/lib/capacitor-platform";
 import { internalRoute } from "@/lib/routes";
 import { useNativeHeaderStore } from "@/stores/native-header-store";
+import { useNavigationGuardStore } from "@/stores/navigation-guard-store";
 
 // Dialog/Sheet/AlertDialog ของ feature (เช่น payment dialog บน /posAll/order) shell ไม่รู้จัก
 // แต่ทุกตัวมี data-slot ของ shadcn เสมอ จึงเช็คจาก DOM แทนการเดินสาย state ทุกหน้าเข้ามาที่ shell
@@ -29,6 +30,7 @@ export function useAndroidBackButton({
 }) {
   const router = useRouter();
   const backAction = useNativeHeaderStore((state) => state.backAction);
+  const runGuardedNavigation = useNavigationGuardStore((state) => state.run);
 
   useEffect(() => {
     if (!isCapacitorNativeApp()) return;
@@ -59,10 +61,12 @@ export function useAndroidBackButton({
 
       switch (action.type) {
         case "navigate":
-          router.push(internalRoute(action.path));
+          runGuardedNavigation(() => {
+            router.push(internalRoute(action.path));
+          });
           return;
         case "history-back":
-          router.back();
+          runGuardedNavigation(() => router.back());
           return;
         case "minimize":
           // ห้าม App.exitApp() — ผู้ใช้ POS กดพลาดแล้วแอปตายกลางบิล
@@ -74,5 +78,5 @@ export function useAndroidBackButton({
     return () => {
       void handle.then((listener) => listener.remove());
     };
-  }, [backAction, model, pathname, router]);
+  }, [backAction, model, pathname, router, runGuardedNavigation]);
 }

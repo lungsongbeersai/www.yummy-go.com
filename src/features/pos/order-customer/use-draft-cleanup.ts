@@ -7,8 +7,8 @@ import { usePosStore } from "@/stores/pos-store";
 import { primaryCartOrder } from "../table-selection/utils";
 
 // รายการของ "ตัวเอง" (login_uuid ตรงกับผู้เรียก) ที่ยังไม่กด "ยืนยันออเดอร์"
-// (WAITING_CONFIRM) บนบิลนี้ -- ใช้ตัดสินใจเฉพาะตอนผู้ใช้กด Back เท่านั้น
-// ไม่มี inactivity timer หรือลบรายการอัตโนมัติ
+// (WAITING_CONFIRM) บนบิลนี้ -- ฝั่ง client ใช้ตัดสินใจเฉพาะ navigation ภายใน
+// ส่วน cleanup เมื่อไม่มี activity 5 นาทีเป็นหน้าที่ Backend (source of truth)
 export function myDraftItems(cart: CartOrder | null, userUuid: string): CartItem[] {
   if (!cart?.items?.length || !userUuid) return [];
   return cart.items.filter(
@@ -47,7 +47,7 @@ export function useDraftCleanup({
 
   const cleanupNow = useCallback(async () => {
     // เมื่อกดยืนยันแล้ว รายการอาจยังเป็น status 1 บน cart เก่าระหว่างสร้างคิวพิมพ์
-    // กับ refresh ห้าม Back ส่ง cleanup มาชนช่วงนั้น
+    // กับ refresh ห้าม navigation guard ส่ง cleanup มาชนช่วงนั้น
     if (activeKitchenConfirmations > 0) return false;
     if (!orderUuid) return true;
     await cleanupDraftOrderItems({ order_uuid: orderUuid });

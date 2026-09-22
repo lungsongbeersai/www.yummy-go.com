@@ -4,6 +4,7 @@ import { useTranslation } from "react-i18next";
 import {
   AlertDialog,
   AlertDialogAction,
+  AlertDialogCancel,
   AlertDialogContent,
   AlertDialogDescription,
   AlertDialogFooter,
@@ -15,12 +16,12 @@ import { Spinner } from "@/components/ui/spinner";
 export function DraftExitWarningDialog({
   leavePending,
   open,
-  onConfirmKitchen,
+  onContinue,
   onLeaveTable,
 }: {
   leavePending: boolean;
   open: boolean;
-  onConfirmKitchen: () => void;
+  onContinue: () => void;
   onLeaveTable: () => void;
 }) {
   const { t } = useTranslation();
@@ -37,6 +38,9 @@ export function DraftExitWarningDialog({
           </AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>
+          <AlertDialogCancel disabled={leavePending} onClick={onContinue}>
+            {t("pos.draftExitContinue")}
+          </AlertDialogCancel>
           <AlertDialogAction
             variant="destructive"
             disabled={leavePending}
@@ -46,16 +50,7 @@ export function DraftExitWarningDialog({
             }}
           >
             {leavePending ? <Spinner data-icon="inline-start" /> : null}
-            {t("pos.draftExitLeaveTable")}
-          </AlertDialogAction>
-          <AlertDialogAction
-            disabled={leavePending}
-            onClick={(event) => {
-              event.preventDefault();
-              onConfirmKitchen();
-            }}
-          >
-            {t("pos.draftExitConfirmKitchen")}
+            {t("pos.draftExitDiscard")}
           </AlertDialogAction>
         </AlertDialogFooter>
       </AlertDialogContent>

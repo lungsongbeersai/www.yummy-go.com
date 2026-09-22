@@ -81,6 +81,7 @@ export function CartTabItems({
   canItemDiscount = true,
   canSplitItem,
   canConfirmKitchenItem,
+  canMutateItem,
   compact = false,
   editable = false,
   items,
@@ -103,6 +104,7 @@ export function CartTabItems({
   canItemDiscount?: boolean;
   canSplitItem?: (item: CartItem) => boolean;
   canConfirmKitchenItem: (item: CartItem) => boolean;
+  canMutateItem?: (item: CartItem) => boolean;
   compact?: boolean;
   editable?: boolean;
   items: CartItem[];
@@ -130,13 +132,14 @@ export function CartTabItems({
         const splitSelectedQty = itemUuid
           ? splitSelectedItemUuids?.get(itemUuid)
           : undefined;
+        const itemCanMutate = canMutateItem ? canMutateItem(item) : true;
 
         return (
           <CartItemRow
             key={String(item.order_item_uuid ?? item.order_it_uuid ?? item.prod_uuid ?? item.product_uuid ?? index)}
-            editable={editable}
+            editable={editable && itemCanMutate}
             item={item}
-            actionDisabled={actionDisabled}
+            actionDisabled={actionDisabled || !itemCanMutate}
             acting={itemUuid === actingItemUuid}
             canConfirmKitchen={canConfirmKitchenItem(item)}
             canItemDiscount={canItemDiscount}

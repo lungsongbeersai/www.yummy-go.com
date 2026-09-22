@@ -280,6 +280,14 @@ export function isNewOrderCartItem(item: CartItem) {
   return cartItemStatus(item) === 1;
 }
 
+export function isDraftOwnedBy(item: CartItem, userUuid: string) {
+  return Boolean(
+    userUuid &&
+      isNewOrderCartItem(item) &&
+      optionalString(item.detail?.order_it_created_by) === userUuid,
+  );
+}
+
 export function isOrderHistoryCartItem(item: CartItem) {
   const status = cartItemStatus(item);
   return status === null || (status !== 0 && status !== 1);
@@ -347,14 +355,14 @@ export function cartOrderInvoice(orders: CartOrder[]) {
   return null;
 }
 
-export function newOrderConfirmGroups(orders: CartOrder[]) {
+export function newOrderConfirmGroups(orders: CartOrder[], userUuid: string) {
   return orders
     .map((order) => ({
       orderUuid: optionalString(order.order_uuid),
       itemUuids: [
         ...new Set(
           (order.items ?? [])
-            .filter(isNewOrderCartItem)
+            .filter((item) => isDraftOwnedBy(item, userUuid))
             .flatMap(cartItemActionUuids),
         ),
       ],

@@ -7,14 +7,19 @@ import { useIsMobile } from "@/hooks/use-mobile";
 import { useOfflineRefetchEpoch } from "@/hooks/use-offline-refetch";
 import { useResetOnDeps } from "@/hooks/use-reset-on-change";
 import { OrderChannelEnum, OrderSourceEnum } from "@/config/pos-constants";
-import { isCapacitorAndroidApp } from "@/lib/capacitor-platform";
+import {
+  isCapacitorAndroidApp,
+  isCapacitorMobileApp,
+} from "@/lib/capacitor-platform";
 import { ServiceError } from "@/lib/api";
 import { classifyBackendError } from "@/lib/network-state";
+import { internalRoute } from "@/lib/routes";
 import { optionalString } from "@/lib/values";
 import type { ProdDetail, ProdItem, ProdTaste } from "@/services/pos";
 import type { PrinterDeviceContext } from "@/services/printer";
 import { useAppStore } from "@/stores/app-store";
 import { useAuthStore } from "@/stores/auth-store";
+import { useNavigationGuardStore } from "@/stores/navigation-guard-store";
 import { usePosStore } from "@/stores/pos-store";
 import { usePrinterStore } from "@/stores/printer-store";
 import { useToastStore } from "@/stores/toast-store";
@@ -75,6 +80,7 @@ export function useOrderCustomerWorkflow({
   const isNoTableStore = user?.store_table_status === 2;
   const language = useAppStore((state) => state.language);
   const showToast = useToastStore((state) => state.show);
+  const setNavigationGuard = useNavigationGuardStore((state) => state.setGuard);
   const zones = usePosStore((state) => state.zones);
   const cart = usePosStore((state) => state.cart);
   const loadingTables = usePosStore((state) => state.loading);
@@ -111,7 +117,11 @@ export function useOrderCustomerWorkflow({
   const [cartSheetOpen, setCartSheetOpen] = useState(false);
   const [draftExitWarningOpen, setDraftExitWarningOpen] = useState(false);
   const [draftExitCleanupPending, setDraftExitCleanupPending] = useState(false);
-  const draftConfirmActionRef = useRef<(() => Promise<void>) | null>(null);
+  const pendingExitActionRef = useRef<(() => void) | null>(null);
+  const allowNextUnloadRef = useRef(false);
+  const requestGuardedNavigationRef = useRef<(action: () => void) => void>(
+    (action) => action(),
+  );
   const [newOrderFocusKey, setNewOrderFocusKey] = useState(0);
   const [selectedProduct, setSelectedProduct] = useState<ProdItem | null>(null);
   const [detailUuid, setDetailUuid] = useState("");
@@ -577,6 +587,57 @@ export function useOrderCustomerWorkflow({
     void loadCart();
   }, [loadCart]);
 
+  const reloadCartAfterResume = useCallback(async () => {
+    await loadCart({ background: true });
+  }, [loadCart]);
+
+  // Web ใช้ visibilitychange; Capacitor ใช้ native appStateChange ซึ่ง map ไปยัง
+  // lifecycle ของ iOS/Android โดยตรง เมื่อกลับ foreground ให้โหลด cart จาก server
+  // ใหม่จาก Backend เท่านั้น ตอน background ห้ามลบ เพราะ OS อาจหยุด process ก่อน
+  // request จบได้ทุกเมื่อ และ Backend เป็น source of truth ของ cleanup 5 นาที
+  useEffect(() => {
+    let inactive = false;
+    let disposed = false;
+
+    const resume = () => {
+      if (!inactive || disposed) return;
+      inactive = false;
+      void reloadCartAfterResume();
+    };
+
+    if (isCapacitorMobileApp()) {
+      const listener = import("@capacitor/app")
+        .then(({ App }) =>
+          App.addListener("appStateChange", ({ isActive }) => {
+            if (!isActive) {
+              inactive = true;
+              return;
+            }
+            resume();
+          }),
+        )
+        .catch(() => null);
+
+      return () => {
+        disposed = true;
+        void listener.then((handle) => handle?.remove()).catch(() => undefined);
+      };
+    }
+
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === "hidden") {
+        inactive = true;
+        return;
+      }
+      resume();
+    };
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+    return () => {
+      disposed = true;
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+    };
+  }, [reloadCartAfterResume]);
+
   useOrderCustomerRealtime({ branchUuid, refresh: loadCart });
 
   useEffect(() => {
@@ -620,18 +681,22 @@ export function useOrderCustomerWorkflow({
     router.replace(user?.store_table_status === 2 ? "/" : "/posAll/tables");
   }
 
-  async function openTablesPage() {
-    // Back ต้องให้ผู้ใช้เลือกเองว่าจะทิ้ง draft หรือยืนยันส่งครัว ห้ามลบทันทีโดยไม่เตือน
+  function requestGuardedNavigation(action: () => void) {
     if (draftCleanup.backDecision === "prompt") {
+      pendingExitActionRef.current = action;
       setDraftExitWarningOpen(true);
       return;
     }
 
-    // cart อาจยังแสดง status 1 ชั่วคราวระหว่างกำลังยืนยัน/พิมพ์ครัว จึงไม่เปิดทาง
-    // ให้กดยกเลิกซ้ำในช่วงนั้น
+    // cart อาจยังแสดง status 1 ชั่วคราวระหว่างกำลังยืนยัน/พิมพ์ครัว จึงห้าม
+    // navigation/cleanup แทรกระหว่างงานครัว
     if (draftCleanup.backDecision === "wait") return;
 
-    navigateAwayFromOrder();
+    action();
+  }
+
+  function openTablesPage() {
+    requestGuardedNavigation(navigateAwayFromOrder);
   }
 
   async function discardDraftAndLeaveTable() {
@@ -642,7 +707,9 @@ export function useOrderCustomerWorkflow({
       const cleanupCompleted = await draftCleanup.cleanupNow();
       if (!cleanupCompleted) return;
       setDraftExitWarningOpen(false);
-      navigateAwayFromOrder();
+      const exitAction = pendingExitActionRef.current ?? navigateAwayFromOrder;
+      pendingExitActionRef.current = null;
+      exitAction();
     } catch (error) {
       showToast({
         title: t("pos.draftCleanupFailed"),
@@ -654,26 +721,95 @@ export function useOrderCustomerWorkflow({
     }
   }
 
-  const registerDraftConfirmAction = useCallback(
-    (action: (() => Promise<void>) | null) => {
-      draftConfirmActionRef.current = action;
-    },
-    [],
-  );
-
-  async function confirmDraftToKitchen() {
+  function continueOrdering() {
     setDraftExitWarningOpen(false);
-
-    const confirmAction = draftConfirmActionRef.current;
-    if (confirmAction) {
-      await confirmAction();
-      return;
-    }
-
-    // ตัว cart panel จะลงทะเบียน action หลัง mount ตามปกติ หากยังไม่พร้อมจริง ๆ
-    // เปิดตะกร้าให้ผู้ใช้ยืนยันเองแทนการทิ้งรายการโดยไม่มีทางเลือก
-    await openCartSheet();
+    pendingExitActionRef.current = null;
   }
+
+  useEffect(() => {
+    requestGuardedNavigationRef.current = requestGuardedNavigation;
+  });
+
+  // programmatic navigation จาก shell (notification/logout/native fallback)
+  // ส่งผ่าน guard เดียวกับปุ่ม Back ของหน้ารับออเดอร์
+  useEffect(() => {
+    const guard = (action: () => void) => {
+      requestGuardedNavigationRef.current(action);
+    };
+    setNavigationGuard(guard);
+    return () => setNavigationGuard(null);
+  }, [setNavigationGuard]);
+
+  // Link ของ sidebar/bottom nav เป็น navigation ที่เกิดนอก component tree ของหน้านี้
+  // ดักเฉพาะตอนมี draft (หรือกำลัง confirm) แล้วส่ง action เดิมไปทำต่อหลังผู้ใช้ตัดสินใจ
+  useEffect(() => {
+    if (draftCleanup.backDecision === "leave") return;
+
+    const interceptLink = (event: MouseEvent) => {
+      if (
+        event.defaultPrevented ||
+        event.button !== 0 ||
+        event.metaKey ||
+        event.ctrlKey ||
+        event.shiftKey ||
+        event.altKey
+      ) {
+        return;
+      }
+
+      const target = event.target;
+      if (!(target instanceof Element)) return;
+      const anchor = target.closest<HTMLAnchorElement>("a[href]");
+      if (!anchor || anchor.hasAttribute("download")) return;
+      if (anchor.target && anchor.target !== "_self") return;
+
+      const destination = new URL(anchor.href, window.location.href);
+      const current = new URL(window.location.href);
+      if (
+        destination.origin === current.origin &&
+        destination.pathname === current.pathname &&
+        destination.search === current.search
+      ) {
+        return;
+      }
+      if (!["http:", "https:"].includes(destination.protocol)) return;
+
+      event.preventDefault();
+      event.stopImmediatePropagation();
+      requestGuardedNavigationRef.current(() => {
+        if (destination.origin === current.origin) {
+          router.push(internalRoute(
+            `${destination.pathname}${destination.search}${destination.hash}`,
+          ));
+          return;
+        }
+        allowNextUnloadRef.current = true;
+        window.location.assign(destination.href);
+      });
+    };
+
+    document.addEventListener("click", interceptLink, true);
+    return () => document.removeEventListener("click", interceptLink, true);
+  }, [draftCleanup.backDecision, router]);
+
+  // Web browser อาจปิด tab/refresh/พิมพ์ URL ใหม่โดยไม่ผ่าน navigation ของ React
+  // แสดง native warning เท่านั้นและไม่ยิง cleanup; beforeunload ไม่รับประกันบน mobile
+  // Backend cleanup 5 นาทีเป็นกลไกหลักสำหรับกรณีปิดหน้าต่างแบบควบคุมไม่ได้
+  useEffect(() => {
+    if (draftCleanup.backDecision !== "prompt") return;
+
+    const warnBeforeUnload = (event: BeforeUnloadEvent) => {
+      if (allowNextUnloadRef.current) {
+        allowNextUnloadRef.current = false;
+        return;
+      }
+      event.preventDefault();
+      event.returnValue = "";
+    };
+
+    window.addEventListener("beforeunload", warnBeforeUnload);
+    return () => window.removeEventListener("beforeunload", warnBeforeUnload);
+  }, [draftCleanup.backDecision]);
 
   async function refreshAll() {
     await Promise.all([
@@ -972,13 +1108,12 @@ export function useOrderCustomerWorkflow({
     openTablesPage,
     draftExitCleanupPending,
     draftExitWarningOpen,
-    onDraftExitConfirmKitchen: () => void confirmDraftToKitchen(),
+    onDraftExitContinue: continueOrdering,
     onDraftExitLeaveTable: () => void discardDraftAndLeaveTable(),
     productMode,
     productSheetOpen,
     printerContext,
     qty,
-    registerDraftConfirmAction,
     refreshAll,
     saving,
     search,

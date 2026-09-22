@@ -60,11 +60,13 @@ import { useAppShellData } from "@/components/layout/use-app-shell-data";
 import { getStoreLogoUrl, getUserProfileUrl } from "@/lib/image";
 import { useAppStore } from "@/stores/app-store";
 import { useAuthStore, type AuthUser } from "@/stores/auth-store";
+import { useNavigationGuardStore } from "@/stores/navigation-guard-store";
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   const { i18n, t } = useTranslation();
   const user = useAuthStore((state) => state.user);
   const logout = useAuthStore((state) => state.logout);
+  const runGuardedNavigation = useNavigationGuardStore((state) => state.run);
   const collapsed = useAppStore((state) => state.collapsed);
   const setCollapsed = useAppStore((state) => state.setCollapsed);
   usePosOrderAlertListener({ branchUuid: user?.branch_uuid, language: i18n.language });
@@ -113,7 +115,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         <AppHeader
           breadcrumbs={breadcrumbs}
           collapsed={collapsed}
-          logout={logout}
+          logout={() => runGuardedNavigation(logout)}
           user={user}
         />
       ) : null}

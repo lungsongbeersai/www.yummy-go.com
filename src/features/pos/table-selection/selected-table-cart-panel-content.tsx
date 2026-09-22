@@ -264,6 +264,7 @@ export function SelectedTableCartPanelContent({
                       actingItemUuid={workflow.actingItemUuid}
                       actionDisabled={workflow.cartActionsLocked}
                       canConfirmKitchenItem={workflow.canConfirmKitchenItem}
+                      canMutateItem={workflow.canMutateItem}
                       canItemDiscount={workflow.canManageDiscounts}
                       items={workflow.newOrderDisplayItems}
                       updatingItemUuid={workflow.updatingItemUuid}

@@ -18,6 +18,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { usePosStore } from "@/stores/pos-store";
+import { useNavigationGuardStore } from "@/stores/navigation-guard-store";
 
 interface NotificationMenuProps {
   triggerClassName?: string;
@@ -32,6 +33,7 @@ export function NotificationMenu({
 }: NotificationMenuProps = {}) {
   const { t } = useTranslation();
   const router = useRouter();
+  const runGuardedNavigation = useNavigationGuardStore((state) => state.run);
   const zoneOptions = usePosStore((state) => state.zoneOptions);
 
   // รายการนี้มาจาก customer_order_state จริงของแต่ละโต๊ะ (ผ่าน pos-store ที่
@@ -44,7 +46,9 @@ export function NotificationMenu({
 
   function openTableOrder(alert: OrderAlertEntry) {
     const params = new URLSearchParams({ table_uuid: alert.tableUuid, table_name: alert.tableName });
-    router.push(`/posAll/order?${params.toString()}`);
+    runGuardedNavigation(() => {
+      router.push(`/posAll/order?${params.toString()}`);
+    });
   }
 
   return (

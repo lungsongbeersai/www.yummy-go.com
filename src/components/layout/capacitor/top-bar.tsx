@@ -39,6 +39,7 @@ import { getUserProfileUrl } from "@/lib/image";
 import { internalRoute } from "@/lib/routes";
 import { cn } from "@/lib/utils";
 import { useAuthStore, type AuthUser } from "@/stores/auth-store";
+import { useNavigationGuardStore } from "@/stores/navigation-guard-store";
 import { useNativeHeaderStore } from "@/stores/native-header-store";
 
 export function NativeTopBar({
@@ -53,6 +54,7 @@ export function NativeTopBar({
   const { t } = useTranslation();
   const router = useRouter();
   const logout = useAuthStore((state) => state.logout);
+  const runGuardedNavigation = useNavigationGuardStore((state) => state.run);
   const user = useAuthStore((state) => state.user);
   const refreshAction = useNativeHeaderStore((state) => state.refreshAction);
   const titleOverride = useNativeHeaderStore((state) => state.title);
@@ -113,7 +115,10 @@ export function NativeTopBar({
           </Button>
         ) : null}
         <NotificationMenu triggerClassName="size-12" />
-        <NativeProfileMenu logout={logout} user={user} />
+        <NativeProfileMenu
+          logout={() => runGuardedNavigation(logout)}
+          user={user}
+        />
       </div>
     </header>
   );

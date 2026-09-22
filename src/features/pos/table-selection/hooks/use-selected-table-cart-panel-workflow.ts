@@ -49,6 +49,7 @@ import {
   firstCartOrderUuid,
   formatRate,
   isNewOrderCartItem,
+  isDraftOwnedBy,
   isOrderHistoryCartItem,
   isWaitingCartItem,
   isSplitPaymentEligibleItem,
@@ -158,7 +159,10 @@ export function useSelectedTableCartPanelWorkflow({
     [displayItems],
   );
   const summary = useMemo(() => cartSummary(displayCart), [displayCart]);
-  const confirmGroups = useMemo(() => newOrderConfirmGroups(orders), [orders]);
+  const confirmGroups = useMemo(
+    () => newOrderConfirmGroups(orders, user?.uuid ?? ""),
+    [orders, user?.uuid],
+  );
   const preferredTab: CartTab =
     newOrderDisplayItems.length || !historyItems.length ? "new" : "history";
   const [activeTab, setActiveTab] = useState<CartTab>(preferredTab);
@@ -1207,8 +1211,13 @@ export function useSelectedTableCartPanelWorkflow({
     return Boolean(
       user?.uuid &&
       cartItemActionUuid(item) &&
-      cartOrderUuidForItem(orders, item),
+      cartOrderUuidForItem(orders, item) &&
+      (!isNewOrderCartItem(item) || isDraftOwnedBy(item, user.uuid)),
     );
+  }
+
+  function canMutateItem(item: CartItem) {
+    return !isNewOrderCartItem(item) || isDraftOwnedBy(item, user?.uuid ?? "");
   }
 
   function canSplitItem(item: CartItem) {
@@ -1236,6 +1245,7 @@ export function useSelectedTableCartPanelWorkflow({
     canConfirm,
     canConfirmKitchenItem,
     canManageDiscounts: userCanManageDiscounts,
+    canMutateItem,
     canPayBill,
     canPaySplitSelection,
     canSelectSplitItems,
