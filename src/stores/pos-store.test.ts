@@ -83,6 +83,19 @@ describe("POS store session follow-up requests", () => {
     usePrinterStore.getState().reset();
   });
 
+  it("tracks overlapping kitchen confirmation workflows until all finish", () => {
+    usePosStore.getState().beginKitchenConfirmation();
+    usePosStore.getState().beginKitchenConfirmation();
+    expect(usePosStore.getState().activeKitchenConfirmations).toBe(2);
+
+    usePosStore.getState().endKitchenConfirmation();
+    expect(usePosStore.getState().activeKitchenConfirmations).toBe(1);
+
+    usePosStore.getState().endKitchenConfirmation();
+    usePosStore.getState().endKitchenConfirmation();
+    expect(usePosStore.getState().activeKitchenConfirmations).toBe(0);
+  });
+
   it("does not confirm an order after printer resolution crosses a session boundary", async () => {
     const context = deferred<Awaited<ReturnType<typeof resolvePrinterDeviceIdentity>>>();
     resolvePrinterDeviceIdentityMock.mockReturnValueOnce(context.promise);

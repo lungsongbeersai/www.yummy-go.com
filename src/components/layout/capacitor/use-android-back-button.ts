@@ -9,6 +9,7 @@ import {
 } from "@/components/layout/native-navigation-model";
 import { isCapacitorNativeApp } from "@/lib/capacitor-platform";
 import { internalRoute } from "@/lib/routes";
+import { useNativeHeaderStore } from "@/stores/native-header-store";
 
 // Dialog/Sheet/AlertDialog ของ feature (เช่น payment dialog บน /posAll/order) shell ไม่รู้จัก
 // แต่ทุกตัวมี data-slot ของ shadcn เสมอ จึงเช็คจาก DOM แทนการเดินสาย state ทุกหน้าเข้ามาที่ shell
@@ -27,6 +28,7 @@ export function useAndroidBackButton({
   pathname: string;
 }) {
   const router = useRouter();
+  const backAction = useNativeHeaderStore((state) => state.backAction);
 
   useEffect(() => {
     if (!isCapacitorNativeApp()) return;
@@ -39,6 +41,13 @@ export function useAndroidBackButton({
         document.dispatchEvent(
           new KeyboardEvent("keydown", { bubbles: true, key: "Escape" }),
         );
+        return;
+      }
+
+      // ใช้ override เดียวกับปุ่ม Back บน NativeTopBar เพื่อให้หน้ารับออเดอร์เปิด
+      // dialog เตือน draft ก่อนออก ไม่ข้ามไป router.back() เมื่อกดปุ่ม Back ของ Android
+      if (backAction) {
+        backAction();
         return;
       }
 
@@ -65,5 +74,5 @@ export function useAndroidBackButton({
     return () => {
       void handle.then((listener) => listener.remove());
     };
-  }, [model, pathname, router]);
+  }, [backAction, model, pathname, router]);
 }

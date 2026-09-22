@@ -1,0 +1,64 @@
+"use client";
+
+import { useTranslation } from "react-i18next";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { Spinner } from "@/components/ui/spinner";
+
+export function DraftExitWarningDialog({
+  leavePending,
+  open,
+  onConfirmKitchen,
+  onLeaveTable,
+}: {
+  leavePending: boolean;
+  open: boolean;
+  onConfirmKitchen: () => void;
+  onLeaveTable: () => void;
+}) {
+  const { t } = useTranslation();
+
+  return (
+    <AlertDialog open={open}>
+      <AlertDialogContent
+        onEscapeKeyDown={(event) => event.preventDefault()}
+      >
+        <AlertDialogHeader>
+          <AlertDialogTitle>{t("pos.draftExitWarningTitle")}</AlertDialogTitle>
+          <AlertDialogDescription>
+            {t("pos.draftExitWarningDescription")}
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogAction
+            variant="destructive"
+            disabled={leavePending}
+            onClick={(event) => {
+              event.preventDefault();
+              onLeaveTable();
+            }}
+          >
+            {leavePending ? <Spinner data-icon="inline-start" /> : null}
+            {t("pos.draftExitLeaveTable")}
+          </AlertDialogAction>
+          <AlertDialogAction
+            disabled={leavePending}
+            onClick={(event) => {
+              event.preventDefault();
+              onConfirmKitchen();
+            }}
+          >
+            {t("pos.draftExitConfirmKitchen")}
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
+  );
+}

@@ -123,6 +123,7 @@ interface PosState {
   loading: boolean;
   loadingCart: boolean;
   saving: boolean;
+  activeKitchenConfirmations: number;
   error: string | null;
   setZones: (zones: PosZone[]) => void;
   setProducts: (products: CateProductItem[]) => void;
@@ -131,6 +132,8 @@ interface PosState {
   setCart: (cart: CartOrder | CartOrder[] | null) => void;
   setTable: (tableUuid: string, tableName?: string) => void;
   setCounterOrderUuid: (orderUuid: string) => void;
+  beginKitchenConfirmation: () => void;
+  endKitchenConfirmation: () => void;
   updateTableCustomerOrderState: (tableUuid: string, customerOrderState: boolean) => void;
   loadTables: (params: FetchPosParams) => Promise<PosZone[]>;
   refreshTables: (params: FetchPosParams) => Promise<PosZone[]>;
@@ -207,6 +210,7 @@ export const usePosStore = create<PosState>((set, get) => ({
   loading: false,
   loadingCart: false,
   saving: false,
+  activeKitchenConfirmations: 0,
   error: null,
   setZones: (zones) => set({ zones }),
   setProducts: (products) => set({ products }),
@@ -218,6 +222,16 @@ export const usePosStore = create<PosState>((set, get) => ({
   setCart: (cart) => set({ cart }),
   setTable: (tableUuid, tableName = "") => set({ tableUuid, tableName }),
   setCounterOrderUuid: (orderUuid) => set({ counterOrderUuid: orderUuid }),
+  // confirmation ครอบคลุมทั้ง API + งานพิมพ์/refresh ใน workflow ไม่ใช่แค่ request
+  // แรก เพื่อไม่ให้ Back cleanup draft แทรกระหว่างสองช่วงนี้ได้
+  beginKitchenConfirmation: () =>
+    set((state) => ({
+      activeKitchenConfirmations: state.activeKitchenConfirmations + 1,
+    })),
+  endKitchenConfirmation: () =>
+    set((state) => ({
+      activeKitchenConfirmations: Math.max(0, state.activeKitchenConfirmations - 1),
+    })),
   // patch ทั้ง zones (มุมมองที่กรองอยู่) และ zoneOptions (รายการเต็มทุกโซน)
   // ไม่งั้น badge ระดับโซนที่ต้องอ่านจาก zoneOptions จะไม่เห็นออเดอร์ใหม่ของ
   // โซนอื่นที่ไม่ได้เลือกดูอยู่
@@ -620,6 +634,7 @@ export const usePosStore = create<PosState>((set, get) => ({
       loading: false,
       loadingCart: false,
       saving: false,
+      activeKitchenConfirmations: 0,
       error: null
     });
   }

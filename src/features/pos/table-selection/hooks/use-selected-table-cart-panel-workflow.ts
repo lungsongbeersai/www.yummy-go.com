@@ -100,6 +100,12 @@ export function useSelectedTableCartPanelWorkflow({
   const language = useAppStore((state) => state.language);
   const updateQty = usePosStore((state) => state.updateQty);
   const confirmKitchen = usePosStore((state) => state.confirmKitchen);
+  const beginKitchenConfirmation = usePosStore(
+    (state) => state.beginKitchenConfirmation,
+  );
+  const endKitchenConfirmation = usePosStore(
+    (state) => state.endKitchenConfirmation,
+  );
   const reconfirmKitchen = usePosStore((state) => state.reconfirmKitchen);
   const deleteItem = usePosStore((state) => state.deleteItem);
   const cancelItem = usePosStore((state) => state.cancelItem);
@@ -624,6 +630,7 @@ export function useSelectedTableCartPanelWorkflow({
     if (!user?.uuid || !confirmGroups.length || cartActionsLocked) return;
 
     setConfirming(true);
+    beginKitchenConfirmation();
     try {
       const printResult: {
         successCount: number;
@@ -718,6 +725,7 @@ export function useSelectedTableCartPanelWorkflow({
         tone: "error",
       });
     } finally {
+      endKitchenConfirmation();
       setConfirming(false);
       setConfirmAllProgress(null);
     }
@@ -729,6 +737,7 @@ export function useSelectedTableCartPanelWorkflow({
     if (!user?.uuid || !orderUuid || !itemUuid || cartActionsLocked) return;
 
     setActingItemUuid(itemUuid);
+    beginKitchenConfirmation();
     try {
       const response = await confirmKitchen({
         order_uuid: orderUuid,
@@ -749,6 +758,7 @@ export function useSelectedTableCartPanelWorkflow({
         tone: "error",
       });
     } finally {
+      endKitchenConfirmation();
       setActingItemUuid(null);
     }
   }

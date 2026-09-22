@@ -14,10 +14,9 @@ interface NativeHeaderState {
   // ("ອໍເດີລູກຄ້າ") — null = ไม่ override ใช้หัวข้อ route ปกติ
   title: string | null;
   setTitle: (title: string | null) => void;
-  // หน้าอ๋อเดอร์โต๊ะต้อง cleanup draft ที่ยังไม่ยืนยันของตัวเองก่อนออกจากหน้าเสมอ
-  // (ดู use-draft-cleanup.ts) — ปุ่ม Back ของ NativeTopBar ปกติแค่ router.back() เฉย ๆ
-  // จึงต้องให้หน้าลงทะเบียน override ตรงนี้แทนพฤติกรรมเดิม null = ใช้ router.back()/
-  // fallback ปกติของ top bar เอง
+  // หน้าอ๋อเดอร์โต๊ะต้องเตือน draft ที่ยังไม่ยืนยันก่อนออกจากหน้าเสมอ
+  // (ดู use-draft-cleanup.ts) — ทั้ง NativeTopBar และปุ่ม Back ของ Android อ่าน override
+  // นี้แทน router.back() ตรง ๆ; null = ใช้ navigation fallback ปกติของ shell
   backAction: (() => void) | null;
   setBackAction: (backAction: (() => void) | null) => void;
 }

@@ -199,7 +199,7 @@ export const cancelOrderItem = (input: CancelOrderItemInput) =>
   apiRequest<CancelOrderItemResponse>("patch", "/api/v1/posAll/cancel_order_item", { data: input });
 
 // ล้างเฉพาะ order_item ของผู้เรียก (login token) ที่ยังไม่ยืนยัน (WAITING_CONFIRM)
-// บนบิลนี้ — เรียกตอนกด Back ออกจากหน้ารับออเดอร์ หรือ inactivity timeout
+// บนบิลนี้ — เรียกเฉพาะเมื่อผู้ใช้เลือก "ออกจากโต๊ะ" จาก dialog ตอนกด Back
 // (ดู use-draft-cleanup.ts) ไม่แตะรายการของพนักงานคนอื่นหรือที่ยืนยันไปแล้ว
 export const cleanupDraftOrderItems = (input: CleanupDraftOrderItemsInput) =>
   apiRequest<CleanupDraftOrderItemsResponse>(

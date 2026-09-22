@@ -1,6 +1,9 @@
 import { describe, expect, it } from "vitest";
 import type { CartItem, CartOrder } from "@/services/pos";
-import { draftSignature, myDraftItems } from "./use-draft-cleanup";
+import {
+  draftBackDecision,
+  myDraftItems,
+} from "./use-draft-cleanup";
 
 const USER_A = "user-a";
 const USER_B = "user-b";
@@ -57,38 +60,16 @@ describe("myDraftItems", () => {
   });
 });
 
-describe("draftSignature", () => {
-  it("changes when a new item is added", () => {
-    const before = draftSignature([item({ order_it_uuid: "a" })]);
-    const after = draftSignature([
-      item({ order_it_uuid: "a" }),
-      item({ order_it_uuid: "b" }),
-    ]);
-    expect(before).not.toEqual(after);
+describe("draftBackDecision", () => {
+  it("leaves immediately only when there is no unconfirmed draft", () => {
+    expect(draftBackDecision(false, 0)).toBe("leave");
   });
 
-  it("changes when quantity or note is edited", () => {
-    const original = draftSignature([item({ order_it_uuid: "a", qty: 1 })]);
-    const qtyChanged = draftSignature([item({ order_it_uuid: "a", qty: 2 })]);
-    const noteChanged = draftSignature([
-      item({
-        order_it_uuid: "a",
-        qty: 1,
-        detail: { order_it_status: 1, order_it_created_by: USER_A, order_it_note: "no ice" },
-      }),
-    ]);
-
-    expect(qtyChanged).not.toEqual(original);
-    expect(noteChanged).not.toEqual(original);
+  it("prompts instead of deleting when Back is pressed with a draft", () => {
+    expect(draftBackDecision(true, 0)).toBe("prompt");
   });
 
-  it("is stable across reordering, so a re-fetch alone never resets the timer", () => {
-    const a = item({ order_it_uuid: "a" });
-    const b = item({ order_it_uuid: "b" });
-    expect(draftSignature([a, b])).toEqual(draftSignature([b, a]));
-  });
-
-  it("is empty for no items, matching the confirmed/cleaned state", () => {
-    expect(draftSignature([])).toEqual("");
+  it("waits instead of offering deletion while kitchen confirmation is active", () => {
+    expect(draftBackDecision(true, 1)).toBe("wait");
   });
 });

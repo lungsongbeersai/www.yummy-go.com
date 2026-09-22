@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useRef } from "react";
 import type { CartOrder, PosTable, PosZone } from "@/services/pos";
 import type { PrinterDeviceContext } from "@/services/printer";
 import { useSelectedTableCartPanelWorkflow } from "./hooks/use-selected-table-cart-panel-workflow";
@@ -48,6 +49,7 @@ export function SelectedTableCartPanel({
   showCreateEmployeeOrderAction = true,
   showTableFeatures = true,
   onCartRefresh,
+  onConfirmActionChange,
   onTableActionComplete,
 }: {
   allZones: PosZone[];
@@ -60,6 +62,7 @@ export function SelectedTableCartPanel({
   showCreateEmployeeOrderAction?: boolean;
   showTableFeatures?: boolean;
   onCartRefresh: () => Promise<void>;
+  onConfirmActionChange?: (action: (() => Promise<void>) | null) => void;
   onTableActionComplete: (nextTableUuid?: string) => Promise<void>;
 }) {
   const workflow = useSelectedTableCartPanelWorkflow({
@@ -70,6 +73,19 @@ export function SelectedTableCartPanel({
     printerContext,
     table,
   });
+  const confirmNewOrderRef = useRef(workflow.confirmNewOrder);
+
+  useEffect(() => {
+    confirmNewOrderRef.current = workflow.confirmNewOrder;
+  });
+
+  // หน้ารับออเดอร์ใช้ action จาก side panel เป็นเจ้าของเพียงตัวเดียว แม้ responsive
+  // layout จะ mount cart panel ทั้งแบบ side และ sheet พร้อมกัน เพื่อไม่ให้ confirm ซ้ำ
+  useEffect(() => {
+    if (!onConfirmActionChange) return;
+    onConfirmActionChange(() => confirmNewOrderRef.current());
+    return () => onConfirmActionChange(null);
+  }, [onConfirmActionChange]);
 
   return (
     <SelectedTableCartPanelContent

@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useOfflineRefetchEpoch } from "@/hooks/use-offline-refetch";
@@ -109,6 +109,9 @@ export function useOrderCustomerWorkflow({
   const [loadingProductUuid, setLoadingProductUuid] = useState("");
   const [productSheetOpen, setProductSheetOpen] = useState(false);
   const [cartSheetOpen, setCartSheetOpen] = useState(false);
+  const [draftExitWarningOpen, setDraftExitWarningOpen] = useState(false);
+  const [draftExitCleanupPending, setDraftExitCleanupPending] = useState(false);
+  const draftConfirmActionRef = useRef<(() => Promise<void>) | null>(null);
   const [newOrderFocusKey, setNewOrderFocusKey] = useState(0);
   const [selectedProduct, setSelectedProduct] = useState<ProdItem | null>(null);
   const [detailUuid, setDetailUuid] = useState("");
@@ -612,39 +615,64 @@ export function useOrderCustomerWorkflow({
     };
   }, [language, resolvePrinterDeviceContext, user?.uuid]);
 
-  async function openTablesPage() {
-    // มีรายการที่ตัวเองยังไม่กด "ยืนยันออเดอร์" ค้างอยู่ (WAITING_CONFIRM) — ล้างทิ้ง
-    // ก่อนออกจากหน้านี้เสมอ ไม่ปล่อยให้ค้างจนกว่าจะ timeout (ดู use-draft-cleanup.ts)
-    // cleanup ไม่สำเร็จ = ห้ามออกจากหน้านี้ ให้ toast error แล้วผู้ใช้กดย้อนกลับซ้ำเอง
-    if (draftCleanup.hasPendingDraft) {
-      try {
-        await draftCleanup.cleanupNow();
-      } catch (error) {
-        showToast({
-          title: t("pos.draftCleanupFailed"),
-          description: error instanceof Error ? error.message : "",
-          tone: "error",
-        });
-        return;
-      }
-    }
-
+  function navigateAwayFromOrder() {
     // ร้านไม่มีโต๊ะไม่มีหน้าเลือกโต๊ะให้กลับไป — ปุ่ม "ย้อนกลับ" จึงออกไปหน้าแรกแทน
     router.replace(user?.store_table_status === 2 ? "/" : "/posAll/tables");
   }
 
-  // ปุ่ม "ยกเลิกรายการ" ใน dialog เตือน inactivity timeout — อยู่หน้าเดิมต่อ
-  // (ไม่ navigate ออกไปเหมือน openTablesPage) แค่ล้าง draft ของตัวเองทิ้งทันที
-  async function discardDraftNow() {
+  async function openTablesPage() {
+    // Back ต้องให้ผู้ใช้เลือกเองว่าจะทิ้ง draft หรือยืนยันส่งครัว ห้ามลบทันทีโดยไม่เตือน
+    if (draftCleanup.backDecision === "prompt") {
+      setDraftExitWarningOpen(true);
+      return;
+    }
+
+    // cart อาจยังแสดง status 1 ชั่วคราวระหว่างกำลังยืนยัน/พิมพ์ครัว จึงไม่เปิดทาง
+    // ให้กดยกเลิกซ้ำในช่วงนั้น
+    if (draftCleanup.backDecision === "wait") return;
+
+    navigateAwayFromOrder();
+  }
+
+  async function discardDraftAndLeaveTable() {
+    if (draftExitCleanupPending) return;
+
+    setDraftExitCleanupPending(true);
     try {
-      await draftCleanup.cleanupNow();
+      const cleanupCompleted = await draftCleanup.cleanupNow();
+      if (!cleanupCompleted) return;
+      setDraftExitWarningOpen(false);
+      navigateAwayFromOrder();
     } catch (error) {
       showToast({
         title: t("pos.draftCleanupFailed"),
         description: error instanceof Error ? error.message : "",
         tone: "error",
       });
+    } finally {
+      setDraftExitCleanupPending(false);
     }
+  }
+
+  const registerDraftConfirmAction = useCallback(
+    (action: (() => Promise<void>) | null) => {
+      draftConfirmActionRef.current = action;
+    },
+    [],
+  );
+
+  async function confirmDraftToKitchen() {
+    setDraftExitWarningOpen(false);
+
+    const confirmAction = draftConfirmActionRef.current;
+    if (confirmAction) {
+      await confirmAction();
+      return;
+    }
+
+    // ตัว cart panel จะลงทะเบียน action หลัง mount ตามปกติ หากยังไม่พร้อมจริง ๆ
+    // เปิดตะกร้าให้ผู้ใช้ยืนยันเองแทนการทิ้งรายการโดยไม่มีทางเลือก
+    await openCartSheet();
   }
 
   async function refreshAll() {
@@ -942,18 +970,15 @@ export function useOrderCustomerWorkflow({
     openOrAddProduct,
     openCartSheet,
     openTablesPage,
-    draftCleanupWarningOpen: draftCleanup.showWarning,
-    draftCleanupSecondsLeft: draftCleanup.secondsLeft,
-    onDraftCleanupExtend: draftCleanup.extend,
-    onDraftCleanupDiscardNow: () => void discardDraftNow(),
-    onDraftCleanupConfirmOrder: () => {
-      draftCleanup.extend();
-      void openCartSheet();
-    },
+    draftExitCleanupPending,
+    draftExitWarningOpen,
+    onDraftExitConfirmKitchen: () => void confirmDraftToKitchen(),
+    onDraftExitLeaveTable: () => void discardDraftAndLeaveTable(),
     productMode,
     productSheetOpen,
     printerContext,
     qty,
+    registerDraftConfirmAction,
     refreshAll,
     saving,
     search,

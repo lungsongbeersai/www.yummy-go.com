@@ -21,7 +21,7 @@ import { cn } from "@/lib/utils";
 import { optionalString } from "@/lib/values";
 import { useNativeHeaderStore } from "@/stores/native-header-store";
 import { SelectedTableCartPanel } from "../table-selection/selected-table-cart-panel";
-import { DraftCleanupWarningDialog } from "./draft-cleanup-warning-dialog";
+import { DraftExitWarningDialog } from "./draft-exit-warning-dialog";
 import { productMedia } from "./product-media";
 import {
   PRODUCT_GRID_CLASS,
@@ -73,6 +73,8 @@ export function OrderCustomerView({
     categories,
     changeProductDetail,
     changeSelectedToppingQty,
+    draftExitCleanupPending,
+    draftExitWarningOpen,
     handleTableActionComplete,
     isMobile,
     loadCart,
@@ -86,15 +88,13 @@ export function OrderCustomerView({
     openOrAddProduct,
     openCartSheet,
     openTablesPage,
-    draftCleanupWarningOpen,
-    draftCleanupSecondsLeft,
-    onDraftCleanupExtend,
-    onDraftCleanupDiscardNow,
-    onDraftCleanupConfirmOrder,
+    onDraftExitConfirmKitchen,
+    onDraftExitLeaveTable,
     productMode,
     productSheetOpen,
     printerContext,
     qty,
+    registerDraftConfirmAction,
     refreshAll,
     saving,
     search,
@@ -139,8 +139,8 @@ export function OrderCustomerView({
   useEffect(() => {
     refreshAllRef.current = refreshAll;
   });
-  // openTablesPage เดียวกับปุ่มย้อนกลับบนเว็บ (มี cleanup draft ที่ยังไม่ยืนยันของ
-  // ตัวเองอยู่ข้างใน ดู use-draft-cleanup.ts) เก็บ ref ด้วยเหตุผลเดียวกับ refreshAllRef
+  // openTablesPage เดียวกับปุ่มย้อนกลับบนเว็บ (มีขั้นตอนเตือนก่อนทิ้ง draft ที่ยังไม่
+  // ยืนยันของตัวเอง ดู use-draft-cleanup.ts) เก็บ ref ด้วยเหตุผลเดียวกับ refreshAllRef
   const openTablesPageRef = useRef(openTablesPage);
   useEffect(() => {
     openTablesPageRef.current = openTablesPage;
@@ -158,9 +158,9 @@ export function OrderCustomerView({
     return () => setHeaderRefreshAction(null);
   }, [nativeShellActive, loadingTables, loadingMenu, setHeaderRefreshAction]);
 
-  // ปุ่ม Back ของ NativeTopBar ปกติแค่ router.back() เฉย ๆ ซึ่งข้าม cleanup draft
-  // ที่ยังไม่ยืนยันของตัวเองไปเลย (บนเว็บปุ่มย้อนกลับในหน้านี้เรียก openTablesPage
-  // ตรง ๆ อยู่แล้ว) ลงทะเบียน override ผ่าน store กลางแบบเดียวกับปุ่มรีเฟรชด้านบน
+  // ปุ่ม Back ของ NativeTopBar ปกติแค่ router.back() เฉย ๆ ซึ่งจะข้าม dialog เตือน
+  // draft ที่ยังไม่ยืนยัน (บนเว็บปุ่มย้อนกลับในหน้านี้เรียก openTablesPage ตรง ๆ อยู่แล้ว)
+  // ลงทะเบียน override ผ่าน store กลางแบบเดียวกับปุ่มรีเฟรชด้านบน
   useEffect(() => {
     if (!nativeShellActive) return;
     setHeaderBackAction(() => void openTablesPageRef.current());
@@ -436,6 +436,7 @@ export function OrderCustomerView({
               showTableFeatures={showTableFeatures}
               table={selectedTable}
               onCartRefresh={loadCart}
+              onConfirmActionChange={registerDraftConfirmAction}
               onTableActionComplete={handleTableActionComplete}
             />
           </div>
@@ -540,12 +541,11 @@ export function OrderCustomerView({
           />
         ) : null}
       </ProductOptionsOverlay>
-      <DraftCleanupWarningDialog
-        open={draftCleanupWarningOpen}
-        secondsLeft={draftCleanupSecondsLeft}
-        onConfirmOrder={onDraftCleanupConfirmOrder}
-        onDiscardNow={onDraftCleanupDiscardNow}
-        onKeepGoing={onDraftCleanupExtend}
+      <DraftExitWarningDialog
+        leavePending={draftExitCleanupPending}
+        open={draftExitWarningOpen}
+        onConfirmKitchen={onDraftExitConfirmKitchen}
+        onLeaveTable={onDraftExitLeaveTable}
       />
     </div>
   );
