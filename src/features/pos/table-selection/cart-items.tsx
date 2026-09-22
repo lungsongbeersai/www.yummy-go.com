@@ -139,11 +139,12 @@ export function CartTabItems({
             key={String(item.order_item_uuid ?? item.order_it_uuid ?? item.prod_uuid ?? item.product_uuid ?? index)}
             editable={editable && itemCanMutate}
             item={item}
-            actionDisabled={actionDisabled || !itemCanMutate}
+            actionDisabled={actionDisabled}
             acting={itemUuid === actingItemUuid}
             canConfirmKitchen={canConfirmKitchenItem(item)}
             canItemDiscount={canItemDiscount}
             compact={compact}
+            mutationDisabled={!itemCanMutate}
             splitEligible={splitEligible}
             splitSelectionDisabled={splitSelectionDisabled}
             splitSelected={splitEligible && splitSelectedQty !== undefined}
@@ -189,6 +190,7 @@ function CartItemRow({
   compact,
   editable,
   item,
+  mutationDisabled,
   onChangeQty,
   onConfirmKitchen,
   onConfirmServed,
@@ -212,6 +214,7 @@ function CartItemRow({
   compact: boolean;
   editable: boolean;
   item: CartItem;
+  mutationDisabled: boolean;
   onChangeQty: (item: CartItem, changeQty: number) => void;
   onConfirmKitchen: (item: CartItem) => void;
   onConfirmServed: (item: CartItem) => void;
@@ -401,13 +404,14 @@ function CartItemRow({
             <CartItemActionMenu
               canCancel={canCancel}
               canDelete={canDelete}
-              canConfirmKitchen={editable && statusValue === 1}
+              canConfirmKitchen={statusValue === 1}
               confirmKitchenDisabled={!canConfirmKitchen || actionDisabled}
               canConfirmServed={canConfirmServed}
               canItemDiscount={canItemDiscount}
               canReprintKitchen={canReprintKitchen}
               reprintKitchenDisabled={!canConfirmKitchen || actionDisabled}
               disabled={actionDisabled}
+              mutationDisabled={mutationDisabled}
               itemUuid={itemUuid}
               pending={acting}
               onCancel={() => onOpenItemAction("cancel", item)}
@@ -567,6 +571,7 @@ function CartItemActionMenu({
   confirmKitchenDisabled,
   disabled,
   itemUuid,
+  mutationDisabled,
   onCancel,
   onConfirmKitchen,
   onConfirmServed,
@@ -586,6 +591,7 @@ function CartItemActionMenu({
   confirmKitchenDisabled: boolean;
   disabled: boolean;
   itemUuid: string | null;
+  mutationDisabled: boolean;
   onCancel: () => void;
   onConfirmKitchen: () => void;
   onConfirmServed: () => void;
@@ -621,12 +627,12 @@ function CartItemActionMenu({
               {t("pos.confirmToKitchen")}
             </DropdownMenuItem>
           ) : null}
-          <DropdownMenuItem disabled={actionDisabled} onSelect={onEditNote}>
+          <DropdownMenuItem disabled={actionDisabled || mutationDisabled} onSelect={onEditNote}>
             <Pencil />
             {t("pos.editNote")}
           </DropdownMenuItem>
           {canItemDiscount ? (
-            <DropdownMenuItem disabled={actionDisabled} onSelect={onItemDiscount}>
+            <DropdownMenuItem disabled={actionDisabled || mutationDisabled} onSelect={onItemDiscount}>
               <BadgePercent />
               {t("pos.itemDiscount")}
             </DropdownMenuItem>

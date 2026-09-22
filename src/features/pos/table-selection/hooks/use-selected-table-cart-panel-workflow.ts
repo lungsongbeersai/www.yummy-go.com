@@ -160,8 +160,8 @@ export function useSelectedTableCartPanelWorkflow({
   );
   const summary = useMemo(() => cartSummary(displayCart), [displayCart]);
   const confirmGroups = useMemo(
-    () => newOrderConfirmGroups(orders, user?.uuid ?? ""),
-    [orders, user?.uuid],
+    () => newOrderConfirmGroups(orders),
+    [orders],
   );
   const preferredTab: CartTab =
     newOrderDisplayItems.length || !historyItems.length ? "new" : "history";
@@ -1211,8 +1211,7 @@ export function useSelectedTableCartPanelWorkflow({
     return Boolean(
       user?.uuid &&
       cartItemActionUuid(item) &&
-      cartOrderUuidForItem(orders, item) &&
-      (!isNewOrderCartItem(item) || isDraftOwnedBy(item, user.uuid)),
+      cartOrderUuidForItem(orders, item),
     );
   }
 
