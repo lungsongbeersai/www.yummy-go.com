@@ -6,7 +6,6 @@ import { useTranslation } from "react-i18next";
 import {
   ChevronDown,
   ChevronRight,
-  Lock,
   PanelLeftClose,
   PanelLeftOpen,
   RefreshCw,
@@ -85,16 +84,7 @@ export function AppSidebar({
 
     return (
       <SidebarMenuItem key={item.path ?? item.title}>
-        {item.offlineLocked ? (
-          <SidebarMenuButton disabled tooltip={t("offlineMode.lockedMenuTooltip")}>
-            {icon}
-            {/* collapsed && "hidden" ตรง ๆ แทนพึ่งแค่ truncate+overflow-hidden ของ CSS —
-                กันไว้เผื่อบางบริบท (เช่น WebView ของ Capacitor) การคำนวณ overflow ไม่แน่นอน
-                display:none รับประกันว่าไม่โผล่แน่นอนไม่ว่า layout จะคำนวณผิดยังไงก็ตาม */}
-            <span className={cn("min-w-0 flex-1 truncate", collapsed && "hidden")}>{title}</span>
-            {!collapsed ? <Lock className="ml-auto size-3.5 shrink-0 text-muted-foreground" /> : null}
-          </SidebarMenuButton>
-        ) : item.disabled || !item.path ? (
+        {item.disabled || !item.path ? (
           <SidebarMenuButton disabled tooltip={title}>
             {icon}
             <span className={cn("min-w-0 flex-1 truncate", collapsed && "hidden")}>{title}</span>
@@ -127,16 +117,7 @@ export function AppSidebar({
 
     return (
       <SidebarMenuSubItem key={item.path ?? item.title}>
-        {item.offlineLocked ? (
-          <SidebarMenuSubButton
-            aria-disabled
-            title={t("offlineMode.lockedMenuTooltip")}
-            className="pointer-events-none opacity-50"
-          >
-            <span>{title}</span>
-            <Lock className="ml-auto size-3.5 shrink-0 text-muted-foreground" />
-          </SidebarMenuSubButton>
-        ) : item.disabled || !item.path ? (
+        {item.disabled || !item.path ? (
           <SidebarMenuSubButton
             aria-disabled
             className="pointer-events-none opacity-50"
@@ -159,15 +140,6 @@ export function AppSidebar({
 
   function renderDropdownChild(item: MenuItem) {
     const title = menuItemLabel(item, t);
-
-    if (item.offlineLocked) {
-      return (
-        <DropdownMenuItem key={item.title} disabled>
-          {title}
-          <Lock className="ml-auto size-3.5 shrink-0 text-muted-foreground" />
-        </DropdownMenuItem>
-      );
-    }
 
     if (item.disabled || !item.path) {
       return (

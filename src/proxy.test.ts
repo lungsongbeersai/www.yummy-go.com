@@ -3,7 +3,7 @@ import { NextRequest } from "next/server";
 import { proxy } from "./proxy";
 
 describe("canonical web origin", () => {
-  it("redirects www to the one origin that owns the offline cache", () => {
+  it("redirects www to the canonical authentication and storage origin", () => {
     const response = proxy(new NextRequest("https://www.yummy-go.com/home?lang=la"));
     expect(response.status).toBe(308);
     expect(response.headers.get("location")).toBe("https://yummy-go.com/home?lang=la");

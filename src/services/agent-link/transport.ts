@@ -20,10 +20,8 @@ export interface AgentResponse<T> {
 /**
  * An Agent call that did not produce a successful response.
  *
- * `responded` is the distinction the offline queue depends on: an Agent that
- * answered with an error has judged the event and it must not be retried
- * blindly, while an Agent that could not be reached says nothing about the
- * event and it stays staged.
+ * `responded` distinguishes an explicit Agent rejection from a transport
+ * failure, so callers can present the correct recovery action.
  */
 export class AgentRequestError extends Error {
   readonly responded: boolean;
@@ -59,10 +57,8 @@ function bodyMessage(body: unknown): string {
  *
  * A rejected Agent call answers with `{ ok: false, error }`, but axios rejects
  * with nothing but "Request failed with status code 409" and the body never
- * reaches the till — so every offline conflict, from an unsupported route to a
- * closed bill, arrived at the cashier as the same bare status code. Keep the
- * status for the callers that branch on it, and put the Agent's sentence in the
- * message where a person reads it.
+ * reaches the till. Keep the status for callers that branch on it and put the
+ * Agent's sentence in the message where a person reads it.
  */
 export function agentResponseError(
   error: unknown,

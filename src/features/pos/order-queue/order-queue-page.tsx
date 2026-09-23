@@ -18,7 +18,6 @@ import { HorizontalScrollArrows } from "@/components/common/horizontal-scroll-ar
 import { LoadingState } from "@/components/common/loading-state";
 import { useIsNativeShellActive } from "@/hooks/use-native-shell-active";
 import { useIsMobile } from "@/hooks/use-mobile";
-import { useOfflineRefetchEpoch } from "@/hooks/use-offline-refetch";
 import { cn } from "@/lib/utils";
 import { useNativeHeaderStore } from "@/stores/native-header-store";
 import { useOrderQueueAlerts } from "@/features/pos/order-queue/use-order-queue-alerts";
@@ -213,16 +212,6 @@ export function OrderQueuePage() {
   useEffect(() => {
     void refresh();
   }, [refresh]);
-
-  // On an online<->offline flip, reload the queue silently (background: no
-  // loading flash) so it swaps between Local Agent and backend data on its own.
-  const refetchEpoch = useOfflineRefetchEpoch();
-
-  useEffect(() => {
-    if (!branchUuid || refetchEpoch === 0) return;
-    void load({ branch_uuid_fk: branchUuid, lang: language, background: true })
-      .catch(() => undefined);
-  }, [branchUuid, language, load, refetchEpoch]);
 
   // ปุ่มรีเฟรชในหัวข้อหน้าซ้ำกับที่ลงทะเบียนเข้า NativeTopBar ได้แล้วบน Capacitor
   // (ตามแพทเทิร์นเดียวกับหน้า table-selection/order-customer) — เว็บยังใช้ปุ่มในหน้าเดิม

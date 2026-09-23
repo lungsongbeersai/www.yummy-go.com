@@ -206,7 +206,7 @@ function groupKitchenBatchItems(items: PendingPrintItem[], fallbackCutMode: stri
 
 async function printKitchenMobileBatch(
   batch: PrintOpsBatchPayload,
-  requireCompletionConfirmation: boolean,
+  onTicketDelivered?: (completed: number, total: number) => void,
 ) {
   const mobileEscpos = batch.mobile_escpos ?? null;
 
@@ -225,9 +225,7 @@ async function printKitchenMobileBatch(
     await printMobileEscposOverTcp({
       interface_value: batchInterfaceValue,
       escpos_base64: batchEscposBase64,
-      ...(requireCompletionConfirmation
-        ? { require_completion_confirmation: true }
-        : {}),
+      on_ticket_delivered: onTicketDelivered,
     });
 
     return;
@@ -241,7 +239,7 @@ async function printKitchenMobileBatch(
     );
   }
 
-  for (const job of batch.jobs) {
+  for (const [jobIndex, job] of batch.jobs.entries()) {
     const jobInterfaceValue =
       textValue(job.interface_value) ||
       batchInterfaceValue;
@@ -255,9 +253,8 @@ async function printKitchenMobileBatch(
     await printMobileEscposOverTcp({
       interface_value: jobInterfaceValue,
       escpos_base64: escposBase64,
-      ...(requireCompletionConfirmation
-        ? { require_completion_confirmation: true }
-        : {}),
+      on_ticket_delivered: () =>
+        onTicketDelivered?.(jobIndex + 1, batch.jobs.length),
     });
 
   }
@@ -826,7 +823,7 @@ async function executePrintJobs(
             if (mobileBatch) {
               await printKitchenMobileBatch(
                 batch,
-                options.requireCompletionConfirmation === true,
+                input.onProgress ? reportDeliveredTickets : undefined,
               );
             } else {
               await printKitchenBatchJob(

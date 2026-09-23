@@ -44,23 +44,14 @@ type TcpSocketApi = {
 // limit sends it through the native bridge in one write. TCP backpressure then
 // controls the actual network rate without JS timer gaps between raster bands.
 const MOBILE_TCP_CHUNK_SIZE = 256 * 1024;
-const MOBILE_TCP_SEND_TIMEOUT_MS = 15000;
-const MOBILE_TCP_STATUS_TIMEOUT_MS = 4000;
+// Failure watchdogs only: progress is driven by printer responses, never by
+// these durations. Long raster receipts can legitimately take tens of seconds.
+const MOBILE_TCP_SEND_TIMEOUT_MS = 60000;
+const MOBILE_TCP_STATUS_TIMEOUT_MS = 60000;
 // Keep each native bridge call bounded, but keep every segment of one receipt
 // on the same TCP connection. Reconnecting between segments introduced visible
 // pauses and could leave a long receipt half-delivered before its final cut.
 const MOBILE_TCP_SEGMENT_MAX_BYTES = 160 * 1024;
-// Progress means paper completion, not native socket acceptance. Use the same
-// conservative physical guard as the desktop Agent (about 40 mm/s at 203dpi),
-// then verify the printer's paper status before counting a kitchen ticket.
-// Raster is already printing while chunks are sent, so only the estimated
-// remaining work drains afterward.
-const MOBILE_TCP_RASTER_ROWS_PER_SECOND = 320;
-const MOBILE_TCP_FALLBACK_BYTES_PER_SECOND = 30 * 1024;
-const MOBILE_TCP_MIN_DRAIN_MS = 1200;
-const MOBILE_TCP_MAX_DRAIN_MS = 10000;
-const MOBILE_TCP_DRAIN_SETTLE_MS = 600;
-const MOBILE_TCP_CUT_SETTLE_MS = 450;
 const ESC_POS_PAPER_STATUS_COMMAND = new Uint8Array([0x1d, 0x72, 0x01]);
 const mobileTcpQueues = new Map<string, Promise<void>>();
 const MOBILE_TCP_DEBUG = process.env.NEXT_PUBLIC_MOBILE_TCP_DEBUG === "true";
@@ -149,6 +140,7 @@ function escposCommandLength(bytes: Uint8Array, offset: number) {
 
     if (first !== 0x1d) return null;
     if (second === 0x4c || second === 0x50) return 4; // left margin / motion units
+    if (second === 0x72) return 3; // paper sensor status
 
     if (second === 0x56) {
         const mode = bytes[offset + 2];
@@ -257,7 +249,7 @@ function analyzeEscposPayload(base64: string): EscposPayloadAnalysis {
             rasterRows += bytes[offset + 6] | (bytes[offset + 7] << 8);
         } else if (bytes[offset] === 0x1b && bytes[offset + 1] === 0x4a) {
             // ESC J advances by vertical motion units. Count it as physical
-            // work so completion waits remain correct for sparse bills.
+            // work for transport diagnostics on sparse bills.
             rasterRows += bytes[offset + 2];
         } else if (bytes[offset] === 0x1d && bytes[offset + 1] === 0x56) {
             cutCommands += 1;
@@ -275,8 +267,51 @@ function analyzeEscposPayload(base64: string): EscposPayloadAnalysis {
     };
 }
 
-async function sleep(ms: number) {
-    await new Promise((resolve) => setTimeout(resolve, ms));
+function addCompletionQueries(base64: string) {
+    const cleanBase64 = normalizeBase64(base64);
+    const bytes = base64ToBytes(cleanBase64);
+    const parts: Uint8Array[] = [];
+    let acknowledgementTotal = 0;
+
+    for (let offset = 0; offset < bytes.length;) {
+        const commandLength = escposCommandLength(bytes, offset);
+        if (!commandLength) {
+            const fallback = new Uint8Array(
+                bytes.length + ESC_POS_PAPER_STATUS_COMMAND.length,
+            );
+            fallback.set(bytes);
+            fallback.set(ESC_POS_PAPER_STATUS_COMMAND, bytes.length);
+            return {
+                base64: bytesToBase64(fallback),
+                acknowledgementTotal: 1,
+            };
+        }
+
+        parts.push(bytes.subarray(offset, offset + commandLength));
+        if (bytes[offset] === 0x1d && bytes[offset + 1] === 0x56) {
+            parts.push(ESC_POS_PAPER_STATUS_COMMAND);
+            acknowledgementTotal += 1;
+        }
+        offset += commandLength;
+    }
+
+    if (acknowledgementTotal === 0) {
+        parts.push(ESC_POS_PAPER_STATUS_COMMAND);
+        acknowledgementTotal = 1;
+    }
+
+    const byteLength = parts.reduce((sum, part) => sum + part.length, 0);
+    const result = new Uint8Array(byteLength);
+    let cursor = 0;
+    for (const part of parts) {
+        result.set(part, cursor);
+        cursor += part.length;
+    }
+
+    return {
+        base64: bytesToBase64(result),
+        acknowledgementTotal,
+    };
 }
 
 function runOnMobileTcpQueue<T>(queueKey: string, task: () => Promise<T>) {
@@ -297,39 +332,9 @@ function runOnMobileTcpQueue<T>(queueKey: string, task: () => Promise<T>) {
     return execution;
 }
 
-function mobileTcpRasterDrainMs(
-    base64: string,
-    sendElapsedMs = 0,
-    preparedAnalysis?: EscposPayloadAnalysis,
-) {
-    const analysis = preparedAnalysis ?? analyzeEscposPayload(base64);
-    const physicalWorkMs = analysis.fullyParsed && analysis.rasterRows > 0
-        ? Math.ceil(
-            (analysis.rasterRows / MOBILE_TCP_RASTER_ROWS_PER_SECOND) * 1000,
-        )
-        : Math.ceil(
-            (analysis.byteLength / MOBILE_TCP_FALLBACK_BYTES_PER_SECOND) * 1000,
-        );
-    const remainingWorkMs = Math.max(
-        0,
-        physicalWorkMs - Math.max(0, Math.floor(sendElapsedMs)),
-    );
-
-    return Math.max(
-        MOBILE_TCP_MIN_DRAIN_MS,
-        Math.min(
-            MOBILE_TCP_MAX_DRAIN_MS,
-            remainingWorkMs + MOBILE_TCP_DRAIN_SETTLE_MS,
-        ),
-    );
-}
-
 function mobileTcpSendProfile() {
     return {
         chunkSize: MOBILE_TCP_CHUNK_SIZE,
-        cooldownEveryBytes: 0,
-        cooldownMs: 0,
-        delayMs: 0,
         profile: "tcp_backpressure" as const,
     };
 }
@@ -426,22 +431,46 @@ async function checkMobilePrinterPaperStatus({
     }
 }
 
+async function readMobilePrinterPaperStatus({
+    TcpSocket,
+    client,
+}: {
+    TcpSocket: TcpSocketApi;
+    client: TcpClient;
+}) {
+    try {
+        const response = await withPrinterStatusTimeout(
+            TcpSocket.read({
+                client,
+                expectLen: 1,
+                timeout: Math.ceil(MOBILE_TCP_STATUS_TIMEOUT_MS / 1000),
+            }),
+        );
+        const status = printerStatusByte(response.result);
+
+        if (status === null) {
+            throw new Error("Printer returned an empty completion status");
+        }
+        if ((status & 0x60) !== 0) {
+            throw new Error("Printer reported paper out before completion");
+        }
+
+        mobileTcpDebug("[mobile-tcp] printer paper status received", { status });
+    } catch (error) {
+        throw deliveryError(error, "unknown");
+    }
+}
+
 async function sendBase64InChunks({
     TcpSocket,
     client,
     base64,
     chunkSize = 4096,
-    cooldownEveryBytes = 0,
-    cooldownMs = 0,
-    delayMs = 80,
 }: {
     TcpSocket: TcpSocketApi;
     client: TcpClient;
     base64: string;
     chunkSize?: number;
-    cooldownEveryBytes?: number;
-    cooldownMs?: number;
-    delayMs?: number;
 }) {
     const cleanBase64 = normalizeBase64(base64);
 
@@ -451,15 +480,11 @@ async function sendBase64InChunks({
 
     const safeChunkSize = Math.max(4, chunkSize - (chunkSize % 4));
     const totalChunks = Math.ceil(cleanBase64.length / safeChunkSize);
-    let bytesSinceCooldown = 0;
 
     mobileTcpDebug("[mobile-tcp] chunk send config", {
         base64Length: cleanBase64.length,
         safeChunkSize,
         totalChunks,
-        cooldownEveryBytes,
-        cooldownMs,
-        delayMs,
         byteEstimate: Math.floor((cleanBase64.length * 3) / 4),
     });
 
@@ -485,16 +510,6 @@ async function sendBase64InChunks({
             }),
         );
 
-        bytesSinceCooldown += Math.floor((chunk.length * 3) / 4);
-
-        if (chunkIndex < totalChunks) {
-            const shouldCooldown =
-                cooldownEveryBytes > 0 &&
-                bytesSinceCooldown >= cooldownEveryBytes;
-            const pauseMs = shouldCooldown ? cooldownMs : delayMs;
-            if (shouldCooldown) bytesSinceCooldown = 0;
-            if (pauseMs > 0) await sleep(pauseMs);
-        }
     }
 
     mobileTcpDebug("[mobile-tcp] all chunks sent", {
@@ -506,20 +521,18 @@ async function sendEscposOnConnectedClient({
     TcpSocket,
     client,
     escposBase64,
-    requireCompletionConfirmation = false,
-    wait = sleep,
+    onTicketDelivered,
 }: {
     TcpSocket: TcpSocketApi;
     client: TcpClient;
     escposBase64: string;
-    requireCompletionConfirmation?: boolean;
-    wait?: (ms: number) => Promise<void>;
+    onTicketDelivered?: (completed: number, total: number) => void;
 }) {
     const cleanBase64 = normalizeBase64(escposBase64);
-    const segments = splitEscposBase64ForTransport(cleanBase64);
+    const completionPlan = addCompletionQueries(cleanBase64);
+    const segments = splitEscposBase64ForTransport(completionPlan.base64);
     const analysis = analyzeEscposPayload(cleanBase64);
     const sendProfile = mobileTcpSendProfile();
-    const sendStartedAt = Date.now();
 
     mobileTcpDebug("[mobile-tcp] transport plan", {
         segments: segments.length,
@@ -528,54 +541,70 @@ async function sendEscposOnConnectedClient({
         profile: sendProfile.profile,
     });
 
-    for (let segmentIndex = 0; segmentIndex < segments.length; segmentIndex++) {
-        const segment = segments[segmentIndex];
-        mobileTcpDebug("[mobile-tcp] send segment", {
-            segment: segmentIndex + 1,
-            segments: segments.length,
-            byteEstimate: Math.floor((segment.length * 3) / 4),
-        });
-
-        // Each send resolves only after the patched native plugin has written
-        // and flushed this complete segment. Awaiting it preserves every byte
-        // in order without timer gaps or overlapping native writes.
-        await sendBase64InChunks({
-            TcpSocket,
-            client,
-            base64: segment,
-            ...sendProfile,
-        });
-    }
-
-    const sendElapsedMs = Date.now() - sendStartedAt;
-    const drainMs =
-        mobileTcpRasterDrainMs(cleanBase64, sendElapsedMs, analysis) +
-        (analysis.cutCommands > 0 ? MOBILE_TCP_CUT_SETTLE_MS : 0);
-
-    mobileTcpDebug("[mobile-tcp] document flushed; waiting for completion", {
-        cutCommands: analysis.cutCommands,
-        drainMs,
-        rasterBands: analysis.rasterBands,
-        rasterRows: analysis.rasterRows,
-        sendElapsedMs,
-        segments: segments.length,
+    // Start listening before the first write. Android and iOS perform the
+    // native read on a background queue, so ticket acknowledgements can update
+    // progress while the rest of the batch is still streaming to the printer.
+    // This never gates the writes and therefore keeps paper output continuous.
+    let completionError: unknown = null;
+    const completionPromise = (async () => {
+        for (
+            let completed = 1;
+            completed <= completionPlan.acknowledgementTotal;
+            completed += 1
+        ) {
+            await readMobilePrinterPaperStatus({ TcpSocket, client });
+            onTicketDelivered?.(completed, completionPlan.acknowledgementTotal);
+        }
+    })().catch((error: unknown) => {
+        completionError = error;
     });
 
-    await wait(drainMs);
+    try {
+        for (let segmentIndex = 0; segmentIndex < segments.length; segmentIndex++) {
+            const segment = segments[segmentIndex];
+            mobileTcpDebug("[mobile-tcp] send segment", {
+                segment: segmentIndex + 1,
+                segments: segments.length,
+                byteEstimate: Math.floor((segment.length * 3) / 4),
+            });
 
-    if (requireCompletionConfirmation) {
-        await checkMobilePrinterPaperStatus({ TcpSocket, client });
+            // Each send resolves only after the patched native plugin has written
+            // and flushed this complete segment. Awaiting it preserves every byte
+            // in order without timer gaps or overlapping native writes.
+            await sendBase64InChunks({
+                TcpSocket,
+                client,
+                base64: segment,
+                ...sendProfile,
+            });
+        }
+    } catch (error) {
+        void completionPromise;
+        throw error;
     }
+
+    // Every GS r 1 sits directly after a cut in the same ordered byte stream.
+    // Writes never wait for a reply, while the listener reports each response
+    // as it arrives, so paper stays continuous and progress remains ordered.
+    mobileTcpDebug("[mobile-tcp] document flushed; confirming completion", {
+        cutCommands: analysis.cutCommands,
+        rasterBands: analysis.rasterBands,
+        rasterRows: analysis.rasterRows,
+        segments: segments.length,
+    });
+    await completionPromise;
+    if (completionError) throw completionError;
 }
 
 async function printMobileEscposOverTcpNow({
     interface_value,
     escpos_base64,
-    require_completion_confirmation = false,
+    on_ticket_delivered,
 }: {
     interface_value?: string;
     escpos_base64: string;
     require_completion_confirmation?: boolean;
+    on_ticket_delivered?: (completed: number, total: number) => void;
 }) {
     const cleanBase64 = normalizeBase64(escpos_base64);
 
@@ -627,7 +656,7 @@ async function printMobileEscposOverTcpNow({
             TcpSocket,
             client,
             escposBase64: cleanBase64,
-            requireCompletionConfirmation: require_completion_confirmation,
+            onTicketDelivered: on_ticket_delivered,
         });
         mobileTcpDebug("[mobile-tcp] send success");
     } catch (error) {
@@ -654,6 +683,7 @@ export function printMobileEscposOverTcp(input: {
     interface_value?: string;
     escpos_base64: string;
     require_completion_confirmation?: boolean;
+    on_ticket_delivered?: (completed: number, total: number) => void;
 }) {
     return runOnMobileTcpQueue(
         String(input.interface_value || "mobile-printer"),
@@ -663,9 +693,9 @@ export function printMobileEscposOverTcp(input: {
 
 export const __mobileTcpInternals = {
     MOBILE_TCP_SEGMENT_MAX_BYTES,
+    addCompletionQueries,
     analyzeEscposPayload,
     checkMobilePrinterPaperStatus,
-    mobileTcpRasterDrainMs,
     mobileTcpSendProfile,
     printerStatusByte,
     runOnMobileTcpQueue,

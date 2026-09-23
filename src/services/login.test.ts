@@ -1,6 +1,5 @@
 import axios from "axios";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { backendNetworkManager } from "@/stores/network-store";
 import { normalizeLoginEmail } from "@/lib/login-email";
 
 const apiMocks = vi.hoisted(() => ({ post: vi.fn() }));
@@ -15,7 +14,7 @@ vi.mock("@/lib/api", () => ({
   },
 }));
 
-import { checkLogin, restoreOnlineLogin } from "@/services/login";
+import { checkLogin } from "@/services/login";
 
 function loginResponse(overrides: Record<string, unknown> = {}) {
   return {
@@ -39,7 +38,6 @@ function loginResponse(overrides: Record<string, unknown> = {}) {
 describe("online-only login service", () => {
   beforeEach(() => {
     apiMocks.post.mockReset();
-    backendNetworkManager.resetChecking("login_test");
   });
 
   afterEach(() => {
@@ -101,12 +99,5 @@ describe("online-only login service", () => {
       code: "ERR_NETWORK",
     });
     expect(apiMocks.post).toHaveBeenCalledOnce();
-  });
-
-  it("never restores a retired local login token", async () => {
-    await expect(restoreOnlineLogin("local.session-token")).rejects.toMatchObject({
-      statusCode: 410,
-    });
-    expect(apiMocks.post).not.toHaveBeenCalled();
   });
 });

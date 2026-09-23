@@ -5,12 +5,10 @@ import { usePathname } from "next/navigation";
 import { useTranslation } from "react-i18next";
 import {
   activeMenuTitles,
-  applyOfflineLock,
   isFixedDataScreen,
   isImmersiveScreen,
 } from "@/components/layout/shell-menu-helpers";
 import { useResetOnDeps } from "@/hooks/use-reset-on-change";
-import { useIsCapacitorNativeApp } from "@/hooks/use-capacitor-native-app";
 import { useSidebarPermissionAccess } from "@/hooks/use-sidebar-permission-access";
 import {
   resolveShellBreadcrumbs,
@@ -42,8 +40,6 @@ export function useAppShellData() {
   const pathname = usePathname();
   const { i18n } = useTranslation();
   const user = useAuthStore((state) => state.user);
-  const offlineSession = useAuthStore((state) => state.offlineSession);
-  const isNativeApp = useIsCapacitorNativeApp();
   const sidebarError = usePermissionsSidebarStore((state) => state.error);
   const clearSidebarMenu = usePermissionsSidebarStore(
     (state) => state.clearActive,
@@ -57,10 +53,7 @@ export function useAppShellData() {
 
   const storeUuid = authStoreUuid(user);
 
-  const menuItems = useMemo(
-    () => applyOfflineLock(rawMenuItems, offlineSession, isNativeApp),
-    [isNativeApp, offlineSession, rawMenuItems],
-  );
+  const menuItems = rawMenuItems;
 
   const menuLoading = sidebarPending && menuItems.length === 0;
   const menuError = sidebarKeyMatches ? sidebarError : null;

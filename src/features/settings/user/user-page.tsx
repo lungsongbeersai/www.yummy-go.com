@@ -28,7 +28,6 @@ import { useReferenceStore } from "@/stores/reference-store";
 import { useUserStore } from "@/stores/user-store";
 import { UserBulkDialog } from "./user-bulk-create-dialog";
 import { UserFormDialog } from "./user-form-dialog";
-import { useOfflineReadOnly } from "@/hooks/use-offline-read-only";
 import { UserListSurface } from "./user-list";
 import { UserPasswordDialog } from "./user-password-dialog";
 import {
@@ -48,9 +47,6 @@ const EMPTY_ZONES: Zone[] = [];
 
 export function UserSettingsPage({ initialPagination }: { initialPagination: UrlPaginationState }) {
   const { t } = useTranslation();
-  // Master data is read-only offline: the create/update/delete routes are not on
-  // the offline transport, so the Add button goes away rather than failing.
-  const readOnly = useOfflineReadOnly();
   const loadRoles = useReferenceStore((state) => state.loadRoles);
   const loadZones = useReferenceStore((state) => state.loadZones);
   const userProfileUrl = useReferenceStore((state) => state.userProfileUrl);
@@ -238,7 +234,7 @@ export function UserSettingsPage({ initialPagination }: { initialPagination: Url
   }
 
   function requestActiveChange(targets: User[], active: number) {
-    if (readOnly || saving || statusRunning) return;
+    if (saving || statusRunning) return;
     const users = targets.filter((row) => !isProtectedUser(row) && userId(row) !== currentLoginUuid && Number(row.login_active ?? 1) !== active);
     if (users.length) setActiveTarget({ users, active });
   }
@@ -338,7 +334,7 @@ export function UserSettingsPage({ initialPagination }: { initialPagination: Url
       onDelete={setDeleteTarget}
       onEdit={openEdit}
       onToggleActive={(row) => requestActiveChange([row], Number(row.login_active ?? 1) === 1 ? 2 : 1)}
-      selectionActions={!readOnly && selectedUsers.length ? (
+      selectionActions={selectedUsers.length ? (
         <div className="flex flex-wrap gap-2">
           <Button disabled={saving || statusRunning} size="sm" variant="outline" onClick={openBulkEdit}>
             <Pencil />{t("settings.userBulkEditLabel", { count: selectedUsers.length })}
@@ -367,12 +363,10 @@ export function UserSettingsPage({ initialPagination }: { initialPagination: Url
         emptyDescription={t("empty.adjustSearch")}
         emptyTitle={t("settings.noRecords", { title: title.toLowerCase() })}
         headerActions={
-          readOnly ? undefined : (
-            <Button size="sm" variant="outline" onClick={openBulkCreate}>
-              <UsersRound data-icon="inline-start" />
-              <span className="min-w-0 truncate">{t("settings.userBulkAddLabel")}</span>
-            </Button>
-          )
+          <Button size="sm" variant="outline" onClick={openBulkCreate}>
+            <UsersRound data-icon="inline-start" />
+            <span className="min-w-0 truncate">{t("settings.userBulkAddLabel")}</span>
+          </Button>
         }
         footer={
           rows.length ? (
@@ -391,7 +385,7 @@ export function UserSettingsPage({ initialPagination }: { initialPagination: Url
         loadingLabel={t("settings.loading", { title })}
         table={listSurface}
         title={title}
-        onAdd={readOnly ? undefined : openCreate}
+        onAdd={openCreate}
       />
       <UserFormDialog
         crop={crop}

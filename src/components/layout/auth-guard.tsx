@@ -6,7 +6,6 @@ import { useTranslation } from "react-i18next";
 import { LoadingState } from "@/components/common/loading-state";
 import { NativeLoadingScreen } from "@/components/layout/capacitor/native-loading-screen";
 import { isCapacitorNativeApp } from "@/lib/capacitor-platform";
-import { getOfflineRedirectPath, isOfflineAllowedPath } from "@/lib/offline-routes";
 import { internalRoute } from "@/lib/routes";
 import { useIsCapacitorNativeApp } from "@/hooks/use-capacitor-native-app";
 import { useAuthStore } from "@/stores/auth-store";
@@ -26,7 +25,6 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const hydrated = useAuthStore((state) => state.hydrated);
   const isLoggedIn = useAuthStore((state) => state.isLoggedIn);
-  const offlineSession = useAuthStore((state) => state.offlineSession);
   const isNativeApp = useIsCapacitorNativeApp();
   const [minSplashElapsed, setMinSplashElapsed] = useState(false);
 
@@ -42,15 +40,6 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
       router.replace(internalRoute(unauthenticatedEntryPath(pathname, isCapacitorNativeApp())));
     }
   }, [hydrated, isLoggedIn, pathname, router]);
-
-  // Unknown/non-warmed routes still redirect to a dependable offline landing
-  // page. Established menu destinations are admitted on every platform; their
-  // per-endpoint transport remains responsible for read/write capability.
-  useEffect(() => {
-    if (!hydrated || !isLoggedIn || !offlineSession) return;
-    if (isOfflineAllowedPath(pathname, isNativeApp)) return;
-    router.replace(internalRoute(getOfflineRedirectPath(isNativeApp)));
-  }, [hydrated, isNativeApp, isLoggedIn, offlineSession, pathname, router]);
 
   const showNativeSplash = isNativeApp && !minSplashElapsed;
 

@@ -1,10 +1,8 @@
 "use client";
 
 import axios, { AxiosError, type AxiosInstance } from "axios";
-import { classifyBackendError } from "@/lib/network-state";
 import { shouldLogoutForUnauthorized } from "@/lib/unauthorized-session";
 import { useAuthStore } from "@/stores/auth-store";
-import { backendNetworkManager } from "@/stores/network-store";
 
 const baseURL =
   process.env.NEXT_PUBLIC_BASE_URL ??
@@ -124,15 +122,6 @@ function normalizeError(error: unknown, fallback = "Request failed"): ServiceErr
   return new ServiceError(error instanceof Error ? error.message : fallback, 500, error);
 }
 
-function reportBackendError(error: unknown) {
-  const classification = classifyBackendError(error);
-  if (classification.classification === "HTTP_RESPONSE") {
-    backendNetworkManager.reportReachable(classification.httpStatus, classification.reason);
-  } else if (classification.classification === "NETWORK_TRANSPORT") {
-    backendNetworkManager.reportTransportFailure(classification.reason);
-  }
-}
-
 async function requestOnline<T>(
   client: AxiosInstance,
   method: HttpMethod,
@@ -142,12 +131,8 @@ async function requestOnline<T>(
 ) {
   try {
     const response = await send<T>(client, method, url, options);
-    backendNetworkManager.reportReachable(response.status, "backend_api_success");
-    const auth = useAuthStore.getState();
-    if (auth.offlineSession) auth.setOfflineSession(false);
     return assertApiSuccess(response.data);
   } catch (error) {
-    reportBackendError(error);
     throw normalizeError(error, fallback);
   }
 }

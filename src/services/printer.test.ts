@@ -1101,7 +1101,7 @@ describe("printer service dispatch", () => {
     expect(mobileTcpMocks.printMobileEscposOverTcp).toHaveBeenCalledWith({
       interface_value: "tcp://192.168.1.20:9100",
       escpos_base64: "SHARED-BASE64",
-      require_completion_confirmation: true
+      on_ticket_delivered: expect.any(Function),
     });
     expect(axiosMocks.post).not.toHaveBeenCalled();
     expect(ackPayloads).toEqual([{

@@ -15,7 +15,6 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { Spinner } from "@/components/ui/spinner";
-import { useOfflineReadOnly } from "@/hooks/use-offline-read-only";
 import type { Category } from "@/services/category";
 import type { Printer } from "@/services/printer";
 import type { Zone } from "@/services/zone";
@@ -75,9 +74,6 @@ function PrinterCard({
 }: Omit<PrinterListCardsProps, "filteredRows"> & { row: PrinterTableRow }) {
   const { t } = useTranslation();
   const router = useRouter();
-  // เหมือนมุมมองตาราง: อ่านได้ตอนออฟไลน์ แต่ทุกปุ่มในการ์ดต้องยิง backend จึงกดไม่ได้
-  const readOnly = useOfflineReadOnly();
-
   return (
     <article
       className={cn(
@@ -226,7 +222,6 @@ function PrinterCard({
           variant="outline"
           aria-label={t("printer.testPrinter")}
           disabled={
-            readOnly ||
             printing ||
             Boolean(testingUuid) ||
             Boolean(togglingUuid) ||
@@ -249,7 +244,6 @@ function PrinterCard({
           variant="outline"
           aria-label={t("printer.testDrawer")}
           disabled={
-            readOnly ||
             printing ||
             Boolean(testingUuid) ||
             Boolean(testingDrawerUuid) ||
@@ -278,7 +272,7 @@ function PrinterCard({
                   ? t("printer.disablePrinter")
                   : t("printer.activatePrinter")
               }
-              disabled={readOnly || Boolean(togglingUuid) || !row.print_config_uuid}
+              disabled={Boolean(togglingUuid) || !row.print_config_uuid}
               onClick={() => void onToggle(row)}
             >
               {togglingUuid === row.print_config_uuid ? (
@@ -294,7 +288,6 @@ function PrinterCard({
               size="icon-sm"
               variant="outline"
               aria-label={t("actions.edit")}
-              disabled={readOnly}
               onClick={() =>
                 router.push(
                   `/printers/form?print_config_uuid=${encodeURIComponent(
@@ -313,7 +306,6 @@ function PrinterCard({
             size="icon-sm"
             variant="destructive"
             aria-label={t("actions.delete")}
-            disabled={readOnly}
             onClick={() => onDelete(row)}
           >
             <Trash2 />

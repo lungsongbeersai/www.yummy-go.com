@@ -11,8 +11,265 @@ index 3d335a6..4062c71 100644
          }
      }
      lintOptions {
+diff --git a/node_modules/@deedarb/capacitor-tcp-socket/android/build/.transforms/858935dbbba937594d91b8f38e640716/results.bin b/node_modules/@deedarb/capacitor-tcp-socket/android/build/.transforms/858935dbbba937594d91b8f38e640716/results.bin
+new file mode 100644
+index 0000000..7ed749e
+--- /dev/null
++++ b/node_modules/@deedarb/capacitor-tcp-socket/android/build/.transforms/858935dbbba937594d91b8f38e640716/results.bin
+@@ -0,0 +1 @@
++o/bundleLibRuntimeToDirDebug
+diff --git a/node_modules/@deedarb/capacitor-tcp-socket/android/build/.transforms/858935dbbba937594d91b8f38e640716/transformed/bundleLibRuntimeToDirDebug/bundleLibRuntimeToDirDebug_dex/com/svend/plugins/tcp/socket/TcpSocketPlugin.dex b/node_modules/@deedarb/capacitor-tcp-socket/android/build/.transforms/858935dbbba937594d91b8f38e640716/transformed/bundleLibRuntimeToDirDebug/bundleLibRuntimeToDirDebug_dex/com/svend/plugins/tcp/socket/TcpSocketPlugin.dex
+new file mode 100644
+index 0000000..c7e99c4
+Binary files /dev/null and b/node_modules/@deedarb/capacitor-tcp-socket/android/build/.transforms/858935dbbba937594d91b8f38e640716/transformed/bundleLibRuntimeToDirDebug/bundleLibRuntimeToDirDebug_dex/com/svend/plugins/tcp/socket/TcpSocketPlugin.dex differ
+diff --git a/node_modules/@deedarb/capacitor-tcp-socket/android/build/.transforms/858935dbbba937594d91b8f38e640716/transformed/bundleLibRuntimeToDirDebug/bundleLibRuntimeToDirDebug_global-synthetics/com/svend/plugins/tcp/socket/TcpSocketPlugin$$InternalSyntheticLambda$2$07333f49031a3f371c796d7bbad2c20f1d079029dd6625a49654cb84b91f4378$0.globals b/node_modules/@deedarb/capacitor-tcp-socket/android/build/.transforms/858935dbbba937594d91b8f38e640716/transformed/bundleLibRuntimeToDirDebug/bundleLibRuntimeToDirDebug_global-synthetics/com/svend/plugins/tcp/socket/TcpSocketPlugin$$InternalSyntheticLambda$2$07333f49031a3f371c796d7bbad2c20f1d079029dd6625a49654cb84b91f4378$0.globals
+new file mode 100644
+index 0000000..cf6ce7d
+Binary files /dev/null and b/node_modules/@deedarb/capacitor-tcp-socket/android/build/.transforms/858935dbbba937594d91b8f38e640716/transformed/bundleLibRuntimeToDirDebug/bundleLibRuntimeToDirDebug_global-synthetics/com/svend/plugins/tcp/socket/TcpSocketPlugin$$InternalSyntheticLambda$2$07333f49031a3f371c796d7bbad2c20f1d079029dd6625a49654cb84b91f4378$0.globals differ
+diff --git a/node_modules/@deedarb/capacitor-tcp-socket/android/build/.transforms/858935dbbba937594d91b8f38e640716/transformed/bundleLibRuntimeToDirDebug/bundleLibRuntimeToDirDebug_global-synthetics/com/svend/plugins/tcp/socket/TcpSocketPlugin$$InternalSyntheticLambda$2$8dbc1d077b883c8c879d0ac4fdd7186534cfe7b4f051376d914d36e426944643$0.globals b/node_modules/@deedarb/capacitor-tcp-socket/android/build/.transforms/858935dbbba937594d91b8f38e640716/transformed/bundleLibRuntimeToDirDebug/bundleLibRuntimeToDirDebug_global-synthetics/com/svend/plugins/tcp/socket/TcpSocketPlugin$$InternalSyntheticLambda$2$8dbc1d077b883c8c879d0ac4fdd7186534cfe7b4f051376d914d36e426944643$0.globals
+new file mode 100644
+index 0000000..cf6ce7d
+Binary files /dev/null and b/node_modules/@deedarb/capacitor-tcp-socket/android/build/.transforms/858935dbbba937594d91b8f38e640716/transformed/bundleLibRuntimeToDirDebug/bundleLibRuntimeToDirDebug_global-synthetics/com/svend/plugins/tcp/socket/TcpSocketPlugin$$InternalSyntheticLambda$2$8dbc1d077b883c8c879d0ac4fdd7186534cfe7b4f051376d914d36e426944643$0.globals differ
+diff --git a/node_modules/@deedarb/capacitor-tcp-socket/android/build/.transforms/858935dbbba937594d91b8f38e640716/transformed/bundleLibRuntimeToDirDebug/desugar_graph.bin b/node_modules/@deedarb/capacitor-tcp-socket/android/build/.transforms/858935dbbba937594d91b8f38e640716/transformed/bundleLibRuntimeToDirDebug/desugar_graph.bin
+new file mode 100644
+index 0000000..601f245
+Binary files /dev/null and b/node_modules/@deedarb/capacitor-tcp-socket/android/build/.transforms/858935dbbba937594d91b8f38e640716/transformed/bundleLibRuntimeToDirDebug/desugar_graph.bin differ
+diff --git a/node_modules/@deedarb/capacitor-tcp-socket/android/build/intermediates/aapt_friendly_merged_manifests/debug/processDebugManifest/aapt/AndroidManifest.xml b/node_modules/@deedarb/capacitor-tcp-socket/android/build/intermediates/aapt_friendly_merged_manifests/debug/processDebugManifest/aapt/AndroidManifest.xml
+new file mode 100644
+index 0000000..772feac
+--- /dev/null
++++ b/node_modules/@deedarb/capacitor-tcp-socket/android/build/intermediates/aapt_friendly_merged_manifests/debug/processDebugManifest/aapt/AndroidManifest.xml
+@@ -0,0 +1,7 @@
++<?xml version="1.0" encoding="utf-8"?>
++<manifest xmlns:android="http://schemas.android.com/apk/res/android"
++    package="com.svend.plugins.tcp.socket" >
++
++    <uses-sdk android:minSdkVersion="24" />
++
++</manifest>
+\ No newline at end of file
+diff --git a/node_modules/@deedarb/capacitor-tcp-socket/android/build/intermediates/aapt_friendly_merged_manifests/debug/processDebugManifest/aapt/output-metadata.json b/node_modules/@deedarb/capacitor-tcp-socket/android/build/intermediates/aapt_friendly_merged_manifests/debug/processDebugManifest/aapt/output-metadata.json
+new file mode 100644
+index 0000000..231d312
+--- /dev/null
++++ b/node_modules/@deedarb/capacitor-tcp-socket/android/build/intermediates/aapt_friendly_merged_manifests/debug/processDebugManifest/aapt/output-metadata.json
+@@ -0,0 +1,18 @@
++{
++  "version": 3,
++  "artifactType": {
++    "type": "AAPT_FRIENDLY_MERGED_MANIFESTS",
++    "kind": "Directory"
++  },
++  "applicationId": "com.svend.plugins.tcp.socket",
++  "variantName": "debug",
++  "elements": [
++    {
++      "type": "SINGLE",
++      "filters": [],
++      "attributes": [],
++      "outputFile": "AndroidManifest.xml"
++    }
++  ],
++  "elementType": "File"
++}
+\ No newline at end of file
+diff --git a/node_modules/@deedarb/capacitor-tcp-socket/android/build/intermediates/aar_main_jar/debug/syncDebugLibJars/classes.jar b/node_modules/@deedarb/capacitor-tcp-socket/android/build/intermediates/aar_main_jar/debug/syncDebugLibJars/classes.jar
+new file mode 100644
+index 0000000..b80e99c
+Binary files /dev/null and b/node_modules/@deedarb/capacitor-tcp-socket/android/build/intermediates/aar_main_jar/debug/syncDebugLibJars/classes.jar differ
+diff --git a/node_modules/@deedarb/capacitor-tcp-socket/android/build/intermediates/aar_metadata/debug/writeDebugAarMetadata/aar-metadata.properties b/node_modules/@deedarb/capacitor-tcp-socket/android/build/intermediates/aar_metadata/debug/writeDebugAarMetadata/aar-metadata.properties
+new file mode 100644
+index 0000000..ba000c0
+--- /dev/null
++++ b/node_modules/@deedarb/capacitor-tcp-socket/android/build/intermediates/aar_metadata/debug/writeDebugAarMetadata/aar-metadata.properties
+@@ -0,0 +1,6 @@
++aarFormatVersion=1.0
++aarMetadataVersion=1.0
++minCompileSdk=36
++minCompileSdkExtension=0
++minAndroidGradlePluginVersion=1.0.0
++coreLibraryDesugaringEnabled=false
+diff --git a/node_modules/@deedarb/capacitor-tcp-socket/android/build/intermediates/android_res_source_set_path_map/debug/mapDebugSourceSetPaths/file-map.txt b/node_modules/@deedarb/capacitor-tcp-socket/android/build/intermediates/android_res_source_set_path_map/debug/mapDebugSourceSetPaths/file-map.txt
+new file mode 100644
+index 0000000..83afc8b
+--- /dev/null
++++ b/node_modules/@deedarb/capacitor-tcp-socket/android/build/intermediates/android_res_source_set_path_map/debug/mapDebugSourceSetPaths/file-map.txt
+@@ -0,0 +1,10 @@
++com.svend.plugins.tcp.socket.deedarb-capacitor-tcp-socket-pngs-0 /Users/macmseries/Desktop/Project/resturant/New-Yummy-go.com/node_modules/@deedarb/capacitor-tcp-socket/android/build/generated/res/pngs/debug
++com.svend.plugins.tcp.socket.deedarb-capacitor-tcp-socket-resValues-1 /Users/macmseries/Desktop/Project/resturant/New-Yummy-go.com/node_modules/@deedarb/capacitor-tcp-socket/android/build/generated/res/resValues/debug
++com.svend.plugins.tcp.socket.deedarb-capacitor-tcp-socket-updated_navigation_xml-2 /Users/macmseries/Desktop/Project/resturant/New-Yummy-go.com/node_modules/@deedarb/capacitor-tcp-socket/android/build/generated/updated_navigation_xml/debug
++com.svend.plugins.tcp.socket.deedarb-capacitor-tcp-socket-mergeDebugResources-3 /Users/macmseries/Desktop/Project/resturant/New-Yummy-go.com/node_modules/@deedarb/capacitor-tcp-socket/android/build/intermediates/incremental/debug/mergeDebugResources/merged.dir
++com.svend.plugins.tcp.socket.deedarb-capacitor-tcp-socket-mergeDebugResources-4 /Users/macmseries/Desktop/Project/resturant/New-Yummy-go.com/node_modules/@deedarb/capacitor-tcp-socket/android/build/intermediates/incremental/debug/mergeDebugResources/stripped.dir
++com.svend.plugins.tcp.socket.deedarb-capacitor-tcp-socket-debug-5 /Users/macmseries/Desktop/Project/resturant/New-Yummy-go.com/node_modules/@deedarb/capacitor-tcp-socket/android/build/intermediates/merged_res/debug/mergeDebugResources
++com.svend.plugins.tcp.socket.deedarb-capacitor-tcp-socket-debug-6 /Users/macmseries/Desktop/Project/resturant/New-Yummy-go.com/node_modules/@deedarb/capacitor-tcp-socket/android/build/intermediates/packaged_res/debug/packageDebugResources
++com.svend.plugins.tcp.socket.deedarb-capacitor-tcp-socket-debug-7 /Users/macmseries/Desktop/Project/resturant/New-Yummy-go.com/node_modules/@deedarb/capacitor-tcp-socket/android/src/debug/res
++com.svend.plugins.tcp.socket.deedarb-capacitor-tcp-socket-main-8 /Users/macmseries/Desktop/Project/resturant/New-Yummy-go.com/node_modules/@deedarb/capacitor-tcp-socket/android/src/main/res
++gradleHome-0 /Users/macmseries/.gradle
+\ No newline at end of file
+diff --git a/node_modules/@deedarb/capacitor-tcp-socket/android/build/intermediates/annotation_processor_list/debug/javaPreCompileDebug/annotationProcessors.json b/node_modules/@deedarb/capacitor-tcp-socket/android/build/intermediates/annotation_processor_list/debug/javaPreCompileDebug/annotationProcessors.json
+new file mode 100644
+index 0000000..9e26dfe
+--- /dev/null
++++ b/node_modules/@deedarb/capacitor-tcp-socket/android/build/intermediates/annotation_processor_list/debug/javaPreCompileDebug/annotationProcessors.json
+@@ -0,0 +1 @@
++{}
+\ No newline at end of file
+diff --git a/node_modules/@deedarb/capacitor-tcp-socket/android/build/intermediates/annotations_typedef_file/debug/extractDebugAnnotations/typedefs.txt b/node_modules/@deedarb/capacitor-tcp-socket/android/build/intermediates/annotations_typedef_file/debug/extractDebugAnnotations/typedefs.txt
+new file mode 100644
+index 0000000..e69de29
+diff --git a/node_modules/@deedarb/capacitor-tcp-socket/android/build/intermediates/compile_library_classes_jar/debug/bundleLibCompileToJarDebug/classes.jar b/node_modules/@deedarb/capacitor-tcp-socket/android/build/intermediates/compile_library_classes_jar/debug/bundleLibCompileToJarDebug/classes.jar
+new file mode 100644
+index 0000000..e2015e7
+Binary files /dev/null and b/node_modules/@deedarb/capacitor-tcp-socket/android/build/intermediates/compile_library_classes_jar/debug/bundleLibCompileToJarDebug/classes.jar differ
+diff --git a/node_modules/@deedarb/capacitor-tcp-socket/android/build/intermediates/compile_r_class_jar/debug/generateDebugRFile/R.jar b/node_modules/@deedarb/capacitor-tcp-socket/android/build/intermediates/compile_r_class_jar/debug/generateDebugRFile/R.jar
+new file mode 100644
+index 0000000..a90a6aa
+Binary files /dev/null and b/node_modules/@deedarb/capacitor-tcp-socket/android/build/intermediates/compile_r_class_jar/debug/generateDebugRFile/R.jar differ
+diff --git a/node_modules/@deedarb/capacitor-tcp-socket/android/build/intermediates/compile_symbol_list/debug/generateDebugRFile/R.txt b/node_modules/@deedarb/capacitor-tcp-socket/android/build/intermediates/compile_symbol_list/debug/generateDebugRFile/R.txt
+new file mode 100644
+index 0000000..e69de29
+diff --git a/node_modules/@deedarb/capacitor-tcp-socket/android/build/intermediates/incremental/debug-mergeJavaRes/merge-state b/node_modules/@deedarb/capacitor-tcp-socket/android/build/intermediates/incremental/debug-mergeJavaRes/merge-state
+new file mode 100644
+index 0000000..1c983fc
+Binary files /dev/null and b/node_modules/@deedarb/capacitor-tcp-socket/android/build/intermediates/incremental/debug-mergeJavaRes/merge-state differ
+diff --git a/node_modules/@deedarb/capacitor-tcp-socket/android/build/intermediates/incremental/debug/packageDebugResources/compile-file-map.properties b/node_modules/@deedarb/capacitor-tcp-socket/android/build/intermediates/incremental/debug/packageDebugResources/compile-file-map.properties
+new file mode 100644
+index 0000000..a4336d4
+--- /dev/null
++++ b/node_modules/@deedarb/capacitor-tcp-socket/android/build/intermediates/incremental/debug/packageDebugResources/compile-file-map.properties
+@@ -0,0 +1 @@
++#Thu Sep 24 02:25:40 ICT 2026
+diff --git a/node_modules/@deedarb/capacitor-tcp-socket/android/build/intermediates/incremental/debug/packageDebugResources/merger.xml b/node_modules/@deedarb/capacitor-tcp-socket/android/build/intermediates/incremental/debug/packageDebugResources/merger.xml
+new file mode 100644
+index 0000000..48638e9
+--- /dev/null
++++ b/node_modules/@deedarb/capacitor-tcp-socket/android/build/intermediates/incremental/debug/packageDebugResources/merger.xml
+@@ -0,0 +1,2 @@
++<?xml version="1.0" encoding="utf-8"?>
++<merger version="3"><dataSet aapt-namespace="http://schemas.android.com/apk/res-auto" config="main$Generated" generated="true" ignore_pattern="!.svn:!.git:!.ds_store:!*.scc:.*:&lt;dir>_*:!CVS:!thumbs.db:!picasa.ini:!*~"><source path="/Users/macmseries/Desktop/Project/resturant/New-Yummy-go.com/node_modules/@deedarb/capacitor-tcp-socket/android/src/main/res"/></dataSet><dataSet aapt-namespace="http://schemas.android.com/apk/res-auto" config="main" generated-set="main$Generated" ignore_pattern="!.svn:!.git:!.ds_store:!*.scc:.*:&lt;dir>_*:!CVS:!thumbs.db:!picasa.ini:!*~:!&lt;dir>navigation"><source path="/Users/macmseries/Desktop/Project/resturant/New-Yummy-go.com/node_modules/@deedarb/capacitor-tcp-socket/android/src/main/res"/></dataSet><dataSet aapt-namespace="http://schemas.android.com/apk/res-auto" config="debug$Generated" generated="true" ignore_pattern="!.svn:!.git:!.ds_store:!*.scc:.*:&lt;dir>_*:!CVS:!thumbs.db:!picasa.ini:!*~"><source path="/Users/macmseries/Desktop/Project/resturant/New-Yummy-go.com/node_modules/@deedarb/capacitor-tcp-socket/android/src/debug/res"/></dataSet><dataSet aapt-namespace="http://schemas.android.com/apk/res-auto" config="debug" generated-set="debug$Generated" ignore_pattern="!.svn:!.git:!.ds_store:!*.scc:.*:&lt;dir>_*:!CVS:!thumbs.db:!picasa.ini:!*~:!&lt;dir>navigation"><source path="/Users/macmseries/Desktop/Project/resturant/New-Yummy-go.com/node_modules/@deedarb/capacitor-tcp-socket/android/src/debug/res"/></dataSet><dataSet aapt-namespace="http://schemas.android.com/apk/res-auto" config="generated$Generated" generated="true" ignore_pattern="!.svn:!.git:!.ds_store:!*.scc:.*:&lt;dir>_*:!CVS:!thumbs.db:!picasa.ini:!*~"><source path="/Users/macmseries/Desktop/Project/resturant/New-Yummy-go.com/node_modules/@deedarb/capacitor-tcp-socket/android/build/generated/res/resValues/debug"/></dataSet><dataSet aapt-namespace="http://schemas.android.com/apk/res-auto" config="generated" generated-set="generated$Generated" ignore_pattern="!.svn:!.git:!.ds_store:!*.scc:.*:&lt;dir>_*:!CVS:!thumbs.db:!picasa.ini:!*~:!&lt;dir>navigation"><source path="/Users/macmseries/Desktop/Project/resturant/New-Yummy-go.com/node_modules/@deedarb/capacitor-tcp-socket/android/build/generated/res/resValues/debug"/></dataSet><mergedItems/></merger>
+\ No newline at end of file
+diff --git a/node_modules/@deedarb/capacitor-tcp-socket/android/build/intermediates/incremental/mergeDebugAssets/merger.xml b/node_modules/@deedarb/capacitor-tcp-socket/android/build/intermediates/incremental/mergeDebugAssets/merger.xml
+new file mode 100644
+index 0000000..6445db0
+--- /dev/null
++++ b/node_modules/@deedarb/capacitor-tcp-socket/android/build/intermediates/incremental/mergeDebugAssets/merger.xml
+@@ -0,0 +1,2 @@
++<?xml version="1.0" encoding="utf-8"?>
++<merger version="3"><dataSet config="main" ignore_pattern="!.svn:!.git:!.ds_store:!*.scc:.*:&lt;dir>_*:!CVS:!thumbs.db:!picasa.ini:!*~"><source path="/Users/macmseries/Desktop/Project/resturant/New-Yummy-go.com/node_modules/@deedarb/capacitor-tcp-socket/android/src/main/assets"/></dataSet><dataSet config="debug" ignore_pattern="!.svn:!.git:!.ds_store:!*.scc:.*:&lt;dir>_*:!CVS:!thumbs.db:!picasa.ini:!*~"><source path="/Users/macmseries/Desktop/Project/resturant/New-Yummy-go.com/node_modules/@deedarb/capacitor-tcp-socket/android/src/debug/assets"/></dataSet></merger>
+\ No newline at end of file
+diff --git a/node_modules/@deedarb/capacitor-tcp-socket/android/build/intermediates/incremental/mergeDebugJniLibFolders/merger.xml b/node_modules/@deedarb/capacitor-tcp-socket/android/build/intermediates/incremental/mergeDebugJniLibFolders/merger.xml
+new file mode 100644
+index 0000000..1115ff5
+--- /dev/null
++++ b/node_modules/@deedarb/capacitor-tcp-socket/android/build/intermediates/incremental/mergeDebugJniLibFolders/merger.xml
+@@ -0,0 +1,2 @@
++<?xml version="1.0" encoding="utf-8"?>
++<merger version="3"><dataSet config="main" ignore_pattern="!.svn:!.git:!.ds_store:!*.scc:.*:&lt;dir>_*:!CVS:!thumbs.db:!picasa.ini:!*~"><source path="/Users/macmseries/Desktop/Project/resturant/New-Yummy-go.com/node_modules/@deedarb/capacitor-tcp-socket/android/src/main/jniLibs"/></dataSet><dataSet config="debug" ignore_pattern="!.svn:!.git:!.ds_store:!*.scc:.*:&lt;dir>_*:!CVS:!thumbs.db:!picasa.ini:!*~"><source path="/Users/macmseries/Desktop/Project/resturant/New-Yummy-go.com/node_modules/@deedarb/capacitor-tcp-socket/android/src/debug/jniLibs"/></dataSet></merger>
+\ No newline at end of file
+diff --git a/node_modules/@deedarb/capacitor-tcp-socket/android/build/intermediates/javac/debug/compileDebugJavaWithJavac/classes/com/svend/plugins/tcp/socket/TcpSocketPlugin.class b/node_modules/@deedarb/capacitor-tcp-socket/android/build/intermediates/javac/debug/compileDebugJavaWithJavac/classes/com/svend/plugins/tcp/socket/TcpSocketPlugin.class
+new file mode 100644
+index 0000000..1d423a2
+Binary files /dev/null and b/node_modules/@deedarb/capacitor-tcp-socket/android/build/intermediates/javac/debug/compileDebugJavaWithJavac/classes/com/svend/plugins/tcp/socket/TcpSocketPlugin.class differ
+diff --git a/node_modules/@deedarb/capacitor-tcp-socket/android/build/intermediates/local_only_symbol_list/debug/parseDebugLocalResources/R-def.txt b/node_modules/@deedarb/capacitor-tcp-socket/android/build/intermediates/local_only_symbol_list/debug/parseDebugLocalResources/R-def.txt
+new file mode 100644
+index 0000000..78ac5b8
+--- /dev/null
++++ b/node_modules/@deedarb/capacitor-tcp-socket/android/build/intermediates/local_only_symbol_list/debug/parseDebugLocalResources/R-def.txt
+@@ -0,0 +1,2 @@
++R_DEF: Internal format may change without notice
++local
+diff --git a/node_modules/@deedarb/capacitor-tcp-socket/android/build/intermediates/manifest_merge_blame_file/debug/processDebugManifest/manifest-merger-blame-debug-report.txt b/node_modules/@deedarb/capacitor-tcp-socket/android/build/intermediates/manifest_merge_blame_file/debug/processDebugManifest/manifest-merger-blame-debug-report.txt
+new file mode 100644
+index 0000000..02a03ac
+--- /dev/null
++++ b/node_modules/@deedarb/capacitor-tcp-socket/android/build/intermediates/manifest_merge_blame_file/debug/processDebugManifest/manifest-merger-blame-debug-report.txt
+@@ -0,0 +1,9 @@
++1<?xml version="1.0" encoding="utf-8"?>
++2<manifest xmlns:android="http://schemas.android.com/apk/res/android"
++3    package="com.svend.plugins.tcp.socket" >
++4
++5    <uses-sdk android:minSdkVersion="24" />
++5-->INJECTED
++5-->INJECTED
++6
++7</manifest>
+diff --git a/node_modules/@deedarb/capacitor-tcp-socket/android/build/intermediates/merged_java_res/debug/mergeDebugJavaResource/feature-deedarb-capacitor-tcp-socket.jar b/node_modules/@deedarb/capacitor-tcp-socket/android/build/intermediates/merged_java_res/debug/mergeDebugJavaResource/feature-deedarb-capacitor-tcp-socket.jar
+new file mode 100644
+index 0000000..15cb0ec
+Binary files /dev/null and b/node_modules/@deedarb/capacitor-tcp-socket/android/build/intermediates/merged_java_res/debug/mergeDebugJavaResource/feature-deedarb-capacitor-tcp-socket.jar differ
+diff --git a/node_modules/@deedarb/capacitor-tcp-socket/android/build/intermediates/merged_manifest/debug/processDebugManifest/AndroidManifest.xml b/node_modules/@deedarb/capacitor-tcp-socket/android/build/intermediates/merged_manifest/debug/processDebugManifest/AndroidManifest.xml
+new file mode 100644
+index 0000000..772feac
+--- /dev/null
++++ b/node_modules/@deedarb/capacitor-tcp-socket/android/build/intermediates/merged_manifest/debug/processDebugManifest/AndroidManifest.xml
+@@ -0,0 +1,7 @@
++<?xml version="1.0" encoding="utf-8"?>
++<manifest xmlns:android="http://schemas.android.com/apk/res/android"
++    package="com.svend.plugins.tcp.socket" >
++
++    <uses-sdk android:minSdkVersion="24" />
++
++</manifest>
+\ No newline at end of file
+diff --git a/node_modules/@deedarb/capacitor-tcp-socket/android/build/intermediates/navigation_json/debug/extractDeepLinksDebug/navigation.json b/node_modules/@deedarb/capacitor-tcp-socket/android/build/intermediates/navigation_json/debug/extractDeepLinksDebug/navigation.json
+new file mode 100644
+index 0000000..0637a08
+--- /dev/null
++++ b/node_modules/@deedarb/capacitor-tcp-socket/android/build/intermediates/navigation_json/debug/extractDeepLinksDebug/navigation.json
+@@ -0,0 +1 @@
++[]
+\ No newline at end of file
+diff --git a/node_modules/@deedarb/capacitor-tcp-socket/android/build/intermediates/nested_resources_validation_report/debug/generateDebugResources/nestedResourcesValidationReport.txt b/node_modules/@deedarb/capacitor-tcp-socket/android/build/intermediates/nested_resources_validation_report/debug/generateDebugResources/nestedResourcesValidationReport.txt
+new file mode 100644
+index 0000000..08f4ebe
+--- /dev/null
++++ b/node_modules/@deedarb/capacitor-tcp-socket/android/build/intermediates/nested_resources_validation_report/debug/generateDebugResources/nestedResourcesValidationReport.txt
+@@ -0,0 +1 @@
++0 Warning/Error
+\ No newline at end of file
+diff --git a/node_modules/@deedarb/capacitor-tcp-socket/android/build/intermediates/runtime_library_classes_dir/debug/bundleLibRuntimeToDirDebug/com/svend/plugins/tcp/socket/TcpSocketPlugin.class b/node_modules/@deedarb/capacitor-tcp-socket/android/build/intermediates/runtime_library_classes_dir/debug/bundleLibRuntimeToDirDebug/com/svend/plugins/tcp/socket/TcpSocketPlugin.class
+new file mode 100644
+index 0000000..1d423a2
+Binary files /dev/null and b/node_modules/@deedarb/capacitor-tcp-socket/android/build/intermediates/runtime_library_classes_dir/debug/bundleLibRuntimeToDirDebug/com/svend/plugins/tcp/socket/TcpSocketPlugin.class differ
+diff --git a/node_modules/@deedarb/capacitor-tcp-socket/android/build/intermediates/symbol_list_with_package_name/debug/generateDebugRFile/package-aware-r.txt b/node_modules/@deedarb/capacitor-tcp-socket/android/build/intermediates/symbol_list_with_package_name/debug/generateDebugRFile/package-aware-r.txt
+new file mode 100644
+index 0000000..f1d7815
+--- /dev/null
++++ b/node_modules/@deedarb/capacitor-tcp-socket/android/build/intermediates/symbol_list_with_package_name/debug/generateDebugRFile/package-aware-r.txt
+@@ -0,0 +1 @@
++com.svend.plugins.tcp.socket
+diff --git a/node_modules/@deedarb/capacitor-tcp-socket/android/build/outputs/aar/deedarb-capacitor-tcp-socket-debug.aar b/node_modules/@deedarb/capacitor-tcp-socket/android/build/outputs/aar/deedarb-capacitor-tcp-socket-debug.aar
+new file mode 100644
+index 0000000..cf597c9
+Binary files /dev/null and b/node_modules/@deedarb/capacitor-tcp-socket/android/build/outputs/aar/deedarb-capacitor-tcp-socket-debug.aar differ
+diff --git a/node_modules/@deedarb/capacitor-tcp-socket/android/build/outputs/logs/manifest-merger-debug-report.txt b/node_modules/@deedarb/capacitor-tcp-socket/android/build/outputs/logs/manifest-merger-debug-report.txt
+new file mode 100644
+index 0000000..a64d5ed
+--- /dev/null
++++ b/node_modules/@deedarb/capacitor-tcp-socket/android/build/outputs/logs/manifest-merger-debug-report.txt
+@@ -0,0 +1,16 @@
++-- Merging decision tree log ---
++manifest
++ADDED from /Users/macmseries/Desktop/Project/resturant/New-Yummy-go.com/node_modules/@deedarb/capacitor-tcp-socket/android/src/main/AndroidManifest.xml:1:1-2:12
++INJECTED from /Users/macmseries/Desktop/Project/resturant/New-Yummy-go.com/node_modules/@deedarb/capacitor-tcp-socket/android/src/main/AndroidManifest.xml:1:1-2:12
++	package
++		INJECTED from /Users/macmseries/Desktop/Project/resturant/New-Yummy-go.com/node_modules/@deedarb/capacitor-tcp-socket/android/src/main/AndroidManifest.xml
++	xmlns:android
++		ADDED from /Users/macmseries/Desktop/Project/resturant/New-Yummy-go.com/node_modules/@deedarb/capacitor-tcp-socket/android/src/main/AndroidManifest.xml:1:11-69
++uses-sdk
++INJECTED from /Users/macmseries/Desktop/Project/resturant/New-Yummy-go.com/node_modules/@deedarb/capacitor-tcp-socket/android/src/main/AndroidManifest.xml reason: use-sdk injection requested
++INJECTED from /Users/macmseries/Desktop/Project/resturant/New-Yummy-go.com/node_modules/@deedarb/capacitor-tcp-socket/android/src/main/AndroidManifest.xml
++INJECTED from /Users/macmseries/Desktop/Project/resturant/New-Yummy-go.com/node_modules/@deedarb/capacitor-tcp-socket/android/src/main/AndroidManifest.xml
++	android:targetSdkVersion
++		INJECTED from /Users/macmseries/Desktop/Project/resturant/New-Yummy-go.com/node_modules/@deedarb/capacitor-tcp-socket/android/src/main/AndroidManifest.xml
++	android:minSdkVersion
++		INJECTED from /Users/macmseries/Desktop/Project/resturant/New-Yummy-go.com/node_modules/@deedarb/capacitor-tcp-socket/android/src/main/AndroidManifest.xml
+diff --git a/node_modules/@deedarb/capacitor-tcp-socket/android/build/tmp/compileDebugJavaWithJavac/previous-compilation-data.bin b/node_modules/@deedarb/capacitor-tcp-socket/android/build/tmp/compileDebugJavaWithJavac/previous-compilation-data.bin
+new file mode 100644
+index 0000000..0e8233b
+Binary files /dev/null and b/node_modules/@deedarb/capacitor-tcp-socket/android/build/tmp/compileDebugJavaWithJavac/previous-compilation-data.bin differ
 diff --git a/node_modules/@deedarb/capacitor-tcp-socket/android/src/main/java/com/svend/plugins/tcp/socket/TcpSocketPlugin.java b/node_modules/@deedarb/capacitor-tcp-socket/android/src/main/java/com/svend/plugins/tcp/socket/TcpSocketPlugin.java
-index 78ec7c8..5d53865 100644
+index 78ec7c8..7054f9e 100644
 --- a/node_modules/@deedarb/capacitor-tcp-socket/android/src/main/java/com/svend/plugins/tcp/socket/TcpSocketPlugin.java
 +++ b/node_modules/@deedarb/capacitor-tcp-socket/android/src/main/java/com/svend/plugins/tcp/socket/TcpSocketPlugin.java
 @@ -19,7 +19,9 @@ import java.io.IOException;
@@ -143,12 +400,16 @@ index 78ec7c8..5d53865 100644
          if (client == -1 || length == -1) {
              call.reject("Client or length not specified");
              return;
-@@ -118,12 +144,16 @@ public class TcpSocketPlugin extends Plugin {
+@@ -118,12 +144,19 @@ public class TcpSocketPlugin extends Plugin {
              try {
                  if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
                      final Socket socket = clients.get(client);
+-                    DataInputStream mBufferIn = new DataInputStream(new BufferedInputStream(socket.getInputStream()));
 +                    socket.setSoTimeout(Math.max(1, timeout) * 1000);
-                     DataInputStream mBufferIn = new DataInputStream(new BufferedInputStream(socket.getInputStream()));
++                    // Do not wrap each one-byte status read in a fresh buffered
++                    // stream: it can prefetch later ticket acknowledgements and
++                    // discard them when this call returns.
++                    DataInputStream mBufferIn = new DataInputStream(socket.getInputStream());
                      byte[] bytes = new byte[length];
                      int read = mBufferIn.read(bytes, 0, length);
 -                    Base64.getEncoder().encodeToString(bytes);
@@ -162,7 +423,7 @@ index 78ec7c8..5d53865 100644
                      call.resolve(ret);
                  } else {
                      JSObject ret = new JSObject();
-@@ -135,13 +165,8 @@ public class TcpSocketPlugin extends Plugin {
+@@ -135,13 +168,8 @@ public class TcpSocketPlugin extends Plugin {
              }
          };
  
@@ -178,7 +439,7 @@ index 78ec7c8..5d53865 100644
              call.reject("Socket not connected");
              return;
          }
-@@ -156,19 +181,36 @@ public class TcpSocketPlugin extends Plugin {
+@@ -156,19 +184,36 @@ public class TcpSocketPlugin extends Plugin {
              call.reject("No client specified");
              return;
          }
@@ -223,3 +484,76 @@ index 78ec7c8..5d53865 100644
          }
  
          JSObject ret = new JSObject();
+diff --git a/node_modules/@deedarb/capacitor-tcp-socket/ios/Plugin/TcpSocketPlugin.swift b/node_modules/@deedarb/capacitor-tcp-socket/ios/Plugin/TcpSocketPlugin.swift
+index b9314e1..7ab9779 100644
+--- a/node_modules/@deedarb/capacitor-tcp-socket/ios/Plugin/TcpSocketPlugin.swift
++++ b/node_modules/@deedarb/capacitor-tcp-socket/ios/Plugin/TcpSocketPlugin.swift
+@@ -45,18 +45,18 @@ public class TcpSocketPlugin: CAPPlugin {
+             return
+         }
+         
+-        do {
+-            // Decode base64 string to raw Data
+-            guard let decodedData = Data(base64Encoded: base64Data) else {
+-                call.reject("Invalid base64 data")
+-                return
+-            }
++        guard let decodedData = Data(base64Encoded: base64Data) else {
++            call.reject("Invalid base64 data")
++            return
++        }
+ 
+-            // Send the raw data
+-            try client.write(from: decodedData)
+-            call.resolve()
+-        } catch {
+-            call.reject(error.localizedDescription)
++        DispatchQueue.global(qos: .userInitiated).async {
++            do {
++                try client.write(from: decodedData)
++                call.resolve()
++            } catch {
++                call.reject(error.localizedDescription)
++            }
+         }
+     }
+     
+@@ -73,20 +73,25 @@ public class TcpSocketPlugin: CAPPlugin {
+         }
+         
+         let expectLen = call.getInt("expectLen", 1024)
+-        let timeout = call.getInt("timeout", 10)
+-        
+-        var buffer = Data(capacity: expectLen)
+-        do {
+-            let bytesRead = try client.read(into: &buffer)
+-            if bytesRead > 0 {
+-                // Return the raw data as base64 string
+-                let base64String = buffer.base64EncodedString()
+-                call.resolve(["result": base64String])
+-            } else {
+-                call.resolve(["result": ""])
++        DispatchQueue.global(qos: .userInitiated).async {
++            var buffer = [CChar](repeating: 0, count: max(1, expectLen))
++            do {
++                let bytesRead = try buffer.withUnsafeMutableBufferPointer { pointer in
++                    try client.read(
++                        into: pointer.baseAddress!,
++                        bufSize: max(1, expectLen),
++                        truncate: true
++                    )
++                }
++                if bytesRead > 0 {
++                    let data = Data(bytes: buffer, count: bytesRead)
++                    call.resolve(["result": data.base64EncodedString()])
++                } else {
++                    call.resolve(["result": ""])
++                }
++            } catch {
++                call.reject(error.localizedDescription)
+             }
+-        } catch {
+-            call.resolve(["result": ""])
+         }
+     }
+     

@@ -8,8 +8,8 @@ import {
 } from "./resolve";
 
 // Pairing is per device and survives restarts, so it lives in localStorage next
-// to the auth session rather than in Dexie: the Agent address is needed before
-// any database work can start, including the offline login that reads it.
+// to the auth session. This lets printer discovery work before feature stores
+// have loaded.
 
 export function readPairedAgent(): AgentLink | null {
   if (typeof localStorage === "undefined") return null;

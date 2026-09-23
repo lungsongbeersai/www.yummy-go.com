@@ -83,7 +83,7 @@ describe("auth store session isolation", () => {
     vi.clearAllMocks();
   });
 
-  it("logs in online without preparing an offline Agent session", async () => {
+  it("logs in with the Backend session", async () => {
     const user = authUser("cashier");
     checkLoginMock.mockResolvedValue({ token: "online-token", user, source: "online" });
 
@@ -94,7 +94,6 @@ describe("auth store session isolation", () => {
       user,
       isLoggedIn: true,
       loading: false,
-      offlineSession: false,
     });
   });
 
@@ -120,46 +119,6 @@ describe("auth store session isolation", () => {
     expect(usePermissionsSidebarStore.getState().requestKey).toBe("");
     expect(usePermissionsAccessStore.getState().selectedStoreUuid).toBe("");
     expect(disconnectSocketMock).toHaveBeenCalledOnce();
-  });
-
-  it("cannot switch an authenticated user into an offline session", () => {
-    useAuthStore.getState().login("token-1", authUser("user-1"));
-    useAuthStore.getState().setOfflineSession(true);
-    expect(useAuthStore.getState()).toMatchObject({
-      token: "token-1",
-      isLoggedIn: true,
-      offlineSession: false,
-    });
-    useAuthStore.getState().setOfflineSession(false);
-    expect(useAuthStore.getState()).toMatchObject({
-      token: "token-1",
-      isLoggedIn: true,
-      offlineSession: false,
-    });
-  });
-
-  it("can replace a legacy local token with an online JWT only for the same identity", () => {
-    const currentUser = authUser("user-1");
-    useAuthStore.getState().login("local.session-token", currentUser);
-    useAuthStore.getState().setOfflineSession(true);
-
-    expect(useAuthStore.getState().resumeOnlineSession("online-token", currentUser)).toBe(true);
-    expect(useAuthStore.getState()).toMatchObject({
-      token: "online-token",
-      offlineSession: false,
-      isLoggedIn: true,
-    });
-  });
-
-  it("rejects a legacy session restored for another login without enabling offline mode", () => {
-    useAuthStore.getState().login("local.session-token", authUser("user-1"));
-    useAuthStore.getState().setOfflineSession(true);
-
-    expect(useAuthStore.getState().resumeOnlineSession("other-token", authUser("user-2"))).toBe(false);
-    expect(useAuthStore.getState()).toMatchObject({
-      token: "local.session-token",
-      offlineSession: false,
-    });
   });
 
   it("resets the previous session before applying a new login", () => {

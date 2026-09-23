@@ -31,7 +31,7 @@ interface LoadParams {
   branch_uuid_fk: string;
   lang?: string;
   // Silent refresh: keep the current queue on screen instead of flashing the
-  // loading state. Used when the transport verdict flips online<->offline.
+  // loading state during a background reachability refresh.
   background?: boolean;
 }
 

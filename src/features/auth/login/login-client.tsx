@@ -68,7 +68,6 @@ export function LoginClient() {
   const loading = useAuthStore((state) => state.loading);
   const isLoggedIn = useAuthStore((state) => state.isLoggedIn);
   const user = useAuthStore((state) => state.user);
-  const offlineSession = useAuthStore((state) => state.offlineSession);
   const hydrated = useAuthStore((state) => state.hydrated);
 
   const [email, setEmail] = useState("");
@@ -85,14 +84,13 @@ export function LoginClient() {
 
     void resolveLandingPath(redirectParam, user, i18n.language).then((target) => {
       if (cancelled) return;
-      if (offlineSession) window.location.replace(target);
-      else router.replace(target);
+      router.replace(target);
     });
 
     return () => {
       cancelled = true;
     };
-  }, [hydrated, isLoggedIn, offlineSession, redirectParam, user, i18n.language, router]);
+  }, [hydrated, isLoggedIn, redirectParam, user, i18n.language, router]);
 
   useEffect(() => {
     let active = true;

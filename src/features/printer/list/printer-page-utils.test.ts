@@ -129,39 +129,28 @@ describe("printerZones / printerCategories", () => {
   });
 });
 
-describe("what the printers page keeps working while offline", () => {
+describe("printers page online-only controls", () => {
   const testDir = dirname(fileURLToPath(import.meta.url));
   const pageSource = readFileSync(join(testDir, "printer-page.tsx"), "utf8");
   const hookSource = readFileSync(join(testDir, "use-printer-page.ts"), "utf8");
 
-  it("gates only the Backend-backed action on the offline verdict", () => {
-    // Losing Backend is exactly when someone is installing a Driver or the Agent,
-    // and those are static files this app serves itself. Hiding the whole row
-    // took them away at the one moment they are needed.
+  it("keeps setup downloads and add-printer available", () => {
     const toolbar = pageSource.slice(
       pageSource.indexOf('<div className="flex shrink-0 items-center gap-2">'),
     );
-    const gated = toolbar.split("readOnly ? null : (");
-    expect(gated).toHaveLength(2);
-    expect(gated[1]).toContain('href="/printers/form"');
+    expect(toolbar).toContain('href="/printers/form"');
     for (const download of [
       "XPRINTER_DRIVER_URL",
       "/downloads/laoscript8.msi",
       "PRINTER_SETUP_DOWNLOAD_URL",
       "printer.downloadAgent",
     ]) {
-      expect(gated[0]).toContain(download);
+      expect(toolbar).toContain(download);
     }
   });
 
-  it("refetches when the transport verdict settles, so it can leave offline again", () => {
-    // The mount load is the only request this page makes. A read the Agent
-    // served latches offlineSession, and only a successful Backend response
-    // clears it — so without this the page never asked again and stayed
-    // read-only after the connection came back.
-    expect(hookSource).toContain("useOfflineRefetchEpoch()");
-    const effect = hookSource.slice(hookSource.indexOf("if (refetchEpoch === 0) return;"));
-    expect(effect.slice(0, effect.indexOf("}, ["))).toContain("void load();");
-    expect(effect).toContain("}, [load, refetchEpoch]);");
+  it("contains no retired transport-mode hooks", () => {
+    expect(hookSource).not.toContain("useOfflineRefetchEpoch");
+    expect(pageSource).not.toContain("useOfflineReadOnly");
   });
 });

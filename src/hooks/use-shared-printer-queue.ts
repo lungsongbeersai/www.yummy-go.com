@@ -53,7 +53,6 @@ export function sharedPrintExecutionKind(
 
 export function useSharedPrinterQueue() {
   const user = useAuthStore((state) => state.user);
-  const offlineSession = useAuthStore((state) => state.offlineSession);
   const runningRef = useRef(false);
   const inFlightRef = useRef(new Set<string>());
   const identityRef = useRef<{ agent: AgentInfo; checkedAt: number } | null>(null);
@@ -61,7 +60,7 @@ export function useSharedPrinterQueue() {
   useEffect(() => {
     const loginUuid = textValue(user?.uuid);
     const branchUuid = textValue(user?.branch_uuid);
-    if (!loginUuid || !branchUuid || offlineSession) return;
+    if (!loginUuid || !branchUuid) return;
 
     let cancelled = false;
     const inFlight = inFlightRef.current;
@@ -174,5 +173,5 @@ export function useSharedPrinterQueue() {
       runningRef.current = false;
       inFlight.clear();
     };
-  }, [offlineSession, user?.branch_uuid, user?.uuid]);
+  }, [user?.branch_uuid, user?.uuid]);
 }

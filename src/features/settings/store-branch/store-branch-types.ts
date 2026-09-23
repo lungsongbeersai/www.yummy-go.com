@@ -42,9 +42,6 @@ export interface StoreBranchLabels {
   noBranch: string;
   noStore: string;
   noTables: string;
-  offlineMobileEnabled: string;
-  offlineMobileEnabledHint: string;
-  offlineMobileToggleFailed: string;
   open: string;
   phone: string;
   plc: string;

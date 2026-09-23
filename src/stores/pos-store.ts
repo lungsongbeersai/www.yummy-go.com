@@ -228,7 +228,7 @@ interface PosState {
     query?: string;
     refreshCategories?: boolean;
     // Silent refresh: keep the current menu on screen instead of flashing the
-    // loading skeleton. Used when the transport verdict flips online<->offline.
+    // loading skeleton during a background reachability refresh.
     background?: boolean;
   }) => Promise<PosMenuBySort>;
   loadProducts: (params: FetchCateProductsParams) => Promise<CateProductItem[]>;

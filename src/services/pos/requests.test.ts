@@ -631,7 +631,7 @@ describe("pos requests", () => {
     });
   });
 
-  it("sends the delete item UUID in query and body for online and Mobile Offline", async () => {
+  it("sends the delete item UUID in both query and body", async () => {
     apiMocks.apiRequest.mockResolvedValue({ status: "success" });
 
     await deleteOrderItem("item-1");

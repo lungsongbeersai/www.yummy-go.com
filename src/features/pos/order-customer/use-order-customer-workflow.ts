@@ -4,7 +4,6 @@ import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useIsMobile } from "@/hooks/use-mobile";
-import { useOfflineRefetchEpoch } from "@/hooks/use-offline-refetch";
 import { useResetOnDeps } from "@/hooks/use-reset-on-change";
 import { OrderChannelEnum, OrderSourceEnum } from "@/config/pos-constants";
 import {
@@ -71,10 +70,6 @@ export function useOrderCustomerWorkflow({
   const { t } = useTranslation();
   const router = useRouter();
   const isMobile = useIsMobile();
-  // Reload once when the backend transport verdict flips (net dropped or came
-  // back) so cart/menu/tables swap between Local Agent and backend data on their
-  // own.
-  const refetchEpoch = useOfflineRefetchEpoch();
   const user = useAuthStore((state) => state.user);
   const branchUuid = user?.branch_uuid ?? "";
   const isNoTableStore = user?.store_table_status === 2;
@@ -228,14 +223,9 @@ export function useOrderCustomerWorkflow({
         }, options);
       }
     } catch (error) {
-      // Android has no Local Agent, so fetch_cart has nowhere offline to fall
-      // back to (see SAFE_BROWSER_FALLBACK_PATHS in offline-db.ts) — a real
-      // network failure here surfaced as a raw "Network Error" toast on a
-      // half-loaded page the cashier can't do anything with, well before the
-      // separate /sync/health probe confirms OFFLINE (3 confirmed failures,
-      // deliberately decoupled from this one request — see
-      // applyBackendTransportFailure in network-state.ts). Foreground loads
-      // only: a background refetch failing here should stay silent as before.
+      // A foreground transport failure leaves the cashier on a half-loaded
+      // online-only screen, so show an actionable connection message instead
+      // of Axios's raw "Network Error". Background refreshes remain silent.
       const isForegroundLoad = !options?.background;
       if (
         isForegroundLoad &&
@@ -243,7 +233,7 @@ export function useOrderCustomerWorkflow({
         classifyBackendError(error instanceof ServiceError ? error.originalError : error)
           .classification === "NETWORK_TRANSPORT"
       ) {
-        showToast({ title: t("pos.tableOpenUnavailableOffline"), tone: "info" });
+        showToast({ title: t("pos.tableOpenNeedsConnection"), tone: "info" });
         router.replace("/posAll/tables");
         return;
       }
@@ -430,8 +420,7 @@ export function useOrderCustomerWorkflow({
           prodUuid: entry.product.prodUuid,
         });
       } catch {
-        // Prefetch is best-effort. The actual click keeps the existing error
-        // handling and offline fallback, so warming a card never shows a toast.
+        // Prefetch is best-effort; the actual click owns user-visible errors.
       }
     },
     [activeSort, language, prefetchProductItem],
@@ -454,15 +443,10 @@ export function useOrderCustomerWorkflow({
           if (classifyBackendError(error).classification !== "NETWORK_TRANSPORT") {
             throw error;
           }
-          // Offline: get_prod_item's own offline fallback (offline-sync.ts) already
-          // answers from cached fetch_cate_products data whenever a product has no
-          // real size/topping options to choose — this only still throws for a
-          // product that genuinely needs the options modal and was never opened
-          // online, so there is no size/topping list to show at all. That is a
-          // real v1 boundary the cashier can act on, not a bug — say so plainly
-          // instead of a generic "Network Error".
+          // Product option details are server-owned in online-only mode. Explain
+          // the connection requirement instead of surfacing a generic error.
           showToast({
-            title: t("pos.productOptionsNeedOnline"),
+            title: t("pos.productOptionsNeedConnection"),
             tone: "error",
           });
           return;
@@ -660,18 +644,6 @@ export function useOrderCustomerWorkflow({
   useEffect(() => {
     void loadMenu({ refreshCategories: true });
   }, [loadMenu]);
-
-  // On an online<->offline flip, refresh cart + menu + tables silently (no
-  // loading flash) so the screen swaps its data source without a visible reload.
-  useEffect(() => {
-    if (refetchEpoch === 0) return;
-    void loadCart({ background: true }).catch(() => undefined);
-    void loadMenu({ refreshCategories: true, background: true }).catch(() => undefined);
-    if (branchUuid) {
-      void refreshTablesStore({ branch_uuid_fk: branchUuid, lang: language })
-        .catch(() => undefined);
-    }
-  }, [branchUuid, language, loadCart, loadMenu, refetchEpoch, refreshTablesStore]);
 
   useEffect(() => {
     if (!user?.uuid) return;
