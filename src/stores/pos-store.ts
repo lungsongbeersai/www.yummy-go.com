@@ -313,10 +313,12 @@ export const usePosStore = create<PosState>((set, get) => ({
     try {
       let nextCateUuid = textValue(cateUuid);
       const nextQuery = query ?? "";
+      let normalCatalog: FetchCateProductsResponse | null = null;
 
       if (refreshCategories) {
         const catalog = await get().loadProductCategories({
           branchUuidFk: branchUuid,
+          ...(nextCateUuid ? { cateUuid: nextCateUuid } : {}),
           lang: language,
           search: "",
           statusSortFk: ProductSortStatus.NORMAL
@@ -328,6 +330,7 @@ export const usePosStore = create<PosState>((set, get) => ({
           requestedCateUuid: nextCateUuid,
           selectedCateUuid: catalog.selectedCateUuid
         });
+        normalCatalog = catalog;
         if (isCurrentMenuLifecycle()) set({ categories });
       }
 
@@ -342,8 +345,13 @@ export const usePosStore = create<PosState>((set, get) => ({
             search: searchQuery,
             statusSortFk
           });
+        // The category-discovery request is already the NORMAL menu for the
+        // selected category. Reuse it on initial loads instead of issuing the
+        // same expensive catalog query twice.
         const [normal, setMenu, promotion] = await Promise.all([
-          request(ProductSortStatus.NORMAL),
+          normalCatalog && !searchQuery
+            ? Promise.resolve(normalCatalog)
+            : request(ProductSortStatus.NORMAL),
           request(ProductSortStatus.SET),
           request(ProductSortStatus.PROMOTION)
         ]);

@@ -13,7 +13,10 @@ import {
 } from "@/services/printer";
 import { useAuthStore } from "@/stores/auth-store";
 
-const POLL_INTERVAL_MS = 2500;
+// Socket events are the primary delivery path. Polling is only a recovery
+// fallback, so keep it comfortably inside the Backend's 120-second presence
+// window without continuously querying an idle branch.
+const POLL_INTERVAL_MS = 30000;
 const IDENTITY_REFRESH_MS = 10000;
 const DOCUMENT_PRINT_SOURCES = new Set([
   "qr_table",
@@ -114,7 +117,11 @@ export function useSharedPrinterQueue() {
     }
 
     async function poll() {
-      if (cancelled || runningRef.current) return;
+      if (
+        cancelled ||
+        runningRef.current ||
+        document.visibilityState === "hidden"
+      ) return;
       runningRef.current = true;
 
       try {
@@ -142,6 +149,10 @@ export function useSharedPrinterQueue() {
       }
     }
 
+    function handleVisibilityChange() {
+      if (document.visibilityState === "visible") void poll();
+    }
+
     function handleQueued(payload: PrintJobQueuedPayload) {
       if (payload.remote_shared_print !== true) return;
       void localAgent().then((agent) => {
@@ -152,11 +163,13 @@ export function useSharedPrinterQueue() {
 
     const unsubscribe = subscribePrintJobs(branchUuid, handleQueued);
     const interval = window.setInterval(() => void poll(), POLL_INTERVAL_MS);
+    document.addEventListener("visibilitychange", handleVisibilityChange);
     void poll();
 
     return () => {
       cancelled = true;
       unsubscribe();
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
       window.clearInterval(interval);
       runningRef.current = false;
       inFlight.clear();

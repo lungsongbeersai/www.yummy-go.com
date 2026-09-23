@@ -14,7 +14,7 @@ import { Spinner } from "@/components/ui/spinner";
 import { TabsTrigger } from "@/components/ui/tabs";
 import { money } from "@/lib/format";
 import { promotionQuantity } from "@/lib/pos/cart-quantity";
-import { isRemoteUrl } from "@/lib/pos/product-media";
+import { shouldUnoptimizeProductImage } from "@/lib/pos/product-media";
 import { cn } from "@/lib/utils";
 import type { CartItem } from "@/services/pos";
 import type { CartItemAction, CartTab } from "./types";
@@ -725,9 +725,10 @@ function CartProductMedia({
       {media.type === "image" ? (
         <Image
           src={media.src}
-          unoptimized={isRemoteUrl(media.src)}
+          unoptimized={shouldUnoptimizeProductImage(media.src)}
           alt={title}
           fill
+          quality={60}
           sizes={compact ? "40px" : "(max-width: 640px) 40px, 44px"}
           className="object-contain"
         />

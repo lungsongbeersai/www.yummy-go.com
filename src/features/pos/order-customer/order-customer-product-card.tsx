@@ -27,7 +27,7 @@ import {
   getProductActionState,
   getProductBlockedState,
   hasPromo,
-  isRemoteUrl,
+  shouldUnoptimizeProductImage,
   productActionLabel,
   productBlockedLabel,
   productCardPrice,
@@ -248,9 +248,10 @@ export function ProductMediaView({
     return (
       <Image
         fill
-        unoptimized={isRemoteUrl(media.src)}
+        unoptimized={shouldUnoptimizeProductImage(media.src)}
         alt={alt}
         className={cn("object-contain", imageClassName)}
+        quality={60}
         preload={preload || undefined}
         // เมนูโหลดฝั่ง client หลัง mount — URL รูปไม่มีใน HTML ตอน SSR
         // <link rel=preload> จึงช่วยไม่ได้ ต้องสั่ง eager/high ที่แท็กรูปตรง ๆ

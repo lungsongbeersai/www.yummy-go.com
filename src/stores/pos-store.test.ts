@@ -456,7 +456,7 @@ describe("POS store menu and table browse state", () => {
 
   it("loads catalog and sorted menu groups into store-owned state", async () => {
     const catalog = [category("category-1"), category("category-2")];
-    const normalMenu = [category("normal")];
+    const normalMenu = catalog;
     const setMenu = [category("set")];
     const promotionMenu = [category("promotion")];
     fetchCateProductsMock
@@ -464,12 +464,11 @@ describe("POS store menu and table browse state", () => {
         status: "success",
         message: "ok",
         categories: catalog,
-        defaultCateUuid: "category-2"
+        defaultCateUuid: "category-2",
+        selectedCateUuid: "category-2"
       })
-      .mockResolvedValueOnce({ status: "success", message: "ok", categories: normalMenu })
       .mockResolvedValueOnce({ status: "success", message: "ok", categories: setMenu })
       .mockResolvedValueOnce({ status: "success", message: "ok", categories: promotionMenu });
-
     await usePosStore.getState().loadMenu({
       branchUuid: "branch-1",
       language: "en",
@@ -488,13 +487,13 @@ describe("POS store menu and table browse state", () => {
       selectedCateUuid: "category-2",
       submittedSearch: ""
     });
-    expect(fetchCateProductsMock).toHaveBeenNthCalledWith(2, {
+    expect(fetchCateProductsMock).toHaveBeenNthCalledWith(1, {
       branchUuidFk: "branch-1",
-      cateUuid: "category-2",
       lang: "en",
       search: "",
       statusSortFk: ProductSortStatus.NORMAL
     });
+    expect(fetchCateProductsMock).toHaveBeenCalledTimes(3);
   });
 
   it("delegates menu requests through the store action and clears loading on rejection", async () => {

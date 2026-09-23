@@ -27,6 +27,34 @@ export function isRemoteUrl(value: string) {
   return /^https?:\/\//i.test(value);
 }
 
+export function shouldUnoptimizeProductImage(value: string) {
+  if (!isRemoteUrl(value)) return false;
+
+  try {
+    const url = new URL(value);
+    if (url.protocol !== "https:") return true;
+
+    if (url.hostname === "placehold.co") return false;
+    if (url.hostname === "api.yummy-go.com") {
+      return !(
+        url.pathname.startsWith("/uploaded/") ||
+        url.pathname.startsWith("/uploads/")
+      );
+    }
+    if (url.hostname === "plc-files.sgp1.vultrobjects.com") {
+      return !(
+        url.pathname.startsWith("/api.yummy-go.com/uploaded/") ||
+        url.pathname.startsWith("/api.yummy-go.com/products/")
+      );
+    }
+
+    // Development/private API origins are intentionally not in remotePatterns.
+    return true;
+  } catch {
+    return true;
+  }
+}
+
 function staffIsHexColor(value?: string | null) {
   return Boolean(
     value &&

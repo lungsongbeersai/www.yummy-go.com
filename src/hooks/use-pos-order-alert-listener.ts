@@ -106,6 +106,9 @@ export function usePosOrderAlertListener({ branchUuid, language }: UsePosOrderAl
 
   useEffect(() => {
     if (!branchUuid) return;
+    // The table page owns this request. Skipping the global warm-up there
+    // avoids two identical fetch_table calls racing during the same mount.
+    if (pathname === "/posAll/tables") return;
     if (usePosStore.getState().zoneOptions.length > 0) return;
 
     // โหลด zoneOptions ล่วงหน้าไว้ตั้งแต่ล็อกอินเข้าแอป เผื่อแคชเชียร์ยังไม่เคย
@@ -114,7 +117,7 @@ export function usePosOrderAlertListener({ branchUuid, language }: UsePosOrderAl
       .getState()
       .loadTables({ branch_uuid_fk: branchUuid, zone_uuid: "", lang: language })
       .catch(() => undefined);
-  }, [branchUuid, language]);
+  }, [branchUuid, language, pathname]);
 
   useEffect(() => {
     if (!branchUuid) return;
