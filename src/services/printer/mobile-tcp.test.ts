@@ -110,19 +110,19 @@ describe("mobile TCP printer queue", () => {
 
     expect(
       __mobileTcpInternals.mobileTcpRasterDrainMs(raster.toString("base64")),
-    ).toBe(1650);
+    ).toBe(2163);
     expect(
       __mobileTcpInternals.mobileTcpRasterDrainMs(
         raster.toString("base64"),
         1000,
       ),
-    ).toBe(650);
+    ).toBe(1200);
     expect(
       __mobileTcpInternals.mobileTcpRasterDrainMs(Buffer.alloc(1024).toString("base64")),
-    ).toBe(500);
+    ).toBe(1200);
     expect(
       __mobileTcpInternals.mobileTcpRasterDrainMs(Buffer.alloc(256 * 1024).toString("base64")),
-    ).toBe(4000);
+    ).toBe(9134);
   });
 
   it("uses one native write and TCP backpressure for renderer segments", () => {

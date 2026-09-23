@@ -50,16 +50,17 @@ const MOBILE_TCP_STATUS_TIMEOUT_MS = 4000;
 // on the same TCP connection. Reconnecting between segments introduced visible
 // pauses and could leave a long receipt half-delivered before its final cut.
 const MOBILE_TCP_SEGMENT_MAX_BYTES = 160 * 1024;
-// Estimate at a conservative 50 mm/s (400 rows/s at 203 dpi). Raster is
-// already printing while chunks are sent, so only the estimated remaining
-// work must drain afterward. Waiting for the entire segment twice caused long
-// invoices to stop between sections even though the printer was healthy.
-const MOBILE_TCP_RASTER_ROWS_PER_SECOND = 400;
+// Progress means paper completion, not native socket acceptance. Use the same
+// conservative physical guard as the desktop Agent (about 40 mm/s at 203dpi),
+// then verify the printer's paper status before counting a kitchen ticket.
+// Raster is already printing while chunks are sent, so only the estimated
+// remaining work drains afterward.
+const MOBILE_TCP_RASTER_ROWS_PER_SECOND = 320;
 const MOBILE_TCP_FALLBACK_BYTES_PER_SECOND = 30 * 1024;
-const MOBILE_TCP_MIN_DRAIN_MS = 500;
-const MOBILE_TCP_MAX_DRAIN_MS = 4000;
-const MOBILE_TCP_DRAIN_SETTLE_MS = 400;
-const MOBILE_TCP_CUT_SETTLE_MS = 350;
+const MOBILE_TCP_MIN_DRAIN_MS = 1200;
+const MOBILE_TCP_MAX_DRAIN_MS = 10000;
+const MOBILE_TCP_DRAIN_SETTLE_MS = 600;
+const MOBILE_TCP_CUT_SETTLE_MS = 450;
 const ESC_POS_PAPER_STATUS_COMMAND = new Uint8Array([0x1d, 0x72, 0x01]);
 const mobileTcpQueues = new Map<string, Promise<void>>();
 const MOBILE_TCP_DEBUG = process.env.NEXT_PUBLIC_MOBILE_TCP_DEBUG === "true";
