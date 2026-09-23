@@ -78,7 +78,13 @@ const DISCOUNT_KEYPAD_KEYS = [
 
 type DiscountKeypadKey = (typeof DISCOUNT_KEYPAD_KEYS)[number];
 
-export function ConfirmAllLoadingDialog({ progress }: { progress: ConfirmAllProgress | null }) {
+export function ConfirmAllLoadingDialog({
+  open,
+  progress,
+}: {
+  open: boolean;
+  progress: ConfirmAllProgress | null;
+}) {
   const { t } = useTranslation();
   const total = Math.max(progress?.total ?? 1, 1);
   const completed = Math.min(progress?.completed ?? 0, total);
@@ -86,11 +92,23 @@ export function ConfirmAllLoadingDialog({ progress }: { progress: ConfirmAllProg
 
   return (
     <BlockingLoadingDialog
-      open={Boolean(progress)}
+      open={open}
       title={t("pos.confirmAllTitle")}
-      description={progress?.label ?? t("common.processing")}
-      progressLabel={progress?.detail ?? t("common.processing")}
+      description={progress?.label ?? t("pos.confirmAllPreparing")}
+      progressLabel={progress?.detail ?? t("pos.confirmAllPreparing")}
       progressValue={percent}
+    />
+  );
+}
+
+export function CancelItemLoadingDialog({ open }: { open: boolean }) {
+  const { t } = useTranslation();
+
+  return (
+    <BlockingLoadingDialog
+      open={open}
+      title={t("pos.cancelItemLoadingTitle")}
+      description={t("pos.cancelItemLoadingDescription")}
     />
   );
 }

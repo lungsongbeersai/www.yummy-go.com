@@ -955,6 +955,8 @@
     "cancelItem": "Cancel item",
     "cancelItemConfirm": "Cancel this item?",
     "cancelItemQuantityHelp": "Enter the quantity to cancel (1–{{max}}).",
+    "cancelItemLoadingTitle": "Canceling order item",
+    "cancelItemLoadingDescription": "Updating the order and printing the cancellation slip. Please wait.",
     "confirmToKitchen": "Confirm to kitchen",
     "confirmToKitchenFailed": "Confirm to kitchen failed",
     "reprintKitchen": "Reprint kitchen ticket",

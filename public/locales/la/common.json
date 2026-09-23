@@ -808,6 +808,8 @@
     "cancelItem": "ຍົກເລີກລາຍການ",
     "cancelItemConfirm": "ຍົກເລີກລາຍການນີ້ບໍ?",
     "cancelItemQuantityHelp": "ປ້ອນຈຳນວນທີ່ຕ້ອງການຍົກເລີກ (1–{{max}}).",
+    "cancelItemLoadingTitle": "ກຳລັງຍົກເລີກອໍເດີ",
+    "cancelItemLoadingDescription": "ກຳລັງອັບເດດອໍເດີ ແລະ ພິມໃບຍົກເລີກ...ກະລຸນາລໍຖ້າ",
     "deleteItem": "ລຶບລາຍການ",
     "deleteItemConfirm": "ລຶບລາຍການນີ້ບໍ?",
     "deleteItemDescription": "{{name}} ຈະຖືກລຶບອອກຈາກອໍເດີນີ້.",

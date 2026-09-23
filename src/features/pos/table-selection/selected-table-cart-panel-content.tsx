@@ -18,6 +18,7 @@ import { useAuthStore } from "@/stores/auth-store";
 import { DepositDialog } from "@/features/sales/deposit/deposit-dialog";
 import { BranchMenuQrDialog } from "./branch-menu-qr-dialog";
 import {
+  CancelItemLoadingDialog,
   CartDiscountDialog,
   CartNoteDialog,
   CartPanelLoading,
@@ -103,6 +104,10 @@ export function SelectedTableCartPanelContent({
   const hasCartItems = isNoTableStore
     ? counterCartItems.length > 0
     : workflow.newOrderDisplayItems.length > 0 || workflow.historyItems.length > 0;
+  const cancellingItem = Boolean(
+    workflow.actingItemUuid &&
+      workflow.itemActionTarget?.action === "cancel",
+  );
 
   return (
     <Card
@@ -462,7 +467,8 @@ export function SelectedTableCartPanelContent({
         }
         open={
           workflow.itemActionTarget?.action === "cancel" &&
-          !workflow.actionTargetIsSet
+          !workflow.actionTargetIsSet &&
+          !cancellingItem
         }
         pending={Boolean(workflow.actingItemUuid)}
         purpose="cancel"
@@ -480,7 +486,8 @@ export function SelectedTableCartPanelContent({
         description={t("pos.cancelItemConfirm")}
         open={
           workflow.itemActionTarget?.action === "cancel" &&
-          workflow.actionTargetIsSet
+          workflow.actionTargetIsSet &&
+          !cancellingItem
         }
         title={t("pos.cancelItem")}
         onConfirm={() => void workflow.confirmItemAction()}
@@ -549,7 +556,11 @@ export function SelectedTableCartPanelContent({
         }}
         onSubmit={() => void workflow.saveBillDiscount()}
       />
-      <ConfirmAllLoadingDialog progress={workflow.confirmAllProgress} />
+      <ConfirmAllLoadingDialog
+        open={workflow.confirming}
+        progress={workflow.confirmAllProgress}
+      />
+      <CancelItemLoadingDialog open={cancellingItem} />
       <PrintLoadingDialog open={Boolean(workflow.printingItemUuid)} />
     </Card>
   );
