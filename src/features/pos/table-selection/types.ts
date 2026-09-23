@@ -17,8 +17,9 @@ export interface DiscountDraft {
 
 export interface ConfirmAllProgress {
   completed: number;
-  detail: string;
   label: string;
+  printSuccessCount?: number;
+  printTotal?: number;
   total: number;
 }
 

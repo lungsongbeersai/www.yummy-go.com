@@ -995,7 +995,7 @@
     "confirmAllPrinting": "ກຳລັງພິມໃບຄົວ ແລະ ອັບເດດສະຖານະ.",
     "confirmAllRefreshing": "ກຳລັງໂຫຼດກະຕ່າຄືນໃໝ່.",
     "confirmAllDone": "ຢືນຢັນສຳເລັດແລ້ວ.",
-    "confirmAllProgress": "{{completed}} / {{total}} ຂັ້ນຕອນ",
+    "confirmAllPrintProgress": "ພິມສຳເລັດ {{success}} / {{total}} ໃບ",
     "payBill": "ຈ່າຍເງິນ",
     "paySelected": "ຈ່າຍລາຍການທີ່ເລືອກ",
     "fullBill": "ບິນເຕັມ",

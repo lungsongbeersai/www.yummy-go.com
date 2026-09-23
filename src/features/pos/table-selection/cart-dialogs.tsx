@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState, type KeyboardEvent } from "react";
+import { useState, type KeyboardEvent } from "react";
 import {
   BadgePercent,
   Banknote,
@@ -32,8 +32,6 @@ import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Spinner } from "@/components/ui/spinner";
 import { Textarea } from "@/components/ui/textarea";
-import { usePrefersReducedMotion } from "@/hooks/use-prefers-reduced-motion";
-import { useResetOnChange } from "@/hooks/use-reset-on-change";
 import {
   ToggleGroup,
   ToggleGroupItem,
@@ -85,51 +83,6 @@ const DISCOUNT_KEYPAD_KEYS = [
 
 type DiscountKeypadKey = (typeof DISCOUNT_KEYPAD_KEYS)[number];
 
-function useAnimatedProgressStep(open: boolean, target: number) {
-  const reducedMotion = usePrefersReducedMotion();
-  const [displayed, setDisplayed] = useState(0);
-  const displayedRef = useRef(0);
-
-  useResetOnChange(open, () => {
-    if (!open) return;
-    displayedRef.current = 0;
-    setDisplayed(0);
-  });
-
-  useEffect(() => {
-    if (!open) return;
-
-    const from = displayedRef.current;
-    const distance = Math.max(0, target - from);
-    const duration = reducedMotion
-      ? 0
-      : Math.min(1_200, Math.max(320, distance * 32));
-    const startedAt = performance.now();
-    let frame = 0;
-    let previousStep = Math.floor(from);
-
-    const tick = (now: number) => {
-      const elapsed = duration === 0 ? 1 : (now - startedAt) / duration;
-      const progress = Math.min(1, Math.max(0, elapsed));
-      const eased = 1 - Math.pow(1 - progress, 3);
-      const next = from + distance * eased;
-      const nextStep = Math.min(target, Math.floor(next));
-
-      displayedRef.current = next;
-      if (nextStep !== previousStep || progress === 1) {
-        previousStep = nextStep;
-        setDisplayed(progress === 1 ? target : nextStep);
-      }
-      if (progress < 1) frame = requestAnimationFrame(tick);
-    };
-
-    frame = requestAnimationFrame(tick);
-    return () => cancelAnimationFrame(frame);
-  }, [open, reducedMotion, target]);
-
-  return displayed;
-}
-
 export function ConfirmAllLoadingDialog({
   open,
   progress,
@@ -143,18 +96,20 @@ export function ConfirmAllLoadingDialog({
     1,
   );
   const completed = Math.min(progress?.completed ?? 0, total);
-  const displayed = useAnimatedProgressStep(open, completed);
-  const percent = Math.round((displayed / total) * 100);
+  const percent = Math.round((completed / total) * 100);
+  const progressLabel = progress?.printTotal
+    ? t("pos.confirmAllPrintProgress", {
+        success: progress.printSuccessCount ?? 0,
+        total: progress.printTotal,
+      })
+    : progress?.label ?? t("pos.confirmAllPreparing");
 
   return (
     <BlockingLoadingDialog
       open={open}
       title={t("pos.confirmAllTitle")}
       description={progress?.label ?? t("pos.confirmAllPreparing")}
-      progressLabel={t("pos.confirmAllProgress", {
-        completed: displayed,
-        total,
-      })}
+      progressLabel={progressLabel}
       progressValue={percent}
     />
   );

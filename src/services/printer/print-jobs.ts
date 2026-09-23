@@ -741,6 +741,31 @@ async function executePrintJobs(
         const printConfigUuid = textValue(
           batch.print_config_uuid || batch.jobs?.[0]?.print_config_uuid
         );
+        const reportOutcome = (outcome: BatchPrintOutcome) => {
+          const batchTotal = printBatchJobTotal(batch);
+          if (outcome.success) {
+            successCount += batchTotal;
+          } else if (outcome.deliveryState === "unknown") {
+            // เริ่มส่งข้อมูลแล้วแต่ผลปลายทางไม่ชัดเจน สถานะที่ถูกต้องคือรอยืนยัน
+            // ไม่ใช่แจ้งว่าล้มเหลว ทั้งที่กระดาษอาจพิมพ์ออกแล้ว
+            hasPendingDelivery = true;
+            lastErrorMessage = outcome.errorMessage || lastErrorMessage;
+          } else {
+            failedCount += batchTotal;
+            lastErrorMessage = outcome.errorMessage || lastErrorMessage;
+          }
+
+          // Mobile Wi-Fi batches are queued one ticket at a time. Emit as soon
+          // as each physical round settles instead of waiting for every round.
+          input.onProgress?.({
+            total,
+            completed: successCount + failedCount,
+            successCount,
+            failedCount,
+            phase: "printing",
+          });
+          return outcome;
+        };
 
         if (stored) {
           return Promise.resolve<BatchPrintOutcome>({
@@ -751,7 +776,7 @@ async function executePrintJobs(
             ledgerKey,
             printConfigUuid,
             success: stored.deliveryState === "printed",
-          });
+          }).then(reportOutcome);
         }
 
         return runOnPrinterQueue(printerBatchQueueKey(batch), async () => {
@@ -811,35 +836,10 @@ async function executePrintJobs(
               success: false,
             };
           }
-        });
+        }).then(reportOutcome);
       })
     );
-
-    for (const [outcomeIndex, outcome] of batchOutcomes.entries()) {
-      const batch = batchPayloads[outcomeIndex];
-      const batchTotal = printBatchJobTotal(batch);
-      outcomes.push(outcome);
-      if (outcome.success) {
-        successCount += batchTotal;
-      } else if (outcome.deliveryState === "unknown") {
-        // เริ่มส่งข้อมูลแล้วแต่ผลปลายทางไม่ชัดเจน สถานะที่ถูกต้องคือรอยืนยัน
-        // ไม่ใช่แจ้งว่าล้มเหลว ทั้งที่กระดาษอาจพิมพ์ออกแล้ว
-        hasPendingDelivery = true;
-        lastErrorMessage = outcome.errorMessage || lastErrorMessage;
-      } else {
-        failedCount += batchTotal;
-        lastErrorMessage = outcome.errorMessage || lastErrorMessage;
-      }
-      if (outcomeIndex < batchOutcomes.length - 1) {
-        input.onProgress?.({
-          total,
-          completed: successCount + failedCount,
-          successCount,
-          failedCount,
-          phase: "printing",
-        });
-      }
-    }
+    outcomes.push(...batchOutcomes);
 
     // ACK ตามผลของแต่ละเครื่อง: กระดาษที่ออกจากเครื่องก่อนหน้าต้องอัปเดต
     // order item ได้ แม้เครื่องถัดไปจะติดต่อไม่ได้ ไม่ตีทุก batch เป็น failed รวมกัน

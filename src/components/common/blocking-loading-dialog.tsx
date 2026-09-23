@@ -38,9 +38,12 @@ export function BlockingLoadingDialog({
 
   return (
     <Dialog open={open}>
+      {/* Mobile confirmation is launched from a z-50 cart sheet. Keep the
+          blocking layer above that parent surface instead of behind it. */}
       <DialogContent
         aria-busy={open}
-        className="w-[calc(100%-1.5rem)] max-w-md gap-0 overflow-hidden p-0"
+        className="z-[60] w-[calc(100%-1.5rem)] max-w-md gap-0 overflow-hidden p-0"
+        overlayClassName="z-[60]"
         showCloseButton={false}
         onEscapeKeyDown={(event) => event.preventDefault()}
         onPointerDownOutside={(event) => event.preventDefault()}

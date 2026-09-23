@@ -767,18 +767,28 @@ export function useSelectedTableCartPanelWorkflow({
         errorMessage?: string;
         pending?: boolean;
       } = { successCount: 0, failedCount: 0, total: 0, pending: false };
-      const setProgress = (completed: number, label: string) => {
+      const setProgress = (
+        completed: number,
+        label: string,
+        printProgress?: { successCount: number; total: number },
+      ) => {
         const safeCompleted = Math.min(
           completed,
           CONFIRM_ORDER_PROGRESS_TOTAL,
         );
+        const printTotal = Math.max(0, Math.floor(printProgress?.total ?? 0));
         setConfirmAllProgress({
           completed: safeCompleted,
-          detail: t("pos.confirmAllProgress", {
-            completed: safeCompleted,
-            total: CONFIRM_ORDER_PROGRESS_TOTAL,
-          }),
           label,
+          ...(printTotal > 0
+            ? {
+                printSuccessCount: Math.min(
+                  Math.max(0, Math.floor(printProgress?.successCount ?? 0)),
+                  printTotal,
+                ),
+                printTotal,
+              }
+            : {}),
           total: CONFIRM_ORDER_PROGRESS_TOTAL,
         });
       };
@@ -826,6 +836,11 @@ export function useSelectedTableCartPanelWorkflow({
                 printingTotal: progress.total,
               }),
               label,
+              {
+                successCount:
+                  printResult.successCount + progress.successCount,
+                total: printResult.total + progress.total,
+              },
             );
           },
         );
@@ -842,17 +857,29 @@ export function useSelectedTableCartPanelWorkflow({
             phase: "group-complete",
           }),
           t("pos.confirmAllPrinting"),
+          {
+            successCount: printResult.successCount,
+            total: printResult.total,
+          },
         );
       }
 
       setProgress(
         confirmOrderProgressStep({ phase: "refreshing" }),
         t("pos.confirmAllRefreshing"),
+        {
+          successCount: printResult.successCount,
+          total: printResult.total,
+        },
       );
       await onTableActionComplete();
       setProgress(
         confirmOrderProgressStep({ phase: "done" }),
         t("pos.confirmAllDone"),
+        {
+          successCount: printResult.successCount,
+          total: printResult.total,
+        },
       );
       showKitchenConfirmResult(printResult);
     } catch (error) {

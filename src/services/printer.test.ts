@@ -60,7 +60,8 @@ import {
   savePrinter,
   sendMobileBackendPrintJob,
   togglePrinterActive,
-  type PrintJob
+  type PrintJob,
+  type PrintProgress,
 } from "@/services/printer";
 
 function mockLocalStorage(initial: Record<string, string> = {}) {
@@ -519,7 +520,7 @@ describe("printer service dispatch", () => {
       })
     ).resolves.toEqual({ successCount: 2, failedCount: 0, total: 2 });
 
-    expect(progressPhases).toEqual(["fetching", "printing", "done"]);
+    expect(progressPhases).toEqual(["fetching", "printing", "printing", "done"]);
     expect(axiosMocks.post).toHaveBeenCalledWith(
       "http://127.0.0.1:7777/print-ops-batch",
       { cut_mode: "per_ticket", jobs: [job, secondJob] },
@@ -848,6 +849,90 @@ describe("printer service dispatch", () => {
       escpos_base64: "BASE64"
     });
     expect(axiosMocks.post).not.toHaveBeenCalled();
+  });
+
+  it("reports each completed mobile ticket while later tickets are still printing", async () => {
+    capacitorMocks.isNativePlatform.mockReturnValue(true);
+    let releaseSecondTicket: (() => void) | undefined;
+    let markSecondTicketStarted: (() => void) | undefined;
+    const secondTicketStarted = new Promise<void>((resolve) => {
+      markSecondTicketStarted = resolve;
+    });
+    const progressUpdates: PrintProgress[] = [];
+
+    mobileTcpMocks.printMobileEscposOverTcp.mockImplementation(
+      async ({ escpos_base64 }: { escpos_base64?: string }) => {
+        if (escpos_base64 !== "SECOND") return;
+        markSecondTicketStarted?.();
+        await new Promise<void>((resolve) => {
+          releaseSecondTicket = resolve;
+        });
+      },
+    );
+    apiMocks.apiRequest.mockImplementation(async (method, url) => {
+      if (method === "get" && url === "/api/v1/printer/jobs/pending") {
+        return {
+          print_batch_payloads: ["FIRST", "SECOND"].map((escposBase64, index) => ({
+            cut_mode: "per_ticket",
+            agent_id: "mobile-agent-1",
+            device_code: "mobile-device-1",
+            print_mode: "mobile_wifi",
+            print_client: "mobile_wifi",
+            interface_value: "tcp://192.168.1.20:9100",
+            print_config_uuid: "mobile-printer-1",
+            print_job_item_uuids: [`mobile-item-${index + 1}`],
+            job_total: 1,
+            jobs: [
+              printJob({
+                job_id: `mobile-job-${index + 1}`,
+                print_job_item_uuid: `mobile-item-${index + 1}`,
+              }),
+            ],
+            mobile_escpos: {
+              interface_value: "tcp://192.168.1.20:9100",
+              escpos_base64: escposBase64,
+            },
+          })),
+        };
+      }
+      throw new Error(`Unexpected request ${method} ${url}`);
+    });
+
+    const execution = executeKitchenPrintJobs({
+      pending_query: {
+        print_job_uuid: "kitchen-mobile-progress",
+        login_uuid_fk: "login-1",
+        device_code: "mobile-device-1",
+        agent_id: "mobile-agent-1",
+        print_mode: "mobile_wifi",
+      },
+      onProgress: (progress) => progressUpdates.push(progress),
+    });
+
+    await secondTicketStarted;
+    await Promise.resolve();
+    expect(progressUpdates).toContainEqual({
+      total: 2,
+      completed: 1,
+      successCount: 1,
+      failedCount: 0,
+      phase: "printing",
+    });
+    expect(progressUpdates.some((progress) => progress.phase === "done")).toBe(false);
+
+    releaseSecondTicket?.();
+    await expect(execution).resolves.toEqual({
+      successCount: 2,
+      failedCount: 0,
+      total: 2,
+    });
+    expect(progressUpdates.at(-1)).toEqual({
+      total: 2,
+      completed: 2,
+      successCount: 2,
+      failedCount: 0,
+      phase: "done",
+    });
   });
 
   it("prints a shared Windows Agent TCP batch directly from native mobile", async () => {

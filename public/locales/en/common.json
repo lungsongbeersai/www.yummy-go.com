@@ -982,7 +982,7 @@
     "confirmAllPrinting": "Printing kitchen tickets and updating status.",
     "confirmAllRefreshing": "Refreshing the cart.",
     "confirmAllDone": "Confirmation complete.",
-    "confirmAllProgress": "{{completed}} / {{total}} steps",
+    "confirmAllPrintProgress": "Successfully printed {{success}} / {{total}} tickets",
     "deleteItem": "Delete item",
     "deleteItemConfirm": "Delete this item?",
     "deleteItemDescription": "{{name}} will be removed from this order.",
