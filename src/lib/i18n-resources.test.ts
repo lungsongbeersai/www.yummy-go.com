@@ -23,6 +23,12 @@ describe("shared translation resources", () => {
     expect(laCommon.nav.package_management).toBeTruthy();
   });
 
+  it("uses the requested Lao print loading message", () => {
+    expect(laCommon.common.printingDescription).toBe(
+      "ກຳລັງດຳເນີນການພິມ...ກະລຸນາລໍຖ້າ",
+    );
+  });
+
   it.each([
     "beforeDiscount",
     "afterDiscount",
