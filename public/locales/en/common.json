@@ -974,6 +974,7 @@
     "draftExitContinue": "Continue ordering",
     "draftExitDiscard": "Leave and delete items",
     "allItemsSubmitted": "All current items have been sent.",
+    "confirmOrderLoadingTitle": "Confirming order",
     "confirmAllTitle": "Confirming all orders",
     "confirmAllPreparing": "Preparing order confirmation.",
     "confirmAllConfirming": "Sending orders to the kitchen.",

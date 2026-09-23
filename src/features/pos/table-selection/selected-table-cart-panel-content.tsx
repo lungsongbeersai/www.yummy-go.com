@@ -24,6 +24,7 @@ import {
   CartPanelLoading,
   CartQuantityDialog,
   ConfirmAllLoadingDialog,
+  ConfirmItemLoadingDialog,
 } from "./cart-dialogs";
 import { CartSummaryDock } from "./cart-summary-dock";
 import { CartTabItems, CartTabTrigger } from "./cart-items";
@@ -560,6 +561,7 @@ export function SelectedTableCartPanelContent({
         open={workflow.confirming}
         progress={workflow.confirmAllProgress}
       />
+      <ConfirmItemLoadingDialog stage={workflow.confirmingItemStage} />
       <CancelItemLoadingDialog open={cancellingItem} />
       <PrintLoadingDialog open={Boolean(workflow.printingItemUuid)} />
     </Card>

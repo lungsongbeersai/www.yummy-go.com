@@ -47,7 +47,11 @@ import {
 } from "@/lib/pos/cart-quantity";
 import { cn } from "@/lib/utils";
 import type { CartItem } from "@/services/pos";
-import type { ConfirmAllProgress, DiscountDraft } from "./types";
+import type {
+  ConfirmAllProgress,
+  ConfirmItemStage,
+  DiscountDraft,
+} from "./types";
 import {
   appendDiscountCalculatorInput,
   cartItemName,
@@ -97,6 +101,30 @@ export function ConfirmAllLoadingDialog({
       description={progress?.label ?? t("pos.confirmAllPreparing")}
       progressLabel={progress?.detail ?? t("pos.confirmAllPreparing")}
       progressValue={percent}
+    />
+  );
+}
+
+export function ConfirmItemLoadingDialog({
+  stage,
+}: {
+  stage: ConfirmItemStage | null;
+}) {
+  const { t } = useTranslation();
+  const description =
+    stage === "fetching"
+      ? t("pos.confirmAllFetchingPrintJobs")
+      : stage === "printing"
+        ? t("pos.confirmAllPrinting")
+        : stage === "refreshing"
+          ? t("pos.confirmAllRefreshing")
+          : t("pos.confirmAllConfirming");
+
+  return (
+    <BlockingLoadingDialog
+      open={Boolean(stage)}
+      title={t("pos.confirmOrderLoadingTitle")}
+      description={description}
     />
   );
 }

@@ -27,6 +27,7 @@ import type {
   CartItemActionTarget,
   CartTab,
   ConfirmAllProgress,
+  ConfirmItemStage,
   DiscountDraft,
 } from "../types";
 import {
@@ -184,6 +185,8 @@ export function useSelectedTableCartPanelWorkflow({
   const [confirming, setConfirming] = useState(false);
   const [confirmAllProgress, setConfirmAllProgress] =
     useState<ConfirmAllProgress | null>(null);
+  const [confirmingItemStage, setConfirmingItemStage] =
+    useState<ConfirmItemStage | null>(null);
   const [itemActionTarget, setItemActionTarget] =
     useState<CartItemActionTarget | null>(null);
   const [actingItemUuid, setActingItemUuid] = useState<string | null>(null);
@@ -850,6 +853,7 @@ export function useSelectedTableCartPanelWorkflow({
     if (!user?.uuid || !orderUuid || !itemUuid || cartActionsLocked) return;
 
     setActingItemUuid(itemUuid);
+    setConfirmingItemStage("confirming");
     beginKitchenConfirmation();
     try {
       const response = await confirmKitchen({
@@ -860,10 +864,20 @@ export function useSelectedTableCartPanelWorkflow({
         agent_id: activePrinterContext?.agent_id,
         print_mode: activePrinterContext?.print_mode,
       });
-      const result = await executeKitchenAck(response, user.uuid, activePrinterContext);
+      const result = await executeKitchenAck(
+        response,
+        user.uuid,
+        activePrinterContext,
+        (progress) =>
+          setConfirmingItemStage(
+            progress.phase === "fetching" ? "fetching" : "printing",
+          ),
+      );
+      setConfirmingItemStage("refreshing");
       await onCartRefresh();
       showKitchenConfirmResult(result);
     } catch (error) {
+      setConfirmingItemStage("refreshing");
       await onCartRefresh().catch(() => undefined);
       showToast({
         title: t("pos.confirmToKitchenFailed"),
@@ -873,6 +887,7 @@ export function useSelectedTableCartPanelWorkflow({
     } finally {
       endKitchenConfirmation();
       setActingItemUuid(null);
+      setConfirmingItemStage(null);
     }
   }
 
@@ -1364,6 +1379,7 @@ export function useSelectedTableCartPanelWorkflow({
     changeCartItemQty,
     confirmAllProgress,
     confirming,
+    confirmingItemStage,
     confirmItemAction,
     confirmNewOrder,
     confirmSingleItemToKitchen,

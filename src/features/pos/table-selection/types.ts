@@ -22,6 +22,12 @@ export interface ConfirmAllProgress {
   total: number;
 }
 
+export type ConfirmItemStage =
+  | "confirming"
+  | "fetching"
+  | "printing"
+  | "refreshing";
+
 export interface TableActionTable {
   customerOrderState: boolean;
   seats: number | null;
