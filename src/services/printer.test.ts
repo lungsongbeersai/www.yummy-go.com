@@ -377,14 +377,29 @@ describe("printer service dispatch", () => {
       windowsPrintJob({
         job_id: `large-batch-job-${index + 1}`,
         print_job_item_uuid: `large-batch-item-${index + 1}`,
+        ...(index === 0
+          ? {
+            meta: {
+              print_job_item_uuid: "large-batch-item-1",
+              print_job_item_uuids: [
+                "large-batch-item-1",
+                "large-batch-set-child",
+              ],
+            },
+          }
+          : {}),
       })
     );
-    const successResults = jobs.map((job) => ({
-      print_job_item_uuid: String(job.print_job_item_uuid),
+    const logicalItemUuids = [
+      ...jobs.map((job) => String(job.print_job_item_uuid)),
+      "large-batch-set-child",
+    ];
+    const successResults = logicalItemUuids.map((print_job_item_uuid) => ({
+      print_job_item_uuid,
       status: "success" as const,
     }));
-    const failedResults = jobs.map((job) => ({
-      print_job_item_uuid: String(job.print_job_item_uuid),
+    const failedResults = logicalItemUuids.map((print_job_item_uuid) => ({
+      print_job_item_uuid,
       status: "failed" as const,
     }));
     const sentBatchSizes: number[] = [];
@@ -431,7 +446,7 @@ describe("printer service dispatch", () => {
 
     expect(sentBatchSizes).toEqual([10, 2]);
     expect(ackPayloads).toHaveLength(1);
-    expect(ackPayloads[0].results).toHaveLength(12);
+    expect(ackPayloads[0].results).toHaveLength(13);
     expect(new Set(ackPayloads[0].results.map((item) => item.print_job_item_uuid))).toEqual(
       new Set(successResults.map((item) => item.print_job_item_uuid))
     );
@@ -862,7 +877,8 @@ describe("printer service dispatch", () => {
           login_uuid_fk: "login-1",
           device_code: "OWNER-PC",
           agent_id: "owner-agent",
-          print_mode: "windows_agent"
+          print_mode: "windows_agent",
+          remote_shared_print: true
         }
       })
     ).resolves.toEqual({ successCount: 1, failedCount: 0, total: 1 });

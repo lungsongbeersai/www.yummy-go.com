@@ -355,14 +355,17 @@ export function cartOrderInvoice(orders: CartOrder[]) {
   return null;
 }
 
-export function newOrderConfirmGroups(orders: CartOrder[], userUuid: string) {
+export function newOrderConfirmGroups(orders: CartOrder[]) {
   return orders
     .map((order) => ({
       orderUuid: optionalString(order.order_uuid),
       itemUuids: [
         ...new Set(
           (order.items ?? [])
-            .filter((item) => isDraftOwnedBy(item, userUuid))
+            // การส่งครัวเป็น action ระดับโต๊ะ: พนักงานที่มีสิทธิ์ยืนยันต้อง
+            // ส่งรายการ status=1 ได้ทั้งหมด ไม่ว่าพนักงานคนใดหรือลูกค้า QR
+            // จะเป็นผู้สร้าง ส่วน edit/cleanup ยังแยกเจ้าของตามเดิม
+            .filter(isNewOrderCartItem)
             .flatMap(cartItemActionUuids),
         ),
       ],

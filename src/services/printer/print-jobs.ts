@@ -308,10 +308,17 @@ function batchPrintJobItemUuids(batch: PrintOpsBatchPayload) {
       ? batch.print_job_item_uuids
       : []),
     ...(Array.isArray(batch.jobs)
-      ? batch.jobs.flatMap((job) => [
-        textValue(job.print_job_item_uuid),
-        textValue(job.meta?.print_job_item_uuid),
-      ])
+      ? batch.jobs.flatMap((job) => {
+        const groupedItemUuids = Array.isArray(job.meta?.print_job_item_uuids)
+          ? job.meta.print_job_item_uuids.map(textValue)
+          : [];
+
+        return [
+          ...groupedItemUuids,
+          textValue(job.print_job_item_uuid),
+          textValue(job.meta?.print_job_item_uuid),
+        ];
+      })
       : []),
   ].filter(Boolean);
 
@@ -529,8 +536,10 @@ async function executePrintJobs(
   if (remoteSharedPrint) {
     // A desktop requester can hand the batch to its local Agent, which relays
     // it to the printer-owning Agent. This avoids stranding the kitchen job
-    // until the owner web UI happens to be open and polling.
-    if (!Capacitor.isNativePlatform()) {
+    // until the owner web UI happens to be open and polling. Native mobile is
+    // different: it can render and send a SHARED TCP job to the printer itself.
+    const nativeMobile = Capacitor.isNativePlatform();
+    if (!nativeMobile) {
       try {
         remoteRelayAgent = await getLocalAgentInfo();
       } catch {
@@ -538,7 +547,7 @@ async function executePrintJobs(
       }
     }
 
-    if (!remoteRelayAgent) {
+    if (!nativeMobile && !remoteRelayAgent) {
       return {
         successCount: 0,
         failedCount: 0,
