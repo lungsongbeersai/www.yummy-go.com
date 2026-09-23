@@ -187,6 +187,10 @@ export function useSelectedTableCartPanelWorkflow({
     useState<ConfirmAllProgress | null>(null);
   const [confirmingItemStage, setConfirmingItemStage] =
     useState<ConfirmItemStage | null>(null);
+  // State จะล็อก UI ใน render ถัดไป แต่ ref ล็อก synchronous ตั้งแต่ event แรก ป้องกัน
+  // double-click ส่ง confirm_to_kitchen_batch ซ้ำก่อน React มีโอกาส render ปุ่ม disabled
+  // และใช้ตัวเดียวกันทั้งยืนยันรวม/รายสินค้าเพื่อไม่ให้สอง flow วิ่งซ้อนกัน
+  const kitchenConfirmationInFlightRef = useRef(false);
   const [itemActionTarget, setItemActionTarget] =
     useState<CartItemActionTarget | null>(null);
   const [actingItemUuid, setActingItemUuid] = useState<string | null>(null);
@@ -743,8 +747,14 @@ export function useSelectedTableCartPanelWorkflow({
   }
 
   async function confirmNewOrder() {
-    if (!user?.uuid || !confirmGroups.length || cartActionsLocked) return;
+    if (
+      !user?.uuid ||
+      !confirmGroups.length ||
+      cartActionsLocked ||
+      kitchenConfirmationInFlightRef.current
+    ) return;
 
+    kitchenConfirmationInFlightRef.current = true;
     setConfirming(true);
     beginKitchenConfirmation();
     try {
@@ -834,6 +844,11 @@ export function useSelectedTableCartPanelWorkflow({
       );
       showKitchenConfirmResult(printResult);
     } catch (error) {
+      setConfirmAllProgress((current) =>
+        current
+          ? { ...current, label: t("pos.confirmAllRefreshing") }
+          : current,
+      );
       await onCartRefresh().catch(() => undefined);
       showToast({
         title: t("pos.orderConfirmFailed"),
@@ -844,14 +859,22 @@ export function useSelectedTableCartPanelWorkflow({
       endKitchenConfirmation();
       setConfirming(false);
       setConfirmAllProgress(null);
+      kitchenConfirmationInFlightRef.current = false;
     }
   }
 
   async function confirmSingleItemToKitchen(item: CartItem) {
     const itemUuid = cartItemActionUuid(item);
     const orderUuid = cartOrderUuidForItem(orders, item);
-    if (!user?.uuid || !orderUuid || !itemUuid || cartActionsLocked) return;
+    if (
+      !user?.uuid ||
+      !orderUuid ||
+      !itemUuid ||
+      cartActionsLocked ||
+      kitchenConfirmationInFlightRef.current
+    ) return;
 
+    kitchenConfirmationInFlightRef.current = true;
     setActingItemUuid(itemUuid);
     setConfirmingItemStage("confirming");
     beginKitchenConfirmation();
@@ -888,6 +911,7 @@ export function useSelectedTableCartPanelWorkflow({
       endKitchenConfirmation();
       setActingItemUuid(null);
       setConfirmingItemStage(null);
+      kitchenConfirmationInFlightRef.current = false;
     }
   }
 
