@@ -3123,7 +3123,9 @@
     }
   },
   "toasts": {
-    "pleaseTryAgain": "ກະລຸນາລອງໃໝ່"
+    "pleaseTryAgain": "ກະລຸນາລອງໃໝ່",
+    "completeRequiredFields": "ກະລຸນາປ້ອນຂໍ້ມູນໃຫ້ຄົບຖ້ວນ",
+    "priceMustBePositive": "{{field}} ຕ້ອງຫຼາຍກວ່າ 0"
   },
   "policy": {
     "badge": "ລະບົບ POS ຮ້ານອາຫານ Yummy Go",

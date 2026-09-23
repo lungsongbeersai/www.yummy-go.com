@@ -3119,7 +3119,9 @@
     }
   },
   "toasts": {
-    "pleaseTryAgain": "Please try again"
+    "pleaseTryAgain": "Please try again",
+    "completeRequiredFields": "Please complete all required fields",
+    "priceMustBePositive": "{{field}} must be greater than 0"
   },
   "policy": {
     "badge": "Yummy Go Restaurant POS",
