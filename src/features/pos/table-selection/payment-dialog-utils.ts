@@ -625,6 +625,18 @@ export function defaultCurrencyInput(
   );
 }
 
+export function remainingCurrencyInput(
+  totalLak: number,
+  paidInput: string,
+  currency: PaymentCurrencyOption,
+) {
+  const remaining = Math.max(
+    0,
+    defaultCurrencyAmount(totalLak, currency) - parseAmount(paidInput),
+  );
+  return formatCurrencyInput(remaining, currency);
+}
+
 export function roundCurrencyAmount(
   value: number,
   currency: PaymentCurrencyOption,

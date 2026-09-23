@@ -69,6 +69,7 @@ import {
   paymentValidation,
   quickCashAmounts,
   rawCaretFromDisplayCaret,
+  remainingCurrencyInput,
   shouldIgnoreKeypadTarget,
   tenderInputLak,
   tenderInputValue,
@@ -314,8 +315,18 @@ export function usePaymentDialogWorkflow({
     if (!field) return "";
     const nextValue = amountInput(value, allowDecimalAmount);
     if (field === "cash") setCashInput(nextValue);
-    if (field === "split_cash") setSplitCashInput(nextValue);
-    if (field === "split_transfer") setSplitTransferInput(nextValue);
+    if (field === "split_cash") {
+      setSplitCashInput(nextValue);
+      setSplitTransferInput(
+        remainingCurrencyInput(totalAmount, nextValue, selectedCurrency),
+      );
+    }
+    if (field === "split_transfer") {
+      setSplitTransferInput(nextValue);
+      setSplitCashInput(
+        remainingCurrencyInput(totalAmount, nextValue, selectedCurrency),
+      );
+    }
     return nextValue;
   }
 
