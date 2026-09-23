@@ -16,6 +16,7 @@ import {
   cartSummary,
   cartToppingDisplay,
   CONFIRM_ORDER_PROGRESS_TOTAL,
+  confirmAllProgressPercent,
   confirmOrderProgressStep,
   discountDraftValue,
   discountDraftWithType,
@@ -81,6 +82,34 @@ function cartOrder(overrides: Partial<CartOrder> = {}): CartOrder {
 }
 
 describe("confirm order progress", () => {
+  it("uses delivered tickets for the progress bar while printing", () => {
+    expect(
+      confirmAllProgressPercent({
+        completed: 52,
+        printSuccessCount: 0,
+        printTotal: 4,
+        total: 100,
+      }),
+    ).toBe(0);
+    expect(
+      confirmAllProgressPercent({
+        completed: 63,
+        printSuccessCount: 2,
+        printTotal: 4,
+        total: 100,
+      }),
+    ).toBe(50);
+  });
+
+  it("uses workflow progress before a print total is known", () => {
+    expect(
+      confirmAllProgressPercent({
+        completed: 52,
+        total: 100,
+      }),
+    ).toBe(52);
+  });
+
   it("uses 100 UI steps and advances monotonically through the workflow", () => {
     const steps = [
       confirmOrderProgressStep({ phase: "preparing" }),

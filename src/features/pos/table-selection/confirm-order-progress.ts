@@ -17,12 +17,39 @@ interface ConfirmOrderProgressStepInput {
   printingTotal?: number;
 }
 
+interface ConfirmAllProgressPercentInput {
+  completed: number;
+  printSuccessCount?: number;
+  printTotal?: number;
+  total: number;
+}
+
 const PREPARING_STEP = 4;
 const GROUPS_COMPLETE_STEP = 92;
 const REFRESHING_STEP = 96;
 
 function clamp(value: number, min: number, max: number) {
   return Math.min(max, Math.max(min, value));
+}
+
+export function confirmAllProgressPercent({
+  completed,
+  printSuccessCount,
+  printTotal,
+  total,
+}: ConfirmAllProgressPercentInput) {
+  const safePrintTotal = Math.max(0, Math.floor(printTotal ?? 0));
+  if (safePrintTotal > 0) {
+    const safePrintSuccess = clamp(
+      Math.floor(printSuccessCount ?? 0),
+      0,
+      safePrintTotal,
+    );
+    return Math.round((safePrintSuccess / safePrintTotal) * 100);
+  }
+
+  const safeTotal = Math.max(1, total);
+  return Math.round((clamp(completed, 0, safeTotal) / safeTotal) * 100);
 }
 
 /**

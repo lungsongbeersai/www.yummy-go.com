@@ -47,7 +47,10 @@ import {
 } from "@/lib/pos/cart-quantity";
 import { cn } from "@/lib/utils";
 import type { CartItem } from "@/services/pos";
-import { CONFIRM_ORDER_PROGRESS_TOTAL } from "./confirm-order-progress";
+import {
+  CONFIRM_ORDER_PROGRESS_TOTAL,
+  confirmAllProgressPercent,
+} from "./confirm-order-progress";
 import type {
   ConfirmAllProgress,
   ConfirmItemStage,
@@ -91,12 +94,12 @@ export function ConfirmAllLoadingDialog({
   progress: ConfirmAllProgress | null;
 }) {
   const { t } = useTranslation();
-  const total = Math.max(
-    progress?.total ?? CONFIRM_ORDER_PROGRESS_TOTAL,
-    1,
-  );
-  const completed = Math.min(progress?.completed ?? 0, total);
-  const percent = Math.round((completed / total) * 100);
+  const percent = confirmAllProgressPercent({
+    completed: progress?.completed ?? 0,
+    printSuccessCount: progress?.printSuccessCount,
+    printTotal: progress?.printTotal,
+    total: progress?.total ?? CONFIRM_ORDER_PROGRESS_TOTAL,
+  });
   const progressLabel = progress?.printTotal
     ? t("pos.confirmAllPrintProgress", {
         success: progress.printSuccessCount ?? 0,
