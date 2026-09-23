@@ -46,11 +46,10 @@ type TcpSocketApi = {
 const MOBILE_TCP_CHUNK_SIZE = 256 * 1024;
 const MOBILE_TCP_SEND_TIMEOUT_MS = 15000;
 const MOBILE_TCP_STATUS_TIMEOUT_MS = 4000;
-// เครื่องพิมพ์ราคาประหยัดบางรุ่นปิด TCP session ที่รับ raster ต่อเนื่องนาน
-// ประมาณ 10 วินาที แบ่งก้อนให้เวลาส่งและระบาย raster ของแต่ละ session อยู่
-// ต่ำกว่าขีดจำกัด โดยแบ่งเฉพาะที่ขอบคำสั่ง GS v 0 เท่านั้น
+// Keep each native bridge call bounded, but keep every segment of one receipt
+// on the same TCP connection. Reconnecting between segments introduced visible
+// pauses and could leave a long receipt half-delivered before its final cut.
 const MOBILE_TCP_SEGMENT_MAX_BYTES = 160 * 1024;
-const MOBILE_TCP_RECONNECT_DELAY_MS = 100;
 // Estimate at a conservative 50 mm/s (400 rows/s at 203 dpi). Raster is
 // already printing while chunks are sent, so only the estimated remaining
 // work must drain afterward. Waiting for the entire segment twice caused long
@@ -502,6 +501,72 @@ async function sendBase64InChunks({
     });
 }
 
+async function sendEscposOnConnectedClient({
+    TcpSocket,
+    client,
+    escposBase64,
+    requireCompletionConfirmation = false,
+    wait = sleep,
+}: {
+    TcpSocket: TcpSocketApi;
+    client: TcpClient;
+    escposBase64: string;
+    requireCompletionConfirmation?: boolean;
+    wait?: (ms: number) => Promise<void>;
+}) {
+    const cleanBase64 = normalizeBase64(escposBase64);
+    const segments = splitEscposBase64ForTransport(cleanBase64);
+    const analysis = analyzeEscposPayload(cleanBase64);
+    const sendProfile = mobileTcpSendProfile();
+    const sendStartedAt = Date.now();
+
+    mobileTcpDebug("[mobile-tcp] transport plan", {
+        segments: segments.length,
+        byteEstimate: analysis.byteLength,
+        cutCommands: analysis.cutCommands,
+        profile: sendProfile.profile,
+    });
+
+    for (let segmentIndex = 0; segmentIndex < segments.length; segmentIndex++) {
+        const segment = segments[segmentIndex];
+        mobileTcpDebug("[mobile-tcp] send segment", {
+            segment: segmentIndex + 1,
+            segments: segments.length,
+            byteEstimate: Math.floor((segment.length * 3) / 4),
+        });
+
+        // Each send resolves only after the patched native plugin has written
+        // and flushed this complete segment. Awaiting it preserves every byte
+        // in order without timer gaps or overlapping native writes.
+        await sendBase64InChunks({
+            TcpSocket,
+            client,
+            base64: segment,
+            ...sendProfile,
+        });
+    }
+
+    const sendElapsedMs = Date.now() - sendStartedAt;
+    const drainMs =
+        mobileTcpRasterDrainMs(cleanBase64, sendElapsedMs, analysis) +
+        (analysis.cutCommands > 0 ? MOBILE_TCP_CUT_SETTLE_MS : 0);
+
+    mobileTcpDebug("[mobile-tcp] document flushed; waiting for completion", {
+        cutCommands: analysis.cutCommands,
+        drainMs,
+        rasterBands: analysis.rasterBands,
+        rasterRows: analysis.rasterRows,
+        sendElapsedMs,
+        segments: segments.length,
+    });
+
+    await wait(drainMs);
+
+    if (requireCompletionConfirmation) {
+        await checkMobilePrinterPaperStatus({ TcpSocket, client });
+    }
+}
+
 async function printMobileEscposOverTcpNow({
     interface_value,
     escpos_base64,
@@ -540,123 +605,47 @@ async function printMobileEscposOverTcpNow({
 
     const TcpSocket = mod.TcpSocket as unknown as TcpSocketApi;
 
-    const segments = splitEscposBase64ForTransport(cleanBase64);
-    let completedSegments = 0;
+    mobileTcpDebug("[mobile-tcp] connect start");
 
-    mobileTcpDebug("[mobile-tcp] transport plan", {
-        segments: segments.length,
-        byteEstimate: Math.floor((cleanBase64.length * 3) / 4),
-    });
-
-    for (let segmentIndex = 0; segmentIndex < segments.length; segmentIndex++) {
-        const segment = segments[segmentIndex];
-        const isFinalSegment = segmentIndex === segments.length - 1;
-        const analysis = analyzeEscposPayload(segment);
-        const sendProfile = mobileTcpSendProfile();
-        let connected: TcpSocketConnectResult;
-
-        mobileTcpDebug("[mobile-tcp] connect start", {
-            segment: segmentIndex + 1,
-            segments: segments.length,
+    let connected: TcpSocketConnectResult;
+    try {
+        connected = await TcpSocket.connect({
+            ipAddress: host,
+            port,
+            timeout: 10,
         });
+    } catch (error) {
+        throw deliveryError(error, "not_sent");
+    }
 
-        try {
-            connected = await TcpSocket.connect({
-                ipAddress: host,
-                port,
-                timeout: 10,
-            });
-        } catch (error) {
-            throw deliveryError(
-                error,
-                completedSegments === 0 ? "not_sent" : "unknown",
-            );
-        }
+    mobileTcpDebug("[mobile-tcp] connect success", connected);
+    const client = connected.client;
 
-        mobileTcpDebug("[mobile-tcp] connect success", connected);
-
-        const client = connected.client;
-        let sendSucceeded = false;
-
-        try {
-            mobileTcpDebug("[mobile-tcp] send start", {
-                mode: "base64-chunks",
-                segment: segmentIndex + 1,
-                segments: segments.length,
-                base64Length: segment.length,
-                byteEstimate: Math.floor((segment.length * 3) / 4),
-                cutCommands: analysis.cutCommands,
-                profile: sendProfile.profile,
-            });
-
-            const sendStartedAt = Date.now();
-
-            // Renderer segments stay below the bridge limit, so the raster,
-            // feed, and GS V cutter command enter one native TCP write. This
-            // removes JS timer gaps while preserving exact ESC/POS ordering.
-            await sendBase64InChunks({
-                TcpSocket,
-                client,
-                base64: segment,
-                ...sendProfile,
-            });
-
-            const sendElapsedMs = Date.now() - sendStartedAt;
-            const drainMs =
-                mobileTcpRasterDrainMs(segment, sendElapsedMs, analysis) +
-                (analysis.cutCommands > 0 ? MOBILE_TCP_CUT_SETTLE_MS : 0);
-
-            mobileTcpDebug("[mobile-tcp] document queued; waiting for completion", {
-                segment: segmentIndex + 1,
-                segments: segments.length,
-                cutCommands: analysis.cutCommands,
-                drainMs,
-                rasterBands: analysis.rasterBands,
-                rasterRows: analysis.rasterRows,
-                sendElapsedMs,
-            });
-
-            await sleep(drainMs);
-
-            if (
-                require_completion_confirmation &&
-                isFinalSegment
-            ) {
-                await checkMobilePrinterPaperStatus({ TcpSocket, client });
-            }
-
-            sendSucceeded = true;
-            mobileTcpDebug("[mobile-tcp] send success", {
-                segment: segmentIndex + 1,
-                segments: segments.length,
-            });
-        } catch (error) {
+    try {
+        await sendEscposOnConnectedClient({
+            TcpSocket,
+            client,
+            escposBase64: cleanBase64,
+            requireCompletionConfirmation: require_completion_confirmation,
+        });
+        mobileTcpDebug("[mobile-tcp] send success");
+    } catch (error) {
+        console.warn(
+            "[mobile-tcp] send failed:",
+            error instanceof Error ? error.message : String(error),
+        );
+        // Never retry after the first write: the printer may already have a
+        // prefix, and replaying the receipt would duplicate printed content.
+        throw deliveryError(error, "unknown");
+    } finally {
+        mobileTcpDebug("[mobile-tcp] disconnect start");
+        await TcpSocket.disconnect({ client }).catch((error: unknown) => {
             console.warn(
-                "[mobile-tcp] send failed:",
+                "[mobile-tcp] disconnect failed:",
                 error instanceof Error ? error.message : String(error),
             );
-            // หลังเริ่มส่งแล้วไม่ retry ก้อนเดิมอัตโนมัติ เพราะอาจทำให้ส่วนต้น
-            // ของใบออกซ้ำเมื่อ native socket รับข้อมูลไปบางส่วนแล้ว
-            throw deliveryError(error, "unknown");
-        } finally {
-            mobileTcpDebug("[mobile-tcp] disconnect start");
-
-            await TcpSocket.disconnect({ client }).catch((error: unknown) => {
-                console.warn(
-                    "[mobile-tcp] disconnect failed:",
-                    error instanceof Error ? error.message : String(error),
-                );
-            });
-
-            mobileTcpDebug("[mobile-tcp] disconnect done");
-        }
-
-        if (!sendSucceeded) break;
-        completedSegments += 1;
-
-        if (segmentIndex < segments.length - 1) {
-            await sleep(MOBILE_TCP_RECONNECT_DELAY_MS);
-        }
+        });
+        mobileTcpDebug("[mobile-tcp] disconnect done");
     }
 }
 
@@ -680,5 +669,6 @@ export const __mobileTcpInternals = {
     printerStatusByte,
     runOnMobileTcpQueue,
     sendBase64InChunks,
+    sendEscposOnConnectedClient,
     splitEscposBase64ForTransport,
 };

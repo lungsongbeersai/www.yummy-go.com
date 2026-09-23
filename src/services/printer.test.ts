@@ -262,6 +262,27 @@ describe("printer service dispatch", () => {
     );
   });
 
+  it("submits a large physical-printer batch as one continuous Agent job", async () => {
+    axiosMocks.get.mockResolvedValue({
+      data: { agent_id: "agent-1", agent_name: "Local", device_code: "device-1" }
+    });
+    axiosMocks.post.mockResolvedValue({ data: { ok: true } });
+    const jobs = Array.from({ length: 25 }, (_, index) => windowsPrintJob({
+      agent_id: "agent-1",
+      device_code: "device-1",
+      job_id: `receipt-${index + 1}`,
+    }));
+
+    await expect(printBatchWithLocalAgent(jobs)).resolves.toBeUndefined();
+
+    expect(axiosMocks.post).toHaveBeenCalledTimes(1);
+    expect(axiosMocks.post).toHaveBeenCalledWith(
+      "http://127.0.0.1:7777/print-ops-batch",
+      { cut_mode: "per_ticket", jobs },
+      expect.objectContaining({ timeout: 75000 })
+    );
+  });
+
   it("rejects a mismatched agent identity on the local device", async () => {
     const job = printJob({
       agent_id: BROWSER_PRINTER_AGENT_ID,
@@ -372,7 +393,7 @@ describe("printer service dispatch", () => {
     });
   });
 
-  it("splits more than ten kitchen tickets for one printer without dropping the batch", async () => {
+  it("keeps more than ten tickets in one continuous physical-printer batch", async () => {
     const jobs = Array.from({ length: 12 }, (_, index) =>
       windowsPrintJob({
         job_id: `large-batch-job-${index + 1}`,
@@ -444,7 +465,7 @@ describe("printer service dispatch", () => {
       })
     ).resolves.toEqual({ successCount: 12, failedCount: 0, total: 12 });
 
-    expect(sentBatchSizes).toEqual([10, 2]);
+    expect(sentBatchSizes).toEqual([12]);
     expect(ackPayloads).toHaveLength(1);
     expect(ackPayloads[0].results).toHaveLength(13);
     expect(new Set(ackPayloads[0].results.map((item) => item.print_job_item_uuid))).toEqual(

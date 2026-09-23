@@ -184,6 +184,49 @@ describe("mobile TCP printer queue", () => {
     expect(Buffer.concat(sent)).toEqual(source);
   });
 
+  it("flushes every segment of a very long receipt on one client before the final cut", async () => {
+    const rasterBand = (seed: number) => Buffer.concat([
+      Buffer.from([0x1d, 0x76, 0x30, 0x00, 72, 0x00, 24, 0x00]),
+      Buffer.alloc(72 * 24, seed),
+    ]);
+    const cut = Buffer.from([0x1d, 0x56, 0x01]);
+    const source = Buffer.concat([
+      Buffer.from([0x1b, 0x40]),
+      ...Array.from({ length: 220 }, (_, index) => rasterBand(index)),
+      cut,
+    ]);
+    const sent: Buffer[] = [];
+    const waited: number[] = [];
+    const TcpSocket = {
+      connect: vi.fn(),
+      disconnect: vi.fn(),
+      read: vi.fn(),
+      send: vi.fn(async ({ client, data }: { client: string | number; data: string }) => {
+        expect(client).toBe("one-receipt-client");
+        sent.push(Buffer.from(data, "base64"));
+      }),
+    };
+
+    expect(source.length).toBeGreaterThan(
+      __mobileTcpInternals.MOBILE_TCP_SEGMENT_MAX_BYTES,
+    );
+
+    await __mobileTcpInternals.sendEscposOnConnectedClient({
+      TcpSocket,
+      client: "one-receipt-client",
+      escposBase64: source.toString("base64"),
+      wait: async (ms) => {
+        waited.push(ms);
+      },
+    });
+
+    const delivered = Buffer.concat(sent);
+    expect(TcpSocket.send).toHaveBeenCalledTimes(3);
+    expect(delivered).toEqual(source);
+    expect(delivered.subarray(delivered.length - cut.length)).toEqual(cut);
+    expect(waited).toHaveLength(1);
+  });
+
   it("splits long renderer payloads only between complete raster commands", () => {
     const header = Buffer.from([
       0x1b, 0x40,

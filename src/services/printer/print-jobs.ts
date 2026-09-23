@@ -43,7 +43,6 @@ const kitchenExecutions = new Map<string, Promise<KitchenPrintResult>>();
 const documentExecutions = new Map<string, Promise<KitchenPrintResult>>();
 const deliveryLedgerMemory = new Map<string, StoredDelivery>();
 const DELIVERY_LEDGER_PREFIX = "yummy_kitchen_printer_delivery:";
-const MAX_AGENT_JOBS_PER_BATCH = 10;
 
 interface StoredDelivery {
   deliveryState: Exclude<PrinterDeliveryState, "not_sent">;
@@ -325,36 +324,6 @@ function batchPrintJobItemUuids(batch: PrintOpsBatchPayload) {
   return [...new Set(itemUuids)];
 }
 
-function splitOversizedAgentBatches(batches: PrintOpsBatchPayload[]) {
-  return batches.flatMap((batch) => {
-    const jobs = Array.isArray(batch.jobs) ? batch.jobs : [];
-    const printClient = textValue(batch.print_client).toLowerCase();
-    const printMode = textValue(batch.print_mode).toLowerCase();
-    const isMobileBatch =
-      printClient === "mobile_wifi" ||
-      printMode === "mobile_wifi" ||
-      Boolean(textValue(batch.mobile_escpos?.escpos_base64));
-
-    if (isMobileBatch || jobs.length <= MAX_AGENT_JOBS_PER_BATCH) return [batch];
-
-    const chunks: PrintOpsBatchPayload[] = [];
-    for (let offset = 0; offset < jobs.length; offset += MAX_AGENT_JOBS_PER_BATCH) {
-      const chunkJobs = jobs.slice(offset, offset + MAX_AGENT_JOBS_PER_BATCH);
-      chunks.push({
-        ...batch,
-        job_total: chunkJobs.length,
-        jobs: chunkJobs,
-        print_job_item_uuids: batchPrintJobItemUuids({
-          ...batch,
-          jobs: chunkJobs,
-          print_job_item_uuids: [],
-        }),
-      });
-    }
-    return chunks;
-  });
-}
-
 function batchAckPayload({
   failedPayload,
   outcomes,
@@ -589,7 +558,7 @@ async function executePrintJobs(
   });
 
   const pending = pendingResult.jobs;
-  const batchPayloads = splitOversizedAgentBatches(pendingResult.batchPayloads);
+  const batchPayloads = pendingResult.batchPayloads;
   const globalAckSuccess = pendingResult.ackSuccess;
   const globalAckFailed = pendingResult.ackFailed;
 

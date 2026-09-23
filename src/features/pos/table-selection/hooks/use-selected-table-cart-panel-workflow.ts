@@ -46,6 +46,8 @@ import {
   cartOrders,
   cartOrderUuidForItem,
   cartSummary,
+  CONFIRM_ORDER_PROGRESS_TOTAL,
+  confirmOrderProgressStep,
   discountDraftValue,
   firstCartOrderUuid,
   formatRate,
@@ -765,36 +767,34 @@ export function useSelectedTableCartPanelWorkflow({
         errorMessage?: string;
         pending?: boolean;
       } = { successCount: 0, failedCount: 0, total: 0, pending: false };
-      const confirmItemTotal = confirmGroups.reduce(
-        (sum, group) => sum + group.itemUuids.length,
-        0,
-      );
-      let confirmedItems = 0;
-
-      const setProgress = (completed: number, total: number, label: string) => {
-        const safeTotal = Math.max(total, 1);
-        const safeCompleted = Math.min(completed, safeTotal);
+      const setProgress = (completed: number, label: string) => {
+        const safeCompleted = Math.min(
+          completed,
+          CONFIRM_ORDER_PROGRESS_TOTAL,
+        );
         setConfirmAllProgress({
           completed: safeCompleted,
           detail: t("pos.confirmAllProgress", {
             completed: safeCompleted,
-            total: safeTotal,
+            total: CONFIRM_ORDER_PROGRESS_TOTAL,
           }),
           label,
-          total: safeTotal,
+          total: CONFIRM_ORDER_PROGRESS_TOTAL,
         });
       };
 
       setProgress(
-        0,
-        confirmItemTotal,
+        confirmOrderProgressStep({ phase: "preparing" }),
         t("pos.confirmAllPreparing"),
       );
 
-      for (const group of confirmGroups) {
+      for (const [groupIndex, group] of confirmGroups.entries()) {
         setProgress(
-          confirmedItems,
-          confirmItemTotal,
+          confirmOrderProgressStep({
+            groupCount: confirmGroups.length,
+            groupIndex,
+            phase: "confirming",
+          }),
           t("pos.confirmAllConfirming"),
         );
         const response = await confirmKitchen({
@@ -805,7 +805,6 @@ export function useSelectedTableCartPanelWorkflow({
           agent_id: activePrinterContext?.agent_id,
           print_mode: activePrinterContext?.print_mode,
         });
-        confirmedItems += group.itemUuids.length;
 
         const result = await executeKitchenAck(
           response,
@@ -818,8 +817,14 @@ export function useSelectedTableCartPanelWorkflow({
                 : t("pos.confirmAllPrinting");
 
             setProgress(
-              confirmedItems,
-              confirmItemTotal,
+              confirmOrderProgressStep({
+                groupCount: confirmGroups.length,
+                groupIndex,
+                phase:
+                  progress.phase === "fetching" ? "fetching" : "printing",
+                printingCompleted: progress.completed,
+                printingTotal: progress.total,
+              }),
               label,
             );
           },
@@ -829,17 +834,24 @@ export function useSelectedTableCartPanelWorkflow({
         printResult.total += result.total;
         printResult.pending = printResult.pending || result.pending === true;
         if (result.errorMessage) printResult.errorMessage = result.errorMessage;
+
+        setProgress(
+          confirmOrderProgressStep({
+            groupCount: confirmGroups.length,
+            groupIndex,
+            phase: "group-complete",
+          }),
+          t("pos.confirmAllPrinting"),
+        );
       }
 
       setProgress(
-        confirmedItems,
-        confirmItemTotal,
+        confirmOrderProgressStep({ phase: "refreshing" }),
         t("pos.confirmAllRefreshing"),
       );
       await onTableActionComplete();
       setProgress(
-        confirmItemTotal,
-        confirmItemTotal,
+        confirmOrderProgressStep({ phase: "done" }),
         t("pos.confirmAllDone"),
       );
       showKitchenConfirmResult(printResult);

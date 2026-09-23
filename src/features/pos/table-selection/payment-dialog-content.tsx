@@ -907,60 +907,85 @@ export function PaymentDialogContent({
         open={confirmOpen}
         onOpenChange={(nextOpen) => !processing && setConfirmOpen(nextOpen)}
       >
-        <AlertDialogContent size="sm">
-          <AlertDialogHeader>
-            <AlertDialogTitle>{t("pos.confirmPayment")}</AlertDialogTitle>
-            <AlertDialogDescription>
+        <AlertDialogContent className="max-h-[calc(100dvh-2rem)] w-[calc(100%-2rem)] max-w-lg gap-0 overflow-y-auto rounded-2xl p-0 shadow-2xl sm:max-w-xl">
+          <AlertDialogHeader className="place-items-center gap-2 border-b border-border bg-muted/25 px-5 py-6 text-center sm:place-items-center sm:px-8 sm:py-7 sm:text-center">
+            <div className="mb-1 flex size-12 items-center justify-center rounded-full bg-primary/10 text-primary sm:size-14">
+              <ReceiptText className="size-6 sm:size-7" aria-hidden="true" />
+            </div>
+            <AlertDialogTitle className="text-xl font-black sm:text-2xl">
+              {t("pos.confirmPayment")}
+            </AlertDialogTitle>
+            <AlertDialogDescription className="max-w-md text-sm leading-relaxed sm:text-base">
               {t("pos.confirmPaymentDescription", {
                 amount: money(totalAmount),
               })}
             </AlertDialogDescription>
           </AlertDialogHeader>
-          <dl className="grid gap-2 rounded-lg border border-border bg-muted/35 p-3 text-sm">
-            <div className="flex items-center justify-between gap-3">
-              <dt className="text-muted-foreground">{t("pos.paymentMethod")}</dt>
-              <dd className="text-right font-bold">
-                {selectedTab ? t(selectedTab.labelKey) : t("pos.paymentTitle")}
-              </dd>
-            </div>
-            <div className="flex items-center justify-between gap-3">
-              <dt className="text-muted-foreground">{t("pos.amountReceived")}</dt>
-              <dd className="text-right font-black tabular-nums">
-                {money(payment.received)}
-              </dd>
-            </div>
-            <div className="flex items-center justify-between gap-3 border-t border-border pt-2">
-              <dt className="font-semibold">
-                {payment.balance > 0
-                  ? t("pos.remainingAmount")
-                  : t("pos.changeAmount")}
-              </dt>
-              <dd
-                className={cn(
-                  "text-right font-black tabular-nums",
-                  payment.balance > 0 ? "text-destructive" : "text-primary",
-                )}
+
+          <div className="p-5 sm:p-7">
+            <dl className="overflow-hidden rounded-xl border border-border bg-card text-sm shadow-sm sm:text-base">
+              <div className="flex min-h-14 items-center justify-between gap-4 px-4 py-3 sm:px-5">
+                <dt className="text-muted-foreground">
+                  {t("pos.paymentMethod")}
+                </dt>
+                <dd className="max-w-[65%] text-right font-bold">
+                  {selectedTab
+                    ? t(selectedTab.labelKey)
+                    : t("pos.paymentTitle")}
+                </dd>
+              </div>
+              <div className="flex min-h-14 items-center justify-between gap-4 border-t border-border px-4 py-3 sm:px-5">
+                <dt className="text-muted-foreground">
+                  {t("pos.amountReceived")}
+                </dt>
+                <dd className="max-w-[65%] text-right text-base font-black tabular-nums sm:text-lg">
+                  {money(payment.received)}
+                </dd>
+              </div>
+              <div className="flex min-h-16 items-center justify-between gap-4 border-t border-border bg-muted/35 px-4 py-3 sm:px-5">
+                <dt className="font-bold">
+                  {payment.balance > 0
+                    ? t("pos.remainingAmount")
+                    : t("pos.changeAmount")}
+                </dt>
+                <dd
+                  className={cn(
+                    "max-w-[65%] text-right text-lg font-black tabular-nums sm:text-xl",
+                    payment.balance > 0
+                      ? "text-destructive"
+                      : "text-primary",
+                  )}
+                >
+                  {money(
+                    payment.balance > 0
+                      ? payment.balance
+                      : payment.change,
+                  )}
+                </dd>
+              </div>
+            </dl>
+
+            <AlertDialogFooter className="mt-5 grid grid-cols-2 gap-3 sm:grid sm:grid-cols-2 sm:justify-stretch">
+              <AlertDialogCancel
+                className="h-12 text-base font-bold sm:h-14"
+                disabled={processing}
               >
-                {money(payment.balance > 0 ? payment.balance : payment.change)}
-              </dd>
-            </div>
-          </dl>
-          <AlertDialogFooter>
-            <AlertDialogCancel disabled={processing}>
-              {t("actions.cancel")}
-            </AlertDialogCancel>
-            <AlertDialogAction
-              disabled={processing}
-              onClick={() => void submitPayment()}
-            >
-              {processing ? (
-                <Spinner data-icon="inline-start" />
-              ) : (
-                <ReceiptText data-icon="inline-start" />
-              )}
-              {t("pos.confirmPayment")}
-            </AlertDialogAction>
-          </AlertDialogFooter>
+                {t("actions.cancel")}
+              </AlertDialogCancel>
+              <AlertDialogAction
+                className="h-12 text-base font-black sm:h-14"
+                disabled={processing}
+                onClick={() => void submitPayment()}
+              >
+                {processing ? (
+                  <Spinner data-icon="inline-start" />
+                ) : (
+                  <ReceiptText data-icon="inline-start" />
+                )}
+                {t("pos.confirmPayment")}
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </div>
         </AlertDialogContent>
       </AlertDialog>
       <PrintLoadingDialog open={invoicePrinting} />
