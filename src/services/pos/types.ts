@@ -355,11 +355,19 @@ export interface InitOrderWithoutTableResponse extends ApiEntity {
 
 export type ChangeType = "INCREASE" | "DECREASE";
 
-export interface UpdateQtyInput {
-  order_item_uuid: string;
-  change_type: ChangeType;
-  change_qty: number;
-}
+export type UpdateQtyInput =
+  | {
+      order_item_uuid: string;
+      change_type: ChangeType;
+      change_qty: number;
+      new_qty?: never;
+    }
+  | {
+      order_item_uuid: string;
+      new_qty: number;
+      change_type?: never;
+      change_qty?: never;
+    };
 
 export interface UpdateQtyResponse extends ApiEntity {}
 

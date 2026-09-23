@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useTranslation } from "react-i18next";
 import {
@@ -68,6 +68,14 @@ import { useCustomerDisplayWorkflow } from "./use-customer-display-workflow";
 import { useResetOnChange, useResetOnDeps } from "@/hooks/use-reset-on-change";
 
 type CartPanelData = CartOrder | CartOrder[] | null;
+const CART_QUANTITY_DEBOUNCE_MS = 200;
+
+type QueuedQuantityUpdate = {
+  item: CartItem;
+  itemUuid: string;
+  targetQty: number;
+  waiters: Array<(success: boolean) => void>;
+};
 
 type PaymentContext = {
   kind: "full" | "split";
@@ -169,6 +177,10 @@ export function useSelectedTableCartPanelWorkflow({
   const previousTableUuidRef = useRef(tableUuid);
   const previousNewOrderFocusKeyRef = useRef(newOrderFocusKey);
   const [updatingItemUuid, setUpdatingItemUuid] = useState<string | null>(null);
+  const [queuedQuantityItemUuid, setQueuedQuantityItemUuid] = useState<string | null>(null);
+  const [quantityOverrides, setQuantityOverrides] = useState<Record<string, number>>({});
+  const queuedQuantityRef = useRef<QueuedQuantityUpdate | null>(null);
+  const quantityDebounceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [confirming, setConfirming] = useState(false);
   const [confirmAllProgress, setConfirmAllProgress] =
     useState<ConfirmAllProgress | null>(null);
@@ -181,6 +193,7 @@ export function useSelectedTableCartPanelWorkflow({
   // ref ไม่ใช่ state เพราะไม่ต้องมีผลกับการ render ใดๆ — ใช้แค่ฝากค่าข้ามไปให้ effect ที่ตรวจ
   // cart รอบถัดไปอ่าน ถ้าเป็น state จะโดน lint react-hooks/set-state-in-effect ตอน clear ค่าทิ้ง
   const pendingQuantityCheckRef = useRef<{
+    checkStockAdjustment: boolean;
     itemUuid: string;
     requestedQty: number;
     trackedAt: number;
@@ -272,12 +285,14 @@ export function useSelectedTableCartPanelWorkflow({
     ? cartItemActionUuid(itemActionTarget.item)
     : null;
   const actionTargetIsSet = Boolean(itemActionTarget?.item.set_instance_uuid);
-  const cartActionsLocked = Boolean(
+  const nonQuantityActionsLocked = Boolean(
     !hasSelectedTable ||
-    updatingItemUuid ||
     confirming ||
     actingItemUuid ||
     billDiscountPending,
+  );
+  const cartActionsLocked = Boolean(
+    nonQuantityActionsLocked || updatingItemUuid || queuedQuantityItemUuid,
   );
   const canConfirm =
     Boolean(user?.uuid) && confirmGroups.length > 0 && !cartActionsLocked;
@@ -314,7 +329,9 @@ export function useSelectedTableCartPanelWorkflow({
     ? cartItemDiscountMaxAmount(itemDiscountTarget)
     : null;
   const quantityPending = Boolean(
-    quantityTarget && updatingItemUuid === cartItemUuid(quantityTarget),
+    quantityTarget &&
+      (updatingItemUuid === cartItemUuid(quantityTarget) ||
+        queuedQuantityItemUuid === cartItemUuid(quantityTarget)),
   );
   const billDiscountMaxAmount = summary.subtotal;
   const itemDiscountValue = discountDraftValue(
@@ -391,10 +408,25 @@ export function useSelectedTableCartPanelWorkflow({
     );
   }, [hasSelectedTable, newOrderFocusKey]);
 
+  useEffect(
+    () => () => {
+      if (quantityDebounceTimerRef.current) {
+        clearTimeout(quantityDebounceTimerRef.current);
+        quantityDebounceTimerRef.current = null;
+      }
+      const queued = queuedQuantityRef.current;
+      queuedQuantityRef.current = null;
+      for (const resolve of queued?.waiters ?? []) resolve(false);
+    },
+    [tableUuid],
+  );
+
   // เปลี่ยนโต๊ะ = ทิ้ง dialog / ค่าดราฟต์ / รายการที่เลือกของโต๊ะเดิมทั้งหมด
   // ทำระหว่าง render แทน effect เพื่อไม่ให้ commit เฟรมที่ยังถือ state ของโต๊ะเก่า
   // (เฟรมนั้นจะดัน payload ของโต๊ะเก่าออกจอลูกค้าไปหนึ่งครั้งก่อนถูกล้าง)
   useResetOnChange(tableUuid, () => {
+    setQueuedQuantityItemUuid(null);
+    setQuantityOverrides({});
     setItemActionTarget(null);
     setActingItemUuid(null);
     setNoteTarget(null);
@@ -444,44 +476,115 @@ export function useSelectedTableCartPanelWorkflow({
     );
   });
 
-  // changeQty เป็น delta ที่มีเครื่องหมาย (เช่น -3/+3 สำหรับก้าวโปรโมชั่น หรือ ±1 ปุ่มปกติ)
-  // backend รองรับ change_qty มากกว่า 1 ต่อครั้งอยู่แล้ว จึงยิงทีเดียวถึงจำนวนเป้าหมายได้
-  // คืนค่า boolean เพื่อให้ผู้เรียก (เช่น modal แก้จำนวน) รู้ว่าจะปิด dialog ได้หรือต้องค้างไว้ให้ลองใหม่
-  async function changeCartItemQty(item: CartItem, changeQty: number) {
-    const itemUuid = cartItemUuid(item);
-    if (!itemUuid || cartActionsLocked || changeQty === 0) return false;
+  const clearQuantityOverride = useCallback((itemUuid: string) => {
+    setQuantityOverrides((current) => {
+      if (!(itemUuid in current)) return current;
+      const next = { ...current };
+      delete next[itemUuid];
+      return next;
+    });
+  }, []);
 
-    setUpdatingItemUuid(itemUuid);
+  async function flushQueuedQuantity() {
+    const queued = queuedQuantityRef.current;
+    if (!queued || updatingItemUuid) return;
+
+    if (quantityDebounceTimerRef.current) {
+      clearTimeout(quantityDebounceTimerRef.current);
+      quantityDebounceTimerRef.current = null;
+    }
+    queuedQuantityRef.current = null;
+    setQueuedQuantityItemUuid(null);
+    setUpdatingItemUuid(queued.itemUuid);
+
+    let success = false;
     try {
+      // ใช้จำนวนเป้าหมายแบบ absolute เพื่อรวมการกดรัวหลายครั้งเป็น request เดียว
+      // และไม่ให้ response ที่ช้าจาก delta ก่อนหน้าทำจำนวนย้อนกลับ
       await updateQty({
-        order_item_uuid: itemUuid,
-        change_type: changeQty > 0 ? "INCREASE" : "DECREASE",
-        change_qty: Math.abs(changeQty),
+        order_item_uuid: queued.itemUuid,
+        new_qty: queued.targetQty,
       });
-      // เช็คสต็อกได้แค่ตอนเพิ่มจำนวน — ลดจำนวนไม่มีทางชนเพดานสต็อก และถ้าเทียบด้วยจะพลาดโทษสต็อก
-      // ผิดให้กรณีอื่น เช่นเครื่องอื่นแก้ไอเทมเดียวกันพร้อมกันจนได้ค่าน้อยกว่าที่เครื่องนี้ขอลด
-      if (changeQty > 0) {
-        pendingQuantityCheckRef.current = {
-          itemUuid,
-          requestedQty: cartItemQty(item) + changeQty,
-          trackedAt: Date.now(),
-        };
-      }
+      pendingQuantityCheckRef.current = {
+        checkStockAdjustment: queued.targetQty > cartItemQty(queued.item),
+        itemUuid: queued.itemUuid,
+        requestedQty: queued.targetQty,
+        trackedAt: Date.now(),
+      };
       await onTableActionComplete();
-      return true;
+      success = true;
     } catch (error) {
-      // onTableActionComplete ล้มเหลวหลัง updateQty สำเร็จ = cart ที่รีเฟรชจริงยังไม่มาถึง แต่ ref
-      // ถูกตั้งไปแล้ว — เคลียร์ทิ้งกันไม่ให้ effect เอาไปเทียบกับ cart ที่รีเฟรชด้วยเหตุผลอื่นทีหลัง
+      // API หรือ refresh ล้มเหลว: คืนเลขบนจอไปหา source of truth เดิมทันที
+      // และไม่เก็บ ref ไว้ให้ cart refresh รอบอื่นมาเทียบผิด request
       pendingQuantityCheckRef.current = null;
+      clearQuantityOverride(queued.itemUuid);
       showToast({
         title: t("pos.cartUpdateFailed"),
         description: error instanceof Error ? error.message : "",
         tone: "error",
       });
-      return false;
     } finally {
       setUpdatingItemUuid(null);
+      for (const resolve of queued.waiters) resolve(success);
     }
+  }
+
+  // ปุ่ม +/- เปลี่ยนตัวเลขบนจอทันที แล้ว debounce สั้น ๆ รวม tap ที่ติดกันเป็น
+  // PATCH เดียว เมื่อ request เริ่มแล้วค่อยล็อก stepper จน cart จาก server กลับมา
+  function changeCartItemQty(
+    item: CartItem,
+    changeQty: number,
+    flushImmediately = false,
+  ) {
+    const itemUuid = cartItemUuid(item);
+    const queued = queuedQuantityRef.current;
+    if (
+      !itemUuid ||
+      changeQty === 0 ||
+      nonQuantityActionsLocked ||
+      updatingItemUuid ||
+      (queued && queued.itemUuid !== itemUuid)
+    ) {
+      return Promise.resolve(false);
+    }
+
+    const currentQty = queued?.targetQty ?? cartItemQty(item);
+    const targetQty = currentQty + changeQty;
+    if (!Number.isInteger(targetQty) || targetQty <= 0) return Promise.resolve(false);
+
+    let resolveResult: (success: boolean) => void = () => undefined;
+    const result = new Promise<boolean>((resolve) => {
+      resolveResult = resolve;
+    });
+    const nextQueue: QueuedQuantityUpdate = queued
+      ? {
+          ...queued,
+          targetQty,
+          waiters: [...queued.waiters, resolveResult],
+        }
+      : {
+          item,
+          itemUuid,
+          targetQty,
+          waiters: [resolveResult],
+        };
+    queuedQuantityRef.current = nextQueue;
+    setQueuedQuantityItemUuid(itemUuid);
+    setQuantityOverrides((current) => ({ ...current, [itemUuid]: targetQty }));
+
+    if (quantityDebounceTimerRef.current) {
+      clearTimeout(quantityDebounceTimerRef.current);
+    }
+
+    if (flushImmediately) {
+      void flushQueuedQuantity();
+    } else {
+      quantityDebounceTimerRef.current = setTimeout(() => {
+        quantityDebounceTimerRef.current = null;
+        void flushQueuedQuantity();
+      }, CART_QUANTITY_DEBOUNCE_MS);
+    }
+    return result;
   }
 
   // รอ cart รีเฟรชจริงก่อนค่อยเทียบ — ตอน changeCartItemQty resolve เองยังเห็น cart ค่าเก่าของ
@@ -492,6 +595,7 @@ export function useSelectedTableCartPanelWorkflow({
     if (!pending) return;
 
     pendingQuantityCheckRef.current = null;
+    clearQuantityOverride(pending.itemUuid);
     // เกิน 15 วิ ถือว่า refresh ของ request เดิมหลุดไปแล้ว ไม่เอามาเทียบกับ cart ที่รีเฟรชด้วยเหตุผลอื่น
     if (Date.now() - pending.trackedAt > 15_000) return;
 
@@ -499,7 +603,11 @@ export function useSelectedTableCartPanelWorkflow({
       (entry) => cartItemUuid(entry) === pending.itemUuid,
     );
     const actualQty = matchedItem ? cartItemQty(matchedItem) : null;
-    if (actualQty !== null && actualQty < pending.requestedQty) {
+    if (
+      pending.checkStockAdjustment &&
+      actualQty !== null &&
+      actualQty < pending.requestedQty
+    ) {
       showToast({
         title: t("pos.cartQuantityAdjusted"),
         description: t("pos.cartQuantityAdjustedDescription", {
@@ -509,7 +617,7 @@ export function useSelectedTableCartPanelWorkflow({
         tone: "info",
       });
     }
-  }, [displayItems, showToast, t]);
+  }, [clearQuantityOverride, displayItems, showToast, t]);
 
   function openQuantityDialog(item: CartItem) {
     setQuantityTarget(item);
@@ -524,7 +632,7 @@ export function useSelectedTableCartPanelWorkflow({
       return;
     }
 
-    const success = await changeCartItemQty(quantityTarget, delta);
+    const success = await changeCartItemQty(quantityTarget, delta, true);
     if (success) setQuantityTarget(null);
   }
 
@@ -1291,6 +1399,7 @@ export function useSelectedTableCartPanelWorkflow({
     openTableQr,
     paymentContext,
     quantityPending,
+    quantityOverrides,
     quantityTarget,
     requestSelectedSplitPayment,
     saveBillDiscount,

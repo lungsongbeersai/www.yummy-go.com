@@ -47,6 +47,7 @@ export const EmployeeProductCard = memo(function EmployeeProductCard({
   imagePreload = false,
   loading,
   onAction,
+  onPrefetch,
 }: {
   activeSort: ProductSortStatus;
   entry: ProductCardEntry;
@@ -54,6 +55,7 @@ export const EmployeeProductCard = memo(function EmployeeProductCard({
   imagePreload?: boolean;
   loading: boolean;
   onAction: (entry: ProductCardEntry) => void;
+  onPrefetch: (entry: ProductCardEntry) => void;
 }) {
   const { t } = useTranslation();
   const { product } = entry;
@@ -164,6 +166,9 @@ export const EmployeeProductCard = memo(function EmployeeProductCard({
         className="absolute inset-0 z-20 h-auto w-auto touch-manipulation rounded-lg bg-transparent p-0 shadow-none transition-transform duration-100 hover:bg-primary/5 active:scale-[0.98] active:bg-primary/15 motion-reduce:transition-none focus-visible:bg-primary/5 focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring disabled:pointer-events-auto disabled:cursor-not-allowed disabled:opacity-100"
         disabled={interactionDisabled}
         onClick={() => onAction(entry)}
+        onFocus={() => onPrefetch(entry)}
+        onPointerDown={() => onPrefetch(entry)}
+        onPointerEnter={() => onPrefetch(entry)}
       />
     </Card>
   );

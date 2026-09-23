@@ -95,6 +95,7 @@ export function CartTabItems({
   onReprintKitchen,
   onSetSplitItemQuantity,
   onToggleSplitItem,
+  quantityOverrides,
   splitSelectionDisabled = false,
   splitSelectedItemUuids,
   updatingItemUuid
@@ -118,6 +119,7 @@ export function CartTabItems({
   onReprintKitchen: (item: CartItem) => void;
   onSetSplitItemQuantity?: (item: CartItem, quantity: number) => void;
   onToggleSplitItem?: (item: CartItem) => void;
+  quantityOverrides?: Record<string, number>;
   splitSelectionDisabled?: boolean;
   splitSelectedItemUuids?: Map<string, number>;
   updatingItemUuid: string | null;
@@ -128,6 +130,7 @@ export function CartTabItems({
     <div className="flex min-h-full flex-col bg-background">
       {items.map((item, index) => {
         const itemUuid = cartItemActionUuid(item);
+        const quantityItemUuid = cartItemUuid(item);
         const splitEligible = canSplitItem ? canSplitItem(item) : false;
         const splitSelectedQty = itemUuid
           ? splitSelectedItemUuids?.get(itemUuid)
@@ -145,6 +148,9 @@ export function CartTabItems({
             canItemDiscount={canItemDiscount}
             compact={compact}
             mutationDisabled={!itemCanMutate}
+            quantityOverride={
+              quantityItemUuid ? quantityOverrides?.[quantityItemUuid] : undefined
+            }
             splitEligible={splitEligible}
             splitSelectionDisabled={splitSelectionDisabled}
             splitSelected={splitEligible && splitSelectedQty !== undefined}
@@ -199,6 +205,7 @@ function CartItemRow({
   onOpenItemAction,
   onOpenQuantityDialog,
   onReprintKitchen,
+  quantityOverride,
   onSetSplitItemQuantity,
   onToggleSplitItem,
   splitEligible,
@@ -223,6 +230,7 @@ function CartItemRow({
   onOpenItemAction: (action: CartItemAction, item: CartItem) => void;
   onOpenQuantityDialog: (item: CartItem) => void;
   onReprintKitchen: (item: CartItem) => void;
+  quantityOverride?: number;
   onSetSplitItemQuantity?: (item: CartItem, quantity: number) => void;
   onToggleSplitItem?: (item: CartItem) => void;
   splitEligible: boolean;
@@ -233,7 +241,7 @@ function CartItemRow({
 }) {
   const { t } = useTranslation();
   const detail = item.detail;
-  const qty = cartItemQty(item);
+  const qty = quantityOverride ?? cartItemQty(item);
   const qtyStep = promotionQuantity(detail, qty).qtyStep;
   const total = cartItemTotal(item);
   const rawTitle = cartItemName(item);

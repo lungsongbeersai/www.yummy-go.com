@@ -98,6 +98,7 @@ export function useOrderCustomerWorkflow({
   const loadMenuStore = usePosStore((state) => state.loadMenu);
   const resetMenu = usePosStore((state) => state.resetMenu);
   const loadProductItem = usePosStore((state) => state.loadProductItem);
+  const prefetchProductItem = usePosStore((state) => state.prefetchProductItem);
   const createOrder = usePosStore((state) => state.createOrder);
   const initOrderWithoutTable = usePosStore((state) => state.initOrderWithoutTable);
   const setTable = usePosStore((state) => state.setTable);
@@ -418,6 +419,22 @@ export function useOrderCustomerWorkflow({
       setProductSheetOpen(true);
     },
     [activeSort],
+  );
+
+  const prefetchProduct = useCallback(
+    async (entry: ProductCardEntry) => {
+      if (getProductBlockedState(entry.product, activeSort)) return;
+      try {
+        await prefetchProductItem({
+          lang: language,
+          prodUuid: entry.product.prodUuid,
+        });
+      } catch {
+        // Prefetch is best-effort. The actual click keeps the existing error
+        // handling and offline fallback, so warming a card never shows a toast.
+      }
+    },
+    [activeSort, language, prefetchProductItem],
   );
 
   const openOrAddProduct = useCallback(
@@ -1104,6 +1121,7 @@ export function useOrderCustomerWorkflow({
     newOrderFocusKey,
     note,
     openOrAddProduct,
+    prefetchProduct,
     openCartSheet,
     openTablesPage,
     draftExitCleanupPending,

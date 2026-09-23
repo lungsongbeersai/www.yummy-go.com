@@ -4,6 +4,7 @@ import {
   confirmToKitchen,
   fetchCart,
   fetchCateProducts,
+  getProdItem,
   getPosTables,
   reprintReceipt,
   splitBill,
@@ -11,6 +12,7 @@ import {
   type CateWithProducts,
   type ConfirmToKitchenResponse,
   type FetchCartResponse,
+  type ProdItem,
   type PosZone,
   type ReprintReceiptResponse,
   type SplitBillResponse
@@ -34,6 +36,7 @@ vi.mock("@/services/pos", async (importOriginal) => {
     confirmToKitchen: vi.fn(),
     fetchCart: vi.fn(),
     fetchCateProducts: vi.fn(),
+    getProdItem: vi.fn(),
     getPosTables: vi.fn(),
     reprintReceipt: vi.fn(),
     splitBill: vi.fn()
@@ -43,6 +46,7 @@ vi.mock("@/services/pos", async (importOriginal) => {
 const confirmToKitchenMock = vi.mocked(confirmToKitchen);
 const fetchCartMock = vi.mocked(fetchCart);
 const fetchCateProductsMock = vi.mocked(fetchCateProducts);
+const getProdItemMock = vi.mocked(getProdItem);
 const getPosTablesMock = vi.mocked(getPosTables);
 const reprintReceiptMock = vi.mocked(reprintReceipt);
 const splitBillMock = vi.mocked(splitBill);
@@ -705,5 +709,64 @@ describe("POS store cart requests", () => {
     await staleLoad;
 
     expect(usePosStore.getState().cart).toEqual([{ order_uuid: "order-fresh" }]);
+  });
+});
+
+describe("POS product item request cache", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    usePosStore.getState().reset();
+  });
+
+  it("deduplicates an in-flight detail request and reuses the short-lived result", async () => {
+    const productResponse = deferred<ProdItem>();
+    const product: ProdItem = {
+      prodUuid: "product-1",
+      prodName: "Noodles",
+      prodImage: "",
+      prodStatusImge: 1,
+      details: [],
+      toppings: [],
+    };
+    getProdItemMock.mockReturnValueOnce(productResponse.promise);
+
+    const load = usePosStore.getState().loadProductItem({
+      prodUuid: "product-1",
+      lang: "en",
+    });
+    const prefetch = usePosStore.getState().prefetchProductItem({
+      prodUuid: "product-1",
+      lang: "en",
+    });
+
+    expect(getProdItemMock).toHaveBeenCalledOnce();
+    productResponse.resolve(product);
+    await expect(Promise.all([load, prefetch])).resolves.toEqual([product, product]);
+
+    await expect(
+      usePosStore.getState().loadProductItem({
+        prodUuid: "product-1",
+        lang: "en",
+      }),
+    ).resolves.toEqual(product);
+    expect(getProdItemMock).toHaveBeenCalledOnce();
+  });
+
+  it("clears cached details on a menu reset", async () => {
+    const product: ProdItem = {
+      prodUuid: "product-1",
+      prodName: "Noodles",
+      prodImage: "",
+      prodStatusImge: 1,
+      details: [],
+      toppings: [],
+    };
+    getProdItemMock.mockResolvedValue(product);
+
+    await usePosStore.getState().loadProductItem({ prodUuid: "product-1", lang: "en" });
+    usePosStore.getState().resetMenu();
+    await usePosStore.getState().loadProductItem({ prodUuid: "product-1", lang: "en" });
+
+    expect(getProdItemMock).toHaveBeenCalledTimes(2);
   });
 });

@@ -243,6 +243,7 @@ export function SelectedTableCartPanelContent({
                   canSplitItem={workflow.canSplitItem}
                   splitSelectionDisabled={!workflow.canSelectSplitItems}
                   splitSelectedItemUuids={workflow.splitSelectedItemUuids}
+                  quantityOverrides={workflow.quantityOverrides}
                   updatingItemUuid={workflow.updatingItemUuid}
                   onChangeQty={workflow.changeCartItemQty}
                   onConfirmKitchen={workflow.confirmSingleItemToKitchen}
@@ -267,6 +268,7 @@ export function SelectedTableCartPanelContent({
                       canMutateItem={workflow.canMutateItem}
                       canItemDiscount={workflow.canManageDiscounts}
                       items={workflow.newOrderDisplayItems}
+                      quantityOverrides={workflow.quantityOverrides}
                       updatingItemUuid={workflow.updatingItemUuid}
                       onChangeQty={workflow.changeCartItemQty}
                       onConfirmKitchen={workflow.confirmSingleItemToKitchen}
@@ -289,6 +291,7 @@ export function SelectedTableCartPanelContent({
                       canSplitItem={workflow.canSplitItem}
                       splitSelectionDisabled={!workflow.canSelectSplitItems}
                       splitSelectedItemUuids={workflow.splitSelectedItemUuids}
+                      quantityOverrides={workflow.quantityOverrides}
                       updatingItemUuid={workflow.updatingItemUuid}
                       onChangeQty={workflow.changeCartItemQty}
                       onConfirmKitchen={workflow.confirmSingleItemToKitchen}

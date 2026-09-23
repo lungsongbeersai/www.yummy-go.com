@@ -67,6 +67,65 @@ const inFlightTableFetches = new Map<string, Promise<PosZone[]>>();
 let lastLoadedTableScopeKey = "";
 let posTableFetchVersion = 0;
 
+const PRODUCT_ITEM_CACHE_TTL_MS = 30_000;
+const PRODUCT_ITEM_CACHE_MAX_ENTRIES = 100;
+type ProductItemCacheEntry = {
+  expiresAt: number;
+  value: ProdItem;
+};
+
+const productItemCache = new Map<string, ProductItemCacheEntry>();
+const inFlightProductItemFetches = new Map<string, Promise<ProdItem>>();
+let productItemCacheVersion = 0;
+
+function productItemCacheKey(params: GetProdItemParams) {
+  return `${textValue(params.lang).toLowerCase()}|${textValue(params.prodUuid)}`;
+}
+
+function clearProductItemCache() {
+  productItemCacheVersion += 1;
+  productItemCache.clear();
+  inFlightProductItemFetches.clear();
+}
+
+function cacheProductItem(key: string, value: ProdItem) {
+  if (productItemCache.size >= PRODUCT_ITEM_CACHE_MAX_ENTRIES) {
+    const oldestKey = productItemCache.keys().next().value;
+    if (oldestKey) productItemCache.delete(oldestKey);
+  }
+  productItemCache.set(key, {
+    expiresAt: Date.now() + PRODUCT_ITEM_CACHE_TTL_MS,
+    value,
+  });
+}
+
+function fetchProductItem(params: GetProdItemParams) {
+  const key = productItemCacheKey(params);
+  const cached = productItemCache.get(key);
+  if (cached && cached.expiresAt > Date.now()) return Promise.resolve(cached.value);
+  if (cached) productItemCache.delete(key);
+
+  const activeRequest = inFlightProductItemFetches.get(key);
+  if (activeRequest) return activeRequest;
+
+  const requestCacheVersion = productItemCacheVersion;
+  const request = posService.getProdItem(params).then((result) => {
+    if (requestCacheVersion === productItemCacheVersion) {
+      cacheProductItem(key, result);
+    }
+    return result;
+  });
+  inFlightProductItemFetches.set(key, request);
+
+  const clearPendingRequest = () => {
+    if (inFlightProductItemFetches.get(key) === request) {
+      inFlightProductItemFetches.delete(key);
+    }
+  };
+  void request.then(clearPendingRequest, clearPendingRequest);
+  return request;
+}
+
 function tableScopeKey(params: FetchPosParams) {
   return [
     textValue(params.branch_uuid_fk),
@@ -174,6 +233,7 @@ interface PosState {
   }) => Promise<PosMenuBySort>;
   loadProducts: (params: FetchCateProductsParams) => Promise<CateProductItem[]>;
   loadProductItem: (params: GetProdItemParams) => Promise<ProdItem>;
+  prefetchProductItem: (params: GetProdItemParams) => Promise<ProdItem>;
   loadCart: (
     params: FetchCartParams,
     options?: { background?: boolean },
@@ -241,6 +301,7 @@ export const usePosStore = create<PosState>((set, get) => ({
   setActiveSort: (activeSort) => set({ activeSort }),
   resetMenu: () => {
     posMenuLifecycleVersion += 1;
+    clearProductItemCache();
     set(initialPosMenuState());
   },
   setCart: (cart) => set({ cart }),
@@ -363,6 +424,7 @@ export const usePosStore = create<PosState>((set, get) => ({
       return emptyPosMenuBySort();
     }
 
+    if (refreshCategories) clearProductItemCache();
     if (!background) set({ loadingMenu: true, error: null });
     try {
       let nextCateUuid = textValue(cateUuid);
@@ -450,10 +512,11 @@ export const usePosStore = create<PosState>((set, get) => ({
   },
   loadProductItem: async (params) => {
     const isCurrentSession = createSessionGuard();
-    const selectedProduct = await posService.getProdItem(params);
+    const selectedProduct = await fetchProductItem(params);
     if (isCurrentSession()) set({ selectedProduct });
     return selectedProduct;
   },
+  prefetchProductItem: (params) => fetchProductItem(params),
   loadCart: async (params, options) => {
     const isCurrentSession = createSessionGuard();
     const requestVersion = ++posCartFetchVersion;
@@ -475,6 +538,7 @@ export const usePosStore = create<PosState>((set, get) => ({
     set({ saving: true, error: null });
     try {
       const result = await posService.createOrder(input);
+      clearProductItemCache();
       if (isCurrentSession()) set({ saving: false });
       return result;
     } catch (error) {
@@ -493,7 +557,11 @@ export const usePosStore = create<PosState>((set, get) => ({
       throw error;
     }
   },
-  updateQty: (input) => posService.updateOrderItemQty(input),
+  updateQty: async (input) => {
+    const result = await posService.updateOrderItemQty(input);
+    clearProductItemCache();
+    return result;
+  },
   applyItemDiscount: (input) => posService.applyItemDiscount(input),
   applyBillDiscount: (input) => posService.applyBillDiscount(input),
   deleteItem: (orderItemUuid) => posService.deleteOrderItem(orderItemUuid),
@@ -678,6 +746,7 @@ export const usePosStore = create<PosState>((set, get) => ({
     posTableFetchVersion += 1;
     lastLoadedTableScopeKey = "";
     inFlightTableFetches.clear();
+    clearProductItemCache();
     set({
       zones: [],
       zoneOptions: [],
