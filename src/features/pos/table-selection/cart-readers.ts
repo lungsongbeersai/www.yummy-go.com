@@ -288,20 +288,6 @@ export function isDraftOwnedBy(item: CartItem, userUuid: string) {
   );
 }
 
-export function cartItemDetailActionAccess(
-  item: CartItem,
-  canManageDiscounts: boolean,
-) {
-  const hasActionUuid = Boolean(cartItemActionUuid(item));
-
-  // Draft ownership remains relevant to quantity changes and draft removal,
-  // but note/discount edits are permission-based actions on the open bill.
-  return {
-    canEditNote: hasActionUuid,
-    canApplyDiscount: hasActionUuid && canManageDiscounts,
-  };
-}
-
 export function isOrderHistoryCartItem(item: CartItem) {
   const status = cartItemStatus(item);
   return status === null || (status !== 0 && status !== 1);

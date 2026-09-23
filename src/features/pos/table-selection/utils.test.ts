@@ -5,7 +5,6 @@ import {
   billDiscountButtonValue,
   buildCustomerDisplayPayload,
   canPayFullBill,
-  cartItemDetailActionAccess,
   cartDisplaySummary,
   cartForTable,
   cartItemBaseUnitPrice,
@@ -287,25 +286,6 @@ describe("table selection utils", () => {
       orderUuid: "order-1",
       itemUuids: ["own-draft", "other-draft", "customer-order"],
     }]);
-  });
-
-  it("allows permission-based note and discount edits for another creator's item", () => {
-    const item = {
-      order_it_uuid: "other-draft",
-      detail: {
-        order_it_status: 1,
-        order_it_created_by: "login-2",
-      },
-    } as CartItem;
-
-    expect(cartItemDetailActionAccess(item, true)).toEqual({
-      canEditNote: true,
-      canApplyDiscount: true,
-    });
-    expect(cartItemDetailActionAccess(item, false)).toEqual({
-      canEditNote: true,
-      canApplyDiscount: false,
-    });
   });
 
   it("counts cart quantity from order totals and item quantities", () => {
