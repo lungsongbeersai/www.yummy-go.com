@@ -251,6 +251,7 @@ export const printInvoice = (params: PrintInvoiceRequest) =>
     data: {
       login_uuid_fk: params.login_uuid_fk,
       order_uuid: params.order_uuid,
+      operation_uuid: params.operation_uuid,
       lang: toApiLanguage(params.lang),
       document_type: params.document_type ?? "invoice",
       device_code: params.device_code,

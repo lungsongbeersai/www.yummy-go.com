@@ -346,6 +346,7 @@ describe("pos requests", () => {
     await printInvoice({
       login_uuid_fk: "login-1",
       order_uuid: "order-1",
+      operation_uuid: "77777777-7777-4777-8777-777777777777",
       lang: "la",
       document_type: "invoice",
       device_code: "device-1",
@@ -358,6 +359,7 @@ describe("pos requests", () => {
       data: {
         login_uuid_fk: "login-1",
         order_uuid: "order-1",
+        operation_uuid: "77777777-7777-4777-8777-777777777777",
         lang: "la",
         document_type: "invoice",
         device_code: "device-1",

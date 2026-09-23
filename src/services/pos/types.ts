@@ -1209,6 +1209,7 @@ export interface CleanupDraftOrderItemsResponse extends ApiEntity {
 
 export interface PrintInvoiceRequest extends ApiEntity {
   order_uuid: string;
+  operation_uuid: string;
   login_uuid_fk: string;
   lang?: string;
   document_type?: "invoice";

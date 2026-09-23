@@ -670,6 +670,7 @@ export function usePaymentDialogWorkflow({
           } satisfies SplitBillInput)
         : await printInvoice({
             order_uuid: orderUuid,
+            operation_uuid: createMutationUuid(),
             lang: toApiLanguage(language),
             login_uuid_fk: user.uuid,
           });
