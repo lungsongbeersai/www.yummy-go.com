@@ -523,7 +523,11 @@ describe("printer service dispatch", () => {
     expect(progressPhases).toEqual(["fetching", "printing", "printing", "done"]);
     expect(axiosMocks.post).toHaveBeenCalledWith(
       "http://127.0.0.1:7777/print-ops-batch",
-      { cut_mode: "per_ticket", jobs: [job, secondJob] },
+      expect.objectContaining({
+        cut_mode: "per_ticket",
+        jobs: [job, secondJob],
+        progress_id: expect.any(String),
+      }),
       expect.objectContaining({ timeout: 75000 })
     );
     expect(ackPayloads).toEqual([
@@ -933,6 +937,111 @@ describe("printer service dispatch", () => {
       failedCount: 0,
       phase: "done",
     });
+  });
+
+  it("reports each delivered Agent ticket before the desktop batch completes", async () => {
+    const firstJob = windowsPrintJob();
+    const secondJob = windowsPrintJob({
+      job_id: "kitchen-order-1-item-2",
+      print_job_item_uuid: "item-2",
+    });
+    const progressUpdates: PrintProgress[] = [];
+    let releaseBatch: (() => void) | undefined;
+
+    axiosMocks.get.mockImplementation(async (url: string) => {
+      if (url.endsWith("/agent/info")) {
+        return {
+          data: {
+            agent_id: "agent-1",
+            agent_name: "Local",
+            device_code: "device-1",
+          },
+        };
+      }
+      if (url.endsWith("/print-ops-batch-progress")) {
+        return {
+          data: {
+            ok: true,
+            total: 2,
+            completed: 1,
+            status: "printing",
+          },
+        };
+      }
+      throw new Error(`Unexpected Agent request ${url}`);
+    });
+    axiosMocks.post.mockImplementation(
+      () => new Promise((resolve) => {
+        releaseBatch = () => resolve({ data: { ok: true } });
+      }),
+    );
+    apiMocks.apiRequest.mockImplementation(async (method, url) => {
+      if (method === "get" && url === "/api/v1/printer/jobs/pending") {
+        return {
+          print_batch_payloads: [{
+            cut_mode: "per_ticket",
+            agent_id: "agent-1",
+            device_code: "device-1",
+            print_mode: "windows_agent",
+            print_client: "agent",
+            interface_value: "win:USB/ONLY(XP-80)",
+            print_config_uuid: "51a34c43-f256-4074-84eb-44c9d7668a47",
+            print_job_item_uuids: ["item-1", "item-2"],
+            job_total: 2,
+            jobs: [firstJob, secondJob],
+          }],
+        };
+      }
+      throw new Error(`Unexpected request ${method} ${url}`);
+    });
+
+    const execution = executeKitchenPrintJobs({
+      pending_query: {
+        print_job_uuid: "kitchen-desktop-progress",
+        login_uuid_fk: "login-1",
+        device_code: "device-1",
+        agent_id: "agent-1",
+        print_mode: "windows_agent",
+      },
+      onProgress: (progress) => progressUpdates.push(progress),
+    });
+
+    await vi.waitFor(() => {
+      expect(progressUpdates).toContainEqual({
+        total: 2,
+        completed: 1,
+        successCount: 1,
+        failedCount: 0,
+        phase: "printing",
+      });
+    });
+    expect(progressUpdates.some((progress) => progress.phase === "done")).toBe(false);
+
+    releaseBatch?.();
+    await expect(execution).resolves.toEqual({
+      successCount: 2,
+      failedCount: 0,
+      total: 2,
+    });
+    expect(progressUpdates.at(-1)).toEqual({
+      total: 2,
+      completed: 2,
+      successCount: 2,
+      failedCount: 0,
+      phase: "done",
+    });
+
+    const batchPayload = axiosMocks.post.mock.calls[0]?.[1] as {
+      progress_id?: string;
+    };
+    expect(batchPayload.progress_id).toMatch(/^[a-zA-Z0-9_-]{8,128}$/);
+    expect(axiosMocks.get).toHaveBeenCalledWith(
+      "http://127.0.0.1:7777/print-ops-batch-progress",
+      expect.objectContaining({
+        params: { progress_id: batchPayload.progress_id },
+        timeout: 2000,
+      }),
+    );
   });
 
   it("prints a shared Windows Agent TCP batch directly from native mobile", async () => {

@@ -56,6 +56,7 @@ export type {
   PrintJob,
   PrintOpsAgentResponse,
   PrintOpsBatchAgentResponse,
+  PrintOpsBatchProgressAgentResponse,
   PrintOpsBatchPayload,
   PrintProgress,
   Printer,

@@ -468,12 +468,14 @@ function pendingUncertainItemTotal(result: PendingPrintJobsResult) {
 async function printKitchenBatchJob(
   batch: PrintOpsBatchPayload,
   localAgent: AgentInfo,
+  onProgress?: (completed: number, total: number) => void,
 ) {
   if (!batch.jobs.length) return;
   await printBatchWithLocalAgent(
     batch.jobs,
     localAgent,
-    textValue(batch.cut_mode) || "per_ticket"
+    textValue(batch.cut_mode) || "per_ticket",
+    onProgress,
   );
 }
 
@@ -712,6 +714,9 @@ async function executePrintJobs(
     const outcomes: BatchPrintOutcome[] = [];
     let successCount = 0;
     let failedCount = 0;
+    const deliveredByBatch = batchPayloads.map(() => 0);
+    let reportedDeliveredTotal = 0;
+    let reportedFailedCount = 0;
     let hasPendingDelivery = false;
     let lastErrorMessage: string | undefined;
     let localAgentPromise: Promise<AgentInfo> | null = remoteRelayAgent
@@ -734,17 +739,44 @@ async function executePrintJobs(
     });
 
     const batchOutcomes = await Promise.all(
-      batchPayloads.map((batch) => {
+      batchPayloads.map((batch, batchIndex) => {
         const ledgerKey = deliveryLedgerKey(jobUuid, batch);
         const stored = options.idempotent ? readStoredDelivery(ledgerKey) : null;
         const mobileBatch = isMobilePrintBatch(batch);
         const printConfigUuid = textValue(
           batch.print_config_uuid || batch.jobs?.[0]?.print_config_uuid
         );
+        const reportDeliveredTickets = (completed: number) => {
+          const batchTotal = printBatchJobTotal(batch);
+          deliveredByBatch[batchIndex] = Math.min(
+            batchTotal,
+            Math.max(deliveredByBatch[batchIndex], completed),
+          );
+          const deliveredTotal = deliveredByBatch.reduce(
+            (sum, delivered) => sum + delivered,
+            0,
+          );
+          if (
+            deliveredTotal === reportedDeliveredTotal &&
+            failedCount === reportedFailedCount
+          ) {
+            return;
+          }
+          reportedDeliveredTotal = deliveredTotal;
+          reportedFailedCount = failedCount;
+          input.onProgress?.({
+            total,
+            completed: deliveredTotal + failedCount,
+            successCount: deliveredTotal,
+            failedCount,
+            phase: "printing",
+          });
+        };
         const reportOutcome = (outcome: BatchPrintOutcome) => {
           const batchTotal = printBatchJobTotal(batch);
           if (outcome.success) {
             successCount += batchTotal;
+            reportDeliveredTickets(batchTotal);
           } else if (outcome.deliveryState === "unknown") {
             // เริ่มส่งข้อมูลแล้วแต่ผลปลายทางไม่ชัดเจน สถานะที่ถูกต้องคือรอยืนยัน
             // ไม่ใช่แจ้งว่าล้มเหลว ทั้งที่กระดาษอาจพิมพ์ออกแล้ว
@@ -755,15 +787,9 @@ async function executePrintJobs(
             lastErrorMessage = outcome.errorMessage || lastErrorMessage;
           }
 
-          // Mobile Wi-Fi batches are queued one ticket at a time. Emit as soon
-          // as each physical round settles instead of waiting for every round.
-          input.onProgress?.({
-            total,
-            completed: successCount + failedCount,
-            successCount,
-            failedCount,
-            phase: "printing",
-          });
+          // Emit the final batch state for transports that have no earlier
+          // per-ticket signal; live Agent/mobile updates are deduplicated.
+          reportDeliveredTickets(deliveredByBatch[batchIndex]);
           return outcome;
         };
 
@@ -803,7 +829,11 @@ async function executePrintJobs(
                 options.requireCompletionConfirmation === true,
               );
             } else {
-              await printKitchenBatchJob(batch, await sharedLocalAgent());
+              await printKitchenBatchJob(
+                batch,
+                await sharedLocalAgent(),
+                input.onProgress ? reportDeliveredTickets : undefined,
+              );
             }
 
             if (options.idempotent) {

@@ -303,6 +303,14 @@ export interface PrintOpsBatchAgentResponse extends ApiEntity {
   error?: string;
   message?: string;
 }
+export interface PrintOpsBatchProgressAgentResponse extends ApiEntity {
+  ok: boolean;
+  progress_id?: string;
+  total?: number;
+  completed?: number;
+  status?: "queued" | "rendering" | "printing" | "done" | "failed";
+  error?: string;
+}
 export interface BuildTestJobResponse extends ApiEntity { data: { printer: ApiEntity; job: PrintJob; routing_warning?: string | null; cash_drawer_enabled?: boolean } }
 export interface MobileEscposRenderResponse extends ApiEntity {
   data?: {
