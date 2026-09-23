@@ -258,8 +258,33 @@ export function useSalesListPage(initialPagination: UrlPaginationState) {
         }
       });
 
+      if (printResult.failedCount > 0) {
+        if (printStarted && !isCapacitorNativeApp()) {
+          await openReceiptPrintWindow(
+            buildFallbackReceiptData(group, user),
+            printResult.errorMessage ?? "",
+          );
+          return;
+        }
+
+        showToast({
+          title: t("salesList.reprintReceiptFailed"),
+          description: printResult.errorMessage,
+          tone: "error"
+        });
+        return;
+      }
+
+      if (printResult.pending) {
+        showToast({
+          title: t("orderQueue.kitchenPrintQueued"),
+          tone: "info",
+        });
+        return;
+      }
+
       if (printResult.successCount > 0 && printResult.failedCount === 0) {
-        showToast({ title: t("salesList.reprintReceiptSuccess"), tone: "success" });
+        showToast({ title: t("common.printSuccess"), tone: "success" });
         return;
       }
 
@@ -272,12 +297,10 @@ export function useSalesListPage(initialPagination: UrlPaginationState) {
         return;
       }
 
-      if (printResult.failedCount > 0 && printStarted && !isCapacitorNativeApp()) {
-        await openReceiptPrintWindow(buildFallbackReceiptData(group, user), "");
-        return;
-      }
-
-      showToast({ title: t("salesList.reprintReceiptFailed"), tone: "error" });
+      showToast({
+        title: t("salesList.reprintReceiptFailed"),
+        tone: "error"
+      });
     } catch (printError) {
       showToast({
         title: t("salesList.reprintReceiptFailed"),
@@ -289,7 +312,10 @@ export function useSalesListPage(initialPagination: UrlPaginationState) {
     }
   }
 
-  async function openReceiptPrintWindow(data: InvoicePrintData, description: string) {
+  async function openReceiptPrintWindow(
+    data: InvoicePrintData,
+    description: string,
+  ) {
     const opened = await openLocalInvoicePrintWindow(data);
     if (opened) {
       showToast({

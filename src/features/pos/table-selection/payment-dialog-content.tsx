@@ -15,6 +15,7 @@ import {
   X,
 } from "lucide-react";
 import { useTranslation } from "react-i18next";
+import { PrintLoadingDialog } from "@/components/common/print-loading-dialog";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -962,6 +963,7 @@ export function PaymentDialogContent({
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+      <PrintLoadingDialog open={invoicePrinting} />
     </>
   );
 }

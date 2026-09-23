@@ -5,6 +5,7 @@ import Image from "next/image";
 import QRCode from "qrcode";
 import { Copy, Download, ExternalLink, Minus, Plus, Printer, QrCode as QrCodeIcon } from "lucide-react";
 import { useTranslation } from "react-i18next";
+import { PrintLoadingDialog } from "@/components/common/print-loading-dialog";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
@@ -192,7 +193,11 @@ export function BranchMenuQrDialog({
       showToast({
         title: t("pos.printQr"),
         description: t("pos.systemPrinterUnavailable"),
-        tone: "info",
+        tone: "error",
+        action: {
+          label: t("actions.tryAgain"),
+          onClick: () => void printQr(),
+        },
       });
       return false;
     }
@@ -202,6 +207,10 @@ export function BranchMenuQrDialog({
         title: t("pos.printQr"),
         description: t("pos.invoicePrintPopupBlocked"),
         tone: "error",
+        action: {
+          label: t("actions.tryAgain"),
+          onClick: () => void printQr(),
+        },
       });
       return false;
     }
@@ -266,12 +275,16 @@ export function BranchMenuQrDialog({
                 title: t("pos.printQr"),
                 description: t("pos.invoicePrintPopupBlocked"),
                 tone: "error",
+                action: {
+                  label: t("actions.tryAgain"),
+                  onClick: () => void printQr(),
+                },
               });
             }
             return;
           }
 
-          showToast({ title: t("pos.printQr"), tone: "success" });
+          showToast({ title: t("common.printSuccess"), tone: "success" });
         } catch (error) {
           if (canOpenBrowserWindow) {
             const opened = await openFallbackPrintWindow();
@@ -287,6 +300,10 @@ export function BranchMenuQrDialog({
               title: t("pos.printQr"),
               description: error instanceof Error ? error.message : t("pos.invoicePrintPopupBlocked"),
               tone: "error",
+              action: {
+                label: t("actions.tryAgain"),
+                onClick: () => void printQr(),
+              },
             });
           }
         }
@@ -300,8 +317,9 @@ export function BranchMenuQrDialog({
   }
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-h-[calc(100dvh-2rem-env(safe-area-inset-top,0px)-env(safe-area-inset-bottom,0px))] gap-0 overflow-hidden p-0 duration-200 sm:max-w-130">
+    <>
+      <Dialog open={open} onOpenChange={onOpenChange}>
+        <DialogContent className="max-h-[calc(100dvh-2rem-env(safe-area-inset-top,0px)-env(safe-area-inset-bottom,0px))] gap-0 overflow-hidden p-0 duration-200 sm:max-w-130">
         <DialogHeader className="px-5 pb-3 pt-5 pr-12">
           <DialogTitle className="text-xl font-black leading-6">{t("pos.createBranchMenuQr")}</DialogTitle>
           <DialogDescription>{t("pos.branchMenuQrDescription")}</DialogDescription>
@@ -387,8 +405,10 @@ export function BranchMenuQrDialog({
             </div>
           </TooltipProvider>
         </DialogFooter>
-      </DialogContent>
-    </Dialog>
+        </DialogContent>
+      </Dialog>
+      <PrintLoadingDialog open={printing} />
+    </>
   );
 }
 

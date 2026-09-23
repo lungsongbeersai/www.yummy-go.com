@@ -241,9 +241,9 @@ export function usePrinterPage() {
         lang: language,
       });
       showToast({
-        title: t("printer.testSent"),
+        title: t("common.printSuccess"),
         // The page printed, but real orders may still route elsewhere.
-        description: routingWarning || "",
+        description: routingWarning || t("printer.testSent"),
         tone: routingWarning ? "warning" : "success",
       });
     } catch (error) {
@@ -251,6 +251,10 @@ export function usePrinterPage() {
         title: t("printer.testFailed"),
         description: error instanceof Error ? error.message : "",
         tone: "error",
+        action: {
+          label: t("actions.tryAgain"),
+          onClick: () => void testPrinter(row),
+        },
       });
     } finally {
       setTestingUuid("");

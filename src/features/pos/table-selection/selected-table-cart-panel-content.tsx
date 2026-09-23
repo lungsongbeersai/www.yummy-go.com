@@ -4,6 +4,7 @@ import dynamic from "next/dynamic";
 import { ReceiptText } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { ConfirmDialog } from "@/components/common/confirm-dialog";
+import { PrintLoadingDialog } from "@/components/common/print-loading-dialog";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardFooter, CardHeader } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
@@ -549,6 +550,7 @@ export function SelectedTableCartPanelContent({
         onSubmit={() => void workflow.saveBillDiscount()}
       />
       <ConfirmAllLoadingDialog progress={workflow.confirmAllProgress} />
+      <PrintLoadingDialog open={Boolean(workflow.printingItemUuid)} />
     </Card>
   );
 }

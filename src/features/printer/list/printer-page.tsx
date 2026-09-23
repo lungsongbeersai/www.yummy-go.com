@@ -34,6 +34,7 @@ import { Spinner } from "@/components/ui/spinner";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { ConfirmDialog } from "@/components/common/confirm-dialog";
 import { EmptyState } from "@/components/common/empty-state";
+import { PrintLoadingDialog } from "@/components/common/print-loading-dialog";
 import { SearchInput } from "@/components/common/search-input";
 import { LoadingState } from "@/components/common/loading-state";
 import { useOfflineReadOnly } from "@/hooks/use-offline-read-only";
@@ -462,6 +463,7 @@ export function PrinterPage() {
           if (!nextOpen) printer.setDeleteTarget(null);
         }}
       />
+      <PrintLoadingDialog open={Boolean(printer.testingUuid)} />
     </div>
   );
 }

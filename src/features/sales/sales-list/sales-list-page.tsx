@@ -1,6 +1,7 @@
 "use client";
 
 import { useTranslation } from "react-i18next";
+import { PrintLoadingDialog } from "@/components/common/print-loading-dialog";
 import { LoadingState } from "@/components/common/loading-state";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import type { UrlPaginationState } from "@/lib/url-pagination";
@@ -119,6 +120,7 @@ export function SalesListPage({ initialPagination }: { initialPagination: UrlPag
         onOpenChange={page.setMobileDetailOpen}
         onReprint={(group) => void page.reprintReceipt(group)}
       />
+      <PrintLoadingDialog open={Boolean(page.printingBillId)} />
     </div>
   );
 }

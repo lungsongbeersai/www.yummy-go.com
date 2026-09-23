@@ -632,7 +632,10 @@ export function usePaymentDialogWorkflow({
 
       if (printResult.failedCount > 0) {
         if (invoicePrintData) {
-          await showInvoicePrintFallback(invoicePrintData, t("pos.receiptPrintFailed"));
+          await showInvoicePrintFallback(
+            invoicePrintData,
+            t("pos.receiptPrintFailed"),
+          );
           return;
         }
 
@@ -736,24 +739,7 @@ export function usePaymentDialogWorkflow({
         return;
       }
 
-      try {
-        const printResult = await executeInvoice({
-          print_job: response.print_job,
-          pending_query: response.pending_query,
-          login_uuid_fk: user.uuid,
-        });
-        if (printResult.failedCount > 0) {
-          await showInvoicePrintFallback(invoicePrintData, t("pos.invoicePrintFailed"));
-          return;
-        }
-
-        showToast({ title: t("pos.invoicePrintSent"), tone: "success" });
-      } catch (error) {
-        await showInvoicePrintFallback(
-          invoicePrintData,
-          error instanceof Error ? error.message : "",
-        );
-      }
+      await executePreparedInvoice(response, invoicePrintData, user.uuid);
     } catch (error) {
       await showInvoicePrintFallback(
         invoicePrintData,
@@ -764,15 +750,76 @@ export function usePaymentDialogWorkflow({
     }
   }
 
+  async function executePreparedInvoice(
+    response: PaymentResponse | SplitBillResponse,
+    data: InvoicePrintData,
+    loginUuid: string,
+  ) {
+    const retry = () => void executePreparedInvoice(response, data, loginUuid);
+    setInvoicePrinting(true);
+
+    try {
+      const printResult = await executeInvoice({
+        print_job: response.print_job,
+        pending_query: response.pending_query,
+        login_uuid_fk: loginUuid,
+      });
+      if (printResult.failedCount > 0) {
+        await showInvoicePrintFallback(
+          data,
+          printResult.errorMessage || t("pos.invoicePrintFailed"),
+          retry,
+        );
+        return;
+      }
+
+      if (printResult.pending) {
+        showToast({
+          title: t("orderQueue.kitchenPrintQueued"),
+          tone: "info",
+        });
+        return;
+      }
+
+      if (printResult.successCount > 0) {
+        showToast({ title: t("common.printSuccess"), tone: "success" });
+        return;
+      }
+
+      await showInvoicePrintFallback(
+        data,
+        t("pos.invoicePrintFailed"),
+        retry,
+      );
+    } catch (error) {
+      await showInvoicePrintFallback(
+        data,
+        error instanceof Error ? error.message : "",
+        retry,
+      );
+    } finally {
+      setInvoicePrinting(false);
+    }
+  }
+
   async function showInvoicePrintFallback(
     data: InvoicePrintData,
     description: string,
+    retry?: () => void,
   ) {
     if (!canUseWindowOpen()) {
       showToast({
         title: t("pos.invoicePrintFailed"),
         description: t("pos.invoicePrintPopupBlocked"),
         tone: "error",
+        ...(retry
+          ? {
+              action: {
+                label: t("actions.tryAgain"),
+                onClick: retry,
+              },
+            }
+          : {}),
       });
       return;
     }
@@ -781,7 +828,15 @@ export function usePaymentDialogWorkflow({
       showToast({
         title: t("pos.invoicePrintFailed"),
         description: t("pos.systemPrinterUnavailable"),
-        tone: "info",
+        tone: retry ? "error" : "info",
+        ...(retry
+          ? {
+              action: {
+                label: t("actions.tryAgain"),
+                onClick: retry,
+              },
+            }
+          : {}),
       });
       return;
     }
@@ -800,6 +855,14 @@ export function usePaymentDialogWorkflow({
       title: t("pos.invoicePrintFailed"),
       description: t("pos.invoicePrintPopupBlocked"),
       tone: "error",
+      ...(retry
+        ? {
+            action: {
+              label: t("actions.tryAgain"),
+              onClick: retry,
+            },
+          }
+        : {}),
     });
   }
 

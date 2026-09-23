@@ -187,6 +187,7 @@ export function useSelectedTableCartPanelWorkflow({
   const [itemActionTarget, setItemActionTarget] =
     useState<CartItemActionTarget | null>(null);
   const [actingItemUuid, setActingItemUuid] = useState<string | null>(null);
+  const [printingItemUuid, setPrintingItemUuid] = useState<string | null>(null);
   const [noteTarget, setNoteTarget] = useState<CartItem | null>(null);
   const [noteDraft, setNoteDraft] = useState("");
   const [quantityTarget, setQuantityTarget] = useState<CartItem | null>(null);
@@ -928,14 +929,14 @@ export function useSelectedTableCartPanelWorkflow({
   ) {
     if (result.failedCount > 0) {
       showToast({
-        title: t("pos.reprintKitchen"),
+        title: t("pos.reprintKitchenFailed"),
         description: [
           `${t("report.printFailed")} ${result.failedCount}/${result.total || result.failedCount}`,
           result.errorMessage,
         ]
           .filter(Boolean)
           .join(" — "),
-        tone: "warning",
+        tone: "error",
       });
       return;
     }
@@ -949,14 +950,14 @@ export function useSelectedTableCartPanelWorkflow({
     // ไม่ใช่ error ทางเทคนิค แต่ก็ไม่ได้พิมพ์อะไรจริง ใช้ message ของ backend เอง
     if ((response.reprint_summary?.no_printer_total ?? 0) > 0) {
       showToast({
-        title: t("pos.reprintKitchen"),
+        title: t("pos.reprintKitchenFailed"),
         description: response.message,
-        tone: "warning",
+        tone: "error",
       });
       return;
     }
 
-    showToast({ title: t("pos.reprintKitchen"), tone: "success" });
+    showToast({ title: t("common.printSuccess"), tone: "success" });
   }
 
   async function reprintSingleItemToKitchen(item: CartItem) {
@@ -965,6 +966,7 @@ export function useSelectedTableCartPanelWorkflow({
     if (!user?.uuid || !orderUuid || !itemUuid || cartActionsLocked) return;
 
     setActingItemUuid(itemUuid);
+    setPrintingItemUuid(itemUuid);
     try {
       const response = await reconfirmKitchen({
         order_uuid: orderUuid,
@@ -984,6 +986,7 @@ export function useSelectedTableCartPanelWorkflow({
       });
     } finally {
       setActingItemUuid(null);
+      setPrintingItemUuid(null);
     }
   }
 
@@ -1398,6 +1401,7 @@ export function useSelectedTableCartPanelWorkflow({
     openTableActions,
     openTableQr,
     paymentContext,
+    printingItemUuid,
     quantityPending,
     quantityOverrides,
     quantityTarget,
