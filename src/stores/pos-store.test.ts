@@ -193,12 +193,14 @@ describe("POS store session follow-up requests", () => {
 
     const result = await usePosStore.getState().reprintReceipt({
       order_uuid: "order-1",
+      operation_uuid: "88888888-8888-4888-8888-888888888888",
       login_uuid_fk: "login-1",
       lang: "la"
     });
 
     expect(reprintReceiptMock).toHaveBeenCalledWith({
       order_uuid: "order-1",
+      operation_uuid: "88888888-8888-4888-8888-888888888888",
       login_uuid_fk: "login-1",
       lang: "la",
       device_code: "local-device",
@@ -230,6 +232,7 @@ describe("POS store session follow-up requests", () => {
 
     await expect(usePosStore.getState().reprintReceipt({
       order_uuid: "order-1",
+      operation_uuid: "88888888-8888-4888-8888-888888888888",
       login_uuid_fk: "login-1"
     })).resolves.toBeNull();
   });
@@ -281,6 +284,7 @@ describe("POS store session follow-up requests", () => {
 
     const reprint = usePosStore.getState().reprintReceipt({
       order_uuid: "order-1",
+      operation_uuid: "88888888-8888-4888-8888-888888888888",
       login_uuid_fk: "login-1"
     });
     resetSessionStores();
@@ -313,6 +317,7 @@ describe("POS store session follow-up requests", () => {
 
     const reprint = usePosStore.getState().reprintReceipt({
       order_uuid: "order-1",
+      operation_uuid: "88888888-8888-4888-8888-888888888888",
       login_uuid_fk: "login-1"
     });
     await vi.waitFor(() => expect(reprintReceiptMock).toHaveBeenCalledOnce());

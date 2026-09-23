@@ -722,6 +722,7 @@ export const usePosStore = create<PosState>((set, get) => ({
 
     const response = await posService.reprintReceipt({
       order_uuid: params.order_uuid,
+      operation_uuid: params.operation_uuid,
       login_uuid_fk: params.login_uuid_fk,
       lang: params.lang,
       device_code: printer.device_code,

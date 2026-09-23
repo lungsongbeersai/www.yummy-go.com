@@ -11,6 +11,7 @@ import {
 } from "@/services/printer/invoice-print-window";
 import { useUrlPagination } from "@/hooks/use-url-pagination";
 import { isCapacitorNativeApp } from "@/lib/capacitor-platform";
+import { createMutationUuid } from "@/lib/pos/mutation-identity";
 import type { UrlPaginationState } from "@/lib/url-pagination";
 import type { CancelableBill, CancelableDateOption } from "@/services/cancel";
 import type { SortOrder } from "@/services/shared/types";
@@ -232,6 +233,7 @@ export function CancelSalePage({
     try {
       const pendingQuery = await requestReprintReceipt({
         order_uuid: orderUuid,
+        operation_uuid: createMutationUuid(),
         login_uuid_fk: user.uuid,
         lang: language
       });

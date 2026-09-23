@@ -376,6 +376,7 @@ describe("pos requests", () => {
 
     await reprintReceipt({
       order_uuid: "order-1",
+      operation_uuid: "88888888-8888-4888-8888-888888888888",
       login_uuid_fk: "login-1",
       lang: "en-US",
       device_code: "device-1",
@@ -386,6 +387,7 @@ describe("pos requests", () => {
     expect(apiMocks.apiRequest).toHaveBeenCalledWith("post", "/api/v1/posAll/reprint_receipt", {
       data: {
         order_uuid: "order-1",
+        operation_uuid: "88888888-8888-4888-8888-888888888888",
         login_uuid_fk: "login-1",
         lang: "eng",
         device_code: "device-1",

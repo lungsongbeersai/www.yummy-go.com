@@ -8,6 +8,7 @@ import { openLocalInvoicePrintWindow, type InvoicePrintData } from "@/services/p
 import { buildSalesListInvoicePrintData } from "@/features/sales/cancel-sale/cancel-sale-utils";
 import { useUrlPagination } from "@/hooks/use-url-pagination";
 import { isCapacitorNativeApp } from "@/lib/capacitor-platform";
+import { createMutationUuid } from "@/lib/pos/mutation-identity";
 import type { UrlPaginationState } from "@/lib/url-pagination";
 import { useAppStore } from "@/stores/app-store";
 import { authStoreUuid, useAuthStore, type AuthUser } from "@/stores/auth-store";
@@ -236,6 +237,7 @@ export function useSalesListPage(initialPagination: UrlPaginationState) {
     try {
       const pendingQuery = await requestReprintReceipt({
         order_uuid: orderUuid,
+        operation_uuid: createMutationUuid(),
         login_uuid_fk: user.uuid,
         lang: language
       });

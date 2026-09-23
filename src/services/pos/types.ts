@@ -1233,6 +1233,7 @@ export interface PrintInvoiceResponse extends ApiEntity {
 
 export interface ReprintReceiptRequest {
   order_uuid: string;
+  operation_uuid: string;
   login_uuid_fk: string;
   lang?: string;
   device_code?: string;

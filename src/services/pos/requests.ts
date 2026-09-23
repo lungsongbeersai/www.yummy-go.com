@@ -264,6 +264,7 @@ export const reprintReceipt = (params: ReprintReceiptRequest) =>
   apiRequest<ReprintReceiptResponse>("post", "/api/v1/posAll/reprint_receipt", {
     data: {
       order_uuid: params.order_uuid,
+      operation_uuid: params.operation_uuid,
       login_uuid_fk: params.login_uuid_fk,
       lang: toApiLanguage(params.lang),
       device_code: params.device_code,
