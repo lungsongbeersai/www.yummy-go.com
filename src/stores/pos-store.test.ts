@@ -432,6 +432,78 @@ describe("POS store menu and table browse state", () => {
     expect(usePosStore.getState().zoneOptions[0]?.tables[0]).toMatchObject({ customer_order_state: true });
   });
 
+  it("patches only the changed table status and preserves shared zone state", () => {
+    const unchangedTable = {
+      table_uuid: "table-2",
+      table_name: "T2",
+      table_status: 1,
+    };
+    const sharedZones = [{
+      ...zone("zone-1"),
+      tables: [
+        { table_uuid: "table-1", table_name: "T1", table_status: 1 },
+        unchangedTable,
+      ],
+    }];
+    usePosStore.setState({ zones: sharedZones, zoneOptions: sharedZones });
+
+    usePosStore.getState().updateTableStatus("table-1", 4);
+
+    const state = usePosStore.getState();
+    expect(state.zones).toBe(state.zoneOptions);
+    expect(state.zones[0]?.tables[0]?.table_status).toBe(4);
+    expect(state.zones[0]?.tables[1]).toBe(unchangedTable);
+  });
+
+  it("deduplicates matching table loads and lets the newest caller apply the result", async () => {
+    const response = deferred<Awaited<ReturnType<typeof getPosTables>>>();
+    getPosTablesMock.mockReturnValueOnce(response.promise);
+    const params = { branch_uuid_fk: "branch-1", zone_uuid: "", lang: "en" };
+
+    const load = usePosStore.getState().loadTables(params);
+    const refresh = usePosStore.getState().refreshTables(params);
+
+    expect(getPosTablesMock).toHaveBeenCalledOnce();
+    response.resolve({
+      status: "success",
+      message: "ok",
+      data: [zone("zone-1")],
+    });
+    await Promise.all([load, refresh]);
+
+    expect(usePosStore.getState()).toMatchObject({
+      loading: false,
+      zones: [zone("zone-1")],
+      zoneOptions: [zone("zone-1")],
+    });
+  });
+
+  it("keeps cached tables visible while the same scope revalidates", async () => {
+    const params = { branch_uuid_fk: "branch-1", zone_uuid: "", lang: "en" };
+    getPosTablesMock.mockResolvedValueOnce({
+      status: "success",
+      message: "ok",
+      data: [zone("cached-zone")],
+    });
+    await usePosStore.getState().loadTables(params);
+
+    const response = deferred<Awaited<ReturnType<typeof getPosTables>>>();
+    getPosTablesMock.mockReturnValueOnce(response.promise);
+    const revalidation = usePosStore.getState().loadTables(params);
+
+    expect(usePosStore.getState()).toMatchObject({
+      loading: false,
+      zones: [zone("cached-zone")],
+    });
+    response.resolve({
+      status: "success",
+      message: "ok",
+      data: [zone("fresh-zone")],
+    });
+    await revalidation;
+    expect(usePosStore.getState().zones).toEqual([zone("fresh-zone")]);
+  });
+
   it("drops full-zone results returned after a session reset", async () => {
     const response = deferred<Awaited<ReturnType<typeof getPosTables>>>();
     getPosTablesMock.mockReturnValueOnce(response.promise);

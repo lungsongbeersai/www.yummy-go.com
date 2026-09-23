@@ -57,14 +57,37 @@ import {
   firstPosMenuStatusWithProducts,
   nextPosMenuCategoryUuid,
   updateZonesTableOrderState,
+  updateZonesTableStatus,
   type PosMenuBySort
 } from "@/stores/pos-store/helpers";
 import { createSessionGuard, registerSessionStoreReset } from "@/stores/session-store-registry";
 import { errorMessage } from "@/stores/store-utils";
 
-async function fetchTables(params: FetchPosParams) {
-  const result = await posService.getPosTables(params);
-  return result.data ?? [];
+const inFlightTableFetches = new Map<string, Promise<PosZone[]>>();
+let lastLoadedTableScopeKey = "";
+let posTableFetchVersion = 0;
+
+function tableScopeKey(params: FetchPosParams) {
+  return [
+    textValue(params.branch_uuid_fk),
+    textValue(params.zone_uuid),
+    textValue(params.lang).toLowerCase(),
+  ].join("|");
+}
+
+function fetchTables(params: FetchPosParams) {
+  const key = tableScopeKey(params);
+  const activeRequest = inFlightTableFetches.get(key);
+  if (activeRequest) return activeRequest;
+
+  const request = posService
+    .getPosTables(params)
+    .then((result) => result.data ?? [])
+    .finally(() => {
+      if (inFlightTableFetches.get(key) === request) inFlightTableFetches.delete(key);
+    });
+  inFlightTableFetches.set(key, request);
+  return request;
 }
 
 function textValue(value: unknown) {
@@ -135,6 +158,7 @@ interface PosState {
   beginKitchenConfirmation: () => void;
   endKitchenConfirmation: () => void;
   updateTableCustomerOrderState: (tableUuid: string, customerOrderState: boolean) => void;
+  updateTableStatus: (tableUuid: string, tableStatus: number) => void;
   loadTables: (params: FetchPosParams) => Promise<PosZone[]>;
   refreshTables: (params: FetchPosParams) => Promise<PosZone[]>;
   loadProductCategories: (params: FetchCateProductsParams) => Promise<FetchCateProductsResponse>;
@@ -236,16 +260,38 @@ export const usePosStore = create<PosState>((set, get) => ({
   // ไม่งั้น badge ระดับโซนที่ต้องอ่านจาก zoneOptions จะไม่เห็นออเดอร์ใหม่ของ
   // โซนอื่นที่ไม่ได้เลือกดูอยู่
   updateTableCustomerOrderState: (tableUuid, customerOrderState) =>
-    set((state) => ({
-      zones: updateZonesTableOrderState(state.zones, tableUuid, customerOrderState),
-      zoneOptions: updateZonesTableOrderState(state.zoneOptions, tableUuid, customerOrderState)
-    })),
+    set((state) => {
+      const zones = updateZonesTableOrderState(state.zones, tableUuid, customerOrderState);
+      return {
+        zones,
+        zoneOptions:
+          state.zoneOptions === state.zones
+            ? zones
+            : updateZonesTableOrderState(state.zoneOptions, tableUuid, customerOrderState),
+      };
+    }),
+  updateTableStatus: (tableUuid, tableStatus) =>
+    set((state) => {
+      const zones = updateZonesTableStatus(state.zones, tableUuid, tableStatus);
+      return {
+        zones,
+        zoneOptions:
+          state.zoneOptions === state.zones
+            ? zones
+            : updateZonesTableStatus(state.zoneOptions, tableUuid, tableStatus),
+      };
+    }),
   loadTables: async (params) => {
     const isCurrentSession = createSessionGuard();
-    set({ loading: true, error: null });
+    const requestVersion = ++posTableFetchVersion;
+    const scopeKey = tableScopeKey(params);
+    const canKeepCurrentTables =
+      lastLoadedTableScopeKey === scopeKey && get().zones.length > 0;
+    set({ loading: !canKeepCurrentTables, error: null });
     try {
       const zones = await fetchTables(params);
-      if (isCurrentSession()) {
+      if (isCurrentSession() && requestVersion === posTableFetchVersion) {
+        lastLoadedTableScopeKey = scopeKey;
         set({
           zones,
           ...(!params.zone_uuid ? { zoneOptions: zones } : {}),
@@ -254,23 +300,31 @@ export const usePosStore = create<PosState>((set, get) => ({
       }
       return zones;
     } catch (error) {
-      if (isCurrentSession()) set({ error: errorMessage(error), loading: false });
+      if (isCurrentSession() && requestVersion === posTableFetchVersion) {
+        set({ error: errorMessage(error), loading: false });
+      }
       throw error;
     }
   },
   refreshTables: async (params) => {
     const isCurrentSession = createSessionGuard();
+    const requestVersion = ++posTableFetchVersion;
+    const scopeKey = tableScopeKey(params);
     try {
       const zones = await fetchTables(params);
-      if (isCurrentSession()) {
+      if (isCurrentSession() && requestVersion === posTableFetchVersion) {
+        lastLoadedTableScopeKey = scopeKey;
         set({
           zones,
-          ...(!params.zone_uuid ? { zoneOptions: zones } : {})
+          ...(!params.zone_uuid ? { zoneOptions: zones } : {}),
+          loading: false,
         });
       }
       return zones;
     } catch (error) {
-      if (isCurrentSession()) set({ error: errorMessage(error) });
+      if (isCurrentSession() && requestVersion === posTableFetchVersion) {
+        set({ error: errorMessage(error) });
+      }
       throw error;
     }
   },
@@ -621,6 +675,9 @@ export const usePosStore = create<PosState>((set, get) => ({
   setOrderHistory: (orders) => set({ orderHistory: posService.cartOrdersToHistory(orders) }),
   reset: () => {
     posMenuLifecycleVersion += 1;
+    posTableFetchVersion += 1;
+    lastLoadedTableScopeKey = "";
+    inFlightTableFetches.clear();
     set({
       zones: [],
       zoneOptions: [],

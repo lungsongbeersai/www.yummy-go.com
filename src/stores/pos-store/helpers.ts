@@ -75,3 +75,23 @@ export function updateZonesTableOrderState(zones: PosZone[], tableUuid: string, 
 
   return changed ? nextZones : zones;
 }
+
+export function updateZonesTableStatus(zones: PosZone[], tableUuid: string, tableStatus: number) {
+  let changed = false;
+
+  const nextZones = zones.map((zone) => {
+    let zoneChanged = false;
+    const nextTables = (zone.tables ?? []).map((table) => {
+      if (table.table_uuid !== tableUuid) return table;
+      if (Number(table.table_status) === tableStatus) return table;
+
+      changed = true;
+      zoneChanged = true;
+      return { ...table, table_status: tableStatus };
+    });
+
+    return zoneChanged ? { ...zone, tables: nextTables } : zone;
+  });
+
+  return changed ? nextZones : zones;
+}

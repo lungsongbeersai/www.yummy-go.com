@@ -481,6 +481,21 @@ describe("project refactor guards", () => {
     expect(missingFallback).toEqual([]);
   });
 
+  it("keeps realtime transport resilient across desktop and mobile networks", () => {
+    const socket = readFileSync(join(srcDir, "lib/socket.ts"), "utf8");
+    const tableAlerts = readFileSync(
+      join(srcDir, "features/pos/table-selection/hooks/use-table-alerts.ts"),
+      "utf8",
+    );
+
+    expect(socket).toContain('transports: ["websocket", "polling"]');
+    expect(socket).toContain("tryAllTransports: true");
+    expect(socket).toContain("reconnectionAttempts: Infinity");
+    expect(socket).toContain("leaveBranch: \"leave_branch\"");
+    expect(tableAlerts).toContain("subscribeTableStatusChanges");
+    expect(tableAlerts).not.toContain("subscribeOrderQueueChanged");
+  });
+
   it("keeps deprecated Next Image priority props out of source", () => {
     expect(matchesInFiles(srcDir, /\bpriority(?:\s*=|\s*>)/g)).toEqual([]);
   });

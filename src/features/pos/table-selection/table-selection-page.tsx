@@ -33,6 +33,7 @@ export function TableSelectionPage() {
   const loading = usePosStore((state) => state.loading);
   const loadTables = usePosStore((state) => state.loadTables);
   const refreshTables = usePosStore((state) => state.refreshTables);
+  const updateTableStatus = usePosStore((state) => state.updateTableStatus);
   const showToast = useToastStore((state) => state.show);
   const nativeShellActive = useIsNativeShellActive();
   const setHeaderRefreshAction = useNativeHeaderStore((state) => state.setRefreshAction);
@@ -58,7 +59,8 @@ export function TableSelectionPage() {
   useTableAlerts({
     branchUuid: user?.branch_uuid,
     language,
-    refreshTables
+    refreshTables,
+    updateTableStatus,
   });
 
   // ร้านไม่มีโต๊ะ (store_table_status === 2) ข้ามหน้าเลือกโต๊ะไปเลย —
