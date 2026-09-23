@@ -616,24 +616,122 @@ async function executePrintJobs(
     // งานครัว: backend/agent จัดการคิวพิมพ์และยืนยันสถานะออเดอร์เองทั้งหมด
     // เมนูที่ไม่มี config เครื่องพิมพ์ backend รายงานเป็น failed_before_print แต่ยังยืนยันออเดอร์ให้ตามปกติ
     // จึงไม่ใช่ความล้มเหลวฝั่ง client ส่วนเอกสารยังต้องแจ้ง cashier ว่าพิมพ์ไม่ออก
+    const failedBeforePrintTotal = pendingFailedBeforePrintTotal(pendingResult);
     const failedCount = options.kitchenSemantics
       ? 0
-      : pendingFailedBeforePrintTotal(pendingResult);
+      : failedBeforePrintTotal;
+    if (failedBeforePrintTotal > 0) {
+      input.onProgress?.({
+        total: failedCount,
+        completed: failedCount,
+        successCount: 0,
+        failedCount,
+        phase: "done",
+      });
+
+      return {
+        successCount: 0,
+        failedCount,
+        total: failedCount,
+        ...(failedCount > 0
+          ? { errorMessage: pendingFailedBeforePrintReason(pendingResult) }
+          : {}),
+      };
+    }
+
+    const requestedStatus = textValue(
+      pendingResult.printSummary.requested_job_status,
+    ).toLowerCase();
+    const requestedTotal = Math.max(
+      0,
+      Number(pendingResult.printSummary.requested_job_total ?? 0),
+    );
+    const requestedSuccessTotal = Math.max(
+      0,
+      Number(pendingResult.printSummary.requested_job_success_total ?? 0),
+    );
+    const requestedFailedTotal = Math.max(
+      0,
+      Number(pendingResult.printSummary.requested_job_failed_total ?? 0),
+    );
+
+    // Another shared-owner browser may win the socket race and ACK this exact
+    // job before the requester fetches it. Empty pending payloads then mean
+    // "already printed", not "failed". The stable print_job_uuid keeps this
+    // result tied to the current print round.
+    if (requestedStatus === "success") {
+      const successCount = Math.max(
+        1,
+        requestedSuccessTotal,
+        requestedTotal,
+      );
+      input.onProgress?.({
+        total: successCount,
+        completed: successCount,
+        successCount,
+        failedCount: 0,
+        phase: "done",
+      });
+      return {
+        successCount,
+        failedCount: 0,
+        total: successCount,
+      };
+    }
+
+    const terminalPartialFailure =
+      requestedStatus === "partial" &&
+      requestedTotal > 0 &&
+      requestedSuccessTotal + requestedFailedTotal >= requestedTotal;
+    if (requestedStatus === "failed" || terminalPartialFailure) {
+      const terminalFailedCount = Math.max(
+        1,
+        requestedFailedTotal,
+        requestedTotal - requestedSuccessTotal,
+      );
+      input.onProgress?.({
+        total: Math.max(requestedTotal, terminalFailedCount),
+        completed: Math.max(requestedTotal, terminalFailedCount),
+        successCount: requestedSuccessTotal,
+        failedCount: terminalFailedCount,
+        phase: "done",
+      });
+      return {
+        successCount: requestedSuccessTotal,
+        failedCount: terminalFailedCount,
+        total: Math.max(requestedTotal, terminalFailedCount),
+      };
+    }
+
+    if (requestedStatus === "pending" || requestedStatus === "partial") {
+      const total = Math.max(1, requestedTotal);
+      input.onProgress?.({
+        total,
+        completed: requestedSuccessTotal + requestedFailedTotal,
+        successCount: requestedSuccessTotal,
+        failedCount: requestedFailedTotal,
+        phase: "done",
+      });
+      return {
+        successCount: requestedSuccessTotal,
+        failedCount: requestedFailedTotal,
+        total,
+        pending: true,
+      };
+    }
+
     input.onProgress?.({
-      total: failedCount,
-      completed: failedCount,
+      total: 0,
+      completed: 0,
       successCount: 0,
-      failedCount,
+      failedCount: 0,
       phase: "done",
     });
 
     return {
       successCount: 0,
-      failedCount,
-      total: failedCount,
-      ...(failedCount > 0
-        ? { errorMessage: pendingFailedBeforePrintReason(pendingResult) }
-        : {}),
+      failedCount: 0,
+      total: 0,
     };
   }
 

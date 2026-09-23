@@ -1231,6 +1231,78 @@ describe("printer service dispatch", () => {
     );
   });
 
+  it("reports success when another shared worker already printed the requested document job", async () => {
+    const progressPhases: string[] = [];
+    apiMocks.apiRequest.mockImplementation(async (method, url) => {
+      if (method === "get" && url === "/api/v1/printer/jobs/pending") {
+        return {
+          print_batch_payloads: [],
+          print_summary: {
+            requested_job_found: true,
+            requested_job_status: "success",
+            requested_job_total: 1,
+            requested_job_success_total: 1,
+            requested_job_failed_total: 0,
+          },
+        };
+      }
+      throw new Error(`Unexpected request ${method} ${url}`);
+    });
+
+    await expect(
+      executeInvoicePrintJobs({
+        pending_query: {
+          print_job_uuid: "invoice-job-already-printed",
+          login_uuid_fk: "login-1",
+          device_code: "owner-device",
+          agent_id: "owner-agent",
+          print_mode: "windows_agent",
+        },
+        onProgress: ({ phase }) => progressPhases.push(phase),
+      }),
+    ).resolves.toEqual({ successCount: 1, failedCount: 0, total: 1 });
+
+    expect(progressPhases).toEqual(["fetching", "done"]);
+    expect(axiosMocks.post).not.toHaveBeenCalled();
+  });
+
+  it("keeps a requested document job pending while another worker is printing it", async () => {
+    apiMocks.apiRequest.mockImplementation(async (method, url) => {
+      if (method === "get" && url === "/api/v1/printer/jobs/pending") {
+        return {
+          print_batch_payloads: [],
+          print_summary: {
+            requested_job_found: true,
+            requested_job_status: "pending",
+            requested_job_total: 1,
+            requested_job_success_total: 0,
+            requested_job_failed_total: 0,
+          },
+        };
+      }
+      throw new Error(`Unexpected request ${method} ${url}`);
+    });
+
+    await expect(
+      executeInvoicePrintJobs({
+        pending_query: {
+          print_job_uuid: "invoice-job-printing-elsewhere",
+          login_uuid_fk: "login-1",
+          device_code: "owner-device",
+          agent_id: "owner-agent",
+          print_mode: "windows_agent",
+        },
+      }),
+    ).resolves.toEqual({
+      successCount: 0,
+      failedCount: 0,
+      total: 1,
+      pending: true,
+    });
+
+    expect(axiosMocks.post).not.toHaveBeenCalled();
+  });
+
   it("acks kitchen items that cannot print without counting them as failures", async () => {
     // เมนูไม่มี config เครื่องพิมพ์ (can_print: false) — ack ให้ backend ปิดงาน แต่ไม่ใช่ความล้มเหลวฝั่ง client
     const ackPayloads: AckPayload[] = [];

@@ -41,6 +41,11 @@ export interface PendingPrintJobsFullResponse extends ApiEntity {
 export interface PrintSummary extends ApiEntity {
   failed_before_print_total?: number;
   has_uncertain_delivery?: boolean;
+  requested_job_failed_total?: number;
+  requested_job_found?: boolean;
+  requested_job_status?: string | null;
+  requested_job_success_total?: number;
+  requested_job_total?: number;
   uncertain_item_total?: number;
 }
 export interface PrinterCategory extends ApiEntity {
