@@ -222,6 +222,7 @@
     "menuLoading": "Loading navigation",
     "menuUnavailable": "Navigation is unavailable",
     "openMenu": "Open menu",
+    "toggleSidebar": "Toggle sidebar",
     "posWorkspace": "POS workspace",
     "publicMenu": "Public menu",
     "refreshApp": "Refresh app",
@@ -239,6 +240,12 @@
       "title": "Appearance",
       "colorLabel": "Accent color",
       "fontSizeLabel": "Text size",
+      "modeLabel": "Mode",
+      "languageLabel": "Language",
+      "modes": {
+        "light": "Light",
+        "dark": "Dark"
+      },
       "colors": {
         "emerald": "Emerald (default)",
         "blue": "Blue",

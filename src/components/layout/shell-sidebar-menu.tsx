@@ -1,10 +1,9 @@
 "use client";
 
-import { Fragment } from "react";
+import { Fragment, type ReactNode } from "react";
 import Link from "next/link";
 import { useTranslation } from "react-i18next";
 import {
-  ChevronDown,
   ChevronRight,
   Lock,
   PanelLeftClose,
@@ -31,6 +30,7 @@ import {
   SidebarGroup,
   SidebarGroupContent,
   SidebarGroupLabel,
+  SidebarHeader,
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
@@ -53,6 +53,8 @@ import type { MenuItem } from "@/config/menu";
 // copy โค้ดแล้วเผลอหลุด sync กันภายหลัง (ตามที่ขอ — ให้ Capacitor ดูเหมือนเดสก์ท็อป)
 export function AppSidebar({
   className,
+  header,
+  footer,
   error,
   loading,
   menuItems,
@@ -62,6 +64,10 @@ export function AppSidebar({
   toggleMenu,
 }: {
   className?: string;
+  // sidebar-07 slots (web shell): store identity on top, user menu at the bottom.
+  // Without a footer the sidebar keeps its own collapse button (Capacitor rail).
+  header?: ReactNode;
+  footer?: ReactNode;
   error: string | null;
   loading: boolean;
   menuItems: MenuItem[];
@@ -249,10 +255,10 @@ export function AppSidebar({
               {item.badgeText}
             </Badge>
           ) : null}
-          <ChevronDown
+          <ChevronRight
             className={cn(
-              "shrink-0 transition-transform",
-              open && "rotate-180",
+              "ml-auto shrink-0 transition-transform duration-200",
+              open && "rotate-90",
             )}
           />
         </SidebarMenuButton>
@@ -273,6 +279,7 @@ export function AppSidebar({
 
   return (
     <Sidebar collapsible="icon" className={className}>
+      {header ? <SidebarHeader>{header}</SidebarHeader> : null}
       <SidebarContent>
         <SidebarGroup>
           <SidebarGroupContent>
@@ -335,22 +342,26 @@ export function AppSidebar({
         </SidebarGroup>
       </SidebarContent>
 
-      <SidebarFooter className="hidden border-t border-sidebar-border md:flex">
-        <SidebarMenu>
-          <SidebarMenuItem>
-            <SidebarMenuButton
-              type="button"
-              tooltip={collapsed ? t("app.expandSidebar") : undefined}
-              onClick={() => setOpen(collapsed)}
-            >
-              {collapsed ? <PanelLeftOpen /> : <PanelLeftClose />}
-              <span>
-                {collapsed ? t("app.expandSidebar") : t("app.collapseSidebar")}
-              </span>
-            </SidebarMenuButton>
-          </SidebarMenuItem>
-        </SidebarMenu>
-      </SidebarFooter>
+      {footer ? (
+        <SidebarFooter>{footer}</SidebarFooter>
+      ) : (
+        <SidebarFooter className="hidden border-t border-sidebar-border md:flex">
+          <SidebarMenu>
+            <SidebarMenuItem>
+              <SidebarMenuButton
+                type="button"
+                tooltip={collapsed ? t("app.expandSidebar") : undefined}
+                onClick={() => setOpen(collapsed)}
+              >
+                {collapsed ? <PanelLeftOpen /> : <PanelLeftClose />}
+                <span>
+                  {collapsed ? t("app.expandSidebar") : t("app.collapseSidebar")}
+                </span>
+              </SidebarMenuButton>
+            </SidebarMenuItem>
+          </SidebarMenu>
+        </SidebarFooter>
+      )}
       <SidebarRail />
     </Sidebar>
   );

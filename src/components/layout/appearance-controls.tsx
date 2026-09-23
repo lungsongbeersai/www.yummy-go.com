@@ -17,7 +17,7 @@ import {
 // เว็บใช้ใน Popover แคบ ๆ (swatch เล็กพอ), Capacitor ต้องได้ touch target 48px ตาม Global Constraints
 export type AppearanceControlsSize = "compact" | "touch";
 
-// ตัวควบคุมสีธีม/ขนาดฟอนต์ชุดเดียวใช้ทั้ง FloatingSettingsButton (เว็บ) และ More sheet (Capacitor)
+// ตัวควบคุมสีธีม/ขนาดฟอนต์ชุดเดียวใช้ทั้ง DisplaySettingsMenu ใน header (เว็บ) และ More sheet (Capacitor)
 // ต่างกันแค่ขนาดปุ่ม — chrome รอบนอก (ปุ่มลากได้/หัวข้อ section) ยังเป็นของแต่ละฝั่ง
 export function AppearanceControls({
   idPrefix = "theme-color",

@@ -106,7 +106,7 @@
   --chart-5: oklch(0.448 0.119 151.328);
 }
 
-/* ธีมสี accent เลือกได้จากปุ่มลอยตั้งค่า (floating-settings-button) — ค่าเริ่มต้น
+/* ธีมสี accent เลือกได้จากเมนูตั้งค่าการแสดงผลใน header (display-settings-menu) — ค่าเริ่มต้น
    (ไม่ใส่ data-theme-color หรือ ="emerald") ใช้ --primary ของ :root/.dark เดิมตรงๆ
    (เป็นค่า emerald-700/800 ของ Tailwind อยู่แล้ว) ส่วน preset อื่นดึงจากชุดสี
    Tailwind จริง (700/800 ใน light, 500 เป็น sidebar chip ใน dark) ไม่ผสมสูตรเอง
@@ -206,7 +206,7 @@
   --sidebar-ring: #8b5cf6;
 }
 
-/* ขนาดตัวอักษรที่ปรับจากปุ่มลอยตั้งค่า — สเกล root font-size แล้วให้ Tailwind
+/* ขนาดตัวอักษรที่ปรับจากเมนูตั้งค่าการแสดงผล — สเกล root font-size แล้วให้ Tailwind
    ที่อิง rem ทั้งระบบขยาย/หดตามไปด้วยโดยไม่ต้องแก้ class ทีละจุด
    4 ขั้น อิง 16px = root font-size เริ่มต้นของเบราว์เซอร์ (md ไม่ต้องมี rule เพราะคือ 100% เดิม) */
 html[data-font-scale="sm"] {
@@ -1252,14 +1252,9 @@ html.theme-transition-active[data-theme-transition-direction="ltr"]::view-transi
   background: transparent;
 }
 
+/* Web shell header is sidebar-07's h-16 at every width; Capacitor overrides below. */
 .app-shell {
-  --app-shell-header-height: 78px;
-}
-
-@media (max-width: 767px) {
-  .app-shell {
-    --app-shell-header-height: 64px;
-  }
+  --app-shell-header-height: 4rem;
 }
 
 .app-shell-body {

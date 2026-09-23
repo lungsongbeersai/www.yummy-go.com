@@ -222,6 +222,7 @@
     "menuLoading": "ກຳລັງໂຫຼດເມນູ",
     "menuUnavailable": "ບໍ່ສາມາດໂຫຼດເມນູໄດ້",
     "openMenu": "ເປີດເມນູ",
+    "toggleSidebar": "ເປີດ/ປິດແຖບເມນູ",
     "posWorkspace": "ພື້ນທີ່ POS",
     "publicMenu": "ເມນູສາທາລະນະ",
     "refreshApp": "ໂຫຼດແອັບໃໝ່",
@@ -239,6 +240,12 @@
       "title": "ການສະແດງຜົນ",
       "colorLabel": "ສີຫຼັກ",
       "fontSizeLabel": "ຂະໜາດຕົວອັກສອນ",
+      "modeLabel": "ໂໝດສີ",
+      "languageLabel": "ພາສາ",
+      "modes": {
+        "light": "ສະຫວ່າງ",
+        "dark": "ມືດ"
+      },
       "colors": {
         "emerald": "ຂຽວມໍລະກົດ (ຄ່າເລີ່ມຕົ້ນ)",
         "blue": "ຟ້າ",

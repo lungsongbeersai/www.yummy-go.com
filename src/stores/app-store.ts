@@ -23,11 +23,6 @@ export const FONT_SCALE_PX: Record<FontScale, number> = {
   xl: 20,
 };
 
-export interface FloatingButtonPosition {
-  x: number;
-  y: number;
-}
-
 interface AppState {
   theme: ThemeMode;
   themeColor: ThemeColor;
@@ -36,7 +31,6 @@ interface AppState {
   sidebarOpen: boolean;
   collapsed: boolean;
   hydrated: boolean;
-  floatingButtonPosition: FloatingButtonPosition | null;
   setTheme: (theme: ThemeMode) => void;
   toggleTheme: () => void;
   setThemeColor: (themeColor: ThemeColor) => void;
@@ -46,7 +40,6 @@ interface AppState {
   setCollapsed: (collapsed: boolean) => void;
   toggleCollapsed: () => void;
   setHydrated: (hydrated: boolean) => void;
-  setFloatingButtonPosition: (position: FloatingButtonPosition | null) => void;
 }
 
 export const useAppStore = create<AppState>()(
@@ -59,7 +52,6 @@ export const useAppStore = create<AppState>()(
       sidebarOpen: false,
       collapsed: false,
       hydrated: false,
-      floatingButtonPosition: null,
       setTheme: (theme) => set({ theme }),
       toggleTheme: () => set({ theme: get().theme === "dark" ? "light" : "dark" }),
       setThemeColor: (themeColor) => set({ themeColor }),
@@ -68,18 +60,16 @@ export const useAppStore = create<AppState>()(
       setSidebarOpen: (sidebarOpen) => set({ sidebarOpen }),
       setCollapsed: (collapsed) => set({ collapsed }),
       toggleCollapsed: () => set({ collapsed: !get().collapsed }),
-      setHydrated: (hydrated) => set({ hydrated }),
-      setFloatingButtonPosition: (floatingButtonPosition) => set({ floatingButtonPosition })
+      setHydrated: (hydrated) => set({ hydrated })
     }),
     {
       name: "yummy-go-app",
-      partialize: ({ theme, themeColor, fontScale, language, collapsed, floatingButtonPosition }) => ({
+      partialize: ({ theme, themeColor, fontScale, language, collapsed }) => ({
         theme,
         themeColor,
         fontScale,
         language,
-        collapsed,
-        floatingButtonPosition
+        collapsed
       }),
       skipHydration: true,
       onRehydrateStorage: () => (state) => {
