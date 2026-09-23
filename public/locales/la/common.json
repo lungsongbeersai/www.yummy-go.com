@@ -1019,6 +1019,7 @@
     "paymentSuccess": "ຊຳລະເງິນສຳເລັດ",
     "paymentFailed": "ຊຳລະເງິນບໍ່ສຳເລັດ",
     "receiptPrintFailed": "ພິມໃບບິນບໍ່ສຳເລັດ",
+    "autoPrintRetryDescription": "ງານນີ້ຍັງຖືກກຳນົດໃຫ້ Printer Agent. ກວດສອບ Agent ແລະ ເຄື່ອງພິມ ແລ້ວລອງພິມງານເດີມອີກຄັ້ງ.",
     "printInvoice": "ພິມໃບຮຽກເກັບເງິນ",
     "invoicePrintTitle": "ໃບຮຽກເກັບເງິນ",
     "receiptPrintTitle": "ໃບຮັບເງິນ",

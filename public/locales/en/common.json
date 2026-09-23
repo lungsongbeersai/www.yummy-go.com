@@ -1017,6 +1017,7 @@
     "paymentSuccess": "Payment completed",
     "paymentFailed": "Payment failed",
     "receiptPrintFailed": "Receipt print failed",
+    "autoPrintRetryDescription": "This job remains assigned to Printer Agent. Check the Agent and printer, then retry the same job.",
     "printInvoice": "Print invoice",
     "invoicePrintTitle": "Invoice",
     "receiptPrintTitle": "Receipt",

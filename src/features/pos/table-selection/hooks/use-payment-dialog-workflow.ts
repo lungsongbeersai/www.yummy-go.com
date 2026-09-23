@@ -37,6 +37,7 @@ import { useReferenceStore } from "@/stores/reference-store";
 import { useToastStore } from "@/stores/toast-store";
 import { usePaymentCustomers } from "./use-payment-customers";
 import type { PaymentDialogProps } from "../payment-dialog-types";
+import { queuedDocumentPrintOutcome } from "../queued-document-print";
 import {
   cartOrdersBelongToTable,
   cartOrderInvoice,
@@ -74,7 +75,6 @@ import {
   tenderInputLak,
   tenderInputValue,
   tenderLabel,
-  withReceiptPrintLabels,
   type PaymentTab,
   type SplitTenderField,
   type TenderField,
@@ -602,63 +602,11 @@ export function usePaymentDialogWorkflow({
         : "");
     if (!pendingJobUuid) return;
 
-    const receiptInvoice = optionalString(
-      "new_order_invoice" in response ? response.new_order_invoice : null,
-      response.order_invoice,
-      invoice,
+    await executeQueuedInvoice(
+      response,
+      user?.uuid,
+      t("pos.receiptPrintFailed"),
     );
-    const invoicePrintData = user
-      ? withReceiptPrintLabels(
-          buildInvoicePrintData({
-            invoice: receiptInvoice,
-            orders,
-            qrUrl: branchQrUrl,
-            selectedCustomer: customers.selectedCustomerOption,
-            summary,
-            table,
-            translate: (key, options) => String(t(key, options)),
-            user,
-          }),
-          (key, options) => String(t(key, options)),
-        )
-      : null;
-
-    try {
-      const printResult = await executeInvoice({
-        print_job: response.print_job,
-        pending_query: response.pending_query,
-        login_uuid_fk: user?.uuid,
-      });
-
-      if (printResult.failedCount > 0) {
-        if (invoicePrintData) {
-          await showInvoicePrintFallback(
-            invoicePrintData,
-            t("pos.receiptPrintFailed"),
-          );
-          return;
-        }
-
-        showToast({
-          title: t("pos.receiptPrintFailed"),
-          tone: "info",
-        });
-      }
-    } catch (error) {
-      if (invoicePrintData) {
-        await showInvoicePrintFallback(
-          invoicePrintData,
-          error instanceof Error ? error.message : "",
-        );
-        return;
-      }
-
-      showToast({
-        title: t("pos.receiptPrintFailed"),
-        description: error instanceof Error ? error.message : "",
-        tone: "info",
-      });
-    }
   }
 
   async function handlePrintInvoice() {
@@ -739,7 +687,11 @@ export function usePaymentDialogWorkflow({
         return;
       }
 
-      await executePreparedInvoice(response, invoicePrintData, user.uuid);
+      await executeQueuedInvoice(
+        response,
+        user.uuid,
+        t("pos.invoicePrintFailed"),
+      );
     } catch (error) {
       await showInvoicePrintFallback(
         invoicePrintData,
@@ -750,12 +702,13 @@ export function usePaymentDialogWorkflow({
     }
   }
 
-  async function executePreparedInvoice(
+  async function executeQueuedInvoice(
     response: PaymentResponse | SplitBillResponse,
-    data: InvoicePrintData,
-    loginUuid: string,
+    loginUuid: string | undefined,
+    failureTitle: string,
   ) {
-    const retry = () => void executePreparedInvoice(response, data, loginUuid);
+    const retry = () =>
+      void executeQueuedInvoice(response, loginUuid, failureTitle);
     setInvoicePrinting(true);
 
     try {
@@ -764,16 +717,9 @@ export function usePaymentDialogWorkflow({
         pending_query: response.pending_query,
         login_uuid_fk: loginUuid,
       });
-      if (printResult.failedCount > 0) {
-        await showInvoicePrintFallback(
-          data,
-          printResult.errorMessage || t("pos.invoicePrintFailed"),
-          retry,
-        );
-        return;
-      }
+      const outcome = queuedDocumentPrintOutcome(printResult);
 
-      if (printResult.pending) {
+      if (outcome === "pending") {
         showToast({
           title: t("orderQueue.kitchenPrintQueued"),
           tone: "info",
@@ -781,19 +727,19 @@ export function usePaymentDialogWorkflow({
         return;
       }
 
-      if (printResult.successCount > 0) {
+      if (outcome === "success") {
         showToast({ title: t("common.printSuccess"), tone: "success" });
         return;
       }
 
-      await showInvoicePrintFallback(
-        data,
-        t("pos.invoicePrintFailed"),
+      showQueuedPrintError(
+        failureTitle,
+        printResult.errorMessage,
         retry,
       );
     } catch (error) {
-      await showInvoicePrintFallback(
-        data,
+      showQueuedPrintError(
+        failureTitle,
         error instanceof Error ? error.message : "",
         retry,
       );
@@ -802,24 +748,33 @@ export function usePaymentDialogWorkflow({
     }
   }
 
+  function showQueuedPrintError(
+    title: string,
+    description: string | undefined,
+    retry: () => void,
+  ) {
+    showToast({
+      title,
+      description: [description, t("pos.autoPrintRetryDescription")]
+        .filter(Boolean)
+        .join(" "),
+      tone: "error",
+      action: {
+        label: t("actions.tryAgain"),
+        onClick: retry,
+      },
+    });
+  }
+
   async function showInvoicePrintFallback(
     data: InvoicePrintData,
     description: string,
-    retry?: () => void,
   ) {
     if (!canUseWindowOpen()) {
       showToast({
         title: t("pos.invoicePrintFailed"),
         description: t("pos.invoicePrintPopupBlocked"),
         tone: "error",
-        ...(retry
-          ? {
-              action: {
-                label: t("actions.tryAgain"),
-                onClick: retry,
-              },
-            }
-          : {}),
       });
       return;
     }
@@ -828,15 +783,7 @@ export function usePaymentDialogWorkflow({
       showToast({
         title: t("pos.invoicePrintFailed"),
         description: t("pos.systemPrinterUnavailable"),
-        tone: retry ? "error" : "info",
-        ...(retry
-          ? {
-              action: {
-                label: t("actions.tryAgain"),
-                onClick: retry,
-              },
-            }
-          : {}),
+        tone: "info",
       });
       return;
     }
@@ -855,14 +802,6 @@ export function usePaymentDialogWorkflow({
       title: t("pos.invoicePrintFailed"),
       description: t("pos.invoicePrintPopupBlocked"),
       tone: "error",
-      ...(retry
-        ? {
-            action: {
-              label: t("actions.tryAgain"),
-              onClick: retry,
-            },
-          }
-        : {}),
     });
   }
 
