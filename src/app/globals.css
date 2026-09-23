@@ -2200,13 +2200,6 @@ html.theme-transition-active[data-theme-transition-direction="ltr"]::view-transi
   }
 }
 
-button,
-input,
-textarea,
-select {
-  font: inherit;
-}
-
 button:not(:disabled):not([aria-disabled="true"]),
 input[type="button"]:not(:disabled):not([aria-disabled="true"]),
 input[type="reset"]:not(:disabled):not([aria-disabled="true"]),

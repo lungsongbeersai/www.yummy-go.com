@@ -196,7 +196,7 @@ export function LoginClient() {
                     autoComplete="email"
                     spellCheck={false}
                     required
-                    className="login-input h-12 rounded-lg border-border bg-card px-4 text-sm font-semibold text-foreground shadow-sm outline-none transition placeholder:text-muted-foreground focus:border-primary focus:ring-4 focus:ring-primary/10 focus-visible:border-primary focus-visible:ring-4 focus-visible:ring-primary/10"
+                    className="login-input h-12 rounded-lg border-border bg-card px-4 text-base font-semibold md:text-sm text-foreground shadow-sm outline-none transition placeholder:text-muted-foreground focus:border-primary focus:ring-4 focus:ring-primary/10 focus-visible:border-primary focus-visible:ring-4 focus-visible:ring-primary/10"
                   />
                 </Field>
 
@@ -219,7 +219,7 @@ export function LoginClient() {
                       type={showPassword ? "text" : "password"}
                       autoComplete="current-password"
                       required
-                      className="login-input h-12 rounded-lg border-border bg-card px-4 pr-12 text-sm font-semibold text-foreground shadow-sm outline-none transition placeholder:text-muted-foreground focus:border-primary focus:ring-4 focus:ring-primary/10 focus-visible:border-primary focus-visible:ring-4 focus-visible:ring-primary/10"
+                      className="login-input h-12 rounded-lg border-border bg-card px-4 pr-12 text-base font-semibold md:text-sm text-foreground shadow-sm outline-none transition placeholder:text-muted-foreground focus:border-primary focus:ring-4 focus:ring-primary/10 focus-visible:border-primary focus-visible:ring-4 focus-visible:ring-primary/10"
                     />
 
                     <Button

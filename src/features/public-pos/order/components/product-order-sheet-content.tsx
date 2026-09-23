@@ -364,7 +364,7 @@ function ProductOrderForm({
                 disabled={saving}
                 onChange={(event) => onNoteChange(event.target.value)}
                 placeholder={t("pos.notePlaceholder")}
-                className="min-h-18 resize-none rounded-2xl border-yg-line bg-yg-panel text-sm text-yg-ink placeholder:text-yg-faint focus-visible:border-yg-accent-line focus-visible:ring-yg-accent/40"
+                className="min-h-18 resize-none rounded-2xl border-yg-line bg-yg-panel text-base text-yg-ink placeholder:text-yg-faint focus-visible:border-yg-accent-line focus-visible:ring-yg-accent/40"
               />
             </Field>
 
