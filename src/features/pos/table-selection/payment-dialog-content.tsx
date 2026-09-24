@@ -908,14 +908,14 @@ export function PaymentDialogContent({
         onOpenChange={(nextOpen) => !processing && setConfirmOpen(nextOpen)}
       >
         <AlertDialogContent className="max-h-[calc(100dvh-2rem)] w-[calc(100%-2rem)] max-w-lg gap-0 overflow-y-auto rounded-2xl p-0 shadow-2xl sm:max-w-xl">
-          <AlertDialogHeader className="place-items-center gap-2 border-b border-border bg-muted/25 px-5 py-6 text-center sm:place-items-center sm:px-8 sm:py-7 sm:text-center">
-            <div className="mb-1 flex size-12 items-center justify-center rounded-full bg-primary/10 text-primary sm:size-14">
+          <AlertDialogHeader className="w-full !place-items-center gap-2 border-b border-border bg-muted/25 px-5 py-6 !text-center sm:!place-items-center sm:px-8 sm:py-7 sm:!text-center">
+            <div className="mb-1 flex size-12 items-center justify-center justify-self-center rounded-full bg-primary/10 text-primary sm:size-14">
               <ReceiptText className="size-6 sm:size-7" aria-hidden="true" />
             </div>
-            <AlertDialogTitle className="text-xl font-black sm:text-2xl">
+            <AlertDialogTitle className="w-full text-center text-xl font-black sm:text-2xl">
               {t("pos.confirmPayment")}
             </AlertDialogTitle>
-            <AlertDialogDescription className="max-w-md text-sm leading-relaxed sm:text-base">
+            <AlertDialogDescription className="mx-auto w-full max-w-md text-center text-sm leading-relaxed sm:text-base">
               {t("pos.confirmPaymentDescription", {
                 amount: money(totalAmount),
               })}
