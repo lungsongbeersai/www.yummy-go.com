@@ -42,6 +42,8 @@ import {
 } from "./order-customer-product-card";
 import {
   ProductOptionsForm,
+  ProductOptionsMedia,
+  ProductOptionsSubtitle,
   ProductOptionsOverlay,
 } from "./order-customer-product-options";
 import type { OrderCustomerWorkflow } from "./use-order-customer-workflow";
@@ -539,7 +541,18 @@ export function OrderCustomerView({
             : ""
         }
         isMobile={isMobile}
+        media={selectedProduct ? <ProductOptionsMedia product={selectedProduct} /> : null}
         open={productSheetOpen}
+        subtitle={
+          selectedProduct && selectedDetail ? (
+            <ProductOptionsSubtitle
+              detail={selectedDetail}
+              mode={productMode}
+              product={selectedProduct}
+              unitPrice={modalUnitPrice}
+            />
+          ) : null
+        }
         title={selectedProduct?.prodName ?? t("pos.product")}
         onOpenChange={(nextOpen) => {
           if (saving) return;

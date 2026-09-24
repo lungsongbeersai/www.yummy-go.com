@@ -6,21 +6,17 @@ import { useTranslation } from "react-i18next";
 import { Lock } from "lucide-react";
 import { useShallow } from "zustand/react/shallow";
 import { Card, CardContent } from "@/components/ui/card";
-import { LoadingState } from "@/components/common/loading-state";
-import { Spinner } from "@/components/ui/spinner";
+import { Empty, EmptyHeader, EmptyTitle } from "@/components/ui/empty";
 import { menuGrantsPath } from "@/components/layout/shell-menu-helpers";
 import { useSidebarPermissionAccess } from "@/hooks/use-sidebar-permission-access";
-import { businessDateInputValue } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import {
+  DashboardAlerts,
   DashboardChartGridFallback,
   DashboardFilterBar,
-  DashboardFooter,
   DashboardHeader,
-  DashboardHeroStrip,
-  DashboardPaymentSummaryStrip,
-  // DashboardQueryBar,
-  ErrorBanner,
+  DashboardKpiGrid,
+  DashboardPageSkeleton,
   type DashboardCopy,
 } from "@/features/dashboard/overview/dashboard-widgets";
 import {
@@ -151,37 +147,19 @@ function filtersKey(filters: Pick<DashboardFilters, "end_date" | "start_date">) 
   return [filters.start_date, filters.end_date].join("|");
 }
 
-const DashboardRevenueAccountingGrid = dynamic(
-  () =>
-    import("./dashboard-chart-widgets").then(
-      (module) => module.DashboardRevenueAccountingGrid,
-    ),
-  {
-    loading: () => <DashboardChartGridFallback variant="revenue" />,
-    ssr: false,
-  },
+const DashboardSalesGrid = dynamic(
+  () => import("./dashboard-chart-widgets").then((module) => module.DashboardSalesGrid),
+  { loading: () => <DashboardChartGridFallback variant="sales" />, ssr: false },
 );
 
-const DashboardOperationsGrid = dynamic(
-  () =>
-    import("./dashboard-chart-widgets").then(
-      (module) => module.DashboardOperationsGrid,
-    ),
-  {
-    loading: () => <DashboardChartGridFallback variant="operations" />,
-    ssr: false,
-  },
+const DashboardProductsGrid = dynamic(
+  () => import("./dashboard-chart-widgets").then((module) => module.DashboardProductsGrid),
+  { loading: () => <DashboardChartGridFallback variant="products" />, ssr: false },
 );
 
-const DashboardProductsParetoGrid = dynamic(
-  () =>
-    import("./dashboard-chart-widgets").then(
-      (module) => module.DashboardProductsParetoGrid,
-    ),
-  {
-    loading: () => <DashboardChartGridFallback variant="products" />,
-    ssr: false,
-  },
+const DashboardHealthGrid = dynamic(
+  () => import("./dashboard-chart-widgets").then((module) => module.DashboardHealthGrid),
+  { loading: () => <DashboardChartGridFallback variant="health" />, ssr: false },
 );
 
 // Dashboard ("/") ก็เป็นแค่ MenuItem ตัวหนึ่งที่แอดมินให้สิทธิ์ได้เหมือนเมนูอื่น (ผ่านจัดการเมนู/
@@ -194,7 +172,7 @@ export function DashboardPage() {
   const { keyMatches, loading: permissionLoading, menuItems } = useSidebarPermissionAccess();
 
   if (permissionLoading) {
-    return <LoadingState label={t("common.loading")} variant="dashboard" />;
+    return <DashboardPageSkeleton label={t("common.loading")} />;
   }
 
   const permissionError = keyMatches ? sidebarError : null;
@@ -208,7 +186,7 @@ export function DashboardPage() {
 // เลี่ยง scroll เพิ่ม: /  (dashboardScreen) ไม่ได้ตัด overflow ไว้ให้แบบหน้าอื่น (ปกติ Dashboard
 // จริงยาวเกินจอได้ตามดีไซน์) ส่วนนี้เนื้อหามีแค่การ์ดข้อความสั้น ๆ จึงต้องกำหนดความสูงให้พอดี
 // กับพื้นที่ที่เหลือใต้ header เอง (คำนวณจาก --app-shell-header-height เดียวกับที่ AppShell ใช้)
-// ไม่ใช้ skeleton เต็มหน้าแบบ LoadingState variant="dashboard" เพราะสูงเกินพื้นที่ที่มีจริง
+// ไม่ใช้ skeleton เต็มหน้าแบบ DashboardPageSkeleton เพราะสูงเกินพื้นที่ที่มีจริง
 function DashboardAccessRestricted() {
   const { t } = useTranslation();
 
@@ -430,9 +408,13 @@ function DashboardPageContent() {
   useEffect(() => {
     const checkBusinessDay = () => {
       if (!isAutoTodayRef.current) return;
-      const today = businessDateInputValue(new Date());
-      if (appliedFilters.start_date === today && appliedFilters.end_date === today) return;
       const nextFilters = createDefaultFilters();
+      if (
+        appliedFilters.start_date === nextFilters.start_date &&
+        appliedFilters.end_date === nextFilters.end_date
+      ) {
+        return;
+      }
       setFilters(nextFilters);
       setAppliedFilters(nextFilters);
     };
@@ -461,107 +443,80 @@ function DashboardPageContent() {
   });
 
   if (loading && !data)
-    return <LoadingState label={t("common.loading")} variant="dashboard" />;
+    return <DashboardPageSkeleton label={t("common.loading")} />;
 
+  const errors = [branchError, error].filter(
+    (message, index, all): message is string => Boolean(message) && all.indexOf(message) === index,
+  );
+
+  // Reading order = priority: filters → the four headline KPIs → how sales moved and how
+  // they were paid → what sold and where → accounting detail and things to watch.
   return (
-    <div className="mx-auto flex w-full max-w-[1480px] flex-col gap-4 tabular-nums max-xl:max-w-full">
-      <DashboardHeader
+    <div className="flex flex-col gap-4 tabular-nums">
+      <DashboardHeader copy={copy} filtersMeta={model.filters} section={model.section} />
+      <DashboardFilterBar
+        activeBranchUuid={activeBranchUuid}
+        branchLoading={branchLoading}
+        branchOptions={branchOptions}
         copy={copy}
-        filtersMeta={model.filters}
-        section={model.section}
+        filters={filters}
+        loading={loading}
+        monthOptions={monthOptions}
+        onApply={handleApply}
+        onBranchChange={setSelectedBranch}
+        onFilterChange={handleFilterChange}
+        onPeriodMonthChange={handlePeriodMonthChange}
+        onPeriodTypeChange={handlePeriodTypeChange}
+        onPeriodYearChange={handlePeriodYearChange}
+        onReset={handleReset}
+        periodTypeOptions={periodTypeOptions}
+        yearOptions={yearOptions}
       />
-      <div className="lg:sticky lg:z-[35] lg:top-[calc(var(--app-shell-header-height)+0.75rem)]">
-        <DashboardFilterBar
-          activeBranchUuid={activeBranchUuid}
-          branchLoading={branchLoading}
-          branchOptions={branchOptions}
-          copy={copy}
-          filters={filters}
-          loading={loading}
-          monthOptions={monthOptions}
-          onApply={handleApply}
-          onBranchChange={setSelectedBranch}
-          onFilterChange={handleFilterChange}
-          onPeriodMonthChange={handlePeriodMonthChange}
-          onPeriodTypeChange={handlePeriodTypeChange}
-          onPeriodYearChange={handlePeriodYearChange}
-          onReset={handleReset}
-          periodTypeOptions={periodTypeOptions}
-          yearOptions={yearOptions}
-        />
-      </div>
-      {branchError ? <ErrorBanner message={branchError} /> : null}
-      {error && error !== branchError ? <ErrorBanner message={error} /> : null}
+      <DashboardAlerts copy={copy} errors={errors} warnings={model.warnings} />
 
       {!data && !loading ? (
         <Card>
-          <CardContent className="p-6 text-center text-sm text-muted-foreground">
-            {copy.noData}
+          <CardContent>
+            <Empty>
+              <EmptyHeader>
+                <EmptyTitle>{copy.noData}</EmptyTitle>
+              </EmptyHeader>
+            </Empty>
           </CardContent>
         </Card>
-      ) : null}
-
-      <div
-        aria-busy={loading}
-        className={cn(
-          "relative flex flex-col gap-4 transition-opacity",
-          loading && "pointer-events-none opacity-60",
-        )}
-      >
-        {loading ? (
-          <div className="pointer-events-none absolute inset-x-0 top-2 z-10 flex justify-center">
-            <span className="flex items-center gap-1.5 rounded-full border border-border bg-card px-3 py-1 text-xs font-medium text-muted-foreground shadow-sm">
-              <Spinner className="size-3.5" />
-              {t("common.loading")}
-            </span>
-          </div>
-        ) : null}
-        <DashboardPaymentSummaryStrip
-          cards={model.paymentSummaryCards}
-          copy={copy}
-          paymentSummary={model.paymentSummary}
-          warnings={model.warnings}
-        />
-        {/* <DashboardQueryBar activeBranchUuid={activeBranchUuid} copy={copy} requestParams={model.requestParams} /> */}
-        <DashboardHeroStrip
-          copy={copy}
-          kpis={model.kpis}
-          periodLabel={periodLabel}
-          section={model.section}
-          trendRows={model.trendRows}
-        />
-        <DashboardRevenueAccountingGrid
-          accountingRows={model.accountingRows}
-          copy={copy}
-          paymentRows={model.paymentRows}
-          paymentTrendRows={model.paymentTrendRows}
-          peakRevenueDay={model.peakRevenueDay}
-          trendRows={model.trendRows}
-        />
-        <DashboardOperationsGrid
-          channelRows={model.channelRows}
-          copy={copy}
-          highestRevenueProduct={model.highestRevenueProduct}
-          insights={model.insights}
-          mainOrderChannel={model.mainOrderChannel}
-          productSummary={productSummary}
-          tableSummary={model.tableSummary}
-        />
-        <DashboardProductsParetoGrid
-          copy={copy}
-          loading={loading}
-          products={model.productRows}
-          top={top}
-          topOptions={topOptions}
-          onTopChange={handleTopChange}
-        />
-      </div>
-      <DashboardFooter
-        activeBranchUuid={activeBranchUuid}
-        copy={copy}
-        filtersMeta={model.filters}
-        requestParams={model.requestParams}
-      />
+      ) : (
+        <div
+          aria-busy={loading}
+          className={cn("flex flex-col gap-4 transition-opacity", loading && "pointer-events-none opacity-60")}
+        >
+          <DashboardKpiGrid copy={copy} kpis={model.kpis} periodLabel={periodLabel} section={model.section} />
+          <DashboardSalesGrid
+            copy={copy}
+            paymentSummary={model.paymentSummary}
+            paymentSummaryCards={model.paymentSummaryCards}
+            peakRevenueDay={model.peakRevenueDay}
+            trendRows={model.trendRows}
+          />
+          <DashboardProductsGrid
+            channelRows={model.channelRows}
+            copy={copy}
+            loading={loading}
+            products={model.productRows}
+            tableSummary={model.tableSummary}
+            top={top}
+            topOptions={topOptions}
+            onTopChange={handleTopChange}
+          />
+          <DashboardHealthGrid
+            accountingRows={model.accountingRows}
+            copy={copy}
+            highestRevenueProduct={model.highestRevenueProduct}
+            insights={model.insights}
+            kpis={model.kpis}
+            productSummary={productSummary}
+          />
+        </div>
+      )}
     </div>
   );
 }

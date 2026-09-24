@@ -1,6 +1,6 @@
 "use client";
 
-import { type ReactNode, useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useResetOnChange, useResetOnDeps } from "@/hooks/use-reset-on-change";
 import Image from "next/image";
 import QRCode from "qrcode";
@@ -9,11 +9,10 @@ import { useTranslation } from "react-i18next";
 import { PrintLoadingDialog } from "@/components/common/print-loading-dialog";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
+import { Field, FieldLabel } from "@/components/ui/field";
+import { InputGroup, InputGroupAddon, InputGroupButton, InputGroupInput } from "@/components/ui/input-group";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Spinner } from "@/components/ui/spinner";
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { fullscreenPrintWindowFeatures, maximizePrintWindow } from "@/services/printer/invoice-print-window";
 import { canUseSystemPrintFallback } from "@/lib/system-print-capability";
 import { useIsCapacitorNativeApp } from "@/hooks/use-capacitor-native-app";
@@ -367,88 +366,79 @@ export function TableQrDialog({
     <>
       <Dialog open={open} onOpenChange={onOpenChange}>
         <DialogContent className="max-h-[calc(100dvh-2rem-env(safe-area-inset-top,0px)-env(safe-area-inset-bottom,0px))] gap-0 overflow-hidden p-0 duration-200 sm:max-w-130">
-        <DialogHeader className="px-5 pb-3 pt-5 pr-12">
-          <DialogTitle className="text-xl font-black leading-6">{t("pos.createTableQr")}</DialogTitle>
+        <DialogHeader className="px-5 pb-3 pt-5 pr-12 text-left">
+          <DialogTitle className="text-xl font-bold leading-6">{t("pos.createTableQr")}</DialogTitle>
           <DialogDescription>{t("pos.tableQrDescription", { table: table.table_name })}</DialogDescription>
         </DialogHeader>
 
         <div className="flex min-h-0 flex-col gap-4 overflow-y-auto px-5 pb-5">
-          <div className="grid place-items-center rounded-2xl bg-muted p-6">
-            {pending ? (
-              <Skeleton className="size-58 rounded-xl sm:size-65" />
-            ) : previewUrl ? (
-              <Image src={previewUrl} alt={`${table.table_name} QR`} width={260} height={260} unoptimized className="size-58 rounded-xl bg-background object-contain p-2 sm:size-65" />
-            ) : (
-              <div className="grid size-58 place-items-center rounded-xl bg-background text-muted-foreground sm:size-65">
-                <QrCodeIcon />
-              </div>
-            )}
+          {/* ตัวอย่างหน้าตาเดียวกับกระดาษที่พิมพ์ออก (ชื่อโต๊ะ + QR) — ให้เห็นก่อนพิมพ์ว่าเป็นโต๊ะไหน */}
+          <div className="flex flex-col items-center gap-3 rounded-xl border bg-muted/40 p-4">
+            <div className="flex flex-col items-center gap-2 rounded-xl bg-card p-4 shadow-sm ring-1 ring-border">
+              <p className="text-xs font-medium text-muted-foreground">{t("nav.table")}</p>
+              <p className="-mt-2 max-w-56 truncate text-2xl font-bold leading-8 text-foreground">{table.table_name}</p>
+              {pending ? (
+                <Skeleton className="size-52 rounded-lg sm:size-56" />
+              ) : previewUrl ? (
+                <Image src={previewUrl} alt={`${table.table_name} QR`} width={224} height={224} unoptimized className="size-52 object-contain sm:size-56" />
+              ) : (
+                <div className="grid size-52 place-items-center rounded-lg bg-muted text-muted-foreground sm:size-56">
+                  <QrCodeIcon />
+                </div>
+              )}
+            </div>
           </div>
 
-          <div className="flex flex-col gap-2">
-            <Label htmlFor="table-qr-url" className="text-sm font-black text-foreground">
-              {t("pos.openMenu")}
-            </Label>
-            <div className="grid grid-cols-[minmax(0,1fr)_44px] gap-2">
-              <Input id="table-qr-url" readOnly className="h-11 rounded-xl font-semibold" value={targetUrl ?? t("pos.qrLinkUnavailable")} />
-              <TooltipProvider>
-                <IconActionButton
-                  label={t("pos.copyQrLink")}
+          <Field className="gap-2">
+            <FieldLabel htmlFor="table-qr-url">{t("pos.menuLink")}</FieldLabel>
+            <InputGroup className="h-10">
+              <InputGroupInput
+                id="table-qr-url"
+                readOnly
+                className="text-sm text-muted-foreground"
+                value={targetUrl ?? t("pos.qrLinkUnavailable")}
+                onFocus={(event) => event.currentTarget.select()}
+              />
+              <InputGroupAddon align="inline-end">
+                <InputGroupButton
+                  aria-label={t("pos.copyQrLink")}
+                  title={t("pos.copyQrLink")}
+                  size="icon-sm"
                   disabled={!targetUrl || pending}
                   onClick={() => void copyLink()}
                 >
                   <Copy />
-                </IconActionButton>
-              </TooltipProvider>
-            </div>
-          </div>
+                </InputGroupButton>
+                {/* เปิดดูเมนูจริงเป็นงานรอง (ตรวจลิงก์) — ไว้ข้างลิงก์ ไม่แย่งที่ปุ่มพิมพ์ */}
+                <InputGroupButton
+                  aria-label={t("pos.openMenu")}
+                  title={t("pos.openMenu")}
+                  size="icon-sm"
+                  disabled={!targetUrl || pending || nativeApp}
+                  onClick={openMenu}
+                >
+                  <ExternalLink />
+                </InputGroupButton>
+              </InputGroupAddon>
+            </InputGroup>
+          </Field>
         </div>
 
-        <DialogFooter className="border-t border-border bg-muted/30 p-3 sm:p-4">
-          <TooltipProvider>
-            <div className="grid w-full grid-cols-[44px_44px_minmax(0,1fr)] gap-2">
-              <IconActionButton label={t("pos.downloadQr")} disabled={!canDownload || pending} onClick={() => void downloadQr()}>
-                <Download />
-              </IconActionButton>
-              <IconActionButton label={t("pos.printQr")} disabled={!canPrint || pending || printing} onClick={() => void printQr()}>
-                {printing ? <Spinner /> : <Printer />}
-              </IconActionButton>
-              <Button type="button" className="h-11 min-w-0 rounded-xl px-4 font-black" disabled={!targetUrl || pending || nativeApp} onClick={openMenu}>
-              {pending ? <Spinner data-icon="inline-start" /> : <ExternalLink data-icon="inline-start" />}
-                <span className="truncate">{t("pos.openMenu")}</span>
-              </Button>
-            </div>
-          </TooltipProvider>
+        {/* งานหลักของหน้านี้คือ "พิมพ์ QR" ไปแปะโต๊ะ — ปุ่มหลักจึงเป็นพิมพ์ ดาวน์โหลดเป็นทางเลือกรอง */}
+        <DialogFooter className="grid grid-cols-2 gap-2 border-t border-border p-4 sm:flex sm:justify-end">
+          <Button type="button" size="lg" variant="outline" disabled={!canDownload || pending} onClick={() => void downloadQr()}>
+            <Download data-icon="inline-start" />
+            {t("pos.downloadQr")}
+          </Button>
+          <Button type="button" size="lg" disabled={!canPrint || pending || printing} onClick={() => void printQr()}>
+            {printing ? <Spinner data-icon="inline-start" /> : <Printer data-icon="inline-start" />}
+            {t("pos.printQr")}
+          </Button>
         </DialogFooter>
         </DialogContent>
       </Dialog>
       <PrintLoadingDialog open={printing} />
     </>
-  );
-}
-
-function IconActionButton({
-  children,
-  disabled,
-  label,
-  onClick
-}: {
-  children: ReactNode;
-  disabled?: boolean;
-  label: string;
-  onClick: () => void;
-}) {
-  return (
-    <Tooltip>
-      <TooltipTrigger asChild>
-        <Button type="button" aria-label={label} size="icon" variant="outline" className="size-11 rounded-xl" disabled={disabled} onClick={onClick}>
-          {children}
-        </Button>
-      </TooltipTrigger>
-      <TooltipContent side="top" sideOffset={8}>
-        {label}
-      </TooltipContent>
-    </Tooltip>
   );
 }
 

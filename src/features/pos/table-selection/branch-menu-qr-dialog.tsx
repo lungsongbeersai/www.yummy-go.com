@@ -8,11 +8,11 @@ import { useTranslation } from "react-i18next";
 import { PrintLoadingDialog } from "@/components/common/print-loading-dialog";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
+import { ButtonGroup, ButtonGroupText } from "@/components/ui/button-group";
+import { Field, FieldLabel } from "@/components/ui/field";
+import { InputGroup, InputGroupAddon, InputGroupButton, InputGroupInput } from "@/components/ui/input-group";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Spinner } from "@/components/ui/spinner";
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { fullscreenPrintWindowFeatures, maximizePrintWindow } from "@/services/printer/invoice-print-window";
 import { canUseSystemPrintFallback } from "@/lib/system-print-capability";
 import { useIsCapacitorNativeApp } from "@/hooks/use-capacitor-native-app";
@@ -320,120 +320,108 @@ export function BranchMenuQrDialog({
     <>
       <Dialog open={open} onOpenChange={onOpenChange}>
         <DialogContent className="max-h-[calc(100dvh-2rem-env(safe-area-inset-top,0px)-env(safe-area-inset-bottom,0px))] gap-0 overflow-hidden p-0 duration-200 sm:max-w-130">
-        <DialogHeader className="px-5 pb-3 pt-5 pr-12">
-          <DialogTitle className="text-xl font-black leading-6">{t("pos.createBranchMenuQr")}</DialogTitle>
+        <DialogHeader className="px-5 pb-3 pt-5 pr-12 text-left">
+          <DialogTitle className="text-xl font-bold leading-6">{t("pos.createBranchMenuQr")}</DialogTitle>
           <DialogDescription>{t("pos.branchMenuQrDescription")}</DialogDescription>
         </DialogHeader>
 
         <div className="flex min-h-0 flex-col gap-4 overflow-y-auto px-5 pb-5">
-          <div className="grid place-items-center rounded-2xl bg-muted p-6">
-            {pending ? (
-              <Skeleton className="size-58 rounded-xl sm:size-65" />
-            ) : qrDataUrl ? (
-              <Image src={qrDataUrl} alt={`${response?.branch_name ?? ""} QR`} width={260} height={260} unoptimized className="size-58 rounded-xl bg-background object-contain p-2 sm:size-65" />
-            ) : (
-              <div className="grid size-58 place-items-center rounded-xl bg-background text-muted-foreground sm:size-65">
-                <QrCodeIcon />
-              </div>
-            )}
-          </div>
-
-          <div className="flex flex-col gap-2">
-            <Label htmlFor="branch-menu-qr-url" className="text-sm font-black text-foreground">
-              {t("pos.openMenu")}
-            </Label>
-            <div className="grid grid-cols-[minmax(0,1fr)_44px] gap-2">
-              <Input id="branch-menu-qr-url" readOnly className="h-11 rounded-xl font-semibold" value={targetUrl ?? t("pos.qrLinkUnavailable")} />
-              <TooltipProvider>
-                <IconActionButton label={t("pos.copyQrLink")} disabled={!targetUrl || pending} onClick={() => void copyLink()}>
-                  <Copy />
-                </IconActionButton>
-              </TooltipProvider>
+          {/* การ์ดตัวอย่างแบบเดียวกับ QR โต๊ะ (table-qr-dialog.tsx) — ชื่อสาขาเหนือ QR */}
+          <div className="flex flex-col items-center rounded-xl border bg-muted/40 p-4">
+            <div className="flex flex-col items-center gap-2 rounded-xl bg-card p-4 shadow-sm ring-1 ring-border">
+              {response?.branch_name ? (
+                <p className="max-w-56 truncate text-lg font-bold leading-7 text-foreground">{response.branch_name}</p>
+              ) : null}
+              {pending ? (
+                <Skeleton className="size-52 rounded-lg sm:size-56" />
+              ) : qrDataUrl ? (
+                <Image src={qrDataUrl} alt={`${response?.branch_name ?? ""} QR`} width={224} height={224} unoptimized className="size-52 object-contain sm:size-56" />
+              ) : (
+                <div className="grid size-52 place-items-center rounded-lg bg-muted text-muted-foreground sm:size-56">
+                  <QrCodeIcon />
+                </div>
+              )}
             </div>
           </div>
 
-          <div className="flex items-center justify-between gap-3 rounded-xl border border-border p-3">
-            <Label htmlFor="branch-menu-qr-print-copies" className="text-sm font-black text-foreground">
-              {t("pos.printCopies")}
-            </Label>
-            <div
-              id="branch-menu-qr-print-copies"
-              className="flex h-10 items-center overflow-hidden rounded-full border border-primary/50 bg-primary/5"
-            >
+          <Field className="gap-2">
+            <FieldLabel htmlFor="branch-menu-qr-url">{t("pos.menuLink")}</FieldLabel>
+            <InputGroup className="h-10">
+              <InputGroupInput
+                id="branch-menu-qr-url"
+                readOnly
+                className="text-sm text-muted-foreground"
+                value={targetUrl ?? t("pos.qrLinkUnavailable")}
+                onFocus={(event) => event.currentTarget.select()}
+              />
+              <InputGroupAddon align="inline-end">
+                <InputGroupButton
+                  aria-label={t("pos.copyQrLink")}
+                  title={t("pos.copyQrLink")}
+                  size="icon-sm"
+                  disabled={!targetUrl || pending}
+                  onClick={() => void copyLink()}
+                >
+                  <Copy />
+                </InputGroupButton>
+                <InputGroupButton
+                  aria-label={t("pos.openMenu")}
+                  title={t("pos.openMenu")}
+                  size="icon-sm"
+                  disabled={!targetUrl || pending || nativeApp}
+                  onClick={openMenu}
+                >
+                  <ExternalLink />
+                </InputGroupButton>
+              </InputGroupAddon>
+            </InputGroup>
+          </Field>
+
+          <Field orientation="horizontal" className="items-center justify-between">
+            <FieldLabel id="branch-menu-qr-print-copies-label">{t("pos.printCopies")}</FieldLabel>
+            <ButtonGroup aria-labelledby="branch-menu-qr-print-copies-label">
               <Button
                 type="button"
                 aria-label={`${t("pos.printCopies")} -`}
-                size="icon-sm"
-                variant="ghost"
-                className="size-9 rounded-full bg-primary/10 text-primary hover:bg-primary/20"
+                size="icon"
+                variant="outline"
                 disabled={pending || printCopies <= MIN_PRINT_COPIES}
                 onClick={() => setPrintCopies((copies) => Math.max(MIN_PRINT_COPIES, copies - 1))}
               >
-                <Minus className="size-3.5" />
+                <Minus />
               </Button>
-              <span className="min-w-8 text-center text-sm font-black text-primary tabular-nums">
+              <ButtonGroupText aria-live="polite" className="min-w-10 justify-center bg-background text-sm font-semibold tabular-nums">
                 {printCopies}
-              </span>
+              </ButtonGroupText>
               <Button
                 type="button"
                 aria-label={`${t("pos.printCopies")} +`}
-                size="icon-sm"
-                variant="ghost"
-                className="size-9 rounded-full bg-primary/10 text-primary hover:bg-primary/20"
+                size="icon"
+                variant="outline"
                 disabled={pending || printCopies >= MAX_PRINT_COPIES}
                 onClick={() => setPrintCopies((copies) => Math.min(MAX_PRINT_COPIES, copies + 1))}
               >
-                <Plus className="size-3.5" />
+                <Plus />
               </Button>
-            </div>
-          </div>
+            </ButtonGroup>
+          </Field>
         </div>
 
-        <DialogFooter className="border-t border-border bg-muted/30 p-3 sm:p-4">
-          <TooltipProvider>
-            <div className="grid w-full grid-cols-[44px_44px_minmax(0,1fr)] gap-2">
-              <IconActionButton label={t("pos.downloadQr")} disabled={!canDownload || pending} onClick={downloadQr}>
-                <Download />
-              </IconActionButton>
-              <IconActionButton label={t("pos.printQr")} disabled={!canPrint || pending || printing} onClick={() => void printQr()}>
-                {printing ? <Spinner /> : <Printer />}
-              </IconActionButton>
-              <Button type="button" className="h-11 min-w-0 rounded-xl px-4 font-black" disabled={!targetUrl || pending || nativeApp} onClick={openMenu}>
-                <ExternalLink data-icon="inline-start" />
-                <span className="truncate">{t("pos.openMenu")}</span>
-              </Button>
-            </div>
-          </TooltipProvider>
+        {/* งานหลักคือพิมพ์ QR ไปวางหน้าร้าน/โต๊ะ — ปุ่มหลักจึงเป็นพิมพ์ ดาวน์โหลดเป็นทางเลือกรอง */}
+        <DialogFooter className="grid grid-cols-2 gap-2 border-t border-border p-4 sm:flex sm:justify-end">
+          <Button type="button" size="lg" variant="outline" disabled={!canDownload || pending} onClick={downloadQr}>
+            <Download data-icon="inline-start" />
+            {t("pos.downloadQr")}
+          </Button>
+          <Button type="button" size="lg" disabled={!canPrint || pending || printing} onClick={() => void printQr()}>
+            {printing ? <Spinner data-icon="inline-start" /> : <Printer data-icon="inline-start" />}
+            {t("pos.printQr")}
+          </Button>
         </DialogFooter>
         </DialogContent>
       </Dialog>
       <PrintLoadingDialog open={printing} />
     </>
-  );
-}
-
-function IconActionButton({
-  children,
-  disabled,
-  label,
-  onClick,
-}: {
-  children: React.ReactNode;
-  disabled?: boolean;
-  label: string;
-  onClick: () => void;
-}) {
-  return (
-    <Tooltip>
-      <TooltipTrigger asChild>
-        <Button type="button" aria-label={label} size="icon" variant="outline" className="size-11 rounded-xl" disabled={disabled} onClick={onClick}>
-          {children}
-        </Button>
-      </TooltipTrigger>
-      <TooltipContent side="top" sideOffset={8}>
-        {label}
-      </TooltipContent>
-    </Tooltip>
   );
 }
 

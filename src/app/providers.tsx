@@ -35,7 +35,7 @@ const THEME_TRANSITION_CLASS = "theme-transition-active";
 type ThemeTransitionDirection = "ltr" | "rtl";
 
 type ViewTransitionDocument = Document & {
-  startViewTransition?: (callback: () => void) => { finished: Promise<unknown> };
+  startViewTransition?: (callback: () => void) => { finished: Promise<unknown>; ready: Promise<unknown> };
 };
 
 function applyDocumentTheme(theme: ThemeMode) {
@@ -185,6 +185,9 @@ export function Providers({ children, initialLanguage }: ProvidersProps) {
 
       themeTransitionCleanupTimerRef.current = window.setTimeout(cleanupTransition, THEME_TRANSITION_SETTLE_MS);
       void transition.finished.then(cleanupTransition, cleanupTransition);
+      // A newer theme switch aborts this transition; `ready` then rejects with
+      // InvalidStateError, which is expected and must not surface as unhandled.
+      transition.ready.catch(() => undefined);
     } catch {
       clearThemeTransitionState();
       applyDocumentTheme(theme);

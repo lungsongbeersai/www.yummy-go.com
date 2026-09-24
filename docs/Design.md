@@ -21,7 +21,7 @@ Feature code must not use raw palette colors (`bg-[#...]`, `text-emerald-500`, e
 
 ## Installed primitives (`src/components/ui/`)
 
-accordion, alert, alert-dialog, avatar, badge, breadcrumb, button, calendar, card, chart, checkbox, command, dialog, drawer, dropdown-menu, empty, field, input, input-group, label, pagination, popover, progress, radio-group, select, separator, sheet, sidebar, skeleton, slider, sonner, spinner, switch, table, tabs, textarea, toggle, toggle-group, tooltip.
+accordion, alert, alert-dialog, avatar, badge, breadcrumb, button, button-group, calendar, card, chart, checkbox, command, dialog, drawer, dropdown-menu, empty, field, input, input-group, item, label, pagination, popover, progress, radio-group, select, separator, sheet, sidebar, skeleton, slider, sonner, spinner, switch, table, tabs, textarea, toggle, toggle-group, tooltip.
 
 Check this list before hand-rolling anything — most UI needs are already here. Install more with:
 

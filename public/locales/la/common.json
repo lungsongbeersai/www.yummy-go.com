@@ -189,6 +189,7 @@
     "menuLoading": "ກຳລັງໂຫຼດເມນູ",
     "menuUnavailable": "ບໍ່ສາມາດໂຫຼດເມນູໄດ້",
     "openMenu": "ເປີດເມນູ",
+    "toggleSidebar": "ເປີດ/ປິດແຖບເມນູ",
     "posWorkspace": "ພື້ນທີ່ POS",
     "publicMenu": "ເມນູສາທາລະນະ",
     "refreshApp": "ໂຫຼດແອັບໃໝ່",
@@ -206,6 +207,12 @@
       "title": "ການສະແດງຜົນ",
       "colorLabel": "ສີຫຼັກ",
       "fontSizeLabel": "ຂະໜາດຕົວອັກສອນ",
+      "modeLabel": "ໂໝດສີ",
+      "languageLabel": "ພາສາ",
+      "modes": {
+        "light": "ສະຫວ່າງ",
+        "dark": "ມືດ"
+      },
       "colors": {
         "emerald": "ຂຽວມໍລະກົດ (ຄ່າເລີ່ມຕົ້ນ)",
         "blue": "ຟ້າ",
@@ -250,7 +257,10 @@
     "signingIn": "ກຳລັງເຂົ້າລະບົບ...",
     "unavailable": "ຍັງບໍ່ພ້ອມໃຊ້ງານ",
     "version": "ເວີຊັນ {{version}}",
-    "welcomeBack": "ຍິນດີຕ້ອນຮັບກັບຄືນ"
+    "welcomeBack": "ຍິນດີຕ້ອນຮັບກັບຄືນ",
+    "orContinueWith": "ຫຼືເຂົ້າລະບົບດ້ວຍ",
+    "loginWith": "ເຂົ້າລະບົບດ້ວຍ {{provider}}",
+    "agreeToPolicy": "ການເຂົ້າລະບົບຖືວ່າທ່ານຍອມຮັບ"
   },
   "common": {
     "active": "ໃຊ້ງານ",
@@ -625,7 +635,26 @@
         "description": "ອາຫານຂອງທ່ານກຳລັງນຳໄປໂຕະ."
       }
     },
-    "title": "ການແຈ້ງເຕືອນ"
+    "title": "ການແຈ້ງເຕືອນ",
+    "sound": {
+      "title": "ສຽງແຈ້ງເຕືອນອໍເດີໃໝ່",
+      "description": "ເລືອກສຽງທີ່ຈະດັງເມື່ອມີອໍເດີໃໝ່ເຂົ້າມາ. ບັນທຶກໃນອຸປະກອນນີ້ທັນທີ.",
+      "preview": "ຟັງຕົວຢ່າງ",
+      "stop": "ຢຸດ",
+      "options": {
+        "default": "ຄ່າເລີ່ມຕົ້ນ",
+        "notification": "ແຈ້ງເຕືອນ",
+        "ding": "ດິງ",
+        "bell": "ກະດິ່ງ",
+        "bellRing": "ກະດິ່ງດັງ",
+        "openingBell": "ກະດິ່ງເປີດຮ້ານ",
+        "churchBell": "ລະຄັງ",
+        "cashRegister": "ເຄື່ອງເກັບເງິນ",
+        "phone": "ໂທລະສັບ"
+      }
+    },
+    "pendingCount": "{{count}} ອໍເດີໃໝ່ລໍຖ້າຢືນຢັນ",
+    "emptyDescription": "ອໍເດີໃໝ່ຈາກລູກຄ້າຈະສະແດງຢູ່ນີ້"
   },
   "orderQueue": {
     "title": "ຄິວອໍເດີ",
@@ -1140,13 +1169,16 @@
     "selectTableToContinue": "ເລືອກໂຕະເພື່ອດຳເນີນຕໍ່",
     "counterCartEmpty": "ຍັງບໍ່ມີລາຍການ — ແຕະເມນູເພື່ອເລີ່ມອໍເດີ",
     "counterOrderLabel": "ອໍເດີໜ້າເຄົາເຕີ",
-    "sendOrder": "ເລືອກລາຍການ",
+    "sendOrder": "ເພີ່ມລົງອໍເດີ",
     "subtitleTables": "ເປີດໂຕະເພື່ອຈັດການອໍເດີ, ຊຳລະເງິນ, ແຍກບິນ ແລະ ພິມ.",
     "tableOrder": "ອໍເດີໂຕະ",
     "tables": "ໂຕະ",
     "title": "ອໍເດີ",
     "unableToLoadMenu": "ໂຫຼດເມນູບໍ່ໄດ້",
-    "taxIncludedWithPercent": "Vat ({{percent}}%)"
+    "taxIncludedWithPercent": "Vat ({{percent}}%)",
+    "discountRemaining": "ຍັງເຫຼືອ",
+    "menuLink": "ລິ້ງເມນູ",
+    "currentQuantity": "ຈຳນວນເດີມ {{qty}}"
   },
   "category": {
     "sorted": "ບັນທຶກລຳດັບແລ້ວ",
@@ -3071,7 +3103,9 @@
     }
   },
   "toasts": {
-    "pleaseTryAgain": "ກະລຸນາລອງໃໝ່"
+    "pleaseTryAgain": "ກະລຸນາລອງໃໝ່",
+    "completeRequiredFields": "ກະລຸນາປ້ອນຂໍ້ມູນໃຫ້ຄົບຖ້ວນ",
+    "priceMustBePositive": "{{field}} ຕ້ອງຫຼາຍກວ່າ 0"
   },
   "policy": {
     "badge": "ລະບົບ POS ຮ້ານອາຫານ Yummy Go",

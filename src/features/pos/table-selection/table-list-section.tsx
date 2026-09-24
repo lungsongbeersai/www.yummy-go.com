@@ -155,7 +155,7 @@ export function TableListSection({
               {/* ซ่อนทั้งปุ่มบนจอเล็ก (ไม่ใช่แค่ label) — งานเพิ่มโซน/โต๊ะเป็นงานตั้งค่าที่ไม่ได้ทำ
                   บ่อยระหว่างขาย บนจอมือถือแถวนี้แน่นเกินไปแล้วจากแถบเลื่อนโซน */}
               {canAddZone ? (
-                <Button asChild aria-label={t("pos.addZone")} className="hidden h-10 rounded-full px-3.5 font-black shadow-sm sm:inline-flex" size="sm" type="button" variant="outline">
+                <Button asChild aria-label={t("pos.addZone")} className="hidden h-8 rounded-full px-3 font-medium shadow-sm sm:inline-flex" size="sm" type="button" variant="outline">
                   <Link href="/settings/zone">
                     <MapPinPlus aria-hidden="true" data-icon="inline-start" />
                     <span aria-hidden="true">{t("pos.addZone")}</span>
@@ -163,7 +163,7 @@ export function TableListSection({
                 </Button>
               ) : null}
               {canAddTable ? (
-                <Button asChild aria-label={t("pos.addTable")} className="hidden h-10 rounded-full px-3.5 font-black shadow-sm sm:inline-flex" size="sm" type="button" variant="outline">
+                <Button asChild aria-label={t("pos.addTable")} className="hidden h-8 rounded-full px-3 font-medium shadow-sm sm:inline-flex" size="sm" type="button" variant="outline">
                   <Link href="/settings/table">
                     <Plus aria-hidden="true" data-icon="inline-start" />
                     <span aria-hidden="true">{t("pos.addTable")}</span>
@@ -194,7 +194,7 @@ export function TableListSection({
                 <StatusToggleItem active={statusFilter === "all"} label={t("common.all")} value="all" valueCount={statusCounts.all} />
                 <StatusToggleItem active={statusFilter === "free"} dot="free" label={t("common.free")} value="free" valueCount={statusCounts.free} />
                 <StatusToggleItem active={statusFilter === "busy"} dot="busy" label={t("common.busy")} value="busy" valueCount={statusCounts.busy} />
-                <StatusToggleItem active={statusFilter === "update"} dot="update" label={t("pos.tableSelectionNewOrder")} value="update" valueCount={statusCounts.update} />
+                <StatusToggleItem active={statusFilter === "update"} dot="update" label={t("pos.tableStatusNewOrderAlert")} value="update" valueCount={statusCounts.update} />
               </ToggleGroup>
             </div>
             <HorizontalScrollArrows
@@ -234,8 +234,8 @@ export function TableListSection({
               >
                 {filterOptions.length > 1 ? (
                   <div className="flex flex-wrap items-center gap-2">
-                    <h2 className="text-sm font-black text-muted-foreground">{zone.zone_name}</h2>
-                    <Badge>{(zone.tables ?? []).length}</Badge>
+                    <h2 className="text-sm font-semibold text-foreground">{zone.zone_name}</h2>
+                    <Badge className="bg-muted px-1.5 tabular-nums text-muted-foreground">{(zone.tables ?? []).length}</Badge>
                   </div>
                 ) : null}
                 <div className="grid grid-cols-[repeat(auto-fill,minmax(min(150px,100%),1fr))] gap-2 sm:grid-cols-[repeat(auto-fill,minmax(min(164px,100%),1fr))] lg:grid-cols-[repeat(auto-fill,minmax(min(180px,100%),1fr))] xl:grid-cols-[repeat(auto-fill,minmax(min(200px,100%),1fr))]">
@@ -276,14 +276,13 @@ function ZoneToggleItem({
   return (
     <ToggleGroupItem
       className={cn(
-        "h-8 gap-1 rounded-full border border-transparent px-2.5 text-sm font-black shadow-sm transition motion-safe:active:scale-95 data-[state=on]:bg-primary data-[state=on]:text-primary-foreground data-[state=on]:shadow-primary/20",
-        !active && "border-border bg-card hover:border-primary/30 hover:bg-primary/5",
+        "h-8 gap-1 rounded-full border border-transparent px-3 text-sm font-medium shadow-sm transition motion-safe:active:scale-95 data-[state=on]:bg-primary data-[state=on]:text-primary-foreground data-[state=on]:shadow-primary/20",
+        !active && "border-border bg-card text-muted-foreground hover:border-primary/30 hover:bg-primary/5 hover:text-foreground",
         // ใช้ ring กะพริบแทนพื้นหลังกะพริบ — พื้นหลังกะพริบชนสี text-destructive จนคอนทราสต์ไม่ผ่าน WCAG AA
         hasAlert && "pos-chip-alert-ring"
       )}
       value={value}
     >
-      {active ? <Check aria-hidden="true" data-icon="inline-start" /> : null}
       <span className="max-w-40 truncate">{label}</span>
       {hasAlert ? (
         <Badge
@@ -313,8 +312,8 @@ function StatusToggleItem({
   return (
     <ToggleGroupItem
       className={cn(
-        "h-8 gap-1 rounded-full border border-transparent px-2.5 text-sm font-black shadow-sm transition motion-safe:active:scale-95 data-[state=on]:bg-primary data-[state=on]:text-primary-foreground data-[state=on]:shadow-primary/20",
-        !active && "border-border bg-card hover:border-primary/30 hover:bg-primary/5"
+        "h-8 gap-1 rounded-full border border-transparent px-3 text-sm font-medium shadow-sm transition motion-safe:active:scale-95 data-[state=on]:bg-primary data-[state=on]:text-primary-foreground data-[state=on]:shadow-primary/20",
+        !active && "border-border bg-card text-muted-foreground hover:border-primary/30 hover:bg-primary/5 hover:text-foreground"
       )}
       value={value}
     >
@@ -328,9 +327,9 @@ function StatusToggleItem({
 }
 
 function dotClass(status: "free" | "busy" | "update") {
-  if (status === "busy") return "bg-destructive";
-  if (status === "update") return "bg-warning";
-  return "bg-success";
+  if (status === "busy") return STATUS_STYLE.occupied.dot;
+  if (status === "update") return ORDER_ALERT_STYLE.dot;
+  return STATUS_STYLE.available.dot;
 }
 
 // สไตล์ต่อสถานะ 6 แบบ ผูกกับ table_status ล้วน ๆ (ดู tableVisualStatus() ใน
@@ -362,14 +361,14 @@ const STATUS_STYLE: Record<TableVisualStatus, TableCardStyle> = {
     body: "bg-background",
     footer: "border-green-200 bg-muted/50 dark:border-green-800/50",
     dot: "bg-green-600 dark:bg-green-500",
-    text: "text-green-600 dark:text-green-400"
+    text: "text-muted-foreground"
   },
   occupied: {
     card: "bg-green-600/15 dark:bg-green-950/40",
     body: "bg-green-600/15 dark:bg-green-950/40",
     footer: "border-green-600/25 bg-green-600/10 dark:border-green-800/40 dark:bg-green-900/25",
     dot: "bg-red-700 dark:bg-red-400",
-    text: "text-red-700 dark:text-foreground"
+    text: "text-green-900 dark:text-foreground"
   },
   // ring: คลาสสี "--ring-rgb" สำหรับ pos-status-ring-pulse (การ์ดสถานะนี้ต้องรอ
   // "คนอื่น" กดยืนยันก่อนถึงจะไปต่อได้ — วงแหวนกะพริบช่วยดึงสายตาว่ายังค้างอยู่)

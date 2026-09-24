@@ -29,6 +29,14 @@ if (!i18n.isInitialized) {
       localStorage.setItem("i18nextLng", toLanguage(language));
     }
   });
+} else {
+  // Dev server: the i18next singleton outlives hot reloads, so without this a newly added
+  // key renders as its raw name on the server while the browser has the real text, which
+  // is a hydration mismatch. Re-applying the bundles whenever this module re-evaluates
+  // (i.e. when a locale JSON changes) keeps both sides in sync. No-op cost in production,
+  // where the module evaluates once and takes the init branch.
+  i18n.addResourceBundle("la", "common", laCommon, true, true);
+  i18n.addResourceBundle("en", "common", enCommon, true, true);
 }
 
 export default i18n;

@@ -36,6 +36,10 @@
      ในรายงาน (เทียบ sky-700/amber-700 เดิมที่ผ่าน contrast อยู่แล้ว) */
   --info-text: hsl(201 100% 33%);
   --warning-text: hsl(25 100% 37%);
+  /* ตัวอักษรสีแบรนด์บนพื้น card/background (ราคา, ปุ่ม +/-) — โหมดสว่างใช้ --primary ตรง ๆ
+     แต่โหมดมืด --primary เข้มมาก (ออกแบบเป็นสีพื้นปุ่มคู่กับ -foreground) ใช้เป็นตัวอักษรบนพื้นมืด
+     แล้วแทบมองไม่เห็น จึงชี้ไป --sidebar-primary ที่ทุก preset สีธีมกำหนดเฉดสว่างไว้ในโหมดมืดแล้ว */
+  --primary-text: var(--primary);
   --border: oklch(0.925 0.005 214.3);
   --input: oklch(0.925 0.005 214.3);
   --ring: oklch(0.723 0.014 214.4);
@@ -56,6 +60,15 @@
   --chart-3: oklch(0.627 0.194 149.214);
   --chart-4: oklch(0.527 0.154 150.069);
   --chart-5: oklch(0.448 0.119 151.328);
+  /* Categorical series (identity, not magnitude): dataviz reference palette, slots 1-5,
+     validated for CVD + normal-vision separation on --card. Slots 3-5 are under 3:1 on
+     white, so every use must carry a visible text label. --chart-1..5 stay the
+     single-hue sequential ramp. */
+  --chart-cat-1: #2a78d6;
+  --chart-cat-2: #eb6834;
+  --chart-cat-3: #1baf7a;
+  --chart-cat-4: #eda100;
+  --chart-cat-5: #e87ba4;
   --radius: 0.625rem;
 }
 
@@ -87,6 +100,7 @@
   /* โหมดมืด: ใช้เฉดสว่าง (เทียบ sky-300/amber-300 เดิม) ให้ contrast ผ่านบนพื้น card เข้ม */
   --info-text: hsl(199 95% 74%);
   --warning-text: hsl(46 97% 64%);
+  --primary-text: var(--sidebar-primary);
   --border: oklch(1 0 0 / 10%);
   --input: oklch(1 0 0 / 15%);
   --ring: oklch(0.56 0.021 213.5);
@@ -104,9 +118,15 @@
   --chart-3: oklch(0.627 0.194 149.214);
   --chart-4: oklch(0.527 0.154 150.069);
   --chart-5: oklch(0.448 0.119 151.328);
+  /* Same five hues stepped for the dark --card surface (all >= 3:1). */
+  --chart-cat-1: #3987e5;
+  --chart-cat-2: #d95926;
+  --chart-cat-3: #199e70;
+  --chart-cat-4: #c98500;
+  --chart-cat-5: #d55181;
 }
 
-/* ธีมสี accent เลือกได้จากปุ่มลอยตั้งค่า (floating-settings-button) — ค่าเริ่มต้น
+/* ธีมสี accent เลือกได้จากเมนูตั้งค่าการแสดงผลใน header (display-settings-menu) — ค่าเริ่มต้น
    (ไม่ใส่ data-theme-color หรือ ="emerald") ใช้ --primary ของ :root/.dark เดิมตรงๆ
    (เป็นค่า emerald-700/800 ของ Tailwind อยู่แล้ว) ส่วน preset อื่นดึงจากชุดสี
    Tailwind จริง (700/800 ใน light, 500 เป็น sidebar chip ใน dark) ไม่ผสมสูตรเอง
@@ -206,7 +226,7 @@
   --sidebar-ring: #8b5cf6;
 }
 
-/* ขนาดตัวอักษรที่ปรับจากปุ่มลอยตั้งค่า — สเกล root font-size แล้วให้ Tailwind
+/* ขนาดตัวอักษรที่ปรับจากเมนูตั้งค่าการแสดงผล — สเกล root font-size แล้วให้ Tailwind
    ที่อิง rem ทั้งระบบขยาย/หดตามไปด้วยโดยไม่ต้องแก้ class ทีละจุด
    4 ขั้น อิง 16px = root font-size เริ่มต้นของเบราว์เซอร์ (md ไม่ต้องมี rule เพราะคือ 100% เดิม) */
 html[data-font-scale="sm"] {
@@ -246,6 +266,7 @@ html[data-font-scale="xl"] {
   --color-info-foreground: var(--info-foreground);
   --color-info-text: var(--info-text);
   --color-warning-text: var(--warning-text);
+  --color-primary-text: var(--primary-text);
   --color-border: var(--border);
   --color-input: var(--input);
   --color-ring: var(--ring);
@@ -267,6 +288,11 @@ html[data-font-scale="xl"] {
   --color-chart-3: var(--chart-3);
   --color-chart-2: var(--chart-2);
   --color-chart-1: var(--chart-1);
+  --color-chart-cat-1: var(--chart-cat-1);
+  --color-chart-cat-2: var(--chart-cat-2);
+  --color-chart-cat-3: var(--chart-cat-3);
+  --color-chart-cat-4: var(--chart-cat-4);
+  --color-chart-cat-5: var(--chart-cat-5);
   --radius-sm: calc(var(--radius) * 0.6);
   --radius-md: calc(var(--radius) * 0.8);
   --radius-lg: var(--radius);
@@ -988,19 +1014,15 @@ html {
   border-color: rgba(72, 190, 244, 0.3) !important;
 }
 
-.android-webview-compat .login-light-zone .login-hero-overlay {
-  background-color: rgba(255, 255, 255, 0.2) !important;
-}
-
 .capacitor-android .login-light-zone {
   min-height: 100dvh;
   overflow-x: hidden;
   overflow-y: auto;
 }
 
-.capacitor-android .login-light-zone .login-layout,
-.capacitor-android .login-light-zone .login-hero-section,
-.capacitor-android .login-light-zone .login-panel-section {
+/* Only the page wrapper fills the screen; the hero now lives inside the login card
+   (shadcn login-04 layout), so it must size with the card, not the viewport. */
+.capacitor-android .login-light-zone.login-layout {
   min-height: 100dvh;
 }
 
@@ -1008,11 +1030,26 @@ html {
   appearance: none;
   -webkit-appearance: none;
   background-color: var(--card) !important;
-  border-color: var(--primary) !important;
+  border-color: var(--input) !important;
   box-shadow: 0 1px 2px 0 rgba(15, 23, 42, 0.06) !important;
   color: var(--foreground) !important;
   caret-color: var(--primary);
   outline: none !important;
+}
+
+/* ช่องรหัสผ่านเป็น InputGroup (input + ปุ่มตา) — ทาพื้น/ขอบที่ตัว group ทั้งก้อนให้หน้าตาเท่า
+   .login-input ของช่องอีเมล ไม่งั้น bg-input/20 ของ group โผล่เป็นสีเทาตรงปุ่มตาบน WebView */
+.capacitor-android .login-light-zone [data-slot="input-group"] {
+  background-color: var(--card) !important;
+  border-color: var(--input) !important;
+  box-shadow: 0 1px 2px 0 rgba(15, 23, 42, 0.06) !important;
+}
+
+.capacitor-android .login-light-zone [data-slot="input-group"]:focus-within {
+  border-color: var(--primary) !important;
+  box-shadow:
+    0 0 0 4px rgba(16, 185, 129, 0.12),
+    0 1px 2px 0 rgba(15, 23, 42, 0.06) !important;
 }
 
 .capacitor-android .login-light-zone .login-input:focus {
@@ -1048,14 +1085,6 @@ html {
   border-color: var(--primary) !important;
   color: var(--primary-foreground) !important;
   opacity: 0.7 !important;
-}
-
-@media (orientation: landscape) and (max-height: 720px) {
-  .capacitor-android .login-light-zone .login-panel-section {
-    align-items: flex-start;
-    padding-top: max(3.5rem, calc(1rem + env(safe-area-inset-top, 0px)));
-    padding-bottom: max(1rem, calc(1rem + env(safe-area-inset-bottom, 0px)));
-  }
 }
 
 .pos-soft-light-zone {
@@ -1125,13 +1154,10 @@ html {
   color-scheme: light;
 }
 
-.login-light-zone .login-input-group,
-.login-light-zone .login-input-group [data-slot="input-group-addon"] {
-  background: var(--card) !important;
-}
-
-.login-light-zone .login-input-group input {
-  background: transparent !important;
+/* An autofilled control inside an InputGroup (the password field) only fills its own box;
+   tint the whole group the same colour so the eye-toggle addon doesn't stay grey. */
+.login-light-zone [data-slot="input-group"]:has(input:-webkit-autofill) {
+  background-color: var(--card);
 }
 
 .login-light-zone input:-webkit-autofill,
@@ -1252,14 +1278,9 @@ html.theme-transition-active[data-theme-transition-direction="ltr"]::view-transi
   background: transparent;
 }
 
+/* Web shell header is sidebar-07's h-16 at every width; Capacitor overrides below. */
 .app-shell {
-  --app-shell-header-height: 78px;
-}
-
-@media (max-width: 767px) {
-  .app-shell {
-    --app-shell-header-height: 64px;
-  }
+  --app-shell-header-height: 4rem;
 }
 
 .app-shell-body {
@@ -1952,28 +1973,65 @@ html.theme-transition-active[data-theme-transition-direction="ltr"]::view-transi
 
 }
 
+/* Skeleton loading surface. Both the base and the moving highlight are mixed from
+   --foreground per element, so they keep contrast on light and dark cards alike (and in
+   scoped themes). The old highlight mixed --background, which in dark mode is darker
+   than --muted: the sweep was a dark band on a dark block and nearly invisible. */
 .skeleton-shimmer {
   position: relative;
   overflow: hidden;
+  isolation: isolate;
+  background-color: color-mix(in oklch, var(--foreground) 9%, transparent);
 }
 
 .skeleton-shimmer::after {
   content: "";
   position: absolute;
   inset: 0;
-  transform: translateX(-150%);
+  transform: translateX(-100%);
   background: linear-gradient(
-    105deg,
-    transparent 35%,
-    color-mix(in oklch, var(--background) 62%, transparent) 50%,
-    transparent 65%
+    100deg,
+    transparent 20%,
+    color-mix(in oklch, var(--background) 70%, transparent) 42%,
+    color-mix(in oklch, var(--background) 95%, transparent) 50%,
+    color-mix(in oklch, var(--background) 70%, transparent) 58%,
+    transparent 80%
   );
-  animation: skeleton-shimmer 1.6s ease-in-out infinite;
+  animation: skeleton-shimmer 1.25s ease-in-out infinite;
+}
+
+.dark .skeleton-shimmer::after {
+  background: linear-gradient(
+    100deg,
+    transparent 20%,
+    color-mix(in oklch, var(--foreground) 10%, transparent) 42%,
+    color-mix(in oklch, var(--foreground) 18%, transparent) 50%,
+    color-mix(in oklch, var(--foreground) 10%, transparent) 58%,
+    transparent 80%
+  );
 }
 
 @keyframes skeleton-shimmer {
   100% {
-    transform: translateX(150%);
+    transform: translateX(100%);
+  }
+}
+
+/* No sweeping motion for reduced-motion users; a slow fade still signals "loading". */
+@media (prefers-reduced-motion: reduce) {
+  .skeleton-shimmer::after {
+    animation: none;
+    opacity: 0;
+  }
+
+  .skeleton-shimmer {
+    animation: skeleton-pulse 2s ease-in-out infinite;
+  }
+}
+
+@keyframes skeleton-pulse {
+  50% {
+    opacity: 0.55;
   }
 }
 
@@ -2203,13 +2261,6 @@ html.theme-transition-active[data-theme-transition-direction="ltr"]::view-transi
     background-color: color-mix(in oklch, var(--destructive) 22%, transparent);
     will-change: auto;
   }
-}
-
-button,
-input,
-textarea,
-select {
-  font: inherit;
 }
 
 button:not(:disabled):not([aria-disabled="true"]),

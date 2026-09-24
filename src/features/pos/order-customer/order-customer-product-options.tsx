@@ -7,6 +7,7 @@ import { useTranslation } from "react-i18next";
 import { Alert, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { ButtonGroup, ButtonGroupText } from "@/components/ui/button-group";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
   Dialog,
@@ -19,7 +20,6 @@ import {
 } from "@/components/ui/dialog";
 import {
   Field,
-  FieldDescription,
   FieldGroup,
   FieldLabel,
   FieldLegend,
@@ -75,7 +75,6 @@ import {
   tasteSelectionLimit,
   tasteUuid,
   type OrderQuantityRules,
-  type ProductMedia,
   type ProductModalMode,
   type SelectedTopping,
 } from "./order-customer-utils";
@@ -87,7 +86,9 @@ export function ProductOptionsOverlay({
   closeLabel,
   description,
   isMobile,
+  media,
   open,
+  subtitle,
   title,
   onOpenChange,
 }: {
@@ -96,7 +97,11 @@ export function ProductOptionsOverlay({
   closeLabel: string;
   description: string;
   isMobile: boolean;
+  /** รูปสินค้าเล็กข้างชื่อ — แทนกล่องสรุปใหญ่ในเนื้อหาเดิมที่กินพื้นที่ครึ่งจอ */
+  media?: ReactNode;
   open: boolean;
+  /** บรรทัดรองใต้ชื่อ (ขนาดที่เลือก · ราคาต่อหน่วย) */
+  subtitle?: ReactNode;
   title: string;
   onOpenChange: (open: boolean) => void;
 }) {
@@ -111,14 +116,18 @@ export function ProductOptionsOverlay({
           side="bottom"
           className="pos-soft-light-zone pos-dark-zone flex h-[calc(100dvh-8px-env(safe-area-inset-top,0px))] max-h-none flex-col gap-0 overflow-hidden rounded-t-2xl border-border bg-background p-0 text-foreground data-[side=bottom]:h-[calc(100dvh-8px-env(safe-area-inset-top,0px))] motion-reduce:transition-none motion-reduce:data-[state=closed]:animate-none motion-reduce:data-[state=open]:animate-none"
         >
-          <SheetHeader className="shrink-0 flex-row items-start justify-between gap-3 border-b border-border px-4 py-3 text-left">
-            <div className="min-w-0">
-              <SheetTitle className="lao-tone-text line-clamp-2 break-words text-base leading-6 font-bold sm:text-lg">
-                {title}
-              </SheetTitle>
-              <SheetDescription className="sr-only">
-                {description}
-              </SheetDescription>
+          <SheetHeader className="shrink-0 flex-row items-center justify-between gap-3 border-b border-border px-4 py-3 text-left">
+            <div className="flex min-w-0 items-center gap-3">
+              <OverlayMedia media={media} />
+              <div className="flex min-w-0 flex-col gap-0.5">
+                <SheetTitle className="lao-tone-text line-clamp-2 break-words text-base leading-6 font-bold">
+                  {title}
+                </SheetTitle>
+                <OverlaySubtitle subtitle={subtitle} />
+                <SheetDescription className="sr-only">
+                  {description}
+                </SheetDescription>
+              </div>
             </div>
             <SheetClose asChild>
               <Button
@@ -149,14 +158,18 @@ export function ProductOptionsOverlay({
         showCloseButton={false}
         className="pos-soft-light-zone pos-dark-zone flex max-h-[calc(100dvh-2rem-env(safe-area-inset-top,0px)-env(safe-area-inset-bottom,0px))] flex-col gap-0 overflow-hidden border-border bg-background p-0 text-foreground motion-reduce:transition-none motion-reduce:data-[state=closed]:animate-none motion-reduce:data-[state=open]:animate-none sm:max-w-180"
       >
-        <DialogHeader className="shrink-0 flex-row items-start justify-between gap-3 border-b border-border px-5 py-3 text-left">
-          <div className="min-w-0">
-            <DialogTitle className="lao-tone-text line-clamp-2 break-words text-lg leading-6 font-bold">
-              {title}
-            </DialogTitle>
-            <DialogDescription className="sr-only">
-              {description}
-            </DialogDescription>
+        <DialogHeader className="shrink-0 flex-row items-center justify-between gap-3 border-b border-border px-5 py-3 text-left">
+          <div className="flex min-w-0 items-center gap-3">
+            <OverlayMedia media={media} />
+            <div className="flex min-w-0 flex-col gap-0.5">
+              <DialogTitle className="lao-tone-text line-clamp-2 break-words text-lg leading-6 font-bold">
+                {title}
+              </DialogTitle>
+              <OverlaySubtitle subtitle={subtitle} />
+              <DialogDescription className="sr-only">
+                {description}
+              </DialogDescription>
+            </div>
           </div>
           <DialogClose asChild>
             <Button
@@ -174,6 +187,71 @@ export function ProductOptionsOverlay({
         {children}
       </DialogContent>
     </Dialog>
+  );
+}
+
+function OverlayMedia({ media }: { media?: ReactNode }) {
+  if (!media) return null;
+  return (
+    <div className="relative size-12 shrink-0 overflow-hidden rounded-lg bg-muted ring-1 ring-border sm:size-14">
+      {media}
+    </div>
+  );
+}
+
+function OverlaySubtitle({ subtitle }: { subtitle?: ReactNode }) {
+  if (!subtitle) return null;
+  return (
+    <div className="flex min-w-0 items-center gap-1.5 text-sm text-muted-foreground">
+      {subtitle}
+    </div>
+  );
+}
+
+export function ProductOptionsMedia({ product }: { product: ProdItem }) {
+  return (
+    <ProductMediaView
+      alt=""
+      fallbackIcon="chef"
+      media={productMedia(product)}
+      sizes="56px"
+    />
+  );
+}
+
+// "ชุด/โปรโมชั่น · ขนาด · ราคาต่อหน่วย" ใต้ชื่อสินค้า — สินค้าทั่วไปไม่โชว์ป้ายประเภท
+export function ProductOptionsSubtitle({
+  detail,
+  mode,
+  product,
+  unitPrice,
+}: {
+  detail: ProdDetail;
+  mode: ProductModalMode;
+  product: ProdItem;
+  unitPrice: number;
+}) {
+  const { t } = useTranslation();
+  const modeLabel = mode === "normal" ? "" : productModeLabel(mode, product, t);
+  const sizeLabel = mode === "set" ? "" : detail.sizeName;
+  // หน่วยนับจาก API (unite_name → uniteName ใน mapApiProdItem) — ต่อท้ายราคาต่อหน่วย
+  // ให้รู้ว่าราคาและจำนวนที่สั่งนับเป็นอะไร (ຈານ/ແກ້ວ/ໜ່ວຍ) เหมือนหน้าสั่งของลูกค้า
+  const unitName = product.uniteName?.trim() ?? "";
+
+  return (
+    <>
+      {modeLabel ? (
+        <Badge className="max-w-32 shrink truncate border-primary/20 bg-primary/10 text-primary-text shadow-none">
+          {modeLabel}
+        </Badge>
+      ) : null}
+      {sizeLabel ? <span className="min-w-0 truncate">{sizeLabel}</span> : null}
+      {sizeLabel ? <span aria-hidden="true">·</span> : null}
+      <span className="shrink-0 tabular-nums">
+        <span className="font-semibold text-foreground">{money(unitPrice)}</span>
+        {unitName ? <span> / {unitName}</span> : null}
+      </span>
+    </>
   );
 }
 
@@ -236,7 +314,6 @@ export function ProductOptionsForm({
   onToggleTopping: (uuid: string) => void;
 }) {
   const { t } = useTranslation();
-  const media = productMedia(product);
   const setMode = mode === "set";
   const details = setMode ? [] : availableProductDetails(product);
   const setDetailSections = setMode ? orderedSetDetailSections(product) : [];
@@ -261,7 +338,6 @@ export function ProductOptionsForm({
   );
   const toppingLimitReached = selectedToppings.length >= toppingLimit;
   const total = modalUnitPrice * qty;
-  const modeLabel = productModeLabel(mode, product, t);
   const quantityRules = orderQuantityRules(selectedDetail, mode, product);
   const selectionIssue = getOrderSelectionIssue({
     detail: selectedDetail,
@@ -289,17 +365,9 @@ export function ProductOptionsForm({
         if (!saving && canSubmit) onSubmit();
       }}
     >
-      <div className="min-h-0 flex-1 overscroll-contain overflow-y-auto px-3 py-3 sm:px-5 sm:py-4">
+      <div className="min-h-0 flex-1 overscroll-contain overflow-y-auto px-4 py-4 sm:px-5">
         <fieldset disabled={saving} className="contents">
-          <div className="flex flex-col gap-3 sm:gap-4">
-            <ProductDetailSummary
-              detailLabel={setMode ? null : selectedDetail.sizeName}
-              media={media}
-              modeLabel={modeLabel}
-              unitPrice={modalUnitPrice}
-            />
-
-            <FieldGroup className="gap-4">
+          <FieldGroup className="gap-5">
               {setMode
                 ? setDetailSections.map((section, sectionIndex) => {
                     if (section.kind === "fixed") {
@@ -425,13 +493,16 @@ export function ProductOptionsForm({
                   })
                 : null}
 
+
               {!setMode && details.length > 1 ? (
-                <FieldSet className="gap-2">
+                <FieldSet className="gap-3">
                   <SectionLegend
                     label={t("pos.chooseSize")}
                     meta={t("pos.sizeCount", { count: details.length })}
                   />
+                  {/* การ์ดตัวเลือกแบบกริด แทนแถวเต็มกว้างที่ด้านขวาโล่ง — ชื่อกับราคาอยู่ใกล้กัน กดง่ายบนแท็บเล็ต */}
                   <RadioGroup
+                    className="grid grid-cols-2 gap-2 sm:grid-cols-3"
                     value={selectedDetail.proDetailUuid}
                     onValueChange={(uuid) => {
                       const detail = details.find(
@@ -442,21 +513,25 @@ export function ProductOptionsForm({
                   >
                     {details.map((detail) => {
                       const id = `staff-product-size-${detail.proDetailUuid}`;
+                      const checked = detail.proDetailUuid === selectedDetail.proDetailUuid;
                       return (
                         <FieldLabel
                           key={detail.proDetailUuid}
                           htmlFor={id}
-                          className="min-h-12 w-full cursor-pointer items-center rounded-xl border border-border/70 bg-card px-3.5 py-2.5 text-foreground transition-colors hover:border-primary/40 hover:bg-accent/40 has-data-[state=checked]:border-primary has-data-[state=checked]:bg-primary/5 has-data-[state=checked]:ring-1 has-data-[state=checked]:ring-primary/20"
+                          className={optionCardClass(checked)}
                         >
-                          <RadioGroupItem
-                            id={id}
-                            value={detail.proDetailUuid}
-                            className="size-5"
-                          />
-                          <span className="min-w-0 flex-1 truncate text-sm font-semibold">
-                            {detail.sizeName || t("pos.size")}
+                          <span className="flex w-full items-start justify-between gap-2">
+                            <span className="line-clamp-2 min-w-0 text-sm font-semibold">
+                              {detail.sizeName || t("pos.size")}
+                            </span>
+                            <RadioGroupItem id={id} value={detail.proDetailUuid} className="mt-0.5" />
                           </span>
-                          <span className="shrink-0 text-sm font-bold tabular-nums text-primary">
+                          <span
+                            className={cn(
+                              "text-sm font-semibold tabular-nums",
+                              checked ? "text-primary-text" : "text-muted-foreground",
+                            )}
+                          >
                             {money(productPriceFromDetail(detail))}
                           </span>
                         </FieldLabel>
@@ -467,7 +542,7 @@ export function ProductOptionsForm({
               ) : null}
 
               {mode === "promotion" ? (
-                <div className="flex min-h-11 items-center justify-between gap-3 rounded-xl border border-primary/20 bg-primary/10 px-3.5 py-2.5 text-primary">
+                <div className="flex min-h-11 items-center justify-between gap-3 rounded-xl border border-primary/20 bg-primary/10 px-3.5 py-2.5 text-primary-text">
                   <span className="text-sm font-semibold">
                     {t("pos.promoDeal")}
                   </span>
@@ -478,7 +553,7 @@ export function ProductOptionsForm({
               ) : null}
 
               {(!setMode || !hasNestedSetTastes) && tastes.length && tasteLimit > 0 ? (
-                <FieldSet className="gap-2">
+                <FieldSet className="gap-3">
                   <SectionLegend
                     label={t("pos.tastes")}
                     meta={t("pos.selectedOf", {
@@ -487,9 +562,7 @@ export function ProductOptionsForm({
                     })}
                     metaEmphasis={selectedTastes.length >= tasteLimit}
                   />
-                  {/* รสชาติเป็นแท็ก (ไม่มีราคา/จำนวน) — แสดงเป็น chip แบบ wrap แทนแถวเต็มกว้าง
-                      ที่ปล่อยด้านขวาโล่ง ให้ดูกระชับ สวย และแยกจากขนาด/ท็อปปิ้งที่มีราคาชัดเจน */}
-                  <div className="flex flex-wrap gap-2">
+                  <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
                     {tastes.map((taste) => {
                       const uuid = tasteUuid(taste);
                       const selected = selectedTasteUuids.has(uuid);
@@ -500,18 +573,21 @@ export function ProductOptionsForm({
                           key={uuid}
                           htmlFor={id}
                           className={cn(
-                            "min-h-11 w-fit max-w-full items-center gap-2 rounded-lg border border-border/70 bg-card px-3.5 text-sm font-semibold text-foreground transition-colors hover:border-primary/40 hover:bg-accent/40 has-data-checked:border-primary has-data-checked:bg-primary/10 has-data-checked:text-primary",
-                            blocked ? "cursor-not-allowed opacity-60" : "cursor-pointer",
+                            optionCardClass(selected),
+                            "min-h-12 flex-row items-center",
+                            blocked && "cursor-not-allowed opacity-50 hover:bg-card",
                           )}
                         >
+                          {/* ไม่ใช้ disabled จริง — ต้องคลิกถึง onToggle ได้เพื่อขึ้น toast เตือนเพดาน */}
                           <Checkbox
                             id={id}
                             checked={selected}
                             aria-disabled={blocked}
-                            className="size-4.5"
                             onCheckedChange={() => onToggleTaste(uuid)}
                           />
-                          <span className="min-w-0 truncate">{tasteDisplayName(taste)}</span>
+                          <span className="min-w-0 truncate text-sm font-semibold">
+                            {tasteDisplayName(taste)}
+                          </span>
                         </FieldLabel>
                       );
                     })}
@@ -520,7 +596,7 @@ export function ProductOptionsForm({
               ) : null}
 
               {toppings.length ? (
-                <FieldSet className="gap-2">
+                <FieldSet className="gap-3">
                   <SectionLegend
                     label={t("pos.toppings")}
                     meta={t("pos.selectedOf", {
@@ -532,13 +608,13 @@ export function ProductOptionsForm({
                   <div className="flex flex-col gap-2">
                     {toppings.map((topping) => {
                       const uuid = toppingUuid(topping);
-                      const qty = toppingQtyByUuid[uuid] ?? 0;
-                      const canSelectMore = qty >= 1 || !toppingLimitReached;
+                      const toppingQty = toppingQtyByUuid[uuid] ?? 0;
+                      const canSelectMore = toppingQty >= 1 || !toppingLimitReached;
                       return (
                         <ToppingOptionRow
                           key={uuid}
                           canSelectMore={canSelectMore}
-                          qty={qty}
+                          qty={toppingQty}
                           topping={topping}
                           onChangeQty={(nextQty) =>
                             onChangeToppingQty(uuid, nextQty)
@@ -551,43 +627,19 @@ export function ProductOptionsForm({
                 </FieldSet>
               ) : null}
 
-              <Field>
-                <FieldLabel
-                  htmlFor="staff-product-quantity"
-                  className="text-sm font-semibold text-foreground"
-                >
-                  {t("pos.qty")}
-                </FieldLabel>
-                <QuantityControl
-                  qty={qty}
-                  rules={quantityRules}
-                  onQtyChange={onQtyChange}
-                />
-                {quantityRules.step > 1 ? (
-                  <FieldDescription>
-                    {t("pos.orderStep", { count: quantityRules.step })}
-                  </FieldDescription>
-                ) : null}
-              </Field>
-
-              <Field>
-                <FieldLabel
-                  htmlFor="staff-product-note"
-                  className="text-sm font-semibold text-foreground"
-                >
-                  {t("pos.note")}
-                </FieldLabel>
+              <FieldSet className="gap-3">
+                <SectionLegend label={t("pos.note")} />
                 <Textarea
                   id="staff-product-note"
+                  aria-label={t("pos.note")}
                   autoComplete="off"
-                  className="min-h-18 resize-none bg-background"
+                  className="min-h-18 resize-none bg-card"
                   name="orderNote"
                   value={note}
                   placeholder={t("pos.notePlaceholder")}
                   onChange={(event) => onNoteChange(event.target.value)}
                 />
-              </Field>
-            </FieldGroup>
+              </FieldSet>
 
             {submitIssue ? (
               <Alert
@@ -599,65 +651,27 @@ export function ProductOptionsForm({
                 <AlertTitle className="line-clamp-none">{submitIssue}</AlertTitle>
               </Alert>
             ) : null}
-          </div>
+          </FieldGroup>
         </fieldset>
       </div>
 
       <ProductOptionsFooter
         canSubmit={canSubmit}
+        qty={qty}
+        quantityRules={quantityRules}
         saving={saving}
         total={total}
+        onQtyChange={onQtyChange}
       />
     </form>
   );
 }
 
-function ProductDetailSummary({
-  detailLabel,
-  media,
-  modeLabel,
-  unitPrice,
-}: {
-  detailLabel?: string | null;
-  media: ProductMedia;
-  modeLabel: string;
-  unitPrice: number;
-}) {
-  const { t } = useTranslation();
-
-  return (
-    <section className="rounded-2xl border border-border bg-muted/30 p-3.5">
-      <div className="grid grid-cols-[64px_minmax(0,1fr)] items-center gap-3.5 sm:grid-cols-[72px_minmax(0,1fr)]">
-        <div className="relative aspect-square w-full overflow-hidden rounded-xl bg-muted bg-cover bg-center shadow-sm ring-1 ring-border/60">
-          <ProductMediaView
-            alt=""
-            fallbackIcon="chef"
-            media={media}
-            sizes="96px"
-          />
-        </div>
-        <div className="flex min-w-0 items-center justify-between gap-3">
-          <div className="flex min-w-0 flex-col gap-1.5">
-            <Badge className="w-fit max-w-full truncate border border-primary/20 bg-primary/10 text-primary shadow-none">
-              {modeLabel}
-            </Badge>
-            {detailLabel ? (
-              <p className="truncate text-sm font-medium text-muted-foreground">
-                {detailLabel}
-              </p>
-            ) : null}
-          </div>
-          <div className="min-w-0 shrink-0 text-right">
-            <p className="text-xs font-medium leading-4 text-muted-foreground">
-              {t("pos.unitPrice")}
-            </p>
-            <p className="truncate text-xl font-bold leading-7 text-primary tabular-nums sm:text-2xl">
-              {money(unitPrice)}
-            </p>
-          </div>
-        </div>
-      </div>
-    </section>
+// การ์ดตัวเลือก (ขนาด/รสชาติ) — หน้าตาเดียวกันทุก section ให้ทั้ง modal ไปในทางเดียวกัน
+function optionCardClass(checked: boolean) {
+  return cn(
+    "w-full min-w-0 cursor-pointer flex-col items-start gap-1 rounded-lg border border-border bg-card p-3 text-foreground transition-colors hover:bg-accent/50",
+    checked && "border-primary bg-primary/5 ring-1 ring-primary hover:bg-primary/5",
   );
 }
 
@@ -667,24 +681,26 @@ function SectionLegend({
   metaEmphasis = false,
 }: {
   label: string;
-  meta: string;
+  meta?: string;
   metaEmphasis?: boolean;
 }) {
   return (
-    <FieldLegend
-      variant="label"
-      className="mb-0 flex min-w-0 items-center justify-between gap-3 text-xs font-bold uppercase tracking-wide text-muted-foreground"
-    >
-      <span>{label}</span>
-      <span
-        className={cn(
-          "shrink-0 text-xs font-semibold normal-case tracking-normal",
-          metaEmphasis ? "text-primary" : "text-muted-foreground/80",
-        )}
-      >
-        {meta}
-      </span>
-    </FieldLegend>
+    <div className="flex min-w-0 items-center justify-between gap-3">
+      <FieldLegend className="mb-0 text-sm font-semibold text-foreground">
+        {label}
+      </FieldLegend>
+      {meta ? (
+        <Badge
+          variant="secondary"
+          className={cn(
+            "shrink-0 tabular-nums",
+            metaEmphasis && "bg-primary/10 text-primary-text",
+          )}
+        >
+          {meta}
+        </Badge>
+      ) : null}
+    </div>
   );
 }
 
@@ -713,10 +729,10 @@ function SetProductRow({
     <div className="w-full rounded-xl border border-primary/20 bg-primary/5 text-foreground">
       <div className="flex min-h-12 items-center justify-between gap-3 px-3.5 py-2.5">
         <span className="flex min-w-0 items-center gap-2">
-          <Check aria-hidden="true" className="size-4 shrink-0 text-primary" />
+          <Check aria-hidden="true" className="size-4 shrink-0 text-primary-text" />
           <span className="truncate text-sm font-semibold">{label}</span>
         </span>
-        <span className="shrink-0 text-sm font-bold text-primary tabular-nums">
+        <span className="shrink-0 text-sm font-bold text-primary-text tabular-nums">
           ×{quantity}
         </span>
       </div>
@@ -785,7 +801,7 @@ function SetChoiceOptionRow({
           onCheckedChange={onToggle}
         />
         <span className="min-w-0 flex-1 truncate text-sm font-semibold">{label}</span>
-        <span className="shrink-0 text-sm font-bold tabular-nums text-primary">×{quantity}</span>
+        <span className="shrink-0 text-sm font-bold tabular-nums text-primary-text">×{quantity}</span>
       </FieldLabel>
 
       {selected ? (
@@ -907,7 +923,7 @@ function SetDetailOptionGroups({
                   key={uuid}
                   htmlFor={tasteId}
                   className={cn(
-                    "min-h-10 w-fit max-w-full items-center gap-2 rounded-lg border border-border/70 bg-background px-3 text-sm font-semibold transition-colors has-data-checked:border-primary has-data-checked:bg-primary/10 has-data-checked:text-primary",
+                    "min-h-10 w-fit max-w-full items-center gap-2 rounded-lg border border-border/70 bg-background px-3 text-sm font-semibold transition-colors has-data-checked:border-primary has-data-checked:bg-primary/10 has-data-checked:text-primary-text",
                     tasteBlocked
                       ? "cursor-not-allowed opacity-60"
                       : "cursor-pointer",
@@ -959,14 +975,15 @@ function ToppingOptionRow({
     <Field
       orientation="horizontal"
       className={cn(
-        "min-h-14 flex-wrap rounded-xl border border-border/70 bg-card px-3.5 py-2.5 transition-colors",
-        selected && "border-primary bg-primary/5 ring-1 ring-primary/20",
-        blocked && "opacity-50",
+        "min-h-12 items-center gap-3 rounded-lg border border-border bg-card px-3 py-1.5 transition-colors hover:bg-accent/50",
+        selected && "border-primary bg-primary/5 ring-1 ring-primary hover:bg-primary/5",
+        blocked && "opacity-50 hover:bg-card",
       )}
     >
       <FieldLabel
+        htmlFor={id}
         className={cn(
-          "min-h-11 min-w-18 flex-1 items-center gap-3 text-sm font-semibold has-data-checked:bg-transparent dark:has-data-checked:bg-transparent",
+          "min-h-9 min-w-0 flex-1 items-center gap-3 text-sm font-semibold has-data-checked:bg-transparent dark:has-data-checked:bg-transparent",
           blocked ? "cursor-not-allowed" : "cursor-pointer",
         )}
       >
@@ -976,50 +993,54 @@ function ToppingOptionRow({
           id={id}
           aria-disabled={blocked}
           checked={selected}
-          className={cn("size-5", blocked && "cursor-not-allowed")}
+          className={cn(blocked && "cursor-not-allowed")}
           onCheckedChange={onToggle}
         />
-        <span className="truncate">{label}</span>
+        <span className="min-w-0 truncate">{label}</span>
       </FieldLabel>
-      <div className="ml-auto flex shrink-0 items-center gap-2">
-        <div className="text-right">
-          <p className={cn("text-sm font-bold tabular-nums", unitPrice > 0 ? "text-primary" : "text-muted-foreground")}>
-            +{money(unitPrice * Math.max(1, qty))}
-          </p>
-          <p className="text-2xs font-medium text-muted-foreground tabular-nums">
-            {selected && qty > 1 ? `${qty} × ${money(unitPrice)} · ` : ""}
-            {t("pos.perItem")}
-          </p>
-        </div>
-        {selected ? (
-          <span className="flex items-center rounded-full border border-primary/30 bg-background shadow-sm">
-            <Button
-              type="button"
-              size="icon"
-              variant="ghost"
-              aria-label={t("pos.decreaseTopping", { name: label })}
-              className="size-11 rounded-full text-primary hover:bg-primary/10"
-              onClick={() => onChangeQty(qty - 1)}
-            >
-              <Minus aria-hidden="true" />
-            </Button>
-            <span className="min-w-7 text-center text-sm font-black text-foreground tabular-nums">
-              {qty}
-            </span>
-            <Button
-              type="button"
-              size="icon"
-              variant="ghost"
-              aria-label={t("pos.increaseTopping", { name: label })}
-              className="size-11 rounded-full text-primary hover:bg-primary/10"
-              disabled={qty >= toppingQtyCap()}
-              onClick={() => onChangeQty(qty + 1)}
-            >
-              <Plus aria-hidden="true" />
-            </Button>
+      <div className="flex shrink-0 flex-col items-end">
+        <span
+          className={cn(
+            "text-sm font-semibold tabular-nums",
+            selected && unitPrice > 0 ? "text-primary-text" : "text-muted-foreground",
+          )}
+        >
+          +{money(unitPrice * Math.max(1, qty))}
+        </span>
+        {selected && qty > 1 ? (
+          <span className="text-2xs text-muted-foreground tabular-nums">
+            {qty} × {money(unitPrice)}
           </span>
         ) : null}
       </div>
+      {selected ? (
+        <ButtonGroup aria-label={label} className="shrink-0">
+          <Button
+            type="button"
+            size="icon"
+            variant="outline"
+            aria-label={t("pos.decreaseTopping", { name: label })}
+            className="size-9 bg-background"
+            onClick={() => onChangeQty(qty - 1)}
+          >
+            <Minus aria-hidden="true" />
+          </Button>
+          <ButtonGroupText className="min-w-9 justify-center bg-background px-2 text-sm font-semibold tabular-nums">
+            {qty}
+          </ButtonGroupText>
+          <Button
+            type="button"
+            size="icon"
+            variant="outline"
+            aria-label={t("pos.increaseTopping", { name: label })}
+            className="size-9 bg-background"
+            disabled={qty >= toppingQtyCap()}
+            onClick={() => onChangeQty(qty + 1)}
+          >
+            <Plus aria-hidden="true" />
+          </Button>
+        </ButtonGroup>
+      ) : null}
     </Field>
   );
 }
@@ -1064,13 +1085,13 @@ function QuantityControl({
     draft && Number.isFinite(parsedVisibleQty) ? parsedVisibleQty : undefined;
 
   return (
-    <div className="grid max-w-60 grid-cols-[44px_minmax(0,1fr)_44px] items-center gap-2">
+    <ButtonGroup aria-label={t("pos.qty")} className="shrink-0">
       <Button
         type="button"
         variant="outline"
         size="icon"
         aria-label={t("pos.decreaseQuantity")}
-        className="size-11 bg-background hover:bg-muted"
+        className="size-11 bg-background sm:size-12"
         disabled={actionableQty <= rules.min}
         onClick={() => changeBy(-1)}
       >
@@ -1079,11 +1100,12 @@ function QuantityControl({
       <Input
         id="staff-product-quantity"
         role="spinbutton"
+        aria-label={t("pos.qty")}
         aria-valuemin={rules.min}
         aria-valuemax={rules.max}
         aria-valuenow={visibleQty}
         autoComplete="off"
-        className="h-11 w-full bg-background text-center text-lg font-black tabular-nums"
+        className="h-11 w-11 flex-none bg-background px-1 text-center text-base font-semibold tabular-nums sm:h-12 sm:w-14"
         inputMode="numeric"
         name="quantity"
         value={draft}
@@ -1107,57 +1129,69 @@ function QuantityControl({
         variant="outline"
         size="icon"
         aria-label={t("pos.increaseQuantity")}
-        className="size-11 bg-background hover:bg-muted"
+        className="size-11 bg-background sm:size-12"
         disabled={actionableQty >= rules.max}
         onClick={() => changeBy(1)}
       >
         <Plus aria-hidden="true" />
       </Button>
-    </div>
+    </ButtonGroup>
   );
 }
 
+// จำนวน + ปุ่มเพิ่มลงออเดอร์ (พร้อมยอดรวม) อยู่แถวล่างเดียวกัน — แคชเชียร์ไม่ต้องเลื่อนลงไปหา
+// ช่องจำนวนท้ายฟอร์มอีก และเห็นยอดที่กำลังจะเพิ่มบนปุ่มที่จะกดเลย
 function ProductOptionsFooter({
   canSubmit,
+  qty,
+  quantityRules,
   saving,
   total,
+  onQtyChange,
 }: {
   canSubmit: boolean;
+  qty: number;
+  quantityRules: OrderQuantityRules;
   saving: boolean;
   total: number;
+  onQtyChange: (qty: number) => void;
 }) {
   const { t } = useTranslation();
   const content = (
-    <>
-      <div className="min-w-0">
-        <p className="text-xs font-medium leading-4 text-muted-foreground">
-          {t("common.total")}
-        </p>
-        <p className="truncate text-2xl font-bold leading-8 text-primary tabular-nums">
-          {money(total)}
-        </p>
+    <div className="flex w-full flex-col gap-2">
+      <div className="flex w-full items-center gap-2 sm:gap-3">
+        <QuantityControl qty={qty} rules={quantityRules} onQtyChange={onQtyChange} />
+        <Button
+          type="submit"
+          className="h-11 min-w-0 flex-1 justify-between gap-2 rounded-lg px-3 text-sm font-bold sm:h-12 sm:gap-3 sm:px-4 sm:text-base"
+          disabled={saving || !canSubmit}
+        >
+          <span className="flex min-w-0 items-center gap-2">
+            {saving ? (
+              <Spinner aria-label={t("common.loading")} data-icon="inline-start" />
+            ) : (
+              // จอแคบ: ตัดไอคอนออกให้ข้อความ + ยอดรวมไม่โดนตัด (ข้างปุ่มมีตัวปรับจำนวนกินที่อยู่)
+              <Plus aria-hidden="true" data-icon="inline-start" className="hidden sm:block" />
+            )}
+            <span className="truncate">{t("pos.sendOrder")}</span>
+          </span>
+          <span className="shrink-0 tabular-nums">{money(total)}</span>
+        </Button>
       </div>
-      <Button
-        type="submit"
-        className="h-12 min-w-40 rounded-xl bg-primary text-base font-bold text-primary-foreground shadow-sm hover:bg-primary/90"
-        disabled={saving || !canSubmit}
-      >
-        {saving ? (
-          <Spinner aria-label={t("common.loading")} data-icon="inline-start" />
-        ) : (
-          <Plus aria-hidden="true" data-icon="inline-start" />
-        )}
-        {t("pos.sendOrder")}
-      </Button>
-    </>
+      {quantityRules.step > 1 ? (
+        <p className="text-xs text-muted-foreground">
+          {t("pos.orderStep", { count: quantityRules.step })}
+        </p>
+      ) : null}
+    </div>
   );
 
   return (
     <>
       <SheetFooter className="shrink-0 border-t border-border bg-background px-4 pt-3 pb-[calc(0.75rem+var(--pos-system-bottom-safe-area))] md:hidden">
-        <div className="flex items-center justify-between gap-3">{content}</div>
+        {content}
       </SheetFooter>
-      <DialogFooter className="hidden shrink-0 border-t border-border bg-background px-5 py-4 md:flex md:items-center md:justify-between">
+      <DialogFooter className="hidden shrink-0 border-t border-border bg-background px-5 py-4 md:flex">
         {content}
       </DialogFooter>
     </>

@@ -64,6 +64,17 @@ export function isImmersiveScreen(pathname: string) {
   return IMMERSIVE_SCREEN_PATHS.has(pathname);
 }
 
+// Routes under src/app/ (outside the (protected) group) that never render the app shell.
+// "/posAll" is only public as an exact path; /posAll/tables and /posAll/order are protected.
+const PUBLIC_APP_PATH_PREFIXES = ["/home", "/login", "/policy", "/customer-display"] as const;
+
+export function isPublicAppPath(pathname: string) {
+  return (
+    pathname === "/posAll" ||
+    PUBLIC_APP_PATH_PREFIXES.some((prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`))
+  );
+}
+
 // หา path หน้าแรกที่ผู้ใช้เข้าได้จริงตามลำดับเมนู (บวก children ก่อน ไม่ใช้ path ของกลุ่ม dropdown เอง
 // เพราะ shell-sidebar-menu.tsx เองก็ไม่ปล่อยให้กดกลุ่มนั้นตรง ๆ) — ใช้เลือกปลายทาง login แทนค่า "/" ตายตัว
 export function firstNavigablePath(items: MenuItem[]): string | undefined {

@@ -104,6 +104,76 @@ export function formatSaleDate(value: unknown) {
   return date.toLocaleString();
 }
 
+const BILL_TIME_FORMAT = new Intl.DateTimeFormat("en-GB", {
+  day: "2-digit",
+  hour: "2-digit",
+  hour12: false,
+  minute: "2-digit",
+  month: "2-digit"
+});
+
+// order_date จาก API เป็นวันธุรกิจล้วน (เวลา 00:00:00 ทุกบิล) — โชว์ตรงๆ ได้ "12:00:00 AM" เหมือนกันหมด
+// จึงใช้เวลาชำระจริง (last_paid_at) แทน ถ้าไม่มีค่อยถอยไปโชว์แค่วันที่ในรูป dd/MM/yyyy แบบช่องกรองวันที่
+export function billTimeLabel(bill: DailySaleItemsBillGroup) {
+  const paidAt = textValue(readValue(bill.raw, ["last_paid_at", "paid_at"]), "");
+  const paidDate = paidAt ? new Date(paidAt) : null;
+  if (paidDate && !Number.isNaN(paidDate.getTime())) {
+    return { dateTime: paidDate.toISOString(), label: BILL_TIME_FORMAT.format(paidDate) };
+  }
+
+  const dateOnly = /^(\d{4})-(\d{2})-(\d{2})(?:[ T]00:00:00(?:\.0+)?Z?)?$/.exec(bill.saleDate);
+  if (dateOnly) return { dateTime: `${dateOnly[1]}-${dateOnly[2]}-${dateOnly[3]}`, label: `${dateOnly[3]}/${dateOnly[2]}/${dateOnly[1]}` };
+  return { dateTime: bill.saleDate, label: formatSaleDate(bill.saleDate) };
+}
+
+const BILL_CLOCK_FORMAT = new Intl.DateTimeFormat("en-GB", { hour: "2-digit", hour12: false, minute: "2-digit" });
+
+// เวลาชำระ HH:mm สำหรับคอลัมน์เวลาในลิสต์ — วันที่อยู่ที่หัวกลุ่มแล้ว ไม่ต้องซ้ำทุกแถว
+export function billPaidClock(bill: DailySaleItemsBillGroup) {
+  const paidAt = textValue(readValue(bill.raw, ["last_paid_at", "paid_at"]), "");
+  const paidDate = paidAt ? new Date(paidAt) : null;
+  return paidDate && !Number.isNaN(paidDate.getTime()) ? BILL_CLOCK_FORMAT.format(paidDate) : "";
+}
+
+// วันธุรกิจของบิล (order_date) ใช้จัดกลุ่มในลิสต์ ตรงกับช่วงวันที่ที่กรอง ไม่ใช่วันตามเวลาชำระ
+export function billBusinessDate(bill: DailySaleItemsBillGroup) {
+  const match = /^(\d{4})-(\d{2})-(\d{2})/.exec(bill.saleDate);
+  if (!match) return { key: bill.saleDate, label: formatSaleDate(bill.saleDate) };
+  return { key: `${match[1]}-${match[2]}-${match[3]}`, label: `${match[3]}/${match[2]}/${match[1]}` };
+}
+
+export interface BillDateGroup {
+  bills: DailySaleItemsBillGroup[];
+  key: string;
+  label: string;
+}
+
+// จัดกลุ่มบิลที่ติดกันตามวันธุรกิจ — คงลำดับเดิมจาก API (ASC/DESC) ไม่เรียงใหม่
+export function groupBillsByDate(bills: DailySaleItemsBillGroup[]) {
+  const groups: BillDateGroup[] = [];
+  for (const bill of bills) {
+    const date = billBusinessDate(bill);
+    const last = groups.at(-1);
+    if (last?.key === date.key) last.bills.push(bill);
+    else groups.push({ bills: [bill], key: date.key, label: date.label });
+  }
+  return groups;
+}
+
+// บิลแยกจ่าย (เงินสด+โอน) ได้ payment_method_name ว่าง แล้ว normalizer ถอยไปอ่าน payment_method = 0
+// ลิสต์จึงขึ้นเลข "0" — ชื่อที่เป็นตัวเลขล้วนให้แปลงเป็นป้ายที่อ่านรู้เรื่องแทน
+export function billPaymentLabel(bill: DailySaleItemsBillGroup, translate: (key: string) => string) {
+  const name = bill.paymentMethodName.trim();
+  if (name && name !== "-" && !/^\d+$/.test(name)) return name;
+  if (bill.receiveCashAmount > 0 && bill.receiveTransferAmount > 0) return translate("pos.splitPayment");
+
+  const code = /^\d+$/.test(name) ? name : bill.paymentMethodCode;
+  if (code === "1" || code === "2" || code === "4") return paymentMethodLabel(code, translate);
+  if (bill.receiveCashAmount > 0) return translate("pos.paymentCash");
+  if (bill.receiveTransferAmount > 0) return translate("pos.paymentTransfer");
+  return "-";
+}
+
 export function recordValue(value: unknown): ApiEntity | null {
   return value && typeof value === "object" && !Array.isArray(value) ? value as ApiEntity : null;
 }

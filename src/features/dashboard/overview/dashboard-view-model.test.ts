@@ -112,13 +112,26 @@ describe("dashboard view model", () => {
     ]);
   });
 
-  it("creates current-date default filters", () => {
+  it("defaults to the latest 7 business days ending today", () => {
     expect(createDefaultFilters(new Date(2026, 5, 11, 12))).toEqual({
       end_date: "2026-06-11",
       periodMonth: 6,
       periodType: "daily",
       periodYear: 2026,
-      start_date: "2026-06-11"
+      start_date: "2026-06-05"
+    });
+  });
+
+  it("crosses month and year boundaries for the default week", () => {
+    expect(createDefaultFilters(new Date(2026, 2, 3, 12))).toMatchObject({
+      end_date: "2026-03-03",
+      start_date: "2026-02-25"
+    });
+    expect(createDefaultFilters(new Date(2027, 0, 2, 12))).toMatchObject({
+      end_date: "2027-01-02",
+      periodMonth: 1,
+      periodYear: 2027,
+      start_date: "2026-12-27"
     });
   });
 
@@ -128,7 +141,7 @@ describe("dashboard view model", () => {
       periodMonth: 8,
       periodType: "daily",
       periodYear: 2026,
-      start_date: "2026-08-25"
+      start_date: "2026-08-19"
     });
   });
 
@@ -192,13 +205,10 @@ describe("dashboard view model", () => {
     expect(filterTopModel.productRows).toHaveLength(2);
   });
 
-  it("normalizes warning entries into stable key/value rows", () => {
+  it("keeps only warnings that carry a message", () => {
     const model = createDashboardModel(dashboardData(), createDefaultFilters());
 
-    expect(model.warnings).toEqual([
-      { key: "low_stock", value: "Low stock" },
-      { key: "missing", value: "-" }
-    ]);
+    expect(model.warnings).toEqual([{ key: "low_stock", value: "Low stock" }]);
   });
 
   it("normalizes mixed payment summary and maps payment warning copy keys", () => {
@@ -356,7 +366,7 @@ describe("dashboard period type filters", () => {
     expect(filters).toMatchObject({
       end_date: "2026-06-11",
       periodType: "daily",
-      start_date: "2026-06-11"
+      start_date: "2026-06-05"
     });
   });
 
@@ -403,8 +413,14 @@ describe("dashboard period type filters", () => {
   });
 
   it("does not touch dates when changing year or month outside their matching period", () => {
-    expect(applyPeriodYear(dailyFilters, 2030).start_date).toBe("2026-06-11");
-    expect(applyPeriodMonth(dailyFilters, 9).start_date).toBe("2026-06-11");
+    expect(applyPeriodYear(dailyFilters, 2030)).toMatchObject({
+      end_date: dailyFilters.end_date,
+      start_date: dailyFilters.start_date
+    });
+    expect(applyPeriodMonth(dailyFilters, 9)).toMatchObject({
+      end_date: dailyFilters.end_date,
+      start_date: dailyFilters.start_date
+    });
   });
 
   it("builds a descending list of year options centered on the given year", () => {

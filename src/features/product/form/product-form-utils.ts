@@ -1,4 +1,3 @@
-import { cn } from "@/lib/utils";
 import { numberFromFormatted } from "@/lib/number-format";
 import type { Category } from "@/services/category";
 import type { Color } from "@/services/color";
@@ -748,7 +747,8 @@ export function emptyDetail(statusSortFk: StatusSortFk = "1"): DetailRow {
     pro_detail_uuid: "",
     size_uuid_fk: "",
     pro_detail_bprice: "0",
-    pro_detail_sprice: "0",
+    // Empty rather than "0": a sale price must be typed in, and 0 is rejected on save.
+    pro_detail_sprice: "",
     pro_detail_qty_stock: "0",
     pro_detail_stock: DEFAULT_DETAIL_STOCK_MODE,
     pro_detail_setqty_cut_stock: "1",
@@ -881,7 +881,7 @@ export function normalizeDetailsForStatus(
       pro_detail_setqty_cut_stock: row.pro_detail_setqty_cut_stock || "1",
       pro_detail_enabled: row.pro_detail_enabled || "1",
       pro_detail_bprice: row.pro_detail_bprice || "0",
-      pro_detail_sprice: row.pro_detail_sprice || "0",
+      pro_detail_sprice: row.pro_detail_sprice ?? "",
       pro_detail_qty_stock: row.pro_detail_qty_stock || "0",
       // กลุ่มตัวเลือกมีความหมายเฉพาะสินค้าแบบ Set — สลับออกจาก Set แล้วต้องล้างทิ้ง
       set_choice_group_mode: targetStatus === "2" ? row.set_choice_group_mode : "none",
@@ -933,25 +933,6 @@ export function entityLabel(
   const primary = english ? item[primaryKey] : item[fallbackKey];
   const fallbackName = english ? item[fallbackKey] : item[primaryKey];
   return String(primary || fallbackName || fallback || "-");
-}
-
-export function choiceCardClass(active: boolean) {
-  return cn(
-    // min-h-16 = p-3 บน/ล่าง (24px) + สองบรรทัด (40px) พอดี — เดิม min-h-20 เหลือที่ว่างเปล่า 16px ทุกใบ
-    "flex min-h-16 w-full items-start justify-start gap-3 rounded-lg border p-3 text-left transition",
-    active
-      ? "border-primary bg-primary/5 text-foreground ring-1 ring-primary/20"
-      : "border-border bg-card hover:border-primary/40 hover:bg-muted/40",
-  );
-}
-
-export function choiceMarkClass(active: boolean) {
-  return cn(
-    "mt-0.5 grid size-5 shrink-0 place-items-center rounded-full border text-2xs",
-    active
-      ? "border-primary bg-primary text-primary-foreground"
-      : "border-border bg-background text-transparent",
-  );
 }
 
 export function buildDetailPayload(
@@ -1070,7 +1051,49 @@ export function nextBulkStockMode(
   return summary === "deduct" ? "2" : "1";
 }
 
-export function requiredFieldErrorKeys(state: RequiredProductFormState) {
+// DOM ids shared by the form view and validation, so a failed save can scroll to
+// the exact control that needs attention.
+export const PRODUCT_FORM_FIELD_IDS = {
+  imageSection: "prod-image-section",
+  color: "prod-color",
+  nameLa: "prod-name-la",
+  category: "prod-category",
+  unit: "prod-unit",
+  setPrice: "prod-set-price",
+  tastesSection: "prod-tastes-section",
+  detailsSection: "prod-details-section",
+  toppingsSection: "prod-toppings-section",
+} as const;
+
+export function detailFieldId(rowId: string, name: string) {
+  return `detail-${rowId}-${name}`;
+}
+
+export function detailGroupFieldId(rowId: string, groupId: string, name: string) {
+  return detailFieldId(rowId, `${groupId}-${name}`);
+}
+
+export interface ProductFormIssue {
+  fieldId: string;
+  labelKey: string;
+  // "positivePrice" = empty or 0 is rejected: a POS item must never ring up for free by accident.
+  kind: "required" | "positivePrice";
+}
+
+export function isPositivePrice(value: string | undefined) {
+  return Number(numberFromFormatted(value ?? "")) > 0;
+}
+
+// Issues in on-screen order (image → general → tastes → details → toppings), so the
+// first one is always the topmost field the user has to fix.
+export function productFormIssues(state: RequiredProductFormState): ProductFormIssue[] {
+  const ids = PRODUCT_FORM_FIELD_IDS;
+  const issues: ProductFormIssue[] = [];
+  const required = (fieldId: string, labelKey: string) =>
+    issues.push({ fieldId, labelKey, kind: "required" });
+  const positivePrice = (fieldId: string, labelKey: string) =>
+    issues.push({ fieldId, labelKey, kind: "positivePrice" });
+  const isSet = state.statusSortFk === "2";
   const availableTasteUuids = state.availableTasteUuids
     ? new Set(state.availableTasteUuids)
     : null;
@@ -1079,106 +1102,104 @@ export function requiredFieldErrorKeys(state: RequiredProductFormState) {
     ...row.set_option_groups.flatMap((group) => group.taste_uuid_fks),
   ]);
   const selectedProductTasteUuids = new Set(
-    state.statusSortFk === "2"
+    isSet
       ? setTasteUuids.filter((uuid) => !availableTasteUuids || availableTasteUuids.has(uuid))
       : (state.selectedTastes ?? []).map((taste) => taste.taste_uuid),
   );
-  return [
-    !state.prodNameLa.trim() ? "fields.prod_name" : null,
-    !state.cateUuidFk ? "nav.category" : null,
-    !state.uniteUuidFk ? "nav.unit" : null,
-    !state.details.length ? "product.sections.details" : null,
-    state.details.some((row) => !row.size_uuid_fk)
-      ? state.statusSortFk === "2"
-        ? "pos.product"
-        : "fields.size"
-      : null,
-    state.details.some((row) => row.pro_detail_bprice.trim() === "")
-      ? "fields.bprice"
-      : null,
-    state.statusSortFk !== "2" &&
-    state.details.some((row) => row.pro_detail_sprice.trim() === "")
-      ? "fields.sprice"
-      : null,
-    state.statusSortFk === "2" &&
-    state.details.some(
-      (row) =>
-        row.pro_detail_stock === "1" &&
-        Number(numberFromFormatted(row.pro_detail_setqty_cut_stock)) <= 0,
-    )
-      ? "product.setQtyCutStock"
-      : null,
-    state.statusSortFk === "3" &&
-    state.details.some((row) => !row.pro_detail_sDate || !row.pro_detail_eDate)
-      ? ["product.startDate", "product.endDate"]
-      : null,
-    state.statusSortFk === "3" &&
-    state.details.some(
-      (row) =>
-        row.pro_detail_status === "2" &&
-        (!row.pro_detail_sTime || !row.pro_detail_eTime),
-    )
-      ? ["product.startTime", "product.endTime"]
-      : null,
-    state.prodToppingStatus === TOPPING_HAS && !state.selectedToppings.length
-      ? "product.sections.toppings"
-      : null,
-    state.statusSortFk !== "2" &&
+  const selectedSauceCount = (uuids: string[]) =>
+    uuids.filter((uuid) => selectedProductTasteUuids.has(uuid)).length;
+
+  if (state.prodStatusImge === "1" && state.hasProductImage === false) {
+    required(ids.imageSection, "fields.prod_image");
+  }
+  if (state.prodStatusImge === "2" && state.colorValue !== undefined && !isHexColor(state.colorValue)) {
+    required(ids.color, "product.color");
+  }
+  if (!state.prodNameLa.trim()) required(ids.nameLa, "fields.prod_name");
+  if (!state.cateUuidFk) required(ids.category, "nav.category");
+  if (!state.uniteUuidFk) required(ids.unit, "nav.unit");
+  if (isSet && state.prodSetPrice !== undefined && !isPositivePrice(state.prodSetPrice)) {
+    positivePrice(ids.setPrice, "product.setPrice");
+  }
+  if (
+    !isSet &&
     Number(state.prodTasteMaxSelect ?? 0) > 0 &&
     (state.selectedTastes ?? []).length < Number(state.prodTasteMaxSelect ?? 0)
-      ? "product.sections.tastes"
-      : null,
-    state.statusSortFk === "2" &&
-    state.details.some(
-      (row) =>
-        row.set_choice_group_mode !== "none" &&
-        !row.set_option_groups.length &&
-        !choiceGroupNamesOf(row).length,
-    )
-      ? "product.setChoiceGroupName"
-      : null,
-    state.statusSortFk === "2" &&
-    state.details.some(
-      (row) => row.set_option_groups.length > 0 && row.set_choice_group_mode === "none",
-    )
-      ? "product.setChoiceGroupMode"
-      : null,
-    state.statusSortFk === "2" &&
-    state.details.some(
-      (row) =>
-        Number(row.set_taste_max_select) > 0 &&
-        row.set_taste_uuid_fks.filter((uuid) =>
-          selectedProductTasteUuids.has(uuid),
-        ).length < Number(row.set_taste_max_select),
-    )
-      ? "product.setDetailTastes"
-      : null,
-    state.statusSortFk === "2" &&
-    state.details.some((row) =>
-      row.set_option_groups.some((group) => !group.set_child_option_uuid_fk),
-    )
-      ? "product.setChildGroupName"
-      : null,
-    state.statusSortFk === "2" &&
-    state.details.some((row) =>
-      row.set_option_groups.some(
-        (group) =>
-          group.taste_uuid_fks.filter((uuid) =>
-            selectedProductTasteUuids.has(uuid),
-          ).length < Number(group.max_select),
-      ),
-    )
-      ? "product.setDetailTastes"
-      : null,
-  ].filter(Boolean) as Array<string | string[]>;
+  ) {
+    required(ids.tastesSection, "product.sections.tastes");
+  }
+  if (!state.details.length) required(ids.detailsSection, "product.sections.details");
+
+  for (const row of state.details) {
+    const field = (name: string) => detailFieldId(row.id, name);
+    if (!row.size_uuid_fk) required(field("size"), isSet ? "pos.product" : "fields.size");
+    if (row.pro_detail_bprice.trim() === "") required(field("bprice"), "fields.bprice");
+    if (!isSet && !isPositivePrice(row.pro_detail_sprice)) positivePrice(field("sprice"), "fields.sprice");
+    if (
+      isSet &&
+      row.pro_detail_stock === "1" &&
+      Number(numberFromFormatted(row.pro_detail_setqty_cut_stock)) <= 0
+    ) {
+      required(field("set-qty"), "product.setQtyCutStock");
+    }
+    if (state.statusSortFk === "3") {
+      if (!row.pro_detail_sDate) required(field("start-date"), "product.startDate");
+      if (!row.pro_detail_eDate) required(field("end-date"), "product.endDate");
+      if (row.pro_detail_status === "2") {
+        if (!row.pro_detail_sTime) required(field("start-time"), "product.startTime");
+        if (!row.pro_detail_eTime) required(field("end-time"), "product.endTime");
+      }
+    }
+    if (!isSet) continue;
+    if (
+      row.set_choice_group_mode !== "none" &&
+      !row.set_option_groups.length &&
+      !choiceGroupNamesOf(row).length
+    ) {
+      required(field("group-mode"), "product.setChoiceGroupName");
+    }
+    if (row.set_option_groups.length > 0 && row.set_choice_group_mode === "none") {
+      required(field("group-mode"), "product.setChoiceGroupMode");
+    }
+    if (
+      Number(row.set_taste_max_select) > 0 &&
+      selectedSauceCount(row.set_taste_uuid_fks) < Number(row.set_taste_max_select)
+    ) {
+      required(field("card"), "product.setDetailTastes");
+    }
+    for (const group of row.set_option_groups) {
+      if (!group.set_child_option_uuid_fk) {
+        required(detailGroupFieldId(row.id, group.id, "option"), "product.setChildGroupName");
+      }
+      if (selectedSauceCount(group.taste_uuid_fks) < Number(group.max_select)) {
+        required(detailGroupFieldId(row.id, group.id, "sauces"), "product.setDetailTastes");
+      }
+    }
+  }
+
+  if (state.prodToppingStatus === TOPPING_HAS && !state.selectedToppings.length) {
+    required(ids.toppingsSection, "product.sections.toppings");
+  }
+  return issues;
 }
 
+export function productFormIssueMessage(
+  issue: ProductFormIssue,
+  translate: (key: string, options?: Record<string, string>) => string,
+) {
+  const label = translate(issue.labelKey);
+  return issue.kind === "positivePrice"
+    ? translate("toasts.priceMustBePositive", { field: label })
+    : label;
+}
+
+// One message per distinct problem — five rows missing a size read as "Size", not five times.
 export function requiredFieldErrors(
   state: RequiredProductFormState,
-  translate: (key: string) => string,
+  translate: (key: string, options?: Record<string, string>) => string,
 ) {
-  return requiredFieldErrorKeys(state).map((item) =>
-    Array.isArray(item) ? item.map(translate).join(", ") : translate(item),
+  return Array.from(
+    new Set(productFormIssues(state).map((issue) => productFormIssueMessage(issue, translate))),
   );
 }
 

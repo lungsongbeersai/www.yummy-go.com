@@ -70,7 +70,8 @@ export function EmployeeSortTabs({
             aria-pressed={active}
             variant="ghost"
             className={cn(
-              "h-8 justify-center rounded-full border px-2.5 text-xs font-bold shadow-sm",
+              // lg: อยู่แถวเดียวกับช่องค้นหา/ปุ่มไอคอน (h-11) — สูงเท่ากันให้แถวตรง
+              "h-8 justify-center rounded-full border px-2.5 text-xs font-bold shadow-sm lg:h-11 lg:text-sm",
               neutral
                 ? "border-border bg-card text-foreground hover:bg-accent hover:text-foreground"
                 : "border-white/20 bg-white/15 text-white hover:border-white/45 hover:bg-white/25 hover:text-white dark:border-border dark:bg-card dark:text-foreground dark:hover:bg-accent dark:hover:text-foreground",

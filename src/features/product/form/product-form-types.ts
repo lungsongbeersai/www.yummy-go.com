@@ -73,6 +73,11 @@ export interface RequiredProductFormState {
   prodTasteMaxSelect?: string;
   selectedTastes?: TasteSelection[];
   availableTasteUuids?: string[];
+  // Optional so pure-logic callers can validate a subset; undefined skips that check.
+  prodSetPrice?: string;
+  prodStatusImge?: BinaryFlag;
+  hasProductImage?: boolean;
+  colorValue?: string;
 }
 
 export interface ProductSavePayloadState extends RequiredProductFormState {

@@ -61,7 +61,8 @@ import {
   productUnitUuid,
   readProductFormDefaults,
   rawProductImage,
-  requiredFieldErrors as getRequiredFieldErrors,
+  productFormIssueMessage,
+  productFormIssues,
   sizeUuid,
   tasteUuid,
   unitUuid,
@@ -77,10 +78,25 @@ import { useProductToppingsWorkflow } from "./use-product-toppings-workflow";
 type ProductFormSaveNotice = "idle" | "saving" | "saved";
 
 const SAVE_NOTICE_CLEAR_DELAY_MS = 6000;
+const EMPTY_FIELD_IDS: ReadonlySet<string> = new Set();
 
 function browserProductFormStorage() {
   if (typeof window === "undefined") return null;
   return window.localStorage;
+}
+
+// Bring the first invalid control into view and focus it; section-level issues
+// target a Card, which is not focusable, so focus() is simply a no-op there.
+function focusProductFormField(fieldId: string) {
+  if (typeof window === "undefined") return;
+
+  window.requestAnimationFrame(() => {
+    const element = document.getElementById(fieldId);
+    if (!element) return;
+    const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    element.scrollIntoView({ behavior: reducedMotion ? "auto" : "smooth", block: "center" });
+    element.focus({ preventScroll: true });
+  });
 }
 
 function scrollProductFormToTop() {
@@ -168,7 +184,7 @@ export function useProductFormWorkflow() {
   const [uniteUuidFk, setUniteUuidFk] = useState("");
   const [prodOrderPoint, setProdOrderPoint] = useState("5");
   const [prodNotification, setProdNotification] = useState<BinaryFlag>("2");
-  const [prodSetPrice, setProdSetPrice] = useState("0");
+  const [prodSetPrice, setProdSetPrice] = useState("");
   const [prodStatusImge, setProdStatusImge] = useState<BinaryFlag>("2");
   const [selectedImage, setSelectedImage] = useState<File | null>(null);
   const [crop, setCrop] = useState<CropState>(DEFAULT_CROP);
@@ -176,6 +192,8 @@ export function useProductFormWorkflow() {
   const [colorChoice, setColorChoice] = useState(CUSTOM_COLOR_VALUE);
   const [storedDefaults, setStoredDefaults] = useState(EMPTY_PRODUCT_FORM_DEFAULTS);
   const [saveNotice, setSaveNotice] = useState<ProductFormSaveNotice>("idle");
+  // Field errors stay hidden until the first failed save, then update live as the user fixes them.
+  const [showValidation, setShowValidation] = useState(false);
   const [categoryDialogOpen, setCategoryDialogOpen] = useState(false);
   const [unitDialogOpen, setUnitDialogOpen] = useState(false);
   const [sizeDialogOpen, setSizeDialogOpen] = useState(false);
@@ -432,7 +450,7 @@ export function useProductFormWorkflow() {
   function changeStatusSort(value: StatusSortFk) {
     setDetails((current) => normalizeDetailsForStatus(current, value, statusSortFk));
     setStatusSortFk(value);
-    if (value !== "2") setProdSetPrice("0");
+    if (value !== "2") setProdSetPrice("");
     if (value !== "2") handleSetOptionDialogOpen(false);
   }
 
@@ -441,23 +459,25 @@ export function useProductFormWorkflow() {
     showToast({ title: t("settings.saveFailed"), description, tone: "error" });
   }
 
-  function requiredFieldErrors() {
-    return getRequiredFieldErrors(
-      {
-        prodNameLa,
-        cateUuidFk,
-        uniteUuidFk,
-        details,
-        statusSortFk,
-        prodToppingStatus,
-        selectedToppings,
-        prodTasteMaxSelect,
-        selectedTastes,
-        availableTasteUuids: tasteOptions.map(tasteUuid),
-      },
-      t
-    );
-  }
+  const formIssues = productFormIssues({
+    prodNameLa,
+    cateUuidFk,
+    uniteUuidFk,
+    details,
+    statusSortFk,
+    prodToppingStatus,
+    selectedToppings,
+    prodTasteMaxSelect,
+    selectedTastes,
+    availableTasteUuids: tasteOptions.map(tasteUuid),
+    prodSetPrice,
+    prodStatusImge,
+    hasProductImage: Boolean(selectedImage || rawExistingImage),
+    colorValue,
+  });
+  const invalidFieldIds: ReadonlySet<string> = showValidation
+    ? new Set(formIssues.map((issue) => issue.fieldId))
+    : EMPTY_FIELD_IDS;
 
   function missingCategoryDescription(field: ReturnType<typeof missingCategoryField>) {
     if (field === "store") return t("settings.storeRequired");
@@ -578,20 +598,17 @@ export function useProductFormWorkflow() {
     if (isEditing && !editDataReady) return showSaveError(productLoading ? t("product.loading") : t("product.loadFailed"));
     if (!user?.branch_uuid) return showSaveError(t("product.branchRequired"));
 
-    const missingFields = requiredFieldErrors();
-
-    if (missingFields.length) {
-      showSaveError(missingFields.join(", "));
-      return;
-    }
-
-    if (prodStatusImge === "1" && !selectedImage && !rawExistingImage) {
-      showSaveError(t("fields.prod_image"));
-      return;
-    }
-
-    if (prodStatusImge === "2" && !isHexColor(colorValue)) {
-      showSaveError(t("product.color"));
+    if (formIssues.length) {
+      setSaveNotice("idle");
+      setShowValidation(true);
+      showToast({
+        title: t("toasts.completeRequiredFields"),
+        description: Array.from(
+          new Set(formIssues.map((issue) => productFormIssueMessage(issue, t))),
+        ).join(", "),
+        tone: "error",
+      });
+      focusProductFormField(formIssues[0].fieldId);
       return;
     }
 
@@ -636,6 +653,7 @@ export function useProductFormWorkflow() {
       setStoredDefaults(nextDefaults);
 
       showToast({ title: t("product.saved"), tone: "success" });
+      setShowValidation(false);
       if (isEditing) {
         router.push("/products");
         return;
@@ -663,7 +681,7 @@ export function useProductFormWorkflow() {
     setProdOrderPoint("5");
     setProdNotification("2");
     setStatusSortFk("1");
-    setProdSetPrice("0");
+    setProdSetPrice("");
     setProdStatusImge("2");
     setSelectedImage(null);
     setCrop(DEFAULT_CROP);
@@ -912,6 +930,7 @@ export function useProductFormWorkflow() {
     detailModeHint,
     selectedToppingBadges,
     requiredChecks,
+    invalidFieldIds,
     completedChecks,
     readyToSave,
     prodCode,

@@ -26,10 +26,11 @@ import {
   productHasToppings,
   productHydrationKey,
   productImageStatus,
+  productFormIssues,
   rawProductImage,
   requiredFieldErrors,
 } from "./product-form-utils";
-import type { DetailRow } from "./product-form-types";
+import type { DetailRow, RequiredProductFormState } from "./product-form-types";
 
 const t = (key: string) => key;
 
@@ -386,6 +387,68 @@ describe("product form validation and payload helpers", () => {
         t,
       ),
     ).toEqual(["pos.product"]);
+  });
+
+  it("rejects an empty or zero sale price and set price", () => {
+    const base = {
+      prodNameLa: "Pho",
+      cateUuidFk: "cate-1",
+      uniteUuidFk: "unit-1",
+      prodToppingStatus: TOPPING_NONE,
+      selectedToppings: [],
+    } satisfies Partial<RequiredProductFormState>;
+    const translate = (key: string, options?: Record<string, string>) =>
+      options ? `${key}:${options.field}` : key;
+
+    for (const price of ["", "0", "0.00"]) {
+      expect(
+        requiredFieldErrors(
+          { ...base, statusSortFk: "1", details: [detail({ pro_detail_sprice: price })] },
+          translate,
+        ),
+      ).toEqual(["toasts.priceMustBePositive:fields.sprice"]);
+    }
+    expect(
+      requiredFieldErrors(
+        { ...base, statusSortFk: "2", prodSetPrice: "0", details: [detail()] },
+        translate,
+      ),
+    ).toEqual(["toasts.priceMustBePositive:product.setPrice"]);
+    expect(
+      requiredFieldErrors(
+        { ...base, statusSortFk: "2", prodSetPrice: "25,000", details: [detail()] },
+        translate,
+      ),
+    ).toEqual([]);
+  });
+
+  it("orders issues top-to-bottom and points each at its field id", () => {
+    const issues = productFormIssues({
+      prodNameLa: "",
+      cateUuidFk: "cate-1",
+      uniteUuidFk: "unit-1",
+      statusSortFk: "1",
+      prodToppingStatus: TOPPING_HAS,
+      selectedToppings: [],
+      prodStatusImge: "2",
+      colorValue: "not-a-color",
+      details: [
+        detail({ id: "row-a" }),
+        detail({ id: "row-b", size_uuid_fk: "", pro_detail_sprice: "0" }),
+      ],
+    });
+
+    expect(issues.map((issue) => issue.fieldId)).toEqual([
+      "prod-color",
+      "prod-name-la",
+      "detail-row-b-size",
+      "detail-row-b-sprice",
+      "prod-toppings-section",
+    ]);
+  });
+
+  it("starts new detail rows without a sale price so one must be entered", () => {
+    expect(emptyDetail("1").pro_detail_sprice).toBe("");
   });
 
   it("builds the save product API payload without changing the contract", () => {

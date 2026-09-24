@@ -9,38 +9,43 @@ export function PaymentStat({
   className,
   hero,
   label,
-  strong,
+  tone,
   value,
 }: {
   className?: string;
   hero?: boolean;
   label: string;
-  strong?: boolean;
+  /** positive = เงินทอน (เขียว), negative = ยอดค้างชำระ (แดง) */
+  tone?: "positive" | "negative";
   value: string;
 }) {
   return (
     <div
       className={cn(
-        "rounded-lg border border-border bg-card p-1.5 sm:p-3",
-        strong && "border-primary/40",
-        hero && "border-primary/30 bg-primary/10 text-primary",
+        // md: การ์ดแยก 3 ใบเรียงแถว / lg: แถวต่อกันในกล่องสรุปเดียว (กรอบอยู่ที่ตัวห่อด้านนอก)
+        "rounded-lg border border-border bg-card p-1.5 sm:p-3 lg:rounded-none lg:border-0 lg:border-b lg:px-4 lg:py-3 lg:last:border-b-0",
+        hero && "border-primary/30 bg-primary/10 lg:py-4",
+        tone === "positive" && "border-primary/30",
+        tone === "negative" && "border-destructive/30",
         className,
       )}
     >
       <p
         className={cn(
-          "truncate text-xs font-semibold text-muted-foreground",
-          hero && "text-primary/70",
+          "truncate text-xs font-medium text-muted-foreground",
+          hero && "text-primary-text",
         )}
       >
         {label}
       </p>
       <p
         className={cn(
-          "mt-0.5 leading-tight font-black tabular-nums wrap-anywhere sm:mt-1",
+          "mt-0.5 leading-tight font-bold tabular-nums wrap-anywhere sm:mt-1",
           hero
-            ? "text-base min-[380px]:text-lg sm:text-2xl lg:text-4xl"
-            : "text-xs min-[380px]:text-sm min-[430px]:text-base sm:text-lg lg:text-xl",
+            ? "text-base text-primary-text min-[380px]:text-lg sm:text-2xl lg:text-4xl"
+            : "text-xs min-[380px]:text-sm min-[430px]:text-base sm:text-lg lg:text-2xl",
+          tone === "positive" && "text-primary-text",
+          tone === "negative" && "text-destructive",
         )}
       >
         {value}
@@ -73,12 +78,12 @@ export function TenderRow({
       onClick={onSelect}
     >
       <span className="min-w-0">
-        <span className="block truncate text-sm font-black">{label}</span>
+        <span className="block truncate text-sm font-semibold">{label}</span>
         <span className="block truncate text-xs text-muted-foreground">
           {equivalent}
         </span>
       </span>
-      <span className="shrink-0 font-black tabular-nums">{value}</span>
+      <span className="shrink-0 font-bold tabular-nums">{value}</span>
     </Button>
   );
 }
@@ -113,16 +118,16 @@ export function PosNumpad({
   const keepAmountFocus = (event: PointerEvent<HTMLButtonElement>) =>
     event.preventDefault();
   const numberClass =
-    "h-full min-h-11 min-w-0 rounded-md text-lg font-black tabular-nums sm:text-2xl";
+    "h-full min-h-11 min-w-0 rounded-lg text-lg font-semibold tabular-nums sm:text-2xl";
   const actionClass =
-    "h-full min-h-11 min-w-0 rounded-md px-2 text-xs font-black sm:text-sm";
+    "h-full min-h-11 min-w-0 rounded-lg px-2 text-xs font-semibold sm:text-sm";
   // "พอดี" เป็น shortcut ช่วยกรอกให้ ไม่ใช่ undo แบบ backspace/ล้าง จึงให้สี primary
   // อ่อน ๆ แยกความหมาย ส่วน confirm ให้เป็นสี primary เต็มเพราะเป็น action เดียวกับ
   // ปุ่ม "ยืนยันรับเงิน" หลัก — กันไม่ให้หน้าตาเหมือนปุ่มล้าง/backspace จนกดผิด
-  const exactClass = cn(actionClass, "border-primary/40 text-primary hover:bg-primary/10");
+  const exactClass = cn(actionClass, "border-primary/40 text-primary-text hover:bg-primary/10");
 
   return (
-    <div className="grid h-full min-h-49 grid-cols-4 grid-rows-4 gap-1.5 min-[430px]:gap-2 sm:min-h-56 lg:min-h-0">
+    <div className="grid h-full min-h-49 grid-cols-4 grid-rows-4 gap-1.5 min-[430px]:gap-2 sm:min-h-56 lg:h-auto lg:min-h-0 lg:auto-rows-[4.25rem] lg:grid-rows-none">
       {["7", "8", "9"].map((value) => (
         <Button
           key={value}
@@ -137,8 +142,8 @@ export function PosNumpad({
       ))}
       <Button
         type="button"
-        variant="secondary"
-        className={actionClass}
+        variant="outline"
+        className={cn(actionClass, "text-muted-foreground")}
         aria-label={backspaceLabel}
         onPointerDown={keepAmountFocus}
         onClick={onBackspace}
@@ -160,8 +165,8 @@ export function PosNumpad({
       ))}
       <Button
         type="button"
-        variant="secondary"
-        className={actionClass}
+        variant="outline"
+        className={cn(actionClass, "text-muted-foreground")}
         onPointerDown={keepAmountFocus}
         onClick={onClear}
       >

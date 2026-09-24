@@ -3,6 +3,7 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import { DEFAULT_LANGUAGE, type Language } from "@/lib/language";
+import { DEFAULT_ORDER_ALERT_SOUND, isOrderAlertSoundId, type OrderAlertSoundId } from "@/lib/pos/order-alert-sounds";
 
 export type ThemeMode = "light" | "dark";
 export type ThemeColor = "emerald" | "blue" | "amber" | "rose" | "violet";
@@ -23,30 +24,25 @@ export const FONT_SCALE_PX: Record<FontScale, number> = {
   xl: 20,
 };
 
-export interface FloatingButtonPosition {
-  x: number;
-  y: number;
-}
-
 interface AppState {
   theme: ThemeMode;
   themeColor: ThemeColor;
   fontScale: FontScale;
   language: Language;
+  orderAlertSound: OrderAlertSoundId;
   sidebarOpen: boolean;
   collapsed: boolean;
   hydrated: boolean;
-  floatingButtonPosition: FloatingButtonPosition | null;
   setTheme: (theme: ThemeMode) => void;
   toggleTheme: () => void;
   setThemeColor: (themeColor: ThemeColor) => void;
   setFontScale: (fontScale: FontScale) => void;
   setLanguage: (language: Language) => void;
+  setOrderAlertSound: (orderAlertSound: OrderAlertSoundId) => void;
   setSidebarOpen: (open: boolean) => void;
   setCollapsed: (collapsed: boolean) => void;
   toggleCollapsed: () => void;
   setHydrated: (hydrated: boolean) => void;
-  setFloatingButtonPosition: (position: FloatingButtonPosition | null) => void;
 }
 
 export const useAppStore = create<AppState>()(
@@ -56,36 +52,37 @@ export const useAppStore = create<AppState>()(
       themeColor: "emerald",
       fontScale: "md",
       language: DEFAULT_LANGUAGE,
+      orderAlertSound: DEFAULT_ORDER_ALERT_SOUND,
       sidebarOpen: false,
       collapsed: false,
       hydrated: false,
-      floatingButtonPosition: null,
       setTheme: (theme) => set({ theme }),
       toggleTheme: () => set({ theme: get().theme === "dark" ? "light" : "dark" }),
       setThemeColor: (themeColor) => set({ themeColor }),
       setFontScale: (fontScale) => set({ fontScale }),
       setLanguage: (language) => set({ language }),
+      setOrderAlertSound: (orderAlertSound) => set({ orderAlertSound }),
       setSidebarOpen: (sidebarOpen) => set({ sidebarOpen }),
       setCollapsed: (collapsed) => set({ collapsed }),
       toggleCollapsed: () => set({ collapsed: !get().collapsed }),
-      setHydrated: (hydrated) => set({ hydrated }),
-      setFloatingButtonPosition: (floatingButtonPosition) => set({ floatingButtonPosition })
+      setHydrated: (hydrated) => set({ hydrated })
     }),
     {
       name: "yummy-go-app",
-      partialize: ({ theme, themeColor, fontScale, language, collapsed, floatingButtonPosition }) => ({
+      partialize: ({ theme, themeColor, fontScale, language, orderAlertSound, collapsed }) => ({
         theme,
         themeColor,
         fontScale,
         language,
-        collapsed,
-        floatingButtonPosition
+        orderAlertSound,
+        collapsed
       }),
       skipHydration: true,
       onRehydrateStorage: () => (state) => {
         if (!state) return;
         if (!THEME_COLORS.includes(state.themeColor)) state.setThemeColor("emerald");
         if (!FONT_SCALES.includes(state.fontScale)) state.setFontScale("md");
+        if (!isOrderAlertSoundId(state.orderAlertSound)) state.setOrderAlertSound(DEFAULT_ORDER_ALERT_SOUND);
         state.setHydrated(true);
       }
     }

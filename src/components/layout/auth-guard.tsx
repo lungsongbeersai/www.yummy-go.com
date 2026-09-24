@@ -5,6 +5,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { useTranslation } from "react-i18next";
 import { LoadingState } from "@/components/common/loading-state";
 import { NativeLoadingScreen } from "@/components/layout/capacitor/native-loading-screen";
+import { AppShellSkeleton } from "@/components/layout/web/app-shell-skeleton";
 import { isCapacitorNativeApp } from "@/lib/capacitor-platform";
 import { internalRoute } from "@/lib/routes";
 import { useIsCapacitorNativeApp } from "@/hooks/use-capacitor-native-app";
@@ -44,11 +45,12 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
   const showNativeSplash = isNativeApp && !minSplashElapsed;
 
   if (!hydrated || !isLoggedIn || showNativeSplash) {
-    return isNativeApp ? (
-      <NativeLoadingScreen />
-    ) : (
-      <LoadingState label={t("common.processing")} />
-    );
+    if (isNativeApp) return <NativeLoadingScreen />;
+    // Signed out and about to be redirected to the public entry page: no app chrome.
+    if (hydrated && !isLoggedIn) return <LoadingState label={t("common.processing")} />;
+    // Restoring the session: show the app's own frame so the first paint already looks
+    // like the page that is about to appear.
+    return <AppShellSkeleton label={t("common.processing")} />;
   }
 
   return <>{children}</>;
