@@ -22,6 +22,7 @@ export interface AgentInfo extends ApiEntity {
   host?: string;
   port?: number;
   agent_url?: string;
+  agent_secret_hash?: string;
   network_addresses?: string[];
 }
 export interface AgentInfoResponse extends ApiEntity {
@@ -335,6 +336,19 @@ export interface FetchPrintersParams extends FetchParams {
   requester_network_hints?: string[];
 }
 export interface FetchPrintersForLocalAgentParams extends FetchParams { login_uuid_fk: string }
+export interface RegisterPrinterAgentInput {
+  login_uuid_fk: string;
+  agent_id: string;
+  agent_name?: string;
+  agent_url: string;
+  agent_secret_hash?: string;
+  device_code: string;
+  platform?: string;
+}
+export interface RegisterPrinterAgentResult {
+  rebound_pending_jobs: number;
+  rebound_printer_configs: number;
+}
 export interface AckResultItem {
   print_job_item_uuid: string;
   status: "success" | "failed" | "skipped";
@@ -461,5 +475,5 @@ export type ExecuteInvoicePrintInput = ExecuteKitchenPrintInput;
 export type ExecuteReportPrintInput = ExecuteKitchenPrintInput;
 
 export type CheckPrinterAgentConnectionResult =
-  | { ok: true; agent: AgentInfo }
+  | { ok: true; agent: AgentInfo; connected?: boolean; error?: string }
   | { ok: false; error: string };

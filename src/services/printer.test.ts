@@ -54,6 +54,7 @@ import {
   getPrinters,
   printBatchWithLocalAgent,
   renderMobileEscpos,
+  registerPrinterAgent,
   resolvePrinterDeviceContext,
   resolvePrinterDeviceIdentity,
   searchPrinters,
@@ -2308,6 +2309,7 @@ describe("printer device identity", () => {
   });
 
   it("uses desktop local agent info when the agent is available", async () => {
+    const storage = mockLocalStorage();
     axiosMocks.get.mockResolvedValue({
       data: { agent_id: "agent-1", agent_name: "Desktop", device_code: "device-1" }
     });
@@ -2322,6 +2324,37 @@ describe("printer device identity", () => {
         device_code: "device-1",
         platform: ""
       }
+    });
+    expect(storage.setItem).toHaveBeenCalledWith(
+      "yummy_local_printer_agent_identity",
+      expect.stringContaining('"device_code":"device-1"'),
+    );
+  });
+
+  it("keeps the cached desktop identity while the Agent restarts during reinstall", async () => {
+    mockLocalStorage({
+      yummy_local_printer_agent_identity: JSON.stringify({
+        agent_id: "agent-before-reinstall",
+        agent_name: "Front POS",
+        device_code: "POS-01",
+        agent_url: "http://192.168.100.78:7777",
+        network_addresses: ["192.168.100.78"],
+      }),
+    });
+    axiosMocks.get.mockRejectedValue(new Error("Agent restarting"));
+
+    await expect(resolvePrinterDeviceIdentity()).resolves.toEqual({
+      ok: true,
+      connected: false,
+      error: "Agent restarting",
+      agent: {
+        agent_id: "agent-before-reinstall",
+        agent_name: "Front POS",
+        device_code: "POS-01",
+        platform: "",
+        agent_url: "http://192.168.100.78:7777",
+        network_addresses: ["192.168.100.78"],
+      },
     });
   });
 
@@ -2376,6 +2409,44 @@ describe("printer API payloads", () => {
           lang: "eng"
         }
       }
+    );
+  });
+
+  it("registers the current desktop Agent so reinstall keeps printer ownership", async () => {
+    apiMocks.apiRequest.mockResolvedValue({
+      data: {
+        rebound_pending_jobs: 1,
+        rebound_printer_configs: 2,
+      },
+    });
+
+    await expect(registerPrinterAgent({
+      login_uuid_fk: "login-1",
+      agent_id: "agent-new",
+      agent_name: "Front POS",
+      agent_url: "http://192.168.100.78:7777",
+      agent_secret_hash: `sha256:${"a".repeat(64)}`,
+      device_code: "POS-01",
+      platform: "win32",
+    })).resolves.toEqual({
+      rebound_pending_jobs: 1,
+      rebound_printer_configs: 2,
+    });
+
+    expect(apiMocks.apiRequest).toHaveBeenCalledWith(
+      "post",
+      "/api/v1/printer/agent/register",
+      {
+        data: {
+          login_uuid_fk: "login-1",
+          agent_id: "agent-new",
+          agent_name: "Front POS",
+          agent_url: "http://192.168.100.78:7777",
+          agent_secret_hash: `sha256:${"a".repeat(64)}`,
+          device_code: "POS-01",
+          platform: "win32",
+        },
+      },
     );
   });
 
@@ -2606,7 +2677,14 @@ describe("printer API payloads", () => {
   it("resolves printer device context from fetched printer settings", async () => {
     const storage = mockLocalStorage();
     axiosMocks.get.mockResolvedValue({
-      data: { agent_id: "local-agent", agent_name: "Local", device_code: "INCLUDE" }
+      data: {
+        agent_id: "local-agent",
+        agent_name: "Local",
+        device_code: "INCLUDE",
+        agent_url: "http://192.168.100.78:7777",
+        agent_secret_hash: `sha256:${"a".repeat(64)}`,
+        platform: "win32",
+      }
     });
     apiMocks.apiRequest.mockResolvedValue(
       printerFetchResponse({
@@ -2627,9 +2705,25 @@ describe("printer API payloads", () => {
       params: {
         login_uuid_fk: "login-1",
         device_code: "INCLUDE",
+        requester_network_hints: "http://192.168.100.78:7777",
         lang: "la"
       }
     });
+    expect(apiMocks.apiRequest).toHaveBeenCalledWith(
+      "post",
+      "/api/v1/printer/agent/register",
+      {
+        data: {
+          login_uuid_fk: "login-1",
+          agent_id: "local-agent",
+          agent_name: "Local",
+          agent_url: "http://192.168.100.78:7777",
+          agent_secret_hash: `sha256:${"a".repeat(64)}`,
+          device_code: "INCLUDE",
+          platform: "win32",
+        },
+      },
+    );
     expect(storage.setItem).toHaveBeenCalledWith(
       "yummy_local_printer_agent_identity",
       expect.stringContaining("\"device_code\":\"INCLUDE\"")

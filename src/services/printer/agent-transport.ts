@@ -16,7 +16,11 @@ import {
   textValue
 } from "@/services/printer/helpers";
 import { getBrowserPrinterIdentity, isBrowserPrinterAgentId } from "@/services/printer/browser-device";
-import { getPrinters, renderMobileEscpos } from "@/services/printer/config-api";
+import {
+  getPrinters,
+  registerPrinterAgent,
+  renderMobileEscpos,
+} from "@/services/printer/config-api";
 import { printMobileEscposOverTcp } from "@/services/printer/mobile-tcp";
 import type {
   AgentInfo,
@@ -128,6 +132,9 @@ function readCachedLocalAgentInfo(): AgentInfo | null {
       ...(textValue(record.agent_url)
         ? { agent_url: textValue(record.agent_url) }
         : {}),
+      ...(textValue(record.agent_secret_hash)
+        ? { agent_secret_hash: textValue(record.agent_secret_hash) }
+        : {}),
       ...(networkAddresses(record.network_addresses).length
         ? { network_addresses: networkAddresses(record.network_addresses) }
         : {}),
@@ -150,6 +157,7 @@ function saveCachedLocalAgentInfo(agent: AgentInfo) {
       device_code: deviceCode,
       platform: textValue(agent.platform) || undefined,
       agent_url: textValue(agent.agent_url) || undefined,
+      agent_secret_hash: textValue(agent.agent_secret_hash) || undefined,
       network_addresses: networkAddresses(agent.network_addresses),
     })
   );
@@ -170,6 +178,9 @@ function getAgentFromPayload(payload: AgentInfoResponse | AgentInfo | null | und
     platform: textValue(record.platform),
     ...(textValue(record.agent_url)
       ? { agent_url: textValue(record.agent_url) }
+      : {}),
+    ...(textValue(record.agent_secret_hash)
+      ? { agent_secret_hash: textValue(record.agent_secret_hash) }
       : {}),
     ...(networkAddresses(record.network_addresses).length
       ? { network_addresses: networkAddresses(record.network_addresses) }
@@ -246,6 +257,7 @@ export async function checkPrinterAgentConnection(agentUrl = AGENT_URL): Promise
 
     const agent = getAgentFromPayload(data);
     if (!agent) throw new ServiceError("Local printer agent identity missing", 500);
+    if (hasPrinterDeviceIdentity(agent)) saveCachedLocalAgentInfo(agent);
     return { ok: true, agent };
   } catch (error) {
     return { ok: false, error: getPrinterErrorMessage(error) };
@@ -263,6 +275,15 @@ export async function resolvePrinterDeviceIdentity(agentUrl = AGENT_URL): Promis
     if (isCapacitorMobileApp()) return { ok: true, agent: await getBrowserPrinterIdentity() };
     const result = await checkPrinterAgentConnection(agentUrl);
     if (!result.ok) {
+      const cachedAgent = readCachedLocalAgentInfo();
+      if (cachedAgent) {
+        return {
+          ok: true,
+          agent: cachedAgent,
+          connected: false,
+          error: result.error,
+        };
+      }
       return { ok: true, agent: await getBrowserPrinterIdentity() };
     }
     if (!hasPrinterDeviceIdentity(result.agent)) {
@@ -420,11 +441,13 @@ export async function dispatchPrintJob(
 export async function resolvePrinterDeviceContext(params: PrinterDeviceContextParams): Promise<PrinterDeviceContext> {
   const inputDeviceCode = textValue(params.device_code);
   let agent: AgentInfo | null = null;
+  let agentConnected = false;
   if (!inputDeviceCode && isCapacitorMobileApp()) {
     agent = await getBrowserPrinterIdentity();
   } else if (!inputDeviceCode) {
     try {
       agent = await getLocalAgentInfo();
+      agentConnected = true;
     } catch (error) {
       agent = readCachedLocalAgentInfo();
       if (!agent) throw error;
@@ -432,6 +455,23 @@ export async function resolvePrinterDeviceContext(params: PrinterDeviceContextPa
   }
   const deviceCode = inputDeviceCode || textValue(agent?.device_code);
   if (!deviceCode) throw new ServiceError("device_code required", 400);
+
+  if (
+    agentConnected &&
+    agent &&
+    textValue(agent.agent_id) &&
+    textValue(agent.agent_url)
+  ) {
+    await registerPrinterAgent({
+      login_uuid_fk: params.login_uuid_fk,
+      agent_id: textValue(agent.agent_id),
+      agent_name: textValue(agent.agent_name),
+      agent_url: textValue(agent.agent_url),
+      agent_secret_hash: textValue(agent.agent_secret_hash),
+      device_code: deviceCode,
+      platform: textValue(agent.platform),
+    }).catch(() => undefined);
+  }
 
   const printers = await getPrinters({
     login_uuid_fk: params.login_uuid_fk,

@@ -5,6 +5,7 @@ import {
   dispatchPrintJob,
   getPrinters,
   getPendingPrintJobs,
+  registerPrinterAgent,
   resolvePrinterDeviceContext,
   resolvePrinterDeviceIdentity,
   searchPrinters,
@@ -29,6 +30,7 @@ vi.mock("@/services/printer", () => ({
   getPrinterOptions: vi.fn(),
   getPrinterRoles: vi.fn(),
   getPrinters: vi.fn(),
+  registerPrinterAgent: vi.fn(),
   isBrowserPrinterAgentId: (agentId: unknown) =>
     agentId === "desktop" || agentId === "mobile",
   resolvePrinterDeviceContext: vi.fn(),
@@ -46,6 +48,7 @@ const deletePrinterMock = vi.mocked(deletePrinter);
 const dispatchPrintJobMock = vi.mocked(dispatchPrintJob);
 const getPrintersMock = vi.mocked(getPrinters);
 const getPendingPrintJobsMock = vi.mocked(getPendingPrintJobs);
+const registerPrinterAgentMock = vi.mocked(registerPrinterAgent);
 const resolvePrinterDeviceContextMock = vi.mocked(resolvePrinterDeviceContext);
 const resolvePrinterDeviceIdentityMock = vi.mocked(resolvePrinterDeviceIdentity);
 const searchPrintersMock = vi.mocked(searchPrinters);
@@ -62,6 +65,7 @@ function deferred<T>() {
 describe("printer store", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    registerPrinterAgentMock.mockResolvedValue(undefined);
     usePrinterStore.setState({
       agent: null,
       error: null,
@@ -75,10 +79,14 @@ describe("printer store", () => {
   it("keeps management printers visible when the desktop Agent is unavailable", async () => {
     resolvePrinterDeviceIdentityMock.mockResolvedValue({
       ok: true,
+      connected: false,
+      error: "Agent is restarting",
       agent: {
-        agent_id: "desktop",
-        agent_name: "Browser",
-        device_code: "desktop-web-1",
+        agent_id: "cached-agent",
+        agent_name: "Cached POS",
+        device_code: "POS-01",
+        agent_url: "http://192.168.100.78:7777",
+        network_addresses: ["192.168.100.78"],
       },
     });
     getPrintersMock.mockResolvedValue([
@@ -106,11 +114,18 @@ describe("printer store", () => {
     expect(getPrintersMock).toHaveBeenCalledWith({
       login_uuid_fk: "login-1",
       lang: "la",
+      agent_id: "cached-agent",
+      device_code: "POS-01",
+      requester_network_hints: [
+        "192.168.100.78",
+        "http://192.168.100.78:7777",
+      ],
       include_offline_shared: true,
       management_view: true,
     });
     expect(usePrinterStore.getState()).toMatchObject({
       agentStatus: "offline",
+      agentError: "Agent is restarting",
       printers: [expect.objectContaining({ print_config_uuid: "shared-offline" })],
     });
   });
@@ -152,6 +167,15 @@ describe("printer store", () => {
       ],
       include_offline_shared: true,
       management_view: true,
+    });
+    expect(registerPrinterAgentMock).toHaveBeenCalledWith({
+      login_uuid_fk: "login-1",
+      agent_id: "friend-agent",
+      agent_name: "Friend POS",
+      agent_url: "http://192.168.100.78:7777",
+      agent_secret_hash: "",
+      device_code: "FRIEND-PC",
+      platform: "",
     });
   });
 

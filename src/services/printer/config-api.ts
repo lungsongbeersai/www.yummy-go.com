@@ -30,6 +30,8 @@ import type {
   Printer,
   PrinterCategoryRole,
   PrinterRolesResponse,
+  RegisterPrinterAgentInput,
+  RegisterPrinterAgentResult,
   ResolvedPrinter,
   SaveCategoryPrinterInput,
   SaveCategoryRoleInput,
@@ -116,6 +118,15 @@ export async function getPrinters(params: FetchPrintersParams) {
         textValue(printer.owner_device_code ?? printer.device_code) === deviceCode
       );
     });
+}
+
+export async function registerPrinterAgent(input: RegisterPrinterAgentInput) {
+  const result = await apiRequest<{ data?: RegisterPrinterAgentResult }>(
+    "post",
+    "/api/v1/printer/agent/register",
+    { data: input },
+  );
+  return result.data;
 }
 
 export async function getPrinterOptions(login_uuid_fk: string, lang = "la") {
