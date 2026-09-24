@@ -541,59 +541,44 @@ async function sendEscposOnConnectedClient({
         profile: sendProfile.profile,
     });
 
-    // Start listening before the first write. Android and iOS perform the
-    // native read on a background queue, so ticket acknowledgements can update
-    // progress while the rest of the batch is still streaming to the printer.
-    // This never gates the writes and therefore keeps paper output continuous.
-    let completionError: unknown = null;
-    const completionPromise = (async () => {
-        for (
-            let completed = 1;
-            completed <= completionPlan.acknowledgementTotal;
-            completed += 1
-        ) {
-            await readMobilePrinterPaperStatus({ TcpSocket, client });
-            onTicketDelivered?.(completed, completionPlan.acknowledgementTotal);
-        }
-    })().catch((error: unknown) => {
-        completionError = error;
-    });
+    for (let segmentIndex = 0; segmentIndex < segments.length; segmentIndex++) {
+        const segment = segments[segmentIndex];
+        mobileTcpDebug("[mobile-tcp] send segment", {
+            segment: segmentIndex + 1,
+            segments: segments.length,
+            byteEstimate: Math.floor((segment.length * 3) / 4),
+        });
 
-    try {
-        for (let segmentIndex = 0; segmentIndex < segments.length; segmentIndex++) {
-            const segment = segments[segmentIndex];
-            mobileTcpDebug("[mobile-tcp] send segment", {
-                segment: segmentIndex + 1,
-                segments: segments.length,
-                byteEstimate: Math.floor((segment.length * 3) / 4),
-            });
-
-            // Each send resolves only after the patched native plugin has written
-            // and flushed this complete segment. Awaiting it preserves every byte
-            // in order without timer gaps or overlapping native writes.
-            await sendBase64InChunks({
-                TcpSocket,
-                client,
-                base64: segment,
-                ...sendProfile,
-            });
-        }
-    } catch (error) {
-        void completionPromise;
-        throw error;
+        // Each send resolves only after the patched native plugin has written
+        // and flushed this complete segment. Awaiting it preserves every byte
+        // in order without timer gaps or overlapping native writes.
+        await sendBase64InChunks({
+            TcpSocket,
+            client,
+            base64: segment,
+            ...sendProfile,
+        });
     }
 
     // Every GS r 1 sits directly after a cut in the same ordered byte stream.
-    // Writes never wait for a reply, while the listener reports each response
-    // as it arrives, so paper stays continuous and progress remains ordered.
+    // Read only after all writes have completed: the iOS socket plugin returns
+    // an empty result when read starts before the first status query is sent.
+    // TCP retains the ordered replies, so this keeps paper continuous while
+    // still acknowledging every completed ticket in cut order.
     mobileTcpDebug("[mobile-tcp] document flushed; confirming completion", {
         cutCommands: analysis.cutCommands,
         rasterBands: analysis.rasterBands,
         rasterRows: analysis.rasterRows,
         segments: segments.length,
     });
-    await completionPromise;
-    if (completionError) throw completionError;
+    for (
+        let completed = 1;
+        completed <= completionPlan.acknowledgementTotal;
+        completed += 1
+    ) {
+        await readMobilePrinterPaperStatus({ TcpSocket, client });
+        onTicketDelivered?.(completed, completionPlan.acknowledgementTotal);
+    }
 }
 
 async function printMobileEscposOverTcpNow({
