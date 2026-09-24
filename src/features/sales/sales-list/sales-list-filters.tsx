@@ -334,7 +334,7 @@ function SalesListPrimaryFields({
           disabled={branchLoading || branchOptions.length <= 1}
           onValueChange={(value) => onDraftChange({ branchUuid: value })}
         >
-          <SelectTrigger id={`${idPrefix}-branch`} className="h-11 w-full data-[size=default]:h-11 lg:h-9">
+          <SelectTrigger id={`${idPrefix}-branch`} className="h-11 w-full data-[size=default]:h-11 lg:h-9 lg:data-[size=default]:h-9">
             <SelectValue placeholder={branchLabel || t("nav.branch")} />
           </SelectTrigger>
           <SelectContent>
@@ -400,7 +400,7 @@ function SalesListSecondaryFields({
           value={String(draftFilters.limit)}
           onValueChange={(value) => onDraftChange({ limit: Number(value) as PageLimit })}
         >
-          <SelectTrigger id={`${idPrefix}-limit`} className="h-11 w-full data-[size=default]:h-11 lg:h-9">
+          <SelectTrigger id={`${idPrefix}-limit`} className="h-11 w-full data-[size=default]:h-11 lg:h-9 lg:data-[size=default]:h-9">
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
@@ -422,7 +422,7 @@ function SalesListSecondaryFields({
           value={draftFilters.paymentMethod}
           onValueChange={(value) => onDraftChange({ paymentMethod: value as SalesListPaymentMethod })}
         >
-          <SelectTrigger id={`${idPrefix}-payment-method`} className="h-11 w-full data-[size=default]:h-11 lg:h-9">
+          <SelectTrigger id={`${idPrefix}-payment-method`} className="h-11 w-full data-[size=default]:h-11 lg:h-9 lg:data-[size=default]:h-9">
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
@@ -444,7 +444,7 @@ function SalesListSecondaryFields({
           value={draftFilters.orderBy}
           onValueChange={(value) => onDraftChange({ orderBy: value as DailySaleItemsOrder })}
         >
-          <SelectTrigger id={`${idPrefix}-order`} className="h-11 w-full data-[size=default]:h-11 lg:h-9">
+          <SelectTrigger id={`${idPrefix}-order`} className="h-11 w-full data-[size=default]:h-11 lg:h-9 lg:data-[size=default]:h-9">
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
