@@ -3,16 +3,26 @@
 import { memo } from "react";
 import {
   AlertTriangle,
-  Banknote,
-  CreditCard,
+  Calculator,
+  HandCoins,
   ReceiptText,
-  RefreshCcw,
+  RotateCcw,
   Search,
-  WalletCards,
+  TrendingUp,
+  type LucideIcon,
 } from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader } from "@/components/ui/card";
+import {
+  Card,
+  CardAction,
+  CardContent,
+  CardDescription,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { Field, FieldLabel } from "@/components/ui/field";
 import {
   Select,
@@ -23,16 +33,15 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Spinner } from "@/components/ui/spinner";
+import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { cn } from "@/lib/utils";
 import { ReportDateInput } from "@/features/report/shared/report-date-input";
 import type {
   DashboardFilters,
   DashboardWarning,
-  PaymentSummary,
-  PaymentSummaryCard,
   Row,
   SelectOption,
-  TrendPoint,
 } from "@/features/dashboard/overview/dashboard-view-model";
 import {
   asRow,
@@ -45,15 +54,37 @@ import {
 
 export type DashboardCopy = Record<string, string>;
 
-const paymentSummaryIconMap = {
-  cash: Banknote,
-  debt: WalletCards,
-  payment_total: ReceiptText,
-  transfer: CreditCard,
-};
 const moneyUnits = new Set(["k", "kip", "kib", "lak", "₭", "ກີບ"]);
-export const dashboardCardHeaderClass =
-  "min-h-15 border-border bg-card/82 px-4 py-3.5";
+
+function formatApiMoney(value: unknown, unit: string) {
+  if (!unit || moneyUnits.has(unit.trim().toLowerCase())) return formatKip(value);
+  return `${formatNumber(value)} ${unit}`;
+}
+
+export const DashboardHeader = memo(function DashboardHeader({
+  copy,
+  filtersMeta,
+  section,
+}: {
+  copy: DashboardCopy;
+  filtersMeta: Row;
+  section: Row;
+}) {
+  const businessStart = text(filtersMeta.business_date_start, "");
+  const businessEnd = text(filtersMeta.business_date_end, "");
+  const updatedAt = text(filtersMeta.updated_at, "");
+  const range = businessStart && businessEnd
+    ? businessStart === businessEnd ? businessStart : `${businessStart} – ${businessEnd}`
+    : "";
+  const meta = [range, updatedAt].filter(Boolean).join(" · ");
+
+  return (
+    <div className="flex flex-col gap-1">
+      <h1 className="text-2xl font-semibold">{text(section.section_name, copy.title)}</h1>
+      {meta ? <p className="text-sm text-muted-foreground tabular-nums">{meta}</p> : null}
+    </div>
+  );
+});
 
 type FilterBarProps = {
   activeBranchUuid: string;
@@ -74,26 +105,26 @@ type FilterBarProps = {
   yearOptions: SelectOption[];
 };
 
-const SelectControl = memo(function SelectControl({
-  disabled = false,
+function SelectField({
+  disabled,
+  id,
   label,
   onChange,
   options,
   value,
 }: {
   disabled?: boolean;
+  id: string;
   label: string;
   onChange: (value: string) => void;
   options: SelectOption[];
   value: string;
 }) {
   return (
-    <Field className="min-h-[3.4rem] min-w-0 gap-0.5 rounded-[0.55rem] border border-border bg-muted/35 px-2.5 pb-1 pt-1.5 hover:border-border/90 dark:bg-muted/42">
-      <FieldLabel className="text-2xs font-bold text-muted-foreground">
-        {label}
-      </FieldLabel>
+    <Field className="sm:w-40">
+      <FieldLabel htmlFor={id}>{label}</FieldLabel>
       <Select disabled={disabled} value={value} onValueChange={onChange}>
-        <SelectTrigger className="h-7 w-full min-w-0 border-transparent bg-transparent px-0 font-mono text-sm font-semibold shadow-none hover:bg-transparent data-[state=open]:bg-transparent max-md:min-h-[2.35rem]">
+        <SelectTrigger id={id}>
           <SelectValue placeholder={label} />
         </SelectTrigger>
         <SelectContent position="popper">
@@ -108,135 +139,28 @@ const SelectControl = memo(function SelectControl({
       </Select>
     </Field>
   );
-});
+}
 
-const DateControl = memo(function DateControl({
+function DateField({
+  id,
   label,
-  name,
   onChange,
   value,
 }: {
+  id: string;
   label: string;
-  name: string;
   onChange: (value: string) => void;
   value: string;
 }) {
   return (
-    <Field className="min-h-[3.4rem] min-w-0 gap-0.5 rounded-[0.55rem] border border-border bg-muted/35 px-2.5 pb-1 pt-1.5 hover:border-border/90 dark:bg-muted/42">
-      <FieldLabel
-        className="text-2xs font-bold text-muted-foreground"
-        htmlFor={name}
-      >
-        {label}
-      </FieldLabel>
-      <ReportDateInput
-        id={name}
-        name={name}
-        label={label}
-        value={value}
-        className="h-7 border-transparent bg-transparent px-0 font-mono text-sm font-semibold shadow-none hover:bg-transparent max-md:min-h-[2.35rem]"
-        onValueChange={onChange}
-      />
+    <Field className="sm:w-40">
+      <FieldLabel htmlFor={id}>{label}</FieldLabel>
+      <ReportDateInput id={id} name={id} label={label} value={value} onValueChange={onChange} />
     </Field>
   );
-});
-
-function isMoneyUnit(unit: string) {
-  return moneyUnits.has(unit.trim().toLowerCase());
 }
 
-function formatApiMoney(value: unknown, unit: string) {
-  if (!unit || isMoneyUnit(unit)) return formatKip(value);
-  return `${formatNumber(value)} ${unit}`;
-}
-
-function SparkPreview({
-  primary,
-  values,
-}: {
-  primary?: boolean;
-  values: number[];
-}) {
-  if (!values.length) return <div className="h-8.5" />;
-  const max = Math.max(1, ...values);
-  const width = 150;
-  const height = 34;
-  const points = values
-    .map((value, index) => {
-      const x = values.length === 1 ? 0 : (index / (values.length - 1)) * width;
-      const y = height - Math.max(4, (value / max) * (height - 4));
-      return `${x},${y}`;
-    })
-    .join(" ");
-
-  return (
-    <svg
-      aria-hidden
-      className={cn(
-        "mt-3.5 h-8.5 w-full text-primary",
-        primary && "text-primary-foreground/72",
-      )}
-      viewBox={`0 0 ${width} ${height}`}
-      preserveAspectRatio="none"
-    >
-      <polyline
-        points={points}
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="2"
-        vectorEffect="non-scaling-stroke"
-      />
-    </svg>
-  );
-}
-
-export const DashboardHeader = memo(function DashboardHeader({
-  copy,
-  filtersMeta,
-  section,
-}: {
-  copy: DashboardCopy;
-  filtersMeta: Row;
-  section: Row;
-}) {
-  const businessStart = text(filtersMeta.business_date_start, "");
-  const businessEnd = text(filtersMeta.business_date_end, "");
-  const sectionTitle = text(section.section_name, copy.title);
-  const rangeMode = text(filtersMeta.range_mode, "");
-  const rangeDays = numberFrom(filtersMeta, "days_in_month");
-  const updatedAt = text(filtersMeta.updated_at, "");
-  const metaItems = [
-    businessStart && businessEnd ? `${businessStart} - ${businessEnd}` : "",
-    [rangeMode, rangeDays ? `${formatNumber(rangeDays)} ${copy.days}` : ""]
-      .filter(Boolean)
-      .join(" "),
-    updatedAt,
-  ].filter(Boolean);
-
-  return (
-    <div className="flex flex-wrap items-end justify-between gap-4 px-0.5">
-      <div className="min-w-0 flex-1">
-        <h1 className="text-2xl font-semibold leading-tight tracking-normal md:text-[1.65rem]">
-          {sectionTitle}
-        </h1>
-        <div className="mt-1 flex flex-wrap items-center gap-2 text-xs font-medium text-muted-foreground">
-          {metaItems.map((item, index) => (
-            <span
-              key={`${item}-${index}`}
-              className={index === 1 ? "tabular-nums text-foreground" : undefined}
-            >
-              {index ? (
-                <span className="mr-2 text-muted-foreground">·</span>
-              ) : null}
-              {item}
-            </span>
-          ))}
-        </div>
-      </div>
-    </div>
-  );
-});
-
+// One toolbar row: scope (branch) → period granularity → the period itself → apply.
 export const DashboardFilterBar = memo(function DashboardFilterBar({
   activeBranchUuid,
   branchLoading,
@@ -256,94 +180,96 @@ export const DashboardFilterBar = memo(function DashboardFilterBar({
   yearOptions,
 }: FilterBarProps) {
   return (
-    <Card className="@container/dashboard-filter z-[15] rounded-xl border-border bg-card/94 shadow-md backdrop-blur-md">
-      <CardContent className="grid grid-cols-[minmax(0,1fr)_max-content] max-md:grid-cols-1 items-end gap-2.5 max-md:gap-2 p-1.5">
-        <div
-          className={cn(
-            // Below md: single column. Between md and the 54rem filter-bar container
-            // width: 2 columns (fields wrap to a second row instead of squeezing/
-            // overflowing). At 54rem+ container width: the full field-per-column layout.
-            "grid min-w-0 items-stretch gap-2 grid-cols-1 md:grid-cols-2 @[54rem]/dashboard-filter:grid-cols-[minmax(11rem,1.25fr)_minmax(8.5rem,0.85fr)_repeat(2,minmax(9.5rem,1fr))]",
-            filters.periodType === "yearly" &&
-              "@[54rem]/dashboard-filter:grid-cols-[minmax(11rem,1.25fr)_minmax(8.5rem,0.85fr)_minmax(8.5rem,0.85fr)]",
-          )}
-          data-period-type={filters.periodType}
-        >
-          <SelectControl
+    <Card size="sm">
+      {/* Phones: a 2-column grid so paired fields (dates, year/month) share a row and the
+          KPIs below stay close to the first screen. sm+: one wrapping toolbar row. */}
+      <CardContent className="grid grid-cols-2 gap-3 sm:flex sm:flex-wrap sm:items-end">
+        <Field className="col-span-2 sm:w-56">
+          <FieldLabel htmlFor="dashboard-branch">{copy.branch}</FieldLabel>
+          <Select
             disabled={branchLoading || !branchOptions.length}
-            label={copy.branch}
-            options={branchOptions}
             value={activeBranchUuid}
-            onChange={onBranchChange}
-          />
-          <SelectControl
-            label={copy.periodType}
-            options={periodTypeOptions}
-            value={filters.periodType}
-            onChange={onPeriodTypeChange}
-          />
-          {filters.periodType === "daily" ? (
-            <>
-              <DateControl
-                label={copy.startDate}
-                name="dashboard-start-date"
-                value={filters.start_date}
-                onChange={(value) => onFilterChange({ start_date: value })}
-              />
-              <DateControl
-                label={copy.endDate}
-                name="dashboard-end-date"
-                value={filters.end_date}
-                onChange={(value) => onFilterChange({ end_date: value })}
-              />
-            </>
-          ) : null}
-          {filters.periodType === "monthly" ? (
-            <>
-              <SelectControl
-                label={copy.year}
-                options={yearOptions}
-                value={String(filters.periodYear)}
-                onChange={(value) => onPeriodYearChange(value)}
-              />
-              <SelectControl
-                label={copy.month}
-                options={monthOptions}
-                value={String(filters.periodMonth)}
-                onChange={(value) => onPeriodMonthChange(value)}
-              />
-            </>
-          ) : null}
-          {filters.periodType === "yearly" ? (
-            <SelectControl
-              label={copy.year}
-              options={yearOptions}
-              value={String(filters.periodYear)}
-              onChange={(value) => onPeriodYearChange(value)}
-            />
-          ) : null}
-        </div>
-        <div className="flex min-w-max self-center justify-end gap-2 max-md:justify-stretch *:whitespace-nowrap max-md:*:flex-1 max-md:*:w-full">
-          <Button
-            type="button"
-            variant="outline"
-            className="max-md:min-h-[2.35rem]"
-            onClick={onReset}
+            onValueChange={onBranchChange}
           >
+            <SelectTrigger id="dashboard-branch">
+              <SelectValue placeholder={copy.branch} />
+            </SelectTrigger>
+            <SelectContent position="popper">
+              <SelectGroup>
+                {branchOptions.map((option) => (
+                  <SelectItem key={option.value} value={option.value}>
+                    {option.label}
+                  </SelectItem>
+                ))}
+              </SelectGroup>
+            </SelectContent>
+          </Select>
+        </Field>
+        <Field className="col-span-2 sm:w-auto">
+          <FieldLabel id="dashboard-period-type">{copy.periodType}</FieldLabel>
+          <ToggleGroup
+            type="single"
+            variant="outline"
+            spacing={0}
+            aria-labelledby="dashboard-period-type"
+            value={filters.periodType}
+            onValueChange={(value) => {
+              if (value) onPeriodTypeChange(value);
+            }}
+          >
+            {periodTypeOptions.map((option) => (
+              <ToggleGroupItem key={option.value} value={option.value}>
+                {option.label}
+              </ToggleGroupItem>
+            ))}
+          </ToggleGroup>
+        </Field>
+        {filters.periodType === "daily" ? (
+          <>
+            <DateField
+              id="dashboard-start-date"
+              label={copy.startDate}
+              value={filters.start_date}
+              onChange={(value) => onFilterChange({ start_date: value })}
+            />
+            <DateField
+              id="dashboard-end-date"
+              label={copy.endDate}
+              value={filters.end_date}
+              onChange={(value) => onFilterChange({ end_date: value })}
+            />
+          </>
+        ) : (
+          <SelectField
+            id="dashboard-year"
+            label={copy.year}
+            options={yearOptions}
+            value={String(filters.periodYear)}
+            onChange={onPeriodYearChange}
+          />
+        )}
+        {filters.periodType === "monthly" ? (
+          <SelectField
+            id="dashboard-month"
+            label={copy.month}
+            options={monthOptions}
+            value={String(filters.periodMonth)}
+            onChange={onPeriodMonthChange}
+          />
+        ) : null}
+        <div className="col-span-2 flex gap-2 sm:ml-auto">
+          <Button type="button" variant="outline" className="max-sm:flex-1" onClick={onReset}>
+            <RotateCcw data-icon="inline-start" />
             {copy.reset}
           </Button>
           <Button
             type="button"
+            className="max-sm:flex-1"
             disabled={loading || !activeBranchUuid}
-            className="max-md:min-h-[2.35rem]"
             onClick={onApply}
           >
+            {loading ? <Spinner data-icon="inline-start" /> : <Search data-icon="inline-start" />}
             {copy.apply}
-            {loading ? (
-              <RefreshCcw className="animate-spin" data-icon="inline-end" />
-            ) : (
-              <Search data-icon="inline-end" />
-            )}
           </Button>
         </div>
       </CardContent>
@@ -351,182 +277,88 @@ export const DashboardFilterBar = memo(function DashboardFilterBar({
   );
 });
 
-function paymentSummaryTone(card: PaymentSummaryCard) {
-  const key = card.key.toLowerCase();
+// Accent per metric. Only the icon tile carries it; values stay in text tokens.
+// Class names are listed in full so Tailwind can see them.
+const kpiAccents = {
+  primary: "bg-primary/10 text-primary",
+  blue: "bg-chart-cat-1/15 text-chart-cat-1",
+  orange: "bg-chart-cat-2/15 text-chart-cat-2",
+  success: "bg-success/15 text-success",
+} as const;
 
-  if (card.important || key.includes("payment_total") || key.includes("total"))
-    return {
-      card: "border-primary/18 bg-gradient-to-br from-primary/7 to-card",
-      icon: "bg-primary/10 text-primary",
-    };
-  if (key.includes("debt") || key.includes("balance"))
-    return {
-      card: "border-destructive/20",
-      icon: "bg-destructive/10 text-destructive",
-      value: "text-destructive",
-    };
-  if (key.includes("transfer"))
-    return { card: "", icon: "bg-muted/34 text-primary" };
-  return { card: "", icon: "bg-primary/7 text-primary" };
-}
-
-function paymentSummaryIcon(card: PaymentSummaryCard) {
-  const key = card.key.toLowerCase();
-  if (card.important || key.includes("payment_total") || key.includes("total"))
-    return paymentSummaryIconMap.payment_total;
-  if (key.includes("debt") || key.includes("balance"))
-    return paymentSummaryIconMap.debt;
-  if (key.includes("transfer")) return paymentSummaryIconMap.transfer;
-  return paymentSummaryIconMap.cash;
-}
-
-function warningMessage(copy: DashboardCopy, warning: DashboardWarning) {
-  return warning.copyKey && copy[warning.copyKey]
-    ? copy[warning.copyKey]
-    : warning.value;
-}
-
-export const DashboardPaymentSummaryStrip = memo(
-  function DashboardPaymentSummaryStrip({
-    cards,
-    copy,
-    paymentSummary,
-    warnings = [],
-  }: {
-    cards: PaymentSummaryCard[];
-    copy: DashboardCopy;
-    paymentSummary: PaymentSummary;
-    warnings?: DashboardWarning[];
-  }) {
-    const mixedWarning =
-      !paymentSummary.hasMixedSplitColumns &&
-      (paymentSummary.mixedTotal > 0 ||
-        paymentSummary.unallocatedMixedTotal > 0)
-        ? copy.paymentSplitWarning
-        : "";
-    const warningMessages = warnings
-      .map((warning) => warningMessage(copy, warning))
-      .filter((message) => message && message !== mixedWarning);
-    const mixedDetails = [
-      paymentSummary.mixedTotal
-        ? `${copy.mixedPayment}: ${formatKip(paymentSummary.mixedTotal)}`
-        : "",
-      paymentSummary.unallocatedMixedTotal
-        ? `${copy.unallocatedMixedPayment}: ${formatKip(
-            paymentSummary.unallocatedMixedTotal,
-          )}`
-        : "",
-    ].filter(Boolean);
-    const messages = [mixedWarning, ...warningMessages].filter(Boolean);
-
-    if (!cards.length && !mixedDetails.length && !messages.length) return null;
-
-    return (
-      <div className="-mt-1 flex flex-col gap-2.5">
-        <div
-          aria-label={copy.paymentSplit}
-          className="grid grid-cols-1 gap-2.5 sm:grid-cols-2 xl:grid-cols-4"
-        >
-          {cards.map((card) => {
-            const Icon = paymentSummaryIcon(card);
-
-            return (
-              <div
-                key={card.key}
-                className={cn(
-                  "min-w-0 overflow-hidden rounded-xl border border-border",
-                  paymentSummaryTone(card).card,
-                )}
-              >
-                <CardContent className="flex flex-row items-start gap-3 px-3.5 py-3.5 sm:gap-4 sm:px-6 sm:py-5">
-                  <div
-                    className={cn(
-                      "mt-1 flex size-9 shrink-0 items-center justify-center rounded-full sm:size-10 [&>svg]:size-4 sm:[&>svg]:size-[1.1rem]",
-                      paymentSummaryTone(card).icon,
-                    )}
-                    aria-hidden="true"
-                  >
-                    <Icon />
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    <p className="truncate text-xs font-semibold text-muted-foreground">
-                      {card.label}
-                    </p>
-                    <p
-                      className={cn(
-                        "mt-1 truncate font-mono font-semibold leading-tight",
-                        card.important ? "text-lg sm:text-2xl" : "text-base sm:text-xl",
-                        paymentSummaryTone(card).value,
-                      )}
-                      title={formatKip(card.value)}
-                    >
-                      {formatKip(card.value)}
-                    </p>
-                  </div>
-                </CardContent>
-              </div>
-            );
-          })}
-        </div>
-      </div>
-    );
-  },
-);
-
-export const ErrorBanner = memo(function ErrorBanner({
-  message,
+function KpiCard({
+  accent,
+  badge,
+  className,
+  detail,
+  icon: Icon,
+  label,
+  note,
+  noteDestructive,
+  value,
 }: {
-  message: string;
+  accent: keyof typeof kpiAccents;
+  badge?: string;
+  className?: string;
+  detail: string;
+  icon: LucideIcon;
+  label: string;
+  note?: string;
+  noteDestructive?: boolean;
+  value: string;
 }) {
   return (
-    <Card>
-      <CardContent className="flex items-center gap-2 p-3 text-sm text-destructive">
-        <AlertTriangle />
-        {message}
-      </CardContent>
+    <Card className={cn("@container/kpi", className)}>
+      <CardHeader>
+        <CardDescription className="flex items-center gap-2">
+          <span
+            aria-hidden="true"
+            className={cn("flex size-8 shrink-0 items-center justify-center rounded-md", kpiAccents[accent])}
+          >
+            <Icon className="size-4" />
+          </span>
+          {label}
+        </CardDescription>
+        {/* Size follows the card's own width: money values are long and four cards
+            share a row on wide screens. */}
+        <CardTitle
+          className="truncate text-xl font-semibold tabular-nums @[14rem]/kpi:text-2xl @[20rem]/kpi:text-3xl"
+          title={value}
+        >
+          {value}
+        </CardTitle>
+      </CardHeader>
+      <CardFooter className="flex-col items-start gap-1">
+        <div className="flex w-full flex-wrap items-center justify-between gap-2">
+          <span className="font-medium">{detail}</span>
+          {badge ? <Badge variant="outline">{badge}</Badge> : null}
+        </div>
+        {note ? (
+          <span className={cn("tabular-nums", noteDestructive ? "text-destructive" : "text-muted-foreground")}>
+            {note}
+          </span>
+        ) : null}
+      </CardFooter>
     </Card>
   );
-});
+}
 
-export const DashboardWarningBanner = memo(function DashboardWarningBanner({
-  copy,
-  warnings,
-}: {
-  copy: DashboardCopy;
-  warnings: DashboardWarning[];
-}) {
-  if (!warnings.length) return null;
-
-  return (
-    <Alert className="flex grid-cols-none items-center rounded-[10px] border-warning/45 bg-warning/10 px-3.5 py-3 text-warning">
-      <AlertTriangle />
-      <AlertTitle className="min-w-max font-black text-foreground">{copy.warnings}</AlertTitle>
-      <AlertDescription className="flex flex-1 grid-cols-none items-center justify-between gap-4 text-foreground">
-        {warnings.map((warning) => (
-          <span key={warning.key}>{warningMessage(copy, warning)}</span>
-        ))}
-      </AlertDescription>
-    </Alert>
-  );
-});
-
-export const DashboardHeroStrip = memo(function DashboardHeroStrip({
+// The four numbers an owner checks first: how much was sold, how many bills,
+// how big a bill is, and how much of it is actually in hand.
+export const DashboardKpiGrid = memo(function DashboardKpiGrid({
   copy,
   kpis,
   periodLabel,
   section,
-  trendRows,
 }: {
   copy: DashboardCopy;
   kpis: Row;
   periodLabel: string;
   section: Row;
-  trendRows: TrendPoint[];
 }) {
   const mainTotal = asRow(section.main_total);
   const paymentSummary = asRow(section.payment_summary);
   const cancellationSummary = asRow(section.cancellation_summary);
-  const mainUnit = text(mainTotal.unit, "");
   const cancelledCount =
     numberFrom(cancellationSummary, "cancelled_orders_count") ||
     numberFrom(kpis, "cancelled_orders_count");
@@ -534,187 +366,311 @@ export const DashboardHeroStrip = memo(function DashboardHeroStrip({
     numberFrom(cancellationSummary, "cancelled_orders_total") ||
     numberFrom(kpis, "cancelled_total") ||
     numberFrom(kpis, "cancelled_amount_total");
-  const metrics = [
-    {
-      detail: text(mainTotal.sub_label, periodLabel),
-      label: text(mainTotal.label, copy.revenue),
-      primary: true,
-      sparkValues: trendRows.slice(-12).map((row) => row.revenue),
-      value: formatApiMoney(
-        numberFrom(mainTotal, "value") || numberFrom(kpis, "revenue_total"),
-        mainUnit,
-      ),
-    },
-    {
-      detail: copy.totalBills,
-      label: copy.orders,
-      sparkValues: trendRows.slice(-12).map((row) => row.orders),
-      value: formatNumber(
-        numberFrom(paymentSummary, "orders_count") ||
-          numberFrom(kpis, "orders_count"),
-      ),
-    },
-    {
-      detail: copy.avgBill,
-      label: copy.avgBill,
-      sparkValues: trendRows
-        .slice(-12)
-        .map((row) => (row.orders ? row.revenue / row.orders : 0)),
-      value: formatKip(numberFrom(kpis, "avg_bill")),
-    },
-    {
-      detail: `${copy.discountRate}: ${formatPercent(
-        numberFrom(kpis, "discount_rate"),
-      )}`,
-      label: copy.discount,
-      value: formatKip(numberFrom(kpis, "discount_total")),
-    },
-    {
-      detail: `${copy.collectionRate}: ${formatPercent(
-        numberFrom(kpis, "collection_rate"),
-      )}`,
-      label: copy.paidTotal,
-      value: formatKip(numberFrom(kpis, "paid_total")),
-    },
-    {
-      detail: `${copy.unpaidRate}: ${formatPercent(
-        numberFrom(kpis, "unpaid_rate"),
-      )}`,
-      label: copy.balance,
-      rose: true,
-      value: formatKip(numberFrom(kpis, "balance_total")),
-    },
-    {
-      detail: `${copy.cancelRate}: ${formatPercent(
-        numberFrom(kpis, "cancel_rate"),
-      )}`,
-      label: copy.cancellations,
-      rose: true,
-      value: `${formatNumber(cancelledCount)} / ${formatKip(cancelledTotal)}`,
-    },
-  ];
+  const balance = numberFrom(kpis, "balance_total");
 
   return (
-    <Card className="overflow-hidden rounded-xl shadow-sm">
-      <div className="grid min-h-35 md:grid-cols-2 xl:grid-cols-[1.45fr_repeat(3,minmax(0,1fr))]">
-        {metrics.map((metric, index) => (
-          <div
-            key={metric.label}
-            className={cn(
-              "min-w-0 max-md:min-h-32 border-border p-4.5 pb-4",
-              index === 0 ? "border-t-0" : "border-t",
-              "md:border-t md:[&:nth-child(-n+2)]:border-t-0 md:[&:nth-child(2n)]:border-l",
-              "xl:border-t-0 xl:[&:nth-child(n+2)]:border-l xl:[&:nth-child(n+5)]:border-t",
-              metric.primary &&
-                "relative overflow-hidden bg-gradient-to-br from-primary to-primary/80 text-primary-foreground xl:row-span-2",
-              !metric.primary && "bg-card",
-            )}
-          >
-            <p
-              className={cn(
-                "text-2xs font-semibold uppercase tracking-[0.12em]",
-                metric.primary
-                  ? "text-primary-foreground/75"
-                  : "text-muted-foreground",
-              )}
-            >
-              {metric.label}
-            </p>
-            <p className="mt-2.5 truncate font-mono text-2xl leading-tight font-semibold tracking-tight md:text-[1.7rem]">
-              <span className={cn(metric.rose && "text-destructive")}>
-                {metric.value}
-              </span>
-            </p>
-            <p
-              className={cn(
-                "mt-2 truncate text-xs",
-                metric.primary
-                  ? "text-primary-foreground/75"
-                  : "text-muted-foreground",
-              )}
-            >
-              {metric.detail}
-            </p>
-            {metric.sparkValues ? (
-              <SparkPreview
-                primary={metric.primary}
-                values={metric.sparkValues}
-              />
-            ) : null}
-          </div>
-        ))}
-      </div>
-    </Card>
+    <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+      <KpiCard
+        accent="primary"
+        icon={TrendingUp}
+        // The headline number: a soft primary wash sets it apart from the other three.
+        className="bg-linear-to-br from-primary/15 to-card"
+        label={text(mainTotal.label, copy.revenue)}
+        value={formatApiMoney(
+          numberFrom(mainTotal, "value") || numberFrom(kpis, "revenue_total"),
+          text(mainTotal.unit, ""),
+        )}
+        detail={text(mainTotal.sub_label, periodLabel || copy.revenue)}
+      />
+      <KpiCard
+        accent="blue"
+        icon={ReceiptText}
+        label={copy.orders}
+        value={formatNumber(
+          numberFrom(paymentSummary, "orders_count") || numberFrom(kpis, "orders_count"),
+        )}
+        badge={`${copy.cancelRate} ${formatPercent(numberFrom(kpis, "cancel_rate"))}`}
+        detail={copy.totalBills}
+        note={`${copy.cancellations}: ${formatNumber(cancelledCount)} · ${formatKip(cancelledTotal)}`}
+      />
+      <KpiCard
+        accent="orange"
+        icon={Calculator}
+        label={copy.avgBill}
+        value={formatKip(numberFrom(kpis, "avg_bill"))}
+        badge={`${copy.discountRate} ${formatPercent(numberFrom(kpis, "discount_rate"))}`}
+        detail={copy.discount}
+        note={formatKip(numberFrom(kpis, "discount_total"))}
+      />
+      <KpiCard
+        accent="success"
+        icon={HandCoins}
+        label={copy.paidTotal}
+        value={formatKip(numberFrom(kpis, "paid_total"))}
+        badge={`${copy.collectionRate} ${formatPercent(numberFrom(kpis, "collection_rate"))}`}
+        detail={`${copy.balance} (${copy.unpaidRate} ${formatPercent(numberFrom(kpis, "unpaid_rate"))})`}
+        note={formatKip(balance)}
+        noteDestructive={balance > 0}
+      />
+    </div>
   );
 });
 
-type DashboardChartFallbackVariant = "operations" | "products" | "revenue";
-
-function DashboardChartFallbackCard({
-  className,
-  rows = 4,
-}: {
-  className?: string;
-  rows?: number;
-}) {
-  return (
-    <Card className={cn("overflow-hidden rounded-xl shadow-sm", className)}>
-      <CardHeader className={cn(dashboardCardHeaderClass, "border-b")}>
-        <Skeleton className="h-4 w-36" />
-        <Skeleton className="mt-2 h-3 w-48" />
-      </CardHeader>
-      <CardContent className="flex min-h-64 flex-col gap-3 p-4">
-        <Skeleton className="h-40 w-full" />
-        {Array.from({ length: rows }).map((_, index) => (
-          <Skeleton key={index} className="h-3 w-full" />
-        ))}
-      </CardContent>
-    </Card>
-  );
+function warningMessage(copy: DashboardCopy, warning: DashboardWarning) {
+  return warning.copyKey && copy[warning.copyKey] ? copy[warning.copyKey] : warning.value;
 }
 
-export function DashboardChartGridFallback({
-  variant,
+export const DashboardAlerts = memo(function DashboardAlerts({
+  copy,
+  errors,
+  warnings,
 }: {
-  variant: DashboardChartFallbackVariant;
-}) {
-  if (variant === "revenue") {
-    return (
-      <div className="grid gap-4 xl:grid-cols-[1.7fr_1fr]">
-        <DashboardChartFallbackCard />
-        <DashboardChartFallbackCard rows={5} />
-      </div>
-    );
-  }
-
-  if (variant === "operations") {
-    return (
-      <div className="grid gap-4 xl:grid-cols-3">
-        <DashboardChartFallbackCard rows={3} />
-        <DashboardChartFallbackCard rows={3} />
-        <DashboardChartFallbackCard rows={3} />
-      </div>
-    );
-  }
-
-  return (
-    <div className="grid gap-4 xl:grid-cols-[1.3fr_1fr]">
-      <DashboardChartFallbackCard rows={6} />
-      <DashboardChartFallbackCard rows={3} />
-    </div>
-  );
-}
-
-export const DashboardFooter = memo(function DashboardFooter({}: {
-  activeBranchUuid: string;
   copy: DashboardCopy;
-  filtersMeta: Row;
-  requestParams: Row;
+  errors: string[];
+  warnings: DashboardWarning[];
 }) {
+  // The payment-split warning is shown inside the payment methods card, next to the
+  // numbers it explains, so it is not repeated here.
+  const warningMessages = Array.from(
+    new Set(
+      warnings
+        .filter((warning) => warning.copyKey !== "paymentSplitWarning")
+        .map((warning) => warningMessage(copy, warning))
+        .filter(Boolean),
+    ),
+  );
+
   return (
-    <div className="flex flex-wrap justify-between gap-2 pt-2 text-xs text-muted-foreground/78">
-      {/* {activeBranchUuid ? <span>{copy.branch} <span className="font-mono">{activeBranchUuid}</span></span> : null} */}
-      {/* {details.length ? <span className="font-mono">{details.join(" / ")}</span> : null} */}
-    </div>
+    <>
+      {errors.map((message) => (
+        <Alert key={message} variant="destructive">
+          <AlertTriangle />
+          <AlertDescription>{message}</AlertDescription>
+        </Alert>
+      ))}
+      {warningMessages.length ? (
+        <Alert>
+          <AlertTriangle />
+          <AlertTitle>{copy.warnings}</AlertTitle>
+          <AlertDescription>
+            {warningMessages.map((message) => (
+              <p key={message}>{message}</p>
+            ))}
+          </AlertDescription>
+        </Alert>
+      ) : null}
+    </>
   );
 });
+
+// ---------------------------------------------------------------------------
+// Loading skeletons. Each mirrors the real section's Card/grid structure (same
+// breakpoints, same header/content/footer slots) so nothing jumps when data lands.
+
+type DashboardChartFallbackVariant = "health" | "products" | "sales";
+
+// Heights below were measured against the rendered dashboard (card header 44px, share
+// row 56px, table row 49px, …) so the swap to real content does not shift the page.
+function SkeletonCardHeader({ action = false, description = true }: { action?: boolean; description?: boolean }) {
+  return (
+    <CardHeader className="gap-1.5">
+      <Skeleton className="h-5 w-36" />
+      {description ? <Skeleton className="h-4 w-52 max-w-full" /> : null}
+      {action ? (
+        <CardAction>
+          <Skeleton className="h-6 w-28" />
+        </CardAction>
+      ) : null}
+    </CardHeader>
+  );
+}
+
+function ShareRowSkeleton() {
+  return (
+    <div className="flex flex-col gap-1.5">
+      <div className="flex justify-between gap-3">
+        <Skeleton className="h-5 w-24" />
+        <Skeleton className="h-5 w-20" />
+      </div>
+      <Skeleton className="h-2 w-full" />
+      <div className="flex justify-end">
+        <Skeleton className="h-4 w-10" />
+      </div>
+    </div>
+  );
+}
+
+function SalesSkeleton() {
+  return (
+    <div className="grid gap-4 lg:grid-cols-3">
+      <Card className="lg:col-span-2">
+        <SkeletonCardHeader action />
+        <CardContent>
+          <Skeleton className="h-64 w-full" />
+        </CardContent>
+        <CardFooter>
+          <Skeleton className="h-4 w-64 max-w-full" />
+        </CardFooter>
+      </Card>
+      <Card>
+        <SkeletonCardHeader />
+        <CardContent className="flex flex-col gap-4">
+          {Array.from({ length: 3 }, (_, index) => (
+            <ShareRowSkeleton key={index} />
+          ))}
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
+
+function ProductsSkeleton() {
+  return (
+    <div className="grid items-start gap-4 lg:grid-cols-3">
+      <Card className="lg:col-span-2">
+        <SkeletonCardHeader action />
+        <CardContent className="flex flex-col">
+          <div className="flex h-10 items-center gap-3 border-b">
+            <Skeleton className="h-3 w-5" />
+            <Skeleton className="h-3 flex-1" />
+            <Skeleton className="h-3 w-10" />
+            <Skeleton className="h-3 w-24" />
+            <Skeleton className="hidden h-3 w-32 md:block" />
+          </div>
+          {/* 10 rows = the default "top 10" the table renders. */}
+          {Array.from({ length: 10 }, (_, index) => (
+            <div key={index} className="flex items-center gap-3 border-b py-2 last:border-b-0">
+              <Skeleton className="size-5" />
+              <Skeleton className="size-8" />
+              <div className="flex min-w-0 flex-1 flex-col gap-1.5">
+                <Skeleton className="h-4 w-2/3" />
+                <Skeleton className="h-3 w-1/4" />
+              </div>
+              <Skeleton className="h-4 w-10" />
+              <Skeleton className="h-4 w-24" />
+              <Skeleton className="hidden h-2 w-32 md:block" />
+            </div>
+          ))}
+        </CardContent>
+        <CardFooter>
+          <Skeleton className="h-4 w-72 max-w-full" />
+        </CardFooter>
+      </Card>
+      <div className="flex flex-col gap-4">
+        <Card>
+          <SkeletonCardHeader />
+          <CardContent className="flex flex-col gap-4">
+            <ShareRowSkeleton />
+            <div className="grid grid-cols-3 gap-2">
+              {Array.from({ length: 3 }, (_, index) => (
+                <div key={index} className="flex flex-col items-center gap-2">
+                  <Skeleton className="h-7 w-8" />
+                  <Skeleton className="h-4 w-14" />
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+        <Card>
+          <SkeletonCardHeader />
+          <CardContent className="flex flex-col gap-4">
+            {Array.from({ length: 3 }, (_, index) => (
+              <ShareRowSkeleton key={index} />
+            ))}
+          </CardContent>
+        </Card>
+      </div>
+    </div>
+  );
+}
+
+function HealthSkeleton() {
+  return (
+    <div className="grid items-start gap-4 lg:grid-cols-2">
+      <Card>
+        <SkeletonCardHeader />
+        <CardContent className="flex flex-col gap-2">
+          {Array.from({ length: 7 }, (_, index) => (
+            <div key={index} className="flex justify-between gap-3">
+              <Skeleton className="h-5 w-32" />
+              <Skeleton className="h-5 w-24" />
+            </div>
+          ))}
+        </CardContent>
+      </Card>
+      <Card>
+        <SkeletonCardHeader description={false} />
+        <CardContent className="flex flex-col gap-2.5">
+          {Array.from({ length: 4 }, (_, index) => (
+            <div key={index} className="flex items-center gap-3 rounded-md border px-3 py-2.5">
+              <Skeleton className="size-8" />
+              <div className="flex flex-1 flex-col gap-1">
+                <Skeleton className="h-4 w-20" />
+                <Skeleton className="h-5 w-40 max-w-full" />
+                <Skeleton className="h-4 w-28" />
+              </div>
+            </div>
+          ))}
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
+
+// Also the loading UI for the lazily imported chart sections (next/dynamic `loading`).
+export function DashboardChartGridFallback({ variant }: { variant: DashboardChartFallbackVariant }) {
+  if (variant === "sales") return <SalesSkeleton />;
+  if (variant === "products") return <ProductsSkeleton />;
+  return <HealthSkeleton />;
+}
+
+function FieldSkeleton({ className }: { className?: string }) {
+  return (
+    <div className={cn("flex flex-col gap-2", className)}>
+      <Skeleton className="h-4 w-16" />
+      <Skeleton className="h-7 w-full" />
+    </div>
+  );
+}
+
+// Whole-page skeleton for the first load (and while permissions resolve).
+export function DashboardPageSkeleton({ label }: { label: string }) {
+  return (
+    <section aria-busy="true" aria-label={label} className="flex flex-col gap-4">
+      <Skeleton className="h-8 w-72 max-w-full" />
+      <Card size="sm">
+        <CardContent className="grid grid-cols-2 gap-3 sm:flex sm:flex-wrap sm:items-end">
+          <FieldSkeleton className="col-span-2 sm:w-56" />
+          <FieldSkeleton className="col-span-2 sm:w-39" />
+          <FieldSkeleton className="sm:w-40" />
+          <FieldSkeleton className="sm:w-40" />
+          <div className="col-span-2 flex gap-2 sm:ml-auto">
+            <Skeleton className="h-7 flex-1 sm:w-20 sm:flex-none" />
+            <Skeleton className="h-7 flex-1 sm:w-24 sm:flex-none" />
+          </div>
+        </CardContent>
+      </Card>
+      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        {Array.from({ length: 4 }, (_, index) => (
+          <Card key={index}>
+            <CardHeader>
+              <div className="flex items-center gap-2">
+                <Skeleton className="size-8" />
+                <Skeleton className="h-3 w-24" />
+              </div>
+              <Skeleton className="h-8 w-40 max-w-full" />
+            </CardHeader>
+            <CardFooter className="flex-col items-start gap-1.5">
+              <Skeleton className="h-4 w-28" />
+              <Skeleton className="h-5 w-24 rounded-full" />
+              <Skeleton className="h-4 w-20" />
+            </CardFooter>
+          </Card>
+        ))}
+      </div>
+      <SalesSkeleton />
+      <ProductsSkeleton />
+      <HealthSkeleton />
+    </section>
+  );
+}

@@ -1,37 +1,73 @@
 "use client";
 
 import { memo, useMemo, useState } from "react";
-import { Info } from "lucide-react";
 import {
-  Bar,
-  CartesianGrid,
-  Cell,
-  ComposedChart,
-  Line,
-  Pie,
-  PieChart,
-  Tooltip,
-  XAxis,
-  YAxis
-} from "recharts";
-import { Badge } from "@/components/ui/badge";
+  AlertTriangle,
+  BadgePercent,
+  Info,
+  Trophy,
+  TrendingDown,
+  XCircle,
+  type LucideIcon,
+} from "lucide-react";
+import { Bar, BarChart, CartesianGrid, XAxis, YAxis } from "recharts";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { ChartContainer, ChartTooltipContent, type ChartConfig } from "@/components/ui/chart";
+import { Badge } from "@/components/ui/badge";
+import {
+  Card,
+  CardAction,
+  CardContent,
+  CardDescription,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import {
+  ChartContainer,
+  ChartTooltip,
+  ChartTooltipContent,
+  type ChartConfig,
+} from "@/components/ui/chart";
 import { Empty, EmptyHeader, EmptyMedia, EmptyTitle } from "@/components/ui/empty";
-import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import {
+  Item,
+  ItemContent,
+  ItemDescription,
+  ItemGroup,
+  ItemMedia,
+  ItemTitle,
+} from "@/components/ui/item";
+import { Progress } from "@/components/ui/progress";
+import {
+  Select,
+  SelectContent,
+  SelectGroup,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Separator } from "@/components/ui/separator";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { cn } from "@/lib/utils";
-import { type DashboardCopy, dashboardCardHeaderClass } from "./dashboard-widgets";
+import type { DashboardCopy } from "./dashboard-widgets";
 import type {
   AccountingRow,
   BreakdownRow,
+  PaymentSummary,
+  PaymentSummaryCard,
   ProductRow,
   Row,
   SelectOption,
-  Tone,
-  TrendPoint
+  TrendPoint,
 } from "@/features/dashboard/overview/dashboard-view-model";
 import {
   asRow,
@@ -39,391 +75,422 @@ import {
   formatNumber,
   formatPercent,
   numberFrom,
-  text
+  text,
 } from "@/features/dashboard/overview/dashboard-view-model";
 
-type RevenueChartMode = "orders" | "payments" | "revenue";
+// Dataviz notes: the trend chart is single-series in the theme primary. Parts-of-a-whole
+// (payment methods, channels) are ranked bar lists coloured from --chart-cat-*, a
+// validated categorical palette; every bar also carries its text label and value, which
+// the palette needs because slots 3-5 are under 3:1 on a light card.
 
-// Shared classes for the segmented mode/metric tab groups (revenue/payments/orders,
-// products qty/revenue, pareto metric) so the active-state styling stays in sync
-// across all 7 tab buttons instead of drifting per call site.
-const dashboardTabsWrapperClass = "inline-flex gap-0.5 rounded-lg bg-muted/40 p-0.5";
+// Full class names (not built strings) so Tailwind emits them. Slot = the entity's
+// position in the API order, never its rank, so re-sorting never repaints a category.
+const categoricalSlots = [
+  { bar: "*:data-[slot=progress-indicator]:bg-chart-cat-1", dot: "bg-chart-cat-1" },
+  { bar: "*:data-[slot=progress-indicator]:bg-chart-cat-2", dot: "bg-chart-cat-2" },
+  { bar: "*:data-[slot=progress-indicator]:bg-chart-cat-3", dot: "bg-chart-cat-3" },
+  { bar: "*:data-[slot=progress-indicator]:bg-chart-cat-4", dot: "bg-chart-cat-4" },
+  { bar: "*:data-[slot=progress-indicator]:bg-chart-cat-5", dot: "bg-chart-cat-5" },
+] as const;
+// Past five categories fold to neutral rather than inventing hues.
+const neutralSlot = { bar: "*:data-[slot=progress-indicator]:bg-muted-foreground", dot: "bg-muted-foreground" };
 
-function dashboardTabButtonClass(active: boolean) {
-  return cn(
-    "h-8 rounded-md border-transparent font-medium shadow-none",
-    active && "border-border bg-card text-primary shadow-sm"
-  );
+function categoricalSlot(index: number) {
+  return categoricalSlots[index] ?? neutralSlot;
 }
 
-const toneClasses: Record<Tone, { bar: string; soft: string; text: string }> = {
-  primary: {
-    bar: "bg-primary",
-    soft: "bg-primary/10",
-    text: "text-primary"
-  },
-  sky: {
-    bar: "bg-primary/70",
-    soft: "bg-primary/10",
-    text: "text-primary"
-  },
-  amber: {
-    bar: "bg-muted-foreground",
-    soft: "bg-muted",
-    text: "text-muted-foreground"
-  },
-  rose: {
-    bar: "bg-destructive",
-    soft: "bg-destructive/10",
-    text: "text-destructive"
-  },
-  violet: {
-    bar: "bg-primary/80",
-    soft: "bg-primary/10",
-    text: "text-primary"
-  },
-  slate: {
-    bar: "bg-muted-foreground",
-    soft: "bg-muted",
-    text: "text-muted-foreground"
-  }
-};
+const compactNumber = new Intl.NumberFormat("en-US", { maximumFractionDigits: 1, notation: "compact" });
 
-const chartColors = [
-  "var(--primary)",
-  "color-mix(in oklch, var(--primary) 72%, transparent)",
-  "hsl(38 92% 50%)",
-  "var(--destructive)",
-  "var(--muted-foreground)",
-  "color-mix(in oklch, var(--primary) 42%, transparent)"
-];
-
-function paymentLabel(rows: BreakdownRow[], terms: string[], fallback: string) {
-  const match = rows.find((row) => {
-    const target = `${row.key} ${row.label}`.toLowerCase();
-    return terms.some((term) => target.includes(term));
-  });
-
-  return match?.label ?? fallback;
-}
-
-function ProgressBar({ percent, tone = "primary" }: { percent: number; tone?: Tone }) {
-  return (
-    <div className="h-2 overflow-hidden rounded-full bg-muted">
-      <div
-        className={cn("h-full rounded-full", toneClasses[tone].bar)}
-        style={{ width: `${Math.max(0, Math.min(100, percent))}%` }}
-      />
-    </div>
-  );
-}
-
-function ProgressRow({
-  label,
-  percent,
-  subValue,
-  tone = "primary",
-  value
-}: {
-  label: string;
-  percent: number;
-  subValue?: string;
-  tone?: Tone;
-  value: string;
-}) {
-  return (
-    <div className="flex flex-col gap-2">
-      <div className="flex items-start justify-between gap-3 text-sm">
-        <div className="min-w-0">
-          <p className="truncate font-bold">{label}</p>
-          {subValue ? <p className="text-xs text-muted-foreground">{subValue}</p> : null}
-        </div>
-        <p className="shrink-0 font-black">{value}</p>
-      </div>
-      <ProgressBar percent={percent} tone={tone} />
-    </div>
-  );
+function share(value: number, total: number) {
+  return total > 0 ? (value / total) * 100 : 0;
 }
 
 function EmptyPanel({ label }: { label: string }) {
   return (
-    <Empty className="min-h-28 border border-border bg-muted/20 p-6">
+    <Empty>
       <EmptyHeader>
         <EmptyMedia variant="icon">
           <Info />
         </EmptyMedia>
-        <EmptyTitle className="text-sm font-bold text-muted-foreground">{label}</EmptyTitle>
+        <EmptyTitle>{label}</EmptyTitle>
       </EmptyHeader>
     </Empty>
   );
 }
 
-function MiniFact({ label, title, value }: { label: string; title: string; value: string }) {
+function ShareRow({
+  detail,
+  label,
+  percent,
+  slot,
+  value,
+}: {
+  detail?: string;
+  label: string;
+  percent: number;
+  slot?: { bar: string; dot: string };
+  value: string;
+}) {
   return (
-    <div className="rounded-lg border border-border bg-muted/38 px-3 py-2">
-      <p className="text-2xs font-black uppercase text-muted-foreground">{label}</p>
-      <p className="mt-1 truncate text-sm font-black">{title}</p>
-      <p className="mt-1 text-xs text-muted-foreground">{value}</p>
+    <div className="flex flex-col gap-1.5">
+      <div className="flex items-center justify-between gap-3">
+        <span className="flex min-w-0 items-center gap-2 font-medium">
+          {slot ? <span aria-hidden="true" className={cn("size-2.5 shrink-0 rounded-full", slot.dot)} /> : null}
+          <span className="truncate">{label}</span>
+        </span>
+        <span className="shrink-0 tabular-nums">{value}</span>
+      </div>
+      {/* Decorative: the percentage is always printed next to the bar. */}
+      <Progress
+        value={Math.min(100, Math.max(0, percent))}
+        aria-hidden="true"
+        className={cn("h-2", slot?.bar)}
+      />
+      <div className="flex justify-between gap-3 text-muted-foreground tabular-nums">
+        <span className="truncate">{detail}</span>
+        <span className="shrink-0">{formatPercent(percent)}</span>
+      </div>
     </div>
   );
 }
 
-function DashboardRevenueChart({
+type TrendMetric = "orders" | "revenue";
+
+function SalesTrendCard({
   copy,
-  mode,
-  paymentRows,
-  paymentTrendRows,
-  trendRows
-}: {
-  copy: DashboardCopy;
-  mode: RevenueChartMode;
-  paymentRows: BreakdownRow[];
-  paymentTrendRows: TrendPoint[];
-  trendRows: TrendPoint[];
-}) {
-  const rows = mode === "payments" ? paymentTrendRows : trendRows;
-  const chartRows = rows.map((row) => ({
-    ...row,
-    label: row.day || row.date
-  }));
-  const config = {
-    cash: { label: paymentLabel(paymentRows, ["cash"], copy.cash), color: "var(--primary)" },
-    transfer: { label: paymentLabel(paymentRows, ["transfer"], copy.transfer), color: "color-mix(in oklch, var(--primary) 62%, transparent)" },
-    mixed: { label: copy.mixed, color: "color-mix(in oklch, var(--primary) 38%, transparent)" },
-    balance: { label: paymentLabel(paymentRows, ["debt", "balance"], copy.debt), color: "var(--destructive)" },
-    orders: { label: copy.orders, color: "hsl(38 92% 50%)" },
-    revenue: { label: copy.revenue, color: "var(--primary)" }
-  } satisfies ChartConfig;
-
-  if (!rows.length) return <EmptyPanel label={copy.noData} />;
-  const isOrders = mode === "orders";
-
-  return (
-    <ChartContainer config={config} className="w-full overflow-visible">
-      <ComposedChart data={chartRows} margin={{ bottom: 0, left: 0, right: 0, top: 14 }}>
-        <CartesianGrid vertical={false} strokeDasharray="2 4" />
-        <XAxis dataKey="label" axisLine={false} tickLine={false} minTickGap={16} />
-        <YAxis axisLine={false} tickLine={false} tickFormatter={isOrders ? (value) => formatNumber(value) : formatKip} width={isOrders ? 42 : 96} />
-        <Tooltip content={<ChartTooltipContent formatter={(value, name) => name === copy.orders ? formatNumber(value) : formatKip(value)} />} />
-        {mode === "payments" ? (
-          <>
-            <Bar dataKey="cash" stackId="payments" fill="var(--color-cash)" radius={[2, 2, 0, 0]} barSize={10} />
-            <Bar dataKey="transfer" stackId="payments" fill="var(--color-transfer)" radius={[2, 2, 0, 0]} barSize={10} />
-            <Bar dataKey="mixed" stackId="payments" fill="var(--color-mixed)" radius={[2, 2, 0, 0]} barSize={10} />
-            <Bar dataKey="balance" stackId="payments" fill="var(--color-balance)" radius={[2, 2, 0, 0]} barSize={10} />
-          </>
-        ) : null}
-        {mode === "revenue" ? <Bar dataKey="revenue" fill="var(--color-revenue)" radius={[2, 2, 0, 0]} barSize={10} /> : null}
-        {mode === "orders" ? <Bar dataKey="orders" fill="var(--color-orders)" radius={[2, 2, 0, 0]} barSize={10} /> : null}
-        {mode === "payments" ? <Line dataKey="revenue" type="monotone" stroke="var(--color-revenue)" strokeDasharray="4 4" strokeWidth={2} dot={false} /> : null}
-      </ComposedChart>
-    </ChartContainer>
-  );
-}
-
-export const DashboardRevenueAccountingGrid = memo(function DashboardRevenueAccountingGrid({
-  accountingRows,
-  copy,
-  paymentRows,
-  paymentTrendRows,
   peakRevenueDay,
-  trendRows
+  trendRows,
 }: {
-  accountingRows: AccountingRow[];
   copy: DashboardCopy;
-  paymentRows: BreakdownRow[];
-  paymentTrendRows: TrendPoint[];
   peakRevenueDay: TrendPoint | null;
   trendRows: TrendPoint[];
 }) {
-  const [chartMode, setChartMode] = useState<RevenueChartMode>("revenue");
-  const legendItems = [
-    { className: "bg-primary", label: paymentLabel(paymentRows, ["cash"], copy.cash) },
-    { className: "bg-primary/60", label: paymentLabel(paymentRows, ["transfer"], copy.transfer) },
-    { className: "bg-primary/35", label: copy.mixed },
-    { className: "bg-destructive", label: paymentLabel(paymentRows, ["debt", "balance"], copy.debt) }
-  ];
+  const [metric, setMetric] = useState<TrendMetric>("revenue");
+  const isRevenue = metric === "revenue";
+  const config = {
+    [metric]: { label: isRevenue ? copy.revenue : copy.orders, color: "var(--primary)" },
+  } satisfies ChartConfig;
+  const data = trendRows.map((row) => ({ ...row, label: row.day || row.date }));
 
   return (
-    <div className="grid gap-4 xl:grid-cols-[1.7fr_1fr]">
-      <Card className="overflow-hidden rounded-xl shadow-sm">
-        <CardHeader className={cn(dashboardCardHeaderClass, "flex-row items-center justify-between border-b")}>
-          <div className="min-w-0">
-            <CardTitle className="truncate text-sm font-semibold">{copy.dailySales}</CardTitle>
-            <p className="mt-1 truncate text-xs text-muted-foreground">{copy.dailySalesSubtitle}</p>
-          </div>
-          <div className="flex flex-wrap items-center justify-end gap-3 text-xs text-muted-foreground">
-            <div className="flex flex-wrap items-center gap-3">
-              {legendItems.map((item) => (
-                <span key={item.label} className="inline-flex items-center gap-1.5">
-                  <span className={cn("size-2 rounded-sm", item.className)} />
-                  {item.label}
-                </span>
-              ))}
-            </div>
-            <div className={dashboardTabsWrapperClass}>
-              <Button size="sm" type="button" variant="ghost" className={dashboardTabButtonClass(chartMode === "revenue")} onClick={() => setChartMode("revenue")}>{copy.revenue}</Button>
-              <Button size="sm" type="button" variant="ghost" className={dashboardTabButtonClass(chartMode === "payments")} onClick={() => setChartMode("payments")}>{copy.payments}</Button>
-              <Button size="sm" type="button" variant="ghost" className={dashboardTabButtonClass(chartMode === "orders")} onClick={() => setChartMode("orders")}>{copy.orders}</Button>
-            </div>
-          </div>
-        </CardHeader>
-        <CardContent className="px-3 pt-2 pb-3.5">
-          <DashboardRevenueChart
-            copy={copy}
-            mode={chartMode}
-            paymentRows={paymentRows}
-            paymentTrendRows={paymentTrendRows}
-            trendRows={trendRows}
-          />
-        </CardContent>
-      </Card>
-
-      <Card className="overflow-hidden rounded-xl shadow-sm">
-        <CardHeader className={cn(dashboardCardHeaderClass, "flex-row items-center justify-between border-b")}>
-          <div>
-            <CardTitle className="text-sm font-semibold">{copy.accounting}</CardTitle>
-            <p className="mt-1 text-xs text-muted-foreground">{copy.ledger}</p>
-          </div>
-        </CardHeader>
-        <CardContent className="p-4">
-          {accountingRows.length ? (
-            <div className="flex flex-col">
-              {accountingRows.map((row) => (
-                <div
-                  key={row.key}
-                  className={cn(
-                    "flex items-center justify-between gap-3 border-b border-dashed border-border py-2.5 text-sm last:border-b-0",
-                    row.important && "-mx-1 mt-2 rounded-md border border-primary/14 bg-primary/7 px-3 font-semibold"
-                  )}
-                >
-                  <span className="min-w-0 truncate text-muted-foreground">{row.label}</span>
-                  <span className={cn("shrink-0 font-mono font-semibold", row.negative && "text-destructive", row.important && "text-primary")}>
-                    {row.negative ? "- " : row.important ? "" : "+ "}
-                    {formatKip(row.value)}
-                  </span>
-                </div>
-              ))}
-            </div>
-          ) : (
-            <EmptyPanel label={copy.noData} />
-          )}
-          {peakRevenueDay ? (
-            <div className="mt-3 border-t border-dashed pt-3">
-              <MiniFact
-                label={copy.peakDay}
-                title={peakRevenueDay.date}
-                value={`${formatKip(peakRevenueDay.revenue)} / ${formatNumber(peakRevenueDay.orders)} ${copy.orders}`}
-              />
-            </div>
-          ) : null}
-        </CardContent>
-      </Card>
-    </div>
-  );
-});
-
-function ChannelDonutPanel({ copy, rows }: { copy: DashboardCopy; rows: BreakdownRow[] }) {
-  const total = rows.reduce((sum, row) => sum + row.value, 0);
-  const main = rows.reduce<BreakdownRow | undefined>(
-    (selected, row) => (!selected || row.value > selected.value ? row : selected),
-    undefined
-  );
-  const config = { value: { label: copy.revenue, color: "var(--primary)" } } satisfies ChartConfig;
-
-  return (
-    <Card className="overflow-hidden rounded-xl shadow-sm">
-      <CardHeader className={cn(dashboardCardHeaderClass, "flex-row items-center justify-between border-b")}>
-        <div>
-          <CardTitle className="text-sm font-semibold">{copy.orderChannels}</CardTitle>
-          <p className="mt-1 text-xs text-muted-foreground">{rows.length} {copy.channels}</p>
-        </div>
-        <span className="font-mono text-xs text-muted-foreground">{formatKip(total)}</span>
+    <Card className="lg:col-span-2">
+      <CardHeader>
+        <CardTitle>{copy.dailySales}</CardTitle>
+        <CardDescription>{copy.dailySalesSubtitle}</CardDescription>
+        <CardAction>
+          <ToggleGroup
+            type="single"
+            variant="outline"
+            size="sm"
+            spacing={0}
+            value={metric}
+            onValueChange={(value) => {
+              if (value) setMetric(value as TrendMetric);
+            }}
+          >
+            <ToggleGroupItem value="revenue">{copy.revenue}</ToggleGroupItem>
+            <ToggleGroupItem value="orders">{copy.orders}</ToggleGroupItem>
+          </ToggleGroup>
+        </CardAction>
       </CardHeader>
-      <CardContent className="grid items-center gap-4 p-4 md:grid-cols-[10.5rem_1fr] xl:grid-cols-1">
-        {rows.length ? (
-          <>
-            <div className="relative mx-auto size-40">
-              <ChartContainer config={config} className="size-40">
-                <PieChart>
-                  <Pie data={rows} dataKey="value" nameKey="label" innerRadius={52} outerRadius={70} paddingAngle={2}>
-                    {rows.map((row, index) => (
-                      <Cell key={row.key} fill={chartColors[index % chartColors.length]} />
-                    ))}
-                  </Pie>
-                </PieChart>
-              </ChartContainer>
-              <div className="absolute inset-0 flex flex-col items-center justify-center text-center">
-                <p className="font-mono text-xl font-semibold">{formatPercent(main?.revenuePercent || main?.percent || 0)}</p>
-                <p className="max-w-28 truncate text-xs text-muted-foreground">{main?.label ?? copy.channels}</p>
-              </div>
-            </div>
-            <div className="flex flex-col gap-3">
-              {rows.map((row, index) => (
-                <div key={row.key} className="grid grid-cols-[auto_1fr_auto] items-center gap-2.5 text-[0.78rem] max-md:grid-cols-[auto_minmax(0,1fr)]">
-                  <span className="size-2.5 rounded-sm" style={{ backgroundColor: chartColors[index % chartColors.length] }} />
-                  <div className="min-w-0">
-                    <p className="truncate font-semibold">{row.label}</p>
-                    <p className="tabular-nums text-xs text-muted-foreground">
-                      {formatNumber(row.count ?? 0)} {copy.orders} / {formatKip(row.value)}
-                    </p>
-                  </div>
-                  <div className="flex min-w-33 flex-col items-end gap-0.5 font-mono text-[0.7rem] text-muted-foreground [&>span:last-child]:font-bold [&>span:last-child]:text-foreground max-md:col-start-2 max-md:items-start">
-                    <span>{copy.orderShare}: {formatPercent(row.orderPercent)}</span>
-                    <span>{copy.revenueShare}: {formatPercent(row.revenuePercent || row.percent)}</span>
-                  </div>
-                </div>
-              ))}
-              <p className="border-t pt-3 text-xs text-muted-foreground">
-                {main ? `${copy.mainChannel}: ${main.label} / ${copy.revenueShare} ${formatPercent(main.revenuePercent || main.percent)}` : copy.noData}
-              </p>
-            </div>
-          </>
+      <CardContent>
+        {data.length ? (
+          <ChartContainer config={config} className="aspect-auto h-64 w-full">
+            <BarChart data={data} margin={{ left: 0, right: 0, top: 8 }}>
+              <defs>
+                <linearGradient id="dashboard-trend-fill" x1="0" y1="0" x2="0" y2="1">
+                  {/* var() only resolves in CSS, not in SVG presentation attributes. */}
+                  <stop offset="0%" style={{ stopColor: `var(--color-${metric})`, stopOpacity: 1 }} />
+                  <stop offset="100%" style={{ stopColor: `var(--color-${metric})`, stopOpacity: 0.45 }} />
+                </linearGradient>
+              </defs>
+              <CartesianGrid vertical={false} />
+              <XAxis dataKey="label" axisLine={false} tickLine={false} tickMargin={8} minTickGap={16} />
+              <YAxis
+                axisLine={false}
+                tickLine={false}
+                width={44}
+                tickFormatter={(value: number) => compactNumber.format(value)}
+              />
+              <ChartTooltip
+                cursor={{ fill: "var(--muted)" }}
+                content={
+                  <ChartTooltipContent
+                    formatter={(value) => (isRevenue ? formatKip(value) : `${formatNumber(value)} ${copy.orders}`)}
+                  />
+                }
+              />
+              <Bar dataKey={metric} fill="url(#dashboard-trend-fill)" radius={[4, 4, 0, 0]} maxBarSize={32} />
+            </BarChart>
+          </ChartContainer>
         ) : (
           <EmptyPanel label={copy.noData} />
         )}
+      </CardContent>
+      {peakRevenueDay ? (
+        <CardFooter className="gap-2 text-muted-foreground tabular-nums">
+          <span className="font-medium text-foreground">{copy.peakDay}:</span>
+          {peakRevenueDay.date} · {formatKip(peakRevenueDay.revenue)} · {formatNumber(peakRevenueDay.orders)} {copy.orders}
+        </CardFooter>
+      ) : null}
+    </Card>
+  );
+}
+
+function PaymentMethodsCard({
+  cards,
+  copy,
+  paymentSummary,
+}: {
+  cards: PaymentSummaryCard[];
+  copy: DashboardCopy;
+  paymentSummary: PaymentSummary;
+}) {
+  const totalCard = cards.find((card) => card.important);
+  const methods = cards.filter((card) => !card.important);
+  const total = totalCard?.value || methods.reduce((sum, card) => sum + card.value, 0);
+  const splitWarning =
+    !paymentSummary.hasMixedSplitColumns &&
+    (paymentSummary.mixedTotal > 0 || paymentSummary.unallocatedMixedTotal > 0);
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>{copy.paymentSplit}</CardTitle>
+        <CardDescription className="tabular-nums">
+          {totalCard?.label ?? copy.paidTotal}: {formatKip(total)}
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="flex flex-col gap-4">
+        {methods.length ? (
+          methods
+            .map((card, index) => ({ card, slot: categoricalSlot(index) }))
+            .sort((left, right) => right.card.value - left.card.value)
+            .map(({ card, slot }) => (
+              <ShareRow
+                key={card.key}
+                label={card.label}
+                slot={slot}
+                value={formatKip(card.value)}
+                percent={share(card.value, total)}
+              />
+            ))
+        ) : (
+          <EmptyPanel label={copy.noData} />
+        )}
+        {splitWarning ? (
+          <Alert>
+            <AlertTriangle />
+            <AlertDescription>
+              <p>{copy.paymentSplitWarning}</p>
+              {paymentSummary.mixedTotal ? (
+                <p className="tabular-nums">{copy.mixedPayment}: {formatKip(paymentSummary.mixedTotal)}</p>
+              ) : null}
+              {paymentSummary.unallocatedMixedTotal ? (
+                <p className="tabular-nums">
+                  {copy.unallocatedMixedPayment}: {formatKip(paymentSummary.unallocatedMixedTotal)}
+                </p>
+              ) : null}
+            </AlertDescription>
+          </Alert>
+        ) : null}
       </CardContent>
     </Card>
   );
 }
 
-function TableStatusPanel({ copy, summary }: { copy: DashboardCopy; summary: Row }) {
+export const DashboardSalesGrid = memo(function DashboardSalesGrid({
+  copy,
+  paymentSummary,
+  paymentSummaryCards,
+  peakRevenueDay,
+  trendRows,
+}: {
+  copy: DashboardCopy;
+  paymentSummary: PaymentSummary;
+  paymentSummaryCards: PaymentSummaryCard[];
+  peakRevenueDay: TrendPoint | null;
+  trendRows: TrendPoint[];
+}) {
+  return (
+    <div className="grid gap-4 lg:grid-cols-3">
+      <SalesTrendCard copy={copy} peakRevenueDay={peakRevenueDay} trendRows={trendRows} />
+      <PaymentMethodsCard cards={paymentSummaryCards} copy={copy} paymentSummary={paymentSummary} />
+    </div>
+  );
+});
+
+type ProductSort = "qty" | "revenue";
+
+function TopProductsCard({
+  copy,
+  loading,
+  onTopChange,
+  products,
+  top,
+  topOptions,
+}: {
+  copy: DashboardCopy;
+  loading: boolean;
+  onTopChange: (value: string) => void;
+  products: ProductRow[];
+  top: string;
+  topOptions: SelectOption[];
+}) {
+  const [sort, setSort] = useState<ProductSort>("revenue");
+  const sorted = useMemo(
+    () => [...products].sort((left, right) => right[sort] - left[sort]),
+    [products, sort],
+  );
+  const total = sorted.reduce((sum, product) => sum + product[sort], 0);
+  // How many items carry 80% of the metric — a one-number read of menu concentration.
+  const runningShares = sorted.reduce<number[]>(
+    (acc, product) => [...acc, (acc[acc.length - 1] ?? 0) + share(product[sort], total)],
+    [],
+  );
+  const eightyPercentCount = runningShares.findIndex((value) => value >= 80) + 1 || sorted.length;
+  const format = sort === "revenue" ? formatKip : formatNumber;
+
+  return (
+    <Card className="lg:col-span-2">
+      <CardHeader>
+        <CardTitle>{copy.topProducts}</CardTitle>
+        <CardDescription>
+          {formatNumber(products.length)} {copy.products}
+        </CardDescription>
+        <CardAction className="flex items-center gap-2">
+          <ToggleGroup
+            type="single"
+            variant="outline"
+            size="sm"
+            spacing={0}
+            value={sort}
+            onValueChange={(value) => {
+              if (value) setSort(value as ProductSort);
+            }}
+          >
+            <ToggleGroupItem value="revenue">{copy.byRevenue}</ToggleGroupItem>
+            <ToggleGroupItem value="qty">{copy.byQty}</ToggleGroupItem>
+          </ToggleGroup>
+          <Select disabled={loading} value={top} onValueChange={onTopChange}>
+            <SelectTrigger size="sm" aria-label={copy.top}>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent position="popper" align="end">
+              <SelectGroup>
+                {topOptions.map((option) => (
+                  <SelectItem key={option.value} value={option.value}>
+                    {option.label}
+                  </SelectItem>
+                ))}
+              </SelectGroup>
+            </SelectContent>
+          </Select>
+        </CardAction>
+      </CardHeader>
+      <CardContent>
+        {sorted.length ? (
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead className="w-10">#</TableHead>
+                <TableHead>{copy.products}</TableHead>
+                <TableHead className="text-right">{copy.qty}</TableHead>
+                <TableHead className="text-right">{copy.revenue}</TableHead>
+                <TableHead className="hidden w-40 md:table-cell">
+                  {sort === "revenue" ? copy.revenueShare : copy.shareOfQty}
+                </TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {sorted.map((product, index) => {
+                const productShare = share(product[sort], total);
+                return (
+                  <TableRow key={`${product.key}-${index}`}>
+                    <TableCell className="text-muted-foreground tabular-nums">
+                      {index < 3 ? <Badge className="tabular-nums">{index + 1}</Badge> : index + 1}
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex min-w-0 items-center gap-3">
+                        <Avatar className="rounded-md">
+                          {product.hasImage ? <AvatarImage alt={product.name} src={product.image} /> : null}
+                          <AvatarFallback className="rounded-md">{product.name.slice(0, 1)}</AvatarFallback>
+                        </Avatar>
+                        <div className="flex min-w-0 flex-col gap-0.5">
+                          <span className="truncate font-medium">{product.name}</span>
+                          {product.size ? <span className="text-muted-foreground">{product.size}</span> : null}
+                        </div>
+                      </div>
+                    </TableCell>
+                    <TableCell className="text-right tabular-nums">{formatNumber(product.qty)}</TableCell>
+                    <TableCell className="text-right tabular-nums">{formatKip(product.revenue)}</TableCell>
+                    <TableCell className="hidden md:table-cell">
+                      <div className="flex items-center gap-2">
+                        <Progress value={productShare} aria-hidden="true" />
+                        <span className="w-12 shrink-0 text-right text-muted-foreground tabular-nums">
+                          {formatPercent(productShare)}
+                        </span>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                );
+              })}
+            </TableBody>
+          </Table>
+        ) : (
+          <EmptyPanel label={copy.noData} />
+        )}
+      </CardContent>
+      {sorted.length ? (
+        <CardFooter className="flex-wrap gap-x-6 gap-y-1 text-muted-foreground tabular-nums">
+          <span>
+            <span className="font-medium text-foreground">{copy.driveRevenue}:</span>{" "}
+            {formatNumber(eightyPercentCount)} {copy.products} = 80%
+          </span>
+          <span>
+            <span className="font-medium text-foreground">{copy.trackedTotal}:</span> {format(total)}
+          </span>
+        </CardFooter>
+      ) : null}
+    </Card>
+  );
+}
+
+function TableStatusCard({ copy, summary }: { copy: DashboardCopy; summary: Row }) {
   const total = Math.max(0, numberFrom(summary, "total_tables"));
   const occupied = Math.max(0, numberFrom(summary, "occupied_tables"));
-  const available = Math.max(0, numberFrom(summary, "available_tables"));
-  const waiting = Math.max(0, numberFrom(summary, "waiting_tables"));
-  const occupancy = Math.max(0, numberFrom(summary, "occupancy_rate"));
+  // Table states are status, so they use the reserved status tokens (always with a label).
   const stats = [
-    { label: copy.available, tone: "primary" as Tone, value: available },
-    { label: copy.occupied, tone: "rose" as Tone, value: occupied },
-    { label: copy.waiting, tone: "amber" as Tone, value: waiting }
+    { dot: "bg-success", label: copy.available, value: Math.max(0, numberFrom(summary, "available_tables")) },
+    { dot: "bg-info", label: copy.occupied, value: occupied },
+    { dot: "bg-warning", label: copy.waiting, value: Math.max(0, numberFrom(summary, "waiting_tables")) },
   ];
 
   return (
-    <Card className="overflow-hidden rounded-xl shadow-sm">
-      <CardHeader className={cn(dashboardCardHeaderClass, "flex-row items-center justify-between border-b")}>
-        <div>
-          <CardTitle className="text-sm font-semibold">{copy.tableStatus}</CardTitle>
-          <p className="mt-1 text-xs text-muted-foreground">{formatNumber(total)} {copy.tables}</p>
-        </div>
+    <Card>
+      <CardHeader>
+        <CardTitle>{copy.tableStatus}</CardTitle>
+        <CardDescription>
+          {formatNumber(total)} {copy.tables}
+        </CardDescription>
       </CardHeader>
-      <CardContent className="flex flex-col gap-4 p-4">
-        <div className="rounded-lg border border-border bg-muted/20 p-3">
-          <ProgressRow
-            label={copy.occupancy}
-            percent={occupancy}
-            subValue={`${formatNumber(occupied)} / ${formatNumber(total)} ${copy.tables}`}
-            tone="primary"
-            value={formatPercent(occupancy)}
-          />
-        </div>
-        <div className="grid grid-cols-3 gap-2">
-          {stats.map((stat) => (
-            <div key={stat.label} className="min-w-0 rounded-lg border border-border bg-card p-3">
-              <p className={cn("font-mono text-xl font-semibold", toneClasses[stat.tone].text)}>
-                {formatNumber(stat.value)}
-              </p>
-              <p className="mt-1 truncate text-xs text-muted-foreground">{stat.label}</p>
+      <CardContent className="flex flex-col gap-4">
+        <ShareRow
+          label={copy.occupancy}
+          value={`${formatNumber(occupied)} / ${formatNumber(total)}`}
+          percent={Math.max(0, numberFrom(summary, "occupancy_rate"))}
+        />
+        <div className="grid grid-cols-3 gap-2 text-center">
+          {stats.map((stat, index) => (
+            <div key={stat.label} className="flex items-stretch gap-2">
+              {index ? <Separator orientation="vertical" /> : null}
+              <div className="flex flex-1 flex-col gap-0.5">
+                <span className="text-xl font-semibold tabular-nums">{formatNumber(stat.value)}</span>
+                <span className="flex items-center justify-center gap-1.5 text-muted-foreground">
+                  <span aria-hidden="true" className={cn("size-2 shrink-0 rounded-full", stat.dot)} />
+                  <span className="truncate">{stat.label}</span>
+                </span>
+              </div>
             </div>
           ))}
         </div>
@@ -432,273 +499,105 @@ function TableStatusPanel({ copy, summary }: { copy: DashboardCopy; summary: Row
   );
 }
 
-function InsightCardsPanel({
-  copy,
-  highestRevenueProduct,
-  insights,
-  mainOrderChannel,
-  productSummary
-}: {
-  copy: DashboardCopy;
-  highestRevenueProduct: ProductRow | null;
-  insights: Row;
-  mainOrderChannel: BreakdownRow | null;
-  productSummary: Row;
-}) {
-  const bestProduct = asRow(insights.best_selling_product);
-  const watchProduct = asRow(insights.watch_product);
-  const cancelledBill = asRow(insights.cancelled_bill);
-  const lowestProduct = asRow(productSummary.lowest_selling_product);
-  const watchQty = numberFrom(watchProduct, "qty_total") || numberFrom(lowestProduct, "qty_total");
-  const watchRevenue = numberFrom(watchProduct, "revenue_total") || numberFrom(lowestProduct, "revenue_total");
-  const cards = [
-    {
-      className: "border-primary/20 bg-primary/10 text-primary",
-      label: copy.bestProduct,
-      name: text(bestProduct.prod_name),
-      value: `${formatNumber(numberFrom(bestProduct, "qty_total"))} ${copy.productsSold} / ${formatKip(numberFrom(bestProduct, "revenue_total"))}`
-    },
-    mainOrderChannel ? {
-      className: "border-primary/20 bg-card text-primary",
-      label: copy.mainChannel,
-      name: mainOrderChannel.label,
-      value: `${formatNumber(mainOrderChannel.count ?? 0)} ${copy.orders} / ${formatKip(mainOrderChannel.value)} / ${copy.orderShare} ${formatPercent(mainOrderChannel.orderPercent)} / ${copy.revenueShare} ${formatPercent(mainOrderChannel.revenuePercent)}`
-    } : null,
-    highestRevenueProduct ? {
-      className: "border-primary/20 bg-muted text-primary",
-      label: copy.highestRevenueProduct,
-      name: highestRevenueProduct.name,
-      value: `${formatNumber(highestRevenueProduct.qty)} ${copy.productsSold} / ${formatKip(highestRevenueProduct.revenue)}`
-    } : null,
-    {
-      className: "border-primary/20 bg-muted text-muted-foreground",
-      label: copy.watchProduct,
-      name: text(watchProduct.prod_name, text(lowestProduct.prod_name)),
-      value: `${formatNumber(watchQty)} ${copy.productsSold} / ${formatKip(watchRevenue)}`
-    },
-    {
-      className: "border-destructive/25 bg-destructive/10 text-destructive",
-      label: copy.cancellations,
-      name: `${formatNumber(numberFrom(cancelledBill, "count"))} ${copy.orders}`,
-      value: formatKip(numberFrom(cancelledBill, "total"))
-    }
-  ].filter((card): card is { className: string; label: string; name: string; value: string } => Boolean(card));
+function ChannelsCard({ copy, rows }: { copy: DashboardCopy; rows: BreakdownRow[] }) {
+  const total = rows.reduce((sum, row) => sum + row.value, 0);
 
   return (
-    <Card className="overflow-hidden rounded-xl shadow-sm">
-      <CardHeader className={cn(dashboardCardHeaderClass, "border-b")}>
-        <CardTitle className="text-sm font-semibold">{copy.insights}</CardTitle>
+    <Card>
+      <CardHeader>
+        <CardTitle>{copy.orderChannels}</CardTitle>
+        <CardDescription className="tabular-nums">
+          {formatNumber(rows.length)} {copy.channels} · {formatKip(total)}
+        </CardDescription>
       </CardHeader>
-      <CardContent className="flex flex-col gap-3 p-4">
-        {cards.map((card) => (
-          <div key={card.label} className={cn("rounded-[10px] border p-4", card.className)}>
-            <p className="text-[0.66rem] font-semibold tracking-[0.14em] uppercase">{card.label}</p>
-            <p className="mt-2 truncate text-[1.08rem] tracking-[-0.01em] font-semibold text-foreground">{card.name}</p>
-            <p className="mt-1 tabular-nums text-xs text-muted-foreground">{card.value}</p>
-          </div>
-        ))}
+      <CardContent className="flex flex-col gap-4">
+        {rows.length ? (
+          rows
+            .map((row, index) => ({ row, slot: categoricalSlot(index) }))
+            .sort((left, right) => right.row.value - left.row.value)
+            .map(({ row, slot }) => (
+              <ShareRow
+                key={row.key}
+                label={row.label}
+                slot={slot}
+                value={formatKip(row.value)}
+                percent={row.revenuePercent || row.percent || share(row.value, total)}
+                detail={`${formatNumber(row.count ?? 0)} ${copy.orders} · ${copy.orderShare} ${formatPercent(row.orderPercent)}`}
+              />
+            ))
+        ) : (
+          <EmptyPanel label={copy.noData} />
+        )}
       </CardContent>
     </Card>
   );
 }
 
-export const DashboardOperationsGrid = memo(function DashboardOperationsGrid({
+export const DashboardProductsGrid = memo(function DashboardProductsGrid({
   channelRows,
   copy,
-  highestRevenueProduct,
-  insights,
-  mainOrderChannel,
-  productSummary,
-  tableSummary
+  loading,
+  onTopChange,
+  products,
+  tableSummary,
+  top,
+  topOptions,
 }: {
   channelRows: BreakdownRow[];
   copy: DashboardCopy;
-  highestRevenueProduct: ProductRow | null;
-  insights: Row;
-  mainOrderChannel: BreakdownRow | null;
-  productSummary: Row;
+  loading: boolean;
+  onTopChange: (value: string) => void;
+  products: ProductRow[];
   tableSummary: Row;
+  top: string;
+  topOptions: SelectOption[];
 }) {
   return (
-    <div className="grid gap-4 xl:grid-cols-3">
-      <ChannelDonutPanel copy={copy} rows={channelRows} />
-      <TableStatusPanel copy={copy} summary={tableSummary} />
-      <InsightCardsPanel
+    <div className="grid items-start gap-4 lg:grid-cols-3">
+      <TopProductsCard
         copy={copy}
-        highestRevenueProduct={highestRevenueProduct}
-        insights={insights}
-        mainOrderChannel={mainOrderChannel}
-        productSummary={productSummary}
+        loading={loading}
+        products={products}
+        top={top}
+        topOptions={topOptions}
+        onTopChange={onTopChange}
       />
+      <div className="flex flex-col gap-4">
+        <TableStatusCard copy={copy} summary={tableSummary} />
+        <ChannelsCard copy={copy} rows={channelRows} />
+      </div>
     </div>
   );
 });
 
-function ProductsTablePanel({
-  copy,
-  loading,
-  onTopChange,
-  products,
-  top,
-  topOptions
-}: {
-  copy: DashboardCopy;
-  loading: boolean;
-  onTopChange: (value: string) => void;
-  products: ProductRow[];
-  top: string;
-  topOptions: SelectOption[];
-}) {
-  const [sortMode, setSortMode] = useState<"qty" | "revenue">("qty");
-  const sortedProducts = useMemo(
-    () => [...products].sort((left, right) => sortMode === "qty" ? right.qty - left.qty : right.revenue - left.revenue),
-    [products, sortMode]
-  );
-
+function AccountingCard({ copy, rows }: { copy: DashboardCopy; rows: AccountingRow[] }) {
   return (
-    <Card className="overflow-hidden rounded-xl shadow-sm">
-      <CardHeader className={cn(dashboardCardHeaderClass, "flex-row items-center justify-between border-b")}>
-        <div className="min-w-0">
-          <CardTitle className="truncate text-sm font-semibold">{copy.topProducts}</CardTitle>
-          <p className="mt-1 truncate text-xs text-muted-foreground">{products.length} {copy.products}</p>
-        </div>
-        <div className="flex min-w-max shrink-0 items-center gap-2">
-          <div className={dashboardTabsWrapperClass}>
-            <Button size="sm" type="button" variant="ghost" className={dashboardTabButtonClass(sortMode === "qty")} onClick={() => setSortMode("qty")}>{copy.byQty}</Button>
-            <Button size="sm" type="button" variant="ghost" className={dashboardTabButtonClass(sortMode === "revenue")} onClick={() => setSortMode("revenue")}>{copy.byRevenue}</Button>
-          </div>
-          <div className="w-28 shrink-0">
-            <Select disabled={loading} value={top} onValueChange={onTopChange}>
-              <SelectTrigger className="h-8 w-full rounded-lg bg-card font-mono text-xs font-bold">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent position="popper">
-                <SelectGroup>
-                  {topOptions.map((option) => (
-                    <SelectItem key={option.value} value={option.value}>{option.label}</SelectItem>
-                  ))}
-                </SelectGroup>
-              </SelectContent>
-            </Select>
-          </div>
-        </div>
+    <Card>
+      <CardHeader>
+        <CardTitle>{copy.accounting}</CardTitle>
+        <CardDescription>{copy.ledger}</CardDescription>
       </CardHeader>
-      <CardContent className="p-0">
-        {sortedProducts.length ? (
-          <div className="app-sidebar-scroll overflow-x-auto">
-            <Table className="[&_thead_tr]:border-border [&_thead_tr]:bg-muted/38 [&_th]:h-9.5 [&_th]:text-[0.68rem] [&_th]:font-semibold [&_th]:tracking-[0.1em] [&_th]:text-muted-foreground [&_th]:uppercase [&_td]:h-12.5 [&_td]:border-border [&_tbody_tr:hover]:bg-muted/38">
-              <TableHeader>
-                <TableRow>
-                  <TableHead className="w-12">#</TableHead>
-                  <TableHead>{copy.products}</TableHead>
-                  <TableHead className="text-right">{copy.productsSold}</TableHead>
-                  <TableHead className="text-right">{copy.revenue}</TableHead>
-                  <TableHead className="w-44">{copy.shareOfQty}</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {sortedProducts.map((product, index) => (
-                  <TableRow key={`${product.key}-${index}`}>
-                    <TableCell className={cn("font-mono font-semibold text-muted-foreground", index < 3 && "text-primary")}>#{product.rank}</TableCell>
-                    <TableCell>
-                      <div className="dashboard-product-cell flex min-w-0 items-center gap-3">
-                        <Avatar className="rounded-md border border-border bg-muted/38 [&_img]:object-cover" size="lg">
-                          {product.hasImage ? <AvatarImage alt={product.name} src={product.image} /> : null}
-                          <AvatarFallback>{product.name.slice(0, 1)}</AvatarFallback>
-                        </Avatar>
-                        <div className="min-w-0">
-                          <p className="truncate font-semibold">{product.name}</p>
-                          {product.size ? (
-                            <div className="mt-1 flex flex-wrap items-center gap-1">
-                              <Badge>{product.size}</Badge>
-                            </div>
-                          ) : null}
-                        </div>
-                      </div>
-                    </TableCell>
-                    <TableCell className="text-right font-mono">{formatNumber(product.qty)}</TableCell>
-                    <TableCell className="text-right font-mono">{formatKip(product.revenue)}</TableCell>
-                    <TableCell>
-                      <div className="flex items-center gap-2">
-                        <div className="min-w-0 flex-1">
-                          <ProgressBar percent={product.percent} tone={index < 3 ? "primary" : index < 6 ? "sky" : "amber"} />
-                        </div>
-                        <span className="w-9 text-right font-mono text-xs text-muted-foreground">{formatNumber(product.percent)}%</span>
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </div>
-        ) : (
-          <EmptyPanel label={copy.noData} />
-        )}
-      </CardContent>
-    </Card>
-  );
-}
-
-function ParetoPanel({ copy, products }: { copy: DashboardCopy; products: ProductRow[] }) {
-  const [metric, setMetric] = useState<"qty" | "revenue">("revenue");
-  const data = useMemo(() => {
-    const valueKey = metric === "revenue" ? "revenue" : "qty";
-    const sorted = [...products].sort((a, b) => b[valueKey] - a[valueKey]);
-    const total = sorted.reduce((sum, product) => sum + product[valueKey], 0) || 1;
-    // สะสมยอดแบบสร้าง array ใหม่ แทนการ reassign ตัวแปรใน closure ระหว่าง render
-    const runningTotals = sorted.reduce<number[]>(
-      (acc, product) => [...acc, (acc[acc.length - 1] ?? 0) + product[valueKey]],
-      []
-    );
-
-    return sorted.map((product, index) => ({
-      ...product,
-      cumulativePercent: ((runningTotals[index] ?? 0) / total) * 100,
-      label: product.size ? `${product.name} (${product.size})` : product.name
-    }));
-  }, [metric, products]);
-  const thresholdCount = data.findIndex((product) => product.cumulativePercent >= 80) + 1 || data.length;
-  const metricValue = (product: ProductRow) => metric === "revenue" ? product.revenue : product.qty;
-  const metricFormatter = metric === "revenue" ? formatKip : formatNumber;
-  const totalMetric = data.reduce((sum, item) => sum + metricValue(item), 0);
-  const topTwoShare = data.slice(0, 2).reduce((sum, product) => sum + metricValue(product), 0) / Math.max(1, totalMetric) * 100;
-  const config = {
-    value: { label: metric === "revenue" ? copy.revenue : copy.qty, color: "var(--primary)" },
-    cumulativePercent: { label: copy.cumulativePercent, color: "hsl(38 92% 50%)" }
-  } satisfies ChartConfig;
-
-  return (
-    <Card className="overflow-hidden rounded-xl shadow-sm">
-      <CardHeader className={cn(dashboardCardHeaderClass, "border-b")}>
-        <div className="min-w-0">
-          <CardTitle className="text-sm font-semibold">{copy.pareto}</CardTitle>
-          <p className="text-xs text-muted-foreground">{copy.paretoHint}</p>
-        </div>
-        <div className={dashboardTabsWrapperClass}>
-          <Button size="sm" type="button" variant="ghost" className={dashboardTabButtonClass(metric === "revenue")} onClick={() => setMetric("revenue")}>{copy.revenue}</Button>
-          <Button size="sm" type="button" variant="ghost" className={dashboardTabButtonClass(metric === "qty")} onClick={() => setMetric("qty")}>{copy.qty}</Button>
-        </div>
-      </CardHeader>
-      <CardContent className="p-4">
-        {data.length ? (
-          <>
-            <ChartContainer config={config} className="h-72 w-full overflow-visible">
-              <ComposedChart data={data} margin={{ bottom: 48, left: 0, right: 0, top: 16 }}>
-                <CartesianGrid vertical={false} strokeDasharray="2 4" />
-                <XAxis dataKey="label" angle={-30} textAnchor="end" height={62} interval={0} tickLine={false} axisLine={false} tick={{ fontSize: 10 }} />
-                <YAxis yAxisId="money" axisLine={false} tickLine={false} tickFormatter={metric === "revenue" ? formatKip : formatNumber} width={metric === "revenue" ? 96 : 42} />
-                <YAxis yAxisId="percent" orientation="right" axisLine={false} tickLine={false} tickFormatter={(value) => `${value}%`} width={36} />
-                <Tooltip content={<ChartTooltipContent formatter={(value, name) => name === copy.cumulativePercent ? `${formatNumber(value, 1)}%` : metricFormatter(value)} />} />
-                <Bar yAxisId="money" dataKey={metric === "revenue" ? "revenue" : "qty"} fill="var(--color-value)" radius={[2, 2, 0, 0]} />
-                <Line yAxisId="percent" dataKey="cumulativePercent" type="monotone" stroke="var(--color-cumulativePercent)" strokeWidth={2} dot={{ r: 3 }} />
-              </ComposedChart>
-            </ChartContainer>
-            <div className="mt-6 grid gap-3 border-t pt-12 sm:grid-cols-3">
-              <MiniFact label={copy.driveRevenue} title={`${formatNumber(thresholdCount)} ${copy.products}`} value="80%" />
-              <MiniFact label={copy.topShare} title={formatPercent(topTwoShare)} value={data.slice(0, 2).map((item) => item.name).join(" + ")} />
-              <MiniFact label={copy.trackedTotal} title={metricFormatter(totalMetric)} value={copy.topProducts} />
+      <CardContent className="flex flex-col gap-2">
+        {rows.length ? (
+          rows.map((row, index) => (
+            <div key={row.key} className="flex flex-col gap-2">
+              {row.important && index > 0 ? <Separator /> : null}
+              <div
+                className={cn(
+                  "flex items-baseline justify-between gap-3",
+                  row.important && "text-base font-semibold",
+                )}
+              >
+                <span className={cn("min-w-0 truncate", !row.important && "text-muted-foreground")}>
+                  {row.label}
+                </span>
+                <span className={cn("shrink-0 tabular-nums", row.negative && "text-destructive")}>
+                  {row.negative ? "− " : ""}
+                  {formatKip(row.value)}
+                </span>
+              </div>
             </div>
-          </>
+          ))
         ) : (
           <EmptyPanel label={copy.noData} />
         )}
@@ -707,25 +606,132 @@ function ParetoPanel({ copy, products }: { copy: DashboardCopy; products: Produc
   );
 }
 
-export const DashboardProductsParetoGrid = memo(function DashboardProductsParetoGrid({
+// Status tones: good (success), needs attention (warning), loss (destructive), neutral info.
+const highlightTones = {
+  destructive: "bg-destructive/10 text-destructive",
+  info: "bg-info/15 text-info",
+  success: "bg-success/15 text-success",
+  warning: "bg-warning/15 text-warning",
+} as const;
+
+type Highlight = {
+  description: string;
+  icon: LucideIcon;
+  label: string;
+  title: string;
+  tone: keyof typeof highlightTones;
+};
+
+function HighlightsCard({
   copy,
-  loading,
-  onTopChange,
-  products,
-  top,
-  topOptions
+  highestRevenueProduct,
+  insights,
+  kpis,
+  productSummary,
 }: {
   copy: DashboardCopy;
-  loading: boolean;
-  onTopChange: (value: string) => void;
-  products: ProductRow[];
-  top: string;
-  topOptions: SelectOption[];
+  highestRevenueProduct: ProductRow | null;
+  insights: Row;
+  kpis: Row;
+  productSummary: Row;
+}) {
+  const best = asRow(insights.best_selling_product);
+  const watch = asRow(insights.watch_product);
+  const lowest = asRow(productSummary.lowest_selling_product);
+  const cancelled = asRow(insights.cancelled_bill);
+  const items: Highlight[] = [
+    {
+      icon: Trophy,
+      tone: "success",
+      label: copy.bestProduct,
+      title: text(best.prod_name),
+      description: `${formatNumber(numberFrom(best, "qty_total"))} ${copy.productsSold} · ${formatKip(numberFrom(best, "revenue_total"))}`,
+    },
+    // Often the same item as the best seller; listing it twice adds nothing.
+    ...(highestRevenueProduct && highestRevenueProduct.name !== text(best.prod_name)
+      ? [
+          {
+            icon: Trophy,
+            tone: "success" as const,
+            label: copy.highestRevenueProduct,
+            title: highestRevenueProduct.name,
+            description: `${formatNumber(highestRevenueProduct.qty)} ${copy.productsSold} · ${formatKip(highestRevenueProduct.revenue)}`,
+          },
+        ]
+      : []),
+    {
+      icon: TrendingDown,
+      tone: "warning",
+      label: copy.watchProduct,
+      title: text(watch.prod_name, text(lowest.prod_name)),
+      description: `${formatNumber(numberFrom(watch, "qty_total") || numberFrom(lowest, "qty_total"))} ${copy.productsSold} · ${formatKip(numberFrom(watch, "revenue_total") || numberFrom(lowest, "revenue_total"))}`,
+    },
+    {
+      icon: XCircle,
+      tone: "destructive",
+      label: copy.cancellations,
+      title: `${formatNumber(numberFrom(cancelled, "count"))} ${copy.orders} · ${formatKip(numberFrom(cancelled, "total"))}`,
+      description: `${copy.cancelRate} ${formatPercent(numberFrom(kpis, "cancel_rate"))}`,
+    },
+    {
+      icon: BadgePercent,
+      tone: "info",
+      label: copy.discount,
+      title: formatKip(numberFrom(kpis, "discount_total")),
+      description: `${copy.discountRate} ${formatPercent(numberFrom(kpis, "discount_rate"))}`,
+    },
+  ];
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>{copy.insights}</CardTitle>
+      </CardHeader>
+      <CardContent>
+        <ItemGroup>
+          {items.map((item) => (
+            <Item key={item.label} size="sm" variant="outline">
+              <ItemMedia variant="icon" className={cn("size-8 rounded-md", highlightTones[item.tone])}>
+                <item.icon />
+              </ItemMedia>
+              <ItemContent>
+                <ItemDescription>{item.label}</ItemDescription>
+                <ItemTitle>{item.title}</ItemTitle>
+                <ItemDescription className="tabular-nums">{item.description}</ItemDescription>
+              </ItemContent>
+            </Item>
+          ))}
+        </ItemGroup>
+      </CardContent>
+    </Card>
+  );
+}
+
+export const DashboardHealthGrid = memo(function DashboardHealthGrid({
+  accountingRows,
+  copy,
+  highestRevenueProduct,
+  insights,
+  kpis,
+  productSummary,
+}: {
+  accountingRows: AccountingRow[];
+  copy: DashboardCopy;
+  highestRevenueProduct: ProductRow | null;
+  insights: Row;
+  kpis: Row;
+  productSummary: Row;
 }) {
   return (
-    <div className="grid gap-4 xl:grid-cols-[1.3fr_1fr]">
-      <ProductsTablePanel copy={copy} loading={loading} products={products} top={top} topOptions={topOptions} onTopChange={onTopChange} />
-      <ParetoPanel copy={copy} products={products} />
+    <div className="grid items-start gap-4 lg:grid-cols-2">
+      <AccountingCard copy={copy} rows={accountingRows} />
+      <HighlightsCard
+        copy={copy}
+        highestRevenueProduct={highestRevenueProduct}
+        insights={insights}
+        kpis={kpis}
+        productSummary={productSummary}
+      />
     </div>
   );
 });

@@ -1,5 +1,5 @@
-import { LoadingState } from "@/components/common/loading-state";
+import { AppLoading } from "@/components/layout/app-loading";
 
 export default function Loading() {
-  return <LoadingState />;
+  return <AppLoading />;
 }

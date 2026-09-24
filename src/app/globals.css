@@ -56,6 +56,15 @@
   --chart-3: oklch(0.627 0.194 149.214);
   --chart-4: oklch(0.527 0.154 150.069);
   --chart-5: oklch(0.448 0.119 151.328);
+  /* Categorical series (identity, not magnitude): dataviz reference palette, slots 1-5,
+     validated for CVD + normal-vision separation on --card. Slots 3-5 are under 3:1 on
+     white, so every use must carry a visible text label. --chart-1..5 stay the
+     single-hue sequential ramp. */
+  --chart-cat-1: #2a78d6;
+  --chart-cat-2: #eb6834;
+  --chart-cat-3: #1baf7a;
+  --chart-cat-4: #eda100;
+  --chart-cat-5: #e87ba4;
   --radius: 0.625rem;
 }
 
@@ -104,6 +113,12 @@
   --chart-3: oklch(0.627 0.194 149.214);
   --chart-4: oklch(0.527 0.154 150.069);
   --chart-5: oklch(0.448 0.119 151.328);
+  /* Same five hues stepped for the dark --card surface (all >= 3:1). */
+  --chart-cat-1: #3987e5;
+  --chart-cat-2: #d95926;
+  --chart-cat-3: #199e70;
+  --chart-cat-4: #c98500;
+  --chart-cat-5: #d55181;
 }
 
 /* ธีมสี accent เลือกได้จากเมนูตั้งค่าการแสดงผลใน header (display-settings-menu) — ค่าเริ่มต้น
@@ -267,6 +282,11 @@ html[data-font-scale="xl"] {
   --color-chart-3: var(--chart-3);
   --color-chart-2: var(--chart-2);
   --color-chart-1: var(--chart-1);
+  --color-chart-cat-1: var(--chart-cat-1);
+  --color-chart-cat-2: var(--chart-cat-2);
+  --color-chart-cat-3: var(--chart-cat-3);
+  --color-chart-cat-4: var(--chart-cat-4);
+  --color-chart-cat-5: var(--chart-cat-5);
   --radius-sm: calc(var(--radius) * 0.6);
   --radius-md: calc(var(--radius) * 0.8);
   --radius-lg: var(--radius);
@@ -1947,28 +1967,65 @@ html.theme-transition-active[data-theme-transition-direction="ltr"]::view-transi
 
 }
 
+/* Skeleton loading surface. Both the base and the moving highlight are mixed from
+   --foreground per element, so they keep contrast on light and dark cards alike (and in
+   scoped themes). The old highlight mixed --background, which in dark mode is darker
+   than --muted: the sweep was a dark band on a dark block and nearly invisible. */
 .skeleton-shimmer {
   position: relative;
   overflow: hidden;
+  isolation: isolate;
+  background-color: color-mix(in oklch, var(--foreground) 9%, transparent);
 }
 
 .skeleton-shimmer::after {
   content: "";
   position: absolute;
   inset: 0;
-  transform: translateX(-150%);
+  transform: translateX(-100%);
   background: linear-gradient(
-    105deg,
-    transparent 35%,
-    color-mix(in oklch, var(--background) 62%, transparent) 50%,
-    transparent 65%
+    100deg,
+    transparent 20%,
+    color-mix(in oklch, var(--background) 70%, transparent) 42%,
+    color-mix(in oklch, var(--background) 95%, transparent) 50%,
+    color-mix(in oklch, var(--background) 70%, transparent) 58%,
+    transparent 80%
   );
-  animation: skeleton-shimmer 1.6s ease-in-out infinite;
+  animation: skeleton-shimmer 1.25s ease-in-out infinite;
+}
+
+.dark .skeleton-shimmer::after {
+  background: linear-gradient(
+    100deg,
+    transparent 20%,
+    color-mix(in oklch, var(--foreground) 10%, transparent) 42%,
+    color-mix(in oklch, var(--foreground) 18%, transparent) 50%,
+    color-mix(in oklch, var(--foreground) 10%, transparent) 58%,
+    transparent 80%
+  );
 }
 
 @keyframes skeleton-shimmer {
   100% {
-    transform: translateX(150%);
+    transform: translateX(100%);
+  }
+}
+
+/* No sweeping motion for reduced-motion users; a slow fade still signals "loading". */
+@media (prefers-reduced-motion: reduce) {
+  .skeleton-shimmer::after {
+    animation: none;
+    opacity: 0;
+  }
+
+  .skeleton-shimmer {
+    animation: skeleton-pulse 2s ease-in-out infinite;
+  }
+}
+
+@keyframes skeleton-pulse {
+  50% {
+    opacity: 0.55;
   }
 }
 

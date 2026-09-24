@@ -154,7 +154,7 @@ function AppHeader({ breadcrumbs }: { breadcrumbs: BreadcrumbTrailItem[] }) {
         {/* The shadcn sidebar already binds Ctrl/Cmd+B; surface it for keyboard-heavy cashiers. */}
         <TooltipContent side="bottom">{t("app.toggleSidebar")} (Ctrl+B)</TooltipContent>
       </Tooltip>
-      <Separator orientation="vertical" className="data-[orientation=vertical]:h-4" />
+      {/* <Separator orientation="vertical" className="data-[orientation=vertical]:h-4" /> */}
       <Tooltip>
         <TooltipTrigger asChild>
           <Button

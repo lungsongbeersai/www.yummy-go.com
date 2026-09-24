@@ -7,6 +7,7 @@ import {
   hasActiveRoute,
   isFixedDataScreen,
   isImmersiveScreen,
+  isPublicAppPath,
   menuGrantsPath,
   menuItemLabel,
   routeIsActive,
@@ -188,5 +189,19 @@ describe("menuGrantsPath", () => {
   it("is false for a single-item menu that only grants Sales, not Dashboard", () => {
     const waiterMenu: MenuItem[] = [{ path: "/posAll/tables", title: "sales" }];
     expect(menuGrantsPath(waiterMenu, "/")).toBe(false);
+  });
+});
+
+describe("isPublicAppPath", () => {
+  it("matches the public routes outside the protected group", () => {
+    for (const path of ["/home", "/login", "/policy", "/customer-display", "/posAll", "/login/extra"]) {
+      expect(isPublicAppPath(path)).toBe(true);
+    }
+  });
+
+  it("treats protected routes, including /posAll children, as app-shell routes", () => {
+    for (const path of ["/", "/products", "/posAll/tables", "/posAll/order", "/homework"]) {
+      expect(isPublicAppPath(path)).toBe(false);
+    }
   });
 });
