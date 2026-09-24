@@ -13,6 +13,20 @@ function productionSourceFiles(directory: string): string[] {
 }
 
 describe("mobile TCP printer queue", () => {
+  it("keeps the native socket patch free of generated build artifacts", () => {
+    const patch = readFileSync(
+      join(
+        process.cwd(),
+        "patches",
+        "@deedarb+capacitor-tcp-socket+7.2.1.patch",
+      ),
+      "utf8",
+    );
+
+    expect(patch).not.toContain("/android/build/");
+    expect(patch).not.toMatch(/\/(?:Users|home)\//);
+  });
+
   it("keeps every native TCP print path behind the shared transport", () => {
     const sourceRoot = join(process.cwd(), "src");
     const sources = productionSourceFiles(sourceRoot);
