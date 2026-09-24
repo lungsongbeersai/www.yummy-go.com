@@ -2625,6 +2625,7 @@
       "balance": "Balance",
       "branch": "Branch",
       "cancelledAt": "Cancelled at",
+      "cancelledBy": "Cancelled by",
       "discount": "Discount",
       "grandTotal": "Grand total",
       "invoice": "Invoice",

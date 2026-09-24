@@ -57,6 +57,8 @@ export interface CancelledBill extends ApiEntity {
   order_balance?: number | string;
   order_cancel_reason?: string;
   order_cancelled_at?: string;
+  order_cancelled_by?: string;
+  order_cancelled_by_name?: string;
   order_date?: string;
   order_discount_amount?: number | string;
   order_grand_total?: number | string;

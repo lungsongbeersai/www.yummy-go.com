@@ -2629,6 +2629,7 @@
       "balance": "ຍອດຄ້າງ",
       "branch": "ສາຂາ",
       "cancelledAt": "ເວລາຍົກເລີກ",
+      "cancelledBy": "ຜູ້ຍົກເລີກ",
       "discount": "ສ່ວນຫຼຸດ",
       "grandTotal": "ຍອດລວມທັງໝົດ",
       "invoice": "ເລກບິນ",

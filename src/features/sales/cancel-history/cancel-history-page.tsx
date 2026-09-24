@@ -458,6 +458,7 @@ function CancelHistoryTable({ rows, startIndex }: { rows: CancelHistoryBill[]; s
             <TableHead className="w-18 whitespace-nowrap bg-background/95 text-center">{t("cancelHistory.columns.no")}</TableHead>
             <TableHead className="min-w-32.5 whitespace-nowrap bg-background/95">{t("cancelHistory.columns.invoice")}</TableHead>
             <TableHead className="min-w-42.5 whitespace-nowrap bg-background/95">{t("cancelHistory.columns.cancelledAt")}</TableHead>
+            <TableHead className="min-w-45 whitespace-nowrap bg-background/95">{t("cancelHistory.columns.cancelledBy")}</TableHead>
             <TableHead className="min-w-60 bg-background/95">{t("cancelHistory.columns.reason")}</TableHead>
             <TableHead className="min-w-35 whitespace-nowrap bg-background/95">{t("cancelHistory.columns.status")}</TableHead>
             <TableHead className="min-w-27.5 whitespace-nowrap bg-background/95">{t("cancelHistory.columns.table")}</TableHead>
@@ -478,6 +479,7 @@ function CancelHistoryTable({ rows, startIndex }: { rows: CancelHistoryBill[]; s
               </TableCell>
               <TableCell className="whitespace-nowrap font-black tabular-nums">{row.invoice || "-"}</TableCell>
               <TableCell className="whitespace-nowrap text-muted-foreground">{dateTime(row.cancelledAt)}</TableCell>
+              <TableCell className="max-w-55 truncate font-medium">{row.cancelledByName || row.cancelledBy || "-"}</TableCell>
               <TableCell className="max-w-70 whitespace-normal font-medium">{row.cancelReason || "-"}</TableCell>
               <TableCell className="whitespace-nowrap">
                 <StatusBadge status={row.statusName || row.statusCode} />
@@ -513,6 +515,9 @@ function CancelHistoryMobileList({ rows }: { rows: CancelHistoryBill[] }) {
               </div>
               <StatusBadge status={row.statusName || row.statusCode} />
             </div>
+            <p className="mt-2 truncate text-xs text-muted-foreground">
+              {t("cancelHistory.columns.cancelledBy")}: {row.cancelledByName || row.cancelledBy || "-"}
+            </p>
             <p className="mt-2 wrap-break-word text-sm font-medium">{row.cancelReason || "-"}</p>
             <div className="mt-2 flex flex-wrap gap-1">
               <Badge className="border-border bg-muted px-2 text-2xs text-muted-foreground">
