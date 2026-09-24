@@ -75,6 +75,13 @@ function isPrinterVisibleToDevice(printer: Printer, deviceCode: string) {
 
 export async function getPrinters(params: FetchPrintersParams) {
   const deviceCode = textValue(params.device_code);
+  const requesterNetworkHints = [
+    ...new Set(
+      (params.requester_network_hints ?? [])
+        .map((value) => textValue(value))
+        .filter(Boolean),
+    ),
+  ];
   const result = await apiRequest<FetchPrinterResponse>("get", "/api/v1/printer/fetch", {
     params: {
       login_uuid_fk: params.login_uuid_fk,
@@ -86,6 +93,9 @@ export async function getPrinters(params: FetchPrintersParams) {
         ? { include_offline_shared: "1" }
         : {}),
       ...(params.management_view ? { management_view: "1" } : {}),
+      ...(requesterNetworkHints.length
+        ? { requester_network_hints: requesterNetworkHints.join(",") }
+        : {}),
       lang: toApiLanguage(params.lang)
     }
   });

@@ -123,6 +123,38 @@ describe("printer store", () => {
     expect(searchPrintersMock).toHaveBeenCalledWith("usb", true);
   });
 
+  it("forwards the connected Agent LAN addresses when loading shared printers", async () => {
+    resolvePrinterDeviceIdentityMock.mockResolvedValue({
+      ok: true,
+      agent: {
+        agent_id: "friend-agent",
+        agent_name: "Friend POS",
+        device_code: "FRIEND-PC",
+        agent_url: "http://192.168.100.78:7777",
+        network_addresses: ["192.168.100.78"],
+      },
+    });
+    getPrintersMock.mockResolvedValue([]);
+
+    await usePrinterStore.getState().loadPrintersForLocalAgent({
+      login_uuid_fk: "login-1",
+      lang: "la",
+    });
+
+    expect(getPrintersMock).toHaveBeenCalledWith({
+      login_uuid_fk: "login-1",
+      lang: "la",
+      agent_id: "friend-agent",
+      device_code: "FRIEND-PC",
+      requester_network_hints: [
+        "192.168.100.78",
+        "http://192.168.100.78:7777",
+      ],
+      include_offline_shared: true,
+      management_view: true,
+    });
+  });
+
   it("uses the local Agent device identity for owned shared-printer mutations", async () => {
     usePrinterStore.setState({
       agent: {

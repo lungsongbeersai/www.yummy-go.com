@@ -2379,6 +2379,33 @@ describe("printer API payloads", () => {
     );
   });
 
+  it("sends local Agent LAN hints so a printerless friend can see shared printers", async () => {
+    apiMocks.apiRequest.mockResolvedValue({ data: [] });
+
+    await getPrinters({
+      login_uuid_fk: "login-1",
+      device_code: "friend-device",
+      requester_network_hints: [
+        "192.168.100.78",
+        "http://192.168.100.78:7777",
+      ],
+    });
+
+    expect(apiMocks.apiRequest).toHaveBeenCalledWith(
+      "get",
+      "/api/v1/printer/fetch",
+      {
+        params: {
+          login_uuid_fk: "login-1",
+          device_code: "friend-device",
+          requester_network_hints:
+            "192.168.100.78,http://192.168.100.78:7777",
+          lang: "la",
+        },
+      },
+    );
+  });
+
   it("keeps offline shared printers in the management list only when requested", async () => {
     apiMocks.apiRequest.mockResolvedValue({
       data: {

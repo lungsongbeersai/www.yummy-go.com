@@ -300,7 +300,7 @@ export function initialPrinterFormValues(
 
   return {
     ...values,
-    agentUrl: values.agentUrl || AGENT_URL,
+    agentUrl: textValue(agent.agent_url) || values.agentUrl || AGENT_URL,
     agentId: values.agentId || textValue(agent.agent_id),
     agentName: values.agentName || textValue(agent.agent_name),
     deviceCode: values.deviceCode || textValue(agent.device_code),

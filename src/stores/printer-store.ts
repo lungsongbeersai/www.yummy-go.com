@@ -166,6 +166,12 @@ export const usePrinterStore = create<PrinterState>((set, get) => ({
     const agent = localAgentAvailable ? resolvedAgent : null;
     const agentId = textValue(agent?.agent_id);
     const deviceCode = textValue(agent?.device_code);
+    const requesterNetworkHints = agent
+      ? [
+          ...(agent.network_addresses ?? []),
+          textValue(agent.agent_url),
+        ].filter(Boolean)
+      : [];
 
     if (isCurrentSession()) {
       set({
@@ -190,6 +196,9 @@ export const usePrinterStore = create<PrinterState>((set, get) => ({
         ...params,
         ...(agentId ? { agent_id: agentId } : {}),
         ...(deviceCode ? { device_code: deviceCode } : {}),
+        ...(requesterNetworkHints.length
+          ? { requester_network_hints: requesterNetworkHints }
+          : {}),
         include_offline_shared: true,
         management_view: true,
       });

@@ -102,6 +102,13 @@ function localAgentStorage() {
   }
 }
 
+function networkAddresses(value: unknown) {
+  if (!Array.isArray(value)) return [];
+  return [
+    ...new Set(value.map((item) => textValue(item)).filter(Boolean)),
+  ];
+}
+
 function readCachedLocalAgentInfo(): AgentInfo | null {
   const raw = textValue(localAgentStorage()?.getItem(LOCAL_AGENT_IDENTITY_KEY));
   if (!raw) return null;
@@ -117,7 +124,13 @@ function readCachedLocalAgentInfo(): AgentInfo | null {
       agent_id: agentId,
       agent_name: textValue(record.agent_name) || agentId,
       device_code: deviceCode,
-      platform: textValue(record.platform)
+      platform: textValue(record.platform),
+      ...(textValue(record.agent_url)
+        ? { agent_url: textValue(record.agent_url) }
+        : {}),
+      ...(networkAddresses(record.network_addresses).length
+        ? { network_addresses: networkAddresses(record.network_addresses) }
+        : {}),
     };
   } catch {
     return null;
@@ -135,7 +148,9 @@ function saveCachedLocalAgentInfo(agent: AgentInfo) {
       agent_id: agentId,
       agent_name: textValue(agent.agent_name) || agentId,
       device_code: deviceCode,
-      platform: textValue(agent.platform) || undefined
+      platform: textValue(agent.platform) || undefined,
+      agent_url: textValue(agent.agent_url) || undefined,
+      network_addresses: networkAddresses(agent.network_addresses),
     })
   );
 }
@@ -152,7 +167,13 @@ function getAgentFromPayload(payload: AgentInfoResponse | AgentInfo | null | und
     agent_id: agentId,
     agent_name: textValue(record.agent_name) || agentId,
     device_code: textValue(record.device_code) || undefined,
-    platform: textValue(record.platform)
+    platform: textValue(record.platform),
+    ...(textValue(record.agent_url)
+      ? { agent_url: textValue(record.agent_url) }
+      : {}),
+    ...(networkAddresses(record.network_addresses).length
+      ? { network_addresses: networkAddresses(record.network_addresses) }
+      : {}),
   };
 }
 
@@ -415,6 +436,14 @@ export async function resolvePrinterDeviceContext(params: PrinterDeviceContextPa
   const printers = await getPrinters({
     login_uuid_fk: params.login_uuid_fk,
     device_code: deviceCode,
+    ...(agent
+      ? {
+          requester_network_hints: [
+            ...(agent.network_addresses ?? []),
+            textValue(agent.agent_url),
+          ].filter(Boolean),
+        }
+      : {}),
     lang: params.lang
   });
   const printer =

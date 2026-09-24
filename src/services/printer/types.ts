@@ -21,6 +21,8 @@ export interface AgentInfo extends ApiEntity {
   platform?: string;
   host?: string;
   port?: number;
+  agent_url?: string;
+  network_addresses?: string[];
 }
 export interface AgentInfoResponse extends ApiEntity {
   ok?: boolean;
@@ -330,6 +332,7 @@ export interface FetchPrintersParams extends FetchParams {
   print_config_uuid?: string;
   include_offline_shared?: boolean;
   management_view?: boolean;
+  requester_network_hints?: string[];
 }
 export interface FetchPrintersForLocalAgentParams extends FetchParams { login_uuid_fk: string }
 export interface AckResultItem {
