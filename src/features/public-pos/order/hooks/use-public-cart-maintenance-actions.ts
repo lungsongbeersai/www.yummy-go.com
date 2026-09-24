@@ -17,8 +17,7 @@ interface UsePublicCartMaintenanceActionsParams {
   confirming: boolean;
   confirmKitchen: PublicPosState["confirmKitchen"];
   deleteItem: PublicPosState["deleteItem"];
-  loadCart: PublicPosState["loadCart"];
-  lang: string;
+  refreshCart: () => Promise<void>;
   t: TFunction;
   toast: (toast: ToastInput) => void;
   token: string;
@@ -33,8 +32,7 @@ export function usePublicCartMaintenanceActions({
   confirming,
   confirmKitchen,
   deleteItem,
-  loadCart,
-  lang,
+  refreshCart,
   t,
   toast,
   token,
@@ -193,14 +191,14 @@ export function usePublicCartMaintenanceActions({
   useEffect(() => {
     if (!cartOpen) return;
 
-    void loadCart({ t: token, lang }).catch((error) => {
+    void refreshCart().catch((error) => {
       toast({
         title: t("pos.orderFailed"),
         description: error instanceof Error ? error.message : undefined,
         tone: "error",
       });
     });
-  }, [cartOpen, lang, loadCart, t, toast, token]);
+  }, [cartOpen, refreshCart, t, toast]);
 
   return {
     handleConfirmKitchen,
