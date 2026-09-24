@@ -34,9 +34,9 @@ import { Spinner } from "@/components/ui/spinner";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { ConfirmDialog } from "@/components/common/confirm-dialog";
 import { EmptyState } from "@/components/common/empty-state";
+import { PrintLoadingDialog } from "@/components/common/print-loading-dialog";
 import { SearchInput } from "@/components/common/search-input";
 import { LoadingState } from "@/components/common/loading-state";
-import { useOfflineReadOnly } from "@/hooks/use-offline-read-only";
 import { cn } from "@/lib/utils";
 import { AgentPlatformIcon, PrinterDownloadsMenu } from "./printer-downloads-menu";
 import { PrinterListCards } from "./printer-list-cards";
@@ -58,9 +58,6 @@ export function PrinterPage() {
   const printer = usePrinterPage();
   // มีแค่ "เพิ่มเครื่องพิมพ์" ที่ต้องใช้ backend จริง — ตัวดาวน์โหลดเป็นไฟล์ static ของเว็บเอง
   // (/downloads/...) กับลิงก์ภายนอก และเมนู Agent มีสถานะโหลดไม่สำเร็จของตัวเองอยู่แล้ว
-  // เดิมซ่อนทั้งแถว ทำให้ตอนออฟไลน์ซึ่งเป็นตอนที่ต้องติดตั้ง Driver/Agent มากที่สุด
-  // กลับหาไฟล์ไม่เจอเลย
-  const readOnly = useOfflineReadOnly();
   const { t } = printer;
   const [viewMode, setViewMode] = useState<"table" | "cards">("table");
 
@@ -235,18 +232,16 @@ export function PrinterPage() {
             </Button>
           </div>
 
-          {readOnly ? null : (
-            <Link
-              className={cn(buttonVariants({ size: "lg" }), "shadow-sm")}
-              href="/printers/form"
-            >
-              <Plus data-icon="inline-start" />
-              <span className="hidden sm:inline">
-                {t("actions.add")} {t("printer.title")}
-              </span>
-              <span className="sm:hidden">{t("actions.add")}</span>
-            </Link>
-          )}
+          <Link
+            className={cn(buttonVariants({ size: "lg" }), "shadow-sm")}
+            href="/printers/form"
+          >
+            <Plus data-icon="inline-start" />
+            <span className="hidden sm:inline">
+              {t("actions.add")} {t("printer.title")}
+            </span>
+            <span className="sm:hidden">{t("actions.add")}</span>
+          </Link>
         </div>
       </div>
 
@@ -462,6 +457,7 @@ export function PrinterPage() {
           if (!nextOpen) printer.setDeleteTarget(null);
         }}
       />
+      <PrintLoadingDialog open={Boolean(printer.testingUuid)} />
     </div>
   );
 }

@@ -47,7 +47,15 @@ import {
 } from "@/lib/pos/cart-quantity";
 import { cn } from "@/lib/utils";
 import type { CartItem } from "@/services/pos";
-import type { ConfirmAllProgress, DiscountDraft } from "./types";
+import {
+  CONFIRM_ORDER_PROGRESS_TOTAL,
+  confirmAllProgressPercent,
+} from "./confirm-order-progress";
+import type {
+  ConfirmAllProgress,
+  ConfirmItemStage,
+  DiscountDraft,
+} from "./types";
 import {
   appendDiscountCalculatorInput,
   cartItemName,
@@ -78,19 +86,70 @@ const DISCOUNT_KEYPAD_KEYS = [
 
 type DiscountKeypadKey = (typeof DISCOUNT_KEYPAD_KEYS)[number];
 
-export function ConfirmAllLoadingDialog({ progress }: { progress: ConfirmAllProgress | null }) {
+export function ConfirmAllLoadingDialog({
+  open,
+  progress,
+}: {
+  open: boolean;
+  progress: ConfirmAllProgress | null;
+}) {
   const { t } = useTranslation();
-  const total = Math.max(progress?.total ?? 1, 1);
-  const completed = Math.min(progress?.completed ?? 0, total);
-  const percent = Math.round((completed / total) * 100);
+  const percent = confirmAllProgressPercent({
+    completed: progress?.completed ?? 0,
+    printSuccessCount: progress?.printSuccessCount,
+    printTotal: progress?.printTotal,
+    total: progress?.total ?? CONFIRM_ORDER_PROGRESS_TOTAL,
+  });
+  const progressLabel = progress?.printTotal
+    ? t("pos.confirmAllPrintProgress", {
+        success: progress.printSuccessCount ?? 0,
+        total: progress.printTotal,
+      })
+    : progress?.label ?? t("pos.confirmAllPreparing");
 
   return (
     <BlockingLoadingDialog
-      open={Boolean(progress)}
+      open={open}
       title={t("pos.confirmAllTitle")}
-      description={progress?.label ?? t("common.processing")}
-      progressLabel={progress?.detail ?? t("common.processing")}
+      description={progress?.label ?? t("pos.confirmAllPreparing")}
+      progressLabel={progressLabel}
       progressValue={percent}
+    />
+  );
+}
+
+export function ConfirmItemLoadingDialog({
+  stage,
+}: {
+  stage: ConfirmItemStage | null;
+}) {
+  const { t } = useTranslation();
+  const description =
+    stage === "fetching"
+      ? t("pos.confirmAllFetchingPrintJobs")
+      : stage === "printing"
+        ? t("pos.confirmAllPrinting")
+        : stage === "refreshing"
+          ? t("pos.confirmAllRefreshing")
+          : t("pos.confirmAllConfirming");
+
+  return (
+    <BlockingLoadingDialog
+      open={Boolean(stage)}
+      title={t("pos.confirmOrderLoadingTitle")}
+      description={description}
+    />
+  );
+}
+
+export function CancelItemLoadingDialog({ open }: { open: boolean }) {
+  const { t } = useTranslation();
+
+  return (
+    <BlockingLoadingDialog
+      open={open}
+      title={t("pos.cancelItemLoadingTitle")}
+      description={t("pos.cancelItemLoadingDescription")}
     />
   );
 }

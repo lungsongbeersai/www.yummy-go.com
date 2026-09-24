@@ -2,7 +2,6 @@
 
 import { ListOrdered, MoreHorizontal, Pencil, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { useOfflineReadOnly } from "@/hooks/use-offline-read-only";
 import {
   DropdownMenu,
   // DropdownMenuCheckboxItem,
@@ -29,8 +28,6 @@ export function ProductListActions({
   row: ProductTableRow;
   workflow: ProductListWorkflow;
 }) {
-  // Master data is read-only offline; these routes are not offline-capable.
-  const readOnly = useOfflineReadOnly();
   // const details = productDetails(row);
   // const stockSummary = detailStockSummary(details);
   // const activeStockMode = bulkStockActiveMode(stockSummary);
@@ -54,11 +51,11 @@ export function ProductListActions({
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-64">
         <DropdownMenuGroup>
-          <DropdownMenuItem disabled={readOnly} onSelect={() => workflow.editProduct(row)}>
+          <DropdownMenuItem onSelect={() => workflow.editProduct(row)}>
             <Pencil />
             {workflow.t("actions.edit")}
           </DropdownMenuItem>
-          <DropdownMenuItem disabled={readOnly} onSelect={() => workflow.setOrderEditTarget(row)}>
+          <DropdownMenuItem onSelect={() => workflow.setOrderEditTarget(row)}>
             <ListOrdered />
             {workflow.t("product.editOrder")}
           </DropdownMenuItem>
@@ -111,7 +108,6 @@ export function ProductListActions({
         <DropdownMenuGroup>
           <DropdownMenuItem
             variant="destructive"
-            disabled={readOnly}
             onSelect={() => workflow.setDeleteTarget(row)}
           >
             <Trash2 />

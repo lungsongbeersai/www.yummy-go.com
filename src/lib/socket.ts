@@ -4,6 +4,7 @@ import { io, type Socket } from "socket.io-client";
 
 const socketEvents = {
   joinBranch: "join_branch",
+  leaveBranch: "leave_branch",
   tableAlert: "table_alert",
   printJobQueued: "print_job_queued",
   tableStatusChanged: "table_status_changed",
@@ -38,6 +39,10 @@ type PrintJobQueuedHandler = (payload: PrintJobQueuedPayload) => void;
 
 export interface BranchRealtimePayload {
   branch_uuid_fk?: string;
+  table_uuid?: string;
+  from_status?: number;
+  to_status?: number;
+  zone_uuid?: string | null;
   [key: string]: unknown;
 }
 
@@ -80,12 +85,27 @@ function emitBranchJoin(activeSocket: Socket) {
   activeSocket.emit(socketEvents.joinBranch, { branch_uuid_fk: joinedBranch });
 }
 
+function changeJoinedBranch(activeSocket: Socket, branchUuid: string) {
+  const previousBranch = joinedBranch;
+  joinedBranch = branchUuid;
+
+  if (!activeSocket.connected) return;
+  if (previousBranch) {
+    activeSocket.emit(socketEvents.leaveBranch, { branch_uuid_fk: previousBranch });
+  }
+  emitBranchJoin(activeSocket);
+}
+
 function createSocket() {
   const nextSocket = io(socketUrl(), {
-    transports: ["websocket"],
+    // Start with WebSocket for the lowest event latency, but retain polling for
+    // mobile/carrier and corporate networks that block WebSocket upgrades.
+    transports: ["websocket", "polling"],
+    tryAllTransports: true,
     reconnection: true,
     reconnectionDelay: 1000,
-    reconnectionAttempts: 10
+    reconnectionDelayMax: 5000,
+    reconnectionAttempts: Infinity,
   });
 
   nextSocket.on("connect", () => emitBranchJoin(nextSocket));
@@ -102,8 +122,7 @@ function getSocket(branchUuid?: string) {
   if (active.disconnected) active.connect();
 
   if (branchUuid && joinedBranch !== branchUuid) {
-    joinedBranch = branchUuid;
-    if (active.connected) emitBranchJoin(active);
+    changeJoinedBranch(active, branchUuid);
   }
 
   return active;
@@ -149,6 +168,18 @@ export function subscribeBranchTableRealtime(
   return () => {
     active.off(socketEvents.tableStatusChanged, handler);
     active.off(socketEvents.orderQueueChanged, handler);
+  };
+}
+
+export function subscribeTableStatusChanges(
+  branchUuid: string,
+  handler: BranchRealtimeHandler,
+) {
+  if (typeof window === "undefined" || !branchUuid) return () => {};
+  const active = getSocket(branchUuid);
+  active.on(socketEvents.tableStatusChanged, handler);
+  return () => {
+    active.off(socketEvents.tableStatusChanged, handler);
   };
 }
 

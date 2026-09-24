@@ -18,7 +18,6 @@ import { HorizontalScrollArrows } from "@/components/common/horizontal-scroll-ar
 import { LoadingState } from "@/components/common/loading-state";
 import { useIsNativeShellActive } from "@/hooks/use-native-shell-active";
 import { useIsMobile } from "@/hooks/use-mobile";
-import { useOfflineRefetchEpoch } from "@/hooks/use-offline-refetch";
 import { cn } from "@/lib/utils";
 import { useNativeHeaderStore } from "@/stores/native-header-store";
 import { useOrderQueueAlerts } from "@/features/pos/order-queue/use-order-queue-alerts";
@@ -58,6 +57,11 @@ import { useToastStore } from "@/stores/toast-store";
 // เวลารอเดินเองฝั่ง client ไม่ต้องยิง API ซ้ำ — 30 วิพอให้ตัวเลขนาทีไม่ค้าง
 // โดยไม่ทำให้ re-render ถี่จนกินแรงเครื่องบนจอครัวที่เปิดค้างทั้งวัน
 const QUEUE_TICK_MS = 30_000;
+
+type QueueLoadingAction = {
+  count: number;
+  kind: "send" | "serve";
+};
 
 function useMinutesSinceLoad(loadedAt: number) {
   const [now, setNow] = useState(0);
@@ -113,6 +117,8 @@ export function OrderQueuePage() {
     completed: number;
     total: number;
   } | null>(null);
+  const [loadingAction, setLoadingAction] =
+    useState<QueueLoadingAction | null>(null);
   const tabsRailRef = useRef<HTMLDivElement | null>(null);
   const [tabsRailOverflowing, setTabsRailOverflowing] = useState(false);
 
@@ -180,7 +186,11 @@ export function OrderQueuePage() {
   const activeTab = tabs.find((tab) => tab.status === status);
   const activeTabTitle = activeTab?.title || t(queueTabFallbackKey(status));
   const reasonInvalid = reasonTouched && !cancelReason.trim();
-  const busy = saving || Boolean(actingUuid);
+  const busy = saving || Boolean(actingUuid) || Boolean(loadingAction);
+  const showBulkActionBar =
+    isSelectable &&
+    selectableItems.length > 0 &&
+    (!isMobile || selectedItems.length > 0);
 
   const refresh = useCallback(async () => {
     if (!branchUuid) return;
@@ -202,16 +212,6 @@ export function OrderQueuePage() {
   useEffect(() => {
     void refresh();
   }, [refresh]);
-
-  // On an online<->offline flip, reload the queue silently (background: no
-  // loading flash) so it swaps between Local Agent and backend data on its own.
-  const refetchEpoch = useOfflineRefetchEpoch();
-
-  useEffect(() => {
-    if (!branchUuid || refetchEpoch === 0) return;
-    void load({ branch_uuid_fk: branchUuid, lang: language, background: true })
-      .catch(() => undefined);
-  }, [branchUuid, language, load, refetchEpoch]);
 
   // ปุ่มรีเฟรชในหัวข้อหน้าซ้ำกับที่ลงทะเบียนเข้า NativeTopBar ได้แล้วบน Capacitor
   // (ตามแพทเทิร์นเดียวกับหน้า table-selection/order-customer) — เว็บยังใช้ปุ่มในหน้าเดิม
@@ -270,8 +270,14 @@ export function OrderQueuePage() {
   }
 
   async function runSendToKitchen(orderItemUuids: string[]) {
-    if (!branchUuid || !user?.uuid || !orderItemUuids.length) return;
+    if (
+      !branchUuid ||
+      !user?.uuid ||
+      !orderItemUuids.length ||
+      loadingAction
+    ) return;
 
+    setLoadingAction({ count: orderItemUuids.length, kind: "send" });
     try {
       const printResult = await sendToKitchen({
         order_item_uuids: orderItemUuids,
@@ -305,12 +311,15 @@ export function OrderQueuePage() {
         description: error instanceof Error ? error.message : undefined,
         tone: "error"
       });
+    } finally {
+      setLoadingAction(null);
     }
   }
 
   async function runConfirmServed(orderItemUuids: string[]) {
-    if (!branchUuid || !orderItemUuids.length) return;
+    if (!branchUuid || !orderItemUuids.length || loadingAction) return;
 
+    setLoadingAction({ count: orderItemUuids.length, kind: "serve" });
     try {
       await confirmServed({
         order_item_uuids: orderItemUuids,
@@ -330,6 +339,8 @@ export function OrderQueuePage() {
         description: error instanceof Error ? error.message : undefined,
         tone: "error"
       });
+    } finally {
+      setLoadingAction(null);
     }
   }
 
@@ -450,7 +461,7 @@ export function OrderQueuePage() {
               {t("common.selectAll")}
             </Label>
           ) : null}
-          <div className="grid min-h-0 flex-1 auto-rows-min gap-3 overflow-y-auto pb-24 md:grid-cols-2 2xl:grid-cols-3">
+          <div className="grid min-h-0 flex-1 auto-rows-min gap-3 overflow-y-auto md:grid-cols-2 2xl:grid-cols-3">
             {rows.map((row) => (
               <OrderQueueCard
                 key={row.item.order_item_uuid}
@@ -677,7 +688,14 @@ export function OrderQueuePage() {
           <TabsContent
             key={tab.status}
             value={String(tab.status)}
-            className="flex min-h-0 flex-col overflow-hidden"
+            className={cn(
+              "flex min-h-0 flex-col overflow-hidden",
+              // แถบ action เป็น fixed จึงไม่กินพื้นที่ใน flow ตามปกติ ถ้าไม่กันพื้นที่ไว้
+              // แถวสุดท้ายและ TableFoot จะอยู่ใต้ปุ่มยกเลิก/เสิร์ฟพอดี จองความสูงตามจำนวน
+              // แถวที่ปุ่มอาจ wrap บนมือถือ และรวม bottom nav/safe area ของ Capacitor ด้วย
+              showBulkActionBar &&
+                "pb-[calc(9.5rem+max(var(--pos-system-bottom-safe-area,0px),var(--app-shell-bottom-nav-height,0px)))] sm:pb-[calc(6rem+max(var(--pos-system-bottom-safe-area,0px),var(--app-shell-bottom-nav-height,0px)))]"
+            )}
           >
             {renderList()}
           </TabsContent>
@@ -687,9 +705,7 @@ export function OrderQueuePage() {
       {/* จอมือถือยังใช้พฤติกรรมเดิม (โชว์เฉพาะมีเลือก) เพราะพื้นที่จำกัด — จอแท็บเล็ต/
           เดสก์ท็อป (isMobile=false, >=768px) โชว์ค้างไว้เสมอเมื่อแท็บนี้มีรายการเลือกได้
           แล้วปิดใช้งานปุ่มแทนตอนยังไม่ได้เลือกอะไร ตามที่ขอ */}
-      {isSelectable &&
-      selectableItems.length > 0 &&
-      (!isMobile || selectedItems.length > 0) ? (
+      {showBulkActionBar ? (
         <Card
           className="fixed right-4 z-40 max-w-[calc(100vw-2rem)] gap-0 p-0 shadow-lg"
           // เดิมชนกับ NativeBottomNav บน Capacitor เพราะ z-40 เท่ากันแต่นับแค่
@@ -837,7 +853,26 @@ export function OrderQueuePage() {
               )
             : null
         }
-        title={t("orderQueue.cancelDialogTitle")}
+        title={t("orderQueue.cancelLoadingTitle")}
+      />
+
+      <BlockingLoadingDialog
+        description={
+          loadingAction
+            ? t(
+                loadingAction.kind === "send"
+                  ? "orderQueue.sendLoadingDescription"
+                  : "orderQueue.confirmServedLoadingDescription",
+                { count: loadingAction.count }
+              )
+            : undefined
+        }
+        open={Boolean(loadingAction)}
+        title={
+          loadingAction?.kind === "send"
+            ? t("orderQueue.sendLoadingTitle")
+            : t("orderQueue.confirmServedLoadingTitle")
+        }
       />
     </div>
   );

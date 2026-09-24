@@ -92,7 +92,6 @@ describe("auth store persistence", () => {
     const storedSnapshot = JSON.parse(localStorage.getItem(STORAGE_KEY) ?? "{}") as PersistedAuthSnapshot;
 
     expect(useAuthStore.getState().user?.store_table_status).toBe(1);
-    expect(useAuthStore.getState().offlineSession).toBe(false);
     expect(storedSnapshot.state?.user?.store_table_status).toBe(1);
     expect(storedSnapshot.state).not.toHaveProperty("offlineSession");
     expect(storedSnapshot.version).toBe(3);
@@ -133,7 +132,6 @@ describe("auth store persistence", () => {
       token: null,
       user: null,
       isLoggedIn: false,
-      offlineSession: false,
     });
   });
 });

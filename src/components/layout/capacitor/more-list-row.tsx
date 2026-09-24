@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { ChevronRight, Lock } from "lucide-react";
+import { ChevronRight } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import {
   AccordionItem,
@@ -38,11 +38,10 @@ export function MoreListRow({
   const active = routeIsActive(pathname, item.path);
   const iconClassName = nested ? "size-4 shrink-0" : "size-5 shrink-0";
 
-  if (item.disabled || item.offlineLocked || !href) {
+  if (item.disabled || !href) {
     return (
       <span
         aria-disabled="true"
-        title={item.offlineLocked ? t("offlineMode.lockedMenuTooltip") : undefined}
         className={cn(
           "flex items-center px-4 opacity-50",
           nested ? "min-h-11 gap-3 text-sm" : "min-h-16 gap-4 text-base",
@@ -50,9 +49,6 @@ export function MoreListRow({
       >
         <DestinationIcon className={iconClassName} item={item} />
         <span className="min-w-0 flex-1 truncate">{label}</span>
-        {item.offlineLocked ? (
-          <Lock className={cn(iconClassName, "shrink-0 text-muted-foreground")} />
-        ) : null}
       </span>
     );
   }

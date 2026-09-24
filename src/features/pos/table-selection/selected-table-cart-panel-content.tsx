@@ -4,6 +4,7 @@ import dynamic from "next/dynamic";
 import { ReceiptText } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { ConfirmDialog } from "@/components/common/confirm-dialog";
+import { PrintLoadingDialog } from "@/components/common/print-loading-dialog";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardFooter, CardHeader } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
@@ -17,11 +18,13 @@ import { useAuthStore } from "@/stores/auth-store";
 import { DepositDialog } from "@/features/sales/deposit/deposit-dialog";
 import { BranchMenuQrDialog } from "./branch-menu-qr-dialog";
 import {
+  CancelItemLoadingDialog,
   CartDiscountDialog,
   CartNoteDialog,
   CartPanelLoading,
   CartQuantityDialog,
   ConfirmAllLoadingDialog,
+  ConfirmItemLoadingDialog,
 } from "./cart-dialogs";
 import { CartSummaryDock } from "./cart-summary-dock";
 import { CartTabItems, CartTabTrigger } from "./cart-items";
@@ -102,6 +105,10 @@ export function SelectedTableCartPanelContent({
   const hasCartItems = isNoTableStore
     ? counterCartItems.length > 0
     : workflow.newOrderDisplayItems.length > 0 || workflow.historyItems.length > 0;
+  const cancellingItem = Boolean(
+    workflow.actingItemUuid &&
+      workflow.itemActionTarget?.action === "cancel",
+  );
 
   return (
     <Card
@@ -243,6 +250,7 @@ export function SelectedTableCartPanelContent({
                   canSplitItem={workflow.canSplitItem}
                   splitSelectionDisabled={!workflow.canSelectSplitItems}
                   splitSelectedItemUuids={workflow.splitSelectedItemUuids}
+                  quantityOverrides={workflow.quantityOverrides}
                   updatingItemUuid={workflow.updatingItemUuid}
                   onChangeQty={workflow.changeCartItemQty}
                   onConfirmKitchen={workflow.confirmSingleItemToKitchen}
@@ -267,6 +275,7 @@ export function SelectedTableCartPanelContent({
                       canMutateItem={workflow.canMutateItem}
                       canItemDiscount={workflow.canManageDiscounts}
                       items={workflow.newOrderDisplayItems}
+                      quantityOverrides={workflow.quantityOverrides}
                       updatingItemUuid={workflow.updatingItemUuid}
                       onChangeQty={workflow.changeCartItemQty}
                       onConfirmKitchen={workflow.confirmSingleItemToKitchen}
@@ -289,6 +298,7 @@ export function SelectedTableCartPanelContent({
                       canSplitItem={workflow.canSplitItem}
                       splitSelectionDisabled={!workflow.canSelectSplitItems}
                       splitSelectedItemUuids={workflow.splitSelectedItemUuids}
+                      quantityOverrides={workflow.quantityOverrides}
                       updatingItemUuid={workflow.updatingItemUuid}
                       onChangeQty={workflow.changeCartItemQty}
                       onConfirmKitchen={workflow.confirmSingleItemToKitchen}
@@ -458,7 +468,8 @@ export function SelectedTableCartPanelContent({
         }
         open={
           workflow.itemActionTarget?.action === "cancel" &&
-          !workflow.actionTargetIsSet
+          !workflow.actionTargetIsSet &&
+          !cancellingItem
         }
         pending={Boolean(workflow.actingItemUuid)}
         purpose="cancel"
@@ -476,7 +487,8 @@ export function SelectedTableCartPanelContent({
         description={t("pos.cancelItemConfirm")}
         open={
           workflow.itemActionTarget?.action === "cancel" &&
-          workflow.actionTargetIsSet
+          workflow.actionTargetIsSet &&
+          !cancellingItem
         }
         title={t("pos.cancelItem")}
         onConfirm={() => void workflow.confirmItemAction()}
@@ -545,7 +557,13 @@ export function SelectedTableCartPanelContent({
         }}
         onSubmit={() => void workflow.saveBillDiscount()}
       />
-      <ConfirmAllLoadingDialog progress={workflow.confirmAllProgress} />
+      <ConfirmAllLoadingDialog
+        open={workflow.confirming}
+        progress={workflow.confirmAllProgress}
+      />
+      <ConfirmItemLoadingDialog stage={workflow.confirmingItemStage} />
+      <CancelItemLoadingDialog open={cancellingItem} />
+      <PrintLoadingDialog open={Boolean(workflow.printingItemUuid)} />
     </Card>
   );
 }

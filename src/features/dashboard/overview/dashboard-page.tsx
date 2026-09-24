@@ -40,7 +40,6 @@ import { authStoreUuid, useAuthStore } from "@/stores/auth-store";
 import { useBranchStore } from "@/stores/branch-store";
 import { useDashboardStore } from "@/stores/dashboard-store";
 import { usePermissionsSidebarStore } from "@/stores/permissions-sidebar-store";
-import { useOfflineRefetchEpoch } from "@/hooks/use-offline-refetch";
 import { useResetOnDeps } from "@/hooks/use-reset-on-change";
 
 const dashboardCopyKeys = [
@@ -249,7 +248,6 @@ function DashboardPageContent() {
     createDefaultFilters(),
   );
   const [top, setTop] = useState("10");
-  const refetchEpoch = useOfflineRefetchEpoch();
   const storeUuid = authStoreUuid(user);
   // Tracks whether the filters are still exactly the untouched "today" default
   // this page creates on mount/reset, vs. a range the user picked by hand (a
@@ -397,7 +395,7 @@ function DashboardPageContent() {
 
   useEffect(() => {
     void load(appliedFilters, top);
-  }, [appliedFilters, load, refetchEpoch, top]);
+  }, [appliedFilters, load, top]);
 
   // A business day rolling over while this page stays open (a kiosk monitor
   // left running, or a browser tab nobody closes) must not leave "today"

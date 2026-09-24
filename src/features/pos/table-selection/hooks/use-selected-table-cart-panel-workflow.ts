@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useTranslation } from "react-i18next";
 import {
@@ -27,6 +27,7 @@ import type {
   CartItemActionTarget,
   CartTab,
   ConfirmAllProgress,
+  ConfirmItemStage,
   DiscountDraft,
 } from "../types";
 import {
@@ -45,6 +46,8 @@ import {
   cartOrders,
   cartOrderUuidForItem,
   cartSummary,
+  CONFIRM_ORDER_PROGRESS_TOTAL,
+  confirmOrderProgressStep,
   discountDraftValue,
   firstCartOrderUuid,
   formatRate,
@@ -68,6 +71,14 @@ import { useCustomerDisplayWorkflow } from "./use-customer-display-workflow";
 import { useResetOnChange, useResetOnDeps } from "@/hooks/use-reset-on-change";
 
 type CartPanelData = CartOrder | CartOrder[] | null;
+const CART_QUANTITY_DEBOUNCE_MS = 200;
+
+type QueuedQuantityUpdate = {
+  item: CartItem;
+  itemUuid: string;
+  targetQty: number;
+  waiters: Array<(success: boolean) => void>;
+};
 
 type PaymentContext = {
   kind: "full" | "split";
@@ -169,18 +180,30 @@ export function useSelectedTableCartPanelWorkflow({
   const previousTableUuidRef = useRef(tableUuid);
   const previousNewOrderFocusKeyRef = useRef(newOrderFocusKey);
   const [updatingItemUuid, setUpdatingItemUuid] = useState<string | null>(null);
+  const [queuedQuantityItemUuid, setQueuedQuantityItemUuid] = useState<string | null>(null);
+  const [quantityOverrides, setQuantityOverrides] = useState<Record<string, number>>({});
+  const queuedQuantityRef = useRef<QueuedQuantityUpdate | null>(null);
+  const quantityDebounceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [confirming, setConfirming] = useState(false);
   const [confirmAllProgress, setConfirmAllProgress] =
     useState<ConfirmAllProgress | null>(null);
+  const [confirmingItemStage, setConfirmingItemStage] =
+    useState<ConfirmItemStage | null>(null);
+  // State จะล็อก UI ใน render ถัดไป แต่ ref ล็อก synchronous ตั้งแต่ event แรก ป้องกัน
+  // double-click ส่ง confirm_to_kitchen_batch ซ้ำก่อน React มีโอกาส render ปุ่ม disabled
+  // และใช้ตัวเดียวกันทั้งยืนยันรวม/รายสินค้าเพื่อไม่ให้สอง flow วิ่งซ้อนกัน
+  const kitchenConfirmationInFlightRef = useRef(false);
   const [itemActionTarget, setItemActionTarget] =
     useState<CartItemActionTarget | null>(null);
   const [actingItemUuid, setActingItemUuid] = useState<string | null>(null);
+  const [printingItemUuid, setPrintingItemUuid] = useState<string | null>(null);
   const [noteTarget, setNoteTarget] = useState<CartItem | null>(null);
   const [noteDraft, setNoteDraft] = useState("");
   const [quantityTarget, setQuantityTarget] = useState<CartItem | null>(null);
   // ref ไม่ใช่ state เพราะไม่ต้องมีผลกับการ render ใดๆ — ใช้แค่ฝากค่าข้ามไปให้ effect ที่ตรวจ
   // cart รอบถัดไปอ่าน ถ้าเป็น state จะโดน lint react-hooks/set-state-in-effect ตอน clear ค่าทิ้ง
   const pendingQuantityCheckRef = useRef<{
+    checkStockAdjustment: boolean;
     itemUuid: string;
     requestedQty: number;
     trackedAt: number;
@@ -272,12 +295,14 @@ export function useSelectedTableCartPanelWorkflow({
     ? cartItemActionUuid(itemActionTarget.item)
     : null;
   const actionTargetIsSet = Boolean(itemActionTarget?.item.set_instance_uuid);
-  const cartActionsLocked = Boolean(
+  const nonQuantityActionsLocked = Boolean(
     !hasSelectedTable ||
-    updatingItemUuid ||
     confirming ||
     actingItemUuid ||
     billDiscountPending,
+  );
+  const cartActionsLocked = Boolean(
+    nonQuantityActionsLocked || updatingItemUuid || queuedQuantityItemUuid,
   );
   const canConfirm =
     Boolean(user?.uuid) && confirmGroups.length > 0 && !cartActionsLocked;
@@ -314,7 +339,9 @@ export function useSelectedTableCartPanelWorkflow({
     ? cartItemDiscountMaxAmount(itemDiscountTarget)
     : null;
   const quantityPending = Boolean(
-    quantityTarget && updatingItemUuid === cartItemUuid(quantityTarget),
+    quantityTarget &&
+      (updatingItemUuid === cartItemUuid(quantityTarget) ||
+        queuedQuantityItemUuid === cartItemUuid(quantityTarget)),
   );
   const billDiscountMaxAmount = summary.subtotal;
   const itemDiscountValue = discountDraftValue(
@@ -391,10 +418,25 @@ export function useSelectedTableCartPanelWorkflow({
     );
   }, [hasSelectedTable, newOrderFocusKey]);
 
+  useEffect(
+    () => () => {
+      if (quantityDebounceTimerRef.current) {
+        clearTimeout(quantityDebounceTimerRef.current);
+        quantityDebounceTimerRef.current = null;
+      }
+      const queued = queuedQuantityRef.current;
+      queuedQuantityRef.current = null;
+      for (const resolve of queued?.waiters ?? []) resolve(false);
+    },
+    [tableUuid],
+  );
+
   // เปลี่ยนโต๊ะ = ทิ้ง dialog / ค่าดราฟต์ / รายการที่เลือกของโต๊ะเดิมทั้งหมด
   // ทำระหว่าง render แทน effect เพื่อไม่ให้ commit เฟรมที่ยังถือ state ของโต๊ะเก่า
   // (เฟรมนั้นจะดัน payload ของโต๊ะเก่าออกจอลูกค้าไปหนึ่งครั้งก่อนถูกล้าง)
   useResetOnChange(tableUuid, () => {
+    setQueuedQuantityItemUuid(null);
+    setQuantityOverrides({});
     setItemActionTarget(null);
     setActingItemUuid(null);
     setNoteTarget(null);
@@ -444,44 +486,115 @@ export function useSelectedTableCartPanelWorkflow({
     );
   });
 
-  // changeQty เป็น delta ที่มีเครื่องหมาย (เช่น -3/+3 สำหรับก้าวโปรโมชั่น หรือ ±1 ปุ่มปกติ)
-  // backend รองรับ change_qty มากกว่า 1 ต่อครั้งอยู่แล้ว จึงยิงทีเดียวถึงจำนวนเป้าหมายได้
-  // คืนค่า boolean เพื่อให้ผู้เรียก (เช่น modal แก้จำนวน) รู้ว่าจะปิด dialog ได้หรือต้องค้างไว้ให้ลองใหม่
-  async function changeCartItemQty(item: CartItem, changeQty: number) {
-    const itemUuid = cartItemUuid(item);
-    if (!itemUuid || cartActionsLocked || changeQty === 0) return false;
+  const clearQuantityOverride = useCallback((itemUuid: string) => {
+    setQuantityOverrides((current) => {
+      if (!(itemUuid in current)) return current;
+      const next = { ...current };
+      delete next[itemUuid];
+      return next;
+    });
+  }, []);
 
-    setUpdatingItemUuid(itemUuid);
+  async function flushQueuedQuantity() {
+    const queued = queuedQuantityRef.current;
+    if (!queued || updatingItemUuid) return;
+
+    if (quantityDebounceTimerRef.current) {
+      clearTimeout(quantityDebounceTimerRef.current);
+      quantityDebounceTimerRef.current = null;
+    }
+    queuedQuantityRef.current = null;
+    setQueuedQuantityItemUuid(null);
+    setUpdatingItemUuid(queued.itemUuid);
+
+    let success = false;
     try {
+      // ใช้จำนวนเป้าหมายแบบ absolute เพื่อรวมการกดรัวหลายครั้งเป็น request เดียว
+      // และไม่ให้ response ที่ช้าจาก delta ก่อนหน้าทำจำนวนย้อนกลับ
       await updateQty({
-        order_item_uuid: itemUuid,
-        change_type: changeQty > 0 ? "INCREASE" : "DECREASE",
-        change_qty: Math.abs(changeQty),
+        order_item_uuid: queued.itemUuid,
+        new_qty: queued.targetQty,
       });
-      // เช็คสต็อกได้แค่ตอนเพิ่มจำนวน — ลดจำนวนไม่มีทางชนเพดานสต็อก และถ้าเทียบด้วยจะพลาดโทษสต็อก
-      // ผิดให้กรณีอื่น เช่นเครื่องอื่นแก้ไอเทมเดียวกันพร้อมกันจนได้ค่าน้อยกว่าที่เครื่องนี้ขอลด
-      if (changeQty > 0) {
-        pendingQuantityCheckRef.current = {
-          itemUuid,
-          requestedQty: cartItemQty(item) + changeQty,
-          trackedAt: Date.now(),
-        };
-      }
+      pendingQuantityCheckRef.current = {
+        checkStockAdjustment: queued.targetQty > cartItemQty(queued.item),
+        itemUuid: queued.itemUuid,
+        requestedQty: queued.targetQty,
+        trackedAt: Date.now(),
+      };
       await onTableActionComplete();
-      return true;
+      success = true;
     } catch (error) {
-      // onTableActionComplete ล้มเหลวหลัง updateQty สำเร็จ = cart ที่รีเฟรชจริงยังไม่มาถึง แต่ ref
-      // ถูกตั้งไปแล้ว — เคลียร์ทิ้งกันไม่ให้ effect เอาไปเทียบกับ cart ที่รีเฟรชด้วยเหตุผลอื่นทีหลัง
+      // API หรือ refresh ล้มเหลว: คืนเลขบนจอไปหา source of truth เดิมทันที
+      // และไม่เก็บ ref ไว้ให้ cart refresh รอบอื่นมาเทียบผิด request
       pendingQuantityCheckRef.current = null;
+      clearQuantityOverride(queued.itemUuid);
       showToast({
         title: t("pos.cartUpdateFailed"),
         description: error instanceof Error ? error.message : "",
         tone: "error",
       });
-      return false;
     } finally {
       setUpdatingItemUuid(null);
+      for (const resolve of queued.waiters) resolve(success);
     }
+  }
+
+  // ปุ่ม +/- เปลี่ยนตัวเลขบนจอทันที แล้ว debounce สั้น ๆ รวม tap ที่ติดกันเป็น
+  // PATCH เดียว เมื่อ request เริ่มแล้วค่อยล็อก stepper จน cart จาก server กลับมา
+  function changeCartItemQty(
+    item: CartItem,
+    changeQty: number,
+    flushImmediately = false,
+  ) {
+    const itemUuid = cartItemUuid(item);
+    const queued = queuedQuantityRef.current;
+    if (
+      !itemUuid ||
+      changeQty === 0 ||
+      nonQuantityActionsLocked ||
+      updatingItemUuid ||
+      (queued && queued.itemUuid !== itemUuid)
+    ) {
+      return Promise.resolve(false);
+    }
+
+    const currentQty = queued?.targetQty ?? cartItemQty(item);
+    const targetQty = currentQty + changeQty;
+    if (!Number.isInteger(targetQty) || targetQty <= 0) return Promise.resolve(false);
+
+    let resolveResult: (success: boolean) => void = () => undefined;
+    const result = new Promise<boolean>((resolve) => {
+      resolveResult = resolve;
+    });
+    const nextQueue: QueuedQuantityUpdate = queued
+      ? {
+          ...queued,
+          targetQty,
+          waiters: [...queued.waiters, resolveResult],
+        }
+      : {
+          item,
+          itemUuid,
+          targetQty,
+          waiters: [resolveResult],
+        };
+    queuedQuantityRef.current = nextQueue;
+    setQueuedQuantityItemUuid(itemUuid);
+    setQuantityOverrides((current) => ({ ...current, [itemUuid]: targetQty }));
+
+    if (quantityDebounceTimerRef.current) {
+      clearTimeout(quantityDebounceTimerRef.current);
+    }
+
+    if (flushImmediately) {
+      void flushQueuedQuantity();
+    } else {
+      quantityDebounceTimerRef.current = setTimeout(() => {
+        quantityDebounceTimerRef.current = null;
+        void flushQueuedQuantity();
+      }, CART_QUANTITY_DEBOUNCE_MS);
+    }
+    return result;
   }
 
   // รอ cart รีเฟรชจริงก่อนค่อยเทียบ — ตอน changeCartItemQty resolve เองยังเห็น cart ค่าเก่าของ
@@ -492,6 +605,7 @@ export function useSelectedTableCartPanelWorkflow({
     if (!pending) return;
 
     pendingQuantityCheckRef.current = null;
+    clearQuantityOverride(pending.itemUuid);
     // เกิน 15 วิ ถือว่า refresh ของ request เดิมหลุดไปแล้ว ไม่เอามาเทียบกับ cart ที่รีเฟรชด้วยเหตุผลอื่น
     if (Date.now() - pending.trackedAt > 15_000) return;
 
@@ -499,7 +613,11 @@ export function useSelectedTableCartPanelWorkflow({
       (entry) => cartItemUuid(entry) === pending.itemUuid,
     );
     const actualQty = matchedItem ? cartItemQty(matchedItem) : null;
-    if (actualQty !== null && actualQty < pending.requestedQty) {
+    if (
+      pending.checkStockAdjustment &&
+      actualQty !== null &&
+      actualQty < pending.requestedQty
+    ) {
       showToast({
         title: t("pos.cartQuantityAdjusted"),
         description: t("pos.cartQuantityAdjustedDescription", {
@@ -509,7 +627,7 @@ export function useSelectedTableCartPanelWorkflow({
         tone: "info",
       });
     }
-  }, [displayItems, showToast, t]);
+  }, [clearQuantityOverride, displayItems, showToast, t]);
 
   function openQuantityDialog(item: CartItem) {
     setQuantityTarget(item);
@@ -524,7 +642,7 @@ export function useSelectedTableCartPanelWorkflow({
       return;
     }
 
-    const success = await changeCartItemQty(quantityTarget, delta);
+    const success = await changeCartItemQty(quantityTarget, delta, true);
     if (success) setQuantityTarget(null);
   }
 
@@ -631,8 +749,14 @@ export function useSelectedTableCartPanelWorkflow({
   }
 
   async function confirmNewOrder() {
-    if (!user?.uuid || !confirmGroups.length || cartActionsLocked) return;
+    if (
+      !user?.uuid ||
+      !confirmGroups.length ||
+      cartActionsLocked ||
+      kitchenConfirmationInFlightRef.current
+    ) return;
 
+    kitchenConfirmationInFlightRef.current = true;
     setConfirming(true);
     beginKitchenConfirmation();
     try {
@@ -643,36 +767,44 @@ export function useSelectedTableCartPanelWorkflow({
         errorMessage?: string;
         pending?: boolean;
       } = { successCount: 0, failedCount: 0, total: 0, pending: false };
-      const confirmItemTotal = confirmGroups.reduce(
-        (sum, group) => sum + group.itemUuids.length,
-        0,
-      );
-      let confirmedItems = 0;
-
-      const setProgress = (completed: number, total: number, label: string) => {
-        const safeTotal = Math.max(total, 1);
-        const safeCompleted = Math.min(completed, safeTotal);
+      const setProgress = (
+        completed: number,
+        label: string,
+        printProgress?: { successCount: number; total: number },
+      ) => {
+        const safeCompleted = Math.min(
+          completed,
+          CONFIRM_ORDER_PROGRESS_TOTAL,
+        );
+        const printTotal = Math.max(0, Math.floor(printProgress?.total ?? 0));
         setConfirmAllProgress({
           completed: safeCompleted,
-          detail: t("pos.confirmAllProgress", {
-            completed: safeCompleted,
-            total: safeTotal,
-          }),
           label,
-          total: safeTotal,
+          ...(printTotal > 0
+            ? {
+                printSuccessCount: Math.min(
+                  Math.max(0, Math.floor(printProgress?.successCount ?? 0)),
+                  printTotal,
+                ),
+                printTotal,
+              }
+            : {}),
+          total: CONFIRM_ORDER_PROGRESS_TOTAL,
         });
       };
 
       setProgress(
-        0,
-        confirmItemTotal,
+        confirmOrderProgressStep({ phase: "preparing" }),
         t("pos.confirmAllPreparing"),
       );
 
-      for (const group of confirmGroups) {
+      for (const [groupIndex, group] of confirmGroups.entries()) {
         setProgress(
-          confirmedItems,
-          confirmItemTotal,
+          confirmOrderProgressStep({
+            groupCount: confirmGroups.length,
+            groupIndex,
+            phase: "confirming",
+          }),
           t("pos.confirmAllConfirming"),
         );
         const response = await confirmKitchen({
@@ -683,7 +815,6 @@ export function useSelectedTableCartPanelWorkflow({
           agent_id: activePrinterContext?.agent_id,
           print_mode: activePrinterContext?.print_mode,
         });
-        confirmedItems += group.itemUuids.length;
 
         const result = await executeKitchenAck(
           response,
@@ -696,9 +827,20 @@ export function useSelectedTableCartPanelWorkflow({
                 : t("pos.confirmAllPrinting");
 
             setProgress(
-              confirmedItems,
-              confirmItemTotal,
+              confirmOrderProgressStep({
+                groupCount: confirmGroups.length,
+                groupIndex,
+                phase:
+                  progress.phase === "fetching" ? "fetching" : "printing",
+                printingCompleted: progress.completed,
+                printingTotal: progress.total,
+              }),
               label,
+              {
+                successCount:
+                  printResult.successCount + progress.successCount,
+                total: printResult.total + progress.total,
+              },
             );
           },
         );
@@ -707,21 +849,45 @@ export function useSelectedTableCartPanelWorkflow({
         printResult.total += result.total;
         printResult.pending = printResult.pending || result.pending === true;
         if (result.errorMessage) printResult.errorMessage = result.errorMessage;
+
+        setProgress(
+          confirmOrderProgressStep({
+            groupCount: confirmGroups.length,
+            groupIndex,
+            phase: "group-complete",
+          }),
+          t("pos.confirmAllPrinting"),
+          {
+            successCount: printResult.successCount,
+            total: printResult.total,
+          },
+        );
       }
 
       setProgress(
-        confirmedItems,
-        confirmItemTotal,
+        confirmOrderProgressStep({ phase: "refreshing" }),
         t("pos.confirmAllRefreshing"),
+        {
+          successCount: printResult.successCount,
+          total: printResult.total,
+        },
       );
       await onTableActionComplete();
       setProgress(
-        confirmItemTotal,
-        confirmItemTotal,
+        confirmOrderProgressStep({ phase: "done" }),
         t("pos.confirmAllDone"),
+        {
+          successCount: printResult.successCount,
+          total: printResult.total,
+        },
       );
       showKitchenConfirmResult(printResult);
     } catch (error) {
+      setConfirmAllProgress((current) =>
+        current
+          ? { ...current, label: t("pos.confirmAllRefreshing") }
+          : current,
+      );
       await onCartRefresh().catch(() => undefined);
       showToast({
         title: t("pos.orderConfirmFailed"),
@@ -732,15 +898,24 @@ export function useSelectedTableCartPanelWorkflow({
       endKitchenConfirmation();
       setConfirming(false);
       setConfirmAllProgress(null);
+      kitchenConfirmationInFlightRef.current = false;
     }
   }
 
   async function confirmSingleItemToKitchen(item: CartItem) {
     const itemUuid = cartItemActionUuid(item);
     const orderUuid = cartOrderUuidForItem(orders, item);
-    if (!user?.uuid || !orderUuid || !itemUuid || cartActionsLocked) return;
+    if (
+      !user?.uuid ||
+      !orderUuid ||
+      !itemUuid ||
+      cartActionsLocked ||
+      kitchenConfirmationInFlightRef.current
+    ) return;
 
+    kitchenConfirmationInFlightRef.current = true;
     setActingItemUuid(itemUuid);
+    setConfirmingItemStage("confirming");
     beginKitchenConfirmation();
     try {
       const response = await confirmKitchen({
@@ -751,10 +926,20 @@ export function useSelectedTableCartPanelWorkflow({
         agent_id: activePrinterContext?.agent_id,
         print_mode: activePrinterContext?.print_mode,
       });
-      const result = await executeKitchenAck(response, user.uuid, activePrinterContext);
+      const result = await executeKitchenAck(
+        response,
+        user.uuid,
+        activePrinterContext,
+        (progress) =>
+          setConfirmingItemStage(
+            progress.phase === "fetching" ? "fetching" : "printing",
+          ),
+      );
+      setConfirmingItemStage("refreshing");
       await onCartRefresh();
       showKitchenConfirmResult(result);
     } catch (error) {
+      setConfirmingItemStage("refreshing");
       await onCartRefresh().catch(() => undefined);
       showToast({
         title: t("pos.confirmToKitchenFailed"),
@@ -764,6 +949,8 @@ export function useSelectedTableCartPanelWorkflow({
     } finally {
       endKitchenConfirmation();
       setActingItemUuid(null);
+      setConfirmingItemStage(null);
+      kitchenConfirmationInFlightRef.current = false;
     }
   }
 
@@ -820,14 +1007,14 @@ export function useSelectedTableCartPanelWorkflow({
   ) {
     if (result.failedCount > 0) {
       showToast({
-        title: t("pos.reprintKitchen"),
+        title: t("pos.reprintKitchenFailed"),
         description: [
           `${t("report.printFailed")} ${result.failedCount}/${result.total || result.failedCount}`,
           result.errorMessage,
         ]
           .filter(Boolean)
           .join(" — "),
-        tone: "warning",
+        tone: "error",
       });
       return;
     }
@@ -841,14 +1028,14 @@ export function useSelectedTableCartPanelWorkflow({
     // ไม่ใช่ error ทางเทคนิค แต่ก็ไม่ได้พิมพ์อะไรจริง ใช้ message ของ backend เอง
     if ((response.reprint_summary?.no_printer_total ?? 0) > 0) {
       showToast({
-        title: t("pos.reprintKitchen"),
+        title: t("pos.reprintKitchenFailed"),
         description: response.message,
-        tone: "warning",
+        tone: "error",
       });
       return;
     }
 
-    showToast({ title: t("pos.reprintKitchen"), tone: "success" });
+    showToast({ title: t("common.printSuccess"), tone: "success" });
   }
 
   async function reprintSingleItemToKitchen(item: CartItem) {
@@ -857,6 +1044,7 @@ export function useSelectedTableCartPanelWorkflow({
     if (!user?.uuid || !orderUuid || !itemUuid || cartActionsLocked) return;
 
     setActingItemUuid(itemUuid);
+    setPrintingItemUuid(itemUuid);
     try {
       const response = await reconfirmKitchen({
         order_uuid: orderUuid,
@@ -876,6 +1064,7 @@ export function useSelectedTableCartPanelWorkflow({
       });
     } finally {
       setActingItemUuid(null);
+      setPrintingItemUuid(null);
     }
   }
 
@@ -1253,6 +1442,7 @@ export function useSelectedTableCartPanelWorkflow({
     changeCartItemQty,
     confirmAllProgress,
     confirming,
+    confirmingItemStage,
     confirmItemAction,
     confirmNewOrder,
     confirmSingleItemToKitchen,
@@ -1290,7 +1480,9 @@ export function useSelectedTableCartPanelWorkflow({
     openTableActions,
     openTableQr,
     paymentContext,
+    printingItemUuid,
     quantityPending,
+    quantityOverrides,
     quantityTarget,
     requestSelectedSplitPayment,
     saveBillDiscount,

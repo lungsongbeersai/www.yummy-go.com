@@ -10,7 +10,6 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Switch } from "@/components/ui/switch";
-import { useOfflineReadOnly } from "@/hooks/use-offline-read-only";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useReorderSensors } from "@/hooks/use-reorder-sensors";
 import { money } from "@/lib/format";
@@ -77,8 +76,6 @@ function ProductStockModeSwitch({
   const details = productDetails(row);
   const pendingKey: ProductStatusKey = `stock-all:${row.prod_uuid}`;
   const pendingMode = workflow.pendingBulkStockModes[row.prod_uuid];
-  // Stock mode is master data; its route is not on the offline transport.
-  const readOnly = useOfflineReadOnly();
 
   if (!details.length) {
     return <span className="text-xs text-muted-foreground">{workflow.t("common.noData")}</span>;
@@ -96,7 +93,7 @@ function ProductStockModeSwitch({
     <div className="flex items-center gap-2 whitespace-nowrap">
       <Switch
         checked={checked}
-        disabled={workflow.pendingKeys.has(pendingKey) || readOnly}
+        disabled={workflow.pendingKeys.has(pendingKey)}
         size="sm"
         aria-label={workflow.t("product.stockBulk.label")}
         onCheckedChange={(nextChecked) => workflow.updateAllDetailStockModes(row, nextChecked ? 1 : 2)}

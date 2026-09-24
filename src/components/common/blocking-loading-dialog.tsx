@@ -38,15 +38,19 @@ export function BlockingLoadingDialog({
 
   return (
     <Dialog open={open}>
+      {/* Mobile confirmation is launched from a z-50 cart sheet. Keep the
+          blocking layer above that parent surface instead of behind it. */}
       <DialogContent
-        className="max-w-md gap-0 overflow-hidden p-0"
+        aria-busy={open}
+        className="z-[60] w-[calc(100%-1.5rem)] max-w-md gap-0 overflow-hidden p-0"
+        overlayClassName="z-[60]"
         showCloseButton={false}
         onEscapeKeyDown={(event) => event.preventDefault()}
         onPointerDownOutside={(event) => event.preventDefault()}
       >
         <DialogHeader className="gap-0 border-b bg-muted/30 p-0 text-left">
-          <div className="flex items-center gap-4 px-6 py-5">
-            <div className="grid size-12 shrink-0 place-items-center rounded-md bg-primary/10 text-primary">
+          <div className="flex items-center gap-3.5 px-4 py-4 sm:gap-4 sm:px-6 sm:py-5">
+            <div className="grid size-12 shrink-0 place-items-center rounded-full bg-primary/10 text-primary ring-4 ring-primary/5">
               <Spinner className="size-6" />
             </div>
             <div className="min-w-0 flex-1">

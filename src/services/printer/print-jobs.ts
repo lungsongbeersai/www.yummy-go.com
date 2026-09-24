@@ -43,7 +43,6 @@ const kitchenExecutions = new Map<string, Promise<KitchenPrintResult>>();
 const documentExecutions = new Map<string, Promise<KitchenPrintResult>>();
 const deliveryLedgerMemory = new Map<string, StoredDelivery>();
 const DELIVERY_LEDGER_PREFIX = "yummy_kitchen_printer_delivery:";
-const MAX_AGENT_JOBS_PER_BATCH = 10;
 
 interface StoredDelivery {
   deliveryState: Exclude<PrinterDeliveryState, "not_sent">;
@@ -207,7 +206,7 @@ function groupKitchenBatchItems(items: PendingPrintItem[], fallbackCutMode: stri
 
 async function printKitchenMobileBatch(
   batch: PrintOpsBatchPayload,
-  requireCompletionConfirmation: boolean,
+  onTicketDelivered?: (completed: number, total: number) => void,
 ) {
   const mobileEscpos = batch.mobile_escpos ?? null;
 
@@ -226,9 +225,7 @@ async function printKitchenMobileBatch(
     await printMobileEscposOverTcp({
       interface_value: batchInterfaceValue,
       escpos_base64: batchEscposBase64,
-      ...(requireCompletionConfirmation
-        ? { require_completion_confirmation: true }
-        : {}),
+      on_ticket_delivered: onTicketDelivered,
     });
 
     return;
@@ -242,7 +239,7 @@ async function printKitchenMobileBatch(
     );
   }
 
-  for (const job of batch.jobs) {
+  for (const [jobIndex, job] of batch.jobs.entries()) {
     const jobInterfaceValue =
       textValue(job.interface_value) ||
       batchInterfaceValue;
@@ -256,9 +253,8 @@ async function printKitchenMobileBatch(
     await printMobileEscposOverTcp({
       interface_value: jobInterfaceValue,
       escpos_base64: escposBase64,
-      ...(requireCompletionConfirmation
-        ? { require_completion_confirmation: true }
-        : {}),
+      on_ticket_delivered: () =>
+        onTicketDelivered?.(jobIndex + 1, batch.jobs.length),
     });
 
   }
@@ -323,36 +319,6 @@ function batchPrintJobItemUuids(batch: PrintOpsBatchPayload) {
   ].filter(Boolean);
 
   return [...new Set(itemUuids)];
-}
-
-function splitOversizedAgentBatches(batches: PrintOpsBatchPayload[]) {
-  return batches.flatMap((batch) => {
-    const jobs = Array.isArray(batch.jobs) ? batch.jobs : [];
-    const printClient = textValue(batch.print_client).toLowerCase();
-    const printMode = textValue(batch.print_mode).toLowerCase();
-    const isMobileBatch =
-      printClient === "mobile_wifi" ||
-      printMode === "mobile_wifi" ||
-      Boolean(textValue(batch.mobile_escpos?.escpos_base64));
-
-    if (isMobileBatch || jobs.length <= MAX_AGENT_JOBS_PER_BATCH) return [batch];
-
-    const chunks: PrintOpsBatchPayload[] = [];
-    for (let offset = 0; offset < jobs.length; offset += MAX_AGENT_JOBS_PER_BATCH) {
-      const chunkJobs = jobs.slice(offset, offset + MAX_AGENT_JOBS_PER_BATCH);
-      chunks.push({
-        ...batch,
-        job_total: chunkJobs.length,
-        jobs: chunkJobs,
-        print_job_item_uuids: batchPrintJobItemUuids({
-          ...batch,
-          jobs: chunkJobs,
-          print_job_item_uuids: [],
-        }),
-      });
-    }
-    return chunks;
-  });
 }
 
 function batchAckPayload({
@@ -499,12 +465,14 @@ function pendingUncertainItemTotal(result: PendingPrintJobsResult) {
 async function printKitchenBatchJob(
   batch: PrintOpsBatchPayload,
   localAgent: AgentInfo,
+  onProgress?: (completed: number, total: number) => void,
 ) {
   if (!batch.jobs.length) return;
   await printBatchWithLocalAgent(
     batch.jobs,
     localAgent,
-    textValue(batch.cut_mode) || "per_ticket"
+    textValue(batch.cut_mode) || "per_ticket",
+    onProgress,
   );
 }
 
@@ -589,7 +557,7 @@ async function executePrintJobs(
   });
 
   const pending = pendingResult.jobs;
-  const batchPayloads = splitOversizedAgentBatches(pendingResult.batchPayloads);
+  const batchPayloads = pendingResult.batchPayloads;
   const globalAckSuccess = pendingResult.ackSuccess;
   const globalAckFailed = pendingResult.ackFailed;
 
@@ -616,24 +584,122 @@ async function executePrintJobs(
     // งานครัว: backend/agent จัดการคิวพิมพ์และยืนยันสถานะออเดอร์เองทั้งหมด
     // เมนูที่ไม่มี config เครื่องพิมพ์ backend รายงานเป็น failed_before_print แต่ยังยืนยันออเดอร์ให้ตามปกติ
     // จึงไม่ใช่ความล้มเหลวฝั่ง client ส่วนเอกสารยังต้องแจ้ง cashier ว่าพิมพ์ไม่ออก
+    const failedBeforePrintTotal = pendingFailedBeforePrintTotal(pendingResult);
     const failedCount = options.kitchenSemantics
       ? 0
-      : pendingFailedBeforePrintTotal(pendingResult);
+      : failedBeforePrintTotal;
+    if (failedBeforePrintTotal > 0) {
+      input.onProgress?.({
+        total: failedCount,
+        completed: failedCount,
+        successCount: 0,
+        failedCount,
+        phase: "done",
+      });
+
+      return {
+        successCount: 0,
+        failedCount,
+        total: failedCount,
+        ...(failedCount > 0
+          ? { errorMessage: pendingFailedBeforePrintReason(pendingResult) }
+          : {}),
+      };
+    }
+
+    const requestedStatus = textValue(
+      pendingResult.printSummary.requested_job_status,
+    ).toLowerCase();
+    const requestedTotal = Math.max(
+      0,
+      Number(pendingResult.printSummary.requested_job_total ?? 0),
+    );
+    const requestedSuccessTotal = Math.max(
+      0,
+      Number(pendingResult.printSummary.requested_job_success_total ?? 0),
+    );
+    const requestedFailedTotal = Math.max(
+      0,
+      Number(pendingResult.printSummary.requested_job_failed_total ?? 0),
+    );
+
+    // Another shared-owner browser may win the socket race and ACK this exact
+    // job before the requester fetches it. Empty pending payloads then mean
+    // "already printed", not "failed". The stable print_job_uuid keeps this
+    // result tied to the current print round.
+    if (requestedStatus === "success") {
+      const successCount = Math.max(
+        1,
+        requestedSuccessTotal,
+        requestedTotal,
+      );
+      input.onProgress?.({
+        total: successCount,
+        completed: successCount,
+        successCount,
+        failedCount: 0,
+        phase: "done",
+      });
+      return {
+        successCount,
+        failedCount: 0,
+        total: successCount,
+      };
+    }
+
+    const terminalPartialFailure =
+      requestedStatus === "partial" &&
+      requestedTotal > 0 &&
+      requestedSuccessTotal + requestedFailedTotal >= requestedTotal;
+    if (requestedStatus === "failed" || terminalPartialFailure) {
+      const terminalFailedCount = Math.max(
+        1,
+        requestedFailedTotal,
+        requestedTotal - requestedSuccessTotal,
+      );
+      input.onProgress?.({
+        total: Math.max(requestedTotal, terminalFailedCount),
+        completed: Math.max(requestedTotal, terminalFailedCount),
+        successCount: requestedSuccessTotal,
+        failedCount: terminalFailedCount,
+        phase: "done",
+      });
+      return {
+        successCount: requestedSuccessTotal,
+        failedCount: terminalFailedCount,
+        total: Math.max(requestedTotal, terminalFailedCount),
+      };
+    }
+
+    if (requestedStatus === "pending" || requestedStatus === "partial") {
+      const total = Math.max(1, requestedTotal);
+      input.onProgress?.({
+        total,
+        completed: requestedSuccessTotal + requestedFailedTotal,
+        successCount: requestedSuccessTotal,
+        failedCount: requestedFailedTotal,
+        phase: "done",
+      });
+      return {
+        successCount: requestedSuccessTotal,
+        failedCount: requestedFailedTotal,
+        total,
+        pending: true,
+      };
+    }
+
     input.onProgress?.({
-      total: failedCount,
-      completed: failedCount,
+      total: 0,
+      completed: 0,
       successCount: 0,
-      failedCount,
+      failedCount: 0,
       phase: "done",
     });
 
     return {
       successCount: 0,
-      failedCount,
-      total: failedCount,
-      ...(failedCount > 0
-        ? { errorMessage: pendingFailedBeforePrintReason(pendingResult) }
-        : {}),
+      failedCount: 0,
+      total: 0,
     };
   }
 
@@ -645,6 +711,9 @@ async function executePrintJobs(
     const outcomes: BatchPrintOutcome[] = [];
     let successCount = 0;
     let failedCount = 0;
+    const deliveredByBatch = batchPayloads.map(() => 0);
+    let reportedDeliveredTotal = 0;
+    let reportedFailedCount = 0;
     let hasPendingDelivery = false;
     let lastErrorMessage: string | undefined;
     let localAgentPromise: Promise<AgentInfo> | null = remoteRelayAgent
@@ -667,13 +736,59 @@ async function executePrintJobs(
     });
 
     const batchOutcomes = await Promise.all(
-      batchPayloads.map((batch) => {
+      batchPayloads.map((batch, batchIndex) => {
         const ledgerKey = deliveryLedgerKey(jobUuid, batch);
         const stored = options.idempotent ? readStoredDelivery(ledgerKey) : null;
         const mobileBatch = isMobilePrintBatch(batch);
         const printConfigUuid = textValue(
           batch.print_config_uuid || batch.jobs?.[0]?.print_config_uuid
         );
+        const reportDeliveredTickets = (completed: number) => {
+          const batchTotal = printBatchJobTotal(batch);
+          deliveredByBatch[batchIndex] = Math.min(
+            batchTotal,
+            Math.max(deliveredByBatch[batchIndex], completed),
+          );
+          const deliveredTotal = deliveredByBatch.reduce(
+            (sum, delivered) => sum + delivered,
+            0,
+          );
+          if (
+            deliveredTotal === reportedDeliveredTotal &&
+            failedCount === reportedFailedCount
+          ) {
+            return;
+          }
+          reportedDeliveredTotal = deliveredTotal;
+          reportedFailedCount = failedCount;
+          input.onProgress?.({
+            total,
+            completed: deliveredTotal + failedCount,
+            successCount: deliveredTotal,
+            failedCount,
+            phase: "printing",
+          });
+        };
+        const reportOutcome = (outcome: BatchPrintOutcome) => {
+          const batchTotal = printBatchJobTotal(batch);
+          if (outcome.success) {
+            successCount += batchTotal;
+            reportDeliveredTickets(batchTotal);
+          } else if (outcome.deliveryState === "unknown") {
+            // เริ่มส่งข้อมูลแล้วแต่ผลปลายทางไม่ชัดเจน สถานะที่ถูกต้องคือรอยืนยัน
+            // ไม่ใช่แจ้งว่าล้มเหลว ทั้งที่กระดาษอาจพิมพ์ออกแล้ว
+            hasPendingDelivery = true;
+            lastErrorMessage = outcome.errorMessage || lastErrorMessage;
+          } else {
+            failedCount += batchTotal;
+            lastErrorMessage = outcome.errorMessage || lastErrorMessage;
+          }
+
+          // Emit the final batch state for transports that have no earlier
+          // per-ticket signal; live Agent/mobile updates are deduplicated.
+          reportDeliveredTickets(deliveredByBatch[batchIndex]);
+          return outcome;
+        };
 
         if (stored) {
           return Promise.resolve<BatchPrintOutcome>({
@@ -684,7 +799,7 @@ async function executePrintJobs(
             ledgerKey,
             printConfigUuid,
             success: stored.deliveryState === "printed",
-          });
+          }).then(reportOutcome);
         }
 
         return runOnPrinterQueue(printerBatchQueueKey(batch), async () => {
@@ -708,10 +823,14 @@ async function executePrintJobs(
             if (mobileBatch) {
               await printKitchenMobileBatch(
                 batch,
-                options.requireCompletionConfirmation === true,
+                input.onProgress ? reportDeliveredTickets : undefined,
               );
             } else {
-              await printKitchenBatchJob(batch, await sharedLocalAgent());
+              await printKitchenBatchJob(
+                batch,
+                await sharedLocalAgent(),
+                input.onProgress ? reportDeliveredTickets : undefined,
+              );
             }
 
             if (options.idempotent) {
@@ -744,35 +863,10 @@ async function executePrintJobs(
               success: false,
             };
           }
-        });
+        }).then(reportOutcome);
       })
     );
-
-    for (const [outcomeIndex, outcome] of batchOutcomes.entries()) {
-      const batch = batchPayloads[outcomeIndex];
-      const batchTotal = printBatchJobTotal(batch);
-      outcomes.push(outcome);
-      if (outcome.success) {
-        successCount += batchTotal;
-      } else if (outcome.deliveryState === "unknown") {
-        // เริ่มส่งข้อมูลแล้วแต่ผลปลายทางไม่ชัดเจน สถานะที่ถูกต้องคือรอยืนยัน
-        // ไม่ใช่แจ้งว่าล้มเหลว ทั้งที่กระดาษอาจพิมพ์ออกแล้ว
-        hasPendingDelivery = true;
-        lastErrorMessage = outcome.errorMessage || lastErrorMessage;
-      } else {
-        failedCount += batchTotal;
-        lastErrorMessage = outcome.errorMessage || lastErrorMessage;
-      }
-      if (outcomeIndex < batchOutcomes.length - 1) {
-        input.onProgress?.({
-          total,
-          completed: successCount + failedCount,
-          successCount,
-          failedCount,
-          phase: "printing",
-        });
-      }
-    }
+    outcomes.push(...batchOutcomes);
 
     // ACK ตามผลของแต่ละเครื่อง: กระดาษที่ออกจากเครื่องก่อนหน้าต้องอัปเดต
     // order item ได้ แม้เครื่องถัดไปจะติดต่อไม่ได้ ไม่ตีทุก batch เป็น failed รวมกัน

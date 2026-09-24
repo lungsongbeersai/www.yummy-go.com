@@ -4,12 +4,14 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { useResetOnDeps } from "@/hooks/use-reset-on-change";
 import { useTranslation } from "react-i18next";
 import { EmptyState } from "@/components/common/empty-state";
+import { PrintLoadingDialog } from "@/components/common/print-loading-dialog";
 import {
   openLocalInvoicePrintWindow,
   type InvoicePrintData
 } from "@/services/printer/invoice-print-window";
 import { useUrlPagination } from "@/hooks/use-url-pagination";
 import { isCapacitorNativeApp } from "@/lib/capacitor-platform";
+import { createMutationUuid } from "@/lib/pos/mutation-identity";
 import type { UrlPaginationState } from "@/lib/url-pagination";
 import type { CancelableBill, CancelableDateOption } from "@/services/cancel";
 import type { SortOrder } from "@/services/shared/types";
@@ -231,6 +233,7 @@ export function CancelSalePage({
     try {
       const pendingQuery = await requestReprintReceipt({
         order_uuid: orderUuid,
+        operation_uuid: createMutationUuid(),
         login_uuid_fk: user.uuid,
         lang: language
       });
@@ -253,8 +256,38 @@ export function CancelSalePage({
         }
       });
 
+      if (printResult.failedCount > 0) {
+        if (printStarted && !isCapacitorNativeApp()) {
+          const receiptData = buildSalesListInvoicePrintData({
+            bill: detailSource,
+            translate: (key, options) => String(t(key, options)),
+            user
+          });
+          await openReceiptPrintWindow(
+            receiptData,
+            printResult.errorMessage ?? "",
+          );
+          return;
+        }
+
+        showToast({
+          title: t("cancelSale.reprintReceiptFailed"),
+          description: printResult.errorMessage,
+          tone: "error"
+        });
+        return;
+      }
+
+      if (printResult.pending) {
+        showToast({
+          title: t("orderQueue.kitchenPrintQueued"),
+          tone: "info",
+        });
+        return;
+      }
+
       if (printResult.successCount > 0 && printResult.failedCount === 0) {
-        showToast({ title: t("cancelSale.reprintReceiptSuccess"), tone: "success" });
+        showToast({ title: t("common.printSuccess"), tone: "success" });
         return;
       }
 
@@ -267,17 +300,10 @@ export function CancelSalePage({
         return;
       }
 
-      if (printResult.failedCount > 0 && printStarted && !isCapacitorNativeApp()) {
-        const receiptData = buildSalesListInvoicePrintData({
-          bill: detailSource,
-          translate: (key, options) => String(t(key, options)),
-          user
-        });
-        await openReceiptPrintWindow(receiptData, "");
-        return;
-      }
-
-      showToast({ title: t("cancelSale.reprintReceiptFailed"), tone: "error" });
+      showToast({
+        title: t("cancelSale.reprintReceiptFailed"),
+        tone: "error"
+      });
     } catch (printError) {
       showToast({
         title: t("cancelSale.reprintReceiptFailed"),
@@ -289,7 +315,10 @@ export function CancelSalePage({
     }
   }
 
-  async function openReceiptPrintWindow(data: InvoicePrintData, description: string) {
+  async function openReceiptPrintWindow(
+    data: InvoicePrintData,
+    description: string,
+  ) {
     const opened = await openLocalInvoicePrintWindow(data);
     if (opened) {
       showToast({
@@ -380,6 +409,7 @@ export function CancelSalePage({
         onReasonChange={setCancelReason}
         onSubmit={() => void submitCancel()}
       />
+      <PrintLoadingDialog open={reprintingReceipt} />
     </div>
   );
 }

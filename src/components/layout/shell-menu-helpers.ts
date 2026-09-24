@@ -1,6 +1,5 @@
 import type { MenuItem } from "@/config/menu";
 import type { AuthUser } from "@/stores/auth-store";
-import { isOfflineAllowedPath } from "@/lib/offline-routes";
 
 const FIXED_DATA_SCREEN_PATHS = new Set([
   "/printers",
@@ -63,17 +62,6 @@ export function userInitials(user: AuthUser | null) {
 
 export function isImmersiveScreen(pathname: string) {
   return IMMERSIVE_SCREEN_PATHS.has(pathname);
-}
-
-// Routes under src/app/ (outside the (protected) group) that never render the app shell.
-// "/posAll" is only public as an exact path; /posAll/tables and /posAll/order are protected.
-const PUBLIC_APP_PATH_PREFIXES = ["/home", "/login", "/policy", "/customer-display"] as const;
-
-export function isPublicAppPath(pathname: string) {
-  return (
-    pathname === "/posAll" ||
-    PUBLIC_APP_PATH_PREFIXES.some((prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`))
-  );
 }
 
 // เขียนทับ offlineLocked สดตามสถานะออฟไลน์ปัจจุบัน — ไม่แตะ disabled เดิม (ความหมายคนละอย่าง:

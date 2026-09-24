@@ -1,10 +1,8 @@
 // Where this device finds its Printer Agent.
 //
-// The Agent is the branch's offline hub: it owns the local SQLite, the outbox,
-// the print queue and the sync back to Backend. A desktop runs its own on
-// loopback. A phone has none, so it uses the branch's over the LAN — the same
-// endpoints, a different host, plus the shared secret that loopback callers are
-// exempt from.
+// The Agent is an online printer transport. A desktop runs its own on loopback.
+// A phone can pair with a branch Agent over the LAN for supported management
+// operations; native receipt printing uses the configured printer TCP endpoint.
 
 export interface AgentLink {
   baseUrl: string;
@@ -57,8 +55,8 @@ export function parsePairedAgent(raw: unknown): AgentLink | null {
 
 /**
  * Resolve the Agent this device should talk to. Returns null when there is
- * none — a phone that has never been paired — so callers can fall back instead
- * of firing requests at an address that cannot answer.
+ * none — a phone that has never been paired — so callers avoid firing requests
+ * at an address that cannot answer.
  */
 export function resolveAgentLink({
   isNative,

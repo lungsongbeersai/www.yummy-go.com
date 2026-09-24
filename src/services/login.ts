@@ -1,8 +1,6 @@
 import { publicApiClient, ServiceError } from "@/lib/api";
-import { classifyBackendError } from "@/lib/network-state";
 import { normalizeLoginEmail } from "@/lib/login-email";
 import type { AuthUser, AuthZone } from "@/stores/auth-store";
-import { backendNetworkManager } from "@/stores/network-store";
 
 interface LoginApiResponse {
   status: string;
@@ -31,11 +29,6 @@ export interface LoginResult {
   token: string;
   user: AuthUser;
   source?: "online";
-}
-
-export async function restoreOnlineLogin(_localToken: string): Promise<LoginResult> {
-  void _localToken;
-  throw new ServiceError("Offline login has been retired", 410);
 }
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -77,21 +70,10 @@ export async function checkLogin(login_email: string, login_password: string): P
   if (!login_password.trim()) throw new ServiceError("Password is required", 400);
   if (!EMAIL_RE.test(normalizedEmail)) throw new ServiceError("Invalid email", 400);
 
-  try {
-    const response = await publicApiClient.post<LoginApiResponse>(
-      "/api/v1/login/check_login",
-      { login_email: normalizedEmail, login_password },
-      { timeout: 8000 },
-    );
-    backendNetworkManager.reportReachable(response.status, "backend_login_response");
-    return mapLoginResponse(response.data);
-  } catch (error) {
-    const classification = classifyBackendError(error);
-    if (classification.classification === "HTTP_RESPONSE") {
-      backendNetworkManager.reportReachable(classification.httpStatus, classification.reason);
-    } else if (classification.classification === "NETWORK_TRANSPORT") {
-      backendNetworkManager.reportTransportFailure(classification.reason);
-    }
-    throw error;
-  }
+  const response = await publicApiClient.post<LoginApiResponse>(
+    "/api/v1/login/check_login",
+    { login_email: normalizedEmail, login_password },
+    { timeout: 8000 },
+  );
+  return mapLoginResponse(response.data);
 }

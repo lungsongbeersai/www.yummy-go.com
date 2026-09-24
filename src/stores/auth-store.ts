@@ -71,13 +71,13 @@ function normalizePersistedAuthState(persistedState: unknown): PersistedAuthStat
       user: null,
       isLoggedIn: false,
       rememberMe: Boolean(state.rememberMe),
-      offlineSession: false,
     };
   }
+  const onlineState = { ...state };
+  delete onlineState.offlineSession;
   return {
-    ...state,
+    ...onlineState,
     user: isRecord(state.user) ? normalizeAuthUser(state.user as NormalizableAuthUser) : null,
-    offlineSession: false,
   };
 }
 
@@ -86,7 +86,6 @@ interface AuthState {
   user: AuthUser | null;
   isLoggedIn: boolean;
   rememberMe: boolean;
-  offlineSession: boolean;
   hydrated: boolean;
   loading: boolean;
   error: string | null;
@@ -94,8 +93,6 @@ interface AuthState {
   loginWithPassword: (email: string, password: string, rememberMe?: boolean) => Promise<AuthUser | null>;
   logout: () => void;
   updateUser: (updates: Partial<AuthUser>) => void;
-  resumeOnlineSession: (token: string, user: AuthUser) => boolean;
-  setOfflineSession: (offlineSession: boolean) => void;
   setHydrated: (hydrated: boolean) => void;
 }
 
@@ -103,13 +100,12 @@ const STORAGE_KEY = "yummy-go-auth";
 const isBrowser = typeof window !== "undefined";
 let loginRequestId = 0;
 
-function authenticatedState(token: string, user: AuthUser, rememberMe: boolean, offlineSession = false) {
+function authenticatedState(token: string, user: AuthUser, rememberMe: boolean) {
   return {
     token,
     user: normalizeAuthUser(user),
     isLoggedIn: true,
     rememberMe,
-    offlineSession,
     loading: false,
     error: null
   };
@@ -145,7 +141,6 @@ export const useAuthStore = create<AuthState>()(
       user: null,
       isLoggedIn: false,
       rememberMe: false,
-      offlineSession: false,
       hydrated: false,
       loading: false,
       error: null,
@@ -180,7 +175,6 @@ export const useAuthStore = create<AuthState>()(
           user: null,
           isLoggedIn: false,
           rememberMe: false,
-          offlineSession: false,
           loading: false,
           error: null
         });
@@ -190,25 +184,6 @@ export const useAuthStore = create<AuthState>()(
         const user = get().user;
         if (user) set({ user: normalizeAuthUser({ ...user, ...updates }) });
       },
-      resumeOnlineSession: (token, user) => {
-        const currentUser = get().user;
-        const sameIdentity = Boolean(
-          token && currentUser &&
-          currentUser.uuid === user.uuid &&
-          currentUser.branch_uuid === user.branch_uuid &&
-          authStoreUuid(currentUser) === authStoreUuid(user),
-        );
-        if (!sameIdentity) return false;
-        set({
-          token,
-          user: normalizeAuthUser(user),
-          offlineSession: false,
-          loading: false,
-          error: null,
-        });
-        return true;
-      },
-      setOfflineSession: () => set({ offlineSession: false }),
       setHydrated: (hydrated) => set({ hydrated })
     }),
     {
@@ -224,7 +199,6 @@ export const useAuthStore = create<AuthState>()(
       }),
       onRehydrateStorage: () => (state) => {
         if (state?.user) state.updateUser(state.user);
-        if (state) state.setOfflineSession(false);
         state?.setHydrated(true);
       }
     }

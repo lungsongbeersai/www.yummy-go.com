@@ -26,6 +26,7 @@ import { productMedia } from "./product-media";
 import {
   PRODUCT_GRID_CLASS,
   PRODUCT_GRID_PRELOAD_COUNT,
+  getProductActionState,
   productModeLabel,
 } from "./order-customer-utils";
 import {
@@ -44,6 +45,9 @@ import {
   ProductOptionsOverlay,
 } from "./order-customer-product-options";
 import type { OrderCustomerWorkflow } from "./use-order-customer-workflow";
+
+const PRODUCT_DETAIL_WARM_COUNT = 4;
+const PRODUCT_DETAIL_WARM_DELAY_MS = 350;
 
 // สี white/black แบบ glass เดิมออกแบบไว้สำหรับพื้นหลังรูปภาพโหมดสว่างเท่านั้น (bg_wide.webp)
 // โหมดมืดไม่มีรูปพื้นหลัง (dark:bg-none dark:bg-background) เลยเหลือแต่กระจกใสซ้อนพื้นเข้ม
@@ -93,6 +97,7 @@ export function OrderCustomerView({
     productMode,
     productSheetOpen,
     printerContext,
+    prefetchProduct,
     qty,
     refreshAll,
     saving,
@@ -186,6 +191,35 @@ export function OrderCustomerView({
     }
     return indexes;
   }, [activeProducts]);
+
+  // Warm only the first few option-bearing cards after the menu has painted.
+  // Sequential requests avoid a burst of heavy option queries while making the
+  // most likely first taps instant on touch devices that have no hover phase.
+  useEffect(() => {
+    const entries = activeProducts
+      .slice(0, PRODUCT_GRID_PRELOAD_COUNT)
+      .filter((entry) => {
+        const action = getProductActionState(entry.product, activeSort);
+        return action === "choose" || action === "view";
+      })
+      .slice(0, PRODUCT_DETAIL_WARM_COUNT);
+    if (!entries.length) return;
+
+    let cancelled = false;
+    const timer = window.setTimeout(() => {
+      void (async () => {
+        for (const entry of entries) {
+          if (cancelled) return;
+          await prefetchProduct(entry);
+        }
+      })();
+    }, PRODUCT_DETAIL_WARM_DELAY_MS);
+
+    return () => {
+      cancelled = true;
+      window.clearTimeout(timer);
+    };
+  }, [activeProducts, activeSort, prefetchProduct]);
 
   return (
     <div
@@ -393,6 +427,7 @@ export function OrderCustomerView({
                       imagePreload={preloadImageIndexes.has(index)}
                       loading={loadingProductUuid === entry.product.prodUuid}
                       onAction={openOrAddProduct}
+                      onPrefetch={prefetchProduct}
                     />
                   ))}
                 </div>

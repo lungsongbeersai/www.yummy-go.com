@@ -2,7 +2,6 @@ import { describe, expect, it } from "vitest";
 import type { MenuItem } from "@/config/menu";
 import {
   activeMenuTitles,
-  applyOfflineLock,
   firstNavigablePath,
   hasActiveRoute,
   isFixedDataScreen,
@@ -103,45 +102,6 @@ describe("isFixedDataScreen", () => {
 
   it("leaves the dashboard scrollable", () => {
     expect(isFixedDataScreen("/")).toBe(false);
-  });
-});
-
-describe("applyOfflineLock", () => {
-  const menu: MenuItem[] = [
-    { path: "/posAll/tables", title: "open_table_sale" },
-    { path: "/posAll/order", title: "order" },
-    {
-      title: "sales",
-      children: [
-        { path: "/sales/sales-list", title: "sales_list" },
-        { path: "/sales/cancel-sale", title: "cancel_sale" },
-      ],
-    },
-    { path: "/settings/user", title: "user_management" },
-    { path: "/settings/topping", title: "topping" },
-  ];
-
-  it("returns items unchanged while online", () => {
-    const result = applyOfflineLock(menu, false, false);
-    expect(result.every((item) => !item.offlineLocked)).toBe(true);
-  });
-
-  it("leaves every established menu destination unlocked offline, recursively", () => {
-    const [openTable, order, sales, users, topping] = applyOfflineLock(menu, true, false);
-    expect(openTable.offlineLocked).toBe(false);
-    expect(order.offlineLocked).toBe(false);
-    expect(sales.children?.[0].offlineLocked).toBe(false);
-    expect(sales.children?.[1].offlineLocked).toBe(false);
-    expect(users.offlineLocked).toBe(false);
-    expect(topping.offlineLocked).toBe(false);
-  });
-
-  it("leaves the order-taking flow reachable on Android", () => {
-    const [openTable, order] = applyOfflineLock(menu, true, true);
-    // Both stage offline now — write-fallback.ts synthesizes a response from
-    // the Dexie outbox instead of needing a Local Agent Android doesn't have.
-    expect(openTable.offlineLocked).toBe(false);
-    expect(order.offlineLocked).toBe(false);
   });
 });
 

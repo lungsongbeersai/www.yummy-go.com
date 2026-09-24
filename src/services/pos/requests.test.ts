@@ -346,6 +346,7 @@ describe("pos requests", () => {
     await printInvoice({
       login_uuid_fk: "login-1",
       order_uuid: "order-1",
+      operation_uuid: "77777777-7777-4777-8777-777777777777",
       lang: "la",
       document_type: "invoice",
       device_code: "device-1",
@@ -358,6 +359,7 @@ describe("pos requests", () => {
       data: {
         login_uuid_fk: "login-1",
         order_uuid: "order-1",
+        operation_uuid: "77777777-7777-4777-8777-777777777777",
         lang: "la",
         document_type: "invoice",
         device_code: "device-1",
@@ -374,6 +376,7 @@ describe("pos requests", () => {
 
     await reprintReceipt({
       order_uuid: "order-1",
+      operation_uuid: "88888888-8888-4888-8888-888888888888",
       login_uuid_fk: "login-1",
       lang: "en-US",
       device_code: "device-1",
@@ -384,6 +387,7 @@ describe("pos requests", () => {
     expect(apiMocks.apiRequest).toHaveBeenCalledWith("post", "/api/v1/posAll/reprint_receipt", {
       data: {
         order_uuid: "order-1",
+        operation_uuid: "88888888-8888-4888-8888-888888888888",
         login_uuid_fk: "login-1",
         lang: "eng",
         device_code: "device-1",
@@ -627,7 +631,7 @@ describe("pos requests", () => {
     });
   });
 
-  it("sends the delete item UUID in query and body for online and Mobile Offline", async () => {
+  it("sends the delete item UUID in both query and body", async () => {
     apiMocks.apiRequest.mockResolvedValue({ status: "success" });
 
     await deleteOrderItem("item-1");

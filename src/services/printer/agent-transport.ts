@@ -25,13 +25,74 @@ import type {
   PrintJob,
   PrintOpsAgentResponse,
   PrintOpsBatchAgentResponse,
+  PrintOpsBatchProgressAgentResponse,
   PrinterDeviceContext,
   PrinterDeviceContextParams
 } from "@/services/printer/types";
 
 const PRINTER_IDENTITY_MISSING = "Printer device identity missing";
 const LOCAL_AGENT_IDENTITY_KEY = "yummy_local_printer_agent_identity";
-const MAX_AGENT_JOBS_PER_BATCH = 10;
+const BATCH_PROGRESS_POLL_INTERVAL_MS = 200;
+
+function batchProgressId() {
+  const randomUuid = globalThis.crypto?.randomUUID?.();
+  if (randomUuid) return randomUuid;
+  return `batch-${Date.now()}-${Math.random().toString(36).slice(2, 12)}`;
+}
+
+function waitForBatchProgressPoll(signal: AbortSignal) {
+  return new Promise<void>((resolve) => {
+    if (signal.aborted) {
+      resolve();
+      return;
+    }
+    const timer = setTimeout(() => {
+      signal.removeEventListener("abort", stopWaiting);
+      resolve();
+    }, BATCH_PROGRESS_POLL_INTERVAL_MS);
+    const stopWaiting = () => {
+      clearTimeout(timer);
+      resolve();
+    };
+    signal.addEventListener("abort", stopWaiting, { once: true });
+  });
+}
+
+async function pollAgentBatchProgress({
+  localBase,
+  progressId,
+  reportProgress,
+  requestSettled,
+  signal,
+}: {
+  localBase: string;
+  progressId: string;
+  reportProgress: (completed: number) => void;
+  requestSettled: () => boolean;
+  signal: AbortSignal;
+}) {
+  while (!requestSettled() && !signal.aborted) {
+    try {
+      const { data } = await axios.get<PrintOpsBatchProgressAgentResponse>(
+        `${localBase}/print-ops-batch-progress`,
+        {
+          headers: { "x-agent-secret": AGENT_SECRET },
+          params: { progress_id: progressId },
+          signal,
+          timeout: 2000,
+        },
+      );
+      if (data.ok) reportProgress(Number(data.completed || 0));
+      if (data.status === "done" || data.status === "failed") return;
+    } catch {
+      if (signal.aborted) return;
+      // Older Agents do not expose live progress. The batch POST remains the
+      // source of truth and reports the final total when it completes.
+    }
+
+    if (!requestSettled()) await waitForBatchProgressPoll(signal);
+  }
+}
 
 function localAgentStorage() {
   try {
@@ -219,7 +280,8 @@ export async function printWithLocalAgent(job: PrintJob, localAgent?: AgentInfo)
 export async function printBatchWithLocalAgent(
   jobs: PrintJob[],
   localAgent?: AgentInfo,
-  cutMode: string = "per_ticket"
+  cutMode: string = "per_ticket",
+  onProgress?: (completed: number, total: number) => void,
 ) {
   if (!jobs.length) return;
 
@@ -244,17 +306,49 @@ export async function printBatchWithLocalAgent(
     ? "/print-ops-batch"
     : "/print-ops-batch-relay";
 
-  // Agent จำกัดหนึ่ง physical batch ไว้ 10 ใบเพื่อคุมหน่วยความจำของ raster
-  // ส่งก้อนย่อยตามลำดับบนเครื่องเดียวกัน แทนการปล่อยให้ทั้งครัว/บาร์ถูกปฏิเสธ
-  // เมื่อออเดอร์หนึ่งมีรายการเกินขีดจำกัด
-  for (let offset = 0; offset < jobs.length; offset += MAX_AGENT_JOBS_PER_BATCH) {
-    const batchJobs = jobs.slice(offset, offset + MAX_AGENT_JOBS_PER_BATCH);
-    const payload = { cut_mode: cutMode, jobs: batchJobs };
-    const { data } = await axios.post<PrintOpsBatchAgentResponse>(`${localBase}${endpoint}`, payload, {
-      headers: { "x-agent-secret": AGENT_SECRET },
-      timeout: printerRequestTimeoutMs(batchJobs)
-    });
+  // Submit one physical-printer batch so the Agent can render every byte first
+  // and deliver one continuous spool/socket document in the original order.
+  const progressId = onProgress ? batchProgressId() : "";
+  const payload = {
+    cut_mode: cutMode,
+    jobs,
+    ...(progressId ? { progress_id: progressId } : {}),
+  };
+  let completed = 0;
+  const reportProgress = (nextCompleted: number) => {
+    if (!Number.isFinite(nextCompleted)) return;
+    const normalized = Math.min(
+      jobs.length,
+      Math.max(completed, Math.max(0, Math.floor(nextCompleted))),
+    );
+    if (normalized === completed) return;
+    completed = normalized;
+    onProgress?.(completed, jobs.length);
+  };
+  let requestSettled = false;
+  const request = axios.post<PrintOpsBatchAgentResponse>(`${localBase}${endpoint}`, payload, {
+    headers: { "x-agent-secret": AGENT_SECRET },
+    timeout: printerRequestTimeoutMs(jobs)
+  });
+  const progressController = new AbortController();
+  const progressPolling = progressId
+    ? pollAgentBatchProgress({
+      localBase,
+      progressId,
+      reportProgress,
+      requestSettled: () => requestSettled,
+      signal: progressController.signal,
+    })
+    : Promise.resolve();
+
+  try {
+    const { data } = await request;
     assertAgentOk(data, "Print failed");
+    reportProgress(jobs.length);
+  } finally {
+    requestSettled = true;
+    progressController.abort();
+    await progressPolling;
   }
 }
 

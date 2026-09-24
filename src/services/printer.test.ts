@@ -60,7 +60,8 @@ import {
   savePrinter,
   sendMobileBackendPrintJob,
   togglePrinterActive,
-  type PrintJob
+  type PrintJob,
+  type PrintProgress,
 } from "@/services/printer";
 
 function mockLocalStorage(initial: Record<string, string> = {}) {
@@ -262,6 +263,27 @@ describe("printer service dispatch", () => {
     );
   });
 
+  it("submits a large physical-printer batch as one continuous Agent job", async () => {
+    axiosMocks.get.mockResolvedValue({
+      data: { agent_id: "agent-1", agent_name: "Local", device_code: "device-1" }
+    });
+    axiosMocks.post.mockResolvedValue({ data: { ok: true } });
+    const jobs = Array.from({ length: 25 }, (_, index) => windowsPrintJob({
+      agent_id: "agent-1",
+      device_code: "device-1",
+      job_id: `receipt-${index + 1}`,
+    }));
+
+    await expect(printBatchWithLocalAgent(jobs)).resolves.toBeUndefined();
+
+    expect(axiosMocks.post).toHaveBeenCalledTimes(1);
+    expect(axiosMocks.post).toHaveBeenCalledWith(
+      "http://127.0.0.1:7777/print-ops-batch",
+      { cut_mode: "per_ticket", jobs },
+      expect.objectContaining({ timeout: 75000 })
+    );
+  });
+
   it("rejects a mismatched agent identity on the local device", async () => {
     const job = printJob({
       agent_id: BROWSER_PRINTER_AGENT_ID,
@@ -372,7 +394,7 @@ describe("printer service dispatch", () => {
     });
   });
 
-  it("splits more than ten kitchen tickets for one printer without dropping the batch", async () => {
+  it("keeps more than ten tickets in one continuous physical-printer batch", async () => {
     const jobs = Array.from({ length: 12 }, (_, index) =>
       windowsPrintJob({
         job_id: `large-batch-job-${index + 1}`,
@@ -444,7 +466,7 @@ describe("printer service dispatch", () => {
       })
     ).resolves.toEqual({ successCount: 12, failedCount: 0, total: 12 });
 
-    expect(sentBatchSizes).toEqual([10, 2]);
+    expect(sentBatchSizes).toEqual([12]);
     expect(ackPayloads).toHaveLength(1);
     expect(ackPayloads[0].results).toHaveLength(13);
     expect(new Set(ackPayloads[0].results.map((item) => item.print_job_item_uuid))).toEqual(
@@ -498,10 +520,14 @@ describe("printer service dispatch", () => {
       })
     ).resolves.toEqual({ successCount: 2, failedCount: 0, total: 2 });
 
-    expect(progressPhases).toEqual(["fetching", "printing", "done"]);
+    expect(progressPhases).toEqual(["fetching", "printing", "printing", "done"]);
     expect(axiosMocks.post).toHaveBeenCalledWith(
       "http://127.0.0.1:7777/print-ops-batch",
-      { cut_mode: "per_ticket", jobs: [job, secondJob] },
+      expect.objectContaining({
+        cut_mode: "per_ticket",
+        jobs: [job, secondJob],
+        progress_id: expect.any(String),
+      }),
       expect.objectContaining({ timeout: 75000 })
     );
     expect(ackPayloads).toEqual([
@@ -829,6 +855,195 @@ describe("printer service dispatch", () => {
     expect(axiosMocks.post).not.toHaveBeenCalled();
   });
 
+  it("reports each completed mobile ticket while later tickets are still printing", async () => {
+    capacitorMocks.isNativePlatform.mockReturnValue(true);
+    let releaseSecondTicket: (() => void) | undefined;
+    let markSecondTicketStarted: (() => void) | undefined;
+    const secondTicketStarted = new Promise<void>((resolve) => {
+      markSecondTicketStarted = resolve;
+    });
+    const progressUpdates: PrintProgress[] = [];
+
+    mobileTcpMocks.printMobileEscposOverTcp.mockImplementation(
+      async ({ escpos_base64 }: { escpos_base64?: string }) => {
+        if (escpos_base64 !== "SECOND") return;
+        markSecondTicketStarted?.();
+        await new Promise<void>((resolve) => {
+          releaseSecondTicket = resolve;
+        });
+      },
+    );
+    apiMocks.apiRequest.mockImplementation(async (method, url) => {
+      if (method === "get" && url === "/api/v1/printer/jobs/pending") {
+        return {
+          print_batch_payloads: ["FIRST", "SECOND"].map((escposBase64, index) => ({
+            cut_mode: "per_ticket",
+            agent_id: "mobile-agent-1",
+            device_code: "mobile-device-1",
+            print_mode: "mobile_wifi",
+            print_client: "mobile_wifi",
+            interface_value: "tcp://192.168.1.20:9100",
+            print_config_uuid: "mobile-printer-1",
+            print_job_item_uuids: [`mobile-item-${index + 1}`],
+            job_total: 1,
+            jobs: [
+              printJob({
+                job_id: `mobile-job-${index + 1}`,
+                print_job_item_uuid: `mobile-item-${index + 1}`,
+              }),
+            ],
+            mobile_escpos: {
+              interface_value: "tcp://192.168.1.20:9100",
+              escpos_base64: escposBase64,
+            },
+          })),
+        };
+      }
+      throw new Error(`Unexpected request ${method} ${url}`);
+    });
+
+    const execution = executeKitchenPrintJobs({
+      pending_query: {
+        print_job_uuid: "kitchen-mobile-progress",
+        login_uuid_fk: "login-1",
+        device_code: "mobile-device-1",
+        agent_id: "mobile-agent-1",
+        print_mode: "mobile_wifi",
+      },
+      onProgress: (progress) => progressUpdates.push(progress),
+    });
+
+    await secondTicketStarted;
+    await Promise.resolve();
+    expect(progressUpdates).toContainEqual({
+      total: 2,
+      completed: 1,
+      successCount: 1,
+      failedCount: 0,
+      phase: "printing",
+    });
+    expect(progressUpdates.some((progress) => progress.phase === "done")).toBe(false);
+
+    releaseSecondTicket?.();
+    await expect(execution).resolves.toEqual({
+      successCount: 2,
+      failedCount: 0,
+      total: 2,
+    });
+    expect(progressUpdates.at(-1)).toEqual({
+      total: 2,
+      completed: 2,
+      successCount: 2,
+      failedCount: 0,
+      phase: "done",
+    });
+  });
+
+  it("reports each delivered Agent ticket before the desktop batch completes", async () => {
+    const firstJob = windowsPrintJob();
+    const secondJob = windowsPrintJob({
+      job_id: "kitchen-order-1-item-2",
+      print_job_item_uuid: "item-2",
+    });
+    const progressUpdates: PrintProgress[] = [];
+    let releaseBatch: (() => void) | undefined;
+
+    axiosMocks.get.mockImplementation(async (url: string) => {
+      if (url.endsWith("/agent/info")) {
+        return {
+          data: {
+            agent_id: "agent-1",
+            agent_name: "Local",
+            device_code: "device-1",
+          },
+        };
+      }
+      if (url.endsWith("/print-ops-batch-progress")) {
+        return {
+          data: {
+            ok: true,
+            total: 2,
+            completed: 1,
+            status: "printing",
+          },
+        };
+      }
+      throw new Error(`Unexpected Agent request ${url}`);
+    });
+    axiosMocks.post.mockImplementation(
+      () => new Promise((resolve) => {
+        releaseBatch = () => resolve({ data: { ok: true } });
+      }),
+    );
+    apiMocks.apiRequest.mockImplementation(async (method, url) => {
+      if (method === "get" && url === "/api/v1/printer/jobs/pending") {
+        return {
+          print_batch_payloads: [{
+            cut_mode: "per_ticket",
+            agent_id: "agent-1",
+            device_code: "device-1",
+            print_mode: "windows_agent",
+            print_client: "agent",
+            interface_value: "win:USB/ONLY(XP-80)",
+            print_config_uuid: "51a34c43-f256-4074-84eb-44c9d7668a47",
+            print_job_item_uuids: ["item-1", "item-2"],
+            job_total: 2,
+            jobs: [firstJob, secondJob],
+          }],
+        };
+      }
+      throw new Error(`Unexpected request ${method} ${url}`);
+    });
+
+    const execution = executeKitchenPrintJobs({
+      pending_query: {
+        print_job_uuid: "kitchen-desktop-progress",
+        login_uuid_fk: "login-1",
+        device_code: "device-1",
+        agent_id: "agent-1",
+        print_mode: "windows_agent",
+      },
+      onProgress: (progress) => progressUpdates.push(progress),
+    });
+
+    await vi.waitFor(() => {
+      expect(progressUpdates).toContainEqual({
+        total: 2,
+        completed: 1,
+        successCount: 1,
+        failedCount: 0,
+        phase: "printing",
+      });
+    });
+    expect(progressUpdates.some((progress) => progress.phase === "done")).toBe(false);
+
+    releaseBatch?.();
+    await expect(execution).resolves.toEqual({
+      successCount: 2,
+      failedCount: 0,
+      total: 2,
+    });
+    expect(progressUpdates.at(-1)).toEqual({
+      total: 2,
+      completed: 2,
+      successCount: 2,
+      failedCount: 0,
+      phase: "done",
+    });
+
+    const batchPayload = axiosMocks.post.mock.calls[0]?.[1] as {
+      progress_id?: string;
+    };
+    expect(batchPayload.progress_id).toMatch(/^[a-zA-Z0-9_-]{8,128}$/);
+    expect(axiosMocks.get).toHaveBeenCalledWith(
+      "http://127.0.0.1:7777/print-ops-batch-progress",
+      expect.objectContaining({
+        params: { progress_id: batchPayload.progress_id },
+        timeout: 2000,
+      }),
+    );
+  });
+
   it("prints a shared Windows Agent TCP batch directly from native mobile", async () => {
     capacitorMocks.isNativePlatform.mockReturnValue(true);
     const sharedJob = windowsPrintJob({
@@ -886,7 +1101,7 @@ describe("printer service dispatch", () => {
     expect(mobileTcpMocks.printMobileEscposOverTcp).toHaveBeenCalledWith({
       interface_value: "tcp://192.168.1.20:9100",
       escpos_base64: "SHARED-BASE64",
-      require_completion_confirmation: true
+      on_ticket_delivered: expect.any(Function),
     });
     expect(axiosMocks.post).not.toHaveBeenCalled();
     expect(ackPayloads).toEqual([{
@@ -1229,6 +1444,78 @@ describe("printer service dispatch", () => {
       "/api/v1/printer/jobs/ack",
       expect.anything()
     );
+  });
+
+  it("reports success when another shared worker already printed the requested document job", async () => {
+    const progressPhases: string[] = [];
+    apiMocks.apiRequest.mockImplementation(async (method, url) => {
+      if (method === "get" && url === "/api/v1/printer/jobs/pending") {
+        return {
+          print_batch_payloads: [],
+          print_summary: {
+            requested_job_found: true,
+            requested_job_status: "success",
+            requested_job_total: 1,
+            requested_job_success_total: 1,
+            requested_job_failed_total: 0,
+          },
+        };
+      }
+      throw new Error(`Unexpected request ${method} ${url}`);
+    });
+
+    await expect(
+      executeInvoicePrintJobs({
+        pending_query: {
+          print_job_uuid: "invoice-job-already-printed",
+          login_uuid_fk: "login-1",
+          device_code: "owner-device",
+          agent_id: "owner-agent",
+          print_mode: "windows_agent",
+        },
+        onProgress: ({ phase }) => progressPhases.push(phase),
+      }),
+    ).resolves.toEqual({ successCount: 1, failedCount: 0, total: 1 });
+
+    expect(progressPhases).toEqual(["fetching", "done"]);
+    expect(axiosMocks.post).not.toHaveBeenCalled();
+  });
+
+  it("keeps a requested document job pending while another worker is printing it", async () => {
+    apiMocks.apiRequest.mockImplementation(async (method, url) => {
+      if (method === "get" && url === "/api/v1/printer/jobs/pending") {
+        return {
+          print_batch_payloads: [],
+          print_summary: {
+            requested_job_found: true,
+            requested_job_status: "pending",
+            requested_job_total: 1,
+            requested_job_success_total: 0,
+            requested_job_failed_total: 0,
+          },
+        };
+      }
+      throw new Error(`Unexpected request ${method} ${url}`);
+    });
+
+    await expect(
+      executeInvoicePrintJobs({
+        pending_query: {
+          print_job_uuid: "invoice-job-printing-elsewhere",
+          login_uuid_fk: "login-1",
+          device_code: "owner-device",
+          agent_id: "owner-agent",
+          print_mode: "windows_agent",
+        },
+      }),
+    ).resolves.toEqual({
+      successCount: 0,
+      failedCount: 0,
+      total: 1,
+      pending: true,
+    });
+
+    expect(axiosMocks.post).not.toHaveBeenCalled();
   });
 
   it("acks kitchen items that cannot print without counting them as failures", async () => {

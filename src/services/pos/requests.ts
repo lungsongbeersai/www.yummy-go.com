@@ -137,8 +137,8 @@ export const fetchCart = (params: FetchCartParams) =>
 
 export const deleteOrderItem = (order_item_uuid: string) =>
   apiRequest<DeleteOrderItemResponse>("delete", "/api/v1/posAll/delete_order_item", {
-    // Keep the query for the online API and mirror the identifier in the body
-    // so the Mobile Offline reducer can decode and durably stage this action.
+    // Mirror the identifier in the body for clients/proxies that strip DELETE
+    // query parameters while preserving the Backend's established query field.
     params: { order_it_uuid: order_item_uuid },
     data: { order_it_uuid: order_item_uuid }
   });
@@ -251,6 +251,7 @@ export const printInvoice = (params: PrintInvoiceRequest) =>
     data: {
       login_uuid_fk: params.login_uuid_fk,
       order_uuid: params.order_uuid,
+      operation_uuid: params.operation_uuid,
       lang: toApiLanguage(params.lang),
       document_type: params.document_type ?? "invoice",
       device_code: params.device_code,
@@ -263,6 +264,7 @@ export const reprintReceipt = (params: ReprintReceiptRequest) =>
   apiRequest<ReprintReceiptResponse>("post", "/api/v1/posAll/reprint_receipt", {
     data: {
       order_uuid: params.order_uuid,
+      operation_uuid: params.operation_uuid,
       login_uuid_fk: params.login_uuid_fk,
       lang: toApiLanguage(params.lang),
       device_code: params.device_code,

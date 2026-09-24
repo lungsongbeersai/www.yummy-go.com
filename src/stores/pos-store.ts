@@ -57,14 +57,96 @@ import {
   firstPosMenuStatusWithProducts,
   nextPosMenuCategoryUuid,
   updateZonesTableOrderState,
+  updateZonesTableStatus,
   type PosMenuBySort
 } from "@/stores/pos-store/helpers";
 import { createSessionGuard, registerSessionStoreReset } from "@/stores/session-store-registry";
 import { errorMessage } from "@/stores/store-utils";
 
-async function fetchTables(params: FetchPosParams) {
-  const result = await posService.getPosTables(params);
-  return result.data ?? [];
+const inFlightTableFetches = new Map<string, Promise<PosZone[]>>();
+let lastLoadedTableScopeKey = "";
+let posTableFetchVersion = 0;
+
+const PRODUCT_ITEM_CACHE_TTL_MS = 30_000;
+const PRODUCT_ITEM_CACHE_MAX_ENTRIES = 100;
+type ProductItemCacheEntry = {
+  expiresAt: number;
+  value: ProdItem;
+};
+
+const productItemCache = new Map<string, ProductItemCacheEntry>();
+const inFlightProductItemFetches = new Map<string, Promise<ProdItem>>();
+let productItemCacheVersion = 0;
+
+function productItemCacheKey(params: GetProdItemParams) {
+  return `${textValue(params.lang).toLowerCase()}|${textValue(params.prodUuid)}`;
+}
+
+function clearProductItemCache() {
+  productItemCacheVersion += 1;
+  productItemCache.clear();
+  inFlightProductItemFetches.clear();
+}
+
+function cacheProductItem(key: string, value: ProdItem) {
+  if (productItemCache.size >= PRODUCT_ITEM_CACHE_MAX_ENTRIES) {
+    const oldestKey = productItemCache.keys().next().value;
+    if (oldestKey) productItemCache.delete(oldestKey);
+  }
+  productItemCache.set(key, {
+    expiresAt: Date.now() + PRODUCT_ITEM_CACHE_TTL_MS,
+    value,
+  });
+}
+
+function fetchProductItem(params: GetProdItemParams) {
+  const key = productItemCacheKey(params);
+  const cached = productItemCache.get(key);
+  if (cached && cached.expiresAt > Date.now()) return Promise.resolve(cached.value);
+  if (cached) productItemCache.delete(key);
+
+  const activeRequest = inFlightProductItemFetches.get(key);
+  if (activeRequest) return activeRequest;
+
+  const requestCacheVersion = productItemCacheVersion;
+  const request = posService.getProdItem(params).then((result) => {
+    if (requestCacheVersion === productItemCacheVersion) {
+      cacheProductItem(key, result);
+    }
+    return result;
+  });
+  inFlightProductItemFetches.set(key, request);
+
+  const clearPendingRequest = () => {
+    if (inFlightProductItemFetches.get(key) === request) {
+      inFlightProductItemFetches.delete(key);
+    }
+  };
+  void request.then(clearPendingRequest, clearPendingRequest);
+  return request;
+}
+
+function tableScopeKey(params: FetchPosParams) {
+  return [
+    textValue(params.branch_uuid_fk),
+    textValue(params.zone_uuid),
+    textValue(params.lang).toLowerCase(),
+  ].join("|");
+}
+
+function fetchTables(params: FetchPosParams) {
+  const key = tableScopeKey(params);
+  const activeRequest = inFlightTableFetches.get(key);
+  if (activeRequest) return activeRequest;
+
+  const request = posService
+    .getPosTables(params)
+    .then((result) => result.data ?? [])
+    .finally(() => {
+      if (inFlightTableFetches.get(key) === request) inFlightTableFetches.delete(key);
+    });
+  inFlightTableFetches.set(key, request);
+  return request;
 }
 
 function textValue(value: unknown) {
@@ -135,6 +217,7 @@ interface PosState {
   beginKitchenConfirmation: () => void;
   endKitchenConfirmation: () => void;
   updateTableCustomerOrderState: (tableUuid: string, customerOrderState: boolean) => void;
+  updateTableStatus: (tableUuid: string, tableStatus: number) => void;
   loadTables: (params: FetchPosParams) => Promise<PosZone[]>;
   refreshTables: (params: FetchPosParams) => Promise<PosZone[]>;
   loadProductCategories: (params: FetchCateProductsParams) => Promise<FetchCateProductsResponse>;
@@ -145,11 +228,12 @@ interface PosState {
     query?: string;
     refreshCategories?: boolean;
     // Silent refresh: keep the current menu on screen instead of flashing the
-    // loading skeleton. Used when the transport verdict flips online<->offline.
+    // loading skeleton during a background reachability refresh.
     background?: boolean;
   }) => Promise<PosMenuBySort>;
   loadProducts: (params: FetchCateProductsParams) => Promise<CateProductItem[]>;
   loadProductItem: (params: GetProdItemParams) => Promise<ProdItem>;
+  prefetchProductItem: (params: GetProdItemParams) => Promise<ProdItem>;
   loadCart: (
     params: FetchCartParams,
     options?: { background?: boolean },
@@ -217,6 +301,7 @@ export const usePosStore = create<PosState>((set, get) => ({
   setActiveSort: (activeSort) => set({ activeSort }),
   resetMenu: () => {
     posMenuLifecycleVersion += 1;
+    clearProductItemCache();
     set(initialPosMenuState());
   },
   setCart: (cart) => set({ cart }),
@@ -236,16 +321,38 @@ export const usePosStore = create<PosState>((set, get) => ({
   // ไม่งั้น badge ระดับโซนที่ต้องอ่านจาก zoneOptions จะไม่เห็นออเดอร์ใหม่ของ
   // โซนอื่นที่ไม่ได้เลือกดูอยู่
   updateTableCustomerOrderState: (tableUuid, customerOrderState) =>
-    set((state) => ({
-      zones: updateZonesTableOrderState(state.zones, tableUuid, customerOrderState),
-      zoneOptions: updateZonesTableOrderState(state.zoneOptions, tableUuid, customerOrderState)
-    })),
+    set((state) => {
+      const zones = updateZonesTableOrderState(state.zones, tableUuid, customerOrderState);
+      return {
+        zones,
+        zoneOptions:
+          state.zoneOptions === state.zones
+            ? zones
+            : updateZonesTableOrderState(state.zoneOptions, tableUuid, customerOrderState),
+      };
+    }),
+  updateTableStatus: (tableUuid, tableStatus) =>
+    set((state) => {
+      const zones = updateZonesTableStatus(state.zones, tableUuid, tableStatus);
+      return {
+        zones,
+        zoneOptions:
+          state.zoneOptions === state.zones
+            ? zones
+            : updateZonesTableStatus(state.zoneOptions, tableUuid, tableStatus),
+      };
+    }),
   loadTables: async (params) => {
     const isCurrentSession = createSessionGuard();
-    set({ loading: true, error: null });
+    const requestVersion = ++posTableFetchVersion;
+    const scopeKey = tableScopeKey(params);
+    const canKeepCurrentTables =
+      lastLoadedTableScopeKey === scopeKey && get().zones.length > 0;
+    set({ loading: !canKeepCurrentTables, error: null });
     try {
       const zones = await fetchTables(params);
-      if (isCurrentSession()) {
+      if (isCurrentSession() && requestVersion === posTableFetchVersion) {
+        lastLoadedTableScopeKey = scopeKey;
         set({
           zones,
           ...(!params.zone_uuid ? { zoneOptions: zones } : {}),
@@ -254,23 +361,31 @@ export const usePosStore = create<PosState>((set, get) => ({
       }
       return zones;
     } catch (error) {
-      if (isCurrentSession()) set({ error: errorMessage(error), loading: false });
+      if (isCurrentSession() && requestVersion === posTableFetchVersion) {
+        set({ error: errorMessage(error), loading: false });
+      }
       throw error;
     }
   },
   refreshTables: async (params) => {
     const isCurrentSession = createSessionGuard();
+    const requestVersion = ++posTableFetchVersion;
+    const scopeKey = tableScopeKey(params);
     try {
       const zones = await fetchTables(params);
-      if (isCurrentSession()) {
+      if (isCurrentSession() && requestVersion === posTableFetchVersion) {
+        lastLoadedTableScopeKey = scopeKey;
         set({
           zones,
-          ...(!params.zone_uuid ? { zoneOptions: zones } : {})
+          ...(!params.zone_uuid ? { zoneOptions: zones } : {}),
+          loading: false,
         });
       }
       return zones;
     } catch (error) {
-      if (isCurrentSession()) set({ error: errorMessage(error) });
+      if (isCurrentSession() && requestVersion === posTableFetchVersion) {
+        set({ error: errorMessage(error) });
+      }
       throw error;
     }
   },
@@ -309,14 +424,17 @@ export const usePosStore = create<PosState>((set, get) => ({
       return emptyPosMenuBySort();
     }
 
+    if (refreshCategories) clearProductItemCache();
     if (!background) set({ loadingMenu: true, error: null });
     try {
       let nextCateUuid = textValue(cateUuid);
       const nextQuery = query ?? "";
+      let normalCatalog: FetchCateProductsResponse | null = null;
 
       if (refreshCategories) {
         const catalog = await get().loadProductCategories({
           branchUuidFk: branchUuid,
+          ...(nextCateUuid ? { cateUuid: nextCateUuid } : {}),
           lang: language,
           search: "",
           statusSortFk: ProductSortStatus.NORMAL
@@ -328,6 +446,7 @@ export const usePosStore = create<PosState>((set, get) => ({
           requestedCateUuid: nextCateUuid,
           selectedCateUuid: catalog.selectedCateUuid
         });
+        normalCatalog = catalog;
         if (isCurrentMenuLifecycle()) set({ categories });
       }
 
@@ -342,8 +461,13 @@ export const usePosStore = create<PosState>((set, get) => ({
             search: searchQuery,
             statusSortFk
           });
+        // The category-discovery request is already the NORMAL menu for the
+        // selected category. Reuse it on initial loads instead of issuing the
+        // same expensive catalog query twice.
         const [normal, setMenu, promotion] = await Promise.all([
-          request(ProductSortStatus.NORMAL),
+          normalCatalog && !searchQuery
+            ? Promise.resolve(normalCatalog)
+            : request(ProductSortStatus.NORMAL),
           request(ProductSortStatus.SET),
           request(ProductSortStatus.PROMOTION)
         ]);
@@ -388,10 +512,11 @@ export const usePosStore = create<PosState>((set, get) => ({
   },
   loadProductItem: async (params) => {
     const isCurrentSession = createSessionGuard();
-    const selectedProduct = await posService.getProdItem(params);
+    const selectedProduct = await fetchProductItem(params);
     if (isCurrentSession()) set({ selectedProduct });
     return selectedProduct;
   },
+  prefetchProductItem: (params) => fetchProductItem(params),
   loadCart: async (params, options) => {
     const isCurrentSession = createSessionGuard();
     const requestVersion = ++posCartFetchVersion;
@@ -413,6 +538,7 @@ export const usePosStore = create<PosState>((set, get) => ({
     set({ saving: true, error: null });
     try {
       const result = await posService.createOrder(input);
+      clearProductItemCache();
       if (isCurrentSession()) set({ saving: false });
       return result;
     } catch (error) {
@@ -431,7 +557,11 @@ export const usePosStore = create<PosState>((set, get) => ({
       throw error;
     }
   },
-  updateQty: (input) => posService.updateOrderItemQty(input),
+  updateQty: async (input) => {
+    const result = await posService.updateOrderItemQty(input);
+    clearProductItemCache();
+    return result;
+  },
   applyItemDiscount: (input) => posService.applyItemDiscount(input),
   applyBillDiscount: (input) => posService.applyBillDiscount(input),
   deleteItem: (orderItemUuid) => posService.deleteOrderItem(orderItemUuid),
@@ -575,6 +705,7 @@ export const usePosStore = create<PosState>((set, get) => ({
     const lastInvoice = await posService.printInvoice({
       login_uuid_fk: params.login_uuid_fk,
       order_uuid: params.order_uuid,
+      operation_uuid: params.operation_uuid,
       lang: params.lang,
       document_type: "invoice",
       device_code: printer.device_code,
@@ -591,6 +722,7 @@ export const usePosStore = create<PosState>((set, get) => ({
 
     const response = await posService.reprintReceipt({
       order_uuid: params.order_uuid,
+      operation_uuid: params.operation_uuid,
       login_uuid_fk: params.login_uuid_fk,
       lang: params.lang,
       device_code: printer.device_code,
@@ -613,6 +745,10 @@ export const usePosStore = create<PosState>((set, get) => ({
   setOrderHistory: (orders) => set({ orderHistory: posService.cartOrdersToHistory(orders) }),
   reset: () => {
     posMenuLifecycleVersion += 1;
+    posTableFetchVersion += 1;
+    lastLoadedTableScopeKey = "";
+    inFlightTableFetches.clear();
+    clearProductItemCache();
     set({
       zones: [],
       zoneOptions: [],

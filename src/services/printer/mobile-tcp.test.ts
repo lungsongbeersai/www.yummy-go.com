@@ -13,6 +13,20 @@ function productionSourceFiles(directory: string): string[] {
 }
 
 describe("mobile TCP printer queue", () => {
+  it("keeps the native socket patch free of generated build artifacts", () => {
+    const patch = readFileSync(
+      join(
+        process.cwd(),
+        "patches",
+        "@deedarb+capacitor-tcp-socket+7.2.1.patch",
+      ),
+      "utf8",
+    );
+
+    expect(patch).not.toContain("/android/build/");
+    expect(patch).not.toMatch(/\/(?:Users|home)\//);
+  });
+
   it("keeps every native TCP print path behind the shared transport", () => {
     const sourceRoot = join(process.cwd(), "src");
     const sources = productionSourceFiles(sourceRoot);
@@ -26,7 +40,6 @@ describe("mobile TCP printer queue", () => {
     ).toEqual(["services/printer/mobile-tcp.ts"]);
     expect(relativeFilesContaining("printMobileEscposOverTcp")).toEqual([
       "services/printer/agent-transport.ts",
-      "services/printer/mobile-offline-queue.ts",
       "services/printer/mobile-tcp.ts",
       "services/printer/print-jobs.ts",
       "stores/printer-store.ts",
@@ -102,35 +115,9 @@ describe("mobile TCP printer queue", () => {
     await Promise.all([kitchen, bar]);
   });
 
-  it("estimates physical drain time from raster rows", () => {
-    const raster = Buffer.concat([
-      Buffer.from([0x1d, 0x76, 0x30, 0x00, 72, 0x00, 0xf4, 0x01]),
-      Buffer.alloc(72 * 500),
-    ]);
-
-    expect(
-      __mobileTcpInternals.mobileTcpRasterDrainMs(raster.toString("base64")),
-    ).toBe(1650);
-    expect(
-      __mobileTcpInternals.mobileTcpRasterDrainMs(
-        raster.toString("base64"),
-        1000,
-      ),
-    ).toBe(650);
-    expect(
-      __mobileTcpInternals.mobileTcpRasterDrainMs(Buffer.alloc(1024).toString("base64")),
-    ).toBe(500);
-    expect(
-      __mobileTcpInternals.mobileTcpRasterDrainMs(Buffer.alloc(256 * 1024).toString("base64")),
-    ).toBe(4000);
-  });
-
   it("uses one native write and TCP backpressure for renderer segments", () => {
     expect(__mobileTcpInternals.mobileTcpSendProfile()).toMatchObject({
       chunkSize: 256 * 1024,
-      cooldownEveryBytes: 0,
-      cooldownMs: 0,
-      delayMs: 0,
       profile: "tcp_backpressure",
     });
   });
@@ -152,9 +139,6 @@ describe("mobile TCP printer queue", () => {
       client: "test-client",
       base64: source.toString("base64"),
       chunkSize: 2732,
-      cooldownEveryBytes: 0,
-      cooldownMs: 0,
-      delayMs: 0,
     });
 
     expect(Buffer.concat(sent)).toEqual(source);
@@ -182,6 +166,93 @@ describe("mobile TCP printer queue", () => {
 
     expect(TcpSocket.send).toHaveBeenCalledTimes(1);
     expect(Buffer.concat(sent)).toEqual(source);
+  });
+
+  it("flushes every segment of a very long receipt on one client before the final cut", async () => {
+    const rasterBand = (seed: number) => Buffer.concat([
+      Buffer.from([0x1d, 0x76, 0x30, 0x00, 72, 0x00, 24, 0x00]),
+      Buffer.alloc(72 * 24, seed),
+    ]);
+    const cut = Buffer.from([0x1d, 0x56, 0x01]);
+    const source = Buffer.concat([
+      Buffer.from([0x1b, 0x40]),
+      ...Array.from({ length: 220 }, (_, index) => rasterBand(index)),
+      cut,
+    ]);
+    const sent: Buffer[] = [];
+    const statusCommand = Buffer.from([0x1d, 0x72, 0x01]);
+    const TcpSocket = {
+      connect: vi.fn(),
+      disconnect: vi.fn(),
+      read: vi.fn().mockResolvedValue({ result: "AA==" }),
+      send: vi.fn(async ({ client, data }: { client: string | number; data: string }) => {
+        expect(client).toBe("one-receipt-client");
+        sent.push(Buffer.from(data, "base64"));
+      }),
+    };
+
+    expect(source.length).toBeGreaterThan(
+      __mobileTcpInternals.MOBILE_TCP_SEGMENT_MAX_BYTES,
+    );
+
+    await __mobileTcpInternals.sendEscposOnConnectedClient({
+      TcpSocket,
+      client: "one-receipt-client",
+      escposBase64: source.toString("base64"),
+    });
+
+    const transport = Buffer.concat(sent);
+    const delivered = transport.subarray(0, -statusCommand.length);
+    expect(TcpSocket.send).toHaveBeenCalledTimes(3);
+    expect(delivered).toEqual(source);
+    expect(delivered.subarray(delivered.length - cut.length)).toEqual(cut);
+    expect(transport.subarray(-statusCommand.length)).toEqual(statusCommand);
+    expect(TcpSocket.read).toHaveBeenCalledTimes(1);
+  });
+
+  it("queues every ticket continuously and reports printer replies in cut order", async () => {
+    const statusCommand = Buffer.from([0x1d, 0x72, 0x01]);
+    const cut = Buffer.from([0x1d, 0x56, 0x01]);
+    const raster = (seed: number) => Buffer.concat([
+      Buffer.from([0x1d, 0x76, 0x30, 0x00, 2, 0x00, 8, 0x00]),
+      Buffer.alloc(2 * 8, seed),
+    ]);
+    const source = Buffer.concat([
+      Buffer.from([0x1b, 0x40]),
+      raster(1),
+      cut,
+      raster(2),
+      cut,
+    ]);
+    const sent: Buffer[] = [];
+    const progress: number[] = [];
+    const TcpSocket = {
+      connect: vi.fn(),
+      disconnect: vi.fn(),
+      read: vi.fn().mockResolvedValue({ result: "AA==" }),
+      send: vi.fn(async ({ data }: { data: string }) => {
+        sent.push(Buffer.from(data, "base64"));
+      }),
+    };
+
+    await __mobileTcpInternals.sendEscposOnConnectedClient({
+      TcpSocket,
+      client: "batch-client",
+      escposBase64: source.toString("base64"),
+      onTicketDelivered: (completed) => progress.push(completed),
+    });
+
+    expect(Buffer.concat(sent)).toEqual(Buffer.concat([
+      Buffer.from([0x1b, 0x40]),
+      raster(1),
+      cut,
+      statusCommand,
+      raster(2),
+      cut,
+      statusCommand,
+    ]));
+    expect(TcpSocket.read).toHaveBeenCalledTimes(2);
+    expect(progress).toEqual([1, 2]);
   });
 
   it("splits long renderer payloads only between complete raster commands", () => {
@@ -304,7 +375,7 @@ describe("mobile TCP printer queue", () => {
     expect(__mobileTcpInternals.printerStatusByte("")).toBeNull();
   });
 
-  it("checks paper status after the physical drain and cut phases", async () => {
+  it("checks paper status directly after the ordered document bytes", async () => {
     const TcpSocket = {
       connect: vi.fn(),
       disconnect: vi.fn(),
@@ -327,7 +398,7 @@ describe("mobile TCP printer queue", () => {
     expect(TcpSocket.read).toHaveBeenCalledWith({
       client: "printer-client",
       expectLen: 1,
-      timeout: 4,
+      timeout: 60,
     });
   });
 

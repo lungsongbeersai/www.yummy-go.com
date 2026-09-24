@@ -6,6 +6,16 @@ Entries below dated from git history are backfilled from existing code comments 
 
 ---
 
+## Remove the retired local-sales implementation; printing uses printer acknowledgements without pacing timers
+
+- **Date:** 2026-09-24.
+- **Context:** After the online-only cutover, the owner confirmed there is no remaining offline operating mode and asked to remove every active local-sales surface. The same production report showed print progress reaching `N/N` before paper was emitted, while timer-based pacing made receipt, kitchen-slip and payment printing unnecessarily slow.
+- **Decision:** Delete the retired Frontend local database/queue/recovery pages and modules, remove the Backend branch toggle, sync API and legacy print-proof paths, and remove Printer Agent local sync routes/schedulers while retaining historical migrations and one-way upgrade cleanup. Raw TCP printing now streams the whole batch without artificial inter-ticket/final-drain sleeps and places an ESC/POS `GS r 1` status query after every cut. Progress advances in cut order only when each printer response arrives. Receipt and payment documents use the same acknowledgement rule. Windows/CUPS paths report operating-system spool acceptance because those APIs do not expose physical paper-exit acknowledgement.
+- **Trade-off:** A Backend outage cannot be treated as a successful local sale and no local order can be queued for later replay. Printer acknowledgements prove the device accepted/emitted each cut boundary, not that a human physically collected the sheet. Historical audit rows and migrations remain intact so upgrades and completed-sale history are not corrupted.
+- **Approved by:** repository owner (2026-09-24, in conversation — explicitly requested removal of the timer and all active offline behavior while keeping printing fast and correct).
+
+---
+
 ## Disable pinch-zoom on staff-only routes (overrides WCAG 1.4.4 resize-text floor)
 
 - **Date:** 2026-09-18.

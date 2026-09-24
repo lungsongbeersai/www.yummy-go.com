@@ -15,6 +15,9 @@ import {
   cartQuantityCount,
   cartSummary,
   cartToppingDisplay,
+  CONFIRM_ORDER_PROGRESS_TOTAL,
+  confirmAllProgressPercent,
+  confirmOrderProgressStep,
   discountDraftValue,
   discountDraftWithType,
   isCanceledCartItem,
@@ -77,6 +80,82 @@ function cartOrder(overrides: Partial<CartOrder> = {}): CartOrder {
     ...overrides,
   } as CartOrder;
 }
+
+describe("confirm order progress", () => {
+  it("uses delivered tickets for the progress bar while printing", () => {
+    expect(
+      confirmAllProgressPercent({
+        completed: 52,
+        printSuccessCount: 0,
+        printTotal: 4,
+        total: 100,
+      }),
+    ).toBe(0);
+    expect(
+      confirmAllProgressPercent({
+        completed: 63,
+        printSuccessCount: 2,
+        printTotal: 4,
+        total: 100,
+      }),
+    ).toBe(50);
+  });
+
+  it("uses workflow progress before a print total is known", () => {
+    expect(
+      confirmAllProgressPercent({
+        completed: 52,
+        total: 100,
+      }),
+    ).toBe(52);
+  });
+
+  it("uses 100 UI steps and advances monotonically through the workflow", () => {
+    const steps = [
+      confirmOrderProgressStep({ phase: "preparing" }),
+      confirmOrderProgressStep({ phase: "confirming" }),
+      confirmOrderProgressStep({ phase: "fetching" }),
+      confirmOrderProgressStep({
+        phase: "printing",
+        printingCompleted: 0,
+        printingTotal: 4,
+      }),
+      confirmOrderProgressStep({
+        phase: "printing",
+        printingCompleted: 2,
+        printingTotal: 4,
+      }),
+      confirmOrderProgressStep({ phase: "group-complete" }),
+      confirmOrderProgressStep({ phase: "refreshing" }),
+      confirmOrderProgressStep({ phase: "done" }),
+    ];
+
+    expect(CONFIRM_ORDER_PROGRESS_TOTAL).toBe(100);
+    expect(steps).toEqual([...steps].sort((left, right) => left - right));
+    expect(steps.at(-1)).toBe(CONFIRM_ORDER_PROGRESS_TOTAL);
+  });
+
+  it("allocates a separate increasing segment to every order group", () => {
+    const firstComplete = confirmOrderProgressStep({
+      groupCount: 2,
+      groupIndex: 0,
+      phase: "group-complete",
+    });
+    const secondConfirming = confirmOrderProgressStep({
+      groupCount: 2,
+      groupIndex: 1,
+      phase: "confirming",
+    });
+    const secondComplete = confirmOrderProgressStep({
+      groupCount: 2,
+      groupIndex: 1,
+      phase: "group-complete",
+    });
+
+    expect(secondConfirming).toBeGreaterThan(firstComplete);
+    expect(secondComplete).toBe(92);
+  });
+});
 
 const table: PosTable = {
   table_uuid: "table-1",

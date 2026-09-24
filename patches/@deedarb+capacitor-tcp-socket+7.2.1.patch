@@ -12,7 +12,7 @@ index 3d335a6..4062c71 100644
      }
      lintOptions {
 diff --git a/node_modules/@deedarb/capacitor-tcp-socket/android/src/main/java/com/svend/plugins/tcp/socket/TcpSocketPlugin.java b/node_modules/@deedarb/capacitor-tcp-socket/android/src/main/java/com/svend/plugins/tcp/socket/TcpSocketPlugin.java
-index 78ec7c8..5d53865 100644
+index 78ec7c8..7054f9e 100644
 --- a/node_modules/@deedarb/capacitor-tcp-socket/android/src/main/java/com/svend/plugins/tcp/socket/TcpSocketPlugin.java
 +++ b/node_modules/@deedarb/capacitor-tcp-socket/android/src/main/java/com/svend/plugins/tcp/socket/TcpSocketPlugin.java
 @@ -19,7 +19,9 @@ import java.io.IOException;
@@ -143,12 +143,16 @@ index 78ec7c8..5d53865 100644
          if (client == -1 || length == -1) {
              call.reject("Client or length not specified");
              return;
-@@ -118,12 +144,16 @@ public class TcpSocketPlugin extends Plugin {
+@@ -118,12 +144,19 @@ public class TcpSocketPlugin extends Plugin {
              try {
                  if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
                      final Socket socket = clients.get(client);
+-                    DataInputStream mBufferIn = new DataInputStream(new BufferedInputStream(socket.getInputStream()));
 +                    socket.setSoTimeout(Math.max(1, timeout) * 1000);
-                     DataInputStream mBufferIn = new DataInputStream(new BufferedInputStream(socket.getInputStream()));
++                    // Do not wrap each one-byte status read in a fresh buffered
++                    // stream: it can prefetch later ticket acknowledgements and
++                    // discard them when this call returns.
++                    DataInputStream mBufferIn = new DataInputStream(socket.getInputStream());
                      byte[] bytes = new byte[length];
                      int read = mBufferIn.read(bytes, 0, length);
 -                    Base64.getEncoder().encodeToString(bytes);
@@ -162,7 +166,7 @@ index 78ec7c8..5d53865 100644
                      call.resolve(ret);
                  } else {
                      JSObject ret = new JSObject();
-@@ -135,13 +165,8 @@ public class TcpSocketPlugin extends Plugin {
+@@ -135,13 +168,8 @@ public class TcpSocketPlugin extends Plugin {
              }
          };
  
@@ -178,7 +182,7 @@ index 78ec7c8..5d53865 100644
              call.reject("Socket not connected");
              return;
          }
-@@ -156,19 +181,36 @@ public class TcpSocketPlugin extends Plugin {
+@@ -156,19 +184,36 @@ public class TcpSocketPlugin extends Plugin {
              call.reject("No client specified");
              return;
          }
@@ -223,3 +227,76 @@ index 78ec7c8..5d53865 100644
          }
  
          JSObject ret = new JSObject();
+diff --git a/node_modules/@deedarb/capacitor-tcp-socket/ios/Plugin/TcpSocketPlugin.swift b/node_modules/@deedarb/capacitor-tcp-socket/ios/Plugin/TcpSocketPlugin.swift
+index b9314e1..7ab9779 100644
+--- a/node_modules/@deedarb/capacitor-tcp-socket/ios/Plugin/TcpSocketPlugin.swift
++++ b/node_modules/@deedarb/capacitor-tcp-socket/ios/Plugin/TcpSocketPlugin.swift
+@@ -45,18 +45,18 @@ public class TcpSocketPlugin: CAPPlugin {
+             return
+         }
+         
+-        do {
+-            // Decode base64 string to raw Data
+-            guard let decodedData = Data(base64Encoded: base64Data) else {
+-                call.reject("Invalid base64 data")
+-                return
+-            }
++        guard let decodedData = Data(base64Encoded: base64Data) else {
++            call.reject("Invalid base64 data")
++            return
++        }
+ 
+-            // Send the raw data
+-            try client.write(from: decodedData)
+-            call.resolve()
+-        } catch {
+-            call.reject(error.localizedDescription)
++        DispatchQueue.global(qos: .userInitiated).async {
++            do {
++                try client.write(from: decodedData)
++                call.resolve()
++            } catch {
++                call.reject(error.localizedDescription)
++            }
+         }
+     }
+     
+@@ -73,20 +73,25 @@ public class TcpSocketPlugin: CAPPlugin {
+         }
+         
+         let expectLen = call.getInt("expectLen", 1024)
+-        let timeout = call.getInt("timeout", 10)
+-        
+-        var buffer = Data(capacity: expectLen)
+-        do {
+-            let bytesRead = try client.read(into: &buffer)
+-            if bytesRead > 0 {
+-                // Return the raw data as base64 string
+-                let base64String = buffer.base64EncodedString()
+-                call.resolve(["result": base64String])
+-            } else {
+-                call.resolve(["result": ""])
++        DispatchQueue.global(qos: .userInitiated).async {
++            var buffer = [CChar](repeating: 0, count: max(1, expectLen))
++            do {
++                let bytesRead = try buffer.withUnsafeMutableBufferPointer { pointer in
++                    try client.read(
++                        into: pointer.baseAddress!,
++                        bufSize: max(1, expectLen),
++                        truncate: true
++                    )
++                }
++                if bytesRead > 0 {
++                    let data = Data(bytes: buffer, count: bytesRead)
++                    call.resolve(["result": data.base64EncodedString()])
++                } else {
++                    call.resolve(["result": ""])
++                }
++            } catch {
++                call.reject(error.localizedDescription)
+             }
+-        } catch {
+-            call.resolve(["result": ""])
+         }
+     }
+     

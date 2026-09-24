@@ -6,6 +6,10 @@ import { create } from "zustand";
 export type ToastTone = "success" | "error" | "warning" | "info";
 
 export interface ToastInput {
+  action?: {
+    label: string;
+    onClick: () => void;
+  };
   id?: string | number;
   title: string;
   description?: string;
@@ -24,9 +28,10 @@ const toneToToast = {
 } as const;
 
 export const useToastStore = create<ToastState>(() => ({
-  show: ({ id, title, description, tone }) => {
+  show: ({ action, id, title, description, tone }) => {
     const fn = toneToToast[tone] ?? sonnerToast;
     fn(title, {
+      ...(action ? { action } : {}),
       ...(description ? { description } : {}),
       ...(id !== undefined ? { id } : {}),
     });

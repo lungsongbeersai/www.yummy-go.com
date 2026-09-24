@@ -14,7 +14,7 @@ import { Spinner } from "@/components/ui/spinner";
 import { TabsTrigger } from "@/components/ui/tabs";
 import { money } from "@/lib/format";
 import { promotionQuantity } from "@/lib/pos/cart-quantity";
-import { isRemoteUrl } from "@/lib/pos/product-media";
+import { shouldUnoptimizeProductImage } from "@/lib/pos/product-media";
 import { cn } from "@/lib/utils";
 import type { CartItem } from "@/services/pos";
 import type { CartItemAction, CartTab } from "./types";
@@ -95,6 +95,7 @@ export function CartTabItems({
   onReprintKitchen,
   onSetSplitItemQuantity,
   onToggleSplitItem,
+  quantityOverrides,
   splitSelectionDisabled = false,
   splitSelectedItemUuids,
   updatingItemUuid
@@ -118,6 +119,7 @@ export function CartTabItems({
   onReprintKitchen: (item: CartItem) => void;
   onSetSplitItemQuantity?: (item: CartItem, quantity: number) => void;
   onToggleSplitItem?: (item: CartItem) => void;
+  quantityOverrides?: Record<string, number>;
   splitSelectionDisabled?: boolean;
   splitSelectedItemUuids?: Map<string, number>;
   updatingItemUuid: string | null;
@@ -128,6 +130,7 @@ export function CartTabItems({
     <div className="flex min-h-full flex-col bg-background">
       {items.map((item, index) => {
         const itemUuid = cartItemActionUuid(item);
+        const quantityItemUuid = cartItemUuid(item);
         const splitEligible = canSplitItem ? canSplitItem(item) : false;
         const splitSelectedQty = itemUuid
           ? splitSelectedItemUuids?.get(itemUuid)
@@ -144,7 +147,9 @@ export function CartTabItems({
             canConfirmKitchen={canConfirmKitchenItem(item)}
             canItemDiscount={canItemDiscount}
             compact={compact}
-            mutationDisabled={!itemCanMutate}
+            quantityOverride={
+              quantityItemUuid ? quantityOverrides?.[quantityItemUuid] : undefined
+            }
             splitEligible={splitEligible}
             splitSelectionDisabled={splitSelectionDisabled}
             splitSelected={splitEligible && splitSelectedQty !== undefined}
@@ -190,7 +195,6 @@ function CartItemRow({
   compact,
   editable,
   item,
-  mutationDisabled,
   onChangeQty,
   onConfirmKitchen,
   onConfirmServed,
@@ -199,6 +203,7 @@ function CartItemRow({
   onOpenItemAction,
   onOpenQuantityDialog,
   onReprintKitchen,
+  quantityOverride,
   onSetSplitItemQuantity,
   onToggleSplitItem,
   splitEligible,
@@ -214,7 +219,6 @@ function CartItemRow({
   compact: boolean;
   editable: boolean;
   item: CartItem;
-  mutationDisabled: boolean;
   onChangeQty: (item: CartItem, changeQty: number) => void;
   onConfirmKitchen: (item: CartItem) => void;
   onConfirmServed: (item: CartItem) => void;
@@ -223,6 +227,7 @@ function CartItemRow({
   onOpenItemAction: (action: CartItemAction, item: CartItem) => void;
   onOpenQuantityDialog: (item: CartItem) => void;
   onReprintKitchen: (item: CartItem) => void;
+  quantityOverride?: number;
   onSetSplitItemQuantity?: (item: CartItem, quantity: number) => void;
   onToggleSplitItem?: (item: CartItem) => void;
   splitEligible: boolean;
@@ -233,7 +238,7 @@ function CartItemRow({
 }) {
   const { t } = useTranslation();
   const detail = item.detail;
-  const qty = cartItemQty(item);
+  const qty = quantityOverride ?? cartItemQty(item);
   const qtyStep = promotionQuantity(detail, qty).qtyStep;
   const total = cartItemTotal(item);
   const rawTitle = cartItemName(item);
@@ -411,7 +416,6 @@ function CartItemRow({
               canReprintKitchen={canReprintKitchen}
               reprintKitchenDisabled={!canConfirmKitchen || actionDisabled}
               disabled={actionDisabled}
-              mutationDisabled={mutationDisabled}
               itemUuid={itemUuid}
               pending={acting}
               onCancel={() => onOpenItemAction("cancel", item)}
@@ -571,7 +575,6 @@ function CartItemActionMenu({
   confirmKitchenDisabled,
   disabled,
   itemUuid,
-  mutationDisabled,
   onCancel,
   onConfirmKitchen,
   onConfirmServed,
@@ -591,7 +594,6 @@ function CartItemActionMenu({
   confirmKitchenDisabled: boolean;
   disabled: boolean;
   itemUuid: string | null;
-  mutationDisabled: boolean;
   onCancel: () => void;
   onConfirmKitchen: () => void;
   onConfirmServed: () => void;
@@ -627,12 +629,12 @@ function CartItemActionMenu({
               {t("pos.confirmToKitchen")}
             </DropdownMenuItem>
           ) : null}
-          <DropdownMenuItem disabled={actionDisabled || mutationDisabled} onSelect={onEditNote}>
+          <DropdownMenuItem disabled={actionDisabled} onSelect={onEditNote}>
             <Pencil />
             {t("pos.editNote")}
           </DropdownMenuItem>
           {canItemDiscount ? (
-            <DropdownMenuItem disabled={actionDisabled || mutationDisabled} onSelect={onItemDiscount}>
+            <DropdownMenuItem disabled={actionDisabled} onSelect={onItemDiscount}>
               <BadgePercent />
               {t("pos.itemDiscount")}
             </DropdownMenuItem>
@@ -725,9 +727,10 @@ function CartProductMedia({
       {media.type === "image" ? (
         <Image
           src={media.src}
-          unoptimized={isRemoteUrl(media.src)}
+          unoptimized={shouldUnoptimizeProductImage(media.src)}
           alt={title}
           fill
+          quality={60}
           sizes={compact ? "40px" : "(max-width: 640px) 40px, 44px"}
           className="object-contain"
         />

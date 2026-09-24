@@ -37,6 +37,7 @@ import { useReferenceStore } from "@/stores/reference-store";
 import { useToastStore } from "@/stores/toast-store";
 import { usePaymentCustomers } from "./use-payment-customers";
 import type { PaymentDialogProps } from "../payment-dialog-types";
+import { queuedDocumentPrintOutcome } from "../queued-document-print";
 import {
   cartOrdersBelongToTable,
   cartOrderInvoice,
@@ -74,7 +75,6 @@ import {
   tenderInputLak,
   tenderInputValue,
   tenderLabel,
-  withReceiptPrintLabels,
   type PaymentTab,
   type SplitTenderField,
   type TenderField,
@@ -602,60 +602,11 @@ export function usePaymentDialogWorkflow({
         : "");
     if (!pendingJobUuid) return;
 
-    const receiptInvoice = optionalString(
-      "new_order_invoice" in response ? response.new_order_invoice : null,
-      response.order_invoice,
-      invoice,
+    await executeQueuedInvoice(
+      response,
+      user?.uuid,
+      t("pos.receiptPrintFailed"),
     );
-    const invoicePrintData = user
-      ? withReceiptPrintLabels(
-          buildInvoicePrintData({
-            invoice: receiptInvoice,
-            orders,
-            qrUrl: branchQrUrl,
-            selectedCustomer: customers.selectedCustomerOption,
-            summary,
-            table,
-            translate: (key, options) => String(t(key, options)),
-            user,
-          }),
-          (key, options) => String(t(key, options)),
-        )
-      : null;
-
-    try {
-      const printResult = await executeInvoice({
-        print_job: response.print_job,
-        pending_query: response.pending_query,
-        login_uuid_fk: user?.uuid,
-      });
-
-      if (printResult.failedCount > 0) {
-        if (invoicePrintData) {
-          await showInvoicePrintFallback(invoicePrintData, t("pos.receiptPrintFailed"));
-          return;
-        }
-
-        showToast({
-          title: t("pos.receiptPrintFailed"),
-          tone: "info",
-        });
-      }
-    } catch (error) {
-      if (invoicePrintData) {
-        await showInvoicePrintFallback(
-          invoicePrintData,
-          error instanceof Error ? error.message : "",
-        );
-        return;
-      }
-
-      showToast({
-        title: t("pos.receiptPrintFailed"),
-        description: error instanceof Error ? error.message : "",
-        tone: "info",
-      });
-    }
   }
 
   async function handlePrintInvoice() {
@@ -719,6 +670,7 @@ export function usePaymentDialogWorkflow({
           } satisfies SplitBillInput)
         : await printInvoice({
             order_uuid: orderUuid,
+            operation_uuid: createMutationUuid(),
             lang: toApiLanguage(language),
             login_uuid_fk: user.uuid,
           });
@@ -736,24 +688,11 @@ export function usePaymentDialogWorkflow({
         return;
       }
 
-      try {
-        const printResult = await executeInvoice({
-          print_job: response.print_job,
-          pending_query: response.pending_query,
-          login_uuid_fk: user.uuid,
-        });
-        if (printResult.failedCount > 0) {
-          await showInvoicePrintFallback(invoicePrintData, t("pos.invoicePrintFailed"));
-          return;
-        }
-
-        showToast({ title: t("pos.invoicePrintSent"), tone: "success" });
-      } catch (error) {
-        await showInvoicePrintFallback(
-          invoicePrintData,
-          error instanceof Error ? error.message : "",
-        );
-      }
+      await executeQueuedInvoice(
+        response,
+        user.uuid,
+        t("pos.invoicePrintFailed"),
+      );
     } catch (error) {
       await showInvoicePrintFallback(
         invoicePrintData,
@@ -762,6 +701,70 @@ export function usePaymentDialogWorkflow({
     } finally {
       setInvoicePrinting(false);
     }
+  }
+
+  async function executeQueuedInvoice(
+    response: PaymentResponse | SplitBillResponse,
+    loginUuid: string | undefined,
+    failureTitle: string,
+  ) {
+    const retry = () =>
+      void executeQueuedInvoice(response, loginUuid, failureTitle);
+    setInvoicePrinting(true);
+
+    try {
+      const printResult = await executeInvoice({
+        print_job: response.print_job,
+        pending_query: response.pending_query,
+        login_uuid_fk: loginUuid,
+      });
+      const outcome = queuedDocumentPrintOutcome(printResult);
+
+      if (outcome === "pending") {
+        showToast({
+          title: t("orderQueue.kitchenPrintQueued"),
+          tone: "info",
+        });
+        return;
+      }
+
+      if (outcome === "success") {
+        showToast({ title: t("common.printSuccess"), tone: "success" });
+        return;
+      }
+
+      showQueuedPrintError(
+        failureTitle,
+        printResult.errorMessage,
+        retry,
+      );
+    } catch (error) {
+      showQueuedPrintError(
+        failureTitle,
+        error instanceof Error ? error.message : "",
+        retry,
+      );
+    } finally {
+      setInvoicePrinting(false);
+    }
+  }
+
+  function showQueuedPrintError(
+    title: string,
+    description: string | undefined,
+    retry: () => void,
+  ) {
+    showToast({
+      title,
+      description: [description, t("pos.autoPrintRetryDescription")]
+        .filter(Boolean)
+        .join(" "),
+      tone: "error",
+      action: {
+        label: t("actions.tryAgain"),
+        onClick: retry,
+      },
+    });
   }
 
   async function showInvoicePrintFallback(

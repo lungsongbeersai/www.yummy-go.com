@@ -3,11 +3,8 @@
 import { useCallback, useEffect, useRef } from "react";
 import {
   isBranchRealtimeEvent,
-  isTableAlertForBranch,
-  subscribeBranchTableRealtime,
-  subscribeTableAlerts,
+  subscribeTableStatusChanges,
   type BranchRealtimePayload,
-  type TableAlertPayload,
 } from "@/lib/socket";
 import type { FetchPosParams, PosZone } from "@/services/pos";
 
@@ -15,14 +12,18 @@ interface UseTableAlertsParams {
   branchUuid?: string;
   language: string;
   refreshTables: (params: FetchPosParams) => Promise<PosZone[]>;
+  updateTableStatus: (tableUuid: string, tableStatus: number) => void;
 }
 
-// การแจ้งเตือนแบบ global (patch pos-store, เล่นเสียง, toast) ย้ายไปอยู่ที่
-// src/hooks/use-pos-order-alert-listener.ts (mount ครั้งเดียวใน AppShell) เพื่อ
-// ให้ทำงานได้ทุกหน้า ไม่ใช่แค่ตอนเปิดหน้านี้ค้างไว้ — hook นี้เหลือหน้าที่เดียวคือ
-// รีเฟรชตารางโต๊ะทุกโซนให้ตรงกับ backend ล่าสุดเมื่อมีการแจ้งเตือนเข้ามา (ไม่ส่ง
-// zone_uuid เพราะหน้านี้แสดงทุกโซนพร้อมกันเสมอ ไม่ได้กรองด้วย backend แล้ว)
-export function useTableAlerts({ branchUuid, language, refreshTables }: UseTableAlertsParams) {
+// การแจ้งเตือนออเดอร์ (patch customer_order_state, เสียง, toast) อยู่ที่ listener
+// กลางใน AppShell ส่วน hook นี้รับผิดชอบเฉพาะ table_status และการ reconcile เมื่อ
+// กลับเข้า foreground จึงไม่มี subscriber ซ้ำหรือ fetch ซ้ำจาก event เดียวกัน
+export function useTableAlerts({
+  branchUuid,
+  language,
+  refreshTables,
+  updateTableStatus,
+}: UseTableAlertsParams) {
   const refreshAllTables = useCallback(async () => {
     if (!branchUuid) return;
 
@@ -33,15 +34,16 @@ export function useTableAlerts({ branchUuid, language, refreshTables }: UseTable
     });
   }, [branchUuid, language, refreshTables]);
 
-  // A single POS action can emit several events (table_status_changed +
-  // order_queue_changed). Coalesce them into one table refetch.
+  // Socket payloads patch the changed card immediately. The delayed fetch is a
+  // reconciliation pass for derived fields (such as opened_at), not the primary
+  // realtime path. A burst of table changes therefore costs one request.
   const refreshTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const scheduleRefresh = useCallback(() => {
     if (refreshTimerRef.current) clearTimeout(refreshTimerRef.current);
     refreshTimerRef.current = setTimeout(() => {
       refreshTimerRef.current = null;
       void refreshAllTables().catch(() => undefined);
-    }, 250);
+    }, 1000);
   }, [refreshAllTables]);
 
   useEffect(
@@ -62,29 +64,23 @@ export function useTableAlerts({ branchUuid, language, refreshTables }: UseTable
     return () => document.removeEventListener("visibilitychange", handleVisibilityChange);
   }, [branchUuid, refreshAllTables]);
 
-  useEffect(() => {
-    if (!branchUuid) return;
-    const activeBranchUuid = branchUuid;
-
-    function handleTableAlert(payload: TableAlertPayload) {
-      if (!isTableAlertForBranch(payload, activeBranchUuid)) return;
-      scheduleRefresh();
-    }
-
-    return subscribeTableAlerts(activeBranchUuid, handleTableAlert);
-  }, [branchUuid, scheduleRefresh]);
-
-  // Keep the table grid live when another device opens a table, adds an order,
-  // or sends items to the kitchen.
+  // order_queue_changed does not alter any field rendered by the table grid.
+  // table_status_changed is the authoritative compact event for occupancy, so
+  // avoid downloading the whole grid for quantity/kitchen queue changes.
   useEffect(() => {
     if (!branchUuid) return;
     const activeBranchUuid = branchUuid;
 
     function handleBranchRealtime(payload: BranchRealtimePayload) {
       if (!isBranchRealtimeEvent(payload, activeBranchUuid)) return;
+      const tableUuid = typeof payload.table_uuid === "string" ? payload.table_uuid : "";
+      const tableStatus = Number(payload.to_status);
+      if (!tableUuid || !Number.isInteger(tableStatus)) return;
+
+      updateTableStatus(tableUuid, tableStatus);
       scheduleRefresh();
     }
 
-    return subscribeBranchTableRealtime(activeBranchUuid, handleBranchRealtime);
-  }, [branchUuid, scheduleRefresh]);
+    return subscribeTableStatusChanges(activeBranchUuid, handleBranchRealtime);
+  }, [branchUuid, scheduleRefresh, updateTableStatus]);
 }

@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useMemo, useRef, useState } from "react";
+import { memo, useCallback, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { Check, Clock, MapPinPlus, Plus, Search, UserRound } from "lucide-react";
 import { useTranslation } from "react-i18next";
@@ -467,7 +467,7 @@ function StatusLegend() {
   );
 }
 
-function TableCard({
+const TableCard = memo(function TableCard({
   selected,
   table,
   onOpen
@@ -562,4 +562,4 @@ function TableCard({
       </Card>
     </div>
   );
-}
+});

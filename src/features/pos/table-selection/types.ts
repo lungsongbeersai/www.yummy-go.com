@@ -17,10 +17,17 @@ export interface DiscountDraft {
 
 export interface ConfirmAllProgress {
   completed: number;
-  detail: string;
   label: string;
+  printSuccessCount?: number;
+  printTotal?: number;
   total: number;
 }
+
+export type ConfirmItemStage =
+  | "confirming"
+  | "fetching"
+  | "printing"
+  | "refreshing";
 
 export interface TableActionTable {
   customerOrderState: boolean;

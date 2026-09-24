@@ -6,6 +6,7 @@ import { optionalBoolean, optionalNumber, optionalString } from "@/lib/values";
 export { optionalBoolean, optionalNumber, optionalString };
 
 export * from "./cart-readers";
+export * from "./confirm-order-progress";
 export * from "./customer-display-payload";
 export * from "./discount-drafts";
 export * from "./split-payment";

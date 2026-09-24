@@ -17,10 +17,6 @@ export const routeBreadcrumbs: Record<string, RouteBreadcrumbItem[]> = {
     { disabled: true, title: "sales" },
     { path: "/sales/cancel-sale", title: "cancel_sale" }
   ],
-  "/sales/stuck-orders": [
-    { disabled: true, title: "sales" },
-    { path: "/sales/stuck-orders", title: "stuck_orders" }
-  ],
   "/sales/sales-list": [
     { disabled: true, title: "sales" },
     { path: "/sales/sales-list", title: "sales_list" }

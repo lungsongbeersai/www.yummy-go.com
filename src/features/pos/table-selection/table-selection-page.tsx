@@ -33,12 +33,12 @@ export function TableSelectionPage() {
   const loading = usePosStore((state) => state.loading);
   const loadTables = usePosStore((state) => state.loadTables);
   const refreshTables = usePosStore((state) => state.refreshTables);
+  const updateTableStatus = usePosStore((state) => state.updateTableStatus);
   const showToast = useToastStore((state) => state.show);
   const nativeShellActive = useIsNativeShellActive();
   const setHeaderRefreshAction = useNativeHeaderStore((state) => state.setRefreshAction);
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<TableStatusFilter>("all");
-  const [now, setNow] = useState(() => new Date());
 
   const branchUuid = user?.branch_uuid ?? "";
   const skipTableSelection = user?.store_table_status === 2;
@@ -59,7 +59,8 @@ export function TableSelectionPage() {
   useTableAlerts({
     branchUuid: user?.branch_uuid,
     language,
-    refreshTables
+    refreshTables,
+    updateTableStatus,
   });
 
   // ร้านไม่มีโต๊ะ (store_table_status === 2) ข้ามหน้าเลือกโต๊ะไปเลย —
@@ -73,14 +74,6 @@ export function TableSelectionPage() {
     void load();
   }, [load, skipTableSelection]);
 
-  // นาฬิกาในหัวข้อสีเขียวมีแค่ฝั่งเว็บ (ดูเหตุผลเรื่อง header ด้านล่าง) — ไม่ต้องนับ
-  // ทุกวินาทีทิ้งเปล่า ๆ บน Capacitor ที่ไม่ได้เรนเดอร์มันอยู่แล้ว
-  useEffect(() => {
-    if (nativeShellActive) return;
-    const interval = window.setInterval(() => setNow(new Date()), 1000);
-    return () => window.clearInterval(interval);
-  }, [nativeShellActive]);
-
   // ปุ่มรีเฟรชย้ายเข้า NativeTopBar (capacitor/top-bar.tsx) แทนแถวโซนในตัวหน้า —
   // ลงทะเบียน action ผ่าน store กลางเพราะ top bar เรนเดอร์อยู่คนละต้นไม้กับหน้านี้
   // (ดู native-header-store.ts) ต้องเคลียร์ตอน unmount ไม่งั้นปุ่มจะค้างอยู่ในหน้าอื่น
@@ -91,12 +84,12 @@ export function TableSelectionPage() {
     return () => setHeaderRefreshAction(null);
   }, [nativeShellActive, loading, load, setHeaderRefreshAction]);
 
-  function selectTable(table: PosTable) {
+  const selectTable = useCallback((table: PosTable) => {
     const params = new URLSearchParams({ table_uuid: table.table_uuid });
     if (table.table_name) params.set("table_name", table.table_name);
     const target = `/posAll/order?${params.toString()}` as const;
     router.push(target);
-  }
+  }, [router]);
 
   if (skipTableSelection) return null;
 
@@ -136,7 +129,7 @@ export function TableSelectionPage() {
           <Button aria-label={t("actions.back")} className={headerIconButtonClass} size="icon" type="button" variant="ghost" onClick={() => router.replace("/")}>
             <ChevronLeft />
           </Button>
-          <p className="absolute left-1/2 top-1/2 max-w-55 -translate-x-1/2 -translate-y-1/2 whitespace-nowrap text-xl font-black leading-none tracking-wide tabular-nums text-primary-foreground dark:text-white sm:text-3xl">{formatClock(now)}</p>
+          <TableClock />
           <div className="relative flex min-w-0 items-center gap-1.5">
             <NotificationMenu triggerClassName={cn(headerIconButtonClass, "hidden min-[430px]:inline-flex")} triggerVariant="ghost" />
             <LanguageSwitch className={cn(headerIconButtonClass, "hidden min-[500px]:inline-flex")} compact size="icon" variant="ghost" />
@@ -149,5 +142,20 @@ export function TableSelectionPage() {
         <TableListSection loading={loading} search={search} selectedTable={null} statusFilter={statusFilter} zoneOptions={zoneOptions} zones={zones} onSearchChange={setSearch} onSelectTable={selectTable} onStatusFilterChange={setStatusFilter} />
       </div>
     </div>
+  );
+}
+
+function TableClock() {
+  const [now, setNow] = useState(() => new Date());
+
+  useEffect(() => {
+    const interval = window.setInterval(() => setNow(new Date()), 1000);
+    return () => window.clearInterval(interval);
+  }, []);
+
+  return (
+    <p className="absolute left-1/2 top-1/2 max-w-55 -translate-x-1/2 -translate-y-1/2 whitespace-nowrap text-xl font-black leading-none tracking-wide tabular-nums text-primary-foreground dark:text-white sm:text-3xl">
+      {formatClock(now)}
+    </p>
   );
 }
