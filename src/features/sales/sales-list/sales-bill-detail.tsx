@@ -1,9 +1,10 @@
 "use client";
 
 import type { ReactNode } from "react";
-import { CreditCard, Printer, ReceiptText, RefreshCcw, UserRound } from "lucide-react";
+import { ArrowLeftRight, Banknote, Coins, Printer, RefreshCcw, Store, UserRound } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { EmptyState } from "@/components/common/empty-state";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Drawer, DrawerContent, DrawerDescription, DrawerHeader, DrawerTitle } from "@/components/ui/drawer";
@@ -13,11 +14,14 @@ import type { DailySaleItemsBillGroup } from "@/stores/report-store";
 import { SalesListItems } from "./sales-list-items";
 import {
   billMetaText,
+  billPaymentLabel,
+  billTimeLabel,
   calculatedRateLabel,
   readRateLabel,
   readValue,
   realMetaText,
   salesListVatSummary,
+  statusBadgeClass,
   summaryMetricLabel,
   textValue
 } from "./sales-list-utils";
@@ -43,9 +47,9 @@ export function SalesBillDetailPanel({
 }: SalesBillDetailPanelProps) {
   const { t } = useTranslation();
   const drawer = variant === "drawer";
-  // py-0 กัน py ฐานของ Card บวกซ้อนกับ py ของ CardHeader/CardContent ด้านล่าง — ดูคำอธิบายเดียวกันใน sales-list-filters.tsx
+  // py-0/gap-0 กัน py และ gap ฐานของ Card บวกซ้อนกับระยะของ CardHeader/CardContent — ดูคำอธิบายเดียวกันใน sales-list-filters.tsx
   const cardClass = cn(
-    "min-h-0 overflow-hidden rounded-none border-x-0 border-b-0 border-border bg-card py-0 shadow-none xl:flex xl:min-h-0 xl:flex-col",
+    "min-h-0 gap-0 overflow-hidden rounded-none border-x-0 border-b-0 border-border bg-card py-0 shadow-none xl:flex xl:min-h-0 xl:flex-col",
     className
   );
 
@@ -59,12 +63,6 @@ export function SalesBillDetailPanel({
     );
   }
 
-  const heading = (
-    <>
-      <CardTitle className="truncate text-base font-semibold">{t("salesList.billDetail")}</CardTitle>
-      <BillHeaderFacts bill={bill} compact={drawer} />
-    </>
-  );
   const actions = (
     <BillDetailActions
       bill={bill}
@@ -75,41 +73,80 @@ export function SalesBillDetailPanel({
       onReprint={onReprint}
     />
   );
+  const body = (
+    <div className="flex flex-col gap-4 p-3 sm:p-4">
+      <BillInfoGrid bill={bill} />
+      <section className="flex flex-col gap-2">
+        <div className="flex items-baseline justify-between gap-2 px-0.5">
+          <h3 className="text-sm font-semibold text-foreground">{t("salesList.items")}</h3>
+          <span className="text-xs text-muted-foreground tabular-nums">
+            {t("pos.itemCount", { count: bill.items.length })}
+          </span>
+        </div>
+        <SalesListItems items={bill.items} />
+      </section>
+    </div>
+  );
 
-  // มือถือมีความสูงจำกัด หัวแผงจึงเลื่อนหายไปพร้อมเนื้อหาเพื่อคืนพื้นที่ให้รายการสินค้า
-  // แล้วปักยอดสรุปกับปุ่มสั่งงานไว้ล่างสุดในระยะนิ้วโป้ง — ทั้งคู่ต้องเข้าถึงได้ตลอดโดยไม่ต้องเลื่อนกลับ
+  // มือถือมีความสูงจำกัด — หัวแผงและสรุปยอดเลื่อนไปพร้อมเนื้อหา (สรุปยอดที่ปักไว้เดิมกินจอเกือบครึ่ง
+  // จนเห็นสินค้าแค่รายการเดียว) เหลือปักไว้ล่างสุดแค่ปุ่มพิมพ์ในระยะนิ้วโป้ง
   if (drawer) {
     return (
       <Card className={cardClass}>
         <CardContent className="flex min-h-0 flex-1 flex-col p-0">
           <div className="min-h-0 flex-1 overflow-auto">
-            <div className="border-b border-border px-3 py-2.5">{heading}</div>
-            <div className="p-2">
-              <SalesListItems items={bill.items} />
+            <div className="border-b border-border px-4 pt-1 pb-3">
+              <BillHeading bill={bill} />
             </div>
+            {body}
+            <SelectedBillSummary bill={bill} />
           </div>
-          <SelectedBillSummary bill={bill} />
-          <div className="shrink-0 border-t border-border bg-card px-3 py-3 pb-[calc(0.75rem+var(--pos-system-bottom-safe-area,0px))]">
-            {actions}
+          {/* ยอดสุทธิติดแถบล่างคู่ปุ่มพิมพ์ — เห็นยอดตลอดแม้สรุปยอดเต็มจะเลื่อนไปอยู่ท้ายเนื้อหาแล้ว */}
+          <div className="flex shrink-0 items-center gap-3 border-t border-border bg-card px-4 py-3 pb-[calc(0.75rem+var(--pos-system-bottom-safe-area,0px))]">
+            <div className="flex min-w-0 flex-col">
+              <span className="text-xs text-muted-foreground">{t("salesList.total")}</span>
+              <span className="truncate text-lg leading-6 font-bold tabular-nums text-primary-text">{money(bill.lineTotal)}</span>
+            </div>
+            <div className="ml-auto min-w-0 flex-1 sm:max-w-64">{actions}</div>
           </div>
         </CardContent>
       </Card>
     );
   }
 
+  // จอกว้างมาก (2xl) สรุปยอดย้ายไปคอลัมน์ขวา — รายการสินค้าได้ความสูงเต็มแผงแทนที่จะถูกกล่องสรุปกินด้านล่าง
   return (
     <Card className={cardClass}>
-      <CardHeader className="flex-col items-stretch gap-2 border-b border-border px-3 py-2.5 md:flex-row md:items-start md:justify-between md:px-4">
-        <div className="min-w-0 flex-1">{heading}</div>
+      <CardHeader className="flex shrink-0 items-start justify-between gap-3 border-b border-border px-4 py-3 [.border-b]:pb-3">
+        <BillHeading bill={bill} />
         {actions}
       </CardHeader>
-      <CardContent className="flex min-h-0 flex-1 flex-col p-0">
-        <div className="min-h-0 flex-1 overflow-auto p-2 sm:p-3">
-          <SalesListItems items={bill.items} />
-        </div>
-        <SelectedBillSummary bill={bill} />
+      <CardContent className="flex min-h-0 flex-1 flex-col p-0 2xl:flex-row">
+        <div className="min-h-0 flex-1 overflow-auto">{body}</div>
+        <SelectedBillSummary bill={bill} className="2xl:w-88 2xl:border-t-0 2xl:border-l" />
       </CardContent>
     </Card>
+  );
+}
+
+// หัวแผงเดิมเขียนแค่ "รายละเอียดบิล" ไม่บอกว่าเป็นบิลไหน — ยกเลขบิลเป็นหัวข้อ แล้วโต๊ะ/วิธีชำระ/เวลาเป็นบรรทัดรอง
+function BillHeading({ bill }: { bill: DailySaleItemsBillGroup }) {
+  const { t } = useTranslation();
+  const meta = [realMetaText(bill.tableName), billPaymentLabel(bill, t), billTimeLabel(bill).label]
+    .filter((value) => value && value !== "-")
+    .join(" · ");
+
+  return (
+    <div className="flex min-w-0 flex-col gap-0.5">
+      <p className="text-xs leading-5 text-muted-foreground">{t("salesList.billDetail")}</p>
+      <div className="flex min-w-0 items-center gap-2">
+        <CardTitle className="truncate text-xl leading-7 font-bold tabular-nums">{bill.invoiceNumber}</CardTitle>
+        {bill.status ? (
+          <Badge className={cn("shrink-0 px-1.5 py-0 text-2xs leading-4", statusBadgeClass(bill.status))}>{bill.status}</Badge>
+        ) : null}
+      </div>
+      {meta ? <p className="truncate text-sm leading-5 text-muted-foreground tabular-nums">{meta}</p> : null}
+    </div>
   );
 }
 
@@ -132,18 +169,17 @@ function BillDetailActions({
   const reprinting = printingBillId === bill.id;
 
   return (
-    <div className={cn("flex w-full shrink-0", !drawer && "md:w-auto")}>
-      <Button
-        type="button"
-        variant="outline"
-        className="min-h-11 w-full shrink-0 md:h-9 md:min-h-9 md:w-auto"
-        disabled={!canReprintReceipt || !textValue(readValue(bill.raw, ["order_uuid"]), "") || Boolean(printingBillId) || loading}
-        onClick={() => onReprint(bill)}
-      >
-        {reprinting ? <RefreshCcw className="animate-spin" data-icon="inline-start" /> : <Printer data-icon="inline-start" />}
-        <span className="truncate">{reprinting ? t("salesList.reprintingReceipt") : t("salesList.reprintReceipt")}</span>
-      </Button>
-    </div>
+    <Button
+      type="button"
+      variant="outline"
+      size={drawer ? "lg" : "default"}
+      className={cn("shrink-0", drawer ? "h-11 w-full" : "h-9")}
+      disabled={!canReprintReceipt || !textValue(readValue(bill.raw, ["order_uuid"]), "") || Boolean(printingBillId) || loading}
+      onClick={() => onReprint(bill)}
+    >
+      {reprinting ? <RefreshCcw className="animate-spin" data-icon="inline-start" /> : <Printer data-icon="inline-start" />}
+      <span className="truncate">{reprinting ? t("salesList.reprintingReceipt") : t("salesList.reprintReceipt")}</span>
+    </Button>
   );
 }
 
@@ -191,77 +227,47 @@ export function SalesBillDetailDrawer({
   );
 }
 
-interface BillReviewMetaItem {
+interface BillInfoItem {
   icon: ReactNode;
   label: string;
   value: string;
+  wide?: boolean;
 }
 
-function BillHeaderFacts({
-  bill,
-  compact = false
-}: {
-  bill: DailySaleItemsBillGroup;
-  compact?: boolean;
-}) {
+// ข้อมูลลูกค้า/ช่องทาง/การรับเงิน — เดิมเป็นชิปเรียงต่อกันที่ตัดข้อความลูกค้าจนอ่านไม่ครบ
+// เปลี่ยนเป็นกริด label-over-value ในกล่องพื้นอ่อน ค่ายาว (ลูกค้า) ได้กว้าง 2 ช่องและตัดบรรทัดได้
+function BillInfoGrid({ bill }: { bill: DailySaleItemsBillGroup }) {
   const { t } = useTranslation();
   const customerName = realMetaText(billMetaText(bill, ["customer_name", "customer"]));
   const customerPhone = realMetaText(billMetaText(bill, ["customer_phone", "phone", "tel"]));
   const memberCode = realMetaText(billMetaText(bill, ["member_code", "customer_code"]));
-  const customerDetail = [customerName, memberCode, customerPhone].filter(Boolean).join(" / ");
+  const customerDetail = [customerName, memberCode, customerPhone].filter(Boolean).join(" · ");
   const orderChannel = realMetaText(billMetaText(bill, ["order_channel_name", "channel_name"]));
-  const paymentFactCandidates: Array<BillReviewMetaItem | null> = [
-    bill.receiveCashAmount > 0 ? { icon: <CreditCard />, label: t("salesList.cashReceived"), value: money(bill.receiveCashAmount) } : null,
-    bill.receiveTransferAmount > 0 ? { icon: <CreditCard />, label: t("salesList.transferReceived"), value: money(bill.receiveTransferAmount) } : null,
-    bill.changeAmount > 0 ? { icon: <ReceiptText />, label: t("salesList.change"), value: money(bill.changeAmount) } : null
+  const candidates: Array<BillInfoItem | null> = [
+    customerDetail ? { icon: <UserRound />, label: t("pos.customer"), value: customerDetail, wide: true } : null,
+    orderChannel ? { icon: <Store />, label: t("pos.orderChannel"), value: orderChannel } : null,
+    bill.receiveCashAmount > 0 ? { icon: <Banknote />, label: t("salesList.cashReceived"), value: money(bill.receiveCashAmount) } : null,
+    bill.receiveTransferAmount > 0
+      ? { icon: <ArrowLeftRight />, label: t("salesList.transferReceived"), value: money(bill.receiveTransferAmount) }
+      : null,
+    bill.changeAmount > 0 ? { icon: <Coins />, label: t("salesList.change"), value: money(bill.changeAmount) } : null
   ];
-  const paymentFacts = paymentFactCandidates.filter((item): item is BillReviewMetaItem => Boolean(item));
-  const candidates: Array<BillReviewMetaItem | null> = [
-    customerDetail ? { icon: <UserRound />, label: t("pos.customer"), value: customerDetail } : null,
-    orderChannel ? { icon: <ReceiptText />, label: t("pos.orderChannel"), value: orderChannel } : null,
-    ...paymentFacts
-  ];
-  const items = candidates
-    .filter((item): item is BillReviewMetaItem => Boolean(item))
-    .filter((item) => Boolean(realMetaText(item.value)));
+  const items = candidates.filter((item): item is BillInfoItem => Boolean(item));
 
   if (!items.length) return null;
 
   return (
-    <div
-      className={cn(
-        "mt-2 grid min-w-0 grid-cols-1 gap-1.5 min-[430px]:grid-cols-2 md:flex md:flex-wrap",
-        compact && "min-[360px]:grid-cols-2"
-      )}
-    >
+    <dl className="grid grid-cols-2 gap-x-4 gap-y-3 rounded-lg bg-muted/50 p-3 md:grid-cols-4">
       {items.map((item) => (
-        <BillHeaderFact key={`${item.label}-${item.value}`} item={item} compact={compact} />
+        <div key={item.label} className={cn("flex min-w-0 flex-col gap-0.5", item.wide && "col-span-2")}>
+          <dt className="flex min-w-0 items-center gap-1.5 text-xs text-muted-foreground [&_svg]:size-3.5 [&_svg]:shrink-0">
+            {item.icon}
+            <span className="truncate">{item.label}</span>
+          </dt>
+          <dd className="text-sm leading-5 font-medium wrap-break-word text-foreground tabular-nums">{item.value}</dd>
+        </div>
       ))}
-    </div>
-  );
-}
-
-function BillHeaderFact({
-  compact,
-  item
-}: {
-  compact: boolean;
-  item: BillReviewMetaItem;
-}) {
-  return (
-    <span
-      className={cn(
-        "inline-flex w-full min-w-0 items-center gap-1.5 rounded-md border border-border bg-muted/40 px-2 py-1 text-xs leading-5 text-muted-foreground",
-        compact ? "" : "md:w-auto md:max-w-56 2xl:max-w-64"
-      )}
-      title={`${item.label}: ${item.value}`}
-    >
-      <span className="flex size-3.5 shrink-0 items-center justify-center text-muted-foreground/80 [&_svg]:size-3.5">{item.icon}</span>
-      <span className="min-w-0 truncate">
-        <span>{item.label}: </span>
-        <span className="font-medium text-foreground">{item.value}</span>
-      </span>
-    </span>
+    </dl>
   );
 }
 
@@ -273,7 +279,8 @@ interface SummaryMetric {
   value: number;
 }
 
-function SelectedBillSummary({ bill }: { bill: DailySaleItemsBillGroup }) {
+// สรุปยอดแบบท้ายใบเสร็จ: แถวย่อยเรียบ เส้นประคั่น แล้วยอดสุทธิใหญ่สุดเป็นจุดโฟกัสเดียวของแผง
+function SelectedBillSummary({ bill, className }: { bill: DailySaleItemsBillGroup; className?: string }) {
   const { t } = useTranslation();
   const serviceBase = bill.amountTotal + bill.toppingTotal - bill.discountTotal;
   const serviceRate =
@@ -281,44 +288,34 @@ function SelectedBillSummary({ bill }: { bill: DailySaleItemsBillGroup }) {
     calculatedRateLabel(bill.serviceChargeAmount, serviceBase);
   const vat = salesListVatSummary(bill.raw);
   const allMetrics: SummaryMetric[] = [
-    { label: t("salesList.beforeDiscount"), tone: "amount", value: bill.amountTotal },
+    // "ยอดก่อนหักส่วนลด" ฟังแปลกในบิลที่ไม่มีส่วนลด — ใช้ป้ายยอดรวมย่อยแทน
+    { label: bill.discountTotal > 0 ? t("salesList.beforeDiscount") : t("salesList.subtotal"), tone: "amount", value: bill.amountTotal },
     { label: t("salesList.discount"), tone: "discount", value: bill.discountTotal },
     { label: summaryMetricLabel(t("salesList.serviceCharge"), serviceRate), tone: "service", value: bill.serviceChargeAmount },
-    { label: summaryMetricLabel(t(vat.labelKey), vat.rate), tone: "vat", value: bill.vatAmount },
-    { label: t("salesList.total"), tone: "total", value: bill.lineTotal }
+    { label: summaryMetricLabel(t(vat.labelKey), vat.rate), tone: "vat", value: bill.vatAmount }
   ];
-  const metrics = allMetrics.filter((metric) => metric.tone === "amount" || metric.tone === "total" || metric.value > 0);
-
-  const lineItems = metrics.filter((metric) => metric.tone !== "total");
-  const totalMetric = metrics.find((metric) => metric.tone === "total");
+  const lineItems = allMetrics.filter((metric) => metric.tone === "amount" || metric.value > 0);
 
   return (
-    <div className="shrink-0 border-t border-border bg-card px-3 py-3 sm:px-4">
-      <p className="text-xs font-medium text-muted-foreground">{t("salesList.billSummary")}</p>
-      {/* แถวย่อยพื้นเรียบทั้งหมด เหลือสีเฉพาะส่วนลด และยกยอดสุทธิเป็นจุดโฟกัสเดียวของแผง */}
-      <div className="mt-2 overflow-hidden rounded-md border border-border">
-        <div className="flex flex-col divide-y divide-border">
-          {lineItems.map((metric) => (
-            <div key={metric.label} className="flex min-w-0 items-center justify-between gap-3 px-3 py-2">
-              <p className="min-w-0 wrap-break-word text-xs leading-5 text-muted-foreground">{metric.label}</p>
-              <p
-                className={cn(
-                  "shrink-0 text-sm leading-5 tabular-nums",
-                  metric.tone === "discount" ? "text-destructive" : "text-foreground"
-                )}
-              >
-                {metric.tone === "discount" ? `-${money(metric.value)}` : money(metric.value)}
-              </p>
-            </div>
-          ))}
-        </div>
-        {totalMetric ? (
-          <div className="flex min-w-0 items-center justify-between gap-3 border-t-2 border-primary/20 bg-primary/5 px-3 py-2.5">
-            <p className="truncate text-sm font-medium text-foreground">{totalMetric.label}</p>
-            <p className="shrink-0 text-lg font-bold leading-7 tabular-nums text-primary">{money(totalMetric.value)}</p>
+    <section
+      aria-label={t("salesList.billSummary")}
+      className={cn("shrink-0 border-t border-border bg-muted/30 px-4 py-3", className)}
+    >
+      <h3 className="text-xs font-medium text-muted-foreground">{t("salesList.billSummary")}</h3>
+      <dl className="mt-2 flex flex-col gap-1.5">
+        {lineItems.map((metric) => (
+          <div key={metric.tone} className="flex min-w-0 items-baseline justify-between gap-3 text-sm leading-5">
+            <dt className="min-w-0 wrap-break-word text-muted-foreground">{metric.label}</dt>
+            <dd className={cn("shrink-0 tabular-nums", metric.tone === "discount" ? "text-destructive" : "text-foreground")}>
+              {metric.tone === "discount" ? `-${money(metric.value)}` : money(metric.value)}
+            </dd>
           </div>
-        ) : null}
+        ))}
+      </dl>
+      <div className="mt-3 flex min-w-0 items-baseline justify-between gap-3 border-t border-dashed border-border pt-3">
+        <span className="truncate text-sm font-semibold text-foreground">{t("salesList.total")}</span>
+        <span className="shrink-0 text-2xl leading-8 font-bold tabular-nums text-primary-text">{money(bill.lineTotal)}</span>
       </div>
-    </div>
+    </section>
   );
 }

@@ -3,6 +3,7 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import { DEFAULT_LANGUAGE, type Language } from "@/lib/language";
+import { DEFAULT_ORDER_ALERT_SOUND, isOrderAlertSoundId, type OrderAlertSoundId } from "@/lib/pos/order-alert-sounds";
 
 export type ThemeMode = "light" | "dark";
 export type ThemeColor = "emerald" | "blue" | "amber" | "rose" | "violet";
@@ -28,6 +29,7 @@ interface AppState {
   themeColor: ThemeColor;
   fontScale: FontScale;
   language: Language;
+  orderAlertSound: OrderAlertSoundId;
   sidebarOpen: boolean;
   collapsed: boolean;
   hydrated: boolean;
@@ -36,6 +38,7 @@ interface AppState {
   setThemeColor: (themeColor: ThemeColor) => void;
   setFontScale: (fontScale: FontScale) => void;
   setLanguage: (language: Language) => void;
+  setOrderAlertSound: (orderAlertSound: OrderAlertSoundId) => void;
   setSidebarOpen: (open: boolean) => void;
   setCollapsed: (collapsed: boolean) => void;
   toggleCollapsed: () => void;
@@ -49,6 +52,7 @@ export const useAppStore = create<AppState>()(
       themeColor: "emerald",
       fontScale: "md",
       language: DEFAULT_LANGUAGE,
+      orderAlertSound: DEFAULT_ORDER_ALERT_SOUND,
       sidebarOpen: false,
       collapsed: false,
       hydrated: false,
@@ -57,6 +61,7 @@ export const useAppStore = create<AppState>()(
       setThemeColor: (themeColor) => set({ themeColor }),
       setFontScale: (fontScale) => set({ fontScale }),
       setLanguage: (language) => set({ language }),
+      setOrderAlertSound: (orderAlertSound) => set({ orderAlertSound }),
       setSidebarOpen: (sidebarOpen) => set({ sidebarOpen }),
       setCollapsed: (collapsed) => set({ collapsed }),
       toggleCollapsed: () => set({ collapsed: !get().collapsed }),
@@ -64,11 +69,12 @@ export const useAppStore = create<AppState>()(
     }),
     {
       name: "yummy-go-app",
-      partialize: ({ theme, themeColor, fontScale, language, collapsed }) => ({
+      partialize: ({ theme, themeColor, fontScale, language, orderAlertSound, collapsed }) => ({
         theme,
         themeColor,
         fontScale,
         language,
+        orderAlertSound,
         collapsed
       }),
       skipHydration: true,
@@ -76,6 +82,7 @@ export const useAppStore = create<AppState>()(
         if (!state) return;
         if (!THEME_COLORS.includes(state.themeColor)) state.setThemeColor("emerald");
         if (!FONT_SCALES.includes(state.fontScale)) state.setFontScale("md");
+        if (!isOrderAlertSoundId(state.orderAlertSound)) state.setOrderAlertSound(DEFAULT_ORDER_ALERT_SOUND);
         state.setHydrated(true);
       }
     }

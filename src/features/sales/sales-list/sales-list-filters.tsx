@@ -120,6 +120,12 @@ export function SalesListHeader({
   );
 }
 
+interface SalesListFilterBarProps extends SalesListFilterProps {
+  onSummaryToggle: () => void;
+  summaryControlsId: string;
+  summaryVisible: boolean;
+}
+
 // จอ lg ขึ้นไปกรองได้จากหน้าเลย — เหลือแค่ฟิลด์หลักที่ใช้บ่อย (ค้นหา/สาขา/ช่วงวันที่) ตลอดเวลา
 // ส่วนฟิลด์รอง (จำนวนแถว/วิธีชำระ/เรียงลำดับ) ย้ายเข้า popover กันแถบยาวเกินไปจนดูอึดอัด
 export function SalesListFilterBar({
@@ -129,9 +135,13 @@ export function SalesListFilterBar({
   canApply,
   draftFilters,
   loading,
+  summaryControlsId,
+  summaryVisible,
   onApply,
-  onDraftChange
-}: SalesListFilterProps) {
+  onDraftChange,
+  onRefresh,
+  onSummaryToggle
+}: SalesListFilterBarProps) {
   const { t } = useTranslation();
   const secondaryCount = secondaryFilterCount(draftFilters);
 
@@ -178,6 +188,34 @@ export function SalesListFilterBar({
           {loading ? <RefreshCcw className="animate-spin" data-icon="inline-start" /> : null}
           {t("salesList.apply")}
         </Button>
+
+        {/* แถบหัวมือถือ (SalesListHeader) ถูกซ่อนบน lg — เดิมจอใหญ่จึงเปิดการ์ดสรุปยอดไม่ได้เลย
+            และไม่มีปุ่มรีเฟรช ย้ายสองปุ่มนี้มาไว้ท้ายแถบตัวกรองแทน */}
+        <div className="ml-auto flex shrink-0 items-center gap-2">
+          <Button
+            type="button"
+            variant="outline"
+            size="icon"
+            className="size-9"
+            aria-label={t("actions.refresh")}
+            title={t("actions.refresh")}
+            disabled={loading || !canApply}
+            onClick={onRefresh}
+          >
+            <RefreshCcw className={loading ? "animate-spin" : undefined} />
+          </Button>
+          <Button
+            type="button"
+            variant={summaryVisible ? "secondary" : "outline"}
+            className="h-9"
+            aria-controls={summaryControlsId}
+            aria-expanded={summaryVisible}
+            onClick={onSummaryToggle}
+          >
+            {summaryVisible ? <EyeOff data-icon="inline-start" /> : <Eye data-icon="inline-start" />}
+            {summaryVisible ? t("report.hideSummary") : t("report.showSummary")}
+          </Button>
+        </div>
       </CardContent>
     </Card>
   );

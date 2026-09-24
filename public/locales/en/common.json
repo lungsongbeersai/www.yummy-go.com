@@ -257,7 +257,10 @@
     "signingIn": "Signing in...",
     "unavailable": "Not available yet",
     "version": "Version {{version}}",
-    "welcomeBack": "Welcome back"
+    "welcomeBack": "Welcome back",
+    "orContinueWith": "Or continue with",
+    "loginWith": "Login with {{provider}}",
+    "agreeToPolicy": "By signing in, you agree to our"
   },
   "common": {
     "active": "Active",
@@ -631,7 +634,26 @@
         "description": "Your food is on its way to the table."
       }
     },
-    "title": "Notifications"
+    "title": "Notifications",
+    "sound": {
+      "title": "New order sound",
+      "description": "Choose the sound that plays when a new order arrives. Saved on this device immediately.",
+      "preview": "Preview",
+      "stop": "Stop",
+      "options": {
+        "default": "Default",
+        "notification": "Notification",
+        "ding": "Ding",
+        "bell": "Bell",
+        "bellRing": "Bell ring",
+        "openingBell": "Opening bell",
+        "churchBell": "Church bell",
+        "cashRegister": "Cash register",
+        "phone": "Phone ring"
+      }
+    },
+    "pendingCount": "{{count}} new order(s) awaiting confirmation",
+    "emptyDescription": "New orders from customers will appear here"
   },
   "orderQueue": {
     "title": "Order Queue",
@@ -1156,7 +1178,10 @@
     "tables": "Tables",
     "title": "Order",
     "unableToLoadMenu": "Unable to load menu",
-    "taxIncludedWithPercent": "VAT included ({{percent}}%)"
+    "taxIncludedWithPercent": "VAT included ({{percent}}%)",
+    "discountRemaining": "Remaining",
+    "menuLink": "Menu link",
+    "currentQuantity": "Currently {{qty}}"
   },
   "category": {
     "sorted": "Order saved",

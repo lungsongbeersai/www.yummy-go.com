@@ -47,9 +47,12 @@ export function SalesListPage({ initialPagination }: { initialPagination: UrlPag
           canApply={page.canApply}
           draftFilters={page.draftFilters}
           loading={page.loading}
+          summaryControlsId={SALES_LIST_SUMMARY_CARDS_ID}
+          summaryVisible={page.summaryVisible}
           onApply={page.applyFilters}
           onDraftChange={page.patchDraft}
           onRefresh={() => void page.load()}
+          onSummaryToggle={() => page.setSummaryVisible((visible) => !visible)}
         />
 
         <SalesListFilterSheet
@@ -97,6 +100,7 @@ export function SalesListPage({ initialPagination }: { initialPagination: UrlPag
               rangeLabel={page.rangeLabel}
               selectedBillId={page.selectedBillId}
               totalAmount={firstNumber(page.reportTotal, ["sum_total"])}
+              totalBills={page.total}
               totalPages={page.safeTotalPages}
               onPageChange={page.goToPage}
               onSelect={page.selectBill}

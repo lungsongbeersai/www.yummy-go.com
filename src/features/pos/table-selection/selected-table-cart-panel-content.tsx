@@ -173,7 +173,7 @@ export function SelectedTableCartPanelContent({
             </div>
             <Badge
               className={cn(
-                "shrink-0 rounded-full font-black shadow-none",
+                "shrink-0 rounded-full font-semibold tabular-nums shadow-none",
                 neutral
                   ? "border-primary/20 bg-primary text-primary-foreground"
                   : "border-white/20 bg-white/15 text-white",
@@ -182,7 +182,7 @@ export function SelectedTableCartPanelContent({
                   : "h-8 px-3 text-xs",
               )}
             >
-              {t("common.total")}: {workflow.visibleItemCount}
+              {t("pos.itemCount", { count: workflow.visibleItemCount })}
             </Badge>
           </div>
 

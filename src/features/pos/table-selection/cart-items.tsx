@@ -178,7 +178,7 @@ function CartPanelEmpty() {
   return (
     <Empty className="min-h-60 flex-1 border-0 bg-background p-8">
       <EmptyHeader>
-        <EmptyMedia variant="icon" className="size-16 rounded-full bg-primary/10 text-primary">
+        <EmptyMedia variant="icon" className="size-16 rounded-full bg-primary/10 text-primary-text">
           <ShoppingBag />
         </EmptyMedia>
         <EmptyTitle className="text-sm font-black text-muted-foreground">{t("pos.noOrder")}</EmptyTitle>
@@ -298,6 +298,9 @@ function CartItemRow({
   // — ยังไม่ยืนยัน (0/1) หรือถูกยกเลิก/เสิร์ฟแล้วไม่มีอะไรให้พิมพ์ซ้ำ
   const canReprintKitchen = !editable && statusValue !== 0 && statusValue !== 1 && !isCanceled && !isServedCartItem(item);
   const splitSelectable = Boolean(splitEligible && itemUuid && onToggleSplitItem);
+  // รายการที่แยกบิลไม่ได้ (เช่น ยกเลิกแล้ว) ยังต้องกันช่อง checkbox ไว้ ไม่งั้นรูป/ชื่อสินค้า
+  // เยื้องซ้ายไม่ตรงกับแถวอื่นในรายการเดียวกัน
+  const reserveSplitColumn = Boolean(onToggleSplitItem);
   const splitEnabled = splitSelectable && !splitSelectionDisabled;
   const isWaitingConfirm = statusValue === 0;
 
@@ -335,10 +338,10 @@ function CartItemRow({
         className={cn(
           "grid min-w-0 gap-2",
           compact
-            ? splitSelectable
+            ? reserveSplitColumn
               ? "grid-cols-[36px_40px_minmax(0,1fr)]"
               : "grid-cols-[40px_minmax(0,1fr)]"
-            : splitSelectable
+            : reserveSplitColumn
               ? "grid-cols-[40px_40px_minmax(0,1fr)] sm:grid-cols-[40px_44px_minmax(0,1fr)]"
               : "grid-cols-[40px_minmax(0,1fr)] sm:grid-cols-[44px_minmax(0,1fr)]"
         )}
@@ -360,6 +363,8 @@ function CartItemRow({
               onCheckedChange={toggleSplitSelection}
             />
           </Label>
+        ) : reserveSplitColumn ? (
+          <span aria-hidden="true" />
         ) : null}
         <CartProductMedia compact={compact} media={media} title={title} />
         <div className="min-w-0">
@@ -367,7 +372,7 @@ function CartItemRow({
             <div className="flex min-w-0 flex-1 flex-wrap items-center gap-1.5">
               <p
                 className={cn(
-                  "min-w-0 wrap-break-word font-black text-foreground",
+                  "min-w-0 wrap-break-word font-bold text-foreground",
                   compact
                     ? "text-sm leading-4.5"
                     : "text-sm leading-5 sm:text-base",
@@ -378,14 +383,14 @@ function CartItemRow({
               {statusText || isWaitingConfirm ? (
                 <Badge
                   className={cn(
-                    "rounded-md border-transparent font-black shadow-none",
+                    "rounded-md border-transparent font-semibold shadow-none",
                     compact
                       ? "h-5 px-1.5 text-2xs"
                       : "h-6 px-2 text-2xs",
                     isCanceled
                       ? "bg-destructive text-destructive-foreground"
                       : isWaitingConfirm
-                        ? "bg-warning/15 text-warning"
+                        ? "bg-warning/15 text-warning-text"
                         : "bg-secondary text-secondary-foreground"
                   )}
                 >
@@ -394,7 +399,7 @@ function CartItemRow({
               ) : statusValue !== null ? (
                 <Badge
                   className={cn(
-                    "rounded-md font-black shadow-none",
+                    "rounded-md font-semibold shadow-none",
                     compact
                       ? "h-5 px-1.5 text-2xs"
                       : "h-6 px-2 text-2xs",
@@ -476,7 +481,7 @@ function CartItemRow({
           >
             <p
               className={cn(
-                "min-w-0 truncate font-black leading-5 text-foreground tabular-nums",
+                "min-w-0 truncate font-bold leading-5 text-foreground tabular-nums",
                 compact ? "text-sm" : "text-sm sm:text-base",
                 isCanceled && "text-destructive",
               )}
@@ -536,9 +541,9 @@ function CartDetailRow({
   return (
     <div
       className={cn(
-        "flex min-w-0 items-start justify-between gap-2 text-2xs font-bold leading-4.5 sm:text-xs",
+        "flex min-w-0 items-start justify-between gap-2 text-2xs font-medium leading-4.5 sm:text-xs",
         tone === "price" && "text-foreground/75",
-        tone === "promo" && "text-primary",
+        tone === "promo" && "text-primary-text",
         tone === "discount" && "text-destructive",
         tone === "note" && "text-muted-foreground",
         tone === "taste" && "text-muted-foreground",
@@ -839,7 +844,7 @@ function SplitQuantityStepper({
         size="icon-sm"
         variant="ghost"
         className={cn(
-          "rounded-full bg-primary/10 text-primary hover:bg-primary/20",
+          "rounded-full bg-primary/10 text-primary-text hover:bg-primary/20",
           compact ? "size-8" : "size-10",
         )}
         disabled={disabled || qty <= 1}
@@ -849,7 +854,7 @@ function SplitQuantityStepper({
       </Button>
       <span
         className={cn(
-          "min-w-7 text-center font-black text-primary tabular-nums",
+          "min-w-7 text-center font-black text-primary-text tabular-nums",
           compact ? "text-sm" : "text-sm sm:text-base",
         )}
       >
@@ -861,7 +866,7 @@ function SplitQuantityStepper({
         size="icon-sm"
         variant="ghost"
         className={cn(
-          "rounded-full bg-primary/10 text-primary hover:bg-primary/20",
+          "rounded-full bg-primary/10 text-primary-text hover:bg-primary/20",
           compact ? "size-8" : "size-10",
         )}
         disabled={disabled || qty >= maxQty}

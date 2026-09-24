@@ -88,7 +88,7 @@ export const EmployeeProductCard = memo(function EmployeeProductCard({
   return (
     <Card
       className={cn(
-        "group relative flex min-w-0 flex-col overflow-hidden rounded-lg border-border/80 bg-card pt-0 text-card-foreground shadow-sm [contain-intrinsic-size:320px] [content-visibility:auto]",
+        "group relative flex min-w-0 flex-col gap-0 overflow-hidden rounded-lg border-border/80 bg-card py-0 text-card-foreground shadow-sm [contain-intrinsic-size:320px] [content-visibility:auto]",
         !interactionDisabled &&
           "cursor-pointer transition-[transform,border-color,box-shadow] duration-200 motion-safe:hover:-translate-y-0.5 hover:border-primary/45 hover:shadow-md motion-reduce:transition-none",
         interactionDisabled && "cursor-not-allowed",
@@ -118,24 +118,26 @@ export const EmployeeProductCard = memo(function EmployeeProductCard({
         ) : null}
       </div>
 
-      <CardContent className="flex min-h-0 flex-1 flex-col gap-2.5 p-2.5 sm:p-3">
-        <div className="min-w-0">
-          <p className="lao-tone-text line-clamp-2 min-h-10 text-pretty text-sm font-black text-foreground sm:text-base">
+      {/* ชื่อ/รายละเอียด/ราคาจับกลุ่มกันด้านบน ปุ่มอย่างเดียวที่ดันลงล่างสุด (mt-auto) ให้ปุ่มในแถว
+          เดียวกันตรงกัน — เดิมเว้นที่ 2 บรรทัดให้ชื่อเสมอ (min-h-10) + gap-2.5 ทุกชั้น + ราคาเป็นตัว mt-auto
+          เลยมีช่องว่างโหว่ใต้ชื่อ และการ์ดสูงเกินจำเป็น */}
+      <CardContent className="flex min-h-0 flex-1 flex-col gap-2 p-2.5">
+        <div className="flex min-w-0 flex-col gap-0.5">
+          <p className="lao-tone-text line-clamp-2 text-pretty text-sm font-bold leading-5 text-foreground sm:text-base sm:leading-6">
             {product.prodName}
           </p>
           {description ? (
-            <p className="mt-1 line-clamp-1 min-h-4 text-xs font-medium leading-4 text-muted-foreground">
+            <p className="line-clamp-1 text-xs font-medium leading-4 text-muted-foreground">
               {description}
             </p>
           ) : null}
+          <ProductCardPriceLabel blocked={unavailable} price={price} />
         </div>
-
-        <ProductCardPriceLabel blocked={unavailable} price={price} />
 
         <div
           aria-hidden="true"
           className={cn(
-            "flex h-11 w-full items-center justify-center gap-2 rounded-lg border px-2 text-xs font-black sm:px-3 sm:text-sm",
+            "mt-auto flex h-10 w-full items-center justify-center gap-2 rounded-lg border px-2 text-xs font-bold sm:px-3 sm:text-sm",
             (actionState === "add" ||
               actionState === "choose" ||
               actionState === "view") &&
@@ -185,19 +187,19 @@ function ProductCardPriceLabel({
 
   if (price.kind === "variable" && !blocked) {
     return (
-      <p className="mt-auto min-h-6 truncate text-sm font-semibold text-muted-foreground">
+      <p className="truncate text-xs font-medium leading-6 text-muted-foreground">
         {t("pos.chooseToSeePrice")}
       </p>
     );
   }
   if (price.kind === "unavailable" || price.kind === "variable") {
-    return <span className="mt-auto min-h-6" aria-hidden="true" />;
+    return null;
   }
 
   return (
     <p
       className={cn(
-        "mt-auto flex min-h-6 min-w-0 items-baseline gap-1.5",
+        "flex min-w-0 items-baseline gap-1.5",
         blocked && "text-muted-foreground",
       )}
     >
@@ -208,7 +210,7 @@ function ProductCardPriceLabel({
       ) : null}
       <span
         className={cn(
-          "min-w-0 truncate text-base font-black leading-6 text-primary tabular-nums sm:text-lg",
+          "min-w-0 truncate text-base font-black leading-6 text-primary-text tabular-nums sm:text-lg",
           blocked && "text-muted-foreground",
         )}
       >
@@ -316,7 +318,7 @@ function ProductBadges({
           </Badge>
         ) : null}
         {showSet ? (
-          <Badge className="h-6 rounded-full border-primary/20 bg-background/95 px-1.5 py-0 text-xs font-black leading-none text-primary shadow-sm backdrop-blur sm:h-7 sm:px-2">
+          <Badge className="h-6 rounded-full border-primary/20 bg-background/95 px-1.5 py-0 text-xs font-black leading-none text-primary-text shadow-sm backdrop-blur sm:h-7 sm:px-2">
             {t("pos.menuSet")}
           </Badge>
         ) : null}
@@ -355,6 +357,9 @@ function productCardDescription(
     .join(" · ");
   if (choiceSummary) return choiceSummary;
 
+  // ป้ายประเภท "ทั่วไป" ไม่ช่วยแยกอะไร (เกือบทั้งเมนูเป็นแบบนี้) — โชว์เฉพาะ ชุด/โปรโมชั่น
+  const productSort = optionalNumber(product.statusSortFk) ?? activeSort;
+  if (productSort === ProductSortStatus.NORMAL) return "";
   const statusName = optionalString(product.statusName);
   if (statusName) return statusName;
   if (activeSort === ProductSortStatus.PROMOTION) return t("pos.menuPromotion");
@@ -375,14 +380,16 @@ export function ProductGridSkeleton() {
         <Card
           key={index}
           aria-hidden="true"
-          className="overflow-hidden rounded-lg border-border bg-card pt-0"
+          className="gap-0 overflow-hidden rounded-lg border-border bg-card py-0"
         >
           <Skeleton className={cn("w-full rounded-none bg-muted", IMAGE_CROP_ASPECT_CLASS)} />
-          <CardContent className="flex min-h-40 flex-col gap-2 p-2.5 sm:p-3">
-            <Skeleton className="h-5 w-5/6 bg-muted" />
-            <Skeleton className="h-4 w-3/4 bg-muted" />
-            <Skeleton className="mt-auto h-6 w-1/2 bg-muted" />
-            <Skeleton className="mt-auto h-10 w-full rounded-lg bg-muted sm:h-11" />
+          <CardContent className="flex flex-col gap-2 p-2.5">
+            <div className="flex flex-col gap-1">
+              <Skeleton className="h-5 w-5/6 bg-muted" />
+              <Skeleton className="h-4 w-3/4 bg-muted" />
+              <Skeleton className="h-6 w-1/2 bg-muted" />
+            </div>
+            <Skeleton className="h-10 w-full rounded-lg bg-muted" />
           </CardContent>
         </Card>
       ))}

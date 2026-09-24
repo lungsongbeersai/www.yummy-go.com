@@ -99,7 +99,10 @@ export function CartSummaryDock({
   const handlePrimaryAction = primaryIsConfirm ? onConfirm : primaryIsSplit && onPaySplitSelection ? onPaySplitSelection : onPayBill;
   const primaryBadgeCount = primaryIsSplit ? splitSelectedCount : showConfirmCue ? newOrderCount : 0;
   const splitSelectedTotalLabel = primaryIsSplit ? money(splitSelectedTotal) : null;
-  const disabledButtonClass = "disabled:cursor-not-allowed disabled:opacity-65 disabled:hover:bg-primary-foreground/95";
+  const disabledButtonClass = "disabled:cursor-not-allowed disabled:opacity-65 disabled:hover:bg-primary-foreground/95 dark:disabled:hover:bg-card";
+  // ปุ่มรอง (…/สร้างออเดอร์พนักงาน) ขาวเกือบทึบตั้งใจให้ตัดกับพื้นรูปสีเขียว — โหมดมืดไม่มีรูปนั้น
+  // (dark:bg-none) dock วางบนพื้นมืดเรียบ ๆ ปุ่มขาวเลยกลายเป็นก้อนสว่างแสบตา ใช้ผิว card แทน
+  const secondaryButtonClass = "bg-primary-foreground/95 text-primary shadow-sm hover:bg-primary-foreground/90 dark:border dark:border-border dark:bg-card dark:text-foreground dark:hover:bg-accent";
 
   return (
     <div
@@ -129,10 +132,10 @@ export function CartSummaryDock({
               "shrink-0 leading-5",
               neutral
                 ? compact
-                  ? "text-sm font-black text-primary-foreground/85"
+                  ? "text-sm font-semibold text-primary-foreground/85"
                   : "text-xs font-bold text-primary-foreground/75"
                 : compact
-                  ? "text-sm font-black text-white/85"
+                  ? "text-sm font-semibold text-white/85"
                   : "text-xs font-bold text-white/75",
             )}
           >
@@ -153,7 +156,7 @@ export function CartSummaryDock({
                 : "border-white/20 text-white/75",
               compact
                 ? cn(
-                    "mt-1.5 gap-1 pt-1.5 text-sm font-black leading-5",
+                    "mt-1.5 gap-1 pt-1.5 text-xs font-medium leading-5",
                     neutral ? "text-primary-foreground/85" : "text-white/85",
                   )
                 : "mt-2 gap-1.5 pt-2 text-sm leading-5",
@@ -187,7 +190,8 @@ export function CartSummaryDock({
           type="button"
           variant="ghost"
           className={cn(
-            "h-12 w-full min-w-0 justify-center rounded-lg bg-primary-foreground/95 px-3 text-primary shadow-sm hover:bg-primary-foreground/90",
+            "h-12 w-full min-w-0 justify-center rounded-lg px-3",
+            secondaryButtonClass,
             disabledButtonClass,
             compact ? "h-11" : "h-13"
           )}
@@ -205,7 +209,7 @@ export function CartSummaryDock({
             <Button
               type="button"
               aria-label={t("nav.manage")}
-              className={cn("min-w-0 rounded-lg bg-primary-foreground/95 px-2 text-primary shadow-sm hover:bg-primary-foreground/90", disabledButtonClass, compact ? "h-11" : "h-13")}
+              className={cn("min-w-0 rounded-lg px-2", secondaryButtonClass, disabledButtonClass, compact ? "h-11" : "h-13")}
               disabled={actionsDisabled}
             >
               <MoreHorizontal data-icon="inline-start" />
@@ -269,14 +273,14 @@ export function CartSummaryDock({
             "relative min-w-0 overflow-hidden rounded-lg px-3 shadow-sm",
             compact ? "h-11" : "h-13",
             primaryDisabled
-              ? "bg-white text-primary hover:bg-white/90 disabled:hover:bg-white"
+              ? "bg-white text-primary hover:bg-white/90 disabled:hover:bg-white dark:border dark:border-border dark:bg-card dark:text-muted-foreground dark:disabled:hover:bg-card"
               : "bg-primary text-primary-foreground hover:bg-primary/90 disabled:hover:bg-primary",
             "disabled:cursor-not-allowed disabled:opacity-65",
             primaryBadgeCount > 0 && "pr-8",
             showConfirmCue &&
               (primaryDisabled
                 ? "pr-8 ring-2 ring-primary/35 ring-offset-2 ring-offset-white/40 shadow-lg hover:scale-[1.02] hover:brightness-105"
-                : "pr-8 ring-2 ring-primary-foreground/55 ring-offset-2 ring-offset-primary/40 shadow-lg hover:scale-[1.02] hover:brightness-110")
+                : "pr-8 ring-2 ring-primary-foreground/55 ring-offset-2 ring-offset-primary/40 shadow-lg hover:scale-[1.02] hover:brightness-110 dark:ring-primary-text/60 dark:ring-offset-background")
           )}
           disabled={primaryDisabled}
           onClick={handlePrimaryAction}

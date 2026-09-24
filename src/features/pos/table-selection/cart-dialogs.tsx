@@ -5,8 +5,9 @@ import {
   BadgePercent,
   Banknote,
   Delete,
-  Hash,
+  Minus,
   Percent,
+  Plus,
   RotateCcw,
 } from "lucide-react";
 import { useTranslation } from "react-i18next";
@@ -85,6 +86,9 @@ const DISCOUNT_KEYPAD_KEYS = [
 ] as const;
 
 type DiscountKeypadKey = (typeof DISCOUNT_KEYPAD_KEYS)[number];
+
+// ค่าที่ใช้บ่อยจริงหน้าร้าน — กดครั้งเดียวแทนการกดตัวเลขทีละปุ่ม
+const DISCOUNT_PERCENT_PRESETS = [5, 10, 15, 20, 50] as const;
 
 export function ConfirmAllLoadingDialog({
   open,
@@ -336,110 +340,147 @@ function CartQuantityDialogBody({
     setHasEdited(true);
   }
 
+  // ปุ่ม −/+ ข้างตัวเลข — ส่วนใหญ่แก้จำนวนทีละ 1 (หรือทีละขั้นโปรโมชั่น) ไม่ต้องกดคีย์แพดทั้งตัวเลข
+  const numericDraft = Number(draft) || 0;
+  function stepBy(direction: -1 | 1) {
+    if (pending) return;
+    const next = Math.min(maximumQty, Math.max(quantityStep, numericDraft + direction * quantityStep));
+    setDraft(String(next));
+    setHasEdited(true);
+  }
+
+  function handleKeyDown(event: KeyboardEvent<HTMLDivElement>) {
+    if (pending || event.altKey || event.ctrlKey || event.metaKey) return;
+    if (/^\d$/.test(event.key)) {
+      event.preventDefault();
+      pressKey(event.key as CartQuantityKeypadKey);
+    } else if (event.key === "Backspace" || event.key === "Delete") {
+      event.preventDefault();
+      pressKey("delete");
+    } else if (event.key === "ArrowUp" || event.key === "ArrowDown") {
+      event.preventDefault();
+      stepBy(event.key === "ArrowUp" ? 1 : -1);
+    } else if (event.key === "Enter" && !invalid && check.value !== null) {
+      event.preventDefault();
+      onSubmit(check.value);
+    }
+  }
+
   return (
-    <>
-      <DialogHeader className="shrink-0 px-5 pb-4 pr-16 pt-5 text-left">
-        <div className="flex min-w-0 items-start gap-3">
-          <div
-            aria-hidden="true"
-            className="grid size-11 shrink-0 place-items-center rounded-xl bg-primary/10 text-primary"
-          >
-            <Hash className="size-5" />
-          </div>
-          <div className="min-w-0 flex-1">
-            <DialogTitle className="text-balance text-xl leading-tight">
-              {purpose === "cancel" ? t("pos.cancelItem") : t("pos.editQuantity")}
-            </DialogTitle>
-            <DialogDescription className="mt-1 truncate text-pretty leading-relaxed">
-              {cartItemName(item)}
-            </DialogDescription>
-          </div>
-        </div>
+    // onKeyDown ที่ตัวห่อ — ให้พิมพ์ตัวเลข/ลบ/Enter จากคีย์บอร์ด (หรือเครื่องสแกน/คีย์แพดฮาร์ดแวร์) ได้เลย
+    <div className="flex min-h-0 flex-1 flex-col" onKeyDown={handleKeyDown}>
+      <DialogHeader className="shrink-0 px-5 pb-4 pr-14 pt-5 text-left">
+        <DialogTitle className="text-xl font-bold leading-tight">
+          {purpose === "cancel" ? t("pos.cancelItem") : t("pos.editQuantity")}
+        </DialogTitle>
+        <DialogDescription className="truncate">{cartItemName(item)}</DialogDescription>
       </DialogHeader>
       <Separator />
 
       <div className="min-h-0 overflow-y-auto overscroll-contain px-4 py-4 sm:px-5">
         <FieldGroup className="gap-4">
           <Field data-invalid={invalid} className="gap-2">
-            <FieldTitle id="cart-quantity-value-label">{t("pos.qty")}</FieldTitle>
-            <div
-              className={cn(
-                "rounded-xl border border-border bg-muted/30 p-4 shadow-inner",
-                invalid && "border-destructive/60"
-              )}
-            >
-              <output
-                role="status"
-                aria-atomic="true"
-                aria-labelledby="cart-quantity-value-label"
-                aria-live="polite"
+            <FieldTitle id="cart-quantity-value-label" className="sr-only">{t("pos.qty")}</FieldTitle>
+            <div className="grid grid-cols-[3.5rem_minmax(0,1fr)_3.5rem] items-center gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                aria-label={t("pos.decreaseQuantity")}
+                className="size-14 touch-manipulation rounded-xl [&_svg:not([class*='size-'])]:size-5"
+                disabled={pending || numericDraft <= quantityStep}
+                onClick={() => stepBy(-1)}
+              >
+                <Minus aria-hidden="true" />
+              </Button>
+              <div
                 className={cn(
-                  "block text-right text-4xl font-black tabular-nums text-foreground",
-                  invalid && "text-destructive"
+                  "flex h-20 flex-col items-center justify-center rounded-xl border bg-muted/40",
+                  invalid && "border-destructive/60 bg-destructive/5"
                 )}
               >
-                {draft || "0"}
-              </output>
+                <output
+                  role="status"
+                  aria-atomic="true"
+                  aria-labelledby="cart-quantity-value-label"
+                  aria-live="polite"
+                  className={cn(
+                    "text-4xl font-bold leading-none tabular-nums text-foreground",
+                    !draft && "text-muted-foreground",
+                    invalid && "text-destructive"
+                  )}
+                >
+                  {draft || "0"}
+                </output>
+                {purpose === "edit" && check.value !== qty ? (
+                  <span className="mt-1.5 text-xs text-muted-foreground tabular-nums">
+                    {t("pos.currentQuantity", { qty })}
+                  </span>
+                ) : null}
+              </div>
+              <Button
+                type="button"
+                variant="outline"
+                aria-label={t("pos.increaseQuantity")}
+                className="size-14 touch-manipulation rounded-xl [&_svg:not([class*='size-'])]:size-5"
+                disabled={pending || numericDraft + quantityStep > maximumQty}
+                onClick={() => stepBy(1)}
+              >
+                <Plus aria-hidden="true" />
+              </Button>
             </div>
-            {invalid ? <FieldError>{errorText}</FieldError> : <FieldDescription>{helpText}</FieldDescription>}
+            {invalid ? (
+              <FieldError className="text-center">{errorText}</FieldError>
+            ) : (
+              <FieldDescription className="text-center">{helpText}</FieldDescription>
+            )}
           </Field>
 
-          <Field className="gap-2">
-            <FieldTitle id="cart-quantity-keypad-label" className="sr-only">
-              {t("pos.qty")}
-            </FieldTitle>
-            <div
-              role="group"
-              aria-labelledby="cart-quantity-keypad-label"
-              className="grid grid-cols-3 gap-2"
-            >
-              {QTY_KEYPAD_KEYS.map((key) => {
-                const isDelete = key === "delete";
-                const isClear = key === "clear";
-                const ariaLabel = isDelete
-                  ? t("pos.backspaceAmount")
-                  : isClear
-                    ? t("actions.clear")
-                    : key;
+          <div role="group" aria-label={t("pos.qty")} className="grid grid-cols-3 gap-2">
+            {QTY_KEYPAD_KEYS.map((key) => {
+              const isDelete = key === "delete";
+              const isClear = key === "clear";
+              const ariaLabel = isDelete
+                ? t("pos.backspaceAmount")
+                : isClear
+                  ? t("actions.clear")
+                  : key;
 
-                return (
-                  <Button
-                    key={key}
-                    type="button"
-                    size="lg"
-                    variant={isDelete || isClear ? "secondary" : "outline"}
-                    aria-keyshortcuts={isDelete ? "Backspace Delete" : undefined}
-                    aria-label={ariaLabel}
-                    title={isDelete || isClear ? ariaLabel : undefined}
-                    className={cn(
-                      "h-14 w-full touch-manipulation rounded-xl text-lg font-black tabular-nums",
-                      isClear && "text-destructive"
-                    )}
-                    disabled={pending}
-                    onClick={() => pressKey(key)}
-                  >
-                    {isDelete ? (
-                      <Delete aria-hidden="true" />
-                    ) : isClear ? (
-                      <RotateCcw aria-hidden="true" />
-                    ) : (
-                      key
-                    )}
-                  </Button>
-                );
-              })}
-            </div>
-          </Field>
+              return (
+                <Button
+                  key={key}
+                  type="button"
+                  variant="outline"
+                  aria-keyshortcuts={isDelete ? "Backspace Delete" : undefined}
+                  aria-label={ariaLabel}
+                  title={isDelete || isClear ? ariaLabel : undefined}
+                  className={cn(
+                    "h-12 w-full touch-manipulation rounded-lg text-lg font-semibold tabular-nums",
+                    (isDelete || isClear) && "text-muted-foreground"
+                  )}
+                  disabled={pending}
+                  onClick={() => pressKey(key)}
+                >
+                  {isDelete ? (
+                    <Delete aria-hidden="true" />
+                  ) : isClear ? (
+                    <RotateCcw aria-hidden="true" />
+                  ) : (
+                    key
+                  )}
+                </Button>
+              );
+            })}
+          </div>
         </FieldGroup>
       </div>
 
       <Separator />
-      <DialogFooter className="grid shrink-0 grid-cols-2 gap-2 bg-muted/20 p-4 sm:grid-cols-2 sm:px-5">
+      <DialogFooter className="grid shrink-0 grid-cols-2 gap-2 p-4 sm:grid-cols-2 sm:px-5">
         <Button
           type="button"
           size="lg"
           variant="outline"
-          className="h-14 w-full touch-manipulation rounded-xl text-base font-black"
+          className="w-full touch-manipulation"
           disabled={pending}
           onClick={onCancel}
         >
@@ -448,7 +489,7 @@ function CartQuantityDialogBody({
         <Button
           type="button"
           size="lg"
-          className="h-14 w-full touch-manipulation rounded-xl text-base font-black"
+          className="w-full touch-manipulation"
           variant={purpose === "cancel" ? "destructive" : "default"}
           disabled={pending || invalid}
           onClick={() => {
@@ -459,9 +500,10 @@ function CartQuantityDialogBody({
           {purpose === "cancel" ? t("pos.cancelItem") : t("actions.save")}
         </Button>
       </DialogFooter>
-    </>
+    </div>
   );
 }
+
 
 export function CartDiscountDialog({
   draft,
@@ -498,6 +540,17 @@ export function CartDiscountDialog({
         : maxAmount !== null
           ? t("pos.discountMaxAmount", { amount: money(maxAmount) })
           : t("pos.discountAmountHelp");
+
+  // ตัวอย่างผลลัพธ์ก่อนบันทึก — maxAmount คือยอดฐานที่ส่วนลดนี้ใช้ (subtotal ของบิล หรือยอดของรายการ)
+  // ให้แคชเชียร์เห็นว่า 10% เท่ากับกี่กีบ และลูกค้าจะเหลือจ่ายเท่าไร ก่อนกดบันทึก
+  const validValue = discountDraftValue(draft, maxAmount);
+  const previewDiscount =
+    maxAmount !== null && validValue !== null && validValue > 0
+      ? Math.min(
+          maxAmount,
+          draft.type === "PCT" ? Math.round((maxAmount * validValue) / 100) : validValue,
+        )
+      : null;
 
   function updateCalculatorValue(input: DiscountKeypadKey) {
     if (pending) return;
@@ -598,7 +651,8 @@ export function CartDiscountDialog({
                   aria-labelledby="discount-value-label"
                   aria-live="polite"
                   className={cn(
-                    "flex min-w-0 items-baseline justify-end gap-2 text-right text-4xl font-black tabular-nums text-foreground",
+                    "flex min-w-0 items-baseline justify-end gap-2 text-right text-4xl font-bold tabular-nums text-foreground",
+                    !draft.value && "text-muted-foreground",
                     invalid && "text-destructive",
                   )}
                 >
@@ -610,10 +664,46 @@ export function CartDiscountDialog({
               </div>
               {invalid ? (
                 <FieldError>{helpText}</FieldError>
+              ) : previewDiscount !== null && maxAmount !== null ? (
+                <p className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1 text-sm">
+                  <span className="font-semibold text-destructive tabular-nums">
+                    −{money(previewDiscount)}
+                  </span>
+                  <span className="text-muted-foreground">
+                    {t("pos.discountRemaining")}{" "}
+                    <span className="font-semibold text-foreground tabular-nums">
+                      {money(maxAmount - previewDiscount)}
+                    </span>
+                  </span>
+                </p>
               ) : (
                 <FieldDescription>{helpText}</FieldDescription>
               )}
             </Field>
+
+            {draft.type === "PCT" ? (
+              <div className="grid grid-cols-5 gap-2">
+                {DISCOUNT_PERCENT_PRESETS.map((preset) => {
+                  const active = validValue === preset;
+                  return (
+                    <Button
+                      key={preset}
+                      type="button"
+                      variant="outline"
+                      aria-pressed={active}
+                      className={cn(
+                        "h-10 touch-manipulation font-semibold tabular-nums",
+                        active && "border-primary bg-primary/10 text-primary-text hover:bg-primary/15",
+                      )}
+                      disabled={pending}
+                      onClick={() => onDraftChange({ ...draft, value: String(preset) })}
+                    >
+                      {preset}%
+                    </Button>
+                  );
+                })}
+              </div>
+            ) : null}
 
             <Field className="gap-2">
               <FieldTitle id="discount-keypad-label" className="sr-only">
@@ -638,18 +728,18 @@ export function CartDiscountDialog({
                       key={key}
                       type="button"
                       size="lg"
-                      variant={isDelete ? "secondary" : "outline"}
+                      variant="outline"
                       aria-keyshortcuts={
                         isDelete ? "Backspace Delete" : undefined
                       }
                       aria-label={ariaLabel}
                       title={isDelete || isClear ? ariaLabel : undefined}
                       className={cn(
-                        "h-12 w-full touch-manipulation rounded-xl text-lg font-black tabular-nums",
+                        "h-12 w-full touch-manipulation rounded-lg text-lg font-semibold tabular-nums",
                         key === "0" && "col-span-2",
-                        isClear && "text-destructive",
+                        (isDelete || isClear) && "text-muted-foreground",
                       )}
-                      disabled={pending}
+                      disabled={pending || (draft.type === "PCT" && key === "000")}
                       onClick={() => updateCalculatorValue(key)}
                     >
                       {isDelete ? (

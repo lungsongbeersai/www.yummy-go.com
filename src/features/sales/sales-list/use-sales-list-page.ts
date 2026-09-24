@@ -372,6 +372,7 @@ export function useSalesListPage(initialPagination: UrlPaginationState) {
     setMobileDetailOpen,
     setMobileFilterOpen,
     setSummaryVisible,
-    summaryVisible
+    summaryVisible,
+    total
   };
 }

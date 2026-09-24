@@ -271,7 +271,7 @@ export function PaymentDialogContent({
           <DialogHeader className="shrink-0 border-b border-border bg-card px-3 pt-[calc(0.375rem+env(safe-area-inset-top,0px))] pb-1.5 text-left sm:px-4 sm:py-3">
             <div className="flex min-w-0 items-center justify-between gap-3">
               <div className="min-w-0">
-                <DialogTitle className="flex min-w-0 items-center gap-2 text-base font-black sm:text-xl">
+                <DialogTitle className="flex min-w-0 items-center gap-2 text-base font-bold sm:text-xl">
                   <CreditCard aria-hidden="true" />
                   <span className="truncate">
                     {isSplitPayment
@@ -288,11 +288,11 @@ export function PaymentDialogContent({
               <div className="flex shrink-0 items-center gap-2">
                 <div className="hidden items-center gap-2 sm:flex">
                   {isSplitPayment ? (
-                    <Badge className="rounded-full px-3 py-1 font-black">
+                    <Badge variant="secondary" className="rounded-full px-3 py-1 font-semibold">
                       {t("pos.splitPayment")}
                     </Badge>
                   ) : null}
-                  <Badge className="rounded-full px-3 py-1 font-black tabular-nums">
+                  <Badge variant="outline" className="rounded-full px-3 py-1 font-semibold tabular-nums">
                     {selectedCurrency.code}
                   </Badge>
                 </div>
@@ -322,7 +322,9 @@ export function PaymentDialogContent({
               data-pos-keypad-ignore="true"
             >
               <div className="grid gap-1.5 md:min-h-0 md:grid-rows-[auto_minmax(0,1fr)] md:gap-3 lg:h-full">
-                <TabsList className="grid h-auto grid-cols-2 gap-1 rounded-lg bg-muted p-1 group-data-horizontal/tabs:h-auto sm:grid-cols-4 md:grid-cols-2 md:gap-1.5 md:p-1.5">
+                {/* วิธีชำระเป็นรายการเต็มความกว้างคอลัมน์บนจอกว้าง (เดิมเป็นกล่อง 2x2 เล็ก ๆ ไม่เต็มคอลัมน์
+                    เหลือพื้นที่ว่างข้าง ๆ) — มือถือยังเป็นแถวเดียว 4 ช่องเพื่อประหยัดความสูง */}
+                <TabsList className="grid h-auto w-full grid-cols-2 gap-1 rounded-lg bg-muted p-1 group-data-horizontal/tabs:h-auto sm:grid-cols-4 md:grid-cols-1 md:gap-1 md:p-1">
                   {paymentTabs.map((tab) => {
                     const Icon = tab.icon;
                     return (
@@ -330,7 +332,7 @@ export function PaymentDialogContent({
                         key={tab.value}
                         value={tab.value}
                         aria-label={t(tab.labelKey)}
-                        className="h-11 min-w-0 gap-1.5 rounded-md px-2 font-black md:gap-2"
+                        className="h-11 min-w-0 gap-1.5 rounded-md px-2 font-semibold md:h-12 md:justify-start md:gap-2.5 md:px-3"
                       >
                           <Icon aria-hidden="true" />
                           <span className="truncate">
@@ -561,7 +563,7 @@ export function PaymentDialogContent({
             <section className="min-h-0 overflow-y-auto overscroll-contain p-1.5 sm:p-3 lg:p-4">
               <div className="h-full min-h-0">
                 {activeTenderField ? (
-                  <div className="grid h-full min-h-0 grid-rows-[auto_auto_minmax(196px,1fr)] gap-1.5 min-[430px]:gap-2 sm:grid-rows-[auto_auto_minmax(0,1fr)] sm:gap-3">
+                  <div className="grid h-full min-h-0 grid-rows-[auto_auto_minmax(196px,1fr)] gap-1.5 min-[430px]:gap-2 sm:grid-rows-[auto_auto_minmax(0,1fr)] sm:gap-3 lg:mx-auto lg:h-auto lg:max-w-xl lg:grid-rows-none lg:content-start">
                     <div className="rounded-lg border border-border bg-card p-2 min-[430px]:p-2.5 lg:p-4">
                       <Field className="gap-1 min-[430px]:gap-1.5">
                         <FieldLabel htmlFor="payment-active-amount">
@@ -579,7 +581,7 @@ export function PaymentDialogContent({
                           }
                           readOnly={suppressSoftKeyboard}
                           value={activeInputDisplayValue}
-                          className="h-10 text-right text-lg font-black tabular-nums min-[430px]:h-12 min-[430px]:text-2xl sm:h-14 sm:text-3xl lg:h-16 xl:text-4xl"
+                          className="h-10 border-0 bg-muted/40 text-right text-lg font-bold tabular-nums shadow-none min-[430px]:h-12 min-[430px]:text-2xl sm:h-14 sm:text-3xl lg:h-16 xl:text-4xl"
                           onChange={handleActiveAmountChange}
                         />
                         <FieldDescription className="hidden text-xs min-[430px]:block sm:text-sm">
@@ -619,7 +621,7 @@ export function PaymentDialogContent({
                           key={amount}
                           type="button"
                           variant="outline"
-                          className="h-11 min-w-0 px-2 font-black tabular-nums lg:h-12"
+                          className="h-11 min-w-0 px-2 font-semibold tabular-nums lg:h-12"
                           onPointerDown={(event) => event.preventDefault()}
                           onClick={() => {
                             const value = formatCurrencyInput(
@@ -793,7 +795,7 @@ export function PaymentDialogContent({
                   </Button>
                   <Button
                     type="button"
-                    className="h-11 min-w-0 px-2 font-black"
+                    className="h-11 min-w-0 px-2 font-bold"
                     disabled={Boolean(validation) || processing}
                     onClick={requestSubmit}
                   >
@@ -808,7 +810,9 @@ export function PaymentDialogContent({
               </div>
 
               <div className="hidden min-h-0 gap-1.5 md:grid md:grid-cols-[minmax(0,1fr)_auto] md:grid-rows-1 md:gap-2 lg:h-full lg:grid-cols-1 lg:grid-rows-[minmax(0,1fr)_auto]">
-                <div className="grid min-h-0 grid-cols-3 gap-1.5 md:gap-2 lg:grid-cols-1 lg:content-start lg:gap-3">
+                {/* สรุปยอดเป็นกล่องเดียวแบบใบเสร็จ: ยอดต้องชำระเด่นสุด แล้วรับเงิน/เงินทอนเป็นแถวใต้ —
+                    เงินทอนสีเขียว ยอดค้างสีแดง ให้แคชเชียร์แยกได้ทันทีว่าต้องทอนหรือยังขาดอยู่ */}
+                <div className="grid min-h-0 grid-cols-3 gap-1.5 md:gap-2 lg:grid-cols-1 lg:content-start lg:self-start lg:gap-0 lg:overflow-hidden lg:rounded-xl lg:border lg:border-border lg:bg-card">
                   <PaymentStat
                     label={t("pos.amountDue")}
                     value={money(totalAmount)}
@@ -827,7 +831,13 @@ export function PaymentDialogContent({
                     value={money(
                       payment.balance > 0 ? payment.balance : payment.change,
                     )}
-                    strong
+                    tone={
+                      payment.balance > 0
+                        ? "negative"
+                        : payment.change > 0
+                          ? "positive"
+                          : undefined
+                    }
                   />
                 </div>
 
@@ -835,22 +845,16 @@ export function PaymentDialogContent({
                   {validation ? (
                     <p
                       role="alert"
-                      className="min-h-4 text-xs font-semibold text-destructive sm:min-h-5 sm:text-sm"
+                      className="min-h-4 text-xs font-medium text-destructive sm:min-h-5 sm:text-sm"
                     >
                       {t(validation)}
                     </p>
-                  ) : (
-                    <p className="min-h-4 text-xs font-semibold text-muted-foreground sm:min-h-5 sm:text-sm">
-                      {selectedTab
-                        ? t(selectedTab.labelKey)
-                        : t("pos.paymentTitle")}
-                    </p>
-                  )}
+                  ) : null}
                   <div className="grid grid-cols-3 gap-1.5 md:gap-2 lg:grid-cols-1">
                     <Button
                       type="button"
-                      variant="secondary"
-                      className="h-10 min-w-0 px-2 font-black sm:h-12"
+                      variant="outline"
+                      className="h-10 min-w-0 px-2 sm:h-12"
                       disabled={!canPrintInvoice}
                       onClick={() => void handlePrintInvoice()}
                     >
@@ -861,7 +865,7 @@ export function PaymentDialogContent({
                       )}
                       <span className="truncate">{t("pos.printInvoice")}</span>
                     </Button>
-                    <div className="contents lg:grid lg:grid-cols-2 lg:gap-2">
+                    <div className="contents lg:grid lg:grid-cols-[minmax(0,1fr)_minmax(0,2fr)] lg:gap-2">
                       <Button
                         type="button"
                         variant="outline"
@@ -873,7 +877,7 @@ export function PaymentDialogContent({
                       </Button>
                       <Button
                         type="button"
-                        className="h-10 min-w-0 px-2 font-black sm:h-12"
+                        className="h-10 min-w-0 px-2 text-base font-bold sm:h-12"
                         disabled={Boolean(validation) || processing}
                         onClick={requestSubmit}
                       >

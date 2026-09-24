@@ -2,27 +2,21 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useResetOnChange } from "@/hooks/use-reset-on-change";
-import { ArrowRightLeft, Info, LayoutGrid, MapPin, Merge, Search } from "lucide-react";
+import { ArrowRightLeft, Info, Merge } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { ConfirmDialog } from "@/components/common/confirm-dialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Empty, EmptyHeader, EmptyMedia, EmptyTitle } from "@/components/ui/empty";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Spinner } from "@/components/ui/spinner";
-import { Tabs, TabsList } from "@/components/ui/tabs";
+import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
+import { SearchInput } from "@/components/common/search-input";
 import type { MoveTableZone, PosTable, PosZone } from "@/services/pos";
 import { usePosStore } from "@/stores/pos-store";
 import { useToastStore } from "@/stores/toast-store";
-import {
-  TableActionOptionCard,
-  TableActionSelectionSummary,
-  TableActionsLoading,
-  TableActionTab
-} from "./table-actions-overlay-parts";
+import { TableActionFlow, TableActionOptionCard, TableActionsLoading } from "./table-actions-overlay-parts";
 import type { TableActionMode } from "./types";
 import { filterTableActionZones, normalizeTableActionZones, tableActionFlatTables } from "./utils";
 
@@ -72,7 +66,6 @@ export function TableActionsOverlay({
   const visibleTableCount = visibleZones.reduce((total, zone) => total + zone.tables.length, 0);
   const canSubmit = mode === "move" ? Boolean(moveTarget) : joinSources.length > 0;
   const actionLabel = mode === "move" ? t("pos.moveTable") : t("pos.joinTables");
-  const modeDescription = mode === "move" ? t("pos.moveTableDescription") : t("pos.joinTablesDescription");
   const modeRule = mode === "move" ? t("pos.moveTableRule") : t("pos.joinTablesRule");
   const actionButtonLabel =
     mode === "move" && moveTarget
@@ -172,56 +165,53 @@ export function TableActionsOverlay({
     }
   }
 
-  const modeTabs = (
-    <Tabs value={mode} onValueChange={(value) => setMode(value as TableActionMode)} className="gap-0">
-      <TabsList className="grid h-auto min-h-12 w-full grid-cols-2 rounded-xl bg-muted/70 p-1 sm:min-h-14">
-        <TableActionTab
-          description={t("pos.moveTableDescription")}
-          icon={<ArrowRightLeft aria-hidden="true" />}
-          label={t("pos.moveTable")}
-          value="move"
-        />
-        <TableActionTab
-          description={t("pos.joinTablesDescription")}
-          icon={<Merge aria-hidden="true" />}
-          label={t("pos.joinTables")}
-          value="join"
-        />
-      </TabsList>
-    </Tabs>
+  // ย้าย/รวม เป็นตัวเลือก 2 ค่า — segmented control (ToggleGroup) กะทัดรัดกว่าแท็บการ์ดใหญ่แบบเดิม
+  // คำอธิบายของแต่ละโหมดย้ายไปอยู่ในบรรทัดกฎใต้ช่องค้นหาแทน (เดิมซ้ำกันอยู่ 2 ที่)
+  const modeSwitch = (
+    <ToggleGroup
+      type="single"
+      variant="outline"
+      spacing={0}
+      value={mode}
+      aria-label={t("pos.tableActions")}
+      className="grid w-full grid-cols-2 sm:w-auto"
+      onValueChange={(value) => {
+        if (value) setMode(value as TableActionMode);
+      }}
+    >
+      <ToggleGroupItem value="move" className="h-10 px-4 text-sm font-semibold data-[state=on]:bg-primary data-[state=on]:text-primary-foreground">
+        <ArrowRightLeft aria-hidden="true" data-icon="inline-start" />
+        {t("pos.moveTable")}
+      </ToggleGroupItem>
+      <ToggleGroupItem value="join" className="h-10 px-4 text-sm font-semibold data-[state=on]:bg-primary data-[state=on]:text-primary-foreground">
+        <Merge aria-hidden="true" data-icon="inline-start" />
+        {t("pos.joinTables")}
+      </ToggleGroupItem>
+    </ToggleGroup>
   );
 
   const supportingControls = (
-    <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_minmax(19rem,0.7fr)]">
-      <div className="flex min-h-11 items-start gap-2.5 rounded-xl border border-primary/20 bg-primary/5 px-3 py-2 text-xs leading-5 text-muted-foreground">
-        <Info aria-hidden="true" className="mt-0.5 size-4 shrink-0 text-primary" />
-        <p>{modeRule}</p>
+    <div className="flex flex-col gap-2">
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+        {modeSwitch}
+        <SearchInput
+          ariaLabel={t("actions.search")}
+          className="h-10 flex-1"
+          id={`table-actions-search-${variant}`}
+          name="table-action-search"
+          placeholder={`${t("actions.search")}…`}
+          value={search}
+          onChange={setSearch}
+        />
       </div>
-
-      <div className="flex min-w-0 items-center gap-2">
-        <div className="relative min-w-0 flex-1">
-          <Label htmlFor={`table-actions-search-${variant}`} className="sr-only">
-            {t("actions.search")}
-          </Label>
-          <Search aria-hidden="true" className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-          <Input
-            id={`table-actions-search-${variant}`}
-            name="table-action-search"
-            autoComplete="off"
-            className="h-11 rounded-xl bg-background pl-9"
-            placeholder={`${t("actions.search")}\u2026`}
-            type="search"
-            value={search}
-            onChange={(event) => setSearch(event.target.value)}
-          />
-        </div>
-        <Badge
-          aria-live="polite"
-          className="h-11 shrink-0 rounded-xl bg-background px-3 tabular-nums text-foreground"
-          variant="outline"
-        >
+      <div className="flex items-start justify-between gap-3 text-xs text-muted-foreground">
+        <p className="flex min-w-0 items-start gap-1.5">
+          <Info aria-hidden="true" className="mt-0.5 size-3.5 shrink-0" />
+          <span>{modeRule}</span>
+        </p>
+        <span aria-live="polite" className="shrink-0 font-medium tabular-nums">
           {visibleTableCount} {mode === "move" ? t("common.free") : t("common.busy")}
-        </Badge>
+        </span>
       </div>
     </div>
   );
@@ -231,13 +221,13 @@ export function TableActionsOverlay({
   ) : visibleZones.length ? (
     <div className="flex flex-col gap-5">
       {visibleZones.map((zone) => (
-        <section key={zone.uuid} className="flex flex-col gap-2.5">
-          <div className="flex items-center gap-2 px-0.5">
-            <MapPin aria-hidden="true" className="size-4 text-primary" />
-            <h3 className="min-w-0 truncate text-sm font-black text-foreground">{zone.name}</h3>
-            <Badge className="rounded-full px-2 text-xs tabular-nums">{zone.tables.length}</Badge>
+        <section key={zone.uuid} aria-label={zone.name} className="flex flex-col gap-2.5">
+          <div className="flex items-center gap-2">
+            <h3 className="min-w-0 truncate text-sm font-semibold text-foreground">{zone.name}</h3>
+            <Badge variant="secondary" className="tabular-nums">{zone.tables.length}</Badge>
+            <div aria-hidden="true" className="h-px flex-1 bg-border" />
           </div>
-          <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+          <div className="grid grid-cols-3 gap-2 sm:grid-cols-4 lg:grid-cols-6">
             {zone.tables.map((option) => {
               const selected = mode === "move" ? option.uuid === moveTargetUuid : joinSourceUuids.includes(option.uuid);
 
@@ -276,20 +266,19 @@ export function TableActionsOverlay({
     </Empty>
   );
 
+  // ท้าย: ภาพ ต้นทาง → ปลายทาง ของสิ่งที่จะเกิดขึ้นจริง ข้างปุ่มยืนยัน
   const actionFooter = (
-    <div className="shrink-0 border-t border-border bg-background/95 px-4 py-3 shadow-[0_-8px_24px_-20px_rgba(0,0,0,0.45)] backdrop-blur-sm">
+    <div className="shrink-0 border-t border-border bg-background px-4 py-3 pb-[calc(0.75rem+var(--pos-system-bottom-safe-area,0px))] sm:px-5">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div aria-live="polite" className="min-w-0 flex-1">
-          <p className="text-xs font-black text-foreground">{actionLabel}</p>
-          <TableActionSelectionSummary
+        <div aria-live="polite" className="min-w-0">
+          <TableActionFlow
             joinSources={joinSources}
             mode={mode}
-            modeDescription={modeDescription}
             moveTarget={moveTarget}
             sourceTableName={table.table_name}
           />
         </div>
-        <div className="flex shrink-0 flex-col-reverse gap-2 sm:flex-row">
+        <div className="grid shrink-0 grid-cols-2 gap-2 sm:flex">
           <Button type="button" size="lg" variant="outline" disabled={pending} onClick={() => updateOpen(false)}>
             {t("actions.cancel")}
           </Button>
@@ -302,18 +291,12 @@ export function TableActionsOverlay({
     </div>
   );
 
-  function renderBody(scrollSupportingControls: boolean) {
+  function renderBody() {
     return (
       <>
-        <div className="shrink-0 border-b border-border bg-muted/20 p-3 sm:p-4">
-          {modeTabs}
-          {!scrollSupportingControls ? <div className="mt-3">{supportingControls}</div> : null}
-        </div>
-        <div className="min-h-0 flex-1 overscroll-contain overflow-y-auto" aria-busy={loading}>
-          {scrollSupportingControls ? (
-            <div className="border-b border-border bg-muted/20 px-4 pb-4 pt-3">{supportingControls}</div>
-          ) : null}
-          <div className="px-4 py-4">{tableOptions}</div>
+        <div className="shrink-0 border-b border-border px-4 py-3 sm:px-5">{supportingControls}</div>
+        <div className="min-h-0 flex-1 overscroll-contain overflow-y-auto bg-muted/30 px-4 py-4 sm:px-5" aria-busy={loading}>
+          {tableOptions}
         </div>
         {actionFooter}
       </>
@@ -329,51 +312,35 @@ export function TableActionsOverlay({
             showCloseButton={!pending}
             className="h-[90dvh] max-h-none gap-0 overflow-hidden rounded-t-2xl p-0 data-[side=bottom]:h-[90dvh]"
           >
-            <SheetHeader className="shrink-0 border-b border-border p-4 pr-14">
-              <div className="flex min-w-0 items-center gap-3 text-left">
-                <span className="grid size-10 shrink-0 place-items-center rounded-xl bg-primary/10 text-primary">
-                  <LayoutGrid aria-hidden="true" className="size-5" />
-                </span>
-                <div className="min-w-0 flex-1">
-                  <SheetTitle className="truncate text-lg font-black">{t("pos.tableActions")}</SheetTitle>
-                  <SheetDescription className="mt-1 truncate">
-                    {t("pos.tableActionsDescription", { table: table.table_name })}
-                  </SheetDescription>
-                </div>
-                <Badge
-                  title={table.table_name}
-                  className="max-w-28 shrink-0 truncate rounded-lg border-primary/20 bg-primary/10 px-2.5 py-1 text-sm font-black text-primary"
-                >
+            <SheetHeader className="shrink-0 border-b border-border px-4 py-3 pr-14 text-left">
+              <div className="flex min-w-0 items-center gap-2">
+                <SheetTitle className="truncate text-lg font-bold">{t("pos.tableActions")}</SheetTitle>
+                <Badge variant="outline" title={table.table_name} className="max-w-28 shrink-0 truncate tabular-nums">
                   {table.table_name}
                 </Badge>
               </div>
+              <SheetDescription className="truncate">
+                {t("pos.tableActionsDescription", { table: table.table_name })}
+              </SheetDescription>
             </SheetHeader>
-            {renderBody(true)}
+            {renderBody()}
           </SheetContent>
         </Sheet>
       ) : (
         <Dialog open={open} onOpenChange={updateOpen}>
           <DialogContent className="top-6 flex max-h-[min(820px,calc(100dvh-3rem))] translate-y-0 flex-col gap-0 overflow-hidden p-0 duration-200 sm:max-w-[960px]">
-            <DialogHeader className="shrink-0 border-b border-border p-5 pr-16">
-              <div className="flex min-w-0 items-center gap-3">
-                <span className="grid size-11 shrink-0 place-items-center rounded-xl bg-primary/10 text-primary">
-                  <LayoutGrid aria-hidden="true" className="size-5" />
-                </span>
-                <div className="min-w-0 flex-1">
-                  <DialogTitle className="truncate text-xl font-black">{t("pos.tableActions")}</DialogTitle>
-                  <DialogDescription className="mt-1 truncate">
-                    {t("pos.tableActionsDescription", { table: table.table_name })}
-                  </DialogDescription>
-                </div>
-                <Badge
-                  title={table.table_name}
-                  className="max-w-40 shrink-0 truncate rounded-lg border-primary/20 bg-primary/10 px-3 py-1.5 text-sm font-black text-primary"
-                >
+            <DialogHeader className="shrink-0 border-b border-border px-5 py-4 pr-16 text-left">
+              <div className="flex min-w-0 items-center gap-2">
+                <DialogTitle className="truncate text-xl font-bold">{t("pos.tableActions")}</DialogTitle>
+                <Badge variant="outline" title={table.table_name} className="max-w-40 shrink-0 truncate tabular-nums">
                   {table.table_name}
                 </Badge>
               </div>
+              <DialogDescription className="truncate">
+                {t("pos.tableActionsDescription", { table: table.table_name })}
+              </DialogDescription>
             </DialogHeader>
-            {renderBody(false)}
+            {renderBody()}
           </DialogContent>
         </Dialog>
       )}

@@ -36,6 +36,10 @@
      ในรายงาน (เทียบ sky-700/amber-700 เดิมที่ผ่าน contrast อยู่แล้ว) */
   --info-text: hsl(201 100% 33%);
   --warning-text: hsl(25 100% 37%);
+  /* ตัวอักษรสีแบรนด์บนพื้น card/background (ราคา, ปุ่ม +/-) — โหมดสว่างใช้ --primary ตรง ๆ
+     แต่โหมดมืด --primary เข้มมาก (ออกแบบเป็นสีพื้นปุ่มคู่กับ -foreground) ใช้เป็นตัวอักษรบนพื้นมืด
+     แล้วแทบมองไม่เห็น จึงชี้ไป --sidebar-primary ที่ทุก preset สีธีมกำหนดเฉดสว่างไว้ในโหมดมืดแล้ว */
+  --primary-text: var(--primary);
   --border: oklch(0.925 0.005 214.3);
   --input: oklch(0.925 0.005 214.3);
   --ring: oklch(0.723 0.014 214.4);
@@ -96,6 +100,7 @@
   /* โหมดมืด: ใช้เฉดสว่าง (เทียบ sky-300/amber-300 เดิม) ให้ contrast ผ่านบนพื้น card เข้ม */
   --info-text: hsl(199 95% 74%);
   --warning-text: hsl(46 97% 64%);
+  --primary-text: var(--sidebar-primary);
   --border: oklch(1 0 0 / 10%);
   --input: oklch(1 0 0 / 15%);
   --ring: oklch(0.56 0.021 213.5);
@@ -261,6 +266,7 @@ html[data-font-scale="xl"] {
   --color-info-foreground: var(--info-foreground);
   --color-info-text: var(--info-text);
   --color-warning-text: var(--warning-text);
+  --color-primary-text: var(--primary-text);
   --color-border: var(--border);
   --color-input: var(--input);
   --color-ring: var(--ring);
@@ -1008,19 +1014,15 @@ html {
   border-color: rgba(72, 190, 244, 0.3) !important;
 }
 
-.android-webview-compat .login-light-zone .login-hero-overlay {
-  background-color: rgba(255, 255, 255, 0.2) !important;
-}
-
 .capacitor-android .login-light-zone {
   min-height: 100dvh;
   overflow-x: hidden;
   overflow-y: auto;
 }
 
-.capacitor-android .login-light-zone .login-layout,
-.capacitor-android .login-light-zone .login-hero-section,
-.capacitor-android .login-light-zone .login-panel-section {
+/* Only the page wrapper fills the screen; the hero now lives inside the login card
+   (shadcn login-04 layout), so it must size with the card, not the viewport. */
+.capacitor-android .login-light-zone.login-layout {
   min-height: 100dvh;
 }
 
@@ -1028,11 +1030,26 @@ html {
   appearance: none;
   -webkit-appearance: none;
   background-color: var(--card) !important;
-  border-color: var(--primary) !important;
+  border-color: var(--input) !important;
   box-shadow: 0 1px 2px 0 rgba(15, 23, 42, 0.06) !important;
   color: var(--foreground) !important;
   caret-color: var(--primary);
   outline: none !important;
+}
+
+/* ช่องรหัสผ่านเป็น InputGroup (input + ปุ่มตา) — ทาพื้น/ขอบที่ตัว group ทั้งก้อนให้หน้าตาเท่า
+   .login-input ของช่องอีเมล ไม่งั้น bg-input/20 ของ group โผล่เป็นสีเทาตรงปุ่มตาบน WebView */
+.capacitor-android .login-light-zone [data-slot="input-group"] {
+  background-color: var(--card) !important;
+  border-color: var(--input) !important;
+  box-shadow: 0 1px 2px 0 rgba(15, 23, 42, 0.06) !important;
+}
+
+.capacitor-android .login-light-zone [data-slot="input-group"]:focus-within {
+  border-color: var(--primary) !important;
+  box-shadow:
+    0 0 0 4px rgba(16, 185, 129, 0.12),
+    0 1px 2px 0 rgba(15, 23, 42, 0.06) !important;
 }
 
 .capacitor-android .login-light-zone .login-input:focus {
@@ -1068,14 +1085,6 @@ html {
   border-color: var(--primary) !important;
   color: var(--primary-foreground) !important;
   opacity: 0.7 !important;
-}
-
-@media (orientation: landscape) and (max-height: 720px) {
-  .capacitor-android .login-light-zone .login-panel-section {
-    align-items: flex-start;
-    padding-top: max(3.5rem, calc(1rem + env(safe-area-inset-top, 0px)));
-    padding-bottom: max(1rem, calc(1rem + env(safe-area-inset-bottom, 0px)));
-  }
 }
 
 .pos-soft-light-zone {
@@ -1145,13 +1154,10 @@ html {
   color-scheme: light;
 }
 
-.login-light-zone .login-input-group,
-.login-light-zone .login-input-group [data-slot="input-group-addon"] {
-  background: var(--card) !important;
-}
-
-.login-light-zone .login-input-group input {
-  background: transparent !important;
+/* An autofilled control inside an InputGroup (the password field) only fills its own box;
+   tint the whole group the same colour so the eye-toggle addon doesn't stay grey. */
+.login-light-zone [data-slot="input-group"]:has(input:-webkit-autofill) {
+  background-color: var(--card);
 }
 
 .login-light-zone input:-webkit-autofill,

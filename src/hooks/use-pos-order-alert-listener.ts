@@ -3,12 +3,13 @@
 import { usePathname, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useRef } from "react";
 import { useTranslation } from "react-i18next";
+import { orderAlertSoundSrc } from "@/lib/pos/order-alert-sounds";
 import { collectOrderAlerts } from "@/lib/pos/order-alerts";
 import { isTableAlertForBranch, subscribeTableAlerts, type TableAlertPayload } from "@/lib/socket";
+import { useAppStore } from "@/stores/app-store";
 import { usePosStore } from "@/stores/pos-store";
 import { useToastStore } from "@/stores/toast-store";
 
-const orderAlertSoundUrl = "/sounds/orderNew1.mp3";
 const audioUnlockEvents = ["click", "touchstart", "keydown"] as const;
 const newOrderAlertCooldownMs = 1200;
 
@@ -18,13 +19,15 @@ interface UsePosOrderAlertListenerParams {
 }
 
 function useAlertSoundPlayer() {
+  const soundSrc = orderAlertSoundSrc(useAppStore((state) => state.orderAlertSound));
+  const soundSrcRef = useRef(soundSrc);
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const unlockedRef = useRef(false);
 
   const ensureAudio = useCallback(() => {
     if (audioRef.current) return audioRef.current;
 
-    const audio = new Audio(orderAlertSoundUrl);
+    const audio = new Audio(soundSrcRef.current);
     audio.preload = "auto";
     audioRef.current = audio;
     return audio;
@@ -53,6 +56,17 @@ function useAlertSoundPlayer() {
         audio.volume = 1;
       });
   }, [ensureAudio]);
+
+  // เปลี่ยนเสียงที่เลือกในเมนูแจ้งเตือน — สลับ src บน element เดิมแทนการสร้าง Audio ใหม่
+  // เพื่อไม่ให้ต้องปลดล็อก autoplay ซ้ำ (ปลดล็อกผูกกับเอกสาร ไม่ใช่ไฟล์เสียง)
+  useEffect(() => {
+    soundSrcRef.current = soundSrc;
+    const audio = audioRef.current;
+    if (!audio || audio.src.endsWith(soundSrc)) return;
+    audio.pause();
+    audio.src = soundSrc;
+    audio.load();
+  }, [soundSrc]);
 
   useEffect(() => {
     ensureAudio();

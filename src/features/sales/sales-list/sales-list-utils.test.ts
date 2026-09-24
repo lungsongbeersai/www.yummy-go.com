@@ -3,7 +3,10 @@ import type { DailySaleItemsBillGroup } from "@/stores/report-store";
 import {
   billMetaText,
   billNeedsPaymentAttention,
+  billPaymentLabel,
+  billTimeLabel,
   calculatedRateLabel,
+  groupBillsByDate,
   itemAmounts,
   itemDiscountLabel,
   itemTastes,
@@ -48,6 +51,30 @@ function bill(overrides: Partial<DailySaleItemsBillGroup> = {}): DailySaleItemsB
 }
 
 describe("sales list utils", () => {
+  it("labels a split bill instead of showing the numeric payment_method fallback", () => {
+    const translate = (key: string) => key;
+    expect(billPaymentLabel(bill({ paymentMethodName: "0", paymentMethodCode: "0", receiveCashAmount: 150000, receiveTransferAmount: 339000 }), translate)).toBe("pos.splitPayment");
+    expect(billPaymentLabel(bill({ paymentMethodName: "2", paymentMethodCode: "2", receiveCashAmount: 0, receiveTransferAmount: 5000 }), translate)).toBe("pos.paymentTransfer");
+    expect(billPaymentLabel(bill({ paymentMethodName: "ເງິນສົດ" }), translate)).toBe("ເງິນສົດ");
+  });
+
+  it("groups consecutive bills by business date without re-sorting", () => {
+    const groups = groupBillsByDate([
+      bill({ id: "a", saleDate: "2026-09-24 00:00:00" }),
+      bill({ id: "b", saleDate: "2026-09-24 00:00:00" }),
+      bill({ id: "c", saleDate: "2026-09-23 00:00:00" })
+    ]);
+    expect(groups.map((group) => [group.label, group.bills.map((item) => item.id)])).toEqual([
+      ["24/09/2026", ["a", "b"]],
+      ["23/09/2026", ["c"]]
+    ]);
+  });
+
+  it("shows the paid time rather than the midnight business date", () => {
+    expect(billTimeLabel(bill({ raw: { last_paid_at: "2026-09-23T19:13:50.949Z" } })).dateTime).toBe("2026-09-23T19:13:50.949Z");
+    expect(billTimeLabel(bill({ saleDate: "2026-09-24 00:00:00" }))).toEqual({ dateTime: "2026-09-24", label: "24/09/2026" });
+  });
+
   it("explains the saved 40 percent item discount without changing the amounts", () => {
     const item = Object.freeze({
       qty: 1, product_price: 40000, amount: 40000, total: 24000,
