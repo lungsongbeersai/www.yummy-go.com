@@ -145,7 +145,7 @@ export function LoginClient() {
     // pt/pb บวก safe-area — บน Capacitor หน้าเว็บวาดใต้ status bar/แถบ gesture (edge-to-edge)
     // จัดกลางด้วย my-auto ของคอลัมน์แทน justify-center: ตอนคีย์บอร์ดเปิดแล้วเนื้อหาสูงกว่าจอ
     // justify-center ดันหัวการ์ดล้นขึ้นไปใต้ status bar จนเลื่อนกลับมาดูไม่ได้ ส่วน auto margin ไม่ล้น
-    <main className="login-light-zone login-layout relative isolate flex min-h-svh flex-col items-center gap-4 bg-muted px-4 pb-[calc(1.5rem+env(safe-area-inset-bottom,0px))] pt-[calc(1rem+env(safe-area-inset-top,0px))] sm:px-6 md:px-10 md:pb-10 md:pt-10">
+    <main className="login-light-zone login-layout relative isolate flex min-h-svh flex-col items-center gap-4 bg-muted px-4 pb-[calc(1.5rem+env(safe-area-inset-bottom,0px))] pt-[calc(1rem+env(safe-area-inset-top,0px))] sm:px-6 md:px-10 md:pb-6 md:pt-6">
       {/* Full-screen backdrop, softened so the card and the footer text stay readable. */}
       <Image
         src="/auth/login-hero.png"
@@ -157,13 +157,12 @@ export function LoginClient() {
       />
       <div aria-hidden="true" className="absolute inset-0 -z-10 bg-background/70 backdrop-blur-md" />
 
-      {/* จอเล็กอยู่ในคอลัมน์เหนือการ์ด (absolute เดิมไปทับหัวการ์ดบนมือถือ) — จอกว้างมีที่ว่าง
-          มุมขวาบนพอ จึงลอยไว้ที่มุมเหมือนเดิม */}
-      <div className="flex w-full max-w-md items-center justify-between md:absolute md:inset-x-6 md:top-6 md:w-auto md:max-w-none">
+      {/* อยู่ใน container กว้างเท่าการ์ด เพื่อให้ปุ่มนำทางไม่ลอยชิดขอบจอบน desktop */}
+      <div className="flex w-full max-w-md items-center justify-between md:max-w-6xl">
         <Button
           asChild
-          variant="outline"
-          className="h-10 rounded-xl bg-background/85 px-3 shadow-sm backdrop-blur-md"
+          variant="ghost"
+          className="h-10 rounded-xl bg-background/65 px-3 text-muted-foreground shadow-sm backdrop-blur-md hover:bg-background hover:text-foreground"
         >
           <Link href="/home">
             <ArrowLeft className="size-4" />
@@ -174,29 +173,29 @@ export function LoginClient() {
       </div>
 
       <div className="my-auto flex w-full max-w-md flex-col gap-5 md:max-w-6xl">
-        <Card className="overflow-hidden rounded-2xl p-0 shadow-2xl ring-foreground/10">
+        <Card className="overflow-hidden rounded-2xl p-0 shadow-2xl ring-1 ring-foreground/10">
           <CardContent className="grid p-0 md:grid-cols-[minmax(0,1.05fr)_minmax(22rem,0.95fr)]">
-            <form className="flex flex-col justify-center p-7 sm:p-10 lg:p-14" noValidate onSubmit={onSubmit}>
-              <FieldGroup className="gap-5">
-                <div className="flex items-center gap-4">
-                  <span className="relative size-20 shrink-0 overflow-hidden rounded-full bg-background shadow-md ring-1 ring-foreground/10 sm:size-24">
+            <form className="flex flex-col justify-center p-7 sm:p-8 lg:p-10" noValidate onSubmit={onSubmit}>
+              <FieldGroup className="gap-4">
+                <div className="flex items-center gap-3">
+                  <span className="relative size-16 shrink-0 overflow-hidden rounded-2xl bg-background shadow-sm ring-1 ring-foreground/10">
                     <Image
-                      src="/brand/icon.png"
+                      src="/brand/icon-mark.png"
                       alt="YummyGo"
                       fill
-                      sizes="(min-width: 640px) 96px, 80px"
-                      className="object-contain"
+                      sizes="64px"
+                      className="object-cover"
                     />
                   </span>
                   <div className="flex flex-col gap-1">
-                    <p className="text-xl font-bold tracking-tight">YummyGo</p>
-                    <p className="text-sm text-muted-foreground">{t("auth.productName")}</p>
+                    <p className="text-lg font-bold tracking-tight">YummyGo</p>
+                    <p className="text-xs text-muted-foreground">{t("auth.productName")}</p>
                   </div>
                 </div>
 
-                <div className="flex flex-col items-start gap-2 text-left">
-                  <h1 className="text-3xl font-bold tracking-tight sm:text-4xl">{t("auth.welcomeBack")}</h1>
-                  <p className="max-w-md text-balance text-sm leading-relaxed text-muted-foreground sm:text-base">
+                <div className="flex flex-col items-start gap-1.5 text-left">
+                  <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">{t("auth.welcomeBack")}</h1>
+                  <p className="max-w-md text-balance text-sm leading-relaxed text-muted-foreground">
                     {t("auth.accessWorkspace")}
                   </p>
                 </div>
@@ -223,21 +222,9 @@ export function LoginClient() {
                 </Field>
 
                 <Field className="gap-2.5">
-                  <div className="flex items-center">
-                    <FieldLabel htmlFor="login-password" className="text-sm font-semibold">
-                      {t("auth.password")}
-                    </FieldLabel>
-                    <Button
-                      type="button"
-                      variant="link"
-                      size="sm"
-                      className="ml-auto h-auto p-0 text-xs"
-                      disabled
-                      title={t("auth.unavailable")}
-                    >
-                      {t("auth.forgotPassword")}
-                    </Button>
-                  </div>
+                  <FieldLabel htmlFor="login-password" className="text-sm font-semibold">
+                    {t("auth.password")}
+                  </FieldLabel>
                   {/* overflow-hidden clips the input to the group's rounded inner edge: the
                       input is as tall as the bordered group, so Chrome's autofill fill would
                       otherwise paint over the group border and its corners. */}
@@ -290,20 +277,18 @@ export function LoginClient() {
                   </Button>
                 </Field>
 
-                <section className="border-t border-border pt-5" aria-labelledby="login-app-downloads">
-                  <div className="mb-3 flex flex-col gap-1">
-                    <h2 id="login-app-downloads" className="text-sm font-semibold">
-                      {t("auth.downloadAppsTitle")}
-                    </h2>
-                    <p className="text-xs leading-relaxed text-muted-foreground">
-                      {t("auth.downloadAppsDescription")}
-                    </p>
-                  </div>
-                  <div className="grid gap-2.5 sm:grid-cols-2">
+                <section
+                  className="rounded-2xl bg-muted/70 p-3.5 ring-1 ring-border"
+                  aria-labelledby="login-app-downloads"
+                >
+                  <h2 id="login-app-downloads" className="mb-2.5 text-sm font-semibold">
+                    {t("auth.downloadAppsTitle")}
+                  </h2>
+                  <div className="grid gap-2 sm:grid-cols-2">
                     <Button
                       asChild
                       variant="outline"
-                      className="h-14 justify-start rounded-xl border-foreground/15 bg-foreground px-4 text-background shadow-sm hover:bg-foreground/90 hover:text-background"
+                      className="h-12 justify-start rounded-xl border-foreground/15 bg-foreground px-3.5 text-background shadow-sm hover:bg-foreground/90 hover:text-background"
                     >
                       <a
                         href={appVersionConfig.ios.storeUrl}
@@ -311,7 +296,7 @@ export function LoginClient() {
                         rel="noreferrer"
                         aria-label={t("auth.downloadFromAppStore")}
                       >
-                        <AppleIcon className="size-7" />
+                        <AppleIcon className="size-6" />
                         <span className="flex flex-col items-start leading-none">
                           <span className="text-[0.625rem] font-normal opacity-80">{t("auth.downloadOn")}</span>
                           <span className="mt-1 text-sm font-semibold">App Store</span>
@@ -321,7 +306,7 @@ export function LoginClient() {
                     <Button
                       asChild
                       variant="outline"
-                      className="h-14 justify-start rounded-xl border-foreground/15 bg-foreground px-4 text-background shadow-sm hover:bg-foreground/90 hover:text-background"
+                      className="h-12 justify-start rounded-xl border-foreground/15 bg-foreground px-3.5 text-background shadow-sm hover:bg-foreground/90 hover:text-background"
                     >
                       <a
                         href={appVersionConfig.android.storeUrl}
@@ -329,7 +314,7 @@ export function LoginClient() {
                         rel="noreferrer"
                         aria-label={t("auth.downloadFromGooglePlay")}
                       >
-                        <GooglePlayIcon className="size-7" />
+                        <GooglePlayIcon className="size-6" />
                         <span className="flex flex-col items-start leading-none">
                           <span className="text-[0.625rem] font-normal opacity-80">{t("auth.getItOn")}</span>
                           <span className="mt-1 text-sm font-semibold">Google Play</span>
@@ -341,7 +326,7 @@ export function LoginClient() {
               </FieldGroup>
             </form>
 
-            <div className="relative hidden min-h-[42rem] overflow-hidden bg-muted md:block">
+            <div className="relative hidden min-h-[36rem] overflow-hidden bg-muted lg:min-h-[38rem] md:block">
               <Image
                 src="/auth/login-hero.png"
                 alt=""
@@ -349,8 +334,8 @@ export function LoginClient() {
                 sizes="(min-width: 1280px) 34rem, (min-width: 768px) 44vw, 0px"
                 className="object-cover"
               />
-              <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-foreground/90 via-foreground/55 to-transparent p-8 pt-28 text-background lg:p-10 lg:pt-32">
-                <p className="max-w-md text-2xl font-bold leading-tight lg:text-3xl">{t("auth.heroTitle")}</p>
+              <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-foreground/90 via-foreground/55 to-transparent p-7 pt-24 text-background lg:p-8 lg:pt-28">
+                <p className="max-w-md text-2xl font-bold leading-tight">{t("auth.heroTitle")}</p>
                 <p className="mt-3 max-w-md text-sm leading-relaxed text-background/85">{t("auth.heroBody")}</p>
               </div>
             </div>

@@ -238,7 +238,7 @@
     "updateNow": "ອັບເດດຕອນນີ້"
   },
   "auth": {
-    "accessWorkspace": "YummyGo ຍິນດີຕ້ອນຮັບ",
+    "accessWorkspace": "ເຂົ້າລະບົບເພື່ອເລີ່ມຈັດການຮ້ານຂອງທ່ານ",
     "backToHome": "ກັບໄປໜ້າຫຼັກ",
     "cleanInterface": "ອິນເຕີເຟດ POS Pro ທີ່ສະອາດ",
     "continueWithGoogle": "ທົດລອງໃຊ້",
@@ -265,7 +265,7 @@
     "signingIn": "ກຳລັງເຂົ້າລະບົບ...",
     "unavailable": "ຍັງບໍ່ພ້ອມໃຊ້ງານ",
     "version": "ເວີຊັນ {{version}}",
-    "welcomeBack": "ຍິນດີຕ້ອນຮັບກັບຄືນ",
+    "welcomeBack": "YummyGo ຍິນດີຕ້ອນຮັບ",
     "orContinueWith": "ຫຼືເຂົ້າລະບົບດ້ວຍ",
     "loginWith": "ເຂົ້າລະບົບດ້ວຍ {{provider}}",
     "agreeToPolicy": "ການເຂົ້າລະບົບຖືວ່າທ່ານຍອມຮັບ"

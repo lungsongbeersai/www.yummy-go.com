@@ -238,7 +238,7 @@
     "updateNow": "Update now"
   },
   "auth": {
-    "accessWorkspace": "Welcome to YummyGo",
+    "accessWorkspace": "Sign in to start managing your restaurant.",
     "backToHome": "Back to home",
     "cleanInterface": "Clean POS Pro interface",
     "continueWithGoogle": "Continue with Google",
@@ -265,7 +265,7 @@
     "signingIn": "Signing in...",
     "unavailable": "Not available yet",
     "version": "Version {{version}}",
-    "welcomeBack": "Welcome back",
+    "welcomeBack": "Welcome to YummyGo",
     "orContinueWith": "Or continue with",
     "loginWith": "Login with {{provider}}",
     "agreeToPolicy": "By signing in, you agree to our"
