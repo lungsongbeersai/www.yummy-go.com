@@ -958,6 +958,7 @@
     "orderCreated": "ເລືອກລາຍການສໍາເລັດ",
     "orderCreatedBy": "ສ້າງໂດຍ {{name}}",
     "orderConfirmed": "ຢືນຢັນອໍເດີແລ້ວ",
+    "kitchenPrintIncomplete": "ຢືນຢັນອໍເດີແລ້ວ ແຕ່ໃບຄົວພິມບໍ່ຄົບ",
     "orderConfirmFailed": "ຢືນຢັນອໍເດີບໍ່ສຳເລັດ",
     "orderFailed": "ສ້າງອໍເດີບໍ່ສຳເລັດ",
     "cartUpdateFailed": "ອັບເດດກະຕ່າບໍ່ສຳເລັດ",

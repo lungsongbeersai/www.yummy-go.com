@@ -305,6 +305,7 @@ export interface PrintOpsBatchAgentResponse extends ApiEntity {
   result?: ApiEntity;
   error?: string;
   message?: string;
+  completed?: number;
 }
 export interface PrintOpsBatchProgressAgentResponse extends ApiEntity {
   ok: boolean;

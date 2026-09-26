@@ -383,14 +383,41 @@ export async function printBatchWithLocalAgent(
     })
     : Promise.resolve();
 
+  let requestError: unknown;
   try {
     const { data } = await request;
     assertAgentOk(data, "Print failed");
     reportProgress(jobs.length);
+  } catch (error) {
+    requestError = error;
   } finally {
     requestSettled = true;
     progressController.abort();
     await progressPolling;
+  }
+
+  if (requestError) {
+    const responseData = (
+      requestError as {
+        response?: { data?: PrintOpsBatchAgentResponse };
+      }
+    )?.response?.data;
+    const responseCompleted = Number(responseData?.completed ?? 0);
+    const completedJobs = Math.min(
+      jobs.length,
+      Math.max(
+        completed,
+        Number.isFinite(responseCompleted) ? Math.max(0, responseCompleted) : 0,
+      ),
+    );
+
+    if (requestError && typeof requestError === "object") {
+      Object.assign(requestError, {
+        completed_jobs: completedJobs,
+        jobs_total: jobs.length,
+      });
+    }
+    throw requestError;
   }
 }
 

@@ -728,22 +728,31 @@ export function useSelectedTableCartPanelWorkflow({
     errorMessage?: string;
     pending?: boolean;
   }) {
-    if (result.failedCount > 0) {
+    const printIncomplete =
+      result.failedCount > 0 ||
+      result.pending === true ||
+      (result.total > 0 && result.successCount < result.total);
+
+    if (printIncomplete) {
+      const printProgress = result.total > 0
+        ? t("pos.confirmAllPrintProgress", {
+            success: result.successCount,
+            total: result.total,
+          })
+        : "";
       showToast({
-        title: t("pos.orderConfirmed"),
+        title: t("pos.kitchenPrintIncomplete"),
         description: [
-          `${t("report.printFailed")} ${result.failedCount}/${result.total || result.failedCount}`,
+          printProgress,
+          result.failedCount > 0
+            ? `${t("report.printFailed")} ${result.failedCount}/${result.total || result.failedCount}`
+            : "",
           result.errorMessage,
         ]
           .filter(Boolean)
           .join(" — "),
         tone: "warning",
       });
-      return;
-    }
-
-    if (result.pending) {
-      showToast({ title: t("orderQueue.kitchenPrintQueued"), tone: "info" });
       return;
     }
 

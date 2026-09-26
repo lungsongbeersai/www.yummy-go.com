@@ -1045,6 +1045,120 @@ describe("printer service dispatch", () => {
     );
   });
 
+  it("ACKs completed tickets separately when the third Agent ticket fails", async () => {
+    const jobs = ["item-1", "item-2", "item-3"].map((itemUuid, index) =>
+      windowsPrintJob({
+        job_id: `kitchen-order-1-${itemUuid}`,
+        print_job_item_uuid: itemUuid,
+        ops: [{ type: "text", text: `Ticket ${index + 1}` }],
+      }),
+    );
+    const ackPayloads: AckPayload[] = [];
+
+    axiosMocks.get.mockResolvedValue({
+      data: { agent_id: "agent-1", agent_name: "Local", device_code: "device-1" },
+    });
+    axiosMocks.post.mockRejectedValue(
+      Object.assign(new Error("Request failed with status code 500"), {
+        response: {
+          status: 500,
+          headers: { "x-printer-delivery-state": "unknown" },
+          data: {
+            ok: false,
+            error: "printer reported paper out before ticket completion",
+            completed: 2,
+            jobs_total: 3,
+          },
+        },
+      }),
+    );
+    apiMocks.apiRequest.mockImplementation(async (method, url, options) => {
+      if (method === "get" && url === "/api/v1/printer/jobs/pending") {
+        return {
+          print_batch_payloads: [{
+            cut_mode: "per_ticket",
+            agent_id: "agent-1",
+            device_code: "device-1",
+            print_mode: "windows_agent",
+            print_client: "agent",
+            interface_value: "win:USB/ONLY(XP-80)",
+            print_config_uuid: "51a34c43-f256-4074-84eb-44c9d7668a47",
+            print_job_item_uuids: ["item-1", "item-2", "item-3"],
+            job_total: 3,
+            jobs,
+          }],
+          ack_success_payload: {
+            print_job_uuid: "job-partial",
+            results: ["item-1", "item-2", "item-3"].map(
+              (print_job_item_uuid) => ({
+                print_job_item_uuid,
+                status: "success" as const,
+              }),
+            ),
+          },
+          ack_failed_payload: {
+            print_job_uuid: "job-partial",
+            results: ["item-1", "item-2", "item-3"].map(
+              (print_job_item_uuid) => ({
+                print_job_item_uuid,
+                status: "failed" as const,
+              }),
+            ),
+          },
+        };
+      }
+      if (method === "post" && url === "/api/v1/printer/jobs/ack") {
+        ackPayloads.push(options?.data as AckPayload);
+        return {};
+      }
+      throw new Error(`Unexpected request ${method} ${url}`);
+    });
+
+    await expect(
+      executeKitchenPrintJobs({
+        pending_query: {
+          print_job_uuid: "job-partial",
+          login_uuid_fk: "login-1",
+          device_code: "device-1",
+          agent_id: "agent-1",
+          print_mode: "windows_agent",
+        },
+      }),
+    ).resolves.toEqual({
+      successCount: 2,
+      failedCount: 0,
+      total: 3,
+      pending: true,
+      errorMessage: "printer reported paper out before ticket completion",
+    });
+
+    expect(ackPayloads).toEqual([{
+      print_job_uuid: "job-partial",
+      login_uuid_fk: "login-1",
+      results: [
+        {
+          print_job_item_uuid: "item-1",
+          status: "success",
+          print_config_uuid: "51a34c43-f256-4074-84eb-44c9d7668a47",
+          delivery_state: "printed",
+        },
+        {
+          print_job_item_uuid: "item-2",
+          status: "success",
+          print_config_uuid: "51a34c43-f256-4074-84eb-44c9d7668a47",
+          delivery_state: "printed",
+        },
+        {
+          print_job_item_uuid: "item-3",
+          status: "failed",
+          reason: "printer reported paper out before ticket completion",
+          print_config_uuid: "51a34c43-f256-4074-84eb-44c9d7668a47",
+          delivery_state: "unknown",
+        },
+      ],
+    }]);
+  });
+
   it("prints a shared Windows Agent TCP batch directly from native mobile", async () => {
     capacitorMocks.isNativePlatform.mockReturnValue(true);
     const sharedJob = windowsPrintJob({
@@ -1781,7 +1895,8 @@ describe("printer service dispatch", () => {
       successCount: 0,
       failedCount: 0,
       total: 2,
-      pending: true
+      pending: true,
+      errorMessage: "batch failed"
     });
 
     expect(axiosMocks.post).toHaveBeenCalledWith(

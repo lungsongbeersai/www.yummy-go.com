@@ -941,6 +941,7 @@
     "orderCreated": "Order created",
     "orderCreatedBy": "Created by {{name}}",
     "orderConfirmed": "Order confirmed",
+    "kitchenPrintIncomplete": "Order confirmed, but kitchen printing is incomplete",
     "orderConfirmFailed": "Confirm order failed",
     "orderFailed": "Order failed",
     "cartUpdateFailed": "Cart update failed",
