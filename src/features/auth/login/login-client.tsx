@@ -177,7 +177,7 @@ export function LoginClient() {
           <CardContent className="grid p-0 md:grid-cols-[minmax(0,1.05fr)_minmax(22rem,0.95fr)]">
             <form className="flex flex-col justify-center p-7 sm:p-8 lg:p-10" noValidate onSubmit={onSubmit}>
               <FieldGroup className="gap-4">
-                <div className="flex items-center gap-3">
+                <div className="flex items-center justify-center gap-3 text-center">
                   <span className="relative size-16 shrink-0 overflow-hidden rounded-2xl bg-background shadow-sm ring-1 ring-foreground/10">
                     <Image
                       src="/brand/icon-mark.png"
