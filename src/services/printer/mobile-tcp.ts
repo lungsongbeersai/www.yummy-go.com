@@ -420,8 +420,10 @@ async function checkMobilePrinterPaperStatus({
             throw new Error("Printer returned an empty completion status");
         }
 
-        // GS r 1: bits 5 and 6 indicate that the paper-end sensor sees no paper.
-        if ((status & 0x60) !== 0) {
+        // GS r 1 reports paper-end on bits 2 and 3. Bits 5 and 6 are
+        // reserved and may be set by compatible printers without meaning
+        // paper-out (0x60 is the mask for the different DLE EOT 4 command).
+        if ((status & 0x0c) === 0x0c) {
             throw new Error("Printer reported paper out before completion");
         }
 
@@ -451,7 +453,7 @@ async function readMobilePrinterPaperStatus({
         if (status === null) {
             throw new Error("Printer returned an empty completion status");
         }
-        if ((status & 0x60) !== 0) {
+        if ((status & 0x0c) === 0x0c) {
             throw new Error("Printer reported paper out before completion");
         }
 

@@ -412,7 +412,7 @@ describe("mobile TCP printer queue", () => {
     const TcpSocket = {
       connect: vi.fn(),
       disconnect: vi.fn(),
-      read: vi.fn().mockResolvedValue({ result: "YA==" }),
+      read: vi.fn().mockResolvedValue({ result: "DA==" }),
       send: vi.fn().mockResolvedValue(undefined),
     };
 
@@ -425,5 +425,21 @@ describe("mobile TCP printer queue", () => {
       delivery_state: "unknown",
       message: "Printer reported paper out before completion",
     });
+  });
+
+  it("does not treat reserved GS r bits as paper out", async () => {
+    const TcpSocket = {
+      connect: vi.fn(),
+      disconnect: vi.fn(),
+      read: vi.fn().mockResolvedValue({ result: "YA==" }),
+      send: vi.fn().mockResolvedValue(undefined),
+    };
+
+    await expect(
+      __mobileTcpInternals.checkMobilePrinterPaperStatus({
+        TcpSocket,
+        client: "printer-client",
+      }),
+    ).resolves.toBeUndefined();
   });
 });
