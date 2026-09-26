@@ -182,6 +182,15 @@ describe("sales list utils", () => {
     expect(billDateValue(detail).getFullYear()).toBe(2026);
   });
 
+  it("keeps the sales-list payment time in the browser reprint fallback", () => {
+    const detail = source({
+      last_paid_at: "2026-09-22T09:12:00.000Z",
+      order_date: "2026-09-22 00:00:00"
+    });
+
+    expect(billDateValue(detail).toISOString()).toBe("2026-09-22T09:12:00.000Z");
+  });
+
   it("normalizes item labels, tastes, toppings, and discounts", () => {
     const item = entity({
       cashier: "Alice",

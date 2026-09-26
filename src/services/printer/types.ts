@@ -88,7 +88,7 @@ export interface Printer extends ApiEntity {
   paper_width_mm: number;
   // ใช้เฉพาะตอนส่งรายการอาหารเข้าครัว/บาร์ ไม่กระทบใบเรียกเก็บเงินและใบรับเงิน
   kitchen_cut_mode?: PrinterKitchenCutMode;
-  // ค่าเดิมของเครื่องพิมพ์ก่อนมี option นี้คือเปิดลิ้นชักเมื่อเช็กบิล/รับเงิน
+  // ค่าเดิมของเครื่องพิมพ์ก่อนมี option นี้คืออนุญาตให้เปิดลิ้นชักเมื่อรับเงิน
   cash_drawer_enabled?: boolean;
   // เครื่องรุ่นที่ต้องการเสียงเตือนตอนตัดกระดาษ (เช่น Rongta RP325) — ค่าเดิมคือปิด
   buzzer_on_cut?: boolean;

@@ -92,6 +92,7 @@ interface UseSelectedTableCartPanelWorkflowParams {
   cart: CartPanelData;
   newOrderFocusKey?: number;
   onCartRefresh: () => Promise<void>;
+  onPaymentCompleted?: () => Promise<void>;
   onTableActionComplete: (nextTableUuid?: string) => Promise<void>;
   printerContext?: PrinterDeviceContext | null;
   table: PosTable | null;
@@ -102,6 +103,7 @@ export function useSelectedTableCartPanelWorkflow({
   cart,
   newOrderFocusKey = 0,
   onCartRefresh,
+  onPaymentCompleted,
   onTableActionComplete,
   printerContext,
   table,
@@ -1392,6 +1394,10 @@ export function useSelectedTableCartPanelWorkflow({
       // ร้านไม่มีโต๊ะ: จ่ายเงินเต็มบิลแล้ว เลิกยึด order_uuid เดิม รอบถัดไปเปิดบิลใหม่
       // (split ยังไม่เคลียร์ เพราะอาจเหลือรายการค้างจ่ายอยู่ใน order เดียวกัน)
       usePosStore.getState().setCounterOrderUuid("");
+    }
+    if (onPaymentCompleted) {
+      await onPaymentCompleted();
+      return;
     }
     await onTableActionComplete();
   }

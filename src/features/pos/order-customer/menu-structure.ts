@@ -8,6 +8,7 @@ import {
   type CateProductItem,
   type CateWithProducts,
   type PosTable,
+  type PosZone,
 } from "@/services/pos";
 import {
   countPosMenuProducts,
@@ -130,16 +131,35 @@ export function counterOrderTable(orderUuid: string, tableName: string): PosTabl
 export function orderCustomerUrl({
   tableName,
   tableUuid,
+  zoneUuid,
 }: {
   tableName: string;
   tableUuid: string;
+  zoneUuid?: string;
 }): Route {
   const params = new URLSearchParams({
     table_uuid: tableUuid,
     table_name: tableName,
   });
+  if (zoneUuid) params.set("zone_uuid", zoneUuid);
   // path เป็น route จริง ส่วน query เป็นค่า runtime — typedRoutes ตรวจ template แบบนี้ไม่ได้
   return `/posAll/order?${params.toString()}` as Route;
+}
+
+export function tableZoneUuid(zones: PosZone[], tableUuid: string) {
+  if (!tableUuid) return "";
+  return (
+    zones.find((zone) =>
+      (zone.tables ?? []).some((table) => table.table_uuid === tableUuid),
+    )?.zone_uuid ?? ""
+  );
+}
+
+export function tableSelectionUrl(zoneUuid?: string): Route {
+  const normalizedZoneUuid = zoneUuid?.trim() ?? "";
+  if (!normalizedZoneUuid) return "/posAll/tables";
+  const params = new URLSearchParams({ zone_uuid: normalizedZoneUuid });
+  return `/posAll/tables?${params.toString()}` as Route;
 }
 
 // Lives here (rather than with the other quantity-rule helpers) so both

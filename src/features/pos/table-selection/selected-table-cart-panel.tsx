@@ -48,6 +48,7 @@ export function SelectedTableCartPanel({
   showCreateEmployeeOrderAction = true,
   showTableFeatures = true,
   onCartRefresh,
+  onPaymentCompleted,
   onTableActionComplete,
 }: {
   allZones: PosZone[];
@@ -60,12 +61,14 @@ export function SelectedTableCartPanel({
   showCreateEmployeeOrderAction?: boolean;
   showTableFeatures?: boolean;
   onCartRefresh: () => Promise<void>;
+  onPaymentCompleted?: () => Promise<void>;
   onTableActionComplete: (nextTableUuid?: string) => Promise<void>;
 }) {
   const workflow = useSelectedTableCartPanelWorkflow({
     cart,
     newOrderFocusKey,
     onCartRefresh,
+    onPaymentCompleted,
     onTableActionComplete,
     printerContext,
     table,

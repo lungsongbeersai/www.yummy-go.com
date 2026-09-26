@@ -44,6 +44,8 @@ import {
   selectedOrderTable,
   selectedToppingsFromQtyMap,
   selectedTastesFromUuids,
+  tableSelectionUrl,
+  tableZoneUuid,
   tasteSelectionLimit,
   toggleSetChildOptionGroupUuid,
   toggleSetChoiceUuid,
@@ -61,11 +63,13 @@ import { useOrderCustomerRealtime } from "./use-order-customer-realtime";
 export type OrderCustomerWorkflowInput = {
   initialTableUuid: string;
   initialTableName: string;
+  initialZoneUuid: string;
 };
 
 export function useOrderCustomerWorkflow({
   initialTableUuid,
   initialTableName,
+  initialZoneUuid,
 }: OrderCustomerWorkflowInput) {
   const { t } = useTranslation();
   const router = useRouter();
@@ -157,6 +161,15 @@ export function useOrderCustomerWorkflow({
     }
     return null;
   }, [counterOrderUuid, initialTableName, initialTableUuid, t, zones]);
+
+  const selectedTableZoneUuid = useMemo(
+    () =>
+      tableZoneUuid(zones, initialTableUuid) ||
+      initialZoneUuid ||
+      user?.zone_uuid ||
+      "",
+    [initialTableUuid, initialZoneUuid, user?.zone_uuid, zones],
+  );
 
   const selectedCart = useMemo(() => {
     // fetch_cart ของออเดอร์เคาน์เตอร์ query ด้วย order_uuid + branch_uuid_fk
@@ -680,7 +693,11 @@ export function useOrderCustomerWorkflow({
 
   function navigateAwayFromOrder() {
     // ร้านไม่มีโต๊ะไม่มีหน้าเลือกโต๊ะให้กลับไป — ปุ่ม "ย้อนกลับ" จึงออกไปหน้าแรกแทน
-    router.replace(user?.store_table_status === 2 ? "/" : "/posAll/tables");
+    router.replace(
+      user?.store_table_status === 2
+        ? "/"
+        : tableSelectionUrl(selectedTableZoneUuid),
+    );
   }
 
   function requestGuardedNavigation(action: () => void) {
@@ -1066,6 +1083,7 @@ export function useOrderCustomerWorkflow({
         orderCustomerUrl({
           tableName: nextTable.table_name ?? initialTableName,
           tableUuid: nextTableUuid,
+          zoneUuid: tableZoneUuid(nextZones, nextTableUuid),
         }),
       );
       return;
@@ -1085,6 +1103,16 @@ export function useOrderCustomerWorkflow({
     }
   }
 
+  async function handlePaymentComplete() {
+    if (isNoTableStore) {
+      await handleTableActionComplete();
+      return;
+    }
+
+    setCartSheetOpen(false);
+    router.replace(tableSelectionUrl(selectedTableZoneUuid));
+  }
+
   return {
     activeProducts,
     activeSort,
@@ -1094,6 +1122,7 @@ export function useOrderCustomerWorkflow({
     categories,
     changeProductDetail,
     changeSelectedToppingQty,
+    handlePaymentComplete,
     handleTableActionComplete,
     isMobile,
     loadCart,

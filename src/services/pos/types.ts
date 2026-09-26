@@ -446,6 +446,8 @@ export interface CartItemDetail extends ApiEntity {
   // login_uuid ของพนักงานที่เพิ่มรายการนี้ — ใช้แยก draft (WAITING_CONFIRM) ของ
   // แต่ละคนบนโต๊ะเดียวกัน ดู use-draft-cleanup.ts
   order_it_created_by?: string | null;
+  // ชื่อแสดงผลของผู้สร้างรายการ; รายการจาก QR ลูกค้าจะได้คำว่า "ลูกค้า"
+  order_it_created_by_name?: string | null;
   affects_total?: boolean;
 }
 

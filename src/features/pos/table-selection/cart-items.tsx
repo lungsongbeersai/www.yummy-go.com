@@ -2,7 +2,7 @@
 
 import type { CSSProperties, ReactNode } from "react";
 import Image from "next/image";
-import { Ban, BadgePercent, ChefHat, ClipboardCheck, Gift, Minus, MoreVertical, Pencil, Plus, Printer, ShoppingBag, StickyNote, Tag, Trash2, Utensils } from "lucide-react";
+import { Ban, BadgePercent, ChefHat, ClipboardCheck, Gift, Minus, MoreVertical, Pencil, Plus, Printer, ShoppingBag, StickyNote, Tag, Trash2, UserRound, Utensils } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -260,6 +260,7 @@ function CartItemRow({
   const discountValue = positiveNumber(detail?.order_it_discount_value);
   const discountType = optionalString(detail?.order_it_discount_type);
   const note = optionalString(detail?.order_it_note);
+  const creatorName = optionalString(detail?.order_it_created_by_name);
   const sizeName = optionalString(detail?.size_name);
   const title = cartItemDisplayName(rawTitle, sizeName);
   const toppings = item.toppings ?? [];
@@ -289,6 +290,7 @@ function CartItemRow({
     tastes.length ||
     toppingLineTotal !== null ||
     discountAmount !== null ||
+    creatorName ||
     note
   );
   const isCanceled = isCanceledCartItem(item);
@@ -467,6 +469,11 @@ function CartItemRow({
               ) : null}
 
               {affectsTotal === false ? <CartDetailRow tone="muted">{t("pos.affectsTotal")}: {t("pos.no")}</CartDetailRow> : null}
+              {creatorName ? (
+                <CartDetailRow icon={<UserRound />} tone="muted">
+                  {t("pos.orderCreatedBy", { name: creatorName })}
+                </CartDetailRow>
+              ) : null}
               {tastes.length ? <CartTastesList tastes={tastes} /> : null}
               {toppings.length || toppingLineTotal !== null ? <CartToppingsList toppingTotal={toppingLineTotal} toppings={toppings} /> : null}
               {note ? <CartNote text={note} /> : null}

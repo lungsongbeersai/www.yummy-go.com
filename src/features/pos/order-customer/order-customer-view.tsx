@@ -77,6 +77,7 @@ export function OrderCustomerView({
     changeSelectedToppingQty,
     draftExitCleanupPending,
     draftExitWarningOpen,
+    handlePaymentComplete,
     handleTableActionComplete,
     isMobile,
     loadCart,
@@ -439,6 +440,7 @@ export function OrderCustomerView({
               showTableFeatures={showTableFeatures}
               table={selectedTable}
               onCartRefresh={loadCart}
+              onPaymentCompleted={handlePaymentComplete}
               onTableActionComplete={handleTableActionComplete}
             />
           </div>
@@ -494,6 +496,7 @@ export function OrderCustomerView({
             table={selectedTable}
             variant="sheet"
             onCartRefresh={loadCart}
+            onPaymentCompleted={handlePaymentComplete}
             onTableActionComplete={handleTableActionComplete}
           />
         </SheetContent>
