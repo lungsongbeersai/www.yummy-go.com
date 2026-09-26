@@ -158,7 +158,7 @@ export function LoginClient() {
       <div aria-hidden="true" className="absolute inset-0 -z-10 bg-background/70 backdrop-blur-md" />
 
       {/* อยู่ใน container กว้างเท่าการ์ด เพื่อให้ปุ่มนำทางไม่ลอยชิดขอบจอบน desktop */}
-      <div className="flex w-full max-w-md items-center justify-between md:max-w-6xl">
+      <div className="flex w-full max-w-md items-center justify-between lg:max-w-6xl">
         <Button
           asChild
           variant="ghost"
@@ -172,12 +172,16 @@ export function LoginClient() {
         <LanguageSwitch variant="outline" />
       </div>
 
-      <div className="my-auto flex w-full max-w-md flex-col gap-5 md:max-w-6xl">
-        <Card className="overflow-hidden rounded-2xl p-0 shadow-2xl ring-1 ring-foreground/10">
-          <CardContent className="grid p-0 md:grid-cols-[minmax(0,1.05fr)_minmax(22rem,0.95fr)]">
-            <form className="flex flex-col justify-center p-7 sm:p-8 lg:p-10" noValidate onSubmit={onSubmit}>
+      <div className="my-auto flex w-full max-w-md flex-col gap-5 lg:max-w-6xl">
+        <Card className="overflow-hidden rounded-2xl p-0 shadow-xl ring-1 ring-foreground/10">
+          <CardContent className="grid p-0 lg:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)]">
+            <form
+              className="flex w-full max-w-lg flex-col justify-center justify-self-center p-7 sm:p-8 lg:p-10"
+              noValidate
+              onSubmit={onSubmit}
+            >
               <FieldGroup className="gap-4">
-                <div className="flex items-center justify-center gap-3 text-center">
+                <div className="flex justify-center">
                   <span className="relative size-16 shrink-0 overflow-hidden rounded-2xl bg-background shadow-sm ring-1 ring-foreground/10">
                     <Image
                       src="/brand/icon-mark.png"
@@ -187,15 +191,11 @@ export function LoginClient() {
                       className="object-cover"
                     />
                   </span>
-                  <div className="flex flex-col gap-1">
-                    <p className="text-lg font-bold tracking-tight">YummyGo</p>
-                    <p className="text-xs text-muted-foreground">{t("auth.productName")}</p>
-                  </div>
                 </div>
 
-                <div className="flex flex-col items-start gap-1.5 text-left">
+                <div className="flex flex-col items-center gap-1.5 text-center">
                   <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">{t("auth.welcomeBack")}</h1>
-                  <p className="max-w-md text-balance text-sm leading-relaxed text-muted-foreground">
+                  <p className="max-w-sm text-balance text-sm leading-relaxed text-muted-foreground">
                     {t("auth.accessWorkspace")}
                   </p>
                 </div>
@@ -277,11 +277,11 @@ export function LoginClient() {
                   </Button>
                 </Field>
 
-                <section
-                  className="rounded-2xl bg-muted/70 p-3.5 ring-1 ring-border"
-                  aria-labelledby="login-app-downloads"
-                >
-                  <h2 id="login-app-downloads" className="mb-2.5 text-sm font-semibold">
+                <section className="border-t border-border pt-4" aria-labelledby="login-app-downloads">
+                  <h2
+                    id="login-app-downloads"
+                    className="mb-3 text-center text-xs font-semibold text-muted-foreground"
+                  >
                     {t("auth.downloadAppsTitle")}
                   </h2>
                   <div className="grid gap-2 sm:grid-cols-2">
@@ -326,12 +326,12 @@ export function LoginClient() {
               </FieldGroup>
             </form>
 
-            <div className="relative hidden min-h-[36rem] overflow-hidden bg-muted lg:min-h-[38rem] md:block">
+            <div className="relative hidden min-h-[38rem] overflow-hidden bg-muted lg:block">
               <Image
                 src="/auth/login-hero.png"
                 alt=""
                 fill
-                sizes="(min-width: 1280px) 34rem, (min-width: 768px) 44vw, 0px"
+                sizes="(min-width: 1280px) 40rem, (min-width: 1024px) 55vw, 0px"
                 className="object-cover"
               />
               <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-foreground/90 via-foreground/55 to-transparent p-7 pt-24 text-background lg:p-8 lg:pt-28">
