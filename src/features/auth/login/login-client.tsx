@@ -6,7 +6,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useTranslation } from "react-i18next";
-import { Eye, EyeOff } from "lucide-react";
+import { ArrowLeft, Eye, EyeOff } from "lucide-react";
 import { firstNavigablePath } from "@/components/layout/shell-menu-helpers";
 import { LanguageSwitch } from "@/components/layout/language-switch";
 import { Button } from "@/components/ui/button";
@@ -17,7 +17,6 @@ import {
   FieldDescription,
   FieldGroup,
   FieldLabel,
-  FieldSeparator,
 } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import {
@@ -27,7 +26,7 @@ import {
   InputGroupInput,
 } from "@/components/ui/input-group";
 import { Spinner } from "@/components/ui/spinner";
-import { AppleIcon, GoogleIcon, MetaIcon } from "./login-provider-icons";
+import { AppleIcon, GooglePlayIcon } from "./login-provider-icons";
 import {
   getDisplayedAppVersion,
   WEB_APP_VERSION,
@@ -38,6 +37,7 @@ import { normalizeLoginEmail } from "@/lib/login-email";
 import { authStoreUuid, type AuthUser, useAuthStore } from "@/stores/auth-store";
 import { usePermissionsSidebarStore } from "@/stores/permissions-sidebar-store";
 import { useToastStore } from "@/stores/toast-store";
+import appVersionConfig from "../../../../public/app-version.json";
 
 // ไม่มี redirect param ชัดเจน (เช่น เข้า /login ตรง ๆ) — ปลายทางต้องมาจากเมนูที่สิทธิ์ผู้ใช้เปิดจริง
 // ไม่ใช่ "/" ตายตัว เพราะ Dashboard ไม่เคยอยู่ใน permission tree ที่ backend ส่งมาเลย เรียกผ่าน
@@ -141,21 +141,11 @@ export function LoginClient() {
     }
   }
 
-  // Layout mirrors shadcn's login-04 block element for element. The login-* class names
-  // are hooks for the forced-light token scope and the Capacitor Android WebView fixes in
-  // globals.css, not styling. Social sign-in, password reset and sign-up are not built
-  // yet, so those controls are rendered disabled to keep the block's layout.
-  const providers = [
-    { name: "Apple", icon: AppleIcon },
-    { name: "Google", icon: GoogleIcon },
-    { name: "Meta", icon: MetaIcon },
-  ];
-
   return (
     // pt/pb บวก safe-area — บน Capacitor หน้าเว็บวาดใต้ status bar/แถบ gesture (edge-to-edge)
     // จัดกลางด้วย my-auto ของคอลัมน์แทน justify-center: ตอนคีย์บอร์ดเปิดแล้วเนื้อหาสูงกว่าจอ
     // justify-center ดันหัวการ์ดล้นขึ้นไปใต้ status bar จนเลื่อนกลับมาดูไม่ได้ ส่วน auto margin ไม่ล้น
-    <main className="login-light-zone login-layout relative isolate flex min-h-svh flex-col items-center gap-4 bg-muted px-6 pb-[calc(1.5rem+env(safe-area-inset-bottom,0px))] pt-[calc(1rem+env(safe-area-inset-top,0px))] md:px-10 md:pb-10 md:pt-10">
+    <main className="login-light-zone login-layout relative isolate flex min-h-svh flex-col items-center gap-4 bg-muted px-4 pb-[calc(1.5rem+env(safe-area-inset-bottom,0px))] pt-[calc(1rem+env(safe-area-inset-top,0px))] sm:px-6 md:px-10 md:pb-10 md:pt-10">
       {/* Full-screen backdrop, softened so the card and the footer text stay readable. */}
       <Image
         src="/auth/login-hero.png"
@@ -165,26 +155,56 @@ export function LoginClient() {
         sizes="100vw"
         className="-z-20 object-cover"
       />
-      <div aria-hidden="true" className="absolute inset-0 -z-10 bg-background/50 backdrop-blur-sm" />
+      <div aria-hidden="true" className="absolute inset-0 -z-10 bg-background/70 backdrop-blur-md" />
 
       {/* จอเล็กอยู่ในคอลัมน์เหนือการ์ด (absolute เดิมไปทับหัวการ์ดบนมือถือ) — จอกว้างมีที่ว่าง
           มุมขวาบนพอ จึงลอยไว้ที่มุมเหมือนเดิม */}
-      <div className="flex w-full max-w-sm justify-end md:absolute md:right-6 md:top-6 md:w-auto md:max-w-none">
+      <div className="flex w-full max-w-md items-center justify-between md:absolute md:inset-x-6 md:top-6 md:w-auto md:max-w-none">
+        <Button
+          asChild
+          variant="outline"
+          className="h-10 rounded-xl bg-background/85 px-3 shadow-sm backdrop-blur-md"
+        >
+          <Link href="/home">
+            <ArrowLeft className="size-4" />
+            {t("auth.backToHome")}
+          </Link>
+        </Button>
         <LanguageSwitch variant="outline" />
       </div>
 
-      <div className="my-auto flex w-full max-w-sm flex-col gap-6 md:max-w-4xl">
-        <Card className="overflow-hidden p-0">
-          <CardContent className="grid p-0 md:grid-cols-2">
-            <form className="p-6 md:p-8" noValidate onSubmit={onSubmit}>
-              <FieldGroup>
-                <div className="flex flex-col items-center gap-2 text-center">
-                  <h1 className="text-2xl font-bold">{t("auth.welcomeBack")}</h1>
-                  <p className="text-balance text-muted-foreground">{t("auth.accessWorkspace")}</p>
+      <div className="my-auto flex w-full max-w-md flex-col gap-5 md:max-w-6xl">
+        <Card className="overflow-hidden rounded-2xl p-0 shadow-2xl ring-foreground/10">
+          <CardContent className="grid p-0 md:grid-cols-[minmax(0,1.05fr)_minmax(22rem,0.95fr)]">
+            <form className="flex flex-col justify-center p-7 sm:p-10 lg:p-14" noValidate onSubmit={onSubmit}>
+              <FieldGroup className="gap-5">
+                <div className="flex items-center gap-4">
+                  <span className="relative size-20 shrink-0 overflow-hidden rounded-full bg-background shadow-md ring-1 ring-foreground/10 sm:size-24">
+                    <Image
+                      src="/brand/icon.png"
+                      alt="YummyGo"
+                      fill
+                      sizes="(min-width: 640px) 96px, 80px"
+                      className="object-contain"
+                    />
+                  </span>
+                  <div className="flex flex-col gap-1">
+                    <p className="text-xl font-bold tracking-tight">YummyGo</p>
+                    <p className="text-sm text-muted-foreground">{t("auth.productName")}</p>
+                  </div>
                 </div>
 
-                <Field>
-                  <FieldLabel htmlFor="login-email">{t("auth.email")}</FieldLabel>
+                <div className="flex flex-col items-start gap-2 text-left">
+                  <h1 className="text-3xl font-bold tracking-tight sm:text-4xl">{t("auth.welcomeBack")}</h1>
+                  <p className="max-w-md text-balance text-sm leading-relaxed text-muted-foreground sm:text-base">
+                    {t("auth.accessWorkspace")}
+                  </p>
+                </div>
+
+                <Field className="gap-2.5">
+                  <FieldLabel htmlFor="login-email" className="text-sm font-semibold">
+                    {t("auth.email")}
+                  </FieldLabel>
                   {/* text-base below md: this route has no pinch-zoom lock, and iOS Safari
                       zooms into any input under 16px on focus. */}
                   <Input
@@ -195,21 +215,23 @@ export function LoginClient() {
                     autoComplete="email"
                     spellCheck={false}
                     required
-                    className="login-input text-base md:text-sm"
+                    className="login-input h-12 rounded-xl bg-card px-4 text-base shadow-sm md:text-base"
                     value={email}
                     onBlur={() => setEmail((value) => normalizeLoginEmail(value))}
                     onChange={(event) => setEmail(event.target.value)}
                   />
                 </Field>
 
-                <Field>
+                <Field className="gap-2.5">
                   <div className="flex items-center">
-                    <FieldLabel htmlFor="login-password">{t("auth.password")}</FieldLabel>
+                    <FieldLabel htmlFor="login-password" className="text-sm font-semibold">
+                      {t("auth.password")}
+                    </FieldLabel>
                     <Button
                       type="button"
                       variant="link"
                       size="sm"
-                      className="ml-auto h-auto p-0"
+                      className="ml-auto h-auto p-0 text-xs"
                       disabled
                       title={t("auth.unavailable")}
                     >
@@ -219,20 +241,21 @@ export function LoginClient() {
                   {/* overflow-hidden clips the input to the group's rounded inner edge: the
                       input is as tall as the bordered group, so Chrome's autofill fill would
                       otherwise paint over the group border and its corners. */}
-                  <InputGroup className="overflow-hidden">
+                  <InputGroup className="h-12 overflow-hidden rounded-xl bg-card shadow-sm">
                     <InputGroupInput
                       id="login-password"
                       name="password"
                       type={showPassword ? "text" : "password"}
                       autoComplete="current-password"
                       required
-                      className="text-base md:text-sm"
+                      className="px-4 text-base md:text-base"
                       value={password}
                       onChange={(event) => setPassword(event.target.value)}
                     />
-                    <InputGroupAddon align="inline-end">
+                    <InputGroupAddon align="inline-end" className="pr-2">
                       <InputGroupButton
-                        size="icon-xs"
+                        size="icon-sm"
+                        className="size-9 rounded-lg"
                         aria-label={showPassword ? t("auth.hidePassword") : t("auth.showPassword")}
                         aria-pressed={showPassword}
                         onClick={() => setShowPassword((value) => !value)}
@@ -244,66 +267,97 @@ export function LoginClient() {
                 </Field>
 
                 {/* Not in login-04, but it controls whether the session survives a restart. */}
-                <Field orientation="horizontal">
+                <Field orientation="horizontal" className="min-h-8 gap-3">
                   <Checkbox
                     id="login-remember"
                     name="remember"
                     checked={remember}
                     onCheckedChange={(checked) => setRemember(checked === true)}
                   />
-                  <FieldLabel htmlFor="login-remember" className="font-normal">
+                  <FieldLabel htmlFor="login-remember" className="text-sm font-normal">
                     {t("auth.rememberMe")}
                   </FieldLabel>
                 </Field>
 
                 <Field>
-                  <Button type="submit" className="login-submit-button" disabled={loading}>
+                  <Button
+                    type="submit"
+                    className="login-submit-button h-12 w-full rounded-xl text-sm font-semibold shadow-lg shadow-primary/20"
+                    disabled={loading}
+                  >
                     {loading ? <Spinner data-icon="inline-start" /> : null}
                     {loading ? t("auth.signingIn") : t("auth.signIn")}
                   </Button>
                 </Field>
 
-                <FieldSeparator className="*:data-[slot=field-separator-content]:bg-card">
-                  {t("auth.orContinueWith")}
-                </FieldSeparator>
-
-                <Field className="grid grid-cols-3 gap-4">
-                  {providers.map(({ name, icon: Icon }) => (
-                    <Button key={name} type="button" variant="outline" disabled title={t("auth.unavailable")}>
-                      <Icon />
-                      <span className="sr-only">{t("auth.loginWith", { provider: name })}</span>
+                <section className="border-t border-border pt-5" aria-labelledby="login-app-downloads">
+                  <div className="mb-3 flex flex-col gap-1">
+                    <h2 id="login-app-downloads" className="text-sm font-semibold">
+                      {t("auth.downloadAppsTitle")}
+                    </h2>
+                    <p className="text-xs leading-relaxed text-muted-foreground">
+                      {t("auth.downloadAppsDescription")}
+                    </p>
+                  </div>
+                  <div className="grid gap-2.5 sm:grid-cols-2">
+                    <Button
+                      asChild
+                      variant="outline"
+                      className="h-14 justify-start rounded-xl border-foreground/15 bg-foreground px-4 text-background shadow-sm hover:bg-foreground/90 hover:text-background"
+                    >
+                      <a
+                        href={appVersionConfig.ios.storeUrl}
+                        target="_blank"
+                        rel="noreferrer"
+                        aria-label={t("auth.downloadFromAppStore")}
+                      >
+                        <AppleIcon className="size-7" />
+                        <span className="flex flex-col items-start leading-none">
+                          <span className="text-[0.625rem] font-normal opacity-80">{t("auth.downloadOn")}</span>
+                          <span className="mt-1 text-sm font-semibold">App Store</span>
+                        </span>
+                      </a>
                     </Button>
-                  ))}
-                </Field>
-
-                <FieldDescription className="text-center">
-                  {t("auth.noAccount")}{" "}
-                  <Button
-                    type="button"
-                    variant="link"
-                    className="h-auto p-0"
-                    disabled
-                    title={t("auth.unavailable")}
-                  >
-                    {t("auth.register")}
-                  </Button>
-                </FieldDescription>
+                    <Button
+                      asChild
+                      variant="outline"
+                      className="h-14 justify-start rounded-xl border-foreground/15 bg-foreground px-4 text-background shadow-sm hover:bg-foreground/90 hover:text-background"
+                    >
+                      <a
+                        href={appVersionConfig.android.storeUrl}
+                        target="_blank"
+                        rel="noreferrer"
+                        aria-label={t("auth.downloadFromGooglePlay")}
+                      >
+                        <GooglePlayIcon className="size-7" />
+                        <span className="flex flex-col items-start leading-none">
+                          <span className="text-[0.625rem] font-normal opacity-80">{t("auth.getItOn")}</span>
+                          <span className="mt-1 text-sm font-semibold">Google Play</span>
+                        </span>
+                      </a>
+                    </Button>
+                  </div>
+                </section>
               </FieldGroup>
             </form>
 
-            <div className="relative hidden bg-muted md:block">
+            <div className="relative hidden min-h-[42rem] overflow-hidden bg-muted md:block">
               <Image
                 src="/auth/login-hero.png"
                 alt=""
                 fill
-                sizes="(min-width: 768px) 28rem, 0px"
+                sizes="(min-width: 1280px) 34rem, (min-width: 768px) 44vw, 0px"
                 className="object-cover"
               />
+              <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-foreground/90 via-foreground/55 to-transparent p-8 pt-28 text-background lg:p-10 lg:pt-32">
+                <p className="max-w-md text-2xl font-bold leading-tight lg:text-3xl">{t("auth.heroTitle")}</p>
+                <p className="mt-3 max-w-md text-sm leading-relaxed text-background/85">{t("auth.heroBody")}</p>
+              </div>
             </div>
           </CardContent>
         </Card>
 
-        <FieldDescription className="px-6 text-center">
+        <FieldDescription className="px-4 text-center text-xs">
           {t("auth.agreeToPolicy")} <Link href="/policy">{t("policy.title")}</Link>.{" "}
           {t("auth.version", { version: displayedVersion })}
         </FieldDescription>
