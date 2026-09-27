@@ -16,16 +16,18 @@ import {
   SettingsTableScroll,
   SettingsEmptyRecords
 } from "@/features/settings/shared/settings-shell";
+import { formatShortDate } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import {
   VAT_INCLUDED,
+  annualDaysRemaining,
   branchChargeSummary,
   branchVatSummary,
   isStoreActive,
-  isStorePlc,
   storeBranchId,
   storeBranchName,
   storeBranchValue,
+  storeType,
   type StoreBranchKind
 } from "./store-branch-utils";
 import type { StoreBranchLabels, StoreBranchSettingsRow } from "./store-branch-types";
@@ -42,6 +44,7 @@ export function StoreBranchListSurface({
   rowActions,
   rows,
   selectedRows,
+  summary,
   toolbar,
   onToggleAllSelected,
   onToggleSelected
@@ -57,12 +60,18 @@ export function StoreBranchListSurface({
   rowActions: (row: StoreBranchSettingsRow) => ReactNode;
   rows: StoreBranchSettingsRow[];
   selectedRows: Set<string>;
+  summary?: ReactNode;
   toolbar: ReactNode;
   onToggleAllSelected: (checked: boolean) => void;
   onToggleSelected: (id: string, checked: boolean) => void;
 }) {
   return (
     <div className="flex min-h-0 flex-1 flex-col">
+      {summary ? (
+        <div className="shrink-0 border-b border-border bg-muted/20 px-3 py-3 sm:px-4 lg:px-5">
+          {summary}
+        </div>
+      ) : null}
       <div className="shrink-0 border-b border-border bg-card/95 px-3 py-2.5 backdrop-blur sm:px-4 lg:px-5">
         <div className="flex min-w-0 flex-col gap-2 xl:flex-row xl:items-center xl:justify-between">
           <div className="min-w-0">
@@ -140,11 +149,11 @@ function StoreBranchTable({
   onToggleAllSelected: (checked: boolean) => void;
   onToggleSelected: (id: string, checked: boolean) => void;
 }) {
-  const { t } = useTranslation();
+  const { i18n, t } = useTranslation();
 
   return (
     <SettingsTableScroll>
-      <Table className={kind === "store" ? "min-w-[940px]" : "min-w-[1080px]"}>
+      <Table className={kind === "store" ? "min-w-[1240px]" : "min-w-[1080px]"}>
         <TableHeader className="sticky top-0 z-10 bg-muted/95 backdrop-blur">
           <TableRow>
             <TableHead className="w-10 px-2">
@@ -157,6 +166,8 @@ function StoreBranchTable({
                 <TableHead>{labels.email}</TableHead>
                 <TableHead>{labels.type}</TableHead>
                 <TableHead>{labels.active}</TableHead>
+                <TableHead>{labels.openedOn}</TableHead>
+                <TableHead>{labels.annualDue}</TableHead>
               </>
             ) : (
               <>
@@ -199,6 +210,12 @@ function StoreBranchTable({
                     </TableCell>
                     <TableCell>
                       <StatusBadge active={isStoreActive(row)} labels={labels} />
+                    </TableCell>
+                    <TableCell className="whitespace-nowrap text-muted-foreground tabular-nums">
+                      {storeDateLabel(row, "store_opened_on", i18n.language, labels)}
+                    </TableCell>
+                    <TableCell>
+                      <StoreAnnualStatus language={i18n.language} labels={labels} row={row} />
                     </TableCell>
                   </>
                 ) : (
@@ -255,7 +272,7 @@ function StoreBranchMobileList({
   selectedRows: Set<string>;
   onToggleSelected: (id: string, checked: boolean) => void;
 }) {
-  const { t } = useTranslation();
+  const { i18n, t } = useTranslation();
 
   return (
     <SettingsMobileList>
@@ -293,8 +310,16 @@ function StoreBranchMobileList({
               {kind === "store" ? (
                 <>
                   <SettingsMobileMeta label={labels.email} value={<span translate="no">{storeBranchValue(row, "store_email", "-")}</span>} />
-                  <SettingsMobileMeta label={labels.type} value={isStorePlc(row) ? labels.plc : labels.general} />
+                  <SettingsMobileMeta label={labels.type} value={storeTypeLabel(row, labels)} />
                   <SettingsMobileMeta label={labels.active} value={isStoreActive(row) ? labels.open : labels.closed} />
+                  <SettingsMobileMeta
+                    label={labels.openedOn}
+                    value={storeDateLabel(row, "store_opened_on", i18n.language, labels)}
+                  />
+                  <SettingsMobileMeta
+                    label={labels.annualDue}
+                    value={<StoreAnnualStatus language={i18n.language} labels={labels} row={row} />}
+                  />
                 </>
               ) : (
                 <>
@@ -335,7 +360,59 @@ function StatusBadge({ active, labels }: { active: boolean; labels: StoreBranchL
 }
 
 function StoreTypeBadge({ labels, row }: { labels: StoreBranchLabels; row: StoreBranchSettingsRow }) {
-  return <Badge>{isStorePlc(row) ? labels.plc : labels.general}</Badge>;
+  const type = storeType(row);
+  return (
+    <Badge variant={type === "test" ? "outline" : "default"}>
+      {storeTypeLabel(row, labels)}
+    </Badge>
+  );
+}
+
+function storeTypeLabel(row: StoreBranchSettingsRow, labels: StoreBranchLabels) {
+  const type = storeType(row);
+  if (type === "plc") return labels.plc;
+  if (type === "test") return labels.test;
+  return labels.general;
+}
+
+function storeDateLabel(
+  row: StoreBranchSettingsRow,
+  key: string,
+  language: string,
+  labels: StoreBranchLabels
+) {
+  const value = storeBranchValue(row, key, "");
+  return value ? formatShortDate(value, language) || value : labels.dateUnavailable;
+}
+
+function StoreAnnualStatus({
+  labels,
+  language,
+  row
+}: {
+  labels: StoreBranchLabels;
+  language: string;
+  row: StoreBranchSettingsRow;
+}) {
+  const dueDate = storeDateLabel(row, "annual_due_on", language, labels);
+  const days = annualDaysRemaining(row);
+
+  if (days === null) return <span className="text-muted-foreground">{labels.dateUnavailable}</span>;
+
+  const status = days === 0
+    ? labels.dueToday
+    : days > 0
+      ? `${days.toLocaleString("en-US")} ${labels.daysRemaining}`
+      : `${Math.abs(days).toLocaleString("en-US")} ${labels.daysOverdue}`;
+
+  return (
+    <span className="flex flex-col items-start gap-1">
+      <span className="whitespace-nowrap text-xs text-muted-foreground tabular-nums">{dueDate}</span>
+      <Badge variant={days < 0 ? "destructive" : days === 0 ? "secondary" : "outline"}>
+        {status}
+      </Badge>
+    </span>
+  );
 }
 
 function SummaryBadge({

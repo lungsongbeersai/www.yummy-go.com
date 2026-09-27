@@ -393,7 +393,8 @@ function EntityForm({
                     onValueChange={setStoreStatus}
                     options={[
                       { label: labels.plc, value: "1" },
-                      { label: labels.general, value: "2" }
+                      { label: labels.general, value: "2" },
+                      { label: labels.test, value: "3" }
                     ]}
                   />
                   <FormSelectField

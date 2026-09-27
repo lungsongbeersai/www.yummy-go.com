@@ -14,8 +14,21 @@ export interface Store extends ApiEntity {
   store_active?: number;
   store_table_status?: number;
   deposit_expire_days?: number | null;
+  store_opened_on?: string | null;
+  annual_due_on?: string | null;
+  annual_days_remaining?: number | null;
 }
-export type StoreResponse = ApiListResponse<Store>;
+export interface StoreReportSummary extends ApiEntity {
+  total: number;
+  general: number;
+  plc: number;
+  test: number;
+  active: number;
+  inactive: number;
+}
+export interface StoreResponse extends ApiListResponse<Store> {
+  summary?: StoreReportSummary;
+}
 export interface SaveStoreInput extends ApiEntity {
   store_table_status?: number;
   deposit_expire_days?: number | null;
@@ -33,7 +46,7 @@ const crud = createCrud<Store>(
   true
 );
 
-export const getStores = (params: FetchStoresParams = {}) => crud.list(params);
+export const getStores = (params: FetchStoresParams = {}) => crud.list(params) as Promise<StoreResponse>;
 export const getStoreOptions = (lang = "la") => crud.options({ lang });
 export const saveStore = (input: SaveStoreInput) => crud.save(input);
 export const deleteStore = (store_uuid: string) => crud.delete(store_uuid);

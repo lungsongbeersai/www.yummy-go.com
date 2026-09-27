@@ -1,12 +1,19 @@
 import { stripNumberFormat } from "@/lib/number-format";
 import type { SaveBranchInput } from "@/services/branch";
 import type { ApiEntity } from "@/services/shared/types";
-import type { SaveStoreInput } from "@/services/store";
+import type { SaveStoreInput, StoreReportSummary } from "@/services/store";
 
 export type StoreBranchKind = "store" | "branch";
 export type StoreBranchRow = ApiEntity | null | undefined;
 export type StoreMissingField = "name" | "email" | null;
 export type BranchMissingField = "store" | "name" | null;
+export type StoreType = "plc" | "general" | "test";
+
+export const STORE_STATUS = {
+  PLC: 1,
+  GENERAL: 2,
+  TEST: 3
+} as const;
 
 export function storeBranchValue(row: StoreBranchRow, key: string, fallback = "") {
   const raw = row?.[key];
@@ -57,11 +64,48 @@ export function storeBranchMediaKey(row: StoreBranchRow, kind: StoreBranchKind) 
 }
 
 export function isStorePlc(row: StoreBranchRow) {
-  return storeBranchNumber(row, "store_status", 2) === 1;
+  return storeBranchNumber(row, "store_status", STORE_STATUS.GENERAL) === STORE_STATUS.PLC;
+}
+
+export function isStoreTest(row: StoreBranchRow) {
+  return storeBranchNumber(row, "store_status", STORE_STATUS.GENERAL) === STORE_STATUS.TEST;
+}
+
+export function storeType(row: StoreBranchRow): StoreType {
+  if (isStorePlc(row)) return "plc";
+  if (isStoreTest(row)) return "test";
+  return "general";
 }
 
 export function isStoreActive(row: StoreBranchRow) {
   return storeBranchNumber(row, "store_active", 1) === 1;
+}
+
+function summaryCount(value: unknown) {
+  const count = Number(value);
+  return Number.isFinite(count) && count > 0 ? Math.trunc(count) : 0;
+}
+
+export function normalizeStoreReportSummary(value: unknown): StoreReportSummary {
+  const source = value && typeof value === "object" && !Array.isArray(value)
+    ? value as Record<string, unknown>
+    : {};
+
+  return {
+    total: summaryCount(source.total),
+    general: summaryCount(source.general),
+    plc: summaryCount(source.plc),
+    test: summaryCount(source.test),
+    active: summaryCount(source.active),
+    inactive: summaryCount(source.inactive)
+  };
+}
+
+export function annualDaysRemaining(row: StoreBranchRow) {
+  const raw = row?.annual_days_remaining;
+  if (raw === null || raw === undefined || raw === "") return null;
+  const days = Number(raw);
+  return Number.isFinite(days) ? Math.trunc(days) : null;
 }
 
 export function formatPercent(value: number) {

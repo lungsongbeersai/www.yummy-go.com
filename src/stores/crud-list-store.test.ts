@@ -56,6 +56,13 @@ describe("CRUD list store request ordering", () => {
 
     expect(testStore.getState()).toMatchObject({
       rows: currentRows,
+      response: {
+        data: currentRows,
+        message: "ok",
+        status: "success",
+        total: 1,
+        totalPages: 1
+      },
       loading: false,
       total: 1,
       totalPages: 1

@@ -24,12 +24,14 @@ import { useReferenceStore } from "@/stores/reference-store";
 import { useStoreSettingsStore } from "@/stores/store-settings-store";
 import { StoreBranchFormDialog } from "./store-branch-form";
 import { StoreBranchListSurface } from "./store-branch-list";
+import { StoreReportSummaryCards } from "./store-report-summary";
 import type { StoreBranchSettingsRow } from "./store-branch-types";
 import {
   buildBranchPayload,
   buildStorePayload,
   missingBranchField,
   missingStoreField,
+  normalizeStoreReportSummary,
   storeAuthUserUpdate,
   storeBranchId,
   storeBranchName,
@@ -59,6 +61,7 @@ function StoreSettingsPage({ initialPagination }: { initialPagination: UrlPagina
   const saveStoreRow = useStoreSettingsStore((state) => state.save);
   const loadStoreRows = useStoreSettingsStore((state) => state.load);
   const removeStoreRow = useStoreSettingsStore((state) => state.remove);
+  const storeListResponse = useStoreSettingsStore((state) => state.response);
 
   const title = labels.store;
   const description = labels.storeHint;
@@ -292,6 +295,14 @@ function StoreSettingsPage({ initialPagination }: { initialPagination: UrlPagina
       rowActions={rowActions}
       rows={visibleRows}
       selectedRows={selectedRows}
+      summary={
+        canCreate ? (
+          <StoreReportSummaryCards
+            labels={labels}
+            summary={normalizeStoreReportSummary(storeListResponse?.summary)}
+          />
+        ) : undefined
+      }
       toolbar={toolbar}
       onToggleAllSelected={toggleAll}
       onToggleSelected={toggleSelected}

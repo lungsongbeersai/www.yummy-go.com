@@ -31,6 +31,7 @@ export interface CrudListState<
   search: string;
   hasLoaded: boolean;
   refreshing: boolean;
+  response: ApiListResponse<Row> | null;
   setSearch: (search: string) => void;
   load: (params?: Params, options?: CrudListLoadOptions) => Promise<Row[]>;
   save: (input: SaveInput) => Promise<Row>;
@@ -52,6 +53,7 @@ export function createCrudListStore<
     hasLoaded: false,
     loading: false,
     refreshing: false,
+    response: null,
     saving: false,
     error: null,
     setSearch: (search) => set({ search }),
@@ -66,6 +68,7 @@ export function createCrudListStore<
         if (requestId === loadRequestId && isCurrentSession()) {
           set({
             rows,
+            response: result,
             total: Number(result.total ?? rows.length),
             totalPages: Number(result.totalPages ?? result.total_page ?? 1),
             hasLoaded: true,
@@ -119,6 +122,7 @@ export function createCrudListStore<
         hasLoaded: false,
         loading: false,
         refreshing: false,
+        response: null,
         saving: false,
         error: null
       });
