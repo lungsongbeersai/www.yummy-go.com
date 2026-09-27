@@ -121,16 +121,6 @@ export function toDateInputValue(date = new Date()) {
   return `${year}-${month}-${day}`;
 }
 
-// Default window: the latest full week, i.e. the 6 business days before today plus today.
-const DEFAULT_RANGE_DAYS = 7;
-
-// Shifts a YYYY-MM-DD business date by whole days in UTC, so month/year boundaries and
-// DST never move the result (the value is a calendar date, not an instant).
-function shiftDateInputValue(value: string, days: number) {
-  const [year, month, day] = value.split("-").map(Number);
-  return new Date(Date.UTC(year, month - 1, day + days)).toISOString().slice(0, 10);
-}
-
 export function createDefaultFilters(date = new Date()): DashboardFilters {
   const today = businessDateInputValue(date);
   const [periodYear, periodMonth] = today.split("-").map(Number);
@@ -140,7 +130,7 @@ export function createDefaultFilters(date = new Date()): DashboardFilters {
     periodMonth,
     periodType: "daily",
     periodYear,
-    start_date: shiftDateInputValue(today, -(DEFAULT_RANGE_DAYS - 1))
+    start_date: today
   };
 }
 
