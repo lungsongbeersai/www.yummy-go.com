@@ -4,9 +4,7 @@ export type DepositCreateValidationError =
   | "customerRequired"
   | "itemsRequired"
   | "productRequired"
-  | "qtyInvalid"
-  | "expireDateInvalid"
-  | "expireDatePast";
+  | "qtyInvalid";
 
 export interface DepositCreateItemDraft {
   proDetailUuid: string;
@@ -17,19 +15,44 @@ export type DepositWithdrawValidationError = "qtyInvalid" | "qtyExceedsRemaining
 
 export type DepositBadgeVariant = "default" | "secondary" | "destructive" | "outline";
 
-const DATE_ONLY_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
-
-function todayDateOnly() {
-  return new Date().toISOString().slice(0, 10);
+export interface DepositDateSchedule {
+  depositDate: string;
+  expireDate: string;
 }
 
-// เอาไว้เดา expire_date ล่วงหน้าให้พนักงานเห็นก่อนกดฝากจริง ค่าจริงยังคำนวณที่
-// backend เสมอ (ฝั่งนี้ใช้เวลาเครื่อง client ได้ เพราะ backend validate/คำนวณซ้ำอยู่ดี)
-export function expireDateFromToday(days: number | null | undefined) {
-  if (!days || days <= 0) return "";
-  const date = new Date();
-  date.setDate(date.getDate() + days);
-  return date.toISOString().slice(0, 10);
+const BUSINESS_TIME_ZONE = "Asia/Vientiane";
+
+function dateOnlyInTimeZone(value: Date) {
+  const parts = new Intl.DateTimeFormat("en-CA", {
+    day: "2-digit",
+    month: "2-digit",
+    timeZone: BUSINESS_TIME_ZONE,
+    year: "numeric"
+  }).formatToParts(value);
+  const fields = Object.fromEntries(parts.map((part) => [part.type, part.value]));
+  return `${fields.year}-${fields.month}-${fields.day}`;
+}
+
+// This is a preview for staff. The backend repeats the same calculation from
+// its own Vientiane date and store setting when the deposit is persisted.
+export function depositDateSchedule(
+  days: number | null | undefined,
+  now = new Date()
+): DepositDateSchedule {
+  const depositDate = dateOnlyInTimeZone(now);
+  const normalizedDays = Number(days);
+  if (!Number.isInteger(normalizedDays) || normalizedDays <= 0) {
+    return { depositDate, expireDate: "" };
+  }
+
+  const [year, month, day] = depositDate.split("-").map(Number);
+  const expires = new Date(Date.UTC(year, month - 1, day));
+  expires.setUTCDate(expires.getUTCDate() + normalizedDays);
+
+  return {
+    depositDate,
+    expireDate: expires.toISOString().slice(0, 10)
+  };
 }
 
 export function toDepositQtyInput(value: string | number | null | undefined) {
@@ -40,7 +63,6 @@ export function toDepositQtyInput(value: string | number | null | undefined) {
 export function validateDepositCreate(input: {
   customerUuid: string;
   items: DepositCreateItemDraft[];
-  expireDate: string;
 }): DepositCreateValidationError | null {
   if (!input.customerUuid) return "customerRequired";
   if (!input.items.length) return "itemsRequired";
@@ -48,11 +70,6 @@ export function validateDepositCreate(input: {
   for (const item of input.items) {
     if (!item.proDetailUuid) return "productRequired";
     if (!Number.isFinite(item.qty) || item.qty <= 0) return "qtyInvalid";
-  }
-
-  if (input.expireDate) {
-    if (!DATE_ONLY_PATTERN.test(input.expireDate)) return "expireDateInvalid";
-    if (input.expireDate < todayDateOnly()) return "expireDatePast";
   }
 
   return null;

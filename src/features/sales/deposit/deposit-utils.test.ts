@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import type { DepositRow } from "@/services/deposit";
 import {
   depositBadgeVariant,
-  expireDateFromToday,
+  depositDateSchedule,
   toDepositQtyInput,
   validateDepositCreate,
   validateDepositWithdraw
@@ -46,8 +46,7 @@ describe("toDepositQtyInput", () => {
 describe("validateDepositCreate", () => {
   const base = {
     customerUuid: "customer-1",
-    items: [{ proDetailUuid: "detail-1", qty: 1 }],
-    expireDate: ""
+    items: [{ proDetailUuid: "detail-1", qty: 1 }]
   };
 
   it("requires a customer and at least one item", () => {
@@ -73,19 +72,6 @@ describe("validateDepositCreate", () => {
     ).toBe("qtyInvalid");
   });
 
-  it("accepts an empty expire date (store default applies server-side)", () => {
-    expect(validateDepositCreate(base)).toBeNull();
-  });
-
-  it("rejects a malformed or past expire date", () => {
-    expect(validateDepositCreate({ ...base, expireDate: "31-12-2026" })).toBe("expireDateInvalid");
-    expect(validateDepositCreate({ ...base, expireDate: "2000-01-01" })).toBe("expireDatePast");
-  });
-
-  it("accepts a future expire date", () => {
-    expect(validateDepositCreate({ ...base, expireDate: "2099-12-31" })).toBeNull();
-  });
-
   it("accepts multiple items in one deposit", () => {
     expect(
       validateDepositCreate({
@@ -99,17 +85,30 @@ describe("validateDepositCreate", () => {
   });
 });
 
-describe("expireDateFromToday", () => {
-  it("returns an empty string when no store default is configured", () => {
-    expect(expireDateFromToday(null)).toBe("");
-    expect(expireDateFromToday(undefined)).toBe("");
-    expect(expireDateFromToday(0)).toBe("");
+describe("depositDateSchedule", () => {
+  const now = new Date("2026-09-27T18:30:00.000Z");
+
+  it("uses the current Vientiane calendar date", () => {
+    expect(depositDateSchedule(null, now)).toEqual({
+      depositDate: "2026-09-28",
+      expireDate: ""
+    });
   });
 
-  it("adds the given number of days to today", () => {
-    const expected = new Date();
-    expected.setDate(expected.getDate() + 30);
-    expect(expireDateFromToday(30)).toBe(expected.toISOString().slice(0, 10));
+  it("calculates the expiry date from the store setting", () => {
+    expect(depositDateSchedule(30, now)).toEqual({
+      depositDate: "2026-09-28",
+      expireDate: "2026-10-28"
+    });
+  });
+
+  it("handles year boundaries and rejects invalid day settings", () => {
+    expect(depositDateSchedule(1, new Date("2026-12-31T05:00:00.000Z"))).toEqual({
+      depositDate: "2026-12-31",
+      expireDate: "2027-01-01"
+    });
+    expect(depositDateSchedule(0, now).expireDate).toBe("");
+    expect(depositDateSchedule(1.5, now).expireDate).toBe("");
   });
 });
 

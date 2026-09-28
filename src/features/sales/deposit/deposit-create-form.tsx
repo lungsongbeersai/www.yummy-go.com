@@ -2,7 +2,16 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useResetOnChange } from "@/hooks/use-reset-on-change";
-import { CalendarClock, Check, ChevronsUpDown, ClipboardList, Info, UserPlus, UserRound } from "lucide-react";
+import {
+  CalendarClock,
+  CalendarDays,
+  Check,
+  ChevronsUpDown,
+  ClipboardList,
+  Info,
+  UserPlus,
+  UserRound
+} from "lucide-react";
 import { useTranslation } from "react-i18next";
 import {
   AlertDialog,
@@ -49,7 +58,7 @@ import { useDepositStore } from "@/stores/deposit-store";
 import { useToastStore } from "@/stores/toast-store";
 import { DepositQtyStepper } from "./deposit-qty-stepper";
 import {
-  expireDateFromToday,
+  depositDateSchedule,
   toDepositQtyInput,
   validateDepositCreate
 } from "./deposit-utils";
@@ -132,11 +141,15 @@ export function DepositCreateForm({
   const [customerCreateSaving, setCustomerCreateSaving] = useState(false);
 
   const [selectedQty, setSelectedQty] = useState<Map<string, string>>(new Map());
-  const [expireDate, setExpireDate] = useState("");
+  const [datePreviewNow, setDatePreviewNow] = useState(() => new Date());
   const [note, setNote] = useState("");
   const [confirmOpen, setConfirmOpen] = useState(false);
 
   const items = useMemo(() => depositableItems(orderItems), [orderItems]);
+  const dateSchedule = useMemo(
+    () => depositDateSchedule(user?.deposit_expire_days, datePreviewNow),
+    [datePreviewNow, user?.deposit_expire_days]
+  );
 
   const draftItems = useMemo(
     () =>
@@ -151,21 +164,20 @@ export function DepositCreateForm({
 
   const validationError = validateDepositCreate({
     customerUuid,
-    items: draftItems.map((item) => ({ proDetailUuid: item.proDetailUuid, qty: item.qty })),
-    expireDate
+    items: draftItems.map((item) => ({ proDetailUuid: item.proDetailUuid, qty: item.qty }))
   });
   // ฝากเกินจำนวนที่ลูกค้าสั่งจริงไม่ได้ — validateDepositCreate ใช้ร่วมกับหน้า
   // back-office ที่ไม่มีแนวคิด "จำนวนที่สั่ง" จึงเช็คส่วนนี้แยกไว้ในฝั่ง POS เท่านั้น
   const exceedsOrderedQty = draftItems.some((item) => item.qty > item.orderedQty);
 
-  // เปิด dialog นี้ใหม่ทุกครั้ง = เคลียร์ฟอร์ม + ตั้ง expire_date เริ่มต้นจาก
-  // ค่ามาตรฐานของร้าน (ยังแก้ไขได้ ค่าจริงคำนวณซ้ำที่ backend เสมอ)
+  // Opening a new dialog starts a fresh deposit draft. Dates are derived above
+  // for display only; the backend persists its own authoritative schedule.
   useResetOnChange(open, () => {
     setCustomerUuid("");
     setSelectedCustomer(null);
     setCustomerSearch("");
     setSelectedQty(new Map());
-    setExpireDate(expireDateFromToday(user?.deposit_expire_days));
+    setDatePreviewNow(new Date());
     setNote("");
     setConfirmOpen(false);
   });
@@ -238,11 +250,9 @@ export function DepositCreateForm({
 
     try {
       await createDepositAction({
-        request_uuid: crypto.randomUUID(),
         branch_uuid: resolvedBranchUuid,
         customer_uuid: customerUuid,
         items: draftItems.map((item) => ({ pro_detail_uuid: item.proDetailUuid, deposit_qty: item.qty })),
-        expire_date: expireDate || undefined,
         note: note.trim(),
         lang: language
       });
@@ -404,14 +414,28 @@ export function DepositCreateForm({
               {t("deposit.timingAndNote")}
             </FieldLegend>
           </Field>
-          <div className="grid gap-4 sm:grid-cols-2">
+          <div className="grid gap-4 sm:grid-cols-3">
+            <Field>
+              <FieldLabel>{t("deposit.depositDate")}</FieldLabel>
+              <div className="flex h-9 items-center gap-2 rounded-md border border-border bg-muted/30 px-3">
+                <CalendarDays className="size-4 shrink-0 text-muted-foreground" aria-hidden />
+                <time className="text-sm font-semibold tabular-nums" dateTime={dateSchedule.depositDate}>
+                  {dateSchedule.depositDate}
+                </time>
+              </div>
+              <FieldDescription>{t("deposit.depositDateTodayHint")}</FieldDescription>
+            </Field>
             <Field>
               <FieldLabel>{t("deposit.expireDate")}</FieldLabel>
               <div className="flex h-9 items-center gap-2 rounded-md border border-border bg-muted/30 px-3">
                 <CalendarClock className="size-4 shrink-0 text-muted-foreground" aria-hidden />
-                <span className="text-sm font-semibold tabular-nums">
-                  {expireDate || t("deposit.expireDateNotSet")}
-                </span>
+                {dateSchedule.expireDate ? (
+                  <time className="text-sm font-semibold tabular-nums" dateTime={dateSchedule.expireDate}>
+                    {dateSchedule.expireDate}
+                  </time>
+                ) : (
+                  <span className="text-sm font-semibold">{t("deposit.expireDateNotSet")}</span>
+                )}
               </div>
               <FieldDescription>
                 {user?.deposit_expire_days

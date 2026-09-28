@@ -118,14 +118,16 @@ describe("deposit store", () => {
       status: "success",
       message: "success",
       lang: "la",
+      request_uuid: "request-1",
       idempotent_replay: false,
+      deposit_date: "2026-09-16",
+      expire_date: "2026-12-31",
       deposits: [created, createdSecond]
     });
 
     useDepositStore.setState({ rows: [listResponse("existing").data[0]] });
 
     await useDepositStore.getState().create({
-      request_uuid: "request-1",
       branch_uuid: "branch-1",
       customer_uuid: "customer-1",
       items: [{ pro_detail_uuid: "detail-1", deposit_qty: 1 }]

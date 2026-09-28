@@ -81,11 +81,9 @@ export interface DepositCreateItemInput {
 }
 
 export interface DepositCreateInput {
-  request_uuid: string;
   branch_uuid: string;
   customer_uuid: string;
   items: DepositCreateItemInput[];
-  expire_date?: string;
   note?: string;
   lang?: string;
 }
@@ -94,7 +92,10 @@ export interface DepositCreateResponse {
   status: "success";
   message: string;
   lang: string;
+  request_uuid: string;
   idempotent_replay: boolean;
+  deposit_date: string | null;
+  expire_date: string | null;
   deposits: DepositRow[];
 }
 
@@ -183,10 +184,10 @@ export function createDeposit(input: DepositCreateInput) {
 
   return apiRequest<DepositCreateResponse>("post", "/api/v1/posAll/deposit/create", {
     data: {
-      ...input,
-      request_uuid: required(input.request_uuid, "request_uuid"),
       branch_uuid: required(input.branch_uuid, "branch_uuid"),
       customer_uuid: required(input.customer_uuid, "customer_uuid"),
+      items: input.items,
+      ...(input.note ? { note: input.note } : {}),
       lang: toApiLanguage(input.lang)
     }
   });
