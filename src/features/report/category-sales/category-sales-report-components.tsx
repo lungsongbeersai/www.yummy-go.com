@@ -1,6 +1,17 @@
 "use client";
 
-import { Fragment, useCallback, type ReactNode, type RefObject } from "react";
+import { Fragment, useCallback, useMemo, type ReactNode, type RefObject } from "react";
+import {
+  BadgePercent,
+  Calculator,
+  HandPlatter,
+  Landmark,
+  Package,
+  Tag,
+  TrendingUp,
+  Wallet,
+  type LucideIcon,
+} from "lucide-react";
 import { useTranslation } from "react-i18next";
 import {
   ReportOfficialHeader,
@@ -10,6 +21,16 @@ import { ReportFilterCard, ReportFilterSheet } from "../shared/report-filter-she
 import { ReportLocationFields } from "../shared/report-location-fields";
 import type { ReportLocationOptions } from "../shared/report-location";
 import { Checkbox } from "@/components/ui/checkbox";
+import {
+  Item,
+  ItemActions,
+  ItemContent,
+  ItemDescription,
+  ItemFooter,
+  ItemGroup,
+  ItemTitle,
+} from "@/components/ui/item";
+import { Progress } from "@/components/ui/progress";
 import {
   Table,
   TableBody,
@@ -33,7 +54,8 @@ import {
   ReportPaymentMethodField,
   ReportSelectField,
 } from "../shared/report-filter-fields";
-import { ReportSummaryCardsGrid, type ReportSummaryCard } from "../shared/report-metric-display";
+import type { ReportColumnOption } from "../shared/report-column-visibility";
+import { ReportStatCards, type ReportStat, type ReportStatTone } from "../shared/report-stat-cards";
 import {
   ReportIndeterminateCheckbox,
   selectionStateForVisibleIds,
@@ -60,8 +82,6 @@ type CategorySalesSortKey =
   | "groupName"
   | "groupSummary";
 
-type FinancialValueTone = "default" | "discount" | "total";
-
 type FilterProps = {
   branchLoading: boolean;
   branchLocked: boolean;
@@ -75,26 +95,47 @@ type FilterProps = {
   onDraftChange: (filters: CategorySalesReportFilters) => void;
 };
 
+// ชนิดของตัวเลขต่อการ์ด (ความหมายของสีดูใน report-stat-cards.tsx) — ยอดสุทธิเป็นใบ highlight อยู่หน้าสุด
+// 12 ใบพอดี 3 แถว (4 คอลัมน์) จึงไม่ขยายใบ highlight เป็น 2 ช่อง
+const SUMMARY_PRESENTATION: Record<string, { icon: LucideIcon; tone: ReportStatTone }> = {
+  product_count: { icon: Package, tone: "info" },
+  total_qty: { icon: Package, tone: "info" },
+  product_price_total: { icon: Wallet, tone: "success" },
+  topping_total: { icon: Wallet, tone: "success" },
+  total: { icon: Wallet, tone: "success" },
+  discount_item_amount: { icon: BadgePercent, tone: "danger" },
+  after_discount_item: { icon: Calculator, tone: "primary" },
+  discount_bill: { icon: Tag, tone: "danger" },
+  after_discount_bill: { icon: Calculator, tone: "primary" },
+  sum_servicecharge: { icon: HandPlatter, tone: "primary" },
+  sum_vate: { icon: Landmark, tone: "warning" },
+  grand_total: { icon: TrendingUp, tone: "highlight" },
+};
+
 export function CategorySalesSummaryCards({
+  id,
   summary,
 }: {
+  id?: string;
   summary: Record<string, unknown>;
 }) {
   const { t } = useTranslation();
-  const cards: ReportSummaryCard[] = categorySalesSummaryMetricConfigs(t).map((metric) => ({
-    key: metric.key,
-    kind: metric.kind,
-    label: metric.label,
-    value: summary[metric.key],
-  }));
+  const stats: ReportStat[] = categorySalesSummaryMetricConfigs(t).map((metric) => {
+    const presentation = SUMMARY_PRESENTATION[metric.key] ?? { icon: Package, tone: "primary" };
+
+    return {
+      ...presentation,
+      key: metric.key,
+      label: metric.label,
+      negative: presentation.tone === "danger" && metricNumber(summary[metric.key]) > 0,
+      value: displayMetric(summary[metric.key], metric.kind),
+    };
+  });
 
   return (
-    <ReportSummaryCardsGrid
-      cards={cards}
-      gridClassName="sm:grid-cols-2 xl:grid-cols-4 2xl:grid-cols-5"
-      cardClassName={() => "border-border bg-card"}
-      labelClassName={() => "text-muted-foreground"}
-      valueClassName={() => "font-black text-foreground"}
+    <ReportStatCards
+      id={id}
+      stats={[...stats.filter((stat) => stat.tone === "highlight"), ...stats.filter((stat) => stat.tone !== "highlight")]}
     />
   );
 }
@@ -160,8 +201,9 @@ export function CategorySalesFilterBar({
     <ReportFilterCard
       actions={actions}
       canApply={canApply}
-      className="hidden shrink-0 rounded-none border-x-0 border-t-0 shadow-none lg:block"
-      contentClassName="grid min-w-0 items-end gap-3 px-3 py-3 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-[repeat(8,minmax(0,1fr))_auto]"
+      // shrink-0: Card มี overflow-hidden (min-height ของ flex item = 0) — กันถูกบีบตอนโหลด ดู report-layout.tsx
+      className="hidden shrink-0 shadow-none lg:block"
+      contentClassName="grid items-end gap-3 py-4 lg:grid-cols-3 2xl:grid-cols-[repeat(8,minmax(0,1fr))_auto]"
       loading={loading}
       onApply={onApply}
     >
@@ -260,299 +302,269 @@ export function CategorySalesFilterFields({
   );
 }
 
+type MetricTone = "default" | "discount" | "total";
+
+type CategoryMetricColumn = {
+  field: keyof CategorySalesRow & CategorySalesSortKey;
+  id: string;
+  kind: "money" | "number";
+  label: string;
+  /** ค่ารวมจาก summary (ของกลุ่มหรือทั้งรายงาน) — ส่วนลดรวมคำนวณจากหลาย key */
+  summaryValue: (summary: Record<string, unknown>) => unknown;
+  tone: MetricTone;
+};
+
+function categoryMetricColumns(
+  t: (key: string) => string,
+  labelOverrides?: CategoryLabelOverrides,
+): CategoryMetricColumn[] {
+  const read = (key: string) => (summary: Record<string, unknown>) => summary[key];
+
+  return [
+    { field: "productPriceTotal", id: "productPriceTotal", kind: "money", label: t("report.categorySales.columns.productPriceTotal"), summaryValue: read("product_price_total"), tone: "default" },
+    { field: "totalQty", id: "totalQty", kind: "number", label: t("report.categorySales.columns.qtyTotal"), summaryValue: read("total_qty"), tone: "default" },
+    { field: "toppingTotal", id: "toppingTotal", kind: "money", label: t("report.categorySales.columns.toppingTotal"), summaryValue: read("topping_total"), tone: "default" },
+    { field: "total", id: "total", kind: "money", label: t("report.categorySales.columns.total"), summaryValue: read("total"), tone: "default" },
+    { field: "discountTotal", id: "discountTotal", kind: "money", label: t("report.categorySales.columns.discountTotal"), summaryValue: summaryDiscountTotal, tone: "discount" },
+    { field: "serviceCharge", id: "serviceCharge", kind: "money", label: labelOverrides?.sum_servicecharge ?? t("report.categorySales.columns.serviceCharge"), summaryValue: read("sum_servicecharge"), tone: "default" },
+    { field: "vat", id: "vat", kind: "money", label: labelOverrides?.sum_vate ?? t("report.categorySales.columns.vat"), summaryValue: read("sum_vate"), tone: "default" },
+    { field: "grandTotal", id: "grandTotal", kind: "money", label: t("report.categorySales.columns.grandTotal"), summaryValue: read("grand_total"), tone: "total" },
+  ];
+}
+
+type CategoryLabelOverrides = {
+  sum_servicecharge?: string;
+  sum_vate?: string;
+};
+
+/** ตัวเลือกของเมนู "คอลัมน์" — ชื่อสินค้าและยอดสุทธิเป็นแกนของรายงาน ซ่อนไม่ได้ */
+export function categorySalesColumnOptions(
+  t: (key: string) => string,
+  labelOverrides?: CategoryLabelOverrides,
+): ReportColumnOption[] {
+  return categoryMetricColumns(t, labelOverrides).map((column) => ({
+    hideable: column.id !== "grandTotal",
+    id: column.id,
+    label: column.label,
+  }));
+}
+
+// สีตัวเลข: ส่วนลดที่มากกว่า 0 = แดง, ยอดสุทธิ = สีธีม, ค่า 0 = จาง
+function metricClass(value: unknown, tone: MetricTone) {
+  const number = metricNumber(value);
+
+  return cn(
+    "text-right tabular-nums",
+    number === 0 && "text-muted-foreground",
+    tone === "discount" && number > 0 && "text-destructive",
+    tone === "total" && number !== 0 && "font-medium text-primary-text",
+  );
+}
+
+// สัดส่วนยอดสุทธิของสินค้าในกลุ่ม — เห็นทันทีว่าตัวไหนทำเงินให้กลุ่มมากที่สุด
+function groupShare(row: CategorySalesRow, group: CategorySalesGroup) {
+  const total = metricNumber(group.summary.grand_total);
+  if (total <= 0) return null;
+  return Math.min(100, Math.max(0, (metricNumber(row.grandTotal) / total) * 100));
+}
+
+function footerCellClass(align: "left" | "right" = "left") {
+  return cn(
+    // แถวรวมค้างขอบล่าง — ทึบ (bg-background) แล้ววางสีธีมจางเป็นชั้น gradient ทับ
+    "sticky bottom-0 z-20 border-t border-primary/30 bg-background bg-linear-to-r from-primary/10 to-primary/10 font-medium text-primary-text",
+    align === "right" && "text-right tabular-nums",
+  );
+}
+
 export function CategorySalesTable({
   groups,
+  isColumnVisible,
   labelOverrides,
   selectedRowIds,
+  summary,
   onToggleRow,
   onToggleRows,
 }: {
   groups: CategorySalesGroup[];
-  labelOverrides?: {
-    sum_servicecharge?: string;
-    sum_vate?: string;
-  };
+  isColumnVisible: (id: string) => boolean;
+  labelOverrides?: CategoryLabelOverrides;
   selectedRowIds: Set<string>;
+  summary: Record<string, unknown>;
   onToggleRow: (row: CategorySalesRow, selected: boolean) => void;
   onToggleRows: (rows: CategorySalesRow[], selected: boolean) => void;
 }) {
   const { t } = useTranslation();
-
-  const getGroupSortValue = useCallback(
-    (group: CategorySalesGroup, key: CategorySalesSortKey) => {
-      if (key === "groupName") return group.groupName;
-      if (key === "groupSummary") return group.summary.grand_total;
-      return group.rows[0]?.[key as keyof CategorySalesRow];
-    },
-    [],
+  const columns = useMemo(
+    () => categoryMetricColumns(t, labelOverrides).filter((column) => isColumnVisible(column.id)),
+    [isColumnVisible, labelOverrides, t],
   );
 
-  const {
-    sort,
-    sortedRows: sortedGroups,
-    toggleSort,
-  } = useLocalTableSort(groups, getGroupSortValue);
-  const visibleRows = sortedGroups.flatMap((group) =>
-    sortRowsLocally(
-      group.rows,
-      sort,
-      (row, key) => row[key as keyof CategorySalesRow],
-    ),
+  const getGroupSortValue = useCallback((group: CategorySalesGroup, key: CategorySalesSortKey) => {
+    if (key === "groupName") return group.groupName;
+    if (key === "groupSummary") return group.summary.grand_total;
+    return group.rows[0]?.[key as keyof CategorySalesRow];
+  }, []);
+
+  const { sort, sortedRows: sortedGroups, toggleSort } = useLocalTableSort(groups, getGroupSortValue);
+  const sortedGroupRows = useMemo(
+    () =>
+      sortedGroups.map((group) => ({
+        group,
+        rows: sortRowsLocally(group.rows, sort, (row, key) => row[key as keyof CategorySalesRow]),
+      })),
+    [sort, sortedGroups],
   );
-  const visibleIds = visibleRows.map(categorySalesRowId);
-  const { allVisibleSelected, someVisibleSelected } =
-    selectionStateForVisibleIds(visibleIds, selectedRowIds);
+  const visibleRows = sortedGroupRows.flatMap(({ rows }) => rows);
+  const { allVisibleSelected, someVisibleSelected } = selectionStateForVisibleIds(
+    visibleRows.map(categorySalesRowId),
+    selectedRowIds,
+  );
+  const productCount = metricNumber(summary.product_count);
 
   return (
-    <div className="hidden min-w-0 md:block">
-      <Table className="w-max min-w-full table-auto text-sm">
-        <TableHeader className="[&_th]:sticky [&_th]:top-0 [&_th]:z-30 [&_th]:whitespace-nowrap [&_th]:border-b [&_th]:border-border [&_th]:bg-background [&_th]:px-3 [&_th]:shadow-sm">
-          <TableRow>
-            <TableHead className="w-10 text-center">
-              <ReportIndeterminateCheckbox
-                aria-label={t("common.selectAll")}
-                checked={allVisibleSelected}
-                indeterminate={!allVisibleSelected && someVisibleSelected}
-                onCheckedChange={(checked) => onToggleRows(visibleRows, checked as boolean)}
-              />
-            </TableHead>
+    // container ของ Table เป็นตัวสกรอลเอง — หัวตาราง sticky ด้านบน, แถวรวม sticky ด้านล่าง
+    <Table containerClassName="min-h-0 flex-1 overflow-auto">
+      <TableHeader className="sticky top-0 z-30 bg-muted">
+        <TableRow>
+          <TableHead>
+            <ReportIndeterminateCheckbox
+              aria-label={t("common.selectAll")}
+              checked={allVisibleSelected}
+              indeterminate={!allVisibleSelected && someVisibleSelected}
+              onCheckedChange={(checked) => onToggleRows(visibleRows, checked as boolean)}
+            />
+          </TableHead>
+          <SortableReportTableHead sort={sort} sortKey="productName" className="min-w-60" onSort={toggleSort}>
+            {t("report.categorySales.columns.product")}
+          </SortableReportTableHead>
+          {columns.map((column) => (
             <SortableReportTableHead
-              sort={sort}
-              sortKey="productName"
-              onSort={toggleSort}
-            >
-              {t("report.categorySales.columns.product")}
-            </SortableReportTableHead>
-            <SortableReportTableHead
+              key={column.id}
               align="right"
               sort={sort}
-              sortKey="productPriceTotal"
+              sortKey={column.field}
               className="text-right"
               onSort={toggleSort}
             >
-              {t("report.categorySales.columns.productPriceTotal")}
+              {column.label}
             </SortableReportTableHead>
-            <SortableReportTableHead
-              align="right"
-              sort={sort}
-              sortKey="totalQty"
-              className="text-right"
-              onSort={toggleSort}
-            >
-              {t("report.categorySales.columns.qtyTotal")}
-            </SortableReportTableHead>
-            <SortableReportTableHead
-              align="right"
-              sort={sort}
-              sortKey="toppingTotal"
-              className="text-right"
-              onSort={toggleSort}
-            >
-              {t("report.categorySales.columns.toppingTotal")}
-            </SortableReportTableHead>
-            <SortableReportTableHead
-              align="right"
-              sort={sort}
-              sortKey="total"
-              className="text-right"
-              onSort={toggleSort}
-            >
-              {t("report.categorySales.columns.total")}
-            </SortableReportTableHead>
-            <SortableReportTableHead
-              align="right"
-              sort={sort}
-              sortKey="discountTotal"
-              className="text-right"
-              onSort={toggleSort}
-            >
-              {t("report.categorySales.columns.discountTotal")}
-            </SortableReportTableHead>
-            <SortableReportTableHead
-              align="right"
-              sort={sort}
-              sortKey="serviceCharge"
-              className="text-right"
-              onSort={toggleSort}
-            >
-              {labelOverrides?.sum_servicecharge ??
-                t("report.categorySales.columns.serviceCharge")}
-            </SortableReportTableHead>
-            <SortableReportTableHead
-              align="right"
-              sort={sort}
-              sortKey="vat"
-              className="text-right"
-              onSort={toggleSort}
-            >
-              {labelOverrides?.sum_vate ?? t("report.categorySales.columns.vat")}
-            </SortableReportTableHead>
-            <SortableReportTableHead
-              align="right"
-              sort={sort}
-              sortKey="grandTotal"
-              className="text-right"
-              onSort={toggleSort}
-            >
-              {t("report.categorySales.columns.grandTotal")}
-            </SortableReportTableHead>
-          </TableRow>
-        </TableHeader>
+          ))}
+        </TableRow>
+      </TableHeader>
 
-        <TableBody className="[&_td]:whitespace-nowrap [&_td]:px-3">
-          {sortedGroups.map((group) => (
-              <Fragment key={group.groupUuid || group.groupName}>
-                <TableRow className="border-t-2 border-border bg-muted/50 hover:bg-muted/50">
-                  <TableCell className="w-10 text-center">
-                    <ReportIndeterminateCheckbox
-                      aria-label={t("common.selectRow", {
-                        name: group.groupName,
-                      })}
-                      checked={
-                        selectionStateForVisibleIds(
-                          group.rows.map(categorySalesRowId),
-                          selectedRowIds,
-                        ).allVisibleSelected
-                      }
-                      indeterminate={
-                        !selectionStateForVisibleIds(
-                          group.rows.map(categorySalesRowId),
-                          selectedRowIds,
-                        ).allVisibleSelected &&
-                        selectionStateForVisibleIds(
-                          group.rows.map(categorySalesRowId),
-                          selectedRowIds,
-                        ).someVisibleSelected
-                      }
-                      onCheckedChange={(checked) => onToggleRows(group.rows, checked as boolean)}
-                    />
-                  </TableCell>
-                  <TableCell colSpan={9} className="py-3">
-                    <div className="min-w-0">
-                      <p className="truncate text-sm font-black">
-                        {group.groupName}
-                      </p>
-                    </div>
-                  </TableCell>
-                </TableRow>
+      <TableBody>
+        {sortedGroupRows.map(({ group, rows }) => {
+          const selection = selectionStateForVisibleIds(rows.map(categorySalesRowId), selectedRowIds);
 
-                {(() => {
-                  const rows = sortRowsLocally(
-                    group.rows,
-                    sort,
-                    (row, key) => row[key as keyof CategorySalesRow],
-                  );
+          return (
+            <Fragment key={group.groupUuid || group.groupName}>
+              <TableRow className="bg-muted/50 hover:bg-muted/50">
+                <TableCell>
+                  <ReportIndeterminateCheckbox
+                    aria-label={t("common.selectRow", { name: group.groupName })}
+                    checked={selection.allVisibleSelected}
+                    indeterminate={!selection.allVisibleSelected && selection.someVisibleSelected}
+                    onCheckedChange={(checked) => onToggleRows(group.rows, checked as boolean)}
+                  />
+                </TableCell>
+                <TableCell colSpan={1 + columns.length}>
+                  <span className="font-medium">{group.groupName}</span>
+                  <span className="ml-2 text-muted-foreground">
+                    {t("report.categorySales.productsCount", { count: group.rows.length })}
+                  </span>
+                </TableCell>
+              </TableRow>
 
+              {rows.map((row) => {
+                const selected = selectedRowIds.has(categorySalesRowId(row));
+                const share = groupShare(row, group);
+
+                return (
+                  <TableRow
+                    key={`${row.groupUuid}-${row.cateUuid}-${row.productUuid}-${row.rank}`}
+                    data-state={selected ? "selected" : undefined}
+                  >
+                    <TableCell>
+                      <Checkbox
+                        aria-label={t("common.selectRow", { name: row.productName })}
+                        checked={selected}
+                        onCheckedChange={(checked) => onToggleRow(row, checked as boolean)}
+                      />
+                    </TableCell>
+                    <TableCell className="whitespace-normal">
+                      <div className="flex flex-col gap-1.5">
+                        <span className="font-medium">{row.productName}</span>
+                        {row.cateName ? <span className="text-muted-foreground">{row.cateName}</span> : null}
+                        {share !== null ? (
+                          <span className="flex max-w-56 items-center gap-2">
+                            <Progress value={share} aria-hidden="true" />
+                            <span className="shrink-0 tabular-nums text-muted-foreground">{share.toFixed(1)}%</span>
+                          </span>
+                        ) : null}
+                      </div>
+                    </TableCell>
+                    {columns.map((column) => (
+                      <TableCell key={column.id} className={metricClass(row[column.field], column.tone)}>
+                        {displayMetric(row[column.field], column.kind)}
+                      </TableCell>
+                    ))}
+                  </TableRow>
+                );
+              })}
+
+              <TableRow className="bg-primary/5 hover:bg-primary/5">
+                <TableCell />
+                <TableCell className="font-medium text-primary-text">{t("common.total")}</TableCell>
+                {columns.map((column) => {
+                  const value = column.summaryValue(group.summary);
                   return (
-                    <>
-                      {rows.map((row) => (
-                        <TableRow
-                          key={`${row.groupUuid}-${row.cateUuid}-${row.productUuid}-${row.rank}`}
-                          className={cn(
-                            "hover:bg-muted/20",
-                            selectedRowIds.has(categorySalesRowId(row)) &&
-                              "bg-primary/5 hover:bg-primary/10",
-                          )}
-                        >
-                          <TableCell className="w-10 text-center">
-                            <Checkbox
-                              aria-label={t("common.selectRow", {
-                                name: row.productName,
-                              })}
-                              checked={selectedRowIds.has(categorySalesRowId(row))}
-                              onCheckedChange={(checked) => onToggleRow(row, checked as boolean)}
-                            />
-                          </TableCell>
-                          <TableCell>
-                            <div className="ml-6 min-w-40 border-l border-border/70 pl-3">
-                              <p className="truncate font-bold">{row.productName}</p>
-                              {row.cateName ? (
-                                <p className="mt-0.5 truncate text-xs text-muted-foreground">
-                                  {row.cateName}
-                                </p>
-                              ) : null}
-                            </div>
-                          </TableCell>
-                          <TableCell className="text-right tabular-nums">
-                            {displayMetric(row.productPriceTotal, "money")}
-                          </TableCell>
-                          <TableCell className="text-right tabular-nums">
-                            {displayMetric(row.totalQty, "number")}
-                          </TableCell>
-                          <TableCell className="text-right tabular-nums">
-                            {displayMetric(row.toppingTotal, "money")}
-                          </TableCell>
-                          <TableCell className="text-right tabular-nums">
-                            {displayMetric(row.total, "money")}
-                          </TableCell>
-                          <TableCell className={financialValueClass(row.discountTotal, "discount")}>
-                            {displayMetric(row.discountTotal, "money")}
-                          </TableCell>
-                          <TableCell className={financialValueClass(row.serviceCharge)}>
-                            {displayMetric(row.serviceCharge, "money")}
-                          </TableCell>
-                          <TableCell className={financialValueClass(row.vat)}>
-                            {displayMetric(row.vat, "money")}
-                          </TableCell>
-                          <TableCell className={financialValueClass(row.grandTotal, "total")}>
-                            {displayMetric(row.grandTotal, "money")}
-                          </TableCell>
-                        </TableRow>
-                      ))}
-                    </>
+                    <TableCell key={column.id} className={cn(metricClass(value, column.tone), "font-medium")}>
+                      {displayMetric(value, column.kind)}
+                    </TableCell>
                   );
-                })()}
+                })}
+              </TableRow>
+            </Fragment>
+          );
+        })}
 
-                <TableRow className="border-b-2 border-primary bg-muted font-bold text-foreground hover:bg-muted">
-                  <TableCell />
-                  <TableCell className="font-black text-primary">
-                    <span className="sr-only">{t("common.total")}</span>
-                  </TableCell>
-                  <TableCell className="text-right font-black tabular-nums">
-                    {displayMetric(group.summary.product_price_total, "money")}
-                  </TableCell>
-                  <TableCell className="text-right font-black tabular-nums">
-                    {displayMetric(group.summary.total_qty, "number")}
-                  </TableCell>
-                  <TableCell className="text-right font-black tabular-nums">
-                    {displayMetric(group.summary.topping_total, "money")}
-                  </TableCell>
-                  <TableCell className={financialValueClass(group.summary.total, "default", true)}>
-                    {displayMetric(group.summary.total, "money")}
-                  </TableCell>
-                  <TableCell className={financialValueClass(summaryDiscountTotal(group.summary), "discount", true)}>
-                    {displayMetric(summaryDiscountTotal(group.summary), "money")}
-                  </TableCell>
-                  <TableCell className={financialValueClass(group.summary.sum_servicecharge, "default", true)}>
-                    {displayMetric(group.summary.sum_servicecharge, "money")}
-                  </TableCell>
-                  <TableCell className={financialValueClass(group.summary.sum_vate, "default", true)}>
-                    {displayMetric(group.summary.sum_vate, "money")}
-                  </TableCell>
-                  <TableCell className={financialValueClass(group.summary.grand_total, "total", true, "text-primary")}>
-                    {displayMetric(group.summary.grand_total, "money")}
-                  </TableCell>
-                </TableRow>
-              </Fragment>
-            ))}
-        </TableBody>
-      </Table>
-    </div>
+        <TableRow className="hover:bg-transparent">
+          <TableCell className={footerCellClass()} colSpan={2}>
+            {t("report.summary")}
+            {productCount > 0 ? (
+              <span className="ml-2 font-normal text-muted-foreground">
+                {t("report.categorySales.productsCount", { count: productCount })}
+              </span>
+            ) : null}
+          </TableCell>
+          {columns.map((column) => {
+            const value = column.summaryValue(summary);
+            return (
+              <TableCell
+                key={column.id}
+                className={cn(
+                  footerCellClass("right"),
+                  column.tone === "total" ? "font-semibold" : "text-foreground",
+                  column.tone === "discount" && metricNumber(value) > 0 && "text-destructive",
+                )}
+              >
+                {displayMetric(value, column.kind)}
+              </TableCell>
+            );
+          })}
+        </TableRow>
+      </TableBody>
+    </Table>
   );
 }
 
 export function CategorySalesMobileList({
   groups,
-  labelOverrides,
   selectedRowIds,
   onToggleRow,
   onToggleRows,
 }: {
   groups: CategorySalesGroup[];
-  labelOverrides?: {
-    sum_servicecharge?: string;
-    sum_vate?: string;
-  };
   selectedRowIds: Set<string>;
   onToggleRow: (row: CategorySalesRow, selected: boolean) => void;
   onToggleRows: (rows: CategorySalesRow[], selected: boolean) => void;
@@ -560,203 +572,77 @@ export function CategorySalesMobileList({
   const { t } = useTranslation();
 
   return (
-    <div className="flex flex-col gap-3 p-3 md:hidden">
-      {groups.map((group) => (
-        <section
-          key={group.groupUuid || group.groupName}
-          className="overflow-hidden rounded-md border border-border bg-card shadow-sm"
-        >
-          <div className="bg-muted/40 px-3 py-3">
-            <div className="flex items-start gap-3">
-              <ReportIndeterminateCheckbox
-                aria-label={t("common.selectRow", { name: group.groupName })}
-                className="mt-0.5"
-                checked={
-                  selectionStateForVisibleIds(
-                    group.rows.map(categorySalesRowId),
-                    selectedRowIds,
-                  ).allVisibleSelected
-                }
-                indeterminate={
-                  !selectionStateForVisibleIds(
-                    group.rows.map(categorySalesRowId),
-                    selectedRowIds,
-                  ).allVisibleSelected &&
-                  selectionStateForVisibleIds(
-                    group.rows.map(categorySalesRowId),
-                    selectedRowIds,
-                  ).someVisibleSelected
-                }
-                onCheckedChange={(checked) => onToggleRows(group.rows, checked as boolean)}
-              />
-              <div className="min-w-0 flex-1">
-                <h3 className="truncate text-sm font-black">
-                  {group.groupName}
-                </h3>
-                <p className="mt-0.5 text-xs text-muted-foreground">
-                  {t("report.categorySales.groupSummary", {
-                    categories: group.categories.length,
-                    qty: group.summary.total_qty ?? 0,
-                  })}
-                </p>
-              </div>
-            </div>
-          </div>
+    <ItemGroup>
+      {groups.map((group) => {
+        const selection = selectionStateForVisibleIds(group.rows.map(categorySalesRowId), selectedRowIds);
 
-          <div className="divide-y divide-border">
-            {group.rows.map((row) => (
-              <div
-                key={`${row.groupUuid}-${row.cateUuid}-${row.productUuid}-${row.rank}`}
-                className={cn(
-                  "py-3 pr-3",
-                  selectedRowIds.has(categorySalesRowId(row)) && "bg-primary/5",
-                )}
-              >
-                <div className="ml-3 flex items-start gap-3 border-l border-border/70 pl-3">
-                  <Checkbox
-                    aria-label={t("common.selectRow", {
-                      name: row.productName,
-                    })}
-                    className="mt-0.5"
-                    checked={selectedRowIds.has(categorySalesRowId(row))}
-                    onCheckedChange={(checked) => onToggleRow(row, checked as boolean)}
-                  />
-                  <div className="min-w-0 flex-1">
-                  <div className="min-w-0">
-                    <div className="min-w-0">
-                      <p className="truncate text-sm font-black">
-                        {row.productName}
-                      </p>
-                      <p className="mt-0.5 truncate text-xs text-muted-foreground">
-                        {row.cateName}
-                      </p>
-                      <p className="mt-1 text-xs text-muted-foreground">
-                        {t("report.categorySales.columns.qtyTotal")}:{" "}
-                        {displayMetric(row.totalQty, "number")}
-                      </p>
-                    </div>
-                    <div className="shrink-0 text-right">
-                      <p className="text-2xs font-bold text-muted-foreground">
-                        {t("report.categorySales.columns.grandTotal")}
-                      </p>
-                      <p className={cn("text-sm tabular-nums", financialValueTextClass(row.grandTotal, "total"))}>
-                        {displayMetric(row.grandTotal, "money")}
-                      </p>
-                    </div>
-                  </div>
-
-                  <div className="mt-3 grid grid-cols-2 gap-2">
-                    <MetricTile
-                      label={t("report.categorySales.columns.productPriceTotal")}
-                      value={row.productPriceTotal}
-                      kind="money"
-                    />
-                    <MetricTile
-                      label={t("report.categorySales.columns.total")}
-                      value={row.total}
-                      kind="money"
-                    />
-                  </div>
-
-                  <div className="mt-2 grid grid-cols-3 gap-2">
-                    <MetricTile
-                      label={t("report.categorySales.columns.discountTotal")}
-                      value={row.discountTotal}
-                      kind="money"
-                      tone="discount"
-                    />
-                    <MetricTile
-                      label={
-                        labelOverrides?.sum_servicecharge ??
-                        t("report.categorySales.columns.serviceCharge")
-                      }
-                      value={row.serviceCharge}
-                      kind="money"
-                    />
-                    <MetricTile
-                      label={labelOverrides?.sum_vate ?? t("report.categorySales.columns.vat")}
-                      value={row.vat}
-                      kind="money"
-                    />
-                  </div>
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-
-          <div className="border-t-2 border-primary bg-muted p-3">
-            <div className="flex items-center justify-between gap-3">
-              <div className="min-w-0">
-                <p className="truncate text-sm font-black text-primary">
-                  {t("common.total")}
-                </p>
-                <p className="mt-0.5 text-xs text-muted-foreground">
-                  {t("report.categorySales.columns.qtyTotal")}:{" "}
-                  {displayMetric(group.summary.total_qty, "number")}
-                </p>
-              </div>
-              <p className="shrink-0 text-sm font-black tabular-nums text-primary">
+        return (
+          <Item key={group.groupUuid || group.groupName} variant="outline">
+            <ReportIndeterminateCheckbox
+              aria-label={t("common.selectRow", { name: group.groupName })}
+              checked={selection.allVisibleSelected}
+              indeterminate={!selection.allVisibleSelected && selection.someVisibleSelected}
+              onCheckedChange={(checked) => onToggleRows(group.rows, checked as boolean)}
+            />
+            <ItemContent>
+              <ItemTitle>{group.groupName}</ItemTitle>
+              <ItemDescription>
+                {t("report.categorySales.columns.qtyTotal")} {displayMetric(group.summary.total_qty, "number")}
+              </ItemDescription>
+            </ItemContent>
+            <ItemActions>
+              <span className="font-medium tabular-nums text-primary-text">
                 {displayMetric(group.summary.grand_total, "money")}
-              </p>
-            </div>
-          </div>
-        </section>
-      ))}
-    </div>
-  );
-}
+              </span>
+            </ItemActions>
 
-function MetricTile({
-  kind,
-  label,
-  tone = "default",
-  value,
-}: {
-  kind: "money" | "number";
-  label: string;
-  tone?: FinancialValueTone;
-  value: unknown;
-}) {
-  const valueClassName = kind === "money" ? financialValueTextClass(value, tone) : "text-foreground";
+            <ItemFooter>
+              <ItemGroup>
+                {group.rows.map((row) => {
+                  const share = groupShare(row, group);
+                  const discount = metricNumber(row.discountTotal);
 
-  return (
-    <div className="min-w-0 rounded-md border border-border bg-muted px-2.5 py-2">
-      <p className="truncate text-2xs font-bold uppercase text-muted-foreground">
-        {label}
-      </p>
-      <p className={cn("truncate text-xs font-black tabular-nums", valueClassName)}>
-        {displayMetric(value, kind)}
-      </p>
-    </div>
-  );
-}
-
-function financialValueClass(
-  value: unknown,
-  tone: FinancialValueTone = "default",
-  strong = false,
-  positiveTotalClass = "text-foreground"
-) {
-  return cn(
-    "text-right tabular-nums",
-    financialValueTextClass(value, tone, strong, positiveTotalClass)
-  );
-}
-
-function financialValueTextClass(
-  value: unknown,
-  tone: FinancialValueTone = "default",
-  strong = false,
-  positiveTotalClass = "text-foreground"
-) {
-  const number = metricNumber(value);
-
-  return cn(
-    (strong || tone === "total" || (tone === "discount" && number > 0)) && "font-black",
-    number === 0 && "text-muted-foreground",
-    tone === "discount" && number > 0 && "text-destructive",
-    tone === "total" && number > 0 && positiveTotalClass
+                  return (
+                    <Item
+                      key={`${row.groupUuid}-${row.cateUuid}-${row.productUuid}-${row.rank}`}
+                      variant="muted"
+                      size="sm"
+                    >
+                      <Checkbox
+                        aria-label={t("common.selectRow", { name: row.productName })}
+                        checked={selectedRowIds.has(categorySalesRowId(row))}
+                        onCheckedChange={(checked) => onToggleRow(row, checked as boolean)}
+                      />
+                      <ItemContent>
+                        <ItemTitle>{row.productName}</ItemTitle>
+                        <ItemDescription>
+                          {t("report.categorySales.columns.qtyTotal")} {displayMetric(row.totalQty, "number")}
+                          {discount > 0 ? (
+                            <span className="text-destructive">
+                              {" · "}
+                              {t("report.categorySales.columns.discountTotal")} {displayMetric(discount, "money")}
+                            </span>
+                          ) : null}
+                        </ItemDescription>
+                      </ItemContent>
+                      <ItemActions>
+                        <span className="tabular-nums">{displayMetric(row.grandTotal, "money")}</span>
+                      </ItemActions>
+                      {share !== null ? (
+                        <ItemFooter>
+                          <Progress value={share} aria-hidden="true" />
+                          <span className="shrink-0 tabular-nums text-muted-foreground">{share.toFixed(1)}%</span>
+                        </ItemFooter>
+                      ) : null}
+                    </Item>
+                  );
+                })}
+              </ItemGroup>
+            </ItemFooter>
+          </Item>
+        );
+      })}
+    </ItemGroup>
   );
 }
 

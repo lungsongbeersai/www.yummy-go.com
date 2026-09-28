@@ -1,5 +1,10 @@
 {
   "orderAudit": {
+    "stats": {
+      "events": "ເຫດການ",
+      "bills": "ບິນ",
+      "discountChanges": "ປ່ຽນສ່ວນຫຼຸດ"
+    },
     "title": "ປະຫວັດການແກ້ໄຂບິນ",
     "description": "ເບິ່ງການປ່ຽນແປງແຍກຕາມສາຂາ. ວັນທີອີງຕາມເວລາບັນທຶກໃນລາວ (UTC+7), ບໍ່ແມ່ນວັນຂາຍ.",
     "historyNotice": "ເລີ່ມເກັບປະຫວັດຫຼັງເປີດໃຊ້ງານ ບໍ່ສ້າງປະຫວັດຍ້ອນຫຼັງ. ລາຍການອອບລາຍຈະປາກົດຫຼັງຊິງຂໍ້ມູນເຂົ້າເຊີບເວີ ບໍ່ສາມາດສ້າງຂັ້ນຕອນແກ້ໄຂອອບລາຍທີ່ບໍ່ໄດ້ສົ່ງມາ. ຖ້າຢືນຢັນຜູ້ແກ້ໄຂບໍ່ໄດ້ ຈະສະແດງວ່າບໍ່ລະບຸ.",
@@ -327,6 +332,11 @@
     "apply": "ຄົ້ນຫາ",
     "available": "ວ່າງ",
     "avgBill": "ບິນສະເລ່ຍ",
+    "dailyAverage": "ສະເລ່ຍຕໍ່ມື້",
+    "monthFrom": "ຈາກເດືອນ",
+    "monthTo": "ຫາເດືອນ",
+    "yearFrom": "ຈາກປີ",
+    "yearTo": "ຫາປີ",
     "balance": "ຄ້າງຊໍາລະ",
     "bestProduct": "ສິນຄ້າຂາຍດີ",
     "branch": "ສາຂາ",
@@ -650,7 +660,7 @@
       "preview": "ຟັງຕົວຢ່າງ",
       "stop": "ຢຸດ",
       "options": {
-        "default": "ຄ່າເລີ່ມຕົ້ນ",
+        "default": "ສຽງເດີມ",
         "notification": "ແຈ້ງເຕືອນ",
         "ding": "ດິງ",
         "bell": "ກະດິ່ງ",
@@ -1006,7 +1016,7 @@
     "confirmAllRefreshing": "ກຳລັງໂຫຼດກະຕ່າຄືນໃໝ່.",
     "confirmAllDone": "ຢືນຢັນສຳເລັດແລ້ວ.",
     "confirmAllPrintProgress": "ພິມສຳເລັດ {{success}} / {{total}} ໃບ",
-    "payBill": "ຈ່າຍເງິນ",
+    "payBill": "ຊໍາລະເງິນ",
     "paySelected": "ຈ່າຍລາຍການທີ່ເລືອກ",
     "fullBill": "ບິນເຕັມ",
     "splitPayment": "ແຍກຈ່າຍ",
@@ -2186,6 +2196,7 @@
       "totalSummary": "ສະຫຼຸບລວມ"
     },
     "categorySales": {
+      "productsCount": "{{count}} ສິນຄ້າ",
       "adjustFilters": "ປັບຊ່ວງວັນທີ, ສາຂາ ຫຼື ວິທີຊຳລະ.",
       "cards": {
         "categories": "ໝວດໝູ່",
@@ -2351,6 +2362,11 @@
     "showingDetailLinesRange": "ສະແດງລາຍການ {{start}}-{{end}} / {{total}}, ຈັດກຸ່ມເປັນ {{bills}} ບິນ",
     "showSummary": "ສະແດງສະຫຼຸບ",
     "hideSummary": "ເຊື່ອງສະຫຼຸບ",
+    "columnsMenu": "ຖັນ",
+    "toggleColumns": "ສະແດງຖັນ",
+    "resetColumns": "ຄືນຄ່າຖັນ",
+    "metricsMenu": "ຕົວຊີ້ວັດ",
+    "toggleMetrics": "ສະແດງຕົວຊີ້ວັດ",
     "salesReportByBill": "ລາຍງານຂາຍຕາມບິນ",
     "reportDate": "ວັນທີລາຍງານ",
     "summary": "ສະຫຼຸບ",
@@ -2954,6 +2970,9 @@
     "unitDetailsHint": "ຕັ້ງຊື່ຫົວໜ່ວຍທີ່ໃຊ້ໃນສະຕັອກສິນຄ້າ ແລະ ລາຍງານ.",
     "unitList": "ລາຍການຫົວໜ່ວຍ",
     "unitNameRequired": "ກະລຸນາໃສ່ຊື່ຫົວໜ່ວຍພາສາລາວ.",
+    "allStores": "ທຸກຮ້ານ",
+    "noStoresFound": "ບໍ່ພົບຮ້ານ.",
+    "searchStore": "ຄົ້ນຫາຮ້ານ...",
     "storeRequired": "ບັນຊີຂອງທ່ານຍັງບໍ່ມີຮ້ານ.",
     "collapseZone": "ພັບ {{zone}}",
     "expandZone": "ຂະຫຍາຍ {{zone}}",

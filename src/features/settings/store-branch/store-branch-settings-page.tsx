@@ -1,29 +1,26 @@
 "use client";
 
+import { useState } from "react";
 import { useTranslation } from "react-i18next";
-import { KeyRound } from "lucide-react";
+import { Building2, KeyRound, Store as StoreIcon, X } from "lucide-react";
 import { ConfirmDialog } from "@/components/common/confirm-dialog";
-import {
-  SettingsModuleShell,
-  SettingsPaginationFooter,
-  SettingsRowActions,
-  SettingsToolbar
-} from "@/features/settings/shared/settings-shell";
+import { Button } from "@/components/ui/button";
+import { SettingsEmptyRecords, SettingsRowActions } from "@/features/settings/shared/settings-shell";
 import { optionPageRange, optionPageSize } from "@/features/settings/shared/option-settings-utils";
 import { useOptionRowSelection } from "@/features/settings/shared/use-option-row-selection";
 import { useSettingsCrudController } from "@/features/settings/shared/use-settings-crud-controller";
-import { PAGE_LIMIT_OPTIONS } from "@/lib/pagination";
 import { canCreateStoreBranch, canDeleteStoreBranch, canEditStoreBranch } from "@/lib/permissions";
 import type { UrlPaginationState } from "@/lib/url-pagination";
 import type { Branch, FetchBranchesParams, SaveBranchInput } from "@/services/branch";
-import type { SortOrder } from "@/services/shared/types";
 import type { FetchStoresParams, SaveStoreInput, Store } from "@/services/store";
 import { authStoreUuid, useAuthStore } from "@/stores/auth-store";
 import { useBranchSettingsStore } from "@/stores/branch-settings-store";
 import { useReferenceStore } from "@/stores/reference-store";
 import { useStoreSettingsStore } from "@/stores/store-settings-store";
 import { StoreBranchFormDialog } from "./store-branch-form";
-import { StoreBranchListSurface } from "./store-branch-list";
+import { BranchMobileList, BranchTable } from "./branch-list";
+import { SettingsListPageLayout } from "@/features/settings/shared/settings-list-page-layout";
+import { StoreMobileList, StoreTable } from "./store-list";
 import { StoreReportSummaryCards } from "./store-report-summary";
 import type { StoreBranchSettingsRow } from "./store-branch-types";
 import {
@@ -36,7 +33,9 @@ import {
   storeBranchId,
   storeBranchName,
   storeBranchValue,
-  type StoreBranchKind
+  storeMatchesCardFilter,
+  type StoreBranchKind,
+  type StoreCardFilter
 } from "./store-branch-utils";
 import { useStoreBranchLabels } from "./use-store-branch-labels";
 
@@ -62,10 +61,10 @@ function StoreSettingsPage({ initialPagination }: { initialPagination: UrlPagina
   const loadStoreRows = useStoreSettingsStore((state) => state.load);
   const removeStoreRow = useStoreSettingsStore((state) => state.remove);
   const storeListResponse = useStoreSettingsStore((state) => state.response);
+  const [cardFilter, setCardFilter] = useState<StoreCardFilter | null>(null);
 
   const title = labels.store;
   const description = labels.storeHint;
-  const listTitle = labels.storeList;
   const {
     applyFilters,
     backgroundLoading,
@@ -110,6 +109,11 @@ function StoreSettingsPage({ initialPagination }: { initialPagination: UrlPagina
       }),
     idKey: "store_uuid",
     initialPagination,
+    // The store API ignores type/status params (checked: store_status/store_active return all
+    // 27 rows), so a card filter loads every store in one request and filters/pages them here.
+    // Scope keys override limit/page in the controller's request. Fine for this list's size
+    // (admins only, a few dozen stores); a server-side filter would be needed if it grows large.
+    scope: () => (cardFilter ? { limit: "All", page: 1 } : {}),
     store: useStoreSettingsStore,
     title,
     validateInput: ({ formData }) => {
@@ -129,15 +133,38 @@ function StoreSettingsPage({ initialPagination }: { initialPagination: UrlPagina
   const canEdit = canEditStoreBranch(user?.status);
   const activeId = storeUuid;
   // ผู้ใช้ที่สร้างร้านไม่ได้ (เช่น พนักงานร้าน) เห็นได้แค่ร้านตัวเอง — กรองฝั่ง client จากรายการที่โหลดมา
-  const visibleRows = canCreate ? rows : rows.filter((row) => storeBranchValue(row, "store_uuid") === storeUuid);
+  const accessibleRows = canCreate ? rows : rows.filter((row) => storeBranchValue(row, "store_uuid") === storeUuid);
+  // With a card filter on, `rows` is every store (see scope above), paged locally with the chosen limit.
+  const activeFilter = canCreate ? cardFilter : null;
+  const filteredRows = activeFilter ? accessibleRows.filter((row) => storeMatchesCardFilter(row, activeFilter)) : accessibleRows;
+  const localPageSize = typeof limit === "number" ? limit : Math.max(1, filteredRows.length);
+  const visibleRows = activeFilter
+    ? filteredRows.slice((page - 1) * localPageSize, page * localPageSize)
+    : filteredRows;
   const { allSelected, removeSelected, selectedRows, toggleAll, toggleSelected } = useOptionRowSelection(
     visibleRows,
     (row) => storeBranchId(row, "store")
   );
-  const pageSize = optionPageSize(limit, visibleRows.length);
-  const total = canCreate ? controllerTotal : visibleRows.length;
-  const totalPages = canCreate ? controllerTotalPages : 1;
+  const pageSize = activeFilter ? localPageSize : optionPageSize(limit, visibleRows.length);
+  const total = activeFilter ? filteredRows.length : canCreate ? controllerTotal : visibleRows.length;
+  const totalPages = activeFilter
+    ? Math.max(1, Math.ceil(filteredRows.length / localPageSize))
+    : canCreate
+      ? controllerTotalPages
+      : 1;
   const { start: pageStart, end: pageEnd } = optionPageRange(visibleRows.length, page, pageSize);
+  const filterLabels: Record<StoreCardFilter, string> = {
+    active: labels.activeStores,
+    general: labels.generalStores,
+    inactive: labels.inactiveStores,
+    plc: labels.plcStores,
+    test: labels.testStores
+  };
+
+  function changeCardFilter(next: StoreCardFilter | null) {
+    setCardFilter(next);
+    setPage(1);
+  }
 
   function imageUrl(row: StoreBranchSettingsRow, rowKind: StoreBranchKind) {
     if (rowKind !== "store") return "";
@@ -263,77 +290,78 @@ function StoreSettingsPage({ initialPagination }: { initialPagination: UrlPagina
     );
   }
 
-  const toolbar = (
-    <SettingsToolbar
-      state={{
-        search,
-        limit,
-        orderBy,
-        limitOptions: PAGE_LIMIT_OPTIONS,
-        selectedCount: selectedRows.size,
-        onApply: applyFilters,
-        onLimit: changeLimit,
-        onOrder: (nextOrder: SortOrder) => {
-          setOrderBy(nextOrder);
-          setPage(1);
-        },
-        onSearch: setSearch
-      }}
-    />
-  );
+  const listProps = {
+    activeId,
+    imageUrl: (row: StoreBranchSettingsRow) => imageUrl(row, "store"),
+    labels,
+    pageStart,
+    rowActions,
+    rows: visibleRows,
+    selectedRows,
+    onToggleSelected: toggleSelected
+  };
 
-  const listSurface = (
-    <StoreBranchListSurface
-      activeId={activeId}
-      allSelected={allSelected}
-      backgroundLoading={backgroundLoading}
-      imageUrl={imageUrl}
-      kind="store"
-      labels={labels}
-      listTitle={listTitle}
-      pageStart={pageStart}
-      rowActions={rowActions}
-      rows={visibleRows}
-      selectedRows={selectedRows}
+  return (
+    <SettingsListPageLayout
+      id="store"
+      title={title}
+      description={description}
+      icon={StoreIcon}
+      addLabel={labels.addStore}
+      onAdd={canCreate ? openCreate : undefined}
+      loading={fullLoading}
+      loadingLabel={t("settings.loading", { title })}
       summary={
         canCreate ? (
           <StoreReportSummaryCards
+            filter={activeFilter}
             labels={labels}
             summary={normalizeStoreReportSummary(storeListResponse?.summary)}
+            onFilterChange={changeCardFilter}
           />
-        ) : undefined
+        ) : null
       }
-      toolbar={toolbar}
-      onToggleAllSelected={toggleAll}
-      onToggleSelected={toggleSelected}
-    />
-  );
-
-  return (
-    <>
-      <SettingsModuleShell
-        addLabel={labels.addStore}
-        cardTitle={listTitle}
-        description={description}
-        footer={
-          visibleRows.length ? (
-            <SettingsPaginationFooter
-              page={page}
-              pageEnd={pageEnd}
-              pageStart={pageStart}
-              total={total}
-              totalPages={totalPages}
-              onPageChange={setPage}
-            />
-          ) : undefined
-        }
-        hideCardHeader
-        loading={fullLoading}
-        loadingLabel={t("settings.loading", { title })}
-        table={listSurface}
-        title={title}
-        onAdd={canCreate ? openCreate : undefined}
-      />
+      search={search}
+      searching={backgroundLoading}
+      searchingLabel={labels.refreshStore}
+      onSearchChange={setSearch}
+      onSearchApply={applyFilters}
+      orderBy={orderBy}
+      onOrderChange={(nextOrder) => {
+        setOrderBy(nextOrder);
+        setPage(1);
+      }}
+      toolbarExtra={
+        activeFilter ? (
+          // The active card filter as a chip: the whole chip clears it (a bigger target than a lone ×).
+          <Button
+            type="button"
+            variant="secondary"
+            aria-label={`${t("actions.clear")}: ${filterLabels[activeFilter]}`}
+            onClick={() => changeCardFilter(null)}
+          >
+            {filterLabels[activeFilter]}
+            <X data-icon="inline-end" />
+          </Button>
+        ) : null
+      }
+      allSelected={allSelected}
+      selectAllLabel={labels.selectAll}
+      selectedCount={selectedRows.size}
+      onToggleAll={toggleAll}
+      hasRows={visibleRows.length > 0}
+      table={<StoreTable {...listProps} allSelected={allSelected} onToggleAllSelected={toggleAll} />}
+      mobileList={<StoreMobileList {...listProps} />}
+      empty={<SettingsEmptyRecords icon={<StoreIcon aria-hidden />} titleText={labels.noStore} description={labels.selectRecord} />}
+      page={page}
+      pageStart={pageStart}
+      pageEnd={pageEnd}
+      total={total}
+      totalPages={totalPages}
+      limit={limit}
+      onLimitChange={changeLimit}
+      onPageChange={setPage}
+    >
       <StoreBranchFormDialog
         activeStoreUuid={storeUuid}
         canEdit={canEdit}
@@ -360,7 +388,7 @@ function StoreSettingsPage({ initialPagination }: { initialPagination: UrlPagina
           if (!nextOpen) setDeleteTarget(null);
         }}
       />
-    </>
+    </SettingsListPageLayout>
   );
 }
 
@@ -375,7 +403,6 @@ function BranchSettingsPage({ initialPagination }: { initialPagination: UrlPagin
 
   const title = labels.branch;
   const description = labels.branchHint;
-  const listTitle = labels.branchList;
   const {
     applyFilters,
     backgroundLoading,
@@ -548,83 +575,65 @@ function BranchSettingsPage({ initialPagination }: { initialPagination: UrlPagin
 
   function rowActions(row: StoreBranchSettingsRow) {
     const id = storeBranchId(row, "branch");
-    const isCurrent = id === activeId;
     return (
-      <div className="flex items-center justify-end">
-        <SettingsRowActions
-          row={row}
-          editDisabled={!canEdit || saving}
-          deleteDisabled={!canDelete || isCurrent || saving}
-          onEdit={(nextRow) => openEdit(nextRow as Branch)}
-          onDelete={(nextRow) => setDeleteTarget(nextRow as Branch)}
-        />
-      </div>
+      <SettingsRowActions
+        row={row}
+        editDisabled={!canEdit || saving}
+        deleteDisabled={!canDelete || id === activeId || saving}
+        onEdit={(nextRow) => openEdit(nextRow as Branch)}
+        onDelete={(nextRow) => setDeleteTarget(nextRow as Branch)}
+      />
     );
   }
 
-  const toolbar = (
-    <SettingsToolbar
-      state={{
-        search,
-        limit,
-        orderBy,
-        limitOptions: PAGE_LIMIT_OPTIONS,
-        selectedCount: selectedRows.size,
-        onApply: applyFilters,
-        onLimit: changeLimit,
-        onOrder: (nextOrder: SortOrder) => {
-          setOrderBy(nextOrder);
-          setPage(1);
-        },
-        onSearch: setSearch
-      }}
-    />
-  );
-
-  const listSurface = (
-    <StoreBranchListSurface
-      activeId={activeId}
-      allSelected={allSelected}
-      backgroundLoading={backgroundLoading}
-      imageUrl={imageUrl}
-      kind="branch"
-      labels={labels}
-      listTitle={listTitle}
-      pageStart={pageStart}
-      rowActions={rowActions}
-      rows={visibleRows}
-      selectedRows={selectedRows}
-      toolbar={toolbar}
-      onToggleAllSelected={toggleAll}
-      onToggleSelected={toggleSelected}
-    />
-  );
+  const listProps = {
+    activeId,
+    imageUrl: (row: StoreBranchSettingsRow) => imageUrl(row, "branch"),
+    labels,
+    pageStart,
+    rowActions,
+    rows: visibleRows,
+    selectedRows,
+    onToggleSelected: toggleSelected
+  };
 
   return (
-    <>
-      <SettingsModuleShell
-        addLabel={labels.addBranch}
-        cardTitle={listTitle}
-        description={description}
-        footer={
-          visibleRows.length ? (
-            <SettingsPaginationFooter
-              page={page}
-              pageEnd={pageEnd}
-              pageStart={pageStart}
-              total={total}
-              totalPages={totalPages}
-              onPageChange={setPage}
-            />
-          ) : undefined
-        }
-        hideCardHeader
-        loading={fullLoading}
-        loadingLabel={t("settings.loading", { title })}
-        table={listSurface}
-        title={title}
-        onAdd={canCreate ? openCreate : undefined}
-      />
+    <SettingsListPageLayout
+      id="branch"
+      title={title}
+      description={description}
+      icon={Building2}
+      addLabel={labels.addBranch}
+      onAdd={canCreate ? openCreate : undefined}
+      loading={fullLoading}
+      loadingLabel={t("settings.loading", { title })}
+      search={search}
+      searching={backgroundLoading}
+      searchingLabel={labels.refreshBranch}
+      onSearchChange={setSearch}
+      onSearchApply={applyFilters}
+      orderBy={orderBy}
+      onOrderChange={(nextOrder) => {
+        setOrderBy(nextOrder);
+        setPage(1);
+      }}
+      allSelected={allSelected}
+      selectAllLabel={labels.selectAll}
+      selectedCount={selectedRows.size}
+      onToggleAll={toggleAll}
+      hasRows={visibleRows.length > 0}
+      table={<BranchTable {...listProps} allSelected={allSelected} onToggleAllSelected={toggleAll} />}
+      mobileList={<BranchMobileList {...listProps} />}
+      empty={<SettingsEmptyRecords icon={<Building2 aria-hidden />} titleText={labels.noBranch} description={labels.selectRecord} />}
+      page={page}
+      pageStart={pageStart}
+      pageEnd={pageEnd}
+      total={total}
+      totalPages={totalPages}
+      limit={limit}
+      onLimitChange={changeLimit}
+      onPageChange={setPage}
+    >
       <StoreBranchFormDialog
         activeStoreUuid={storeUuid}
         canEdit={canEdit}
@@ -651,6 +660,6 @@ function BranchSettingsPage({ initialPagination }: { initialPagination: UrlPagin
           if (!nextOpen) setDeleteTarget(null);
         }}
       />
-    </>
+    </SettingsListPageLayout>
   );
 }

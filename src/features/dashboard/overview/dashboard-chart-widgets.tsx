@@ -3,14 +3,32 @@
 import { memo, useMemo, useState } from "react";
 import {
   AlertTriangle,
-  BadgePercent,
+  Armchair,
+  ChartColumn,
+  CreditCard,
   Info,
+  Landmark,
+  Lightbulb,
+  Store,
   Trophy,
   TrendingDown,
-  XCircle,
   type LucideIcon,
 } from "lucide-react";
-import { Bar, BarChart, CartesianGrid, XAxis, YAxis } from "recharts";
+import {
+  Bar,
+  BarChart,
+  CartesianGrid,
+  Cell,
+  Label,
+  Pie,
+  PieChart,
+  PolarAngleAxis,
+  RadialBar,
+  RadialBarChart,
+  ReferenceLine,
+  XAxis,
+  YAxis,
+} from "recharts";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
@@ -47,7 +65,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Separator } from "@/components/ui/separator";
 import {
   Table,
   TableBody,
@@ -86,14 +103,18 @@ import {
 // Full class names (not built strings) so Tailwind emits them. Slot = the entity's
 // position in the API order, never its rank, so re-sorting never repaints a category.
 const categoricalSlots = [
-  { bar: "*:data-[slot=progress-indicator]:bg-chart-cat-1", dot: "bg-chart-cat-1" },
-  { bar: "*:data-[slot=progress-indicator]:bg-chart-cat-2", dot: "bg-chart-cat-2" },
-  { bar: "*:data-[slot=progress-indicator]:bg-chart-cat-3", dot: "bg-chart-cat-3" },
-  { bar: "*:data-[slot=progress-indicator]:bg-chart-cat-4", dot: "bg-chart-cat-4" },
-  { bar: "*:data-[slot=progress-indicator]:bg-chart-cat-5", dot: "bg-chart-cat-5" },
+  { bar: "*:data-[slot=progress-indicator]:bg-chart-cat-1", color: "var(--chart-cat-1)", dot: "bg-chart-cat-1" },
+  { bar: "*:data-[slot=progress-indicator]:bg-chart-cat-2", color: "var(--chart-cat-2)", dot: "bg-chart-cat-2" },
+  { bar: "*:data-[slot=progress-indicator]:bg-chart-cat-3", color: "var(--chart-cat-3)", dot: "bg-chart-cat-3" },
+  { bar: "*:data-[slot=progress-indicator]:bg-chart-cat-4", color: "var(--chart-cat-4)", dot: "bg-chart-cat-4" },
+  { bar: "*:data-[slot=progress-indicator]:bg-chart-cat-5", color: "var(--chart-cat-5)", dot: "bg-chart-cat-5" },
 ] as const;
 // Past five categories fold to neutral rather than inventing hues.
-const neutralSlot = { bar: "*:data-[slot=progress-indicator]:bg-muted-foreground", dot: "bg-muted-foreground" };
+const neutralSlot = {
+  bar: "*:data-[slot=progress-indicator]:bg-muted-foreground",
+  color: "var(--muted-foreground)",
+  dot: "bg-muted-foreground",
+};
 
 function categoricalSlot(index: number) {
   return categoricalSlots[index] ?? neutralSlot;
@@ -103,6 +124,16 @@ const compactNumber = new Intl.NumberFormat("en-US", { maximumFractionDigits: 1,
 
 function share(value: number, total: number) {
   return total > 0 ? (value / total) * 100 : 0;
+}
+
+// Every card title carries a small muted icon so sections can be told apart at a glance.
+function IconTitle({ children, icon: Icon }: { children: React.ReactNode; icon: LucideIcon }) {
+  return (
+    <CardTitle className="flex items-center gap-2">
+      <Icon aria-hidden="true" className="size-4 text-muted-foreground" />
+      {children}
+    </CardTitle>
+  );
 }
 
 function EmptyPanel({ label }: { label: string }) {
@@ -171,11 +202,15 @@ function SalesTrendCard({
     [metric]: { label: isRevenue ? copy.revenue : copy.orders, color: "var(--primary)" },
   } satisfies ChartConfig;
   const data = trendRows.map((row) => ({ ...row, label: row.day || row.date }));
+  const format = (value: unknown) => (isRevenue ? formatKip(value) : `${formatNumber(value)} ${copy.orders}`);
+  const average = data.length ? data.reduce((sum, row) => sum + row[metric], 0) / data.length : 0;
+  // The best day is drawn solid, the rest faded: the peak reads without hunting for it.
+  const peakIndex = data.reduce((best, row, index) => (row[metric] > data[best][metric] ? index : best), 0);
 
   return (
     <Card className="lg:col-span-2">
       <CardHeader>
-        <CardTitle>{copy.dailySales}</CardTitle>
+        <IconTitle icon={ChartColumn}>{copy.dailySales}</IconTitle>
         <CardDescription>{copy.dailySalesSubtitle}</CardDescription>
         <CardAction>
           <ToggleGroup
@@ -193,15 +228,19 @@ function SalesTrendCard({
           </ToggleGroup>
         </CardAction>
       </CardHeader>
-      <CardContent>
+      <CardContent className="flex-1">
         {data.length ? (
-          <ChartContainer config={config} className="aspect-auto h-64 w-full">
+          <ChartContainer config={config} className="aspect-auto h-72 w-full">
             <BarChart data={data} margin={{ left: 0, right: 0, top: 8 }}>
               <defs>
+                {/* var() only resolves in CSS, not in SVG presentation attributes. */}
                 <linearGradient id="dashboard-trend-fill" x1="0" y1="0" x2="0" y2="1">
-                  {/* var() only resolves in CSS, not in SVG presentation attributes. */}
+                  <stop offset="0%" style={{ stopColor: `var(--color-${metric})`, stopOpacity: 0.45 }} />
+                  <stop offset="100%" style={{ stopColor: `var(--color-${metric})`, stopOpacity: 0.15 }} />
+                </linearGradient>
+                <linearGradient id="dashboard-trend-peak" x1="0" y1="0" x2="0" y2="1">
                   <stop offset="0%" style={{ stopColor: `var(--color-${metric})`, stopOpacity: 1 }} />
-                  <stop offset="100%" style={{ stopColor: `var(--color-${metric})`, stopOpacity: 0.45 }} />
+                  <stop offset="100%" style={{ stopColor: `var(--color-${metric})`, stopOpacity: 0.7 }} />
                 </linearGradient>
               </defs>
               <CartesianGrid vertical={false} />
@@ -212,25 +251,42 @@ function SalesTrendCard({
                 width={44}
                 tickFormatter={(value: number) => compactNumber.format(value)}
               />
-              <ChartTooltip
-                cursor={{ fill: "var(--muted)" }}
-                content={
-                  <ChartTooltipContent
-                    formatter={(value) => (isRevenue ? formatKip(value) : `${formatNumber(value)} ${copy.orders}`)}
+              <ChartTooltip cursor={{ fill: "var(--muted)" }} content={<ChartTooltipContent formatter={format} />} />
+              <Bar dataKey={metric} radius={[6, 6, 0, 0]} maxBarSize={36}>
+                {data.map((row, index) => (
+                  <Cell
+                    key={row.date || index}
+                    fill={index === peakIndex && row[metric] > 0 ? "url(#dashboard-trend-peak)" : "url(#dashboard-trend-fill)"}
                   />
-                }
-              />
-              <Bar dataKey={metric} fill="url(#dashboard-trend-fill)" radius={[4, 4, 0, 0]} maxBarSize={32} />
+                ))}
+              </Bar>
+              {data.length > 1 && average > 0 ? (
+                <ReferenceLine y={average} stroke="var(--muted-foreground)" strokeDasharray="4 4" />
+              ) : null}
             </BarChart>
           </ChartContainer>
         ) : (
           <EmptyPanel label={copy.noData} />
         )}
       </CardContent>
-      {peakRevenueDay ? (
-        <CardFooter className="gap-2 text-muted-foreground tabular-nums">
-          <span className="font-medium text-foreground">{copy.peakDay}:</span>
-          {peakRevenueDay.date} · {formatKip(peakRevenueDay.revenue)} · {formatNumber(peakRevenueDay.orders)} {copy.orders}
+      {data.length ? (
+        <CardFooter className="flex-wrap gap-x-6 gap-y-2 text-muted-foreground tabular-nums">
+          {peakRevenueDay ? (
+            <span className="flex items-center gap-2">
+              <Badge>
+                <Trophy data-icon="inline-start" />
+                {copy.peakDay}
+              </Badge>
+              {peakRevenueDay.date} · {formatKip(peakRevenueDay.revenue)} · {formatNumber(peakRevenueDay.orders)} {copy.orders}
+            </span>
+          ) : null}
+          {data.length > 1 ? (
+            <span className="flex items-center gap-2">
+              {/* Legend for the dashed line drawn across the chart. */}
+              <span aria-hidden="true" className="w-4 border-t border-dashed border-muted-foreground" />
+              {copy.dailyAverage}: {format(average)}
+            </span>
+          ) : null}
         </CardFooter>
       ) : null}
     </Card>
@@ -247,8 +303,17 @@ function PaymentMethodsCard({
   paymentSummary: PaymentSummary;
 }) {
   const totalCard = cards.find((card) => card.important);
-  const methods = cards.filter((card) => !card.important);
-  const total = totalCard?.value || methods.reduce((sum, card) => sum + card.value, 0);
+  const methods = cards
+    .filter((card) => !card.important)
+    .map((card, index) => ({ card, slot: categoricalSlot(index) }));
+  const total = totalCard?.value || methods.reduce((sum, { card }) => sum + card.value, 0);
+  const ranked = [...methods].sort((left, right) => right.card.value - left.card.value);
+  const chartData = methods
+    .filter(({ card }) => card.value > 0)
+    .map(({ card, slot }) => ({ fill: slot.color, key: card.key, value: card.value }));
+  const config = Object.fromEntries(
+    methods.map(({ card, slot }) => [card.key, { color: slot.color, label: card.label }]),
+  ) satisfies ChartConfig;
   const splitWarning =
     !paymentSummary.hasMixedSplitColumns &&
     (paymentSummary.mixedTotal > 0 || paymentSummary.unallocatedMixedTotal > 0);
@@ -256,25 +321,54 @@ function PaymentMethodsCard({
   return (
     <Card>
       <CardHeader>
-        <CardTitle>{copy.paymentSplit}</CardTitle>
-        <CardDescription className="tabular-nums">
-          {totalCard?.label ?? copy.paidTotal}: {formatKip(total)}
-        </CardDescription>
+        <IconTitle icon={CreditCard}>{copy.paymentSplit}</IconTitle>
+        <CardDescription>{totalCard?.label ?? copy.paidTotal}</CardDescription>
       </CardHeader>
       <CardContent className="flex flex-col gap-4">
-        {methods.length ? (
-          methods
-            .map((card, index) => ({ card, slot: categoricalSlot(index) }))
-            .sort((left, right) => right.card.value - left.card.value)
-            .map(({ card, slot }) => (
-              <ShareRow
-                key={card.key}
-                label={card.label}
-                slot={slot}
-                value={formatKip(card.value)}
-                percent={share(card.value, total)}
+        {chartData.length ? (
+          <ChartContainer config={config} className="mx-auto aspect-square h-52">
+            <PieChart>
+              <ChartTooltip
+                content={<ChartTooltipContent hideLabel nameKey="key" formatter={(value) => formatKip(value)} />}
               />
-            ))
+              {/* The box is sized in rem, so it resizes with the app's font-size setting. Radii are
+                  in % of the box, and the animation is off: an animated Pie keeps the sectors from
+                  its first render and never re-fits them, so a box that shrinks later clips the ring. */}
+              <Pie data={chartData} dataKey="value" nameKey="key" innerRadius="68%" outerRadius="94%" strokeWidth={3} stroke="var(--card)" isAnimationActive={false}>
+                {/* The total sits in the hole, so the ring reads as "parts of this number". */}
+                <Label
+                  content={({ viewBox }) =>
+                    viewBox && "cx" in viewBox && "cy" in viewBox ? (
+                      <text x={viewBox.cx} y={viewBox.cy} textAnchor="middle" dominantBaseline="middle">
+                        <tspan x={viewBox.cx} y={viewBox.cy} className="fill-foreground text-lg font-semibold">
+                          {compactNumber.format(total)}
+                        </tspan>
+                        <tspan x={viewBox.cx} y={(viewBox.cy ?? 0) + 20} className="fill-muted-foreground">
+                          ₭
+                        </tspan>
+                      </text>
+                    ) : null
+                  }
+                />
+              </Pie>
+            </PieChart>
+          </ChartContainer>
+        ) : null}
+        {ranked.length ? (
+          <div className="flex flex-col gap-2.5">
+            {ranked.map(({ card, slot }) => (
+              <div key={card.key} className="flex items-center justify-between gap-3">
+                <span className="flex min-w-0 items-center gap-2">
+                  <span aria-hidden="true" className={cn("size-2.5 shrink-0 rounded-full", slot.dot)} />
+                  <span className="truncate font-medium">{card.label}</span>
+                </span>
+                <span className="flex shrink-0 items-center gap-3 tabular-nums">
+                  {formatKip(card.value)}
+                  <span className="w-12 text-right text-muted-foreground">{formatPercent(share(card.value, total))}</span>
+                </span>
+              </div>
+            ))}
+          </div>
         ) : (
           <EmptyPanel label={copy.noData} />
         )}
@@ -354,7 +448,7 @@ function TopProductsCard({
   return (
     <Card className="lg:col-span-2">
       <CardHeader>
-        <CardTitle>{copy.topProducts}</CardTitle>
+        <IconTitle icon={Trophy}>{copy.topProducts}</IconTitle>
         <CardDescription>
           {formatNumber(products.length)} {copy.products}
         </CardDescription>
@@ -458,39 +552,52 @@ function TopProductsCard({
 
 function TableStatusCard({ copy, summary }: { copy: DashboardCopy; summary: Row }) {
   const total = Math.max(0, numberFrom(summary, "total_tables"));
-  const occupied = Math.max(0, numberFrom(summary, "occupied_tables"));
+  const occupancy = Math.min(100, Math.max(0, numberFrom(summary, "occupancy_rate")));
+  const config = { occupancy: { color: "var(--info)", label: copy.occupancy } } satisfies ChartConfig;
   // Table states are status, so they use the reserved status tokens (always with a label).
   const stats = [
     { dot: "bg-success", label: copy.available, value: Math.max(0, numberFrom(summary, "available_tables")) },
-    { dot: "bg-info", label: copy.occupied, value: occupied },
+    { dot: "bg-info", label: copy.occupied, value: Math.max(0, numberFrom(summary, "occupied_tables")) },
     { dot: "bg-warning", label: copy.waiting, value: Math.max(0, numberFrom(summary, "waiting_tables")) },
   ];
 
   return (
     <Card>
       <CardHeader>
-        <CardTitle>{copy.tableStatus}</CardTitle>
+        <IconTitle icon={Armchair}>{copy.tableStatus}</IconTitle>
         <CardDescription>
           {formatNumber(total)} {copy.tables}
         </CardDescription>
       </CardHeader>
-      <CardContent className="flex flex-col gap-4">
-        <ShareRow
-          label={copy.occupancy}
-          value={`${formatNumber(occupied)} / ${formatNumber(total)}`}
-          percent={Math.max(0, numberFrom(summary, "occupancy_rate"))}
-        />
-        <div className="grid grid-cols-3 gap-2 text-center">
-          {stats.map((stat, index) => (
-            <div key={stat.label} className="flex items-stretch gap-2">
-              {index ? <Separator orientation="vertical" /> : null}
-              <div className="flex flex-1 flex-col gap-0.5">
-                <span className="text-xl font-semibold tabular-nums">{formatNumber(stat.value)}</span>
-                <span className="flex items-center justify-center gap-1.5 text-muted-foreground">
-                  <span aria-hidden="true" className={cn("size-2 shrink-0 rounded-full", stat.dot)} />
-                  <span className="truncate">{stat.label}</span>
-                </span>
-              </div>
+      <CardContent className="flex items-center gap-4">
+        <ChartContainer config={config} className="aspect-square h-28 shrink-0">
+          <RadialBarChart
+            data={[{ key: "occupancy", value: occupancy, fill: "var(--color-occupancy)" }]}
+            startAngle={90}
+            endAngle={-270}
+            innerRadius="76%"
+            outerRadius="98%"
+          >
+            <PolarAngleAxis type="number" domain={[0, 100]} tick={false} axisLine={false} />
+            <RadialBar dataKey="value" background cornerRadius={8} />
+            <text x="50%" y="50%" textAnchor="middle" dominantBaseline="middle">
+              <tspan x="50%" y="46%" className="fill-foreground text-lg font-semibold">
+                {formatPercent(occupancy)}
+              </tspan>
+              <tspan x="50%" y="62%" className="fill-muted-foreground">
+                {copy.occupancy}
+              </tspan>
+            </text>
+          </RadialBarChart>
+        </ChartContainer>
+        <div className="flex flex-1 flex-col gap-2">
+          {stats.map((stat) => (
+            <div key={stat.label} className="flex items-center justify-between gap-3">
+              <span className="flex min-w-0 items-center gap-2 text-muted-foreground">
+                <span aria-hidden="true" className={cn("size-2 shrink-0 rounded-full", stat.dot)} />
+                <span className="truncate">{stat.label}</span>
+              </span>
+              <span className="text-base font-semibold tabular-nums">{formatNumber(stat.value)}</span>
             </div>
           ))}
         </div>
@@ -505,7 +612,7 @@ function ChannelsCard({ copy, rows }: { copy: DashboardCopy; rows: BreakdownRow[
   return (
     <Card>
       <CardHeader>
-        <CardTitle>{copy.orderChannels}</CardTitle>
+        <IconTitle icon={Store}>{copy.orderChannels}</IconTitle>
         <CardDescription className="tabular-nums">
           {formatNumber(rows.length)} {copy.channels} · {formatKip(total)}
         </CardDescription>
@@ -571,33 +678,42 @@ export const DashboardProductsGrid = memo(function DashboardProductsGrid({
 });
 
 function AccountingCard({ copy, rows }: { copy: DashboardCopy; rows: AccountingRow[] }) {
+  const last = rows.length - 1;
+
   return (
     <Card>
       <CardHeader>
-        <CardTitle>{copy.accounting}</CardTitle>
+        <IconTitle icon={Landmark}>{copy.accounting}</IconTitle>
         <CardDescription>{copy.ledger}</CardDescription>
       </CardHeader>
-      <CardContent className="flex flex-col gap-2">
+      <CardContent className="flex flex-col gap-1">
         {rows.length ? (
-          rows.map((row, index) => (
-            <div key={row.key} className="flex flex-col gap-2">
-              {row.important && index > 0 ? <Separator /> : null}
+          rows.map((row, index) =>
+            // The bottom line is what the period actually came to, so it is boxed in the theme colour.
+            index === last && row.important ? (
               <div
+                key={row.key}
+                className="mt-2 flex items-baseline justify-between gap-3 rounded-lg bg-primary/10 px-3 py-2.5 text-base font-semibold text-primary-text"
+              >
+                <span className="min-w-0 truncate">{row.label}</span>
+                <span className="shrink-0 tabular-nums">{formatKip(row.value)}</span>
+              </div>
+            ) : (
+              <div
+                key={row.key}
                 className={cn(
-                  "flex items-baseline justify-between gap-3",
-                  row.important && "text-base font-semibold",
+                  "flex items-baseline justify-between gap-3 border-b border-dashed py-1.5 last:border-b-0",
+                  row.important && "font-semibold",
                 )}
               >
-                <span className={cn("min-w-0 truncate", !row.important && "text-muted-foreground")}>
-                  {row.label}
-                </span>
+                <span className={cn("min-w-0 truncate", !row.important && "text-muted-foreground")}>{row.label}</span>
                 <span className={cn("shrink-0 tabular-nums", row.negative && "text-destructive")}>
                   {row.negative ? "− " : ""}
                   {formatKip(row.value)}
                 </span>
               </div>
-            </div>
-          ))
+            ),
+          )
         ) : (
           <EmptyPanel label={copy.noData} />
         )}
@@ -626,19 +742,16 @@ function HighlightsCard({
   copy,
   highestRevenueProduct,
   insights,
-  kpis,
   productSummary,
 }: {
   copy: DashboardCopy;
   highestRevenueProduct: ProductRow | null;
   insights: Row;
-  kpis: Row;
   productSummary: Row;
 }) {
   const best = asRow(insights.best_selling_product);
   const watch = asRow(insights.watch_product);
   const lowest = asRow(productSummary.lowest_selling_product);
-  const cancelled = asRow(insights.cancelled_bill);
   const items: Highlight[] = [
     {
       icon: Trophy,
@@ -666,32 +779,18 @@ function HighlightsCard({
       title: text(watch.prod_name, text(lowest.prod_name)),
       description: `${formatNumber(numberFrom(watch, "qty_total") || numberFrom(lowest, "qty_total"))} ${copy.productsSold} · ${formatKip(numberFrom(watch, "revenue_total") || numberFrom(lowest, "revenue_total"))}`,
     },
-    {
-      icon: XCircle,
-      tone: "destructive",
-      label: copy.cancellations,
-      title: `${formatNumber(numberFrom(cancelled, "count"))} ${copy.orders} · ${formatKip(numberFrom(cancelled, "total"))}`,
-      description: `${copy.cancelRate} ${formatPercent(numberFrom(kpis, "cancel_rate"))}`,
-    },
-    {
-      icon: BadgePercent,
-      tone: "info",
-      label: copy.discount,
-      title: formatKip(numberFrom(kpis, "discount_total")),
-      description: `${copy.discountRate} ${formatPercent(numberFrom(kpis, "discount_rate"))}`,
-    },
   ];
 
   return (
     <Card>
       <CardHeader>
-        <CardTitle>{copy.insights}</CardTitle>
+        <IconTitle icon={Lightbulb}>{copy.insights}</IconTitle>
       </CardHeader>
       <CardContent>
         <ItemGroup>
           {items.map((item) => (
-            <Item key={item.label} size="sm" variant="outline">
-              <ItemMedia variant="icon" className={cn("size-8 rounded-md", highlightTones[item.tone])}>
+            <Item key={item.label} variant="outline">
+              <ItemMedia variant="icon" className={cn("size-10 rounded-lg", highlightTones[item.tone])}>
                 <item.icon />
               </ItemMedia>
               <ItemContent>
@@ -712,14 +811,12 @@ export const DashboardHealthGrid = memo(function DashboardHealthGrid({
   copy,
   highestRevenueProduct,
   insights,
-  kpis,
   productSummary,
 }: {
   accountingRows: AccountingRow[];
   copy: DashboardCopy;
   highestRevenueProduct: ProductRow | null;
   insights: Row;
-  kpis: Row;
   productSummary: Row;
 }) {
   return (
@@ -729,7 +826,6 @@ export const DashboardHealthGrid = memo(function DashboardHealthGrid({
         copy={copy}
         highestRevenueProduct={highestRevenueProduct}
         insights={insights}
-        kpis={kpis}
         productSummary={productSummary}
       />
     </div>

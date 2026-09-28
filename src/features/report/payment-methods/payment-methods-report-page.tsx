@@ -1,64 +1,85 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { AppPagination } from "@/components/common/app-pagination";
+import { BlockingLoadingDialog } from "@/components/common/blocking-loading-dialog";
+import { EmptyState } from "@/components/common/empty-state";
+import { LoadingState } from "@/components/common/loading-state";
 import { Badge } from "@/components/ui/badge";
 import type { UrlPaginationState } from "@/lib/url-pagination";
+import { ReportColumnsMenu, useReportColumnVisibility } from "../shared/report-column-visibility";
+import { ReportError } from "../shared/report-error";
 import {
+  ReportExportMenu,
+  ReportMobileFilterBar,
+  ReportPage,
+  ReportPaginationBar,
+  ReportRefreshButton,
+  ReportResultArea,
+  ReportSummaryToggle,
+  ReportToolbar,
+} from "../shared/report-layout";
+import {
+  PaymentMethodShareCards,
   PaymentMethodsExportSurface,
   PaymentMethodsFilterBar,
   PaymentMethodsFilterSheet,
-  PaymentMethodsLoadingSkeleton,
-  PaymentMethodsMobileList,
   PaymentMethodsSummaryCards,
   PaymentMethodsTable,
+  paymentMethodMetricOptions,
 } from "./payment-methods-report-components";
-import { ReportPageShell } from "../shared/report-page-shell";
-import { ReportTableCard } from "../shared/report-table-card";
 import { usePaymentMethodsReportWorkflow } from "./use-payment-methods-report-workflow";
+import { formatReportDateRange } from "@/features/report/shared/report-date-format";
 
 const SUMMARY_CARDS_ID = "payment-methods-summary-cards";
 
+// โครงเดียวกับรายงานหน้าอื่นที่ปรับแล้ว (daily-sales / best-selling) ดู shared/report-layout.tsx
 export function PaymentMethodsReportPage({ initialPagination }: { initialPagination: UrlPaginationState }) {
   const { t } = useTranslation();
   const exportReportRef = useRef<HTMLDivElement>(null);
+  // เปิดการ์ดสรุปไว้ตั้งแต่แรก — เป็นภาพรวมที่คนเปิดรายงานมาดูก่อน (ปุ่มตาซ่อนได้)
+  // การ์ดสรุปซ่อนไว้ก่อน — ผู้ใช้กดปุ่ม "แสดงสรุป" เองเมื่ออยากดู
   const [summaryVisible, setSummaryVisible] = useState(false);
   const report = usePaymentMethodsReportWorkflow(exportReportRef, initialPagination);
+  const metricOptions = useMemo(() => paymentMethodMetricOptions(t), [t]);
+  const metrics = useReportColumnVisibility("payment-methods", metricOptions);
+  const controlsDisabled = report.loading || Boolean(report.exporting);
+  const selectedCount = report.rowSelection.selectedCount;
   const exportTitle =
     report.exporting === "excel"
       ? t("report.exportingExcel")
       : report.exporting === "pdf"
         ? t("report.exportingPdf")
         : t("report.preparingPrint");
+  const errors = [
+    !report.branchUuid ? t("report.branchRequired") : null,
+    report.branchError,
+    report.error,
+  ].filter((message): message is string => Boolean(message));
+  const refreshButton = (
+    <ReportRefreshButton disabled={controlsDisabled} loading={report.loading} onRefresh={() => void report.load()} />
+  );
 
   return (
-    <ReportPageShell
-      accessibleTitle={report.reportTitle}
-      variant="compact"
-      dateFrom={report.appliedFilters.dateFrom}
-      dateTo={report.appliedFilters.dateTo}
-      loading={report.loading}
-      exporting={Boolean(report.exporting)}
-      exportingTitle={exportTitle}
-      errors={[
-        !report.branchUuid ? t("report.branchRequired") : null,
-        report.branchError,
-        report.error,
-      ]}
-      extraChips={
-        <>
-          <Badge className="h-7 max-w-56 rounded-full border-border bg-muted px-3 text-xs text-muted-foreground">
-            <span className="truncate">{report.activeBranchLabel}</span>
-          </Badge>
-          <Badge className="h-7 max-w-44 rounded-full border-border bg-muted px-3 text-xs text-muted-foreground">
-            <span className="truncate">{report.activePaymentMethodLabel}</span>
-          </Badge>
-        </>
-      }
-      inlineFilters={(actions) => (
+    <>
+      {/* ตารางมีแค่ ~12 แถว แต่มีการ์ดสรุป+การ์ดวิธีชำระหลายใบ — สกรอลทั้งหน้าแทนการล็อกความสูง */}
+      <ReportPage pageScroll title={report.reportTitle}>
+        <ReportMobileFilterBar
+          dateFrom={report.appliedFilters.dateFrom}
+          dateTo={report.appliedFilters.dateTo}
+          disabled={controlsDisabled}
+          extraChips={
+            <>
+              <Badge variant="secondary">{report.activeBranchLabel}</Badge>
+              <Badge variant="secondary">{report.activePaymentMethodLabel}</Badge>
+            </>
+          }
+          refreshButton={refreshButton}
+          onOpenFilters={report.openMobileFilters}
+        />
         <PaymentMethodsFilterBar
-          actions={actions}
+          actions={refreshButton}
           branchLoading={report.branchLoading}
           branchLocked={!report.canSelectBranch}
           branchOptions={report.branchOptions}
@@ -70,8 +91,6 @@ export function PaymentMethodsReportPage({ initialPagination }: { initialPaginat
           onApply={report.applyFilters}
           onDraftChange={report.setDraftFilters}
         />
-      )}
-      filterSheet={
         <PaymentMethodsFilterSheet
           branchLoading={report.branchLoading}
           branchLocked={!report.canSelectBranch}
@@ -86,76 +105,97 @@ export function PaymentMethodsReportPage({ initialPagination }: { initialPaginat
           onDraftChange={report.setDraftFilters}
           onOpenChange={report.handleMobileFilterOpenChange}
         />
-      }
-      summaryCardsId={SUMMARY_CARDS_ID}
-      summaryVisible={summaryVisible}
-      onToggleSummary={() => setSummaryVisible((visible) => !visible)}
-      summary={<PaymentMethodsSummaryCards cards={report.cards} reportTotal={report.reportTotal} />}
-      onOpenFilters={report.openMobileFilters}
-      onRefresh={() => void report.load()}
-      table={
-        <ReportTableCard
-          cardClassName="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden rounded-none border-x-0 border-b-0 border-border bg-card shadow-none"
-          contentClassName="flex min-h-0 flex-1 flex-col p-0"
-          contentWrapperClassName="min-h-0 min-w-0 flex-1 overflow-auto overscroll-contain"
-          headerVariant="compact"
+
+        {errors.map((message) => (
+          <ReportError key={message} message={message} />
+        ))}
+
+        <ReportToolbar
           title={report.reportTitle}
-          subtitle={
-            report.rows.length ? (
-              <p className="mt-0.5 truncate text-xs font-semibold text-muted-foreground">
-                {t("report.paymentMethodsReport.rowsLabel", { count: report.rows.length })}
-              </p>
-            ) : null
-          }
-          showLoadingBadge
-          renderLoading={() => <PaymentMethodsLoadingSkeleton />}
-          emptyTitle={t("report.paymentMethodsReport.noData")}
-          emptyDescription={t("report.paymentMethodsReport.adjustFilters")}
-          loading={report.loading}
-          rowsLength={report.rows.length}
-          selectedCount={report.rowSelection.selectedCount}
-          exportDisabled={report.exportDisabled}
-          exporting={report.exporting}
-          footer={
-            <AppPagination
-              page={report.page}
-              rangeLabel={report.paginationRangeLabel}
-              totalPages={report.totalPages}
-              onPageChange={report.setPage}
-            />
-          }
+          selectedLabel={selectedCount ? t("report.selectedForExport", { count: selectedCount }) : null}
           onClearSelection={report.rowSelection.clearSelection}
-          onExportExcel={() => void report.exportExcel()}
-          onExportPdf={() => void report.exportPdf()}
-          onExportPrint={() => void report.printReport()}
-        >
-          <PaymentMethodsTable
-            reportTotal={report.reportTotal}
-            rows={report.rows}
-            selectedRowIds={report.rowSelection.selectedRowIds}
-            onToggleRow={report.rowSelection.toggleRow}
-            onToggleRows={report.rowSelection.toggleRows}
+          actions={
+            <>
+              <ReportSummaryToggle
+                controlsId={SUMMARY_CARDS_ID}
+                visible={summaryVisible}
+                onToggle={() => setSummaryVisible((visible) => !visible)}
+              />
+              <ReportColumnsMenu
+                disabled={controlsDisabled}
+                heading={t("report.toggleMetrics")}
+                label={t("report.metricsMenu")}
+                options={metricOptions}
+                visibility={metrics}
+              />
+              <ReportExportMenu
+                disabled={report.exportDisabled}
+                exporting={Boolean(report.exporting)}
+                onExportExcel={() => void report.exportExcel()}
+                onExportPdf={() => void report.exportPdf()}
+                onPrint={() => void report.printReport()}
+              />
+            </>
+          }
+        />
+
+        {summaryVisible ? (
+          <PaymentMethodsSummaryCards id={SUMMARY_CARDS_ID} cards={report.cards} reportTotal={report.reportTotal} />
+        ) : null}
+
+        {report.loading && !report.rows.length ? (
+          <ReportResultArea>
+            <LoadingState label={t("report.loading")} variant="reportTable" />
+          </ReportResultArea>
+        ) : report.rows.length ? (
+          <>
+            <PaymentMethodShareCards
+              reportTotal={report.reportTotal}
+              rows={report.rows}
+              selectedRowIds={report.rowSelection.selectedRowIds}
+              onToggleRow={report.rowSelection.toggleRow}
+            />
+            <ReportResultArea framed fill={false} busy={report.loading}>
+              <PaymentMethodsTable
+                isMetricVisible={metrics.isVisible}
+                reportTotal={report.reportTotal}
+                rows={report.rows}
+                selectedRowIds={report.rowSelection.selectedRowIds}
+                onToggleRows={report.rowSelection.toggleRows}
+              />
+            </ReportResultArea>
+            <ReportPaginationBar>
+              <AppPagination
+                page={report.page}
+                rangeLabel={report.paginationRangeLabel}
+                totalPages={report.totalPages}
+                onPageChange={report.setPage}
+              />
+            </ReportPaginationBar>
+          </>
+        ) : (
+          <EmptyState
+            title={t("report.paymentMethodsReport.noData")}
+            description={t("report.paymentMethodsReport.adjustFilters")}
           />
-          <PaymentMethodsMobileList
-            reportTotal={report.reportTotal}
-            rows={report.rows}
-            selectedRowIds={report.rowSelection.selectedRowIds}
-            onToggleRow={report.rowSelection.toggleRow}
-          />
-        </ReportTableCard>
-      }
-      exportSurface={
-        report.exporting === "pdf" || report.exporting === "print" ? (
-          <PaymentMethodsExportSurface
-            containerRef={exportReportRef}
-            dateRange={`${t("report.reportDate")}: ${report.appliedFilters.dateFrom} - ${report.appliedFilters.dateTo}`}
-            methodLabel={report.activePaymentMethodLabel}
-            reportTotal={report.renderedExportData.reportTotal}
-            rows={report.renderedExportData.rows}
-            title={report.renderedExportData.reportName || report.reportTitle}
-          />
-        ) : undefined
-      }
-    />
+        )}
+      </ReportPage>
+
+      {report.exporting === "pdf" || report.exporting === "print" ? (
+        <PaymentMethodsExportSurface
+          containerRef={exportReportRef}
+          dateRange={`${t("report.reportDate")}: ${formatReportDateRange(report.appliedFilters.dateFrom, report.appliedFilters.dateTo)}`}
+          methodLabel={report.activePaymentMethodLabel}
+          reportTotal={report.renderedExportData.reportTotal}
+          rows={report.renderedExportData.rows}
+          title={report.renderedExportData.reportName || report.reportTitle}
+        />
+      ) : null}
+      <BlockingLoadingDialog
+        open={Boolean(report.exporting)}
+        title={exportTitle}
+        description={t("report.exportingDescription")}
+      />
+    </>
   );
 }

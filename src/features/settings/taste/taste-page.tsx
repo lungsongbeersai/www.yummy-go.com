@@ -4,7 +4,7 @@ import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { ConfirmDialog } from "@/components/common/confirm-dialog";
 import { TasteFormDialog } from "@/features/settings/taste/taste-form-dialog";
-import { TasteListSurface } from "@/features/settings/taste/taste-list";
+import { TASTE_ICON, TasteMobileList, TasteTable } from "@/features/settings/taste/taste-list";
 import {
   buildTastePayload,
   buildTasteSortPayload,
@@ -12,15 +12,12 @@ import {
   rowStoreUuid,
   tasteId
 } from "@/features/settings/taste/taste-utils";
-import {
-  SettingsModuleShell,
-  SettingsPaginationFooter,
-  SettingsToolbar
-} from "@/features/settings/shared/settings-shell";
+import { SettingsListPageLayout } from "@/features/settings/shared/settings-list-page-layout";
+import { SettingsEmptyRecords } from "@/features/settings/shared/settings-shell";
 import { useOptionRowSelection } from "@/features/settings/shared/use-option-row-selection";
 import { useSettingsCrudController } from "@/features/settings/shared/use-settings-crud-controller";
 import { useResetOnChange } from "@/hooks/use-reset-on-change";
-import { DEFAULT_PAGE_LIMIT, PAGE_LIMIT_OPTIONS } from "@/lib/pagination";
+import { DEFAULT_PAGE_LIMIT } from "@/lib/pagination";
 import type { UrlPaginationState } from "@/lib/url-pagination";
 import type { FetchTastesParams, SaveTasteInput, Taste } from "@/services/taste";
 import { useTasteStore } from "@/stores/taste-store";
@@ -127,71 +124,57 @@ export function TasteSettingsPage({ initialPagination }: { initialPagination: Ur
     }
   }
 
-  const toolbar = (
-    <SettingsToolbar
-      state={{
-        search,
-        limit,
-        orderBy,
-        limitOptions: PAGE_LIMIT_OPTIONS,
-        selectedCount: selectedRows.size,
-        onApply: applyFilters,
-        onLimit: changeLimit,
-        onOrder: (nextOrder) => {
-          setOrderBy(nextOrder);
-          setPage(1);
-        },
-        onSearch: setSearch
-      }}
-    />
-  );
+  const listProps = { rows, selectedRows, onDelete: setDeleteTarget, onEdit: openEdit, onToggleSelected: toggleSelected };
 
   return (
-    <>
-      <SettingsModuleShell
-        addLabel={`${t("actions.add")} ${t("nav.taste")}`}
-        cardTitle={t("settings.tasteList")}
-        description={description}
-        emptyDescription={t("empty.adjustSearch")}
-        emptyTitle={t("settings.noRecords", { title: title.toLowerCase() })}
-        footer={
-          rows.length ? (
-            <SettingsPaginationFooter
-              page={page}
-              pageEnd={pageEnd}
-              pageStart={pageStart}
-              total={total}
-              totalPages={totalPages}
-              onPageChange={setPage}
-            />
-          ) : undefined
-        }
-        hideCardHeader
-        loading={fullLoading}
-        loadingLabel={t("settings.loading", { title })}
-        table={
-          <TasteListSurface
-            allSelected={allSelected}
-            backgroundLoading={backgroundLoading}
-            dragEnabled={dragEnabled}
-            ids={ids}
-            pageStart={pageStart}
-            rows={rows}
-            selectedRows={selectedRows}
-            title={title}
-            toolbar={toolbar}
-            onDelete={setDeleteTarget}
-            onEdit={openEdit}
-            onReorder={(nextRows) => {
-              void persistOrder(nextRows);
-            }}
-            onToggleAll={toggleAll}
-            onToggleSelected={toggleSelected}
-          />
-        }
-        title={title}
-        onAdd={openCreate}
-      />
+    <SettingsListPageLayout
+      id="taste"
+      title={title}
+      description={description}
+      icon={TASTE_ICON}
+      addLabel={`${t("actions.add")} ${t("nav.taste")}`}
+      onAdd={openCreate}
+      loading={fullLoading}
+      loadingLabel={t("settings.loading", { title })}
+      search={search}
+      searching={backgroundLoading}
+      searchingLabel={t("settings.refreshingTasteList")}
+      onSearchChange={setSearch}
+      onSearchApply={applyFilters}
+      orderBy={orderBy}
+      onOrderChange={(nextOrder) => {
+        setOrderBy(nextOrder);
+        setPage(1);
+      }}
+      allSelected={allSelected}
+      selectAllLabel={t("common.selectAll")}
+      selectedCount={selectedRows.size}
+      onToggleAll={toggleAll}
+      hasRows={rows.length > 0}
+      table={
+        <TasteTable
+          {...listProps}
+          allSelected={allSelected}
+          dragEnabled={dragEnabled}
+          ids={ids}
+          pageStart={pageStart}
+          onReorder={(nextRows) => {
+            void persistOrder(nextRows);
+          }}
+          onToggleAll={toggleAll}
+        />
+      }
+      mobileList={<TasteMobileList {...listProps} />}
+      empty={<SettingsEmptyRecords icon={<TASTE_ICON aria-hidden />} title={title.toLowerCase()} />}
+      page={page}
+      pageStart={pageStart}
+      pageEnd={pageEnd}
+      total={total}
+      totalPages={totalPages}
+      limit={limit}
+      onLimitChange={changeLimit}
+      onPageChange={setPage}
+    >
       <TasteFormDialog
         editing={editing}
         open={dialogOpen}
@@ -214,6 +197,6 @@ export function TasteSettingsPage({ initialPagination }: { initialPagination: Ur
           if (!nextOpen) setDeleteTarget(null);
         }}
       />
-    </>
+    </SettingsListPageLayout>
   );
 }

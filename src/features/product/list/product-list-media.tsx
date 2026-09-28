@@ -15,7 +15,7 @@ export function ProductMedia({ className, row }: { className?: string; row: Prod
   return (
     <span
       className={cn(
-        "relative grid size-12 shrink-0 place-items-center overflow-hidden rounded-md border border-border bg-muted",
+        "relative grid size-10 shrink-0 place-items-center overflow-hidden rounded-md border bg-muted",
         className
       )}
       style={style}
@@ -32,14 +32,5 @@ export function ProductMedia({ className, row }: { className?: string; row: Prod
         <Package className="text-muted-foreground" />
       )}
     </span>
-  );
-}
-
-export function DetailMetric({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="min-w-0">
-      <p className="text-2xs font-semibold text-muted-foreground">{label}</p>
-      <p className="mt-0.5 truncate font-mono text-xs font-semibold">{value}</p>
-    </div>
   );
 }

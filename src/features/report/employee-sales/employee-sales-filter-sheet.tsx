@@ -2,6 +2,7 @@
 
 import type { ReactNode } from "react";
 import { useTranslation } from "react-i18next";
+import { Field, FieldLabel } from "@/components/ui/field";
 import {
   ReportBranchField,
   ReportDateRangeFields,
@@ -76,10 +77,8 @@ function EmployeeSalesFilterFields({
         onTableChange={tableUuid => onDraftChange(previous => ({ ...previous, tableUuid }))}
         onZoneChange={zoneUuid => onDraftChange(previous => ({ ...previous, tableUuid: "all", zoneUuid }))}
       />
-      <div className="flex flex-col gap-1.5">
-        <label className="text-xs font-bold text-muted-foreground" htmlFor={`${idPrefix}-employee`}>
-          {t("employeeSales.employee")}
-        </label>
+      <Field>
+        <FieldLabel htmlFor={`${idPrefix}-employee`}>{t("employeeSales.employee")}</FieldLabel>
         <EmployeeCombobox
           disabled={!draftBranch}
           employees={employees}
@@ -88,7 +87,7 @@ function EmployeeSalesFilterFields({
           value={draft.loginUuid}
           onValueChange={loginUuid => onDraftChange(previous => ({ ...previous, loginUuid }))}
         />
-      </div>
+      </Field>
       <ReportDateRangeFields
         idPrefix={idPrefix}
         dateFrom={draft.dateFrom}
@@ -124,8 +123,9 @@ export function EmployeeSalesFilterBar({
     <ReportFilterCard
       actions={actions}
       canApply={canApply}
-      className="hidden shrink-0 rounded-none border-x-0 border-t-0 shadow-none lg:block"
-      contentClassName="grid min-w-0 items-end gap-3 px-3 py-3 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-[repeat(7,minmax(0,1fr))_auto]"
+      // shrink-0: Card มี overflow-hidden (min-height ของ flex item = 0) — กันถูกบีบ ดู report-layout.tsx
+      className="hidden shrink-0 shadow-none lg:block"
+      contentClassName="grid items-end gap-3 py-4 lg:grid-cols-3 2xl:grid-cols-[repeat(8,minmax(0,1fr))_auto]"
       loading={loading}
       onApply={onApply}
     >

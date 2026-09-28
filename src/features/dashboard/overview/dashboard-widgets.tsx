@@ -3,12 +3,16 @@
 import { memo } from "react";
 import {
   AlertTriangle,
+  BadgePercent,
+  CalendarDays,
   Calculator,
   HandCoins,
   ReceiptText,
   RotateCcw,
   Search,
   TrendingUp,
+  Wallet,
+  XCircle,
   type LucideIcon,
 } from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -32,6 +36,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Progress } from "@/components/ui/progress";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Spinner } from "@/components/ui/spinner";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
@@ -98,14 +103,17 @@ type FilterBarProps = {
   onBranchChange: (value: string) => void;
   onFilterChange: (patch: Partial<DashboardFilters>) => void;
   onPeriodMonthChange: (value: string) => void;
+  onPeriodMonthEndChange: (value: string) => void;
   onPeriodTypeChange: (value: string) => void;
   onPeriodYearChange: (value: string) => void;
+  onPeriodYearEndChange: (value: string) => void;
   onReset: () => void;
   periodTypeOptions: SelectOption[];
   yearOptions: SelectOption[];
 };
 
 function SelectField({
+  className,
   disabled,
   id,
   label,
@@ -113,6 +121,7 @@ function SelectField({
   options,
   value,
 }: {
+  className?: string;
   disabled?: boolean;
   id: string;
   label: string;
@@ -121,7 +130,7 @@ function SelectField({
   value: string;
 }) {
   return (
-    <Field className="sm:w-40">
+    <Field className={cn("sm:w-40", className)}>
       <FieldLabel htmlFor={id}>{label}</FieldLabel>
       <Select disabled={disabled} value={value} onValueChange={onChange}>
         <SelectTrigger id={id}>
@@ -173,8 +182,10 @@ export const DashboardFilterBar = memo(function DashboardFilterBar({
   onBranchChange,
   onFilterChange,
   onPeriodMonthChange,
+  onPeriodMonthEndChange,
   onPeriodTypeChange,
   onPeriodYearChange,
+  onPeriodYearEndChange,
   onReset,
   periodTypeOptions,
   yearOptions,
@@ -239,23 +250,52 @@ export const DashboardFilterBar = memo(function DashboardFilterBar({
               onChange={(value) => onFilterChange({ end_date: value })}
             />
           </>
-        ) : (
-          <SelectField
-            id="dashboard-year"
-            label={copy.year}
-            options={yearOptions}
-            value={String(filters.periodYear)}
-            onChange={onPeriodYearChange}
-          />
-        )}
+        ) : null}
+        {/* Monthly: pick the year first, then the month range inside it. */}
         {filters.periodType === "monthly" ? (
-          <SelectField
-            id="dashboard-month"
-            label={copy.month}
-            options={monthOptions}
-            value={String(filters.periodMonth)}
-            onChange={onPeriodMonthChange}
-          />
+          <>
+            <SelectField
+              id="dashboard-year"
+              label={copy.year}
+              className="col-span-2"
+              options={yearOptions}
+              value={String(filters.periodYear)}
+              onChange={onPeriodYearChange}
+            />
+            <SelectField
+              id="dashboard-month-from"
+              label={copy.monthFrom}
+              options={monthOptions}
+              value={String(filters.periodMonth)}
+              onChange={onPeriodMonthChange}
+            />
+            {/* Only months from the start onwards, so the range cannot be picked backwards. */}
+            <SelectField
+              id="dashboard-month-to"
+              label={copy.monthTo}
+              options={monthOptions.filter((option) => Number(option.value) >= filters.periodMonth)}
+              value={String(filters.periodMonthEnd)}
+              onChange={onPeriodMonthEndChange}
+            />
+          </>
+        ) : null}
+        {filters.periodType === "yearly" ? (
+          <>
+            <SelectField
+              id="dashboard-year-from"
+              label={copy.yearFrom}
+              options={yearOptions}
+              value={String(filters.periodYear)}
+              onChange={onPeriodYearChange}
+            />
+            <SelectField
+              id="dashboard-year-to"
+              label={copy.yearTo}
+              options={yearOptions.filter((option) => Number(option.value) >= filters.periodYear)}
+              value={String(filters.periodYearEnd)}
+              onChange={onPeriodYearEndChange}
+            />
+          </>
         ) : null}
         <div className="col-span-2 flex gap-2 sm:ml-auto">
           <Button type="button" variant="outline" className="max-sm:flex-1" onClick={onReset}>
@@ -277,74 +317,149 @@ export const DashboardFilterBar = memo(function DashboardFilterBar({
   );
 });
 
-// Accent per metric. Only the icon tile carries it; values stay in text tokens.
-// Class names are listed in full so Tailwind can see them.
-const kpiAccents = {
-  primary: "bg-primary/10 text-primary",
-  blue: "bg-chart-cat-1/15 text-chart-cat-1",
-  orange: "bg-chart-cat-2/15 text-chart-cat-2",
-  success: "bg-success/15 text-success",
+// Accent per metric: a soft wash of the tone behind the card (fading to the card colour, so
+// values stay readable in text tokens) plus a stronger icon tile. Class names are listed in
+// full so Tailwind can see them.
+const kpiTones = {
+  destructive: {
+    card: "bg-linear-to-br from-destructive/15 via-destructive/5 to-card",
+    icon: "bg-destructive/15 text-destructive",
+  },
+  info: {
+    card: "bg-linear-to-br from-info/20 via-info/5 to-card",
+    icon: "bg-info/20 text-info-text",
+  },
+  muted: {
+    card: "bg-linear-to-br from-muted via-muted/40 to-card",
+    icon: "bg-muted text-muted-foreground",
+  },
+  primary: {
+    card: "bg-linear-to-br from-primary/15 via-primary/5 to-card",
+    icon: "bg-primary/15 text-primary-text",
+  },
+  warning: {
+    card: "bg-linear-to-br from-warning/20 via-warning/5 to-card",
+    icon: "bg-warning/20 text-warning-text",
+  },
 } as const;
 
 function KpiCard({
-  accent,
   badge,
-  className,
   detail,
   icon: Icon,
   label,
-  note,
-  noteDestructive,
+  tone,
   value,
 }: {
-  accent: keyof typeof kpiAccents;
   badge?: string;
-  className?: string;
   detail: string;
   icon: LucideIcon;
   label: string;
-  note?: string;
-  noteDestructive?: boolean;
+  tone: keyof typeof kpiTones;
   value: string;
 }) {
   return (
-    <Card className={cn("@container/kpi", className)}>
+    <Card className={cn("@container/kpi", kpiTones[tone].card)}>
       <CardHeader>
-        <CardDescription className="flex items-center gap-2">
-          <span
-            aria-hidden="true"
-            className={cn("flex size-8 shrink-0 items-center justify-center rounded-md", kpiAccents[accent])}
-          >
+        <CardDescription>{label}</CardDescription>
+        <CardAction>
+          <span aria-hidden="true" className={cn("flex size-9 items-center justify-center rounded-lg", kpiTones[tone].icon)}>
             <Icon className="size-4" />
           </span>
-          {label}
-        </CardDescription>
-        {/* Size follows the card's own width: money values are long and four cards
-            share a row on wide screens. */}
-        <CardTitle
-          className="truncate text-xl font-semibold tabular-nums @[14rem]/kpi:text-2xl @[20rem]/kpi:text-3xl"
-          title={value}
-        >
+        </CardAction>
+        {/* Size follows the card's own width: money values are long and the cards are narrow. */}
+        <CardTitle className="truncate text-xl font-semibold tabular-nums @[16rem]/kpi:text-2xl" title={value}>
           {value}
         </CardTitle>
       </CardHeader>
-      <CardFooter className="flex-col items-start gap-1">
-        <div className="flex w-full flex-wrap items-center justify-between gap-2">
-          <span className="font-medium">{detail}</span>
-          {badge ? <Badge variant="outline">{badge}</Badge> : null}
-        </div>
-        {note ? (
-          <span className={cn("tabular-nums", noteDestructive ? "text-destructive" : "text-muted-foreground")}>
-            {note}
-          </span>
-        ) : null}
+      <CardFooter className="mt-auto flex-wrap justify-between gap-2 text-muted-foreground tabular-nums">
+        <span className="truncate">{detail}</span>
+        {badge ? <Badge variant="secondary">{badge}</Badge> : null}
       </CardFooter>
     </Card>
   );
 }
 
-// The four numbers an owner checks first: how much was sold, how many bills,
-// how big a bill is, and how much of it is actually in hand.
+// The headline number gets the only filled card on the page, so the eye lands on it first:
+// what was sold, and how much of it is actually in hand.
+function RevenueHeroCard({
+  balance,
+  collectionRate,
+  copy,
+  label,
+  paid,
+  period,
+  unpaidRate,
+  value,
+}: {
+  balance: number;
+  collectionRate: number;
+  copy: DashboardCopy;
+  label: string;
+  paid: number;
+  period: string;
+  unpaidRate: number;
+  value: string;
+}) {
+  return (
+    <Card className="@container/hero bg-linear-to-br from-primary to-primary/80 text-primary-foreground ring-0 sm:col-span-2 lg:row-span-2">
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2 text-primary-foreground/85">
+          <span aria-hidden="true" className="flex size-9 items-center justify-center rounded-lg bg-primary-foreground/15">
+            <TrendingUp className="size-4" />
+          </span>
+          {label}
+        </CardTitle>
+        {period ? (
+          <CardAction>
+            <Badge variant="secondary" className="tabular-nums">
+              <CalendarDays data-icon="inline-start" />
+              {period}
+            </Badge>
+          </CardAction>
+        ) : null}
+      </CardHeader>
+      <CardContent className="flex flex-1 flex-col justify-end gap-5">
+        <p
+          className="truncate text-3xl font-semibold tracking-tight tabular-nums @[24rem]/hero:text-4xl @[36rem]/hero:text-5xl"
+          title={value}
+        >
+          {value}
+        </p>
+        <div className="flex flex-col gap-2">
+          <div className="flex items-center justify-between gap-3 text-primary-foreground/85">
+            <span>{copy.collectionRate}</span>
+            <span className="font-medium text-primary-foreground tabular-nums">{formatPercent(collectionRate)}</span>
+          </div>
+          {/* Decorative: the percentage is printed right above it. */}
+          <Progress
+            value={Math.min(100, Math.max(0, collectionRate))}
+            aria-hidden="true"
+            className="h-2 bg-primary-foreground/20 *:data-[slot=progress-indicator]:bg-primary-foreground"
+          />
+        </div>
+      </CardContent>
+      <CardFooter className="grid grid-cols-2 gap-4 border-t border-primary-foreground/20">
+        <div className="flex min-w-0 flex-col gap-1">
+          <span className="flex items-center gap-1.5 text-primary-foreground/85">
+            <HandCoins aria-hidden="true" className="size-3.5" />
+            {copy.paidTotal}
+          </span>
+          <span className="truncate text-base font-semibold tabular-nums">{formatKip(paid)}</span>
+        </div>
+        <div className="flex min-w-0 flex-col gap-1">
+          <span className="flex items-center gap-1.5 text-primary-foreground/85">
+            <Wallet aria-hidden="true" className="size-3.5" />
+            {copy.balance} · {formatPercent(unpaidRate)}
+          </span>
+          <span className="truncate text-base font-semibold tabular-nums">{formatKip(balance)}</span>
+        </div>
+      </CardFooter>
+    </Card>
+  );
+}
+
+// Hero (sales + collection) on the left, the four numbers that explain it on the right.
 export const DashboardKpiGrid = memo(function DashboardKpiGrid({
   copy,
   kpis,
@@ -359,6 +474,7 @@ export const DashboardKpiGrid = memo(function DashboardKpiGrid({
   const mainTotal = asRow(section.main_total);
   const paymentSummary = asRow(section.payment_summary);
   const cancellationSummary = asRow(section.cancellation_summary);
+  const orders = numberFrom(paymentSummary, "orders_count") || numberFrom(kpis, "orders_count");
   const cancelledCount =
     numberFrom(cancellationSummary, "cancelled_orders_count") ||
     numberFrom(kpis, "cancelled_orders_count");
@@ -366,51 +482,53 @@ export const DashboardKpiGrid = memo(function DashboardKpiGrid({
     numberFrom(cancellationSummary, "cancelled_orders_total") ||
     numberFrom(kpis, "cancelled_total") ||
     numberFrom(kpis, "cancelled_amount_total");
-  const balance = numberFrom(kpis, "balance_total");
+  const discountTotal = numberFrom(kpis, "discount_total");
 
   return (
-    <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-      <KpiCard
-        accent="primary"
-        icon={TrendingUp}
-        // The headline number: a soft primary wash sets it apart from the other three.
-        className="bg-linear-to-br from-primary/15 to-card"
+    <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <RevenueHeroCard
+        balance={numberFrom(kpis, "balance_total")}
+        collectionRate={numberFrom(kpis, "collection_rate")}
+        copy={copy}
         label={text(mainTotal.label, copy.revenue)}
+        paid={numberFrom(kpis, "paid_total")}
+        period={text(mainTotal.sub_label, periodLabel)}
+        unpaidRate={numberFrom(kpis, "unpaid_rate")}
         value={formatApiMoney(
           numberFrom(mainTotal, "value") || numberFrom(kpis, "revenue_total"),
           text(mainTotal.unit, ""),
         )}
-        detail={text(mainTotal.sub_label, periodLabel || copy.revenue)}
       />
       <KpiCard
-        accent="blue"
+        tone="info"
         icon={ReceiptText}
         label={copy.orders}
-        value={formatNumber(
-          numberFrom(paymentSummary, "orders_count") || numberFrom(kpis, "orders_count"),
-        )}
-        badge={`${copy.cancelRate} ${formatPercent(numberFrom(kpis, "cancel_rate"))}`}
+        value={formatNumber(orders)}
         detail={copy.totalBills}
-        note={`${copy.cancellations}: ${formatNumber(cancelledCount)} · ${formatKip(cancelledTotal)}`}
       />
       <KpiCard
-        accent="orange"
+        tone="primary"
         icon={Calculator}
         label={copy.avgBill}
         value={formatKip(numberFrom(kpis, "avg_bill"))}
-        badge={`${copy.discountRate} ${formatPercent(numberFrom(kpis, "discount_rate"))}`}
-        detail={copy.discount}
-        note={formatKip(numberFrom(kpis, "discount_total"))}
+        detail={`${formatNumber(orders)} ${copy.orders}`}
       />
       <KpiCard
-        accent="success"
-        icon={HandCoins}
-        label={copy.paidTotal}
-        value={formatKip(numberFrom(kpis, "paid_total"))}
-        badge={`${copy.collectionRate} ${formatPercent(numberFrom(kpis, "collection_rate"))}`}
-        detail={`${copy.balance} (${copy.unpaidRate} ${formatPercent(numberFrom(kpis, "unpaid_rate"))})`}
-        note={formatKip(balance)}
-        noteDestructive={balance > 0}
+        tone={discountTotal > 0 ? "warning" : "muted"}
+        icon={BadgePercent}
+        label={copy.discount}
+        value={formatKip(discountTotal)}
+        detail={copy.discountRate}
+        badge={formatPercent(numberFrom(kpis, "discount_rate"))}
+      />
+      {/* Cancellations only turn red when there is something to look at. */}
+      <KpiCard
+        tone={cancelledCount > 0 ? "destructive" : "muted"}
+        icon={XCircle}
+        label={copy.cancellations}
+        value={formatKip(cancelledTotal)}
+        detail={`${formatNumber(cancelledCount)} ${copy.orders}`}
+        badge={`${copy.cancelRate} ${formatPercent(numberFrom(kpis, "cancel_rate"))}`}
       />
     </div>
   );
@@ -506,7 +624,7 @@ function SalesSkeleton() {
       <Card className="lg:col-span-2">
         <SkeletonCardHeader action />
         <CardContent>
-          <Skeleton className="h-64 w-full" />
+          <Skeleton className="h-72 w-full" />
         </CardContent>
         <CardFooter>
           <Skeleton className="h-4 w-64 max-w-full" />
@@ -515,9 +633,15 @@ function SalesSkeleton() {
       <Card>
         <SkeletonCardHeader />
         <CardContent className="flex flex-col gap-4">
-          {Array.from({ length: 3 }, (_, index) => (
-            <ShareRowSkeleton key={index} />
-          ))}
+          <Skeleton className="mx-auto size-52 rounded-full" />
+          <div className="flex flex-col gap-2.5">
+            {Array.from({ length: 3 }, (_, index) => (
+              <div key={index} className="flex justify-between gap-3">
+                <Skeleton className="h-4 w-24" />
+                <Skeleton className="h-4 w-32" />
+              </div>
+            ))}
+          </div>
         </CardContent>
       </Card>
     </div>
@@ -559,13 +683,13 @@ function ProductsSkeleton() {
       <div className="flex flex-col gap-4">
         <Card>
           <SkeletonCardHeader />
-          <CardContent className="flex flex-col gap-4">
-            <ShareRowSkeleton />
-            <div className="grid grid-cols-3 gap-2">
+          <CardContent className="flex items-center gap-4">
+            <Skeleton className="size-28 shrink-0 rounded-full" />
+            <div className="flex flex-1 flex-col gap-3">
               {Array.from({ length: 3 }, (_, index) => (
-                <div key={index} className="flex flex-col items-center gap-2">
-                  <Skeleton className="h-7 w-8" />
-                  <Skeleton className="h-4 w-14" />
+                <div key={index} className="flex justify-between gap-3">
+                  <Skeleton className="h-4 w-16" />
+                  <Skeleton className="h-5 w-8" />
                 </div>
               ))}
             </div>
@@ -601,9 +725,9 @@ function HealthSkeleton() {
       <Card>
         <SkeletonCardHeader description={false} />
         <CardContent className="flex flex-col gap-2.5">
-          {Array.from({ length: 4 }, (_, index) => (
+          {Array.from({ length: 2 }, (_, index) => (
             <div key={index} className="flex items-center gap-3 rounded-md border px-3 py-2.5">
-              <Skeleton className="size-8" />
+              <Skeleton className="size-10" />
               <div className="flex flex-1 flex-col gap-1">
                 <Skeleton className="h-4 w-20" />
                 <Skeleton className="h-5 w-40 max-w-full" />
@@ -650,20 +774,35 @@ export function DashboardPageSkeleton({ label }: { label: string }) {
           </div>
         </CardContent>
       </Card>
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <Card className="sm:col-span-2 lg:row-span-2">
+          <CardHeader>
+            <div className="flex items-center gap-2">
+              <Skeleton className="size-9" />
+              <Skeleton className="h-4 w-28" />
+            </div>
+          </CardHeader>
+          <CardContent className="flex flex-1 flex-col justify-end gap-5">
+            <Skeleton className="h-12 w-72 max-w-full" />
+            <Skeleton className="h-2 w-full" />
+          </CardContent>
+          <CardFooter className="grid grid-cols-2 gap-4 border-t">
+            <Skeleton className="h-10 w-full" />
+            <Skeleton className="h-10 w-full" />
+          </CardFooter>
+        </Card>
         {Array.from({ length: 4 }, (_, index) => (
           <Card key={index}>
             <CardHeader>
-              <div className="flex items-center gap-2">
-                <Skeleton className="size-8" />
-                <Skeleton className="h-3 w-24" />
-              </div>
-              <Skeleton className="h-8 w-40 max-w-full" />
+              <Skeleton className="h-4 w-24" />
+              <CardAction>
+                <Skeleton className="size-9" />
+              </CardAction>
+              <Skeleton className="h-7 w-36 max-w-full" />
             </CardHeader>
-            <CardFooter className="flex-col items-start gap-1.5">
-              <Skeleton className="h-4 w-28" />
-              <Skeleton className="h-5 w-24 rounded-full" />
+            <CardFooter className="justify-between gap-2">
               <Skeleton className="h-4 w-20" />
+              <Skeleton className="h-5 w-16 rounded-full" />
             </CardFooter>
           </Card>
         ))}

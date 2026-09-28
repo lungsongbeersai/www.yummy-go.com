@@ -11,13 +11,13 @@ import {
   type DragEndEvent
 } from "@dnd-kit/core";
 import { arrayMove, sortableKeyboardCoordinates } from "@dnd-kit/sortable";
-import { RefreshCcw } from "lucide-react";
+import { ListTree, RefreshCcw } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { ConfirmDialog } from "@/components/common/confirm-dialog";
 import { LoadingState } from "@/components/common/loading-state";
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
-import { SettingsModuleShell } from "@/features/settings/shared/settings-shell";
+import { SettingsPageHeader } from "@/features/settings/shared/settings-page-header";
 import { useLatestValue } from "@/hooks/use-latest-value";
 import { canManagePermissionMenu } from "@/lib/permissions";
 import type { PermissionMainMenu, PermissionSubMenu } from "@/services/permissions/menu-admin";
@@ -329,24 +329,26 @@ export function PermissionMenuPage() {
   if (!allowed) return <LoadingState label={t("common.processing")} variant="table" />;
 
   return (
-    <>
-      <SettingsModuleShell
-        cardTitle={t("permissionMenu.builderTitle")}
+    // Same frame as the settings list pages: header card, then the builder in a bordered panel
+    // that scrolls inside itself on wide screens (the whole page scrolls on phones).
+    <div className="flex h-full min-h-0 flex-col gap-4 overflow-y-auto p-4 lg:overflow-hidden">
+      <SettingsPageHeader
+        icon={ListTree}
+        title={t("permissionMenu.title")}
         description={t("permissionMenu.description")}
-        emptyDescription={t("permissionMenu.emptyDescription")}
-        emptyTitle={t("permissionMenu.emptyTitle")}
-        headerActions={
-          <Button disabled={loading || refreshing} size="sm" type="button" variant="outline" onClick={refresh}>
+        count={fullLoading ? null : menus.length}
+        actions={
+          <Button disabled={loading || refreshing} type="button" variant="outline" onClick={refresh}>
             {loading || refreshing ? <Spinner data-icon="inline-start" /> : <RefreshCcw data-icon="inline-start" />}
             {t("actions.refresh")}
           </Button>
         }
-        hideCardHeader
-        loading={fullLoading}
-        loadingLabel={t("permissionMenu.loading")}
-        table={menuList}
-        title={t("permissionMenu.title")}
       />
+      {fullLoading ? (
+        <LoadingState label={t("permissionMenu.loading")} variant="settingsTable" />
+      ) : (
+        <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-lg border">{menuList}</div>
+      )}
       <MainMenuDialog
         form={mainForm}
         open={mainDialogOpen}
@@ -389,6 +391,6 @@ export function PermissionMenuPage() {
           if (!open && !saving) setDeleteTarget(null);
         }}
       />
-    </>
+    </div>
   );
 }

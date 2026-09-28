@@ -12,7 +12,6 @@ import {
 } from "@/components/ui/select";
 import { Spinner } from "@/components/ui/spinner";
 import { Switch } from "@/components/ui/switch";
-import { cn } from "@/lib/utils";
 import type { ProductDetail } from "@/services/product";
 import {
   binaryFlag,
@@ -35,8 +34,11 @@ export function bulkStockModeLabel(workflow: ProductListWorkflow, mode: ProductS
   return mode === 1 ? workflow.t("product.stockMode.deduct") : workflow.t("product.stockMode.noDeduct");
 }
 
-export function bulkStockModeClass(mode: ProductStockModeValue) {
-  return mode === 1 ? "bg-primary/10 text-primary" : "bg-secondary text-secondary-foreground";
+type BadgeVariant = "secondary" | "outline";
+
+// ใช้ variant ของ Badge แทนการใส่สีเอง — "ตัดสต๊อก" = secondary, "ไม่ตัด"/ปนกัน = outline
+export function bulkStockModeVariant(mode: ProductStockModeValue): BadgeVariant {
+  return mode === 1 ? "secondary" : "outline";
 }
 
 export function stockSummaryLabel(workflow: ProductListWorkflow, summary: ProductStockSummary) {
@@ -45,10 +47,8 @@ export function stockSummaryLabel(workflow: ProductListWorkflow, summary: Produc
   return workflow.t("product.stockBulk.mixed");
 }
 
-export function stockSummaryClass(summary: ProductStockSummary) {
-  if (summary === "deduct") return "bg-primary/10 text-primary";
-  if (summary === "noDeduct") return "bg-secondary text-secondary-foreground";
-  return "bg-muted text-muted-foreground";
+export function stockSummaryVariant(summary: ProductStockSummary): BadgeVariant {
+  return summary === "deduct" ? "secondary" : "outline";
 }
 
 export function ProductNotificationStatus({
@@ -63,12 +63,10 @@ export function ProductNotificationStatus({
   const pending = workflow.pendingKeys.has(notificationKey);
 
   return (
-    <div className="flex min-w-0 items-center gap-2">
-      {pending ? <Spinner /> : <Bell className="text-muted-foreground" />}
-      <Badge className={enabled ? "bg-primary/10 text-primary" : "bg-secondary text-secondary-foreground"}>
-        {enabled ? workflow.t("product.notification.on") : workflow.t("product.notification.off")}
-      </Badge>
-    </div>
+    <Badge variant={enabled ? "secondary" : "outline"}>
+      {pending ? <Spinner data-icon="inline-start" /> : <Bell data-icon="inline-start" />}
+      {enabled ? workflow.t("product.notification.on") : workflow.t("product.notification.off")}
+    </Badge>
   );
 }
 
@@ -85,26 +83,19 @@ export function ProductStockSummaryStatus({
   const pendingMode = workflow.pendingBulkStockModes[row.prod_uuid];
 
   if (!details.length) {
-    return (
-      <div className="flex min-w-0 flex-col gap-1">
-        <p className="font-mono text-sm font-bold tabular-nums">-</p>
-        <Badge className="bg-muted text-muted-foreground">{workflow.t("common.noData")}</Badge>
-      </div>
-    );
+    return <Badge variant="outline">{workflow.t("common.noData")}</Badge>;
   }
 
   const summary = detailStockSummary(details);
-  const currentModeClass = pendingMode ? bulkStockModeClass(pendingMode) : stockSummaryClass(summary);
+  const variant = pendingMode ? bulkStockModeVariant(pendingMode) : stockSummaryVariant(summary);
 
   return (
-    <div className="flex min-w-0 flex-col gap-1">
-      <p className="font-mono text-sm font-bold tabular-nums">{totalStockQty(row)}</p>
-      <div className="flex flex-wrap items-center gap-1.5">
-        <Badge className={currentModeClass}>
-          {pending ? <Spinner data-icon="inline-start" /> : null}
-          {pendingMode ? bulkStockModeLabel(workflow, pendingMode) : stockSummaryLabel(workflow, summary)}
-        </Badge>
-      </div>
+    <div className="flex items-center gap-2">
+      <span className="tabular-nums">{totalStockQty(row)}</span>
+      <Badge variant={variant}>
+        {pending ? <Spinner data-icon="inline-start" /> : null}
+        {pendingMode ? bulkStockModeLabel(workflow, pendingMode) : stockSummaryLabel(workflow, summary)}
+      </Badge>
     </div>
   );
 }
@@ -142,7 +133,7 @@ export function ProductStockSelect({
       disabled={disabled}
       onValueChange={(value) => workflow.updateDetailStockMode(detail, value)}
     >
-      <SelectTrigger size="sm" className={compact ? "w-full" : "w-40"}>
+      <SelectTrigger size="sm" className={compact ? "w-full" : undefined}>
         <SelectValue />
       </SelectTrigger>
       <SelectContent position="popper">
@@ -155,25 +146,10 @@ export function ProductStockSelect({
   );
 }
 
-export function ProductStockBadge({
-  compact = false,
-  detail,
-  workflow
-}: {
-  compact?: boolean;
-  detail: ProductDetail;
-  workflow: ProductListWorkflow;
-}) {
-  const stockMode = binaryFlag(detail.pro_detail_stock);
-  const label =
-    stockMode === "1" ? workflow.t("product.stockMode.deduct") : workflow.t("product.stockMode.noDeduct");
-  const className = stockMode === "1" ? "bg-primary/10 text-primary" : "bg-secondary text-secondary-foreground";
+export function ProductStockBadge({ detail, workflow }: { detail: ProductDetail; workflow: ProductListWorkflow }) {
+  const mode: ProductStockModeValue = binaryFlag(detail.pro_detail_stock) === "1" ? 1 : 2;
 
-  return (
-    <div className={cn("flex min-h-8 items-center", compact ? "w-full" : "justify-center")}>
-      <Badge className={className}>{label}</Badge>
-    </div>
-  );
+  return <Badge variant={bulkStockModeVariant(mode)}>{bulkStockModeLabel(workflow, mode)}</Badge>;
 }
 
 export function ProductEnabledSwitch({

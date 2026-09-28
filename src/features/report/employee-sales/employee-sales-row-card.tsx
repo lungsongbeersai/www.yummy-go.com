@@ -1,76 +1,92 @@
 "use client";
 
 import { useTranslation } from "react-i18next";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
-import { Card } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
-import { userInitials } from "@/features/settings/user/user-utils";
+import {
+  Item,
+  ItemActions,
+  ItemContent,
+  ItemDescription,
+  ItemFooter,
+  ItemGroup,
+  ItemTitle,
+} from "@/components/ui/item";
+import { Progress } from "@/components/ui/progress";
 import { money } from "@/lib/format";
-import { cn } from "@/lib/utils";
 import type { EmployeeSalesRow } from "@/services/report";
+import { EmployeeIdentity, employeeShare } from "./employee-sales-table";
 
+// จอเล็ก: พนักงานละ 1 Item — ยอดรวมด้านขวา, บิล/จำนวนด้านล่าง, แถบสัดส่วนของยอดรวมทั้งสาขา
+// แตะที่รายการเปิดรายละเอียด (ช่องติ๊กเลือกไว้สำหรับ export ไม่เปิดรายละเอียด)
 export function EmployeeSalesRowCard({
   rows,
   selectedRowIds,
+  total,
   onSelect,
   onToggleRow,
 }: {
   rows: EmployeeSalesRow[];
   selectedRowIds: Set<string>;
+  total: number;
   onSelect: (loginUuid: string) => void;
   onToggleRow: (row: EmployeeSalesRow, selected: boolean) => void;
 }) {
   const { t } = useTranslation();
 
   return (
-    <div className="flex flex-col gap-2 md:hidden">
-      {rows.map(row => (
-        <Card
-          key={row.login_uuid}
-          role="button"
-          tabIndex={0}
-          className={cn(
-            "min-h-10 gap-2 px-4 py-3 focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50",
-            selectedRowIds.has(row.login_uuid) && "bg-primary/5",
-          )}
-          onClick={() => onSelect(row.login_uuid)}
-          onKeyDown={event => {
-            if (event.key !== "Enter" && event.key !== " ") return;
-            event.preventDefault();
-            onSelect(row.login_uuid);
-          }}
-        >
-          <div className="flex min-w-0 items-center gap-3">
-            <div onClick={event => event.stopPropagation()}>
+    <ItemGroup>
+      {rows.map((row) => {
+        const share = employeeShare(row, total);
+
+        return (
+          <Item
+            key={row.login_uuid}
+            variant="outline"
+            role="button"
+            tabIndex={0}
+            className="cursor-pointer"
+            onClick={() => onSelect(row.login_uuid)}
+            onKeyDown={(event) => {
+              if (event.key !== "Enter" && event.key !== " ") return;
+              event.preventDefault();
+              onSelect(row.login_uuid);
+            }}
+          >
+            <div onClick={(event) => event.stopPropagation()}>
               <Checkbox
                 aria-label={t("common.selectRow", { name: row.login_email })}
                 checked={selectedRowIds.has(row.login_uuid)}
-                onCheckedChange={checked => onToggleRow(row, checked as boolean)}
+                onCheckedChange={(checked) => onToggleRow(row, checked as boolean)}
               />
             </div>
-            <Avatar>
-              {row.login_profile ? <AvatarImage alt={row.login_email} src={row.login_profile} /> : null}
-              <AvatarFallback>{userInitials(row.login_email)}</AvatarFallback>
-            </Avatar>
-            <div className="min-w-0 flex-1">
-              <p className="truncate font-medium" translate="no">{row.login_email}</p>
-              <p className="truncate text-sm text-muted-foreground">{row.roles_name}</p>
-            </div>
-            {row.cancel_summary.cancel_bill_count > 0 && (
-              <Badge variant="outline" className="shrink-0 border-warning/25 bg-warning/10 text-warning">
-                {t("employeeSales.cancelledBadge", { count: row.cancel_summary.cancel_bill_count })}
-              </Badge>
-            )}
-          </div>
-          <div className="grid grid-cols-2 gap-x-3 gap-y-1 text-sm">
-            <p className="text-muted-foreground">{t("employeeSales.billCount")}: <span className="text-foreground">{row.summary.bill_count}</span></p>
-            <p className="text-muted-foreground">{t("employeeSales.totalQty")}: <span className="text-foreground">{row.summary.total_qty}</span></p>
-            <p className="text-muted-foreground">{t("employeeSales.netSale")}: <span className="text-foreground">{money(row.summary.net_sale)}</span></p>
-            <p className="font-medium">{t("employeeSales.grandTotal")}: {money(row.summary.grand_total)}</p>
-          </div>
-        </Card>
-      ))}
-    </div>
+            <EmployeeIdentity row={row} />
+            <ItemContent>
+              <ItemTitle translate="no">{row.login_email}</ItemTitle>
+              <ItemDescription>{row.roles_name}</ItemDescription>
+            </ItemContent>
+            <ItemActions>
+              <span className="font-medium tabular-nums text-primary-text">{money(row.summary.grand_total)}</span>
+            </ItemActions>
+            <ItemFooter>
+              <span className="text-muted-foreground">
+                {t("employeeSales.billCount")} {row.summary.bill_count} · {t("employeeSales.totalQty")} {row.summary.total_qty}
+              </span>
+              {row.cancel_summary.cancel_bill_count > 0 ? (
+                <Badge className="bg-destructive/10 text-destructive">
+                  {t("employeeSales.cancelledBadge", { count: row.cancel_summary.cancel_bill_count })}
+                </Badge>
+              ) : null}
+            </ItemFooter>
+            {share !== null ? (
+              <ItemFooter>
+                <Progress value={share} aria-hidden="true" />
+                <span className="shrink-0 tabular-nums text-muted-foreground">{share.toFixed(1)}%</span>
+              </ItemFooter>
+            ) : null}
+          </Item>
+        );
+      })}
+    </ItemGroup>
   );
 }

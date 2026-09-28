@@ -1,4 +1,3 @@
-import { dateTime } from "@/lib/format";
 import type { CustomerSalesRow, ReportPrintOp } from "@/services/report";
 import type { AuthUser } from "@/stores/auth-store";
 import { escapeHtml } from "@/services/printer/invoice-print-window";
@@ -7,6 +6,7 @@ import {
   receiptHeaderHtml,
   receiptMetaRowHtml,
 } from "../shared/report-receipt-print";
+import { formatReportDateRange, formatReportDateTime } from "@/features/report/shared/report-date-format";
 
 export interface CustomerSalesPrintLabels {
   grandTotal: string;
@@ -87,9 +87,9 @@ export function renderCustomerSalesPrintHtml(data: CustomerSalesPrintData) {
     ${receiptHeaderHtml({ branchName: data.branchName, storeName: data.storeName, title: labels.title })}
     ${dividerHtml}
     <section class="meta">
-      ${receiptMetaRowHtml(labels.period, `${data.dateFrom} - ${data.dateTo}`)}
+      ${receiptMetaRowHtml(labels.period, `${formatReportDateRange(data.dateFrom, data.dateTo)}`)}
       ${receiptMetaRowHtml(labels.printedBy, data.cashier)}
-      ${receiptMetaRowHtml(labels.printedAt, dateTime(new Date().toISOString()))}
+      ${receiptMetaRowHtml(labels.printedAt, formatReportDateTime(new Date().toISOString()))}
     </section>
     ${dividerHtml}
     ${listHeaderHtml}
@@ -121,9 +121,9 @@ export function buildCustomerSalesReportOps(data: CustomerSalesPrintData): Repor
     ...(data.branchName ? [{ type: "text", text: data.branchName, align: "center", size: 26 } as ReportPrintOp] : []),
     { type: "text", text: labels.title, align: "center", bold: true, size: 36 },
     divider,
-    { type: "text", text: `${labels.period}: ${data.dateFrom} - ${data.dateTo}`, align: "left", size: 28 },
+    { type: "text", text: `${labels.period}: ${formatReportDateRange(data.dateFrom, data.dateTo)}`, align: "left", size: 28 },
     { type: "text", text: `${labels.printedBy}: ${data.cashier}`, align: "left", size: 28 },
-    { type: "text", text: `${labels.printedAt}: ${dateTime(new Date().toISOString())}`, align: "left", size: 24 },
+    { type: "text", text: `${labels.printedAt}: ${formatReportDateTime(new Date().toISOString())}`, align: "left", size: 24 },
     divider,
     { type: "lr", left: labels.itemsHeaderLeft, right: labels.itemsHeaderRight, bold: false, size: 24 },
     divider,

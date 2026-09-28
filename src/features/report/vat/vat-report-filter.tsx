@@ -1,9 +1,10 @@
 "use client";
 
 import type { ReactNode } from "react";
+import { Search } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { Field, FieldLabel } from "@/components/ui/field";
-import { SearchInput } from "@/components/common/search-input";
+import { InputGroup, InputGroupAddon, InputGroupInput } from "@/components/ui/input-group";
 import {
   ReportBranchField,
   ReportDateRangeFields,
@@ -47,17 +48,23 @@ function VatReportFilterFields({
 
   return (
     <>
-      <Field className="min-w-48 flex-1 gap-1.5 sm:col-span-2 lg:col-span-1">
-        <FieldLabel htmlFor={`${idPrefix}-search`} className="text-xs font-bold text-muted-foreground">
-          {t("actions.search")}
-        </FieldLabel>
-        <SearchInput
-          id={`${idPrefix}-search`}
-          ariaLabel={t("actions.search")}
-          placeholder={t("report.vat.searchPlaceholder")}
-          value={draft.search}
-          onChange={search => onDraftChange(previous => ({ ...previous, search }))}
-        />
+      <Field className="sm:col-span-2 lg:col-span-1">
+        <FieldLabel htmlFor={`${idPrefix}-search`}>{t("actions.search")}</FieldLabel>
+        <InputGroup>
+          <InputGroupAddon>
+            <Search />
+          </InputGroupAddon>
+          <InputGroupInput
+            id={`${idPrefix}-search`}
+            type="search"
+            placeholder={t("report.vat.searchPlaceholder")}
+            value={draft.search}
+            onChange={event => {
+              const search = event.target.value;
+              onDraftChange(previous => ({ ...previous, search }));
+            }}
+          />
+        </InputGroup>
       </Field>
       <ReportBranchField
         id={`${idPrefix}-branch`}
@@ -113,8 +120,9 @@ export function VatReportFilterBar({
     <ReportFilterCard
       actions={actions}
       canApply={canApply}
-      className="hidden shrink-0 rounded-none border-x-0 border-t-0 shadow-none lg:block"
-      contentClassName="grid min-w-0 items-end gap-3 px-3 py-3 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-[repeat(6,minmax(0,1fr))_auto]"
+      // shrink-0: Card มี overflow-hidden (min-height ของ flex item = 0) — กันถูกบีบ ดู report-layout.tsx
+      className="hidden shrink-0 shadow-none lg:block"
+      contentClassName="grid items-end gap-3 py-4 lg:grid-cols-4 2xl:grid-cols-[repeat(7,minmax(0,1fr))_auto]"
       loading={loading}
       onApply={onApply}
     >

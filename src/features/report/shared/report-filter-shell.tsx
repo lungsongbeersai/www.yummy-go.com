@@ -76,7 +76,7 @@ export function ReportFilterCard({
         <div className={cn("flex min-w-0 flex-wrap items-center gap-2", actionsClassName)}>
           <ReportApplyButton
             canApply={canApply}
-            className="h-9 min-w-20 flex-1"
+            className="min-w-20 flex-1"
             loading={loading}
             onApply={onApply}
           />

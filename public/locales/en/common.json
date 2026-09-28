@@ -1,5 +1,10 @@
 {
   "orderAudit": {
+    "stats": {
+      "events": "Events",
+      "bills": "Bills",
+      "discountChanges": "Discount changes"
+    },
     "title": "Order change history",
     "description": "Recorded changes by branch. Dates use the recorded time in Vientiane (UTC+7), not the sales date.",
     "historyNotice": "History starts when auditing is enabled. No historical reconstruction. Unverified actors are shown as unknown.",
@@ -326,6 +331,11 @@
     "apply": "Apply filters",
     "available": "Available",
     "avgBill": "Average bill",
+    "dailyAverage": "Daily average",
+    "monthFrom": "From month",
+    "monthTo": "To month",
+    "yearFrom": "From year",
+    "yearTo": "To year",
     "balance": "Outstanding",
     "bestProduct": "Best seller",
     "branchOverview": "Branch overview",
@@ -649,7 +659,7 @@
       "preview": "Preview",
       "stop": "Stop",
       "options": {
-        "default": "Default",
+        "default": "Original",
         "notification": "Notification",
         "ding": "Ding",
         "bell": "Bell",
@@ -2183,6 +2193,7 @@
       "totalSummary": "Total summary"
     },
     "categorySales": {
+      "productsCount": "{{count}} products",
       "adjustFilters": "Adjust the date range, branch, or payment method.",
       "cards": {
         "categories": "Categories",
@@ -2348,6 +2359,11 @@
     "showingDetailLinesRange": "Showing lines {{start}}-{{end}} / {{total}}, grouped into {{bills}} bill(s)",
     "showSummary": "Show Summary",
     "hideSummary": "Hide Summary",
+    "columnsMenu": "Columns",
+    "toggleColumns": "Show columns",
+    "resetColumns": "Reset columns",
+    "metricsMenu": "Metrics",
+    "toggleMetrics": "Show metrics",
     "salesReportByBill": "Sales Report by Bill",
     "reportDate": "Report date",
     "summary": "Summary",
@@ -2951,6 +2967,9 @@
     "unitDetailsHint": "Name the unit used when setting product stock and reporting.",
     "unitList": "Unit list",
     "unitNameRequired": "Enter the Lao unit name.",
+    "allStores": "All stores",
+    "noStoresFound": "No store found.",
+    "searchStore": "Search store...",
     "storeRequired": "Your login does not include a store.",
     "collapseZone": "Collapse {{zone}}",
     "expandZone": "Expand {{zone}}",

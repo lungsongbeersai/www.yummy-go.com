@@ -1,6 +1,6 @@
 "use client";
 
-import { Fragment, useCallback, useEffect, useMemo, useRef, useState, type ComponentProps } from "react";
+import { Fragment, useCallback, useEffect, useMemo, useState, type ComponentProps } from "react";
 import { useRouter } from "next/navigation";
 import {
   CheckCheck,
@@ -18,7 +18,7 @@ import { useTranslation } from "react-i18next";
 import { LoadingState } from "@/components/common/loading-state";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
   Empty,
@@ -28,11 +28,12 @@ import {
   EmptyTitle
 } from "@/components/ui/empty";
 import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
-import { Input } from "@/components/ui/input";
+import { InputGroup, InputGroupAddon, InputGroupInput } from "@/components/ui/input-group";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Spinner } from "@/components/ui/spinner";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { SettingsPageHeader } from "@/features/settings/shared/settings-page-header";
 import { canManageStorePermissions } from "@/lib/permissions";
 import { cn } from "@/lib/utils";
 import type {
@@ -263,132 +264,124 @@ export function StorePermissionsPage() {
   if (!allowed) return <LoadingState label={t("common.processing")} variant="table" />;
 
   return (
-    <div className="flex h-full min-h-0 flex-col overflow-hidden bg-background">
-      <header className="flex shrink-0 flex-col gap-3 border-b border-border bg-card px-4 py-3 lg:px-5">
-        <div className="flex min-w-0 flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
-          <div className="flex min-w-0 items-center gap-3">
-            <span className="grid size-9 shrink-0 place-items-center rounded-md bg-primary/10 text-primary [&_svg]:size-5">
-              <ShieldCheck aria-hidden />
-            </span>
-            <div className="min-w-0">
-              <p className="text-xs font-bold text-primary">{t("storePermissions.kicker")}</p>
-              <h1 className="truncate text-lg font-black">{t("storePermissions.title")}</h1>
-              <p className="mt-0.5 truncate text-xs text-muted-foreground">
-                {selectedStore?.store_name
-                  ? t("storePermissions.storeRoleContext", {
-                    role: selectedRole?.role_name ?? "-",
-                    store: selectedStore.store_name
-                  })
-                  : t("storePermissions.description")}
-              </p>
-            </div>
-          </div>
-
-          <div className="flex shrink-0 flex-wrap items-center gap-2">
-            <Badge className="border-primary/30 bg-primary/10 text-primary [&_svg]:size-3.5">
-              <ShieldCheck />
+    // Same frame as the settings list pages: header card, filter row, then the permission table in
+    // a bordered card that scrolls inside itself on wide screens (the whole page scrolls on phones).
+    <div className="flex h-full min-h-0 flex-col gap-4 overflow-y-auto p-4 lg:overflow-hidden">
+      <SettingsPageHeader
+        icon={ShieldCheck}
+        title={t("storePermissions.title")}
+        description={
+          selectedStore?.store_name
+            ? t("storePermissions.storeRoleContext", { role: selectedRole?.role_name ?? "-", store: selectedStore.store_name })
+            : t("storePermissions.description")
+        }
+        actions={
+          <>
+            <Badge variant="secondary" className="tabular-nums">
               {t("storePermissions.selectedSummary", { selected: selectedCount, total })}
             </Badge>
-            <Badge className={dirty ? "border-primary/30 bg-primary/10 text-primary" : undefined}>
+            {/* Unsaved changes are the one thing to act on here, so only they get the filled badge. */}
+            <Badge variant={dirty ? "default" : "outline"}>
               {dirty ? t("storePermissions.unsavedChanges") : t("storePermissions.noChanges")}
             </Badge>
-            <Button disabled={!canSave} size="sm" type="button" onClick={save}>
+            <Button disabled={!canSave} type="button" onClick={save}>
               {saving ? <Spinner data-icon="inline-start" /> : <Save data-icon="inline-start" />}
               {t("actions.save")}
             </Button>
-          </div>
+          </>
+        }
+      />
+
+      <div className="grid shrink-0 items-end gap-3 lg:grid-cols-[minmax(0,1fr)_auto]">
+        <FieldGroup className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+          <Field>
+            <FieldLabel htmlFor="permission-store-select">{t("storePermissions.store")}</FieldLabel>
+            <Select disabled={loadingOptions || saving} value={selectedStoreUuid} onValueChange={setStore}>
+              <SelectTrigger id="permission-store-select" className="w-full">
+                <SelectValue placeholder={t("storePermissions.selectStore")} />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectGroup>
+                  {stores.map((store) => (
+                    <SelectItem key={store.store_uuid} value={store.store_uuid}>
+                      {store.store_name || store.store_uuid}
+                    </SelectItem>
+                  ))}
+                </SelectGroup>
+              </SelectContent>
+            </Select>
+          </Field>
+
+          <Field>
+            <FieldLabel htmlFor="permission-role-select">{t("storePermissions.role")}</FieldLabel>
+            <Select
+              disabled={loadingOptions || saving}
+              value={selectedRoleId ? String(selectedRoleId) : ""}
+              onValueChange={(value) => setRole(Number(value))}
+            >
+              <SelectTrigger id="permission-role-select" className="w-full">
+                <SelectValue placeholder={t("storePermissions.selectRole")} />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectGroup>
+                  {roles.map((role) => (
+                    <SelectItem key={role.roles_id} value={String(role.roles_id)}>
+                      {role.role_name || role.roles_id}
+                    </SelectItem>
+                  ))}
+                </SelectGroup>
+              </SelectContent>
+            </Select>
+          </Field>
+
+          <Field className="sm:col-span-2 lg:col-span-1">
+            <FieldLabel htmlFor="permission-search">{t("storePermissions.searchPermissions")}</FieldLabel>
+            <InputGroup>
+              <InputGroupAddon>
+                <Search />
+              </InputGroupAddon>
+              <InputGroupInput
+                id="permission-search"
+                autoComplete="off"
+                disabled={loading || saving}
+                name="permission_search"
+                placeholder={t("storePermissions.searchPlaceholder")}
+                value={permissionSearch}
+                onChange={(event) => setPermissionSearch(event.target.value)}
+              />
+            </InputGroup>
+          </Field>
+        </FieldGroup>
+
+        <div className="flex flex-wrap items-center gap-2">
+          <Button disabled={saving || loading} type="button" variant="outline" onClick={refresh}>
+            {loading ? <Spinner data-icon="inline-start" /> : <RefreshCcw data-icon="inline-start" />}
+            {t("actions.refresh")}
+          </Button>
+          <Button disabled={!canReset} type="button" variant="outline" onClick={resetChanges}>
+            <RotateCcw data-icon="inline-start" />
+            {t("storePermissions.resetChanges")}
+          </Button>
         </div>
+      </div>
 
-        <div className="grid gap-2 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-end">
-          <FieldGroup className="grid gap-2 lg:grid-cols-[minmax(12rem,1fr)_minmax(12rem,1fr)_minmax(16rem,1.1fr)]">
-            <Field className="gap-1">
-              <FieldLabel htmlFor="permission-store-select">{t("storePermissions.store")}</FieldLabel>
-              <Select disabled={loadingOptions || saving} value={selectedStoreUuid} onValueChange={setStore}>
-                <SelectTrigger id="permission-store-select" className="w-full">
-                  <SelectValue placeholder={t("storePermissions.selectStore")} />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectGroup>
-                    {stores.map((store) => (
-                      <SelectItem key={store.store_uuid} value={store.store_uuid}>
-                        {store.store_name || store.store_uuid}
-                      </SelectItem>
-                    ))}
-                  </SelectGroup>
-                </SelectContent>
-              </Select>
-            </Field>
-
-            <Field className="gap-1">
-              <FieldLabel htmlFor="permission-role-select">{t("storePermissions.role")}</FieldLabel>
-              <Select
-                disabled={loadingOptions || saving}
-                value={selectedRoleId ? String(selectedRoleId) : ""}
-                onValueChange={(value) => setRole(Number(value))}
-              >
-                <SelectTrigger id="permission-role-select" className="w-full">
-                  <SelectValue placeholder={t("storePermissions.selectRole")} />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectGroup>
-                    {roles.map((role) => (
-                      <SelectItem key={role.roles_id} value={String(role.roles_id)}>
-                        {role.role_name || role.roles_id}
-                      </SelectItem>
-                    ))}
-                  </SelectGroup>
-                </SelectContent>
-              </Select>
-            </Field>
-
-            <Field className="gap-1">
-              <FieldLabel htmlFor="permission-search">{t("storePermissions.searchPermissions")}</FieldLabel>
-              <div className="flex min-w-0 items-center gap-2 rounded-md border border-input bg-background px-2.5 shadow-sm transition-colors focus-within:border-ring focus-within:ring-[3px] focus-within:ring-ring/50">
-                <Search aria-hidden className="shrink-0 text-muted-foreground" />
-                <Input
-                  id="permission-search"
-                  autoComplete="off"
-                  className="h-9 border-0 bg-transparent p-0 shadow-none focus-visible:ring-0"
-                  disabled={loading || saving}
-                  name="permission_search"
-                  placeholder={t("storePermissions.searchPlaceholder")}
-                  value={permissionSearch}
-                  onChange={(event) => setPermissionSearch(event.target.value)}
-                />
-              </div>
-            </Field>
-          </FieldGroup>
-
-          <div className="flex min-w-0 flex-wrap items-center gap-2">
-            <Button disabled={saving || loading} size="sm" type="button" variant="outline" onClick={refresh}>
-              {loading ? <Spinner data-icon="inline-start" /> : <RefreshCcw data-icon="inline-start" />}
-              {t("actions.refresh")}
-            </Button>
-            <Button disabled={!canReset} size="sm" type="button" variant="outline" onClick={resetChanges}>
-              <RotateCcw data-icon="inline-start" />
-              {t("storePermissions.resetChanges")}
-            </Button>
-          </div>
-        </div>
-      </header>
-
-      <Card className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-none border-x-0 border-b-0 border-t-0 shadow-none">
-        <CardHeader className="shrink-0 flex-col gap-3 border-b border-border px-4 py-3 lg:flex-row lg:items-center lg:justify-between lg:px-5">
-          <div className="min-w-0">
-            <CardTitle className="truncate text-base">{t("storePermissions.tableTitle")}</CardTitle>
-            <p className="mt-1 text-xs text-muted-foreground">{t("storePermissions.tableHint")}</p>
-          </div>
-          <div className="flex shrink-0 flex-wrap items-center gap-2">
+      {/* shrink-0 isn't wanted here: this card is the part that takes the remaining height. */}
+      <Card className="flex min-h-0 flex-1 flex-col">
+        <CardHeader className="shrink-0 border-b">
+          <CardTitle>{t("storePermissions.tableTitle")}</CardTitle>
+          <CardDescription>{t("storePermissions.tableHint")}</CardDescription>
+          {/* A row of its own under the description: four buttons beside the title would squeeze it. */}
+          <div className="flex flex-wrap items-center gap-2 pt-2">
             <SavedPermissionsSummary roles={savedList?.roles ?? []} />
-            <Button disabled={!canToggleGroups} size="sm" type="button" variant="outline" onClick={toggleAllMenuGroups}>
+            <Button disabled={!canToggleGroups} type="button" variant="outline" onClick={toggleAllMenuGroups}>
               {allCollapsed ? <ChevronDown data-icon="inline-start" /> : <ChevronRight data-icon="inline-start" />}
               {allCollapsed ? t("actions.expandAll") : t("actions.collapseAll")}
             </Button>
-            <Button disabled={!canSelectAll} size="sm" type="button" variant="outline" onClick={selectAllSubmenus}>
+            <Button disabled={!canSelectAll} type="button" variant="outline" onClick={selectAllSubmenus}>
               <CheckCheck data-icon="inline-start" />
               {t("storePermissions.selectAll")}
             </Button>
-            <Button disabled={!canClearAll} size="sm" type="button" variant="outline" onClick={clearAllSubmenus}>
+            <Button disabled={!canClearAll} type="button" variant="outline" onClick={clearAllSubmenus}>
               <CircleX data-icon="inline-start" />
               {t("storePermissions.clearAll")}
             </Button>

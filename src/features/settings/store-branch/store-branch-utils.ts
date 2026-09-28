@@ -81,6 +81,16 @@ export function isStoreActive(row: StoreBranchRow) {
   return storeBranchNumber(row, "store_active", 1) === 1;
 }
 
+/** The summary cards double as list filters: one per store type, plus open/closed. */
+export type StoreCardFilter = StoreType | "active" | "inactive";
+
+export function storeMatchesCardFilter(row: StoreBranchRow, filter: StoreCardFilter | null) {
+  if (!filter) return true;
+  if (filter === "active") return isStoreActive(row);
+  if (filter === "inactive") return !isStoreActive(row);
+  return storeType(row) === filter;
+}
+
 function summaryCount(value: unknown) {
   const count = Number(value);
   return Number.isFinite(count) && count > 0 ? Math.trunc(count) : 0;

@@ -20,6 +20,7 @@ import { cn } from "@/lib/utils";
 import type { ApiEntity } from "@/services/shared/types";
 import type { DailySalesBillGroup } from "@/stores/report-store";
 import { SortableReportTableHead } from "../report-sort-table-head";
+import type { ReportColumnOption } from "../shared/report-column-visibility";
 import { ReportIndeterminateCheckbox } from "../shared/report-row-selection";
 import { useLocalTableSort } from "../shared/report-sort-utils";
 import {
@@ -73,9 +74,160 @@ type DailySalesBillSortKey =
   | "toppingTotal"
   | "vat";
 
+type DetailTextColumnKey = "invoiceNumber" | "saleDate" | "tableName" | "paymentType";
+type DetailNumericColumnKey = "salePrice" | "itemCount" | "toppingTotal" | "amount" | "discount" | "lineTotal";
+
+type DetailTextColumn = { key: DetailTextColumnKey; label: string; minWidth: string };
+type DetailNumericColumn = { key: DetailNumericColumnKey; label: string; minWidth: string };
+
+function detailTextColumns(t: (key: string) => string): DetailTextColumn[] {
+  return [
+    { key: "invoiceNumber", label: t("report.columns.invoiceNumber"), minWidth: "min-w-[132px]" },
+    { key: "saleDate", label: t("report.columns.saleDate"), minWidth: "min-w-[118px]" },
+    { key: "tableName", label: t("report.columns.tableName"), minWidth: "min-w-[96px]" },
+    { key: "paymentType", label: t("report.columns.paymentType"), minWidth: "min-w-[138px]" },
+  ];
+}
+
+function detailNumericColumns(t: (key: string) => string): DetailNumericColumn[] {
+  return [
+    { key: "salePrice", label: t("report.columns.salePrice"), minWidth: "min-w-[132px]" },
+    { key: "itemCount", label: t("report.columns.quantity"), minWidth: "min-w-[92px]" },
+    { key: "toppingTotal", label: t("report.columns.toppingTotal"), minWidth: "min-w-[138px]" },
+    { key: "amount", label: t("report.columns.amount"), minWidth: "min-w-[132px]" },
+    { key: "discount", label: t("report.columns.discount"), minWidth: "min-w-[124px]" },
+    { key: "lineTotal", label: t("common.total"), minWidth: "min-w-[132px]" },
+  ];
+}
+
+/** ตัวเลือกของเมนู "คอลัมน์" — เลขบิลซ่อนไม่ได้ เพราะเป็นหัวของกลุ่มบิลและเป็นที่วางชื่อสินค้าในแถวรายการ */
+export function detailColumnOptions(t: (key: string) => string): ReportColumnOption[] {
+  return [
+    ...detailTextColumns(t).map((column) => ({
+      hideable: column.key !== "invoiceNumber",
+      id: column.key,
+      label: column.label,
+    })),
+    ...detailNumericColumns(t).map((column) => ({ id: column.key, label: column.label })),
+    { id: "status", label: t("report.columns.status") },
+  ];
+}
+
+function groupNumericCell(group: DailySalesBillGroup, key: DetailNumericColumnKey) {
+  switch (key) {
+    case "salePrice":
+      return <OptionalMoneyCell key={key} value={groupSellingPriceTotal(group)} />;
+    case "itemCount":
+      return <QuantityCell key={key} value={groupQuantity(group)} />;
+    case "toppingTotal":
+      return <OptionalMoneyCell key={key} value={group.toppingTotal} />;
+    case "amount":
+      return <OptionalMoneyCell key={key} value={group.amountTotal} />;
+    case "discount":
+      return <OptionalMoneyCell key={key} tone="discount" value={groupDiscountTotal(group)} />;
+    case "lineTotal":
+      return <MoneyCell key={key} value={group.lineTotal} strong tone="total" />;
+  }
+}
+
+function itemNumericCell(item: ApiEntity, key: DetailNumericColumnKey) {
+  switch (key) {
+    case "salePrice":
+      return <OptionalMoneyCell key={key} value={itemMoney(item, ["sale_price"])} />;
+    case "itemCount":
+      return <QuantityCell key={key} value={itemQuantity(item)} />;
+    case "toppingTotal":
+      return <OptionalMoneyCell key={key} value={itemMoney(item, ["topping_total"])} />;
+    case "amount":
+      return <OptionalMoneyCell key={key} value={itemMoney(item, ["amount"])} />;
+    case "discount":
+      return <OptionalMoneyCell key={key} tone="discount" value={itemMoney(item, ["discount"])} />;
+    case "lineTotal":
+      return <OptionalMoneyCell key={key} tone="total" value={itemMoney(item, ["total"])} strong />;
+  }
+}
+
+function billSummaryNumericCell(group: DailySalesBillGroup, key: DetailNumericColumnKey) {
+  switch (key) {
+    case "salePrice":
+      return <OptionalMoneyCell key={key} value={groupSellingPriceTotal(group)} strong />;
+    case "itemCount":
+      return <QuantityCell key={key} value={groupQuantity(group)} />;
+    case "toppingTotal":
+      return <OptionalMoneyCell key={key} value={group.toppingTotal} strong />;
+    case "amount":
+      return <OptionalMoneyCell key={key} value={group.amountTotal} strong />;
+    case "discount":
+      return <OptionalMoneyCell key={key} tone="discount" value={groupItemDiscountTotal(group)} strong />;
+    case "lineTotal":
+      return <OptionalMoneyCell key={key} value={groupItemLineTotal(group)} strong />;
+  }
+}
+
+function reportFooterNumericCell(
+  key: DetailNumericColumnKey,
+  summaryCards: SummaryCards,
+  reportTotal: ApiEntity,
+) {
+  const metric = (keys: string[]) => summaryMetricNumber(summaryCards, reportTotal, keys);
+
+  switch (key) {
+    case "salePrice":
+      return (
+        <SummaryFooterMoneyCell
+          key={key}
+          value={metric(["product_price_total", "selling_price_total", "sale_price_total"])}
+        />
+      );
+    case "itemCount":
+      return <SummaryFooterNumberCell key={key} value={metric(["total_qty"])} />;
+    case "toppingTotal":
+      return (
+        <SummaryFooterMoneyCell key={key} value={metric(["topping_total", "total_topping_price", "sum_topping"])} />
+      );
+    case "amount":
+      return <SummaryFooterMoneyCell key={key} value={metric(["amount"])} />;
+    case "discount":
+      return (
+        <SummaryFooterMoneyCell
+          key={key}
+          tone="discount"
+          value={metric(["sum_discount", "discount_bill", "discount_item"])}
+        />
+      );
+    case "lineTotal":
+      return (
+        <SummaryFooterMoneyCell
+          key={key}
+          strong
+          tone="total"
+          value={metric(["sum_total", "grand_total", "net_total"])}
+        />
+      );
+  }
+}
+
+function groupTextValue(group: DailySalesBillGroup, key: DetailTextColumnKey) {
+  switch (key) {
+    case "invoiceNumber":
+      return group.invoiceNumber;
+    case "saleDate":
+      return formatDate(group.saleDate);
+    case "tableName":
+      return group.tableName;
+    case "paymentType":
+      return group.paymentType;
+  }
+}
+
+function QuantityCell({ value }: { value: number }) {
+  return <TableCell className="text-right font-medium tabular-nums">{value.toLocaleString("en-US")}</TableCell>;
+}
+
 export function DetailBillTable({
   collapsedGroups,
   groups,
+  isColumnVisible,
   pageStart,
   reportTotal,
   selectedRecordIds,
@@ -86,6 +238,7 @@ export function DetailBillTable({
 }: {
   collapsedGroups: Set<string>;
   groups: DailySalesBillGroup[];
+  isColumnVisible: (id: string) => boolean;
   itemColumns: ReportColumn[];
   pageStart: number;
   reportTotal: ApiEntity;
@@ -96,6 +249,14 @@ export function DetailBillTable({
   onToggleRows: (rows: ApiEntity[], selected: boolean) => void;
 }) {
   const { t } = useTranslation();
+  const textColumns = useMemo(
+    () => detailTextColumns(t).filter((column) => isColumnVisible(column.key)),
+    [isColumnVisible, t],
+  );
+  const numericColumns = useMemo(
+    () => detailNumericColumns(t).filter((column) => isColumnVisible(column.key)),
+    [isColumnVisible, t],
+  );
 
   const getGroupSortValue = useCallback(
     (group: DailySalesBillGroup, key: DailySalesBillSortKey) =>
@@ -140,371 +301,258 @@ export function DetailBillTable({
       ),
     [visibleItems],
   );
+  const showStatus = hasStatusData && isColumnVisible("status");
+  const layout: DetailLayout = {
+    numericColumns,
+    showStatus,
+    textSpan: textColumns.length,
+  };
+
   return (
-    <div className="w-full min-w-0">
-      <Table className="w-max min-w-full table-auto text-sm">
-        <TableHeader className="[&_th]:sticky [&_th]:top-0 [&_th]:z-30 [&_th]:h-9 [&_th]:whitespace-nowrap [&_th]:border-b [&_th]:border-border [&_th]:bg-muted [&_th]:px-2 [&_th]:text-xs [&_th]:font-medium [&_th]:text-muted-foreground">
-          <TableRow>
-            <TableHead className="w-10 text-center">
-              <ReportIndeterminateCheckbox
-                aria-label={t("common.selectAll")}
-                checked={allVisibleSelected}
-                indeterminate={!allVisibleSelected && someVisibleSelected}
-                onCheckedChange={(checked) => onToggleRows(visibleItems, checked as boolean)}
-              />
-            </TableHead>
+    // container ของ Table เป็นตัวสกรอลเอง — หัวตาราง sticky ด้านบน, แถวรวม sticky ด้านล่าง
+    <Table containerClassName="min-h-0 flex-1 overflow-auto">
+      <TableHeader className="sticky top-0 z-30 bg-muted">
+        <TableRow>
+          <TableHead>
+            <ReportIndeterminateCheckbox
+              aria-label={t("common.selectAll")}
+              checked={allVisibleSelected}
+              indeterminate={!allVisibleSelected && someVisibleSelected}
+              onCheckedChange={(checked) => onToggleRows(visibleItems, checked as boolean)}
+            />
+          </TableHead>
 
-            <TableHead className="w-16 text-center">{t("fields.no")}</TableHead>
+          <TableHead>{t("fields.no")}</TableHead>
 
+          {textColumns.map((column) => (
             <SortableReportTableHead
+              key={column.key}
               sort={groupSort}
-              sortKey="invoiceNumber"
-              className="min-w-[132px]"
+              sortKey={column.key}
+              className={column.minWidth}
               onSort={toggleGroupSort}
             >
-              {t("report.columns.invoiceNumber")}
+              {column.label}
             </SortableReportTableHead>
+          ))}
 
+          {numericColumns.map((column) => (
+            <SortableReportTableHead
+              key={column.key}
+              align="right"
+              sort={groupSort}
+              sortKey={column.key}
+              className={cn(column.minWidth, "text-right")}
+              onSort={toggleGroupSort}
+            >
+              {column.label}
+            </SortableReportTableHead>
+          ))}
+
+          {showStatus ? (
             <SortableReportTableHead
               sort={groupSort}
-              sortKey="saleDate"
+              sortKey="status"
               className="min-w-[118px]"
               onSort={toggleGroupSort}
             >
-              {t("report.columns.saleDate")}
+              {t("report.columns.status")}
             </SortableReportTableHead>
+          ) : null}
+        </TableRow>
+      </TableHeader>
 
-            <SortableReportTableHead
-              sort={groupSort}
-              sortKey="tableName"
-              className="min-w-[96px]"
-              onSort={toggleGroupSort}
-            >
-              {t("report.columns.tableName")}
-            </SortableReportTableHead>
+      <TableBody>
+        {sortedGroups.map((group, index) => {
+          const expanded = !collapsedGroups.has(group.id);
+          const statusRow = group.items[0] ?? {};
+          const groupItemIds = group.items.map(reportRecordId);
+          const selectedItemCount = groupItemIds.filter((id) =>
+            selectedRecordIds.has(id),
+          ).length;
+          const groupSelected =
+            groupItemIds.length > 0 &&
+            selectedItemCount === groupItemIds.length;
+          const groupPartiallySelected =
+            selectedItemCount > 0 && !groupSelected;
+          const groupNeedsAttention =
+            !group.cancelled &&
+            isPaymentAttentionRow({
+              debt_amount: group.debtAmount,
+              payment_method: group.paymentType,
+              status: group.status,
+            });
 
-            <SortableReportTableHead
-              sort={groupSort}
-              sortKey="paymentType"
-              className="min-w-[138px]"
-              onSort={toggleGroupSort}
-            >
-              {t("report.columns.paymentType")}
-            </SortableReportTableHead>
-
-            <SortableReportTableHead
-              align="right"
-              sort={groupSort}
-              sortKey="salePrice"
-              className="min-w-[132px] text-right"
-              onSort={toggleGroupSort}
-            >
-              {t("report.columns.salePrice")}
-            </SortableReportTableHead>
-
-            <SortableReportTableHead
-              align="right"
-              sort={groupSort}
-              sortKey="itemCount"
-              className="min-w-[92px] text-right"
-              onSort={toggleGroupSort}
-            >
-              {t("report.columns.quantity")}
-            </SortableReportTableHead>
-
-            <SortableReportTableHead
-              align="right"
-              sort={groupSort}
-              sortKey="toppingTotal"
-              className="min-w-[138px] text-right"
-              onSort={toggleGroupSort}
-            >
-              {t("report.columns.toppingTotal")}
-            </SortableReportTableHead>
-
-            <SortableReportTableHead
-              align="right"
-              sort={groupSort}
-              sortKey="amount"
-              className="min-w-[132px] text-right"
-              onSort={toggleGroupSort}
-            >
-              {t("report.columns.amount")}
-            </SortableReportTableHead>
-
-            <SortableReportTableHead
-              align="right"
-              sort={groupSort}
-              sortKey="discount"
-              className="min-w-[124px] text-right"
-              onSort={toggleGroupSort}
-            >
-              {t("report.columns.discount")}
-            </SortableReportTableHead>
-
-            <SortableReportTableHead
-              align="right"
-              sort={groupSort}
-              sortKey="lineTotal"
-              className="min-w-[132px] text-right"
-              onSort={toggleGroupSort}
-            >
-              {t("common.total", { defaultValue: "Total" })}
-            </SortableReportTableHead>
-
-            {hasStatusData ? (
-              <SortableReportTableHead
-                sort={groupSort}
-                sortKey="status"
-                className="min-w-[118px]"
-                onSort={toggleGroupSort}
+          return (
+            <Fragment key={group.id}>
+              <TableRow
+                className={cn(
+                  // สีพื้นบอกสถานะบิล (ค้างชำระ/ยกเลิก) — เป็นข้อมูล ไม่ใช่การตกแต่ง
+                  groupNeedsAttention && "bg-warning/10 hover:bg-warning/15",
+                  group.cancelled && "bg-destructive/5 hover:bg-destructive/10",
+                )}
+                data-state={expanded ? "selected" : undefined}
               >
-                {t("report.columns.status")}
-              </SortableReportTableHead>
-            ) : null}
-          </TableRow>
-        </TableHeader>
-
-        <TableBody>
-          {sortedGroups.map((group, index) => {
-            const expanded = !collapsedGroups.has(group.id);
-            const statusRow = group.items[0] ?? {};
-            const groupItemIds = group.items.map(reportRecordId);
-            const selectedItemCount = groupItemIds.filter((id) =>
-              selectedRecordIds.has(id),
-            ).length;
-            const groupSelected =
-              groupItemIds.length > 0 &&
-              selectedItemCount === groupItemIds.length;
-            const groupPartiallySelected =
-              selectedItemCount > 0 && !groupSelected;
-            const groupNeedsAttention =
-              !group.cancelled &&
-              isPaymentAttentionRow({
-                debt_amount: group.debtAmount,
-                payment_method: group.paymentType,
-                status: group.status,
-              });
-
-            return (
-              <Fragment key={group.id}>
-                <TableRow
-                  className={cn(
-                    "border-b border-border/80 bg-card hover:bg-muted/25 [&>td]:whitespace-nowrap [&>td]:px-2 [&>td]:py-2",
-                    expanded &&
-                      !group.cancelled &&
-                      !groupNeedsAttention &&
-                      "border-l-4 border-l-primary/60 bg-primary/5 hover:bg-primary/10",
-                    // ค้างชำระ = ต้องระวัง ไม่ใช่ error — --warning แทนสีแดงดิบ (ดูคำอธิบายเดียวกันใน daily-sales-report-cells.tsx)
-                    groupNeedsAttention && "bg-warning/10 hover:bg-warning/15",
-                    group.cancelled &&
-                      "border-l-4 border-l-destructive/60 bg-destructive/5 hover:bg-destructive/10",
-                  )}
-                  data-state={expanded ? "selected" : undefined}
-                >
-                  <TableCell className="text-center">
-                    <ReportIndeterminateCheckbox
-                      aria-label={t("common.selectRow", {
-                        name: group.invoiceNumber,
-                      })}
-                      checked={groupSelected}
-                      disabled={group.items.length === 0}
-                      indeterminate={groupPartiallySelected}
-                      onCheckedChange={(checked) => onToggleRows(group.items, checked as boolean)}
-                    />
-                  </TableCell>
-
-                  <TableCell className="text-center">
-                    <div className="flex items-center justify-center gap-2">
-                      <Button
-                        type="button"
-                        size="icon-sm"
-                        variant="ghost"
-                        aria-expanded={expanded}
-                        aria-label={
-                          expanded
-                            ? t("report.collapseBill")
-                            : t("report.expandBill")
-                        }
-                        onClick={() => onToggleGroup(group.id)}
-                      >
-                        {expanded ? <ChevronDown /> : <ChevronRight />}
-                      </Button>
-                      <span className="text-xs tabular-nums text-muted-foreground">
-                        {pageStart + index}
-                      </span>
-                    </div>
-                  </TableCell>
-
-                  <TableCell className="font-semibold">
-                    {group.invoiceNumber}
-                  </TableCell>
-                  <TableCell>{formatDate(group.saleDate)}</TableCell>
-                  <TableCell>{group.tableName}</TableCell>
-                  <TableCell>{group.paymentType}</TableCell>
-
-                  {expanded ? (
-                    <>
-                      <BlankCell align="right" />
-                      <BlankCell align="right" />
-                      <BlankCell align="right" />
-                      <BlankCell align="right" />
-                      <BlankCell align="right" />
-                      <BlankCell align="right" />
-                    </>
-                  ) : (
-                    <>
-                      <OptionalMoneyCell
-                        value={groupSellingPriceTotal(group)}
-                      />
-                      <TableCell className="text-right font-semibold tabular-nums">
-                        {groupQuantity(group).toLocaleString("en-US")}
-                      </TableCell>
-                      <OptionalMoneyCell value={group.toppingTotal} />
-                      <OptionalMoneyCell value={group.amountTotal} />
-                      <OptionalMoneyCell
-                        tone="discount"
-                        value={groupDiscountTotal(group)}
-                      />
-                      <MoneyCell value={group.lineTotal} strong tone="total" />
-                    </>
-                  )}
-
-                  {hasStatusData ? (
-                    <TableCell>
-                      <Badge
-                        className={statusClass(
-                          group.cancelled
-                            ? { ...statusRow, cancelled: true }
-                            : statusRow,
-                          group.status,
-                        )}
-                      >
-                        {group.status}
-                      </Badge>
-                    </TableCell>
-                  ) : null}
-                </TableRow>
-
-                {expanded ? (
-                  <>
-                    {group.items.length === 0 ? (
-                      <TableRow>
-                        <TableCell colSpan={hasStatusData ? 13 : 12}>
-                          <Alert>
-                            <AlertDescription>{t("report.billItemsMissing")}</AlertDescription>
-                          </Alert>
-                        </TableCell>
-                      </TableRow>
-                    ) : null}
-                    {group.items.map((item, itemIndex) => {
-                      const recordId = reportRecordId(item);
-                      const selected = selectedRecordIds.has(recordId);
-
-                      return (
-                        <TableRow
-                          key={`${rowKey(item, itemIndex)}-${itemIndex}`}
-                          className={cn(
-                            "border-b border-border/80 bg-background hover:bg-muted/20 [&>td]:whitespace-nowrap [&>td]:px-2 [&>td]:py-2",
-                            groupNeedsAttention && "bg-warning/5 hover:bg-warning/10",
-                            selected &&
-                              !isCancelledRow(item) &&
-                              !isPaymentAttentionRow(item) &&
-                              "bg-primary/5",
-                          )}
-                        >
-                          <TableCell className="text-center">
-                            <Checkbox
-                              aria-label={t("common.selectRow", {
-                                name: itemProductName(
-                                  item,
-                                  `${group.invoiceNumber}-${itemIndex + 1}`,
-                                ),
-                              })}
-                              checked={selected}
-                              onCheckedChange={(checked) => onToggleRow(item, checked as boolean)}
-                            />
-                          </TableCell>
-
-                          <TableCell />
-
-                          <TableCell colSpan={4}>
-                            <div className="flex min-w-72 items-center gap-2">
-                              <ProductImage row={item} />
-                              <ProductNameCell row={item} />
-                            </div>
-                          </TableCell>
-
-                          <OptionalMoneyCell
-                            value={itemMoney(item, ["sale_price"])}
-                          />
-                          <TableCell className="text-right font-semibold tabular-nums">
-                            {itemQuantity(item).toLocaleString("en-US")}
-                          </TableCell>
-                          <OptionalMoneyCell
-                            value={itemMoney(item, ["topping_total"])}
-                          />
-                          <OptionalMoneyCell
-                            value={itemMoney(item, ["amount"])}
-                          />
-                          <OptionalMoneyCell
-                            tone="discount"
-                            value={itemMoney(item, ["discount"])}
-                          />
-                          <OptionalMoneyCell
-                            tone="total"
-                            value={itemMoney(item, ["total"])}
-                            strong
-                          />
-
-                          {hasStatusData ? <TableCell /> : null}
-                        </TableRow>
-                      );
+                <TableCell>
+                  <ReportIndeterminateCheckbox
+                    aria-label={t("common.selectRow", {
+                      name: group.invoiceNumber,
                     })}
-                    <DetailBillSummaryRow
-                      group={group}
-                      hasStatusData={hasStatusData}
-                      summaryLabel={t("report.summary")}
-                    />
-                    <DetailBillAdjustmentRows
-                      group={group}
-                      hasStatusData={hasStatusData}
-                    />
-                  </>
+                    checked={groupSelected}
+                    disabled={group.items.length === 0}
+                    indeterminate={groupPartiallySelected}
+                    onCheckedChange={(checked) => onToggleRows(group.items, checked as boolean)}
+                  />
+                </TableCell>
+
+                <TableCell>
+                  <div className="flex items-center gap-1">
+                    <Button
+                      type="button"
+                      size="icon-sm"
+                      variant="ghost"
+                      aria-expanded={expanded}
+                      aria-label={
+                        expanded
+                          ? t("report.collapseBill")
+                          : t("report.expandBill")
+                      }
+                      onClick={() => onToggleGroup(group.id)}
+                    >
+                      {expanded ? <ChevronDown /> : <ChevronRight />}
+                    </Button>
+                    <span className="tabular-nums text-muted-foreground">
+                      {pageStart + index}
+                    </span>
+                  </div>
+                </TableCell>
+
+                {textColumns.map((column) => (
+                  <TableCell key={column.key} className={column.key === "invoiceNumber" ? "font-medium" : undefined}>
+                    {groupTextValue(group, column.key)}
+                  </TableCell>
+                ))}
+
+                {/* บิลที่เปิดอยู่แสดงยอดในแถวสรุปของบิลด้านล่างแล้ว — แถวหัวบิลจึงเว้นว่างไม่ให้ตัวเลขซ้ำ */}
+                {numericColumns.map((column) =>
+                  expanded ? <BlankCell key={column.key} align="right" /> : groupNumericCell(group, column.key),
+                )}
+
+                {showStatus ? (
+                  <TableCell>
+                    <Badge
+                      className={statusClass(
+                        group.cancelled
+                          ? { ...statusRow, cancelled: true }
+                          : statusRow,
+                        group.status,
+                      )}
+                    >
+                      {group.status}
+                    </Badge>
+                  </TableCell>
                 ) : null}
-              </Fragment>
-            );
-          })}
-          <DetailReportFooterRow
-            hasStatusData={hasStatusData}
-            reportTotal={reportTotal}
-            summaryCards={summaryCards}
-            summaryLabel={t("report.summary")}
-            billCountLabel={t("report.cards.billsCount")}
-          />
-        </TableBody>
-      </Table>
-    </div>
+              </TableRow>
+
+              {expanded ? (
+                <>
+                  {group.items.length === 0 ? (
+                    <TableRow>
+                      <TableCell colSpan={detailColumnCount(layout)}>
+                        <Alert>
+                          <AlertDescription>{t("report.billItemsMissing")}</AlertDescription>
+                        </Alert>
+                      </TableCell>
+                    </TableRow>
+                  ) : null}
+                  {group.items.map((item, itemIndex) => {
+                    const recordId = reportRecordId(item);
+                    const selected = selectedRecordIds.has(recordId);
+
+                    return (
+                      <TableRow
+                        key={`${rowKey(item, itemIndex)}-${itemIndex}`}
+                        className={cn(groupNeedsAttention && "bg-warning/5 hover:bg-warning/10")}
+                        data-state={selected && !isCancelledRow(item) ? "selected" : undefined}
+                      >
+                        <TableCell>
+                          <Checkbox
+                            aria-label={t("common.selectRow", {
+                              name: itemProductName(
+                                item,
+                                `${group.invoiceNumber}-${itemIndex + 1}`,
+                              ),
+                            })}
+                            checked={selected}
+                            onCheckedChange={(checked) => onToggleRow(item, checked as boolean)}
+                          />
+                        </TableCell>
+
+                        <TableCell />
+
+                        {/* ชื่อสินค้ากินพื้นที่ของคอลัมน์ข้อความที่แสดงอยู่ (อย่างน้อยคือเลขบิลที่ซ่อนไม่ได้) */}
+                        <TableCell colSpan={layout.textSpan}>
+                          <div className="flex items-center gap-2">
+                            <ProductImage row={item} />
+                            <ProductNameCell row={item} />
+                          </div>
+                        </TableCell>
+
+                        {numericColumns.map((column) => itemNumericCell(item, column.key))}
+
+                        {showStatus ? <TableCell /> : null}
+                      </TableRow>
+                    );
+                  })}
+                  <DetailBillSummaryRow
+                    group={group}
+                    layout={layout}
+                    summaryLabel={t("report.summary")}
+                  />
+                  <DetailBillAdjustmentRows group={group} layout={layout} />
+                </>
+              ) : null}
+            </Fragment>
+          );
+        })}
+        <DetailReportFooterRow
+          layout={layout}
+          reportTotal={reportTotal}
+          summaryCards={summaryCards}
+          summaryLabel={t("report.summary")}
+          billCountLabel={t("report.cards.billsCount")}
+        />
+      </TableBody>
+    </Table>
   );
+}
+
+type DetailLayout = {
+  numericColumns: DetailNumericColumn[];
+  showStatus: boolean;
+  /** จำนวนคอลัมน์ข้อความที่แสดงอยู่ (เลขบิลซ่อนไม่ได้ จึงมีอย่างน้อย 1) */
+  textSpan: number;
+};
+
+function detailColumnCount(layout: DetailLayout) {
+  return 2 + layout.textSpan + layout.numericColumns.length + (layout.showStatus ? 1 : 0);
 }
 
 function DetailReportFooterRow({
   billCountLabel,
-  hasStatusData,
+  layout,
   reportTotal,
   summaryCards,
   summaryLabel,
 }: {
   billCountLabel: string;
-  hasStatusData: boolean;
+  layout: DetailLayout;
   reportTotal: ApiEntity;
   summaryCards: SummaryCards;
   summaryLabel: string;
 }) {
   return (
-    <TableRow className="border-t-2 border-primary bg-primary/5 font-semibold text-foreground hover:bg-primary/5">
-      <SummaryFooterBlankCell />
-      <SummaryFooterBlankCell />
+    <TableRow className="hover:bg-transparent">
       <SummaryFooterLabelCell
         billCount={summaryMetricNumber(summaryCards, reportTotal, [
           "bill_count",
@@ -512,99 +560,49 @@ function DetailReportFooterRow({
           "total_bills",
         ])}
         billCountLabel={billCountLabel}
-        colSpan={4}
+        colSpan={2 + layout.textSpan}
         label={summaryLabel}
       />
-      <SummaryFooterMoneyCell
-        value={summaryMetricNumber(summaryCards, reportTotal, [
-          "product_price_total",
-          "selling_price_total",
-          "sale_price_total",
-        ])}
-      />
-      <SummaryFooterNumberCell
-        value={summaryMetricNumber(summaryCards, reportTotal, ["total_qty"])}
-      />
-      <SummaryFooterMoneyCell
-        value={summaryMetricNumber(summaryCards, reportTotal, [
-          "topping_total",
-          "total_topping_price",
-          "sum_topping",
-        ])}
-      />
-      <SummaryFooterMoneyCell
-        value={summaryMetricNumber(summaryCards, reportTotal, ["amount"])}
-      />
-      <SummaryFooterMoneyCell
-        tone="discount"
-        value={summaryMetricNumber(summaryCards, reportTotal, [
-          "sum_discount",
-          "discount_bill",
-          "discount_item",
-        ])}
-      />
-      <SummaryFooterMoneyCell
-        strong
-        tone="total"
-        value={summaryMetricNumber(summaryCards, reportTotal, [
-          "sum_total",
-          "grand_total",
-          "net_total",
-        ])}
-      />
-      {hasStatusData ? <SummaryFooterBlankCell /> : null}
+      {layout.numericColumns.map((column) => reportFooterNumericCell(column.key, summaryCards, reportTotal))}
+      {layout.showStatus ? <SummaryFooterBlankCell /> : null}
     </TableRow>
   );
 }
 
 function DetailBillSummaryRow({
   group,
-  hasStatusData,
+  layout,
   summaryLabel,
 }: {
   group: DailySalesBillGroup;
-  hasStatusData: boolean;
+  layout: DetailLayout;
   summaryLabel: string;
 }) {
   return (
-    <TableRow className="border-0 bg-muted hover:bg-muted [&>td]:whitespace-nowrap [&>td]:px-2 [&>td]:py-2">
-      <TableCell />
-      <TableCell />
-      <TableCell colSpan={4}>
-        <span className="text-xs font-semibold text-primary">
-          {summaryLabel}
-        </span>
+    <TableRow className="bg-primary/5 hover:bg-primary/5">
+      <TableCell colSpan={2} />
+      <TableCell colSpan={layout.textSpan} className="font-medium text-primary-text">
+        {summaryLabel}
       </TableCell>
-      <OptionalMoneyCell value={groupSellingPriceTotal(group)} strong />
-      <TableCell className="text-right font-semibold tabular-nums">
-        {groupQuantity(group).toLocaleString("en-US")}
-      </TableCell>
-      <OptionalMoneyCell value={group.toppingTotal} strong />
-      <OptionalMoneyCell value={group.amountTotal} strong />
-      <OptionalMoneyCell
-        tone="discount"
-        value={groupItemDiscountTotal(group)}
-        strong
-      />
-      <OptionalMoneyCell value={groupItemLineTotal(group)} strong />
-      {hasStatusData ? <TableCell /> : null}
+      {layout.numericColumns.map((column) => billSummaryNumericCell(group, column.key))}
+      {layout.showStatus ? <TableCell /> : null}
     </TableRow>
   );
 }
 
 function DetailBillAdjustmentRows({
   group,
-  hasStatusData,
+  layout,
 }: {
   group: DailySalesBillGroup;
-  hasStatusData: boolean;
+  layout: DetailLayout;
 }) {
   const { t } = useTranslation();
 
   return (
     <>
       <DetailBillAdjustmentRow
-        hasStatusData={hasStatusData}
+        layout={layout}
         label={t("report.columns.billDiscount", {
           defaultValue: "Bill discount",
         })}
@@ -612,21 +610,20 @@ function DetailBillAdjustmentRows({
         value={group.discountBillAmount}
       />
       <DetailBillAdjustmentRow
-        hasStatusData={hasStatusData}
+        layout={layout}
         label={t("dashboard.serviceCharge")}
         tone="service"
         value={group.serviceChargeAmount}
       />
       <DetailBillAdjustmentRow
-        hasStatusData={hasStatusData}
+        layout={layout}
         label={t("dashboard.vat")}
         tone="vat"
         value={group.vatAmount}
       />
       <DetailBillAdjustmentRow
-        hasStatusData={hasStatusData}
+        layout={layout}
         label={t("common.total")}
-        last
         tone="total"
         value={group.lineTotal}
       />
@@ -634,34 +631,32 @@ function DetailBillAdjustmentRows({
   );
 }
 
+// ส่วนลดบิล/ค่าบริการ/VAT/ยอดรวม ของบิล: ป้าย+ตัวเลขชิดขวาของตาราง กิน 2 คอลัมน์สุดท้ายก่อนสถานะ
+// (หรือเท่าที่มีถ้าผู้ใช้ซ่อนคอลัมน์จนเหลือน้อย) ที่เหลือด้านซ้ายเป็นช่องว่าง
 function DetailBillAdjustmentRow({
-  hasStatusData,
   label,
-  last = false,
+  layout,
   tone = "default",
   value,
 }: {
-  hasStatusData: boolean;
   label: string;
-  last?: boolean;
+  layout: DetailLayout;
   tone?: MoneyCellTone;
   value: number;
 }) {
+  const contentColumns = layout.textSpan + layout.numericColumns.length;
+  const valueSpan = Math.min(2, contentColumns);
+
   return (
-    <TableRow
-      className={cn(
-        "bg-muted hover:bg-muted [&>td]:whitespace-nowrap [&>td]:px-2 [&>td]:py-1",
-        last ? "border-b border-border" : "border-0",
-      )}
-    >
-      <TableCell colSpan={10} />
-      <TableCell className="text-right" colSpan={2}>
-        <div className="ml-auto grid w-56 max-w-full grid-cols-[minmax(0,1fr)_auto] items-center gap-3">
+    <TableRow className="border-0 bg-primary/5 hover:bg-primary/5">
+      <TableCell colSpan={2 + contentColumns - valueSpan} />
+      <TableCell colSpan={valueSpan}>
+        <div className="flex items-center justify-end gap-4">
           <span className={adjustmentLabelClass(tone)}>{label}</span>
           <DetailBillAdjustmentValue tone={tone} value={value} />
         </div>
       </TableCell>
-      {hasStatusData ? <TableCell /> : null}
+      {layout.showStatus ? <TableCell /> : null}
     </TableRow>
   );
 }
@@ -680,34 +675,23 @@ function DetailBillAdjustmentValue({
   );
 }
 
+// สีของแต่ละรายการปรับยอดสื่อความหมาย (ส่วนลด=แดง, ยอดรวม=primary) ใช้ token ของธีมทั้งหมด
 function adjustmentLabelClass(tone: MoneyCellTone) {
   return cn(
-    "truncate text-xs font-semibold leading-none",
+    "text-muted-foreground",
     tone === "discount" && "text-destructive",
     tone === "service" && "text-info-text",
     tone === "vat" && "text-warning-text",
-    tone === "total" && "text-primary",
-    tone === "default" && "text-muted-foreground",
+    tone === "total" && "font-medium text-primary-text",
   );
 }
 
 function adjustmentValueClass(tone: MoneyCellTone, value: number) {
   return cn(
-    "whitespace-nowrap text-right font-semibold tabular-nums",
-    tone === "discount" && "text-destructive",
-    tone === "discount" && value === 0 && "opacity-70",
-    tone === "service" &&
-      value > 0 &&
-      "font-semibold text-info-text",
-    tone === "total" && "font-semibold text-primary",
-    tone === "vat" &&
-      value > 0 &&
-      "font-semibold text-warning-text",
-    tone === "default" && "font-semibold text-foreground",
-    value === 0 &&
-      tone !== "discount" &&
-      tone !== "total" &&
-      "text-muted-foreground",
+    "text-right tabular-nums",
+    tone === "discount" && value > 0 && "text-destructive",
+    tone === "total" && "font-semibold text-primary-text",
+    value === 0 && tone !== "total" && "text-muted-foreground",
   );
 }
 

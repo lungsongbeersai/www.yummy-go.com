@@ -7,6 +7,16 @@ import { ConfirmDialog } from "@/components/common/confirm-dialog";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Dialog, DialogDescription, DialogTitle } from "@/components/ui/dialog";
+import {
+  Item,
+  ItemActions,
+  ItemContent,
+  ItemDescription,
+  ItemFooter,
+  ItemGroup,
+  ItemMedia,
+  ItemTitle
+} from "@/components/ui/item";
 import { Spinner } from "@/components/ui/spinner";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import {
@@ -17,22 +27,17 @@ import {
   type OptionField
 } from "@/features/settings/shared/option-settings-fields";
 import { optionValue } from "@/features/settings/shared/option-settings-utils";
+import { SettingsListPageLayout } from "@/features/settings/shared/settings-list-page-layout";
+import { SettingsIconTile } from "@/features/settings/shared/settings-tones";
 import {
   SettingsDialogBody,
   SettingsDialogContent,
   SettingsDialogFooter,
   SettingsDialogForm,
   SettingsDialogHeader,
-  SettingsMobileCard,
-  SettingsMobileList,
-  SettingsMobileMeta,
-  SettingsMobileMetaGrid,
-  SettingsModuleShell,
-  SettingsPaginationFooter,
-  SettingsRowActions,
-  SettingsTableScroll,
-  SettingsToolbar,
-  SettingsEmptyRecords,} from "@/features/settings/shared/settings-shell";
+  SettingsEmptyRecords,
+  SettingsRowActions
+} from "@/features/settings/shared/settings-shell";
 import {
   useSettingsCrudController,
   type SettingsCrudSaveArgs,
@@ -56,7 +61,6 @@ export interface OptionSettingsPageProps<
   itemLabel: string;
   title: string;
   description: string;
-  listTitle: string;
   idKey: keyof Row & string;
   nameKey: keyof Row & string;
   nameFallbackKey?: keyof Row & string;
@@ -80,7 +84,6 @@ export interface OptionSettingsPageProps<
   requiredScopeKey?: string;
   requiredScopeMessage?: string;
   scope?: (storeUuid: string, user: AuthUser | null) => Record<string, unknown>;
-  tableClassName?: string;
   validateInput?: (args: OptionSaveArgs<Row>) => string | null;
 }
 
@@ -122,7 +125,6 @@ export function OptionSettingsPage<
   idKey,
   initialPagination,
   itemLabel,
-  listTitle,
   nameEngKey,
   nameFallbackKey,
   nameKey,
@@ -135,7 +137,6 @@ export function OptionSettingsPage<
   scope: getScope,
   slug,
   store,
-  tableClassName = "min-w-[860px]",
   title,
   validateInput
 }: OptionSettingsPageProps<Row, SaveInput, Params>) {
@@ -185,186 +186,175 @@ export function OptionSettingsPage<
     validateInput
   });
 
+  // Records with a Lao and an English name lead with the Lao one (what staff read) and show the
+  // English one underneath. The LA/EN columns a page lists are then skipped: the old table showed
+  // the same name three times (name, "LA / EN" under it, and a column for each).
+  // (Pages whose getName is just the usual name → LA → EN fallback get this too; colour and
+  // currency supply their own subtitle or swatch and keep their layout.)
+  const bilingual = !getSubtitle && !colorKey && Boolean(nameLaKey || nameEngKey);
+  const visibleColumns = bilingual
+    ? columns.filter((column) => column.key !== nameLaKey && column.key !== nameEngKey)
+    : columns;
+
   function optionName(row: Row) {
-    return getName?.(row) ?? optionValue(row, nameKey, optionValue(row, nameFallbackKey ?? "", optionValue(row, nameLaKey ?? "", optionValue(row, nameEngKey ?? "", "-"))));
+    const fallback = getName?.(row) ?? optionValue(row, nameKey, optionValue(row, nameFallbackKey ?? "", optionValue(row, nameLaKey ?? "", optionValue(row, nameEngKey ?? "", "-"))));
+    return bilingual ? optionValue(row, nameLaKey ?? "", fallback) : fallback;
   }
 
-  function optionSubtitle(row: Row) {
+  function optionSubtitle(row: Row): ReactNode {
     if (getSubtitle) return getSubtitle(row);
     if (colorKey) {
       const color = optionValue(row, colorKey);
       return color && color !== optionName(row) ? color : "";
     }
-    if (!nameLaKey && !nameEngKey) return "";
-    return `${optionValue(row, nameLaKey ?? "", "-")} / ${optionValue(row, nameEngKey ?? "", "-")}`;
+    if (!bilingual) return "";
+    const english = optionValue(row, nameEngKey ?? "");
+    return english && english !== optionName(row) ? english : "";
   }
 
   function leading(row: Row) {
     if (colorKey) return <ColorSwatch value={optionValue(row, colorKey)} large />;
     if (renderLeading) return renderLeading(row);
-    return (
-      <span className="grid size-9 shrink-0 place-items-center rounded-md bg-primary/10 text-primary">
-        <Icon aria-hidden />
-      </span>
-    );
+    return <SettingsIconTile icon={Icon} />;
   }
 
-  const table = rows.length ? (
-    <SettingsTableScroll>
-      <Table className={tableClassName}>
-        <TableHeader className="sticky top-0 z-10 bg-muted/95 backdrop-blur">
-          <TableRow>
-            <TableHead className="w-10 px-2">
-              <Checkbox aria-label={t("common.selectAll")} checked={allSelected} onCheckedChange={(checked) => toggleAll(checked as boolean)} />
-            </TableHead>
-            <TableHead className="w-px whitespace-nowrap px-2 text-center">{t("fields.no")}</TableHead>
-            <TableHead>{itemLabel}</TableHead>
-            {columns.map((column) => (
-              <TableHead key={column.key}>{column.label}</TableHead>
-            ))}
-            <TableHead className="w-16 text-right">{t("common.actions")}</TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {rows.map((row, index) => {
-            const id = rowId(row);
-            const name = optionName(row);
-            const selected = selectedRows.has(id);
-            const subtitle = optionSubtitle(row);
-            return (
-              <TableRow key={id || index} className="h-14" data-state={selected ? "selected" : undefined}>
-                <TableCell className="w-10 px-2">
-                  <Checkbox aria-label={t("common.selectRow", { name })} checked={selected} onCheckedChange={(checked) => toggleSelected(id, checked as boolean)} />
-                </TableCell>
-                <TableCell className="w-px whitespace-nowrap px-2 text-center text-sm font-black tabular-nums text-muted-foreground">{pageStart + index}</TableCell>
-                <TableCell className="max-w-[28rem]">
-                  <div className="flex min-w-0 items-center gap-3">
-                    {leading(row)}
-                    <div className="min-w-0">
-                      <p className="truncate font-black">{name}</p>
-                      {subtitle ? <p className="mt-0.5 truncate text-xs text-muted-foreground">{subtitle}</p> : null}
-                    </div>
-                  </div>
-                </TableCell>
-                {columns.map((column) => (
-                  <TableCell key={column.key} className={column.className}>
-                    {column.render ? column.render(row) : optionValue(row, column.key, "-")}
-                  </TableCell>
-                ))}
-                <TableCell className="text-right">
-                  <SettingsRowActions row={row} onEdit={openEdit} onDelete={setDeleteTarget} />
-                </TableCell>
-              </TableRow>
-            );
-          })}
-        </TableBody>
-      </Table>
-    </SettingsTableScroll>
-  ) : null;
+  function columnValue(row: Row, column: OptionColumn<Row>) {
+    return column.render ? column.render(row) : optionValue(row, column.key, "-");
+  }
 
-  const mobileList = rows.length ? (
-    <SettingsMobileList>
+  const table = (
+    <Table containerClassName="min-h-0 flex-1 overflow-auto">
+      <TableHeader className="sticky top-0 z-10 bg-muted">
+        <TableRow>
+          <TableHead className="w-px">
+            <Checkbox aria-label={t("common.selectAll")} checked={allSelected} onCheckedChange={(checked) => toggleAll(checked === true)} />
+          </TableHead>
+          {/* w-px: checkbox, number and actions shrink to their content; the name takes the spare width. */}
+          <TableHead className="w-px text-center">{t("fields.no")}</TableHead>
+          <TableHead className="min-w-56">{itemLabel}</TableHead>
+          {visibleColumns.map((column) => (
+            <TableHead key={column.key}>{column.label}</TableHead>
+          ))}
+          <TableHead className="w-px">
+            <span className="sr-only">{t("common.actions")}</span>
+          </TableHead>
+        </TableRow>
+      </TableHeader>
+      <TableBody>
+        {rows.map((row, index) => {
+          const id = rowId(row);
+          const name = optionName(row);
+          const selected = selectedRows.has(id);
+          const subtitle = optionSubtitle(row);
+          return (
+            <TableRow key={id || index} data-state={selected ? "selected" : undefined}>
+              <TableCell>
+                <Checkbox aria-label={t("common.selectRow", { name })} checked={selected} onCheckedChange={(checked) => toggleSelected(id, checked === true)} />
+              </TableCell>
+              <TableCell className="text-center text-muted-foreground tabular-nums">{pageStart + index}</TableCell>
+              <TableCell>
+                <div className="flex items-center gap-3">
+                  <span className="flex shrink-0">{leading(row)}</span>
+                  <div className="flex min-w-0 flex-col gap-0.5">
+                    <span className="truncate font-medium">{name}</span>
+                    {subtitle ? <span className="truncate text-muted-foreground">{subtitle}</span> : null}
+                  </div>
+                </div>
+              </TableCell>
+              {visibleColumns.map((column) => (
+                <TableCell key={column.key} className={column.className}>
+                  {columnValue(row, column)}
+                </TableCell>
+              ))}
+              <TableCell className="text-right">
+                <SettingsRowActions row={row} onEdit={openEdit} onDelete={setDeleteTarget} />
+              </TableCell>
+            </TableRow>
+          );
+        })}
+      </TableBody>
+    </Table>
+  );
+
+  // Narrow pages: one Item per record — leading icon/swatch, name and subtitle, then any extra
+  // columns as "label: value" in the footer. Two columns once there is room for them.
+  const mobileList = (
+    <ItemGroup className="@xl:grid @xl:grid-cols-2">
       {rows.map((row, index) => {
         const id = rowId(row);
         const name = optionName(row);
-        const selected = selectedRows.has(id);
         const subtitle = optionSubtitle(row);
         return (
-          <SettingsMobileCard
-            key={id || index}
-            actions={<SettingsRowActions row={row} onEdit={openEdit} onDelete={setDeleteTarget} />}
-            badges={renderBadges?.(row)}
-            checked={selected}
-            leading={leading(row)}
-            selectLabel={t("common.selectRow", { name })}
-            selected={selected}
-            subtitle={subtitle ? <span className="block truncate">{subtitle}</span> : undefined}
-            title={name}
-            onCheckedChange={(checked) => toggleSelected(id, checked)}
-          >
-            <SettingsMobileMetaGrid>
-              {columns.map((column) => (
-                <SettingsMobileMeta key={column.key} label={column.label} value={column.render ? column.render(row) : optionValue(row, column.key, "-")} />
-              ))}
-            </SettingsMobileMetaGrid>
-          </SettingsMobileCard>
+          <Item key={id || index} variant="outline">
+            <Checkbox
+              aria-label={t("common.selectRow", { name })}
+              checked={selectedRows.has(id)}
+              onCheckedChange={(checked) => toggleSelected(id, checked === true)}
+            />
+            <ItemMedia>{leading(row)}</ItemMedia>
+            <ItemContent>
+              <ItemTitle>
+                {name}
+                {renderBadges?.(row)}
+              </ItemTitle>
+              {subtitle ? <ItemDescription>{subtitle}</ItemDescription> : null}
+            </ItemContent>
+            <ItemActions>
+              <SettingsRowActions row={row} onEdit={openEdit} onDelete={setDeleteTarget} />
+            </ItemActions>
+            {visibleColumns.length ? (
+              <ItemFooter className="flex-wrap justify-start gap-x-4 gap-y-1">
+                {visibleColumns.map((column) => (
+                  <span key={column.key} className="flex items-center gap-1.5">
+                    <span className="text-muted-foreground">{column.label}:</span>
+                    {columnValue(row, column)}
+                  </span>
+                ))}
+              </ItemFooter>
+            ) : null}
+          </Item>
         );
       })}
-    </SettingsMobileList>
-  ) : null;
-
-  const toolbar = (
-    <SettingsToolbar
-      state={{
-        search,
-        limit,
-        orderBy,
-        selectedCount: selectedRows.size,
-        onApply: applyFilters,
-        onLimit: changeLimit,
-        onOrder: (nextOrder) => {
-          setOrderBy(nextOrder);
-          setPage(1);
-        },
-        onSearch: setSearch
-      }}
-    />
-  );
-
-  const listSurface = (
-    <div className="flex min-h-0 flex-1 flex-col">
-      <div className="shrink-0 border-b border-border bg-card/95 px-3 py-2.5 backdrop-blur sm:px-4 lg:px-5">
-        <div className="flex min-w-0 flex-col gap-2 xl:flex-row xl:items-center xl:justify-between">
-          <div className="min-w-0">
-            <p className="text-sm font-black">{listTitle}</p>
-          </div>
-          <div className="min-w-0 xl:max-w-[48rem]">{toolbar}</div>
-        </div>
-        {backgroundLoading ? (
-          <div className="mt-2 flex items-center gap-2 text-xs text-muted-foreground">
-            <Spinner aria-hidden />
-            {refreshLabel ?? t("settings.loading", { title })}
-          </div>
-        ) : null}
-      </div>
-      {rows.length ? (
-        <>
-          <div className="hidden min-h-0 flex-1 md:flex">{table}</div>
-          <div className="min-h-0 flex-1 overflow-y-auto md:hidden">{mobileList}</div>
-        </>
-      ) : (
-        <SettingsEmptyRecords icon={<Icon aria-hidden />} title={title.toLowerCase()} />
-      )}
-    </div>
+    </ItemGroup>
   );
 
   return (
-    <>
-      <SettingsModuleShell
-        addLabel={`${t("actions.add")} ${itemLabel}`}
-        cardTitle={listTitle}
-        description={description}
-        emptyDescription={t("empty.adjustSearch")}
-        emptyTitle={t("settings.noRecords", { title: title.toLowerCase() })}
-        footer={
-          rows.length ? (
-            <SettingsPaginationFooter
-              page={page}
-              pageEnd={pageEnd}
-              pageStart={pageStart}
-              total={total}
-              totalPages={totalPages}
-              onPageChange={setPage}
-            />
-          ) : undefined
-        }
-        hideCardHeader
-        loading={fullLoading}
-        loadingLabel={t("settings.loading", { title })}
-        table={listSurface}
-        title={title}
-        onAdd={openCreate}
-      />
+    <SettingsListPageLayout
+      id={`option-${slug}`}
+      title={title}
+      description={description}
+      icon={Icon}
+      addLabel={`${t("actions.add")} ${itemLabel}`}
+      onAdd={openCreate}
+      loading={fullLoading}
+      loadingLabel={t("settings.loading", { title })}
+      search={search}
+      searching={backgroundLoading}
+      searchingLabel={refreshLabel ?? t("settings.loading", { title })}
+      onSearchChange={setSearch}
+      onSearchApply={applyFilters}
+      orderBy={orderBy}
+      onOrderChange={(nextOrder) => {
+        setOrderBy(nextOrder);
+        setPage(1);
+      }}
+      allSelected={allSelected}
+      selectAllLabel={t("common.selectAll")}
+      selectedCount={selectedRows.size}
+      onToggleAll={toggleAll}
+      hasRows={rows.length > 0}
+      table={table}
+      mobileList={mobileList}
+      empty={<SettingsEmptyRecords icon={<Icon aria-hidden />} title={title.toLowerCase()} />}
+      page={page}
+      pageStart={pageStart}
+      pageEnd={pageEnd}
+      total={total}
+      totalPages={totalPages}
+      limit={limit}
+      onLimitChange={changeLimit}
+      onPageChange={setPage}
+    >
       <OptionFormDialog
         description={formDescription ?? description}
         dialogContentClassName={dialogContentClassName}
@@ -393,7 +383,7 @@ export function OptionSettingsPage<
           if (!nextOpen) setDeleteTarget(null);
         }}
       />
-    </>
+    </SettingsListPageLayout>
   );
 }
 

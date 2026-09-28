@@ -50,19 +50,12 @@ export function SummaryFooterLabelCell({
 }) {
   return (
     <TableCell className={summaryFooterCellClass("left")} colSpan={colSpan}>
-      <div className="flex min-w-64 items-center gap-2">
-        <Badge
-          variant="outline"
-          className="h-6 border-primary/30 bg-muted px-2 text-xs font-semibold text-primary"
-        >
-          {label}
-        </Badge>
-        {billCount !== null ? (
-          <span className="truncate text-xs font-semibold text-muted-foreground">
-            {billCountLabel}: {billCount.toLocaleString("en-US")}
-          </span>
-        ) : null}
-      </div>
+      {label}
+      {billCount !== null ? (
+        <span className="ml-2 font-normal text-muted-foreground">
+          {billCountLabel}: {billCount.toLocaleString("en-US")}
+        </span>
+      ) : null}
     </TableCell>
   );
 }
@@ -82,10 +75,9 @@ export function SummaryFooterMoneyCell({
     <TableCell
       className={cn(
         summaryFooterCellClass("right"),
-        (strong || tone === "total" || (tone === "discount" && value > 0)) &&
-          "font-semibold",
-        tone === "total" && "text-foreground",
+        strong && "font-semibold",
         tone === "discount" && value > 0 && "text-destructive",
+        tone !== "discount" && tone !== "total" && "text-foreground",
         value === 0 && "text-muted-foreground",
       )}
     >
@@ -101,7 +93,6 @@ export function SummaryFooterNumberCell({ value }: { value: number | null }) {
     <TableCell
       className={cn(
         summaryFooterCellClass("right"),
-        "font-semibold",
         value === 0 && "text-muted-foreground",
       )}
     >
@@ -273,7 +264,9 @@ export function ProductImage({ row }: { row: ApiEntity }) {
 
 export function summaryFooterCellClass(align: "left" | "right" = "left") {
   return cn(
-    "sticky bottom-0 z-20 h-10 whitespace-nowrap border-t-2 border-primary bg-muted px-2 py-2 font-bold text-foreground",
+    // แถวรวมค้างขอบล่างของตาราง — ต้องทึบเพราะแถวอื่นเลื่อนลอดใต้มัน จึงวางสีธีมจางเป็นชั้น gradient
+    // ทับบน bg-background (bg-primary/10 เฉยๆ จะโปร่งจนเห็นแถวด้านล่าง)
+    "sticky bottom-0 z-20 border-t border-primary/30 bg-background bg-linear-to-r from-primary/10 to-primary/10 font-medium text-primary-text",
     align === "right" && "text-right tabular-nums",
   );
 }
@@ -290,10 +283,9 @@ export function MoneyCell({
   return (
     <TableCell
       className={cn(
-        "whitespace-nowrap px-2 text-right tabular-nums",
-        (strong || tone === "total" || (tone === "discount" && value > 0)) &&
-          "font-semibold",
-        tone === "total" && "text-foreground",
+        "text-right tabular-nums",
+        (strong || tone === "total") && "font-medium",
+        tone === "total" && value !== 0 && "text-primary-text",
         tone === "discount" && value > 0 && "text-destructive",
         value === 0 && "text-muted-foreground",
       )}
@@ -319,10 +311,7 @@ export function OptionalMoneyCell({
 export function BlankCell({ align = "left" }: { align?: "left" | "right" }) {
   return (
     <TableCell
-      className={cn(
-        "whitespace-nowrap px-2 text-muted-foreground",
-        align === "right" && "text-right",
-      )}
+      className={cn(align === "right" && "text-right")}
     />
   );
 }

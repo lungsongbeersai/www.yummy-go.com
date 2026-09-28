@@ -49,7 +49,6 @@ export function SizeSettingsPage({ initialPagination }: { initialPagination: Url
       idKey="size_uuid"
       initialPagination={initialPagination}
       itemLabel={t("nav.size")}
-      listTitle={t("settings.sizeList")}
       nameEngKey="size_name_eng"
       nameKey="size_name"
       nameLaKey="size_name_la"
@@ -57,7 +56,6 @@ export function SizeSettingsPage({ initialPagination }: { initialPagination: Url
       scope={(storeUuid) => ({ store_uuid_fk: storeUuid })}
       slug="size"
       store={useSizeStore}
-      tableClassName="min-w-[860px]"
       title={t("settings.modules.size.title")}
       validateInput={(args) => {
         const missing = missingSizeField({ nameLa: sizeSaveArgs(args).nameLa });

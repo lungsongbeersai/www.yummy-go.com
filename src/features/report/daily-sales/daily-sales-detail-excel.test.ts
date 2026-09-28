@@ -140,7 +140,7 @@ describe("daily sales detail Excel workbook", () => {
     expect(sheet.A4.v).toBe("report.excel.reportInformation");
     // ข้อมูลวันที่รายงานรวมเป็นแถวเดียว แทนแถว dateFrom/dateTo แยกกัน
     expect(sheet.A8.v).toBe("report.reportDate");
-    expect(sheet.B8.v).toBe("2026-07-01 - 2026-07-13");
+    expect(sheet.B8.v).toBe("01/07/2026 - 13/07/2026");
     expect(sheet.A11.v).toBe("Summary");
     // sheet เดียวมีหลายตาราง — autofilter ต้องปิดเพื่อไม่ให้ซ่อนแถวตารางอื่น
     expect(sheet["!autofilter"]).toBeUndefined();
@@ -155,7 +155,7 @@ describe("daily sales detail Excel workbook", () => {
     expect(sheet.A22.v).toBe(1);
     expect(sheet.B22.v).toBe("INV-001");
     expect(typeof sheet.C22.v).toBe("number");
-    expect(sheet.C22.z).toBe("yyyy-mm-dd hh:mm");
+    expect(sheet.C22.z).toBe("dd/mm/yyyy hh:mm");
     expect(sheet.D22.v).toBe("A1");
     expect(sheet.E22.v).toBe("cash");
     expect(sheet.M22.v).toBe("paid");
@@ -224,8 +224,8 @@ describe("daily sales detail Excel workbook", () => {
 
     expect(result.SheetNames).toEqual(["Report"]);
     expect(sheet.A33.v).toBe("Daily Totals");
-    expect(sheet.A35.z).toBe("yyyy-mm-dd");
-    expect(XLSX.utils.format_cell(sheet.A35)).toBe("2026-07-13");
+    expect(sheet.A35.z).toBe("dd/mm/yyyy");
+    expect(XLSX.utils.format_cell(sheet.A35)).toBe("13/07/2026");
     expect(sheet.B35.v).toBe(1);
     expect(sheet.I35.v).toBe(87);
   });

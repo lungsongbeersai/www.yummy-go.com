@@ -1,8 +1,10 @@
 import { describe, expect, it } from "vitest";
 import {
   applyPeriodMonth,
+  applyPeriodMonthEnd,
   applyPeriodType,
   applyPeriodYear,
+  applyPeriodYearEnd,
   createDashboardModel,
   createDefaultFilters,
   yearSelectOptions
@@ -116,8 +118,10 @@ describe("dashboard view model", () => {
     expect(createDefaultFilters(new Date(2026, 5, 11, 12))).toEqual({
       end_date: "2026-06-11",
       periodMonth: 6,
+      periodMonthEnd: 6,
       periodType: "daily",
       periodYear: 2026,
+      periodYearEnd: 2026,
       start_date: "2026-06-11"
     });
   });
@@ -139,8 +143,10 @@ describe("dashboard view model", () => {
     expect(createDefaultFilters(new Date("2026-08-25T22:59:59.000Z"))).toEqual({
       end_date: "2026-08-25",
       periodMonth: 8,
+      periodMonthEnd: 8,
       periodType: "daily",
       periodYear: 2026,
+      periodYearEnd: 2026,
       start_date: "2026-08-25"
     });
   });
@@ -384,7 +390,7 @@ describe("dashboard period type filters", () => {
 
   it("accounts for leap years when recomputing a February month range", () => {
     const filters = applyPeriodMonth(
-      { ...dailyFilters, periodMonth: 2, periodType: "monthly", periodYear: 2024 },
+      { ...dailyFilters, periodMonth: 2, periodMonthEnd: 2, periodType: "monthly", periodYear: 2024 },
       2
     );
 
@@ -392,7 +398,7 @@ describe("dashboard period type filters", () => {
   });
 
   it("fills January 1 - December 31 when switching to the yearly period", () => {
-    const filters = applyPeriodType({ ...dailyFilters, periodYear: 2024 }, "yearly");
+    const filters = applyPeriodType({ ...dailyFilters, periodYear: 2024, periodYearEnd: 2024 }, "yearly");
 
     expect(filters).toMatchObject({
       end_date: "2024-12-31",
@@ -402,7 +408,7 @@ describe("dashboard period type filters", () => {
   });
 
   it("recomputes the yearly range when the selected year changes", () => {
-    const yearly = applyPeriodType({ ...dailyFilters, periodYear: 2024 }, "yearly");
+    const yearly = applyPeriodType({ ...dailyFilters, periodYear: 2024, periodYearEnd: 2024 }, "yearly");
     const filters = applyPeriodYear(yearly, 2025);
 
     expect(filters).toMatchObject({
@@ -420,6 +426,69 @@ describe("dashboard period type filters", () => {
     expect(applyPeriodMonth(dailyFilters, 9)).toMatchObject({
       end_date: dailyFilters.end_date,
       start_date: dailyFilters.start_date
+    });
+  });
+
+  it("spans from the first day of the start month to the last day of the end month", () => {
+    const monthly = applyPeriodType({ ...dailyFilters, periodYear: 2024 }, "monthly");
+    const filters = applyPeriodMonthEnd(applyPeriodMonth(monthly, 1), 2);
+
+    expect(filters).toMatchObject({
+      end_date: "2024-02-29",
+      periodMonth: 1,
+      periodMonthEnd: 2,
+      start_date: "2024-01-01"
+    });
+  });
+
+  it("keeps the month range in the selected year when the year changes", () => {
+    const monthly = applyPeriodMonthEnd(applyPeriodMonth(applyPeriodType(dailyFilters, "monthly"), 3), 5);
+
+    expect(applyPeriodYear(monthly, 2025)).toMatchObject({ end_date: "2025-05-31", start_date: "2025-03-01" });
+  });
+
+  it("never lets the month range invert", () => {
+    const monthly = applyPeriodMonthEnd(applyPeriodMonth(applyPeriodType(dailyFilters, "monthly"), 3), 5);
+
+    // Start moved past the end: the end follows it.
+    expect(applyPeriodMonth(monthly, 8)).toMatchObject({
+      end_date: "2026-08-31",
+      periodMonth: 8,
+      periodMonthEnd: 8,
+      start_date: "2026-08-01"
+    });
+    // End moved before the start: the start follows it.
+    expect(applyPeriodMonthEnd(monthly, 1)).toMatchObject({
+      end_date: "2026-01-31",
+      periodMonth: 1,
+      periodMonthEnd: 1,
+      start_date: "2026-01-01"
+    });
+  });
+
+  it("spans January 1 of the start year to December 31 of the end year", () => {
+    const yearly = applyPeriodType({ ...dailyFilters, periodYear: 2023, periodYearEnd: 2023 }, "yearly");
+
+    expect(applyPeriodYearEnd(yearly, 2025)).toMatchObject({
+      end_date: "2025-12-31",
+      periodYear: 2023,
+      periodYearEnd: 2025,
+      start_date: "2023-01-01"
+    });
+  });
+
+  it("never lets the year range invert", () => {
+    const yearly = applyPeriodYearEnd(applyPeriodType({ ...dailyFilters, periodYear: 2023 }, "yearly"), 2025);
+
+    expect(applyPeriodYear(yearly, 2026)).toMatchObject({
+      end_date: "2026-12-31",
+      periodYearEnd: 2026,
+      start_date: "2026-01-01"
+    });
+    expect(applyPeriodYearEnd(yearly, 2022)).toMatchObject({
+      end_date: "2022-12-31",
+      periodYear: 2022,
+      start_date: "2022-01-01"
     });
   });
 

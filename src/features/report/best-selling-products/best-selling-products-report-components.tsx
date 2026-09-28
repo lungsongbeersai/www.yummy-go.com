@@ -2,18 +2,26 @@
 
 import {
   Fragment,
-  memo,
   useCallback,
   useMemo,
   type ReactNode,
   type RefObject,
 } from "react";
 import {
+  BadgePercent,
   CalendarArrowDown,
   CalendarArrowUp,
   ChevronDown,
   CircleDollarSign,
+  HandPlatter,
+  Landmark,
   ListOrdered,
+  Medal,
+  Package,
+  Tag,
+  TrendingUp,
+  Trophy,
+  Wallet,
   type LucideIcon,
 } from "lucide-react";
 import { useTranslation } from "react-i18next";
@@ -34,10 +42,19 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import {
+  Item,
+  ItemActions,
+  ItemContent,
+  ItemDescription,
+  ItemFooter,
+  ItemGroup,
+  ItemTitle,
+} from "@/components/ui/item";
+import { Progress } from "@/components/ui/progress";
+import {
   Table,
   TableBody,
   TableCell,
-  TableFooter,
   TableHead,
   TableHeader,
   TableRow,
@@ -58,7 +75,8 @@ import {
   ReportPageLimitField,
   ReportSelectField,
 } from "../shared/report-filter-fields";
-import { ReportSummaryCardsGrid, type ReportSummaryCard } from "../shared/report-metric-display";
+import type { ReportColumnOption } from "../shared/report-column-visibility";
+import { ReportStatCards, type ReportStat, type ReportStatTone } from "../shared/report-stat-cards";
 import {
   ReportIndeterminateCheckbox,
   selectionStateForVisibleIds,
@@ -76,7 +94,6 @@ import {
   bestSellingGroupMetricConfigs,
   bestSellingProductRowId,
   bestSellingProductMetricConfigs,
-  bestSellingProductMetrics,
   bestSellingSortOptions,
   bestSellingSummaryConfigs,
   displayMetric,
@@ -107,52 +124,41 @@ type FilterProps = {
   onDraftChange: (filters: BestSellingProductsFilters) => void;
 };
 
+const SUMMARY_PRESENTATION: Record<string, { icon: LucideIcon; tone: ReportStatTone }> = {
+  qty: { icon: Package, tone: "info" },
+  subtotal: { icon: Wallet, tone: "success" },
+  item_discount: { icon: BadgePercent, tone: "danger" },
+  bill_discount_share: { icon: Tag, tone: "danger" },
+  charge: { icon: HandPlatter, tone: "primary" },
+  vat: { icon: Landmark, tone: "warning" },
+  final_total: { icon: TrendingUp, tone: "highlight" },
+};
+
 export function BestSellingSummaryCards({
   cards,
+  id,
   summary,
 }: {
   cards: BestSellingSummaryCardConfig[];
+  id?: string;
   summary: Record<string, unknown>;
 }) {
-  const summaryCards: ReportSummaryCard[] = cards.map((card) => ({
-    key: card.label,
-    kind: card.kind,
-    label: card.label,
-    value: summaryValue(summary, card.keys),
-  }));
-  const cardByLabel = useMemo(() => new Map(cards.map((card) => [card.label, card])), [cards]);
+  const stats: ReportStat[] = cards.map((card) => {
+    const value = summaryValue(summary, card.keys);
+    const presentation = SUMMARY_PRESENTATION[card.keys[0] ?? ""] ?? { icon: Package, tone: "primary" };
 
-  return (
-    <ReportSummaryCardsGrid
-      cards={summaryCards}
-      gridClassName="sm:grid-cols-2 xl:grid-cols-4 2xl:grid-cols-7"
-      cardClassName={(card) => {
-        const tone = summaryCardTone(cardByLabel.get(card.key));
-        return cn(
-          "border bg-card",
-          tone === "primary" && "border-primary/40 border-l-4 border-l-primary",
-          tone === "danger" && "border-destructive/40 border-l-4 border-l-destructive",
-          tone === "neutral" && "border-border",
-        );
-      }}
-      labelClassName={(card) => {
-        const tone = summaryCardTone(cardByLabel.get(card.key));
-        return cn(
-          tone === "primary" && "text-primary",
-          tone === "danger" && "text-destructive",
-          tone === "neutral" && "text-muted-foreground",
-        );
-      }}
-      valueClassName={() => "font-black text-foreground"}
-    />
-  );
-}
+    return {
+      ...presentation,
+      key: card.label,
+      label: card.label,
+      negative: presentation.tone === "danger" && firstNumber(value) > 0,
+      span: presentation.tone === "highlight",
+      value: displayMetric(value, card.kind),
+    };
+  });
+  const highlight = stats.filter((stat) => stat.tone === "highlight");
 
-function summaryCardTone(card: BestSellingSummaryCardConfig | undefined) {
-  if (!card) return "neutral";
-  if (card.keys.some((key) => key.includes("discount"))) return "danger";
-  if (card.kind === "money") return "primary";
-  return "neutral";
+  return <ReportStatCards id={id} stats={[...highlight, ...stats.filter((stat) => stat.tone !== "highlight")]} />;
 }
 
 export function BestSellingFilterSheet({
@@ -217,8 +223,10 @@ export function BestSellingFilterBar({
       actions={actions}
       canApply={canApply}
       actionsClassName="lg:col-span-4 xl:col-span-1"
-      className="hidden shrink-0 rounded-none border-x-0 border-t-0 shadow-none lg:block"
-      contentClassName="grid min-w-0 items-end gap-3 px-3 py-3 sm:grid-cols-2 lg:grid-cols-12 xl:grid-cols-[repeat(5,minmax(0,1fr))_auto]"
+      // shrink-0: Card มี overflow-hidden ซึ่งทำให้ min-height ของ flex item เป็น 0 — ไม่ใส่ไว้ พอตาราง/skeleton
+      // กินความสูงเต็ม การ์ดตัวกรองจะถูกบีบจนช่องกรอกโดนตัดครึ่ง (เห็นตอนโหลด/รีเฟรช)
+      className="hidden shrink-0 shadow-none lg:block"
+      contentClassName="grid items-end gap-3 py-4 lg:grid-cols-12 xl:grid-cols-[repeat(5,minmax(0,1fr))_auto]"
       loading={loading}
       onApply={onApply}
     >
@@ -266,7 +274,7 @@ export function BestSellingFilterFields({
       <ReportBranchField
         branchLoading={branchLoading}
         branchLocked={branchLocked}
-        fieldClassName="min-w-0 gap-1.5 sm:col-span-2 lg:col-span-4 xl:col-span-1"
+        fieldClassName="lg:col-span-4 xl:col-span-1"
         id={`${idPrefix}-branch`}
         options={branchOptions}
         value={draftFilters.branchUuid}
@@ -275,7 +283,7 @@ export function BestSellingFilterFields({
       <ReportDateRangeFields
         dateFrom={draftFilters.dateFrom}
         dateTo={draftFilters.dateTo}
-        fieldClassName="min-w-0 gap-1.5 lg:col-span-4 xl:col-span-1"
+        fieldClassName="lg:col-span-4 xl:col-span-1"
         idPrefix={idPrefix}
         withNativeName
         onDateFromChange={(value) => patch({ dateFrom: value })}
@@ -283,7 +291,7 @@ export function BestSellingFilterFields({
       />
       <ReportSelectField
         disabled={groupLoading || !groupOptions.length}
-        fieldClassName="min-w-0 gap-1.5 lg:col-span-4 xl:col-span-1"
+        fieldClassName="lg:col-span-4 xl:col-span-1"
         id={`${idPrefix}-group`}
         label={t("report.bestSelling.filters.group")}
         options={groupOptions}
@@ -291,7 +299,7 @@ export function BestSellingFilterFields({
         onValueChange={(value) => patch({ groupUuid: value })}
       />
       <ReportPageLimitField
-        fieldClassName="min-w-0 gap-1.5 lg:col-span-4 xl:col-span-1"
+        fieldClassName="lg:col-span-4 xl:col-span-1"
         id={`${idPrefix}-limit`}
         value={draftFilters.limit}
         onValueChange={(value) => patch({ limit: value })}
@@ -317,25 +325,14 @@ export function BestSellingSortDropdown({
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button
-          type="button"
-          variant="outline"
-          size="sm"
-          aria-label={t("report.bestSelling.filters.sortBy")}
-          className="h-9 min-w-0 max-w-full rounded-md px-2.5"
-          disabled={disabled}
-        >
+        <Button type="button" variant="outline" aria-label={t("report.bestSelling.filters.sortBy")} disabled={disabled}>
           <ListOrdered data-icon="inline-start" />
-          <span className="min-w-0 max-w-32 truncate sm:max-w-40">
-            {sortByLabel}
-          </span>
+          <span className="hidden sm:inline">{sortByLabel}</span>
           <ChevronDown data-icon="inline-end" />
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-60">
-        <DropdownMenuLabel className="px-2 py-1.5 text-xs font-black uppercase text-muted-foreground">
-          {t("report.bestSelling.filters.sortBy")}
-        </DropdownMenuLabel>
+        <DropdownMenuLabel>{t("report.bestSelling.filters.sortBy")}</DropdownMenuLabel>
         <DropdownMenuRadioGroup
           value={sortBy}
           onValueChange={(value) => {
@@ -345,13 +342,9 @@ export function BestSellingSortDropdown({
           {sortOptions.map((option) => {
             const Icon = bestSellingSortIcons[option.value];
             return (
-              <DropdownMenuRadioItem
-                key={option.value}
-                value={option.value}
-                className="min-w-0"
-              >
+              <DropdownMenuRadioItem key={option.value} value={option.value}>
                 <Icon aria-hidden="true" />
-                <span className="min-w-0 truncate">{option.label}</span>
+                {option.label}
               </DropdownMenuRadioItem>
             );
           })}
@@ -361,33 +354,78 @@ export function BestSellingSortDropdown({
   );
 }
 
+type ProductMetric = ReturnType<typeof bestSellingProductMetricConfigs>[number];
+
+/** ตัวเลือกของเมนู "คอลัมน์" — อันดับและชื่อสินค้าเป็นแกนของรายงาน ซ่อนไม่ได้ */
+export function bestSellingColumnOptions(t: (key: string) => string): ReportColumnOption[] {
+  return [
+    { id: "productCode", label: t("report.bestSelling.columns.productCode") },
+    { id: "category", label: t("report.bestSelling.columns.category") },
+    ...bestSellingProductMetricConfigs(t).map((metric) => ({ id: metric.key, label: metric.label })),
+  ];
+}
+
+// แถบสัดส่วนใต้ชื่อสินค้า = เทียบกับตัวที่ขายดีสุดในกลุ่มเดียวกัน ตามเกณฑ์ที่เลือกเรียง (จำนวน/ยอดขาย)
+// เรียงตามวันที่ไม่มี "ขายดีกว่า" ให้เทียบ จึงไม่แสดงแถบและไม่ไฮไลต์ 3 อันดับแรก
+function rankingField(sortBy: BestSellingProductsSortBy) {
+  if (sortBy === "qty") return "qty" as const;
+  if (sortBy === "total") return "finalTotal" as const;
+  return null;
+}
+
+function RankBadge({ highlight, rank }: { highlight: boolean; rank: number }) {
+  if (highlight && rank <= 3) {
+    return (
+      <Badge className={RANK_BADGE_CLASS[rank - 1]}>
+        {rank === 1 ? <Trophy data-icon="inline-start" /> : <Medal data-icon="inline-start" />}
+        {rank}
+      </Badge>
+    );
+  }
+  return <span className="tabular-nums text-muted-foreground">{rank}</span>;
+}
+
+// 3 อันดับแรก: ทอง (warning) / ฟ้า (info) / สีธีม — token ของธีมทั้งหมด
+const RANK_BADGE_CLASS = [
+  "bg-warning/15 text-warning-text",
+  "bg-info/10 text-info-text",
+  "bg-primary/10 text-primary-text",
+];
+
 export function BestSellingProductsTable({
   groups,
+  isColumnVisible,
   selectedRowIds,
+  sortBy,
   summary,
   onToggleRow,
   onToggleRows,
 }: {
   groups: BestSellingProductGroup[];
+  isColumnVisible: (id: string) => boolean;
   selectedRowIds: Set<string>;
+  sortBy: BestSellingProductsSortBy;
   summary: Record<string, unknown>;
   onToggleRow: (row: BestSellingProductItem, selected: boolean) => void;
   onToggleRows: (rows: BestSellingProductItem[], selected: boolean) => void;
 }) {
   const { t } = useTranslation();
   const productMetrics = useMemo(
-    () => bestSellingProductMetricConfigs(t),
-    [t],
+    () => bestSellingProductMetricConfigs(t).filter((metric) => isColumnVisible(metric.key)),
+    [isColumnVisible, t],
   );
-  const groupMetrics = useMemo(
-    () => bestSellingGroupMetricConfigs(t),
-    [t],
-  );
+  const groupMetrics = useMemo(() => bestSellingGroupMetricConfigs(t), [t]);
   const summaryCards = useMemo(() => bestSellingSummaryConfigs(t), [t]);
   const groupMetricByKey = useMemo(
     () => new Map(groupMetrics.map((metric) => [metric.key, metric])),
     [groupMetrics],
   );
+  const showCode = isColumnVisible("productCode");
+  const showCategory = isColumnVisible("category");
+  // ช่องข้อความด้านหน้าคอลัมน์ตัวเลข: อันดับ + สินค้า + (รหัส) + (หมวด)
+  const leadingSpan = 2 + (showCode ? 1 : 0) + (showCategory ? 1 : 0);
+  const shareField = rankingField(sortBy);
+
   const getGroupSortValue = useCallback(
     (group: BestSellingProductGroup, key: BestSellingSortKey) => {
       if (key === "groupName") return group.name;
@@ -397,10 +435,7 @@ export function BestSellingProductsTable({
     },
     [groupMetrics],
   );
-  const { sort, sortedRows: sortedGroups, toggleSort } = useLocalTableSort(
-    groups,
-    getGroupSortValue,
-  );
+  const { sort, sortedRows: sortedGroups, toggleSort } = useLocalTableSort(groups, getGroupSortValue);
   const sortedGroupRows = useMemo(
     () =>
       sortedGroups.map((group) => ({
@@ -409,496 +444,287 @@ export function BestSellingProductsTable({
       })),
     [sort, sortedGroups],
   );
-  const visibleRows = useMemo(
-    () => sortedGroupRows.flatMap(({ rows }) => rows),
-    [sortedGroupRows],
-  );
-  const visibleIds = useMemo(
-    () => visibleRows.map(bestSellingProductRowId),
-    [visibleRows],
-  );
-  const { allVisibleSelected, someVisibleSelected } =
-    selectionStateForVisibleIds(visibleIds, selectedRowIds);
+  const visibleRows = useMemo(() => sortedGroupRows.flatMap(({ rows }) => rows), [sortedGroupRows]);
+  const visibleIds = useMemo(() => visibleRows.map(bestSellingProductRowId), [visibleRows]);
+  const { allVisibleSelected, someVisibleSelected } = selectionStateForVisibleIds(visibleIds, selectedRowIds);
+  const productCount = firstNumber(summaryValue(summary, ["product_count", "products_count"]));
 
   return (
-    <div className="hidden min-w-0 md:block">
-      <Table className="w-max min-w-full table-auto text-sm">
-        <TableHeader className="[&_th]:sticky [&_th]:top-0 [&_th]:z-30 [&_th]:whitespace-nowrap [&_th]:border-b [&_th]:border-border [&_th]:bg-background [&_th]:px-3 [&_th]:shadow-sm">
-          <TableRow>
-            <TableHead className="w-10 text-center">
-              <ReportIndeterminateCheckbox
-                aria-label={t("common.selectAll")}
-                checked={allVisibleSelected}
-                indeterminate={!allVisibleSelected && someVisibleSelected}
-                onCheckedChange={(checked) =>
-                                  onToggleRows(visibleRows, checked as boolean)
-                }
-              />
-            </TableHead>
-            <SortableReportTableHead
-              align="right"
-              sort={sort}
-              sortKey="rank"
-              className="w-16 text-center"
-              onSort={toggleSort}
-            >
-              {t("report.bestSelling.columns.rank")}
-            </SortableReportTableHead>
-            <SortableReportTableHead
-              sort={sort}
-              sortKey="productName"
-              className="min-w-60"
-              onSort={toggleSort}
-            >
-              {t("report.bestSelling.columns.product")}
-            </SortableReportTableHead>
-            <SortableReportTableHead
-              sort={sort}
-              sortKey="productCode"
-              className="min-w-32"
-              onSort={toggleSort}
-            >
+    // container ของ Table เป็นตัวสกรอลเอง — หัวตาราง sticky ด้านบน, แถวรวม sticky ด้านล่าง
+    <Table containerClassName="min-h-0 flex-1 overflow-auto">
+      <TableHeader className="sticky top-0 z-30 bg-muted">
+        <TableRow>
+          <TableHead>
+            <ReportIndeterminateCheckbox
+              aria-label={t("common.selectAll")}
+              checked={allVisibleSelected}
+              indeterminate={!allVisibleSelected && someVisibleSelected}
+              onCheckedChange={(checked) => onToggleRows(visibleRows, checked as boolean)}
+            />
+          </TableHead>
+          <SortableReportTableHead sort={sort} sortKey="rank" onSort={toggleSort}>
+            {t("report.bestSelling.columns.rank")}
+          </SortableReportTableHead>
+          <SortableReportTableHead sort={sort} sortKey="productName" className="min-w-60" onSort={toggleSort}>
+            {t("report.bestSelling.columns.product")}
+          </SortableReportTableHead>
+          {showCode ? (
+            <SortableReportTableHead sort={sort} sortKey="productCode" onSort={toggleSort}>
               {t("report.bestSelling.columns.productCode")}
             </SortableReportTableHead>
-            <SortableReportTableHead
-              sort={sort}
-              sortKey="categoryName"
-              className="min-w-32"
-              onSort={toggleSort}
-            >
+          ) : null}
+          {showCategory ? (
+            <SortableReportTableHead sort={sort} sortKey="categoryName" onSort={toggleSort}>
               {t("report.bestSelling.columns.category")}
             </SortableReportTableHead>
-            {/* <SortableReportTableHead
+          ) : null}
+          {productMetrics.map((metric) => (
+            <SortableReportTableHead
+              key={metric.key}
+              align="right"
               sort={sort}
-              sortKey="groupName"
-              className="min-w-36"
+              sortKey={metric.field}
+              className="text-right"
               onSort={toggleSort}
             >
-              {t("report.bestSelling.columns.group")}
-            </SortableReportTableHead> */}
-            {productMetrics.map((metric) => (
-              <SortableReportTableHead
-                key={metric.key}
-                align="right"
-                sort={sort}
-                sortKey={metric.field}
-                className="min-w-30 text-right"
-                onSort={toggleSort}
-              >
-                {metric.label}
-              </SortableReportTableHead>
-            ))}
-          </TableRow>
-        </TableHeader>
-        <TableBody className="[&_td]:px-3">
-          {sortedGroupRows.map(({ group, rows: groupRows }) => {
-            const groupIds = groupRows.map(bestSellingProductRowId);
-            const groupSelection = selectionStateForVisibleIds(
-              groupIds,
-              selectedRowIds,
-            );
+              {metric.label}
+            </SortableReportTableHead>
+          ))}
+        </TableRow>
+      </TableHeader>
 
-            return (
-              <Fragment key={group.id}>
-                <TableRow className="border-t-2 border-border bg-muted/50 hover:bg-muted/50">
-                  <TableCell className="w-10 text-center">
-                    <ReportIndeterminateCheckbox
-                      aria-label={t("common.selectRow", { name: group.name })}
-                      checked={groupSelection.allVisibleSelected}
-                      indeterminate={
-                        !groupSelection.allVisibleSelected &&
-                        groupSelection.someVisibleSelected
-                      }
-                      onCheckedChange={(checked) =>
-                                              onToggleRows(groupRows, checked as boolean)
-                      }
-                    />
-                  </TableCell>
-                  <TableCell
-                    colSpan={4 + productMetrics.length}
-                    className="py-3"
-                  >
-                    <div className="min-w-0">
-                      <p className="truncate text-sm font-black text-foreground">
-                        {group.name}
-                      </p>
-                      <p className="text-xs text-muted-foreground">
-                        {t("report.bestSelling.groupSummary", {
-                          products: group.productCount,
-                          qty: formatNumber(group.qtyTotal),
-                        })}
-                      </p>
-                    </div>
-                  </TableCell>
-                </TableRow>
-                {groupRows.map((item, index) => (
-                  <BestSellingProductRow
-                    key={item.id}
-                    item={item}
-                    metrics={productMetrics}
-                    rank={index + 1}
-                    selectLabel={t("common.selectRow", {
-                      name: item.productName,
-                    })}
-                    selected={selectedRowIds.has(bestSellingProductRowId(item))}
-                    onToggleRow={onToggleRow}
+      <TableBody>
+        {sortedGroupRows.map(({ group, rows: groupRows }) => {
+          const groupIds = groupRows.map(bestSellingProductRowId);
+          const groupSelection = selectionStateForVisibleIds(groupIds, selectedRowIds);
+          const topValue = shareField
+            ? Math.max(0, ...groupRows.map((item) => firstNumber(item[shareField])))
+            : 0;
+
+          return (
+            <Fragment key={group.id}>
+              <TableRow className="bg-muted/50 hover:bg-muted/50">
+                <TableCell>
+                  <ReportIndeterminateCheckbox
+                    aria-label={t("common.selectRow", { name: group.name })}
+                    checked={groupSelection.allVisibleSelected}
+                    indeterminate={!groupSelection.allVisibleSelected && groupSelection.someVisibleSelected}
+                    onCheckedChange={(checked) => onToggleRows(groupRows, checked as boolean)}
                   />
-                ))}
-                <TableRow className="border-b-2 border-primary bg-muted font-bold text-foreground hover:bg-muted">
-                  <TableCell />
-                  <TableCell
-                    colSpan={4}
-                    className="font-black text-primary"
-                  >
-                    {t("common.total")}
-                  </TableCell>
-                  {productMetrics.map((metric) => {
-                    const groupMetric = groupMetricByKey.get(metric.key);
-                    const value = groupMetric
-                      ? group[groupMetric.field]
-                      : null;
+                </TableCell>
+                <TableCell colSpan={leadingSpan + productMetrics.length}>
+                  <span className="font-medium">{group.name}</span>
+                  <span className="ml-2 text-muted-foreground">
+                    {t("report.bestSelling.groupSummary", {
+                      products: group.productCount,
+                      qty: formatNumber(group.qtyTotal),
+                    })}
+                  </span>
+                </TableCell>
+              </TableRow>
 
-                    return (
-                      <TableCell
-                        key={metric.key}
-                        className={cn(
-                          metricValueClass(value, metric.key, true),
-                          metric.key === "final_total" && "text-primary",
-                        )}
-                      >
-                        {groupMetric
-                          ? displayMetric(value, groupMetric.kind)
-                          : "-"}
+              {groupRows.map((item, index) => {
+                const selected = selectedRowIds.has(bestSellingProductRowId(item));
+                const share = shareField && topValue > 0 ? (firstNumber(item[shareField]) / topValue) * 100 : null;
+
+                return (
+                  <TableRow key={item.id} data-state={selected ? "selected" : undefined}>
+                    <TableCell>
+                      <Checkbox
+                        aria-label={t("common.selectRow", { name: item.productName })}
+                        checked={selected}
+                        onCheckedChange={(checked) => onToggleRow(item, checked as boolean)}
+                      />
+                    </TableCell>
+                    <TableCell>
+                      <RankBadge highlight={Boolean(shareField)} rank={index + 1} />
+                    </TableCell>
+                    <TableCell className="whitespace-normal">
+                      <div className="flex flex-col gap-1.5">
+                        <span className="font-medium">{item.productName}</span>
+                        {share !== null ? <Progress value={share} aria-hidden="true" className="max-w-48" /> : null}
+                      </div>
+                    </TableCell>
+                    {showCode ? <TableCell className="text-muted-foreground">{item.productCode}</TableCell> : null}
+                    {showCategory ? <TableCell className="text-muted-foreground">{item.categoryName}</TableCell> : null}
+                    {productMetrics.map((metric) => (
+                      <TableCell key={metric.key} className={metricValueClass(item[metric.field], metric.key)}>
+                        {displayMetric(item[metric.field], metric.kind)}
                       </TableCell>
-                    );
-                  })}
-                </TableRow>
-              </Fragment>
-            );
-          })}
-        </TableBody>
-        <TableFooter className="sticky bottom-0 z-20 bg-transparent">
-          <BestSellingSummaryFooterRow
-            productMetrics={productMetrics}
-            summary={summary}
-            summaryCards={summaryCards}
-            summaryLabel={t("report.summary")}
-          />
-        </TableFooter>
-      </Table>
-    </div>
-  );
-}
+                    ))}
+                  </TableRow>
+                );
+              })}
 
-const BestSellingProductRow = memo(function BestSellingProductRow({
-  item,
-  metrics,
-  rank,
-  selectLabel,
-  selected,
-  onToggleRow,
-}: {
-  item: BestSellingProductItem;
-  metrics: ReturnType<typeof bestSellingProductMetricConfigs>;
-  rank: number;
-  selectLabel: string;
-  selected: boolean;
-  onToggleRow: (row: BestSellingProductItem, selected: boolean) => void;
-}) {
-  return (
-    <TableRow
-      className={cn(
-        "hover:bg-muted/20",
-        selected && "bg-primary/5 hover:bg-primary/10",
-      )}
-    >
-      <TableCell className="w-10 text-center">
-        <Checkbox
-          aria-label={selectLabel}
-          checked={selected}
-                  onCheckedChange={(checked) => onToggleRow(item, checked as boolean)}
-        />
-      </TableCell>
-      <TableCell className="text-center">
-        <Badge
-          variant="outline"
-          className="h-6 min-w-9 justify-center bg-muted px-2 text-xs tabular-nums"
-        >
-          #{rank}
-        </Badge>
-      </TableCell>
-      <TableCell className="max-w-80 whitespace-normal">
-        <div className="ml-6 min-w-40 border-l border-border/70 pl-3">
-          <p className="font-bold leading-snug text-foreground">
-            {item.productName}
-          </p>
-        </div>
-      </TableCell>
-      <TableCell className="whitespace-nowrap text-muted-foreground">
-        {item.productCode}
-      </TableCell>
-      <TableCell className="whitespace-nowrap text-muted-foreground">
-        {item.categoryName}
-      </TableCell>
-      {/* <TableCell className="whitespace-nowrap px-2 py-2 text-muted-foreground">
-        {item.groupName}
-      </TableCell> */}
-      {metrics.map((metric) => (
-        <TableCell
-          key={metric.key}
-          className={metricValueClass(item[metric.field], metric.key)}
-        >
-          {displayMetric(item[metric.field], metric.kind)}
-        </TableCell>
-      ))}
-    </TableRow>
-  );
-});
+              <TableRow className="bg-primary/5 hover:bg-primary/5">
+                <TableCell />
+                <TableCell colSpan={leadingSpan} className="font-medium text-primary-text">
+                  {t("common.total")}
+                </TableCell>
+                {productMetrics.map((metric) => {
+                  const groupMetric = groupMetricByKey.get(metric.key);
+                  const value = groupMetric ? group[groupMetric.field] : null;
 
-function BestSellingSummaryFooterRow({
-  productMetrics,
-  summary,
-  summaryCards,
-  summaryLabel,
-}: {
-  productMetrics: ReturnType<typeof bestSellingProductMetricConfigs>;
-  summary: Record<string, unknown>;
-  summaryCards: BestSellingSummaryCardConfig[];
-  summaryLabel: string;
-}) {
-  const { t } = useTranslation();
-  const productCount = firstNumber(
-    summaryValue(summary, ["product_count", "products_count"]),
-  );
+                  return (
+                    <TableCell key={metric.key} className={cn(metricValueClass(value, metric.key), "font-medium")}>
+                      {groupMetric ? displayMetric(value, groupMetric.kind) : null}
+                    </TableCell>
+                  );
+                })}
+              </TableRow>
+            </Fragment>
+          );
+        })}
 
-  return (
-    <TableRow className="border-t-2 border-primary bg-muted font-bold text-foreground hover:bg-muted">
-      <TableCell className={summaryFooterCellClass("left")} colSpan={5}>
-        <div className="flex min-w-64 items-center gap-2">
-          <Badge
-            variant="outline"
-            className="h-6 border-primary/30 bg-muted px-2 text-xs font-black uppercase text-primary"
-          >
-            {summaryLabel}
-          </Badge>
-          {productCount > 0 ? (
-            <span className="truncate text-xs font-semibold text-muted-foreground">
-              {t("report.bestSelling.rowsLabel", { count: productCount })}
-            </span>
-          ) : null}
-        </div>
-      </TableCell>
-      {productMetrics.map((metric) => (
-        <BestSellingSummaryMetricCell
-          key={metric.key}
-          metricKey={metric.key}
-          kind={metric.kind}
-          summary={summary}
-          summaryCards={summaryCards}
-        />
-      ))}
-    </TableRow>
+        <TableRow className="hover:bg-transparent">
+          <TableCell className={summaryFooterCellClass()} colSpan={1 + leadingSpan}>
+            {t("report.summary")}
+            {productCount > 0 ? (
+              <span className="ml-2 font-normal text-muted-foreground">
+                {t("report.bestSelling.rowsLabel", { count: productCount })}
+              </span>
+            ) : null}
+          </TableCell>
+          {productMetrics.map((metric) => (
+            <BestSellingSummaryMetricCell key={metric.key} metric={metric} summary={summary} summaryCards={summaryCards} />
+          ))}
+        </TableRow>
+      </TableBody>
+    </Table>
   );
 }
 
 function BestSellingSummaryMetricCell({
-  kind,
-  metricKey,
+  metric,
   summary,
   summaryCards,
 }: {
-  kind: "money" | "number";
-  metricKey: string;
+  metric: ProductMetric;
   summary: Record<string, unknown>;
   summaryCards: BestSellingSummaryCardConfig[];
 }) {
-  const card = summaryCards.find((summaryCard) =>
-    summaryCard.keys.includes(metricKey),
-  );
-
+  const card = summaryCards.find((summaryCard) => summaryCard.keys.includes(metric.key));
   if (!card) return <TableCell className={summaryFooterCellClass()} />;
 
   const value = summaryValue(summary, card.keys);
   return (
-    <TableCell className={summaryMetricCellClass(value, metricKey)}>
-      {displayMetric(value, kind)}
+    <TableCell
+      className={cn(
+        summaryFooterCellClass("right"),
+        metric.key !== "final_total" && "text-foreground",
+        metric.key === "final_total" && "font-semibold",
+        metric.key.includes("discount") && firstNumber(value) > 0 && "text-destructive",
+      )}
+    >
+      {displayMetric(value, metric.kind)}
     </TableCell>
   );
 }
 
-function metricValueClass(value: unknown, key: string, strong = false) {
+// สีตัวเลข: ส่วนลดที่มากกว่า 0 = แดง, ยอดสุทธิ = สีธีม, ค่า 0 = จาง
+function metricValueClass(value: unknown, key: string) {
   const numericValue = value === null ? null : firstNumber(value);
 
   return cn(
-    "whitespace-nowrap px-3 py-2 text-right font-semibold tabular-nums",
-    strong && "font-black",
+    "text-right tabular-nums",
     numericValue === 0 && "text-muted-foreground",
-    key.includes("discount") &&
-      numericValue !== null &&
-      numericValue > 0 &&
-      "font-black text-destructive",
-    key === "final_total" && "font-black text-foreground",
-  );
-}
-
-function summaryMetricCellClass(value: unknown, key: string) {
-  return cn(
-    summaryFooterCellClass("right"),
-    "font-bold",
-    firstNumber(value) === 0 && "text-muted-foreground",
-    key.includes("discount") && firstNumber(value) > 0 && "font-black text-destructive",
-    key === "final_total" && "font-black text-foreground",
+    key.includes("discount") && numericValue !== null && numericValue > 0 && "text-destructive",
+    key === "final_total" && numericValue !== 0 && "font-medium text-primary-text",
   );
 }
 
 function summaryFooterCellClass(align: "left" | "right" = "left") {
   return cn(
-    "sticky bottom-0 z-20 h-10 whitespace-nowrap border-t-2 border-primary bg-muted px-2 py-2 font-bold text-foreground",
-    align === "right" ? "text-right tabular-nums" : "text-left",
+    // แถวรวมค้างขอบล่าง — ทึบ (bg-background) แล้ววางสีธีมจางเป็นชั้น gradient ทับ
+    "sticky bottom-0 z-20 border-t border-primary/30 bg-background bg-linear-to-r from-primary/10 to-primary/10 font-medium text-primary-text",
+    align === "right" && "text-right tabular-nums",
   );
 }
 
 export function BestSellingProductsMobileList({
   groups,
   selectedRowIds,
+  sortBy,
   onToggleRow,
   onToggleRows,
 }: {
   groups: BestSellingProductGroup[];
   selectedRowIds: Set<string>;
+  sortBy: BestSellingProductsSortBy;
   onToggleRow: (row: BestSellingProductItem, selected: boolean) => void;
   onToggleRows: (rows: BestSellingProductItem[], selected: boolean) => void;
 }) {
   const { t } = useTranslation();
+  const shareField = rankingField(sortBy);
 
   return (
-    <div className="flex flex-col gap-3 p-3 md:hidden">
-      {groups.map((group) => (
-        <section
-          key={group.id}
-          className="overflow-hidden rounded-md border border-border bg-card shadow-sm"
-        >
-          <div className="bg-muted/40 px-3 py-3">
-            <div className="flex items-start gap-3">
-              <ReportIndeterminateCheckbox
-                aria-label={t("common.selectRow", { name: group.name })}
-                className="mt-0.5"
-                checked={
-                  selectionStateForVisibleIds(
-                    group.items.map(bestSellingProductRowId),
-                    selectedRowIds,
-                  ).allVisibleSelected
-                }
-                indeterminate={
-                  !selectionStateForVisibleIds(
-                    group.items.map(bestSellingProductRowId),
-                    selectedRowIds,
-                  ).allVisibleSelected &&
-                  selectionStateForVisibleIds(
-                    group.items.map(bestSellingProductRowId),
-                    selectedRowIds,
-                  ).someVisibleSelected
-                }
-                onCheckedChange={(checked) =>
-                                  onToggleRows(group.items, checked as boolean)
-                }
-              />
-              <div className="min-w-0 flex-1">
-                <h3 className="truncate text-sm font-black">{group.name}</h3>
-                <p className="text-xs text-muted-foreground">
-                  {t("report.bestSelling.groupSummary", {
-                    products: group.productCount,
-                    qty: formatNumber(group.qtyTotal),
-                  })}
-                </p>
-              </div>
-            </div>
-          </div>
-          <div className="divide-y divide-border">
-            {group.items.map((item, index) => (
-              <div
-                key={item.id}
-                className={cn(
-                  "py-3 pr-3",
-                  selectedRowIds.has(bestSellingProductRowId(item)) &&
-                    "bg-primary/5",
-                )}
-              >
-                <div className="ml-3 flex items-start gap-3 border-l border-border/70 pl-3">
-                  <Checkbox
-                    aria-label={t("common.selectRow", { name: item.productName })}
-                    className="mt-0.5"
-                    checked={selectedRowIds.has(bestSellingProductRowId(item))}
-                    onCheckedChange={(checked) => onToggleRow(item, checked as boolean)}
-                  />
-                  <Badge
-                    variant="outline"
-                    className="h-7 min-w-10 justify-center bg-muted px-2 text-xs tabular-nums"
-                  >
-                    #{index + 1}
-                  </Badge>
-                  <div className="min-w-0 flex-1">
-                    <p className="text-sm font-bold leading-snug text-foreground">
-                      {item.productName}
-                    </p>
-                    <p className="mt-1 text-xs text-muted-foreground">
-                      {item.productCode} / {item.categoryName}
-                    </p>
-                    <div className="mt-2 grid grid-cols-2 gap-2 text-xs">
-                      {bestSellingProductMetrics(item, t).map((metric) => (
-                        <MetricPill
-                          key={metric.key}
-                          label={metric.label}
-                          value={metric.value}
-                          kind={metric.kind}
-                        />
-                      ))}
-                    </div>
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-          <div className="border-t-2 border-primary bg-muted p-3">
-            <div className="flex items-center justify-between gap-3">
-              <div className="min-w-0">
-                <p className="truncate text-sm font-black text-primary">
-                  {t("common.total")}
-                </p>
-                <p className="mt-0.5 text-xs text-muted-foreground">
-                  {t("report.bestSelling.columns.qty")}:{" "}
-                  {displayMetric(group.qtyTotal, "number")}
-                </p>
-              </div>
-              <p className="shrink-0 text-sm font-black tabular-nums text-primary">
+    <ItemGroup>
+      {groups.map((group) => {
+        const selection = selectionStateForVisibleIds(group.items.map(bestSellingProductRowId), selectedRowIds);
+        const topValue = shareField ? Math.max(0, ...group.items.map((item) => firstNumber(item[shareField]))) : 0;
+
+        return (
+          <Item key={group.id} variant="outline">
+            <ReportIndeterminateCheckbox
+              aria-label={t("common.selectRow", { name: group.name })}
+              checked={selection.allVisibleSelected}
+              indeterminate={!selection.allVisibleSelected && selection.someVisibleSelected}
+              onCheckedChange={(checked) => onToggleRows(group.items, checked as boolean)}
+            />
+            <ItemContent>
+              <ItemTitle>{group.name}</ItemTitle>
+              <ItemDescription>
+                {t("report.bestSelling.groupSummary", {
+                  products: group.productCount,
+                  qty: formatNumber(group.qtyTotal),
+                })}
+              </ItemDescription>
+            </ItemContent>
+            <ItemActions>
+              <span className="font-medium tabular-nums text-primary-text">
                 {displayMetric(group.finalTotal, "money")}
-              </p>
-            </div>
-          </div>
-        </section>
-      ))}
-    </div>
-  );
-}
+              </span>
+            </ItemActions>
 
-function MetricPill({
-  kind,
-  label,
-  value,
-}: {
-  kind: "money" | "number";
-  label: string;
-  value: unknown;
-}) {
-  return (
-    <div className="min-w-0 rounded-md border border-border bg-muted px-2.5 py-2">
-      <p className="truncate text-2xs font-bold uppercase text-muted-foreground">
-        {label}
-      </p>
-      <p className="truncate text-xs font-black tabular-nums text-foreground">
-        {displayMetric(value, kind)}
-      </p>
-    </div>
+            <ItemFooter>
+              <ItemGroup>
+                {group.items.map((item, index) => {
+                  const selected = selectedRowIds.has(bestSellingProductRowId(item));
+                  const share =
+                    shareField && topValue > 0 ? (firstNumber(item[shareField]) / topValue) * 100 : null;
+
+                  return (
+                    <Item key={item.id} variant="muted" size="sm">
+                      <Checkbox
+                        aria-label={t("common.selectRow", { name: item.productName })}
+                        checked={selected}
+                        onCheckedChange={(checked) => onToggleRow(item, checked as boolean)}
+                      />
+                      <RankBadge highlight={Boolean(shareField)} rank={index + 1} />
+                      <ItemContent>
+                        <ItemTitle>{item.productName}</ItemTitle>
+                        <ItemDescription>
+                          {t("report.bestSelling.columns.qty")} {displayMetric(item.qty, "number")} ·{" "}
+                          {item.categoryName}
+                        </ItemDescription>
+                      </ItemContent>
+                      <ItemActions>
+                        <span className="tabular-nums">{displayMetric(item.finalTotal, "money")}</span>
+                      </ItemActions>
+                      {share !== null ? (
+                        <ItemFooter>
+                          <Progress value={share} aria-hidden="true" />
+                        </ItemFooter>
+                      ) : null}
+                    </Item>
+                  );
+                })}
+              </ItemGroup>
+            </ItemFooter>
+          </Item>
+        );
+      })}
+    </ItemGroup>
   );
 }
 

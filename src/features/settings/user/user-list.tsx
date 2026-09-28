@@ -1,143 +1,53 @@
 "use client";
 
-import type { ReactNode } from "react";
-import { KeyRound, Power, PowerOff, UsersRound } from "lucide-react";
+import { KeyRound, Power, PowerOff } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Spinner } from "@/components/ui/spinner";
+import {
+  Item,
+  ItemActions,
+  ItemContent,
+  ItemDescription,
+  ItemFooter,
+  ItemGroup,
+  ItemMedia,
+  ItemTitle
+} from "@/components/ui/item";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import {
-  SettingsMobileCard,
-  SettingsMobileMeta,
-  SettingsMobileMetaGrid,
-  SettingsRowActions,
-  SettingsTableScroll,
-  SettingsEmptyRecords,} from "@/features/settings/shared/settings-shell";
-import { cn } from "@/lib/utils";
+import { SettingsRowActions } from "@/features/settings/shared/settings-shell";
 import type { User } from "@/services/user";
-import { UserActiveBadge, UserAvatar, UserBadges, UserIdentity } from "./user-display";
-import {
-  branchName,
-  isProtectedUser,
-  roleName,
-  userId,
-  userValue,
-  zoneName
-} from "./user-utils";
+import { UserActiveBadge, UserAvatar, UserBadges } from "./user-display";
+import { branchName, isProtectedUser, roleName, userId, userValue, zoneName } from "./user-utils";
 
-export function UserListSurface({
-  allSelected,
-  backgroundLoading,
-  currentLoginUuid,
-  pageStart,
-  profileUrl,
-  rows,
-  selectedRows,
-  selectionActions,
-  title,
-  toolbar,
-  onChangePassword,
-  onDelete,
-  onEdit,
-  onToggleActive,
-  onToggleAll,
-  onToggleSelected
-}: {
-  allSelected: boolean;
-  backgroundLoading: boolean;
+type UserListProps = {
   currentLoginUuid: string;
-  pageStart: number;
   profileUrl: (profilePath: string | null) => string;
   rows: User[];
   selectedRows: Set<string>;
-  selectionActions: ReactNode;
-  title: string;
-  toolbar: ReactNode;
   onChangePassword: (row: User) => void;
   onDelete: (row: User) => void;
   onEdit: (row: User) => void;
   onToggleActive: (row: User) => void;
-  onToggleAll: (checked: boolean) => void;
   onToggleSelected: (id: string, checked: boolean) => void;
-}) {
-  const { t } = useTranslation();
-
-  return (
-    <div className="flex min-h-0 flex-1 flex-col">
-      <div className="shrink-0 border-b border-border bg-card/95 px-3 py-2.5 backdrop-blur sm:px-4 lg:px-5">
-        <div className="flex min-w-0 flex-col gap-2 xl:flex-row xl:items-center xl:justify-between">
-          <div className="min-w-0">
-            <p className="text-sm font-black">{t("settings.userList")}</p>
-          </div>
-          <div className="min-w-0 xl:max-w-3xl">{toolbar}</div>
-        </div>
-        {selectionActions ? <div className="mt-3">{selectionActions}</div> : null}
-        {backgroundLoading ? (
-          <div className="mt-2 flex items-center gap-2 text-xs text-muted-foreground">
-            <Spinner aria-hidden />
-            {t("settings.refreshingList")}
-          </div>
-        ) : null}
-      </div>
-      {rows.length ? (
-        <>
-          <div className="hidden min-h-0 flex-1 md:flex">
-            <UserDesktopTable
-              allSelected={allSelected}
-              currentLoginUuid={currentLoginUuid}
-              pageStart={pageStart}
-              profileUrl={profileUrl}
-              rows={rows}
-              selectedRows={selectedRows}
-              onChangePassword={onChangePassword}
-              onDelete={onDelete}
-              onEdit={onEdit}
-              onToggleActive={onToggleActive}
-              onToggleAll={onToggleAll}
-              onToggleSelected={onToggleSelected}
-            />
-          </div>
-          <div className="min-h-0 flex-1 overflow-y-auto md:hidden">
-            <UserMobileList
-              currentLoginUuid={currentLoginUuid}
-              profileUrl={profileUrl}
-              rows={rows}
-              selectedRows={selectedRows}
-              onChangePassword={onChangePassword}
-              onDelete={onDelete}
-              onEdit={onEdit}
-              onToggleActive={onToggleActive}
-              onToggleSelected={onToggleSelected}
-            />
-          </div>
-        </>
-      ) : (
-        <SettingsEmptyRecords icon={<UsersRound aria-hidden />} title={title.toLowerCase()} />
-      )}
-    </div>
-  );
-}
+};
 
 // เปลี่ยนรหัสผ่านได้เฉพาะบัญชีของตัวเอง — API ต้องยืนยัน old_password ซึ่งแอดมินไม่รู้ของลูกน้อง
 // (แอดมินตั้งรหัสใหม่ให้ลูกน้องได้ผ่านช่องรหัสผ่านในฟอร์มแก้ไขผู้ใช้แทน)
 function UserRowActions({
   currentRow,
+  protectedRow,
+  row,
   onChangePassword,
   onDelete,
   onEdit,
-  onToggleActive,
-  protectedRow,
-  row
-}: {
+  onToggleActive
+}: Pick<UserListProps, "onChangePassword" | "onDelete" | "onEdit" | "onToggleActive"> & {
   currentRow: boolean;
-  onChangePassword: (row: User) => void;
-  onDelete: (row: User) => void;
-  onEdit: (row: User) => void;
-  onToggleActive: (row: User) => void;
   protectedRow: boolean;
   row: User;
 }) {
   const { t } = useTranslation();
+  const active = Number(row.login_active ?? 1) === 1;
   return (
     <SettingsRowActions
       row={row}
@@ -145,16 +55,12 @@ function UserRowActions({
       deleteDisabled={protectedRow}
       actions={[
         {
-          label: t(Number(row.login_active ?? 1) === 1 ? "settings.userDisable" : "settings.userEnable"),
-          icon: Number(row.login_active ?? 1) === 1 ? <PowerOff aria-hidden /> : <Power aria-hidden />,
+          label: t(active ? "settings.userDisable" : "settings.userEnable"),
+          icon: active ? <PowerOff aria-hidden /> : <Power aria-hidden />,
           disabled: protectedRow || currentRow,
           onSelect: onToggleActive
         },
-        ...(currentRow ? [{
-          label: t("settings.changePassword"),
-          icon: <KeyRound aria-hidden />,
-          onSelect: onChangePassword
-        }] : [])
+        ...(currentRow ? [{ label: t("settings.changePassword"), icon: <KeyRound aria-hidden />, onSelect: onChangePassword }] : [])
       ]}
       onEdit={onEdit}
       onDelete={onDelete}
@@ -162,244 +68,133 @@ function UserRowActions({
   );
 }
 
-function UserDesktopTable({
+function rowFlags(row: User, currentLoginUuid: string) {
+  const id = userId(row);
+  return {
+    currentRow: Boolean(currentLoginUuid && id === currentLoginUuid),
+    email: userValue(row, "login_email", "-"),
+    id,
+    protectedRow: isProtectedUser(row)
+  };
+}
+
+export function UserTable({
   allSelected,
-  currentLoginUuid,
-  onChangePassword,
-  onDelete,
-  onEdit,
-  onToggleActive,
-  onToggleAll,
-  onToggleSelected,
   pageStart,
-  profileUrl,
-  rows,
-  selectedRows
-}: {
-  allSelected: boolean;
-  currentLoginUuid: string;
-  onChangePassword: (row: User) => void;
-  onDelete: (row: User) => void;
-  onEdit: (row: User) => void;
-  onToggleActive: (row: User) => void;
-  onToggleAll: (checked: boolean) => void;
-  onToggleSelected: (id: string, checked: boolean) => void;
-  pageStart: number;
-  profileUrl: (profilePath: string | null) => string;
-  rows: User[];
-  selectedRows: Set<string>;
-}) {
+  onToggleAll,
+  ...props
+}: UserListProps & { allSelected: boolean; pageStart: number; onToggleAll: (checked: boolean) => void }) {
+  const { currentLoginUuid, profileUrl, rows, selectedRows, onToggleSelected } = props;
   const { t } = useTranslation();
 
   return (
-    <SettingsTableScroll>
-      <Table className="min-w-260">
-        <TableHeader className="sticky top-0 z-10 bg-muted/95 backdrop-blur">
-          <TableRow>
-            <TableHead className="w-10 px-2">
-              <Checkbox aria-label={t("common.selectAll")} checked={allSelected} onCheckedChange={(checked) => onToggleAll(checked as boolean)} />
-            </TableHead>
-            <TableHead className="w-px whitespace-nowrap px-2 text-center">{t("fields.no")}</TableHead>
-            <TableHead className="pl-5">{t("nav.user")}</TableHead>
-            <TableHead>{t("fields.roles_name")}</TableHead>
-            <TableHead>{t("nav.branch")}</TableHead>
-            <TableHead>{t("nav.zone")}</TableHead>
-            <TableHead>{t("fields.login_active")}</TableHead>
-            <TableHead className="w-16 text-right">{t("common.actions")}</TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {rows.map((row, index) => (
-            <UserTableRow
-              key={userId(row) || index}
-              currentLoginUuid={currentLoginUuid}
-              profileUrl={profileUrl}
-              row={row}
-              rowNumber={pageStart + index}
-              selectedRows={selectedRows}
-              onChangePassword={onChangePassword}
-              onDelete={onDelete}
-              onEdit={onEdit}
-              onToggleActive={onToggleActive}
-              onToggleSelected={onToggleSelected}
+    <Table containerClassName="min-h-0 flex-1 overflow-auto">
+      <TableHeader className="sticky top-0 z-10 bg-muted">
+        <TableRow>
+          <TableHead className="w-px">
+            <Checkbox aria-label={t("common.selectAll")} checked={allSelected} onCheckedChange={(checked) => onToggleAll(checked === true)} />
+          </TableHead>
+          {/* w-px: checkbox, number and actions shrink to their content. */}
+          <TableHead className="w-px text-center">{t("fields.no")}</TableHead>
+          <TableHead className="min-w-64">{t("nav.user")}</TableHead>
+          <TableHead>{t("nav.branch")}</TableHead>
+          <TableHead>{t("nav.zone")}</TableHead>
+          <TableHead>{t("fields.login_active")}</TableHead>
+          <TableHead className="w-px">
+            <span className="sr-only">{t("common.actions")}</span>
+          </TableHead>
+        </TableRow>
+      </TableHeader>
+      <TableBody>
+        {rows.map((row, index) => {
+          const { currentRow, email, id, protectedRow } = rowFlags(row, currentLoginUuid);
+          const selected = selectedRows.has(id);
+          return (
+            <TableRow key={id || index} data-state={selected ? "selected" : undefined}>
+              <TableCell>
+                {/* Your own account and protected accounts can't be bulk-edited, so they can't be selected. */}
+                <Checkbox
+                  aria-label={t("common.selectRow", { name: email })}
+                  checked={selected}
+                  disabled={protectedRow || currentRow}
+                  onCheckedChange={(checked) => onToggleSelected(id, checked === true)}
+                />
+              </TableCell>
+              <TableCell className="text-center text-muted-foreground tabular-nums">{pageStart + index}</TableCell>
+              <TableCell>
+                {/* The role sits under the email: together they say who this account is. */}
+                <div className="flex items-center gap-3">
+                  <UserAvatar email={email} src={profileUrl(userValue(row, "login_profile"))} />
+                  <div className="flex min-w-0 flex-col gap-0.5">
+                    <span className="flex items-center gap-2">
+                      <span className="truncate font-medium" translate="no">
+                        {email}
+                      </span>
+                      <UserBadges currentRow={currentRow} protectedRow={protectedRow} />
+                    </span>
+                    <span className="truncate text-muted-foreground">{roleName(row)}</span>
+                  </div>
+                </div>
+              </TableCell>
+              <TableCell className="text-muted-foreground">{branchName(row)}</TableCell>
+              <TableCell className="text-muted-foreground">{zoneName(row, t("settings.allZones"))}</TableCell>
+              <TableCell>
+                <UserActiveBadge status={userValue(row, "login_active", "1")} />
+              </TableCell>
+              <TableCell className="text-right">
+                <UserRowActions {...props} currentRow={currentRow} protectedRow={protectedRow} row={row} />
+              </TableCell>
+            </TableRow>
+          );
+        })}
+      </TableBody>
+    </Table>
+  );
+}
+
+// Narrow pages: one Item per account, two columns once there is room.
+export function UserMobileList(props: UserListProps) {
+  const { currentLoginUuid, profileUrl, rows, selectedRows, onToggleSelected } = props;
+  const { t } = useTranslation();
+
+  return (
+    <ItemGroup className="@xl:grid @xl:grid-cols-2">
+      {rows.map((row, index) => {
+        const { currentRow, email, id, protectedRow } = rowFlags(row, currentLoginUuid);
+        return (
+          <Item key={id || index} variant="outline">
+            <Checkbox
+              aria-label={t("common.selectRow", { name: email })}
+              checked={selectedRows.has(id)}
+              disabled={protectedRow || currentRow}
+              onCheckedChange={(checked) => onToggleSelected(id, checked === true)}
             />
-          ))}
-        </TableBody>
-      </Table>
-    </SettingsTableScroll>
-  );
-}
-
-function UserTableRow({
-  currentLoginUuid,
-  onChangePassword,
-  onDelete,
-  onEdit,
-  onToggleActive,
-  onToggleSelected,
-  profileUrl,
-  row,
-  rowNumber,
-  selectedRows
-}: {
-  currentLoginUuid: string;
-  onChangePassword: (row: User) => void;
-  onDelete: (row: User) => void;
-  onEdit: (row: User) => void;
-  onToggleActive: (row: User) => void;
-  onToggleSelected: (id: string, checked: boolean) => void;
-  profileUrl: (profilePath: string | null) => string;
-  row: User;
-  rowNumber: number;
-  selectedRows: Set<string>;
-}) {
-  const { t } = useTranslation();
-  const id = userId(row);
-  const email = userValue(row, "login_email", "-");
-  const selected = selectedRows.has(id);
-  const protectedRow = isProtectedUser(row);
-  const currentRow = Boolean(currentLoginUuid && id === currentLoginUuid);
-
-  return (
-    <TableRow
-      className={cn("h-14", currentRow && "bg-primary/5")}
-      data-state={selected ? "selected" : undefined}
-    >
-      <TableCell className="w-10 px-2">
-        <Checkbox aria-label={t("common.selectRow", { name: email })} checked={selected} disabled={protectedRow || currentRow} onCheckedChange={(checked) => onToggleSelected(id, checked as boolean)} />
-      </TableCell>
-      <TableCell className="w-px whitespace-nowrap px-2 text-center text-sm font-black text-muted-foreground">{rowNumber}</TableCell>
-      <TableCell className="max-w-md">
-        <UserIdentity
-          currentRow={currentRow}
-          email={email}
-          protectedRow={protectedRow}
-          src={profileUrl(userValue(row, "login_profile"))}
-        />
-      </TableCell>
-      <TableCell className="max-w-72 truncate text-muted-foreground">{roleName(row)}</TableCell>
-      <TableCell className="max-w-72 truncate text-muted-foreground">{branchName(row)}</TableCell>
-      <TableCell className="max-w-72 truncate text-muted-foreground">
-        {zoneName(row, t("settings.allZones"))}
-      </TableCell>
-      <TableCell>
-        <UserActiveBadge status={userValue(row, "login_active", "1")} />
-      </TableCell>
-      <TableCell className="text-right">
-        <UserRowActions
-          currentRow={currentRow}
-          protectedRow={protectedRow}
-          row={row}
-          onChangePassword={onChangePassword}
-          onDelete={onDelete}
-          onEdit={onEdit}
-          onToggleActive={onToggleActive}
-        />
-      </TableCell>
-    </TableRow>
-  );
-}
-
-function UserMobileList({
-  currentLoginUuid,
-  onChangePassword,
-  onDelete,
-  onEdit,
-  onToggleActive,
-  onToggleSelected,
-  profileUrl,
-  rows,
-  selectedRows
-}: {
-  currentLoginUuid: string;
-  onChangePassword: (row: User) => void;
-  onDelete: (row: User) => void;
-  onEdit: (row: User) => void;
-  onToggleActive: (row: User) => void;
-  onToggleSelected: (id: string, checked: boolean) => void;
-  profileUrl: (profilePath: string | null) => string;
-  rows: User[];
-  selectedRows: Set<string>;
-}) {
-  return (
-    <div className="flex min-h-full flex-col gap-2 p-3">
-      {rows.map((row, index) => (
-        <UserMobileCard
-          key={userId(row) || index}
-          currentLoginUuid={currentLoginUuid}
-          profileUrl={profileUrl}
-          row={row}
-          selectedRows={selectedRows}
-          onChangePassword={onChangePassword}
-          onDelete={onDelete}
-          onEdit={onEdit}
-          onToggleActive={onToggleActive}
-          onToggleSelected={onToggleSelected}
-        />
-      ))}
-    </div>
-  );
-}
-
-function UserMobileCard({
-  currentLoginUuid,
-  onChangePassword,
-  onDelete,
-  onEdit,
-  onToggleActive,
-  onToggleSelected,
-  profileUrl,
-  row,
-  selectedRows
-}: {
-  currentLoginUuid: string;
-  onChangePassword: (row: User) => void;
-  onDelete: (row: User) => void;
-  onEdit: (row: User) => void;
-  onToggleActive: (row: User) => void;
-  onToggleSelected: (id: string, checked: boolean) => void;
-  profileUrl: (profilePath: string | null) => string;
-  row: User;
-  selectedRows: Set<string>;
-}) {
-  const { t } = useTranslation();
-  const id = userId(row);
-  const email = userValue(row, "login_email", "-");
-  const selected = selectedRows.has(id);
-  const protectedRow = isProtectedUser(row);
-  const currentRow = Boolean(currentLoginUuid && id === currentLoginUuid);
-
-  return (
-    <SettingsMobileCard
-      actions={
-        <UserRowActions
-          currentRow={currentRow}
-          protectedRow={protectedRow}
-          row={row}
-          onChangePassword={onChangePassword}
-          onDelete={onDelete}
-          onEdit={onEdit}
-          onToggleActive={onToggleActive}
-        />
-      }
-      badges={<UserBadges currentRow={currentRow} protectedRow={protectedRow} />}
-      checked={protectedRow || currentRow ? undefined : selected}
-      className={currentRow ? "bg-primary/5" : undefined}
-      leading={<UserAvatar email={email} src={profileUrl(userValue(row, "login_profile"))} />}
-      selectLabel={t("common.selectRow", { name: email })}
-      selected={selected}
-      title={<span translate="no">{email}</span>}
-      onCheckedChange={protectedRow || currentRow ? undefined : (checked) => onToggleSelected(id, checked)}
-    >
-      <SettingsMobileMetaGrid>
-        <SettingsMobileMeta label={t("fields.roles_name")} value={roleName(row)} />
-        <SettingsMobileMeta label={t("nav.branch")} value={branchName(row)} />
-        <SettingsMobileMeta label={t("nav.zone")} value={zoneName(row, t("settings.allZones"))} />
-        <SettingsMobileMeta
-          label={t("fields.login_active")}
-          value={<UserActiveBadge status={userValue(row, "login_active", "1")} />}
-        />
-      </SettingsMobileMetaGrid>
-    </SettingsMobileCard>
+            <ItemMedia>
+              <UserAvatar email={email} src={profileUrl(userValue(row, "login_profile"))} />
+            </ItemMedia>
+            {/* min-w-0 + a truncated email: a long address would otherwise push the ☰ menu onto its
+                own line. The badges go to the footer for the same reason. */}
+            <ItemContent className="min-w-0">
+              <ItemTitle className="w-full">
+                <span className="truncate" translate="no">
+                  {email}
+                </span>
+              </ItemTitle>
+              <ItemDescription>{roleName(row)}</ItemDescription>
+            </ItemContent>
+            <ItemActions>
+              <UserRowActions {...props} currentRow={currentRow} protectedRow={protectedRow} row={row} />
+            </ItemActions>
+            <ItemFooter className="flex-wrap justify-start gap-x-3 gap-y-1">
+              <UserActiveBadge status={userValue(row, "login_active", "1")} />
+              <UserBadges currentRow={currentRow} protectedRow={protectedRow} />
+              <span className="text-muted-foreground">
+                {branchName(row)} · {zoneName(row, t("settings.allZones"))}
+              </span>
+            </ItemFooter>
+          </Item>
+        );
+      })}
+    </ItemGroup>
   );
 }

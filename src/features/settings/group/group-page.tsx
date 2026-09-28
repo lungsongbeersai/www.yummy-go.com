@@ -49,7 +49,6 @@ export function GroupSettingsPage({ initialPagination }: { initialPagination: Ur
       idKey="group_uuid"
       initialPagination={initialPagination}
       itemLabel={t("nav.food_group")}
-      listTitle={t("settings.groupList")}
       nameEngKey="group_name_eng"
       nameKey="group_name"
       nameLaKey="group_name_la"
@@ -59,7 +58,6 @@ export function GroupSettingsPage({ initialPagination }: { initialPagination: Ur
       scope={(storeUuid) => ({ store_uuid_fk: storeUuid })}
       slug="group"
       store={useGroupStore}
-      tableClassName="min-w-[860px]"
       title={t("settings.modules.group.title")}
       validateInput={(args) => {
         const missing = missingGroupField(groupSaveArgs(args));

@@ -41,7 +41,7 @@ export function EmployeeCombobox({
           aria-expanded={open}
           aria-haspopup="listbox"
           aria-busy={dropdownLoading}
-          className="h-11 w-full justify-between lg:h-9"
+          className="w-full justify-between"
           disabled={disabled}
           id={id}
           role="combobox"

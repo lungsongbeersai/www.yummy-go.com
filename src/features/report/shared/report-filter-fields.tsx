@@ -26,8 +26,8 @@ export interface ReportFieldOption {
 // ทั้งสอง breakpoint ไม่งั้น lg:h-9 (class เดี่ยวใน media query) จะแพ้ data-[size=default]:h-11
 // แล้ว Select ค้างที่ 44px บนเดสก์ท็อปทั้งที่ date/ปุ่มเป็น 36px (input สูงไม่เท่ากันในแถว)
 // ยังรับ triggerClassName/inputClassName ไว้ให้ override รายกรณีได้
-const FILTER_TRIGGER_CLASS = "w-full data-[size=default]:h-11 lg:data-[size=default]:h-9";
-const FILTER_INPUT_CLASS = "h-11 lg:h-9";
+// ขนาดมาตรฐานของ shadcn ทุกช่อง — เดิมบังคับ h-11/h-9 เอง ทำให้สูงไม่เท่าช่องอื่นในแถวเดียวกัน
+const FILTER_TRIGGER_CLASS = "w-full";
 interface ReportSelectFieldProps {
   disabled?: boolean;
   fieldClassName?: string;
@@ -52,8 +52,8 @@ export function ReportSelectField({
   onValueChange,
 }: ReportSelectFieldProps) {
   return (
-    <Field className={fieldClassName ?? "gap-1.5"}>
-      <FieldLabel htmlFor={id} className="text-xs font-medium text-muted-foreground">
+    <Field className={fieldClassName}>
+      <FieldLabel htmlFor={id}>
         {label}
       </FieldLabel>
       <Select value={value} disabled={disabled} onValueChange={onValueChange}>
@@ -132,8 +132,8 @@ export function ReportDateField({
   onChange,
 }: ReportDateFieldProps) {
   return (
-    <Field className={fieldClassName ?? "gap-1.5"} data-disabled={disabled}>
-      <FieldLabel htmlFor={id} className="text-xs font-medium text-muted-foreground">
+    <Field className={fieldClassName} data-disabled={disabled}>
+      <FieldLabel htmlFor={id}>
         {label}
       </FieldLabel>
       <ReportDateInput
@@ -142,7 +142,7 @@ export function ReportDateField({
         label={label}
         value={value}
         autoComplete={name ? "off" : undefined}
-        className={inputClassName ?? FILTER_INPUT_CLASS}
+        className={inputClassName}
         disabled={disabled}
         onValueChange={onChange}
       />

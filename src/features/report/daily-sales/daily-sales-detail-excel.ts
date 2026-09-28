@@ -49,6 +49,7 @@ import {
   REPORT_GROUP_ROW_STYLE,
   REPORT_TABLE_HEADER_STYLE as TABLE_HEADER_STYLE,
 } from "@/lib/export/excel-styles";
+import { formatReportDateRange } from "@/features/report/shared/report-date-format";
 
 const MONEY_STYLE = {
   align: "right",
@@ -61,11 +62,11 @@ const NUMBER_STYLE = {
 } as const satisfies ReportExcelCellStyle;
 
 const DATE_ONLY_STYLE = {
-  numberFormat: "yyyy-mm-dd",
+  numberFormat: "dd/mm/yyyy",
 } as const satisfies ReportExcelCellStyle;
 
 const DATE_TIME_STYLE = {
-  numberFormat: "yyyy-mm-dd hh:mm",
+  numberFormat: "dd/mm/yyyy hh:mm",
 } as const satisfies ReportExcelCellStyle;
 
 // สไตล์ของตารางจัดกลุ่มตามบิล: แถวบิลเด่นสุด > แถวรวมย่อย > แถวรายการสินค้า
@@ -223,7 +224,7 @@ function infoSection(input: DailySalesDetailExcelInput) {
   const infoRows: ReportExcelGridRow[] = [
     [t("report.filters.typePage"), t("report.detailedSalesReport")],
     [t("dashboard.branch"), input.branchLabel],
-    [t("report.reportDate"), `${input.dateFrom} - ${input.dateTo}`],
+    [t("report.reportDate"), `${formatReportDateRange(input.dateFrom, input.dateTo)}`],
     [t("report.filters.paymentMethod"), input.paymentMethodLabel],
   ].map(([label, value], index) => ({
     cells: [cell(label, { bold: true }), cell(value)],

@@ -8,8 +8,8 @@ import {
   REPORT_GRAND_TOTAL_ROW_STYLE,
   REPORT_TABLE_HEADER_STYLE,
 } from "@/lib/export/excel-styles";
-import { formatShortDate } from "@/lib/format";
 import { vatSummaryMetricConfigs } from "./vat-report-utils";
+import { formatReportDate } from "@/features/report/shared/report-date-format";
 
 export interface VatExportData {
   reportName: string;
@@ -85,7 +85,6 @@ const NUMBER_STYLE = {
 // ต้องมีครบทุกแถวตามที่แสดงบนหน้าจอ ห้ามตัดทอนหรือรวมยอด ตรงกับคอลัมน์บนตาราง (vat-report-table.tsx)
 export function vatTableSection(
   data: VatExportData,
-  language: string,
   t: (key: string) => string
 ): ReportExcelGridSection {
   const headers = [
@@ -107,7 +106,7 @@ export function vatTableSection(
   data.rows.forEach((row) => {
     rows.push({
       cells: [
-        { value: formatShortDate(row.sale_date, language) },
+        { value: formatReportDate(row.sale_date) },
         { value: row.order_invoice },
         { value: row.customer_name || "-" },
         { value: row.discount_amount, style: MONEY_STYLE },
