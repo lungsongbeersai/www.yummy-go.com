@@ -397,6 +397,7 @@ export function SelectedTableCartPanelContent({
         open={workflow.depositDialogOpen}
         orderItems={workflow.displayItems}
         orderUuid={workflow.currentOrderUuid ?? undefined}
+        onCompleted={onTableActionComplete}
         onOpenChange={workflow.setDepositDialogOpen}
       />
       <CustomerDisplayPickerDialog

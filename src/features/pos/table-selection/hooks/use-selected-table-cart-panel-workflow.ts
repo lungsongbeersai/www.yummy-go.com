@@ -34,8 +34,8 @@ import {
   billDiscountButtonValue,
   buildCustomerDisplayPayload,
   canPayFullBill,
+  cartDisplayQuantityCount,
   cartDisplaySummary,
-  cartItemsQty,
   cartItemActionUuid,
   cartItemActionUuids,
   cartItemDiscountMaxAmount,
@@ -265,8 +265,7 @@ export function useSelectedTableCartPanelWorkflow({
     const branchQr = optionalString(...orders.map((order) => order.branch_qr));
     return branchQr ? getBranchQrUrl(branchQr) : null;
   }, [orders]);
-  const visibleItemCount =
-    summary.orderQty ?? cartItemsQty(displayItems);
+  const visibleItemCount = cartDisplayQuantityCount(displayCart);
   const currentOrderUuid = useMemo(() => firstCartOrderUuid(orders), [orders]);
   const currentOrder = useMemo(
     () => orders.find((entry) => optionalString(entry.order_uuid)),

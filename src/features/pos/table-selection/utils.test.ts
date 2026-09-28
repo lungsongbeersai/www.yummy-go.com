@@ -5,6 +5,7 @@ import {
   billDiscountButtonValue,
   buildCustomerDisplayPayload,
   canPayFullBill,
+  cartDisplayQuantityCount,
   cartDisplaySummary,
   cartForTable,
   cartItemBaseUnitPrice,
@@ -15,12 +16,14 @@ import {
   cartQuantityCount,
   cartSummary,
   cartToppingDisplay,
+  chargeableCartItems,
   CONFIRM_ORDER_PROGRESS_TOTAL,
   confirmAllProgressPercent,
   confirmOrderProgressStep,
   discountDraftValue,
   discountDraftWithType,
   isCanceledCartItem,
+  isDepositRedemptionItem,
   isNewOrderCartItem,
   isOrderHistoryCartItem,
   isServedCartItem,
@@ -398,6 +401,34 @@ describe("table selection utils", () => {
     expect(cartItemsQty(visibleCartItems(cart))).toBe(6);
     expect(cartQuantityCount(cart)).toBe(6);
     expect(cartQuantityCount(cartOrder({ totals: undefined }))).toBe(3);
+  });
+
+  it("shows deposit redemptions in cart count without treating them as chargeable items", () => {
+    const redemption = {
+      is_deposit_redemption: true,
+      withdrawal_uuid: "withdrawal-1",
+      title: "Deposited drink",
+      qty_withdrawn: 2,
+      chargeable: false,
+      detail: { order_it_qty: 2, affects_total: false },
+    } satisfies CartItem;
+    const cart = cartOrder({
+      items: [
+        {
+          order_it_uuid: "item-1",
+          title: "Paid drink",
+          detail: { order_it_qty: 6, net_total: 60000 },
+        },
+        redemption,
+      ],
+      totals: { order_qty: 6, order_grand_total: 60000 },
+    });
+
+    expect(visibleCartItems(cart)).toHaveLength(2);
+    expect(isDepositRedemptionItem(redemption)).toBe(true);
+    expect(chargeableCartItems(cart)).toHaveLength(1);
+    expect(cartDisplayQuantityCount(cart)).toBe(8);
+    expect(cartSummary(cart).grandTotal).toBe(60000);
   });
 
   it("allows full payment when waiting items are the only unpaid new-order items", () => {

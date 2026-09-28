@@ -24,6 +24,7 @@ import type {
 } from "@/services/pos";
 import type { AuthUser } from "@/stores/auth-store";
 import {
+  chargeableCartItems,
   cartItemDisplayName,
   cartItemName,
   cartItemQty,
@@ -34,7 +35,6 @@ import {
   optionalNumber,
   optionalString,
   positiveNumber,
-  visibleCartItems,
 } from "./utils";
 
 export type PaymentTab = "cash" | "transfer" | "cash_transfer" | "arrears";
@@ -772,7 +772,7 @@ export function buildInvoicePrintData({
       )
       .map((currency) => ({ code: currency.code, rate: currency.rate })),
     invoice,
-    items: visibleCartItems(orders).map((item) => {
+    items: chargeableCartItems(orders).map((item) => {
       const qty = cartItemQty(item);
       const displayTotal =
         optionalNumber(item.detail?.net_total) ?? cartItemTotal(item);
