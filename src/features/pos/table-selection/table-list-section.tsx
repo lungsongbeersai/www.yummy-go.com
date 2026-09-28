@@ -1,6 +1,6 @@
 "use client";
 
-import { memo, useCallback, useMemo, useRef, useState } from "react";
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { Check, Clock, MapPinPlus, Plus, Search, UserRound } from "lucide-react";
 import { useTranslation } from "react-i18next";
@@ -35,6 +35,7 @@ import {
 const ZONE_ALL_VALUE = "__all__";
 
 interface TableListSectionProps {
+  initialZoneUuid?: string;
   loading: boolean;
   search: string;
   selectedTable: PosTable | null;
@@ -47,6 +48,7 @@ interface TableListSectionProps {
 }
 
 export function TableListSection({
+  initialZoneUuid = "",
   loading,
   onSearchChange,
   onSelectTable,
@@ -67,6 +69,7 @@ export function TableListSection({
   // ทุกโซนแสดงพร้อมกันเสมอ (ไม่ยิง fetch ซ้ำตอนเปลี่ยนโซน) — คลิกชิปแค่เลื่อน
   // จอไปยัง section ของโซนนั้น ค่านี้จึงเป็นแค่ state ไว้ไฮไลต์ชิปที่กดล่าสุด
   const [selectedZoneUuid, setSelectedZoneUuid] = useState("");
+  const initialZoneAppliedRef = useRef(false);
   const scrollContainerRef = useRef<HTMLDivElement | null>(null);
   const zoneSectionRefs = useRef(new Map<string, HTMLElement>());
   const zoneRailRef = useRef<HTMLDivElement | null>(null);
@@ -95,6 +98,27 @@ export function TableListSection({
     }
     zoneSectionRefs.current.get(zoneUuid)?.scrollIntoView({ behavior: "smooth", block: "start" });
   }, []);
+
+  useEffect(() => {
+    if (
+      initialZoneAppliedRef.current ||
+      loading ||
+      !initialZoneUuid ||
+      !filterOptions.some((zone) => zone.zone_uuid === initialZoneUuid)
+    ) {
+      return;
+    }
+
+    initialZoneAppliedRef.current = true;
+    setSelectedZoneUuid(initialZoneUuid);
+    const frame = window.requestAnimationFrame(() => {
+      zoneSectionRefs.current.get(initialZoneUuid)?.scrollIntoView({
+        behavior: "auto",
+        block: "start",
+      });
+    });
+    return () => window.cancelAnimationFrame(frame);
+  }, [filterOptions, initialZoneUuid, loading]);
 
   return (
     <div className="flex min-h-0 flex-1 flex-col bg-background">

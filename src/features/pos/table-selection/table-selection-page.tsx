@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { ChevronLeft, RefreshCcw } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { LanguageSwitch } from "@/components/layout/language-switch";
@@ -26,6 +26,7 @@ const headerIconButtonClass = "relative size-[40px] rounded-full border border-p
 export function TableSelectionPage() {
   const { t } = useTranslation();
   const router = useRouter();
+  const searchParams = useSearchParams();
   const user = useAuthStore((state) => state.user);
   const language = useAppStore((state) => state.language);
   const zones = usePosStore((state) => state.zones);
@@ -42,6 +43,7 @@ export function TableSelectionPage() {
 
   const branchUuid = user?.branch_uuid ?? "";
   const skipTableSelection = user?.store_table_status === 2;
+  const initialZoneUuid = searchParams.get("zone_uuid")?.trim() ?? "";
 
   // ไม่ส่ง zone_uuid เลย — โหลดทุกโซนมาแสดงพร้อมกันเสมอ การ "เลือกโซน" ที่หน้า
   // จอเป็นแค่การเลื่อนไปยัง section นั้น (ดู scrollToZone ใน table-list-section.tsx)
@@ -87,9 +89,15 @@ export function TableSelectionPage() {
   const selectTable = useCallback((table: PosTable) => {
     const params = new URLSearchParams({ table_uuid: table.table_uuid });
     if (table.table_name) params.set("table_name", table.table_name);
+    const zoneUuid = zones.find((zone) =>
+      (zone.tables ?? []).some(
+        (zoneTable) => zoneTable.table_uuid === table.table_uuid,
+      ),
+    )?.zone_uuid;
+    if (zoneUuid) params.set("zone_uuid", zoneUuid);
     const target = `/posAll/order?${params.toString()}` as const;
     router.push(target);
-  }, [router]);
+  }, [router, zones]);
 
   if (skipTableSelection) return null;
 
@@ -102,6 +110,7 @@ export function TableSelectionPage() {
     return (
       <div className="flex h-full min-h-0 flex-col overflow-hidden">
         <TableListSection
+          initialZoneUuid={initialZoneUuid}
           loading={loading}
           search={search}
           selectedTable={null}
@@ -139,7 +148,7 @@ export function TableSelectionPage() {
             </Button>
           </div>
         </header>
-        <TableListSection loading={loading} search={search} selectedTable={null} statusFilter={statusFilter} zoneOptions={zoneOptions} zones={zones} onSearchChange={setSearch} onSelectTable={selectTable} onStatusFilterChange={setStatusFilter} />
+        <TableListSection initialZoneUuid={initialZoneUuid} loading={loading} search={search} selectedTable={null} statusFilter={statusFilter} zoneOptions={zoneOptions} zones={zones} onSearchChange={setSearch} onSelectTable={selectTable} onStatusFilterChange={setStatusFilter} />
       </div>
     </div>
   );

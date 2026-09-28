@@ -291,6 +291,8 @@ function printBatchJobTotal(batch: PrintOpsBatchPayload) {
 interface BatchPrintOutcome {
   acknowledge: boolean;
   deliveryState: PrinterDeliveryState;
+  deliveredItemUuids?: string[];
+  deliveredJobs?: number;
   errorMessage?: string;
   itemUuids: string[];
   ledgerKey: string;
@@ -319,6 +321,71 @@ function batchPrintJobItemUuids(batch: PrintOpsBatchPayload) {
   ].filter(Boolean);
 
   return [...new Set(itemUuids)];
+}
+
+function printJobItemUuidsForPhysicalJob(
+  batch: PrintOpsBatchPayload,
+  job: PrintJob,
+  index: number,
+) {
+  const groupedItemUuids = Array.isArray(job.meta?.print_job_item_uuids)
+    ? job.meta.print_job_item_uuids.map(textValue)
+    : [];
+  const jobItemUuids = [
+    ...groupedItemUuids,
+    textValue(job.print_job_item_uuid),
+    textValue(job.meta?.print_job_item_uuid),
+  ].filter(Boolean);
+
+  if (jobItemUuids.length) return [...new Set(jobItemUuids)];
+
+  const indexedItemUuid = textValue(batch.print_job_item_uuids?.[index]);
+  return indexedItemUuid ? [indexedItemUuid] : [];
+}
+
+function deliveredBatchItemUuids(
+  batch: PrintOpsBatchPayload,
+  completedJobs: number,
+) {
+  const safeCompleted = Math.max(0, Math.floor(completedJobs));
+  const jobs = Array.isArray(batch.jobs) ? batch.jobs : [];
+
+  if (jobs.length) {
+    return [
+      ...new Set(
+        jobs
+          .slice(0, safeCompleted)
+          .flatMap((job, index) =>
+            printJobItemUuidsForPhysicalJob(batch, job, index)
+          ),
+      ),
+    ];
+  }
+
+  return [
+    ...new Set(
+      (batch.print_job_item_uuids ?? [])
+        .slice(0, safeCompleted)
+        .map(textValue)
+        .filter(Boolean),
+    ),
+  ];
+}
+
+function completedBatchJobs(error: unknown, fallback = 0) {
+  if (!error || typeof error !== "object") return Math.max(0, fallback);
+  const record = error as {
+    completed_jobs?: unknown;
+    response?: { data?: { completed?: unknown } };
+  };
+  const explicit = Number(
+    record.completed_jobs ?? record.response?.data?.completed ?? 0,
+  );
+  return Math.max(
+    0,
+    Math.floor(Number.isFinite(explicit) ? explicit : fallback),
+    Math.floor(Math.max(0, fallback)),
+  );
 }
 
 function batchAckPayload({
@@ -373,7 +440,18 @@ function batchAckPayload({
   const outcomesByItem = new Map<string, BatchPrintOutcome[]>();
   for (const outcome of acknowledgedOutcomes) {
     for (const itemUuid of outcome.itemUuids) {
-      outcomesByItem.set(itemUuid, [...(outcomesByItem.get(itemUuid) ?? []), outcome]);
+      const delivered = outcome.deliveredItemUuids?.includes(itemUuid) === true;
+      const itemOutcome = delivered
+        ? {
+            ...outcome,
+            deliveryState: "printed" as const,
+            success: true,
+          }
+        : outcome;
+      outcomesByItem.set(itemUuid, [
+        ...(outcomesByItem.get(itemUuid) ?? []),
+        itemOutcome,
+      ]);
     }
   }
 
@@ -774,14 +852,26 @@ async function executePrintJobs(
           if (outcome.success) {
             successCount += batchTotal;
             reportDeliveredTickets(batchTotal);
-          } else if (outcome.deliveryState === "unknown") {
-            // เริ่มส่งข้อมูลแล้วแต่ผลปลายทางไม่ชัดเจน สถานะที่ถูกต้องคือรอยืนยัน
-            // ไม่ใช่แจ้งว่าล้มเหลว ทั้งที่กระดาษอาจพิมพ์ออกแล้ว
-            hasPendingDelivery = true;
-            lastErrorMessage = outcome.errorMessage || lastErrorMessage;
           } else {
-            failedCount += batchTotal;
-            lastErrorMessage = outcome.errorMessage || lastErrorMessage;
+            const deliveredJobs = Math.min(
+              batchTotal,
+              Math.max(0, Math.floor(outcome.deliveredJobs ?? 0)),
+            );
+            const remainingJobs = Math.max(0, batchTotal - deliveredJobs);
+            if (deliveredJobs > 0) {
+              successCount += deliveredJobs;
+              reportDeliveredTickets(deliveredJobs);
+            }
+
+            if (outcome.deliveryState === "unknown" && remainingJobs > 0) {
+              // เริ่มส่งข้อมูลแล้วแต่ผลปลายทางไม่ชัดเจน สถานะที่ถูกต้องคือรอยืนยัน
+              // ไม่ใช่แจ้งว่าล้มเหลว ทั้งที่กระดาษอาจพิมพ์ออกแล้ว
+              hasPendingDelivery = true;
+              lastErrorMessage = outcome.errorMessage || lastErrorMessage;
+            } else if (remainingJobs > 0) {
+              failedCount += remainingJobs;
+              lastErrorMessage = outcome.errorMessage || lastErrorMessage;
+            }
           }
 
           // Emit the final batch state for transports that have no earlier
@@ -847,6 +937,15 @@ async function executePrintJobs(
           } catch (error) {
             const errorMessage = getPrinterErrorMessage(error);
             const deliveryState = getPrinterDeliveryState(error);
+            const batchTotal = printBatchJobTotal(batch);
+            const deliveredJobs = Math.min(
+              batchTotal,
+              completedBatchJobs(error, deliveredByBatch[batchIndex]),
+            );
+            const deliveredItemUuids = deliveredBatchItemUuids(
+              batch,
+              deliveredJobs,
+            );
             if (options.idempotent && deliveryState === "unknown" && mobileBatch) {
               storeDelivery(ledgerKey, { deliveryState, errorMessage });
             }
@@ -856,6 +955,8 @@ async function executePrintJobs(
               // printer that may already have produced paper.
               acknowledge: true,
               deliveryState,
+              deliveredItemUuids,
+              deliveredJobs,
               errorMessage,
               itemUuids: batchPrintJobItemUuids(batch),
               ledgerKey,
@@ -905,7 +1006,7 @@ async function executePrintJobs(
       failedCount,
       total,
       ...(hasPendingDelivery ? { pending: true } : {}),
-      ...(failedCount > 0 && lastErrorMessage
+      ...(lastErrorMessage
         ? { errorMessage: lastErrorMessage }
         : {}),
     };
@@ -1129,7 +1230,7 @@ async function executePrintJobs(
     failedCount,
     total: items.length,
     ...(hasPendingDelivery ? { pending: true } : {}),
-    ...(failedCount > 0 && lastErrorMessage ? { errorMessage: lastErrorMessage } : {}),
+    ...(lastErrorMessage ? { errorMessage: lastErrorMessage } : {}),
   };
 }
 

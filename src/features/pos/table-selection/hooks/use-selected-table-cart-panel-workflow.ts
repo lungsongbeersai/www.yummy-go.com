@@ -92,6 +92,7 @@ interface UseSelectedTableCartPanelWorkflowParams {
   cart: CartPanelData;
   newOrderFocusKey?: number;
   onCartRefresh: () => Promise<void>;
+  onPaymentCompleted?: () => Promise<void>;
   onTableActionComplete: (nextTableUuid?: string) => Promise<void>;
   printerContext?: PrinterDeviceContext | null;
   table: PosTable | null;
@@ -102,6 +103,7 @@ export function useSelectedTableCartPanelWorkflow({
   cart,
   newOrderFocusKey = 0,
   onCartRefresh,
+  onPaymentCompleted,
   onTableActionComplete,
   printerContext,
   table,
@@ -726,22 +728,31 @@ export function useSelectedTableCartPanelWorkflow({
     errorMessage?: string;
     pending?: boolean;
   }) {
-    if (result.failedCount > 0) {
+    const printIncomplete =
+      result.failedCount > 0 ||
+      result.pending === true ||
+      (result.total > 0 && result.successCount < result.total);
+
+    if (printIncomplete) {
+      const printProgress = result.total > 0
+        ? t("pos.confirmAllPrintProgress", {
+            success: result.successCount,
+            total: result.total,
+          })
+        : "";
       showToast({
-        title: t("pos.orderConfirmed"),
+        title: t("pos.kitchenPrintIncomplete"),
         description: [
-          `${t("report.printFailed")} ${result.failedCount}/${result.total || result.failedCount}`,
+          printProgress,
+          result.failedCount > 0
+            ? `${t("report.printFailed")} ${result.failedCount}/${result.total || result.failedCount}`
+            : "",
           result.errorMessage,
         ]
           .filter(Boolean)
           .join(" — "),
         tone: "warning",
       });
-      return;
-    }
-
-    if (result.pending) {
-      showToast({ title: t("orderQueue.kitchenPrintQueued"), tone: "info" });
       return;
     }
 
@@ -1392,6 +1403,10 @@ export function useSelectedTableCartPanelWorkflow({
       // ร้านไม่มีโต๊ะ: จ่ายเงินเต็มบิลแล้ว เลิกยึด order_uuid เดิม รอบถัดไปเปิดบิลใหม่
       // (split ยังไม่เคลียร์ เพราะอาจเหลือรายการค้างจ่ายอยู่ใน order เดียวกัน)
       usePosStore.getState().setCounterOrderUuid("");
+    }
+    if (onPaymentCompleted) {
+      await onPaymentCompleted();
+      return;
     }
     await onTableActionComplete();
   }

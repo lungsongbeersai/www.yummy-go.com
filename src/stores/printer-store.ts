@@ -17,6 +17,7 @@ import {
   isBrowserPrinterAgentId,
   rememberNativePrinterDeviceCode,
   migrateMobilePrinterDevice,
+  registerPrinterAgent,
   getPendingPrintJobs,
   getPrinterOptions,
   getPrinterRoles,
@@ -156,6 +157,7 @@ export const usePrinterStore = create<PrinterState>((set, get) => ({
     if (!isCurrentSession()) return [];
 
     const resolvedAgent = result.ok ? result.agent : null;
+    const agentConnected = result.ok && result.connected !== false;
     const browserIdentity = isBrowserPrinterAgentId(resolvedAgent?.agent_id);
     const localAgentAvailable = Boolean(
       resolvedAgent &&
@@ -166,16 +168,41 @@ export const usePrinterStore = create<PrinterState>((set, get) => ({
     const agent = localAgentAvailable ? resolvedAgent : null;
     const agentId = textValue(agent?.agent_id);
     const deviceCode = textValue(agent?.device_code);
+    const requesterNetworkHints = agent
+      ? [
+          ...(agent.network_addresses ?? []),
+          textValue(agent.agent_url),
+        ].filter(Boolean)
+      : [];
 
     if (isCurrentSession()) {
       set({
         agent,
-        agentStatus: localAgentAvailable ? "connected" : "offline",
-        agentError: result.ok ? null : result.error,
+        agentStatus: localAgentAvailable && agentConnected ? "connected" : "offline",
+        agentError: result.ok ? result.error ?? null : result.error,
       });
     }
 
     try {
+      if (
+        agentConnected &&
+        agent &&
+        !browserIdentity &&
+        agentId &&
+        deviceCode &&
+        textValue(agent.agent_url)
+      ) {
+        await registerPrinterAgent({
+          login_uuid_fk: params.login_uuid_fk,
+          agent_id: agentId,
+          agent_name: textValue(agent.agent_name),
+          agent_url: textValue(agent.agent_url),
+          agent_secret_hash: textValue(agent.agent_secret_hash),
+          device_code: deviceCode,
+          platform: textValue(agent.platform),
+        }).catch(() => undefined);
+      }
+
       const previousDeviceCode = textValue(agent?.previous_device_code);
       if (isCapacitorMobileApp() && previousDeviceCode && previousDeviceCode !== deviceCode) {
         await migrateMobilePrinterDevice({
@@ -190,6 +217,9 @@ export const usePrinterStore = create<PrinterState>((set, get) => ({
         ...params,
         ...(agentId ? { agent_id: agentId } : {}),
         ...(deviceCode ? { device_code: deviceCode } : {}),
+        ...(requesterNetworkHints.length
+          ? { requester_network_hints: requesterNetworkHints }
+          : {}),
         include_offline_shared: true,
         management_view: true,
       });

@@ -7,10 +7,11 @@ import { useOrderCustomerWorkflow } from "./use-order-customer-workflow";
 
 export function OrderCustomerPage() {
   const searchParams = useSearchParams();
-  const { initialTableUuid, initialTableName } = orderCustomerRouteInput(searchParams);
+  const { initialTableUuid, initialTableName, initialZoneUuid } = orderCustomerRouteInput(searchParams);
   const workflow = useOrderCustomerWorkflow({
     initialTableUuid,
     initialTableName,
+    initialZoneUuid,
   });
 
   return <OrderCustomerView workflow={workflow} />;

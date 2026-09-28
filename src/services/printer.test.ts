@@ -54,6 +54,7 @@ import {
   getPrinters,
   printBatchWithLocalAgent,
   renderMobileEscpos,
+  registerPrinterAgent,
   resolvePrinterDeviceContext,
   resolvePrinterDeviceIdentity,
   searchPrinters,
@@ -1044,6 +1045,120 @@ describe("printer service dispatch", () => {
     );
   });
 
+  it("ACKs completed tickets separately when the third Agent ticket fails", async () => {
+    const jobs = ["item-1", "item-2", "item-3"].map((itemUuid, index) =>
+      windowsPrintJob({
+        job_id: `kitchen-order-1-${itemUuid}`,
+        print_job_item_uuid: itemUuid,
+        ops: [{ type: "text", text: `Ticket ${index + 1}` }],
+      }),
+    );
+    const ackPayloads: AckPayload[] = [];
+
+    axiosMocks.get.mockResolvedValue({
+      data: { agent_id: "agent-1", agent_name: "Local", device_code: "device-1" },
+    });
+    axiosMocks.post.mockRejectedValue(
+      Object.assign(new Error("Request failed with status code 500"), {
+        response: {
+          status: 500,
+          headers: { "x-printer-delivery-state": "unknown" },
+          data: {
+            ok: false,
+            error: "printer reported paper out before ticket completion",
+            completed: 2,
+            jobs_total: 3,
+          },
+        },
+      }),
+    );
+    apiMocks.apiRequest.mockImplementation(async (method, url, options) => {
+      if (method === "get" && url === "/api/v1/printer/jobs/pending") {
+        return {
+          print_batch_payloads: [{
+            cut_mode: "per_ticket",
+            agent_id: "agent-1",
+            device_code: "device-1",
+            print_mode: "windows_agent",
+            print_client: "agent",
+            interface_value: "win:USB/ONLY(XP-80)",
+            print_config_uuid: "51a34c43-f256-4074-84eb-44c9d7668a47",
+            print_job_item_uuids: ["item-1", "item-2", "item-3"],
+            job_total: 3,
+            jobs,
+          }],
+          ack_success_payload: {
+            print_job_uuid: "job-partial",
+            results: ["item-1", "item-2", "item-3"].map(
+              (print_job_item_uuid) => ({
+                print_job_item_uuid,
+                status: "success" as const,
+              }),
+            ),
+          },
+          ack_failed_payload: {
+            print_job_uuid: "job-partial",
+            results: ["item-1", "item-2", "item-3"].map(
+              (print_job_item_uuid) => ({
+                print_job_item_uuid,
+                status: "failed" as const,
+              }),
+            ),
+          },
+        };
+      }
+      if (method === "post" && url === "/api/v1/printer/jobs/ack") {
+        ackPayloads.push(options?.data as AckPayload);
+        return {};
+      }
+      throw new Error(`Unexpected request ${method} ${url}`);
+    });
+
+    await expect(
+      executeKitchenPrintJobs({
+        pending_query: {
+          print_job_uuid: "job-partial",
+          login_uuid_fk: "login-1",
+          device_code: "device-1",
+          agent_id: "agent-1",
+          print_mode: "windows_agent",
+        },
+      }),
+    ).resolves.toEqual({
+      successCount: 2,
+      failedCount: 0,
+      total: 3,
+      pending: true,
+      errorMessage: "printer reported paper out before ticket completion",
+    });
+
+    expect(ackPayloads).toEqual([{
+      print_job_uuid: "job-partial",
+      login_uuid_fk: "login-1",
+      results: [
+        {
+          print_job_item_uuid: "item-1",
+          status: "success",
+          print_config_uuid: "51a34c43-f256-4074-84eb-44c9d7668a47",
+          delivery_state: "printed",
+        },
+        {
+          print_job_item_uuid: "item-2",
+          status: "success",
+          print_config_uuid: "51a34c43-f256-4074-84eb-44c9d7668a47",
+          delivery_state: "printed",
+        },
+        {
+          print_job_item_uuid: "item-3",
+          status: "failed",
+          reason: "printer reported paper out before ticket completion",
+          print_config_uuid: "51a34c43-f256-4074-84eb-44c9d7668a47",
+          delivery_state: "unknown",
+        },
+      ],
+    }]);
+  });
+
   it("prints a shared Windows Agent TCP batch directly from native mobile", async () => {
     capacitorMocks.isNativePlatform.mockReturnValue(true);
     const sharedJob = windowsPrintJob({
@@ -1780,7 +1895,8 @@ describe("printer service dispatch", () => {
       successCount: 0,
       failedCount: 0,
       total: 2,
-      pending: true
+      pending: true,
+      errorMessage: "batch failed"
     });
 
     expect(axiosMocks.post).toHaveBeenCalledWith(
@@ -2308,6 +2424,7 @@ describe("printer device identity", () => {
   });
 
   it("uses desktop local agent info when the agent is available", async () => {
+    const storage = mockLocalStorage();
     axiosMocks.get.mockResolvedValue({
       data: { agent_id: "agent-1", agent_name: "Desktop", device_code: "device-1" }
     });
@@ -2322,6 +2439,37 @@ describe("printer device identity", () => {
         device_code: "device-1",
         platform: ""
       }
+    });
+    expect(storage.setItem).toHaveBeenCalledWith(
+      "yummy_local_printer_agent_identity",
+      expect.stringContaining('"device_code":"device-1"'),
+    );
+  });
+
+  it("keeps the cached desktop identity while the Agent restarts during reinstall", async () => {
+    mockLocalStorage({
+      yummy_local_printer_agent_identity: JSON.stringify({
+        agent_id: "agent-before-reinstall",
+        agent_name: "Front POS",
+        device_code: "POS-01",
+        agent_url: "http://192.168.100.78:7777",
+        network_addresses: ["192.168.100.78"],
+      }),
+    });
+    axiosMocks.get.mockRejectedValue(new Error("Agent restarting"));
+
+    await expect(resolvePrinterDeviceIdentity()).resolves.toEqual({
+      ok: true,
+      connected: false,
+      error: "Agent restarting",
+      agent: {
+        agent_id: "agent-before-reinstall",
+        agent_name: "Front POS",
+        device_code: "POS-01",
+        platform: "",
+        agent_url: "http://192.168.100.78:7777",
+        network_addresses: ["192.168.100.78"],
+      },
     });
   });
 
@@ -2376,6 +2524,71 @@ describe("printer API payloads", () => {
           lang: "eng"
         }
       }
+    );
+  });
+
+  it("registers the current desktop Agent so reinstall keeps printer ownership", async () => {
+    apiMocks.apiRequest.mockResolvedValue({
+      data: {
+        rebound_pending_jobs: 1,
+        rebound_printer_configs: 2,
+      },
+    });
+
+    await expect(registerPrinterAgent({
+      login_uuid_fk: "login-1",
+      agent_id: "agent-new",
+      agent_name: "Front POS",
+      agent_url: "http://192.168.100.78:7777",
+      agent_secret_hash: `sha256:${"a".repeat(64)}`,
+      device_code: "POS-01",
+      platform: "win32",
+    })).resolves.toEqual({
+      rebound_pending_jobs: 1,
+      rebound_printer_configs: 2,
+    });
+
+    expect(apiMocks.apiRequest).toHaveBeenCalledWith(
+      "post",
+      "/api/v1/printer/agent/register",
+      {
+        data: {
+          login_uuid_fk: "login-1",
+          agent_id: "agent-new",
+          agent_name: "Front POS",
+          agent_url: "http://192.168.100.78:7777",
+          agent_secret_hash: `sha256:${"a".repeat(64)}`,
+          device_code: "POS-01",
+          platform: "win32",
+        },
+      },
+    );
+  });
+
+  it("sends local Agent LAN hints so a printerless friend can see shared printers", async () => {
+    apiMocks.apiRequest.mockResolvedValue({ data: [] });
+
+    await getPrinters({
+      login_uuid_fk: "login-1",
+      device_code: "friend-device",
+      requester_network_hints: [
+        "192.168.100.78",
+        "http://192.168.100.78:7777",
+      ],
+    });
+
+    expect(apiMocks.apiRequest).toHaveBeenCalledWith(
+      "get",
+      "/api/v1/printer/fetch",
+      {
+        params: {
+          login_uuid_fk: "login-1",
+          device_code: "friend-device",
+          requester_network_hints:
+            "192.168.100.78,http://192.168.100.78:7777",
+          lang: "la",
+        },
+      },
     );
   });
 
@@ -2579,7 +2792,14 @@ describe("printer API payloads", () => {
   it("resolves printer device context from fetched printer settings", async () => {
     const storage = mockLocalStorage();
     axiosMocks.get.mockResolvedValue({
-      data: { agent_id: "local-agent", agent_name: "Local", device_code: "INCLUDE" }
+      data: {
+        agent_id: "local-agent",
+        agent_name: "Local",
+        device_code: "INCLUDE",
+        agent_url: "http://192.168.100.78:7777",
+        agent_secret_hash: `sha256:${"a".repeat(64)}`,
+        platform: "win32",
+      }
     });
     apiMocks.apiRequest.mockResolvedValue(
       printerFetchResponse({
@@ -2600,9 +2820,25 @@ describe("printer API payloads", () => {
       params: {
         login_uuid_fk: "login-1",
         device_code: "INCLUDE",
+        requester_network_hints: "http://192.168.100.78:7777",
         lang: "la"
       }
     });
+    expect(apiMocks.apiRequest).toHaveBeenCalledWith(
+      "post",
+      "/api/v1/printer/agent/register",
+      {
+        data: {
+          login_uuid_fk: "login-1",
+          agent_id: "local-agent",
+          agent_name: "Local",
+          agent_url: "http://192.168.100.78:7777",
+          agent_secret_hash: `sha256:${"a".repeat(64)}`,
+          device_code: "INCLUDE",
+          platform: "win32",
+        },
+      },
+    );
     expect(storage.setItem).toHaveBeenCalledWith(
       "yummy_local_printer_agent_identity",
       expect.stringContaining("\"device_code\":\"INCLUDE\"")

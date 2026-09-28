@@ -44,6 +44,8 @@ import {
   selectedOrderTable,
   selectedToppingsFromQtyMap,
   selectedTastesFromUuids,
+  tableSelectionUrl,
+  tableZoneUuid,
   tasteSelectionLimit,
   toggleSetChildOptionGroupUuid,
   toggleSetChoiceUuid,
@@ -61,11 +63,13 @@ import { useOrderCustomerRealtime } from "./use-order-customer-realtime";
 export type OrderCustomerWorkflowInput = {
   initialTableUuid: string;
   initialTableName: string;
+  initialZoneUuid: string;
 };
 
 export function useOrderCustomerWorkflow({
   initialTableUuid,
   initialTableName,
+  initialZoneUuid,
 }: OrderCustomerWorkflowInput) {
   const { t } = useTranslation();
   const router = useRouter();
@@ -113,6 +117,7 @@ export function useOrderCustomerWorkflow({
   const [cartSheetOpen, setCartSheetOpen] = useState(false);
   const [draftExitWarningOpen, setDraftExitWarningOpen] = useState(false);
   const [draftExitCleanupPending, setDraftExitCleanupPending] = useState(false);
+  const backgroundCartRefreshRef = useRef<Promise<void> | null>(null);
   const pendingExitActionRef = useRef<(() => void) | null>(null);
   const allowNextUnloadRef = useRef(false);
   const requestGuardedNavigationRef = useRef<(action: () => void) => void>(
@@ -156,6 +161,15 @@ export function useOrderCustomerWorkflow({
     }
     return null;
   }, [counterOrderUuid, initialTableName, initialTableUuid, t, zones]);
+
+  const selectedTableZoneUuid = useMemo(
+    () =>
+      tableZoneUuid(zones, initialTableUuid) ||
+      initialZoneUuid ||
+      user?.zone_uuid ||
+      "",
+    [initialTableUuid, initialZoneUuid, user?.zone_uuid, zones],
+  );
 
   const selectedCart = useMemo(() => {
     // fetch_cart ของออเดอร์เคาน์เตอร์ query ด้วย order_uuid + branch_uuid_fk
@@ -588,8 +602,20 @@ export function useOrderCustomerWorkflow({
     void loadCart();
   }, [loadCart]);
 
-  const reloadCartAfterResume = useCallback(async () => {
-    await loadCart({ background: true });
+  // Socket และ lifecycle อาจแจ้งพร้อมกันหลังแอปกลับ foreground จึงรวม background
+  // refresh ที่คาบเกี่ยวกันให้ใช้ request เดียว ส่วน foreground refresh หลัง mutation
+  // ยังคงยิงใหม่เสมอเพื่อไม่ให้ใช้ response เก่าก่อนเพิ่ม/แก้รายการอาหาร
+  const refreshCartInBackground = useCallback(() => {
+    const activeRequest = backgroundCartRefreshRef.current;
+    if (activeRequest) return activeRequest;
+
+    const request = loadCart({ background: true }).finally(() => {
+      if (backgroundCartRefreshRef.current === request) {
+        backgroundCartRefreshRef.current = null;
+      }
+    });
+    backgroundCartRefreshRef.current = request;
+    return request;
   }, [loadCart]);
 
   // Web ใช้ visibilitychange; Capacitor ใช้ native appStateChange ซึ่ง map ไปยัง
@@ -603,7 +629,7 @@ export function useOrderCustomerWorkflow({
     const resume = () => {
       if (!inactive || disposed) return;
       inactive = false;
-      void reloadCartAfterResume();
+      void refreshCartInBackground();
     };
 
     if (isCapacitorMobileApp()) {
@@ -637,9 +663,9 @@ export function useOrderCustomerWorkflow({
       disposed = true;
       document.removeEventListener("visibilitychange", handleVisibilityChange);
     };
-  }, [reloadCartAfterResume]);
+  }, [refreshCartInBackground]);
 
-  useOrderCustomerRealtime({ branchUuid, refresh: loadCart });
+  useOrderCustomerRealtime({ branchUuid, refresh: refreshCartInBackground });
 
   useEffect(() => {
     void loadMenu({ refreshCategories: true });
@@ -667,7 +693,11 @@ export function useOrderCustomerWorkflow({
 
   function navigateAwayFromOrder() {
     // ร้านไม่มีโต๊ะไม่มีหน้าเลือกโต๊ะให้กลับไป — ปุ่ม "ย้อนกลับ" จึงออกไปหน้าแรกแทน
-    router.replace(user?.store_table_status === 2 ? "/" : "/posAll/tables");
+    router.replace(
+      user?.store_table_status === 2
+        ? "/"
+        : tableSelectionUrl(selectedTableZoneUuid),
+    );
   }
 
   function requestGuardedNavigation(action: () => void) {
@@ -1053,6 +1083,7 @@ export function useOrderCustomerWorkflow({
         orderCustomerUrl({
           tableName: nextTable.table_name ?? initialTableName,
           tableUuid: nextTableUuid,
+          zoneUuid: tableZoneUuid(nextZones, nextTableUuid),
         }),
       );
       return;
@@ -1072,6 +1103,16 @@ export function useOrderCustomerWorkflow({
     }
   }
 
+  async function handlePaymentComplete() {
+    if (isNoTableStore) {
+      await handleTableActionComplete();
+      return;
+    }
+
+    setCartSheetOpen(false);
+    router.replace(tableSelectionUrl(selectedTableZoneUuid));
+  }
+
   return {
     activeProducts,
     activeSort,
@@ -1081,6 +1122,7 @@ export function useOrderCustomerWorkflow({
     categories,
     changeProductDetail,
     changeSelectedToppingQty,
+    handlePaymentComplete,
     handleTableActionComplete,
     isMobile,
     loadCart,

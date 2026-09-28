@@ -226,11 +226,16 @@ describe("mobile TCP printer queue", () => {
     ]);
     const sent: Buffer[] = [];
     const progress: number[] = [];
+    const transportEvents: string[] = [];
     const TcpSocket = {
       connect: vi.fn(),
       disconnect: vi.fn(),
-      read: vi.fn().mockResolvedValue({ result: "AA==" }),
+      read: vi.fn(async () => {
+        transportEvents.push("read");
+        return { result: "AA==" };
+      }),
       send: vi.fn(async ({ data }: { data: string }) => {
+        transportEvents.push("send");
         sent.push(Buffer.from(data, "base64"));
       }),
     };
@@ -252,6 +257,7 @@ describe("mobile TCP printer queue", () => {
       statusCommand,
     ]));
     expect(TcpSocket.read).toHaveBeenCalledTimes(2);
+    expect(transportEvents).toEqual(["send", "read", "read"]);
     expect(progress).toEqual([1, 2]);
   });
 
@@ -406,7 +412,7 @@ describe("mobile TCP printer queue", () => {
     const TcpSocket = {
       connect: vi.fn(),
       disconnect: vi.fn(),
-      read: vi.fn().mockResolvedValue({ result: "YA==" }),
+      read: vi.fn().mockResolvedValue({ result: "DA==" }),
       send: vi.fn().mockResolvedValue(undefined),
     };
 
@@ -419,5 +425,21 @@ describe("mobile TCP printer queue", () => {
       delivery_state: "unknown",
       message: "Printer reported paper out before completion",
     });
+  });
+
+  it("does not treat reserved GS r bits as paper out", async () => {
+    const TcpSocket = {
+      connect: vi.fn(),
+      disconnect: vi.fn(),
+      read: vi.fn().mockResolvedValue({ result: "YA==" }),
+      send: vi.fn().mockResolvedValue(undefined),
+    };
+
+    await expect(
+      __mobileTcpInternals.checkMobilePrinterPaperStatus({
+        TcpSocket,
+        client: "printer-client",
+      }),
+    ).resolves.toBeUndefined();
   });
 });

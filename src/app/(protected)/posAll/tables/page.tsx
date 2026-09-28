@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { Suspense } from "react";
 import { TableSelectionPage } from "@/features/pos/table-selection/table-selection-page";
 
 export const metadata: Metadata = {
@@ -6,5 +7,9 @@ export const metadata: Metadata = {
 };
 
 export default function PosAllTablesPage() {
-  return <TableSelectionPage />;
+  return (
+    <Suspense fallback={null}>
+      <TableSelectionPage />
+    </Suspense>
+  );
 }

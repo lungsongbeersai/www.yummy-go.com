@@ -243,11 +243,11 @@ export function usePrinterForm() {
     });
   });
 
-  const fillAgent = useCallback((nextAgent: AgentInfo, nextAgentUrl = AGENT_URL) => {
+  const fillAgent = useCallback((nextAgent: AgentInfo, nextAgentUrl?: string) => {
     setAgentUrl(
       isBrowserPrinterAgentId(nextAgent.agent_id)
         ? BROWSER_PRINTER_AGENT_URL
-        : nextAgentUrl,
+        : textValue(nextAgent.agent_url) || nextAgentUrl || AGENT_URL,
     );
     setAgentId(textValue(nextAgent.agent_id));
     setAgentName(textValue(nextAgent.agent_name));
@@ -330,7 +330,7 @@ export function usePrinterForm() {
     const nextAgentId = textValue(agent.agent_id);
     const nextAgentName = textValue(agent.agent_name);
     const nextDeviceCode = textValue(agent.device_code);
-    setAgentUrl((value) => value || AGENT_URL);
+    setAgentUrl((value) => textValue(agent.agent_url) || value || AGENT_URL);
     setAgentId((value) => value || nextAgentId);
     setAgentName((value) => value || nextAgentName);
     setDeviceCode((value) => value || nextDeviceCode);
@@ -567,7 +567,10 @@ export function usePrinterForm() {
 
       const nextAgentUrl = isBrowserPrinterAgentId(nextAgentId)
         ? BROWSER_PRINTER_AGENT_URL
-        : agentUrl.trim() || AGENT_URL;
+        : textValue(identity.agent_url) ||
+          textValue(agent?.agent_url) ||
+          agentUrl.trim() ||
+          AGENT_URL;
 
       fillAgent(identity, nextAgentUrl);
 

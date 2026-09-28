@@ -12,6 +12,8 @@ export interface StoreBranchLabels {
   branchInfo: string;
   branchList: string;
   branchNameRequired: string;
+  annualDue: string;
+  activeStores: string;
   cancel: string;
   cancelImage: string;
   charge: string;
@@ -28,6 +30,10 @@ export interface StoreBranchLabels {
   depositExpireDays: string;
   depositExpireDaysHint: string;
   depositExpireDaysPlaceholder: string;
+  dateUnavailable: string;
+  daysOverdue: string;
+  daysRemaining: string;
+  dueToday: string;
   email: string;
   emailPlaceholder: string;
   general: string;
@@ -36,6 +42,7 @@ export interface StoreBranchLabels {
   imageLoadFailed: string;
   imageSupport: string;
   inactive: string;
+  inactiveStores: string;
   name: string;
   nameEn: string;
   nameLa: string;
@@ -43,8 +50,10 @@ export interface StoreBranchLabels {
   noStore: string;
   noTables: string;
   open: string;
+  openedOn: string;
   phone: string;
   plc: string;
+  plcStores: string;
   refreshBranch: string;
   refreshStore: string;
   resetFailed: string;
@@ -64,11 +73,15 @@ export interface StoreBranchLabels {
   storeList: string;
   storeNameRequired: string;
   storeRequired: string;
+  storeSummary: string;
   tableStatus: string;
   tableStatusHint: string;
   taxBilling: string;
   taxBillingHint: string;
   type: string;
+  test: string;
+  testStores: string;
+  generalStores: string;
   uploadImage: string;
   vertical: string;
   vat: string;

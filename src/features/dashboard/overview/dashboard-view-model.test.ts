@@ -112,26 +112,26 @@ describe("dashboard view model", () => {
     ]);
   });
 
-  it("defaults to the latest 7 business days ending today", () => {
+  it("defaults both daily dates to the current business date", () => {
     expect(createDefaultFilters(new Date(2026, 5, 11, 12))).toEqual({
       end_date: "2026-06-11",
       periodMonth: 6,
       periodType: "daily",
       periodYear: 2026,
-      start_date: "2026-06-05"
+      start_date: "2026-06-11"
     });
   });
 
-  it("crosses month and year boundaries for the default week", () => {
+  it("keeps both default dates equal at month and year boundaries", () => {
     expect(createDefaultFilters(new Date(2026, 2, 3, 12))).toMatchObject({
       end_date: "2026-03-03",
-      start_date: "2026-02-25"
+      start_date: "2026-03-03"
     });
     expect(createDefaultFilters(new Date(2027, 0, 2, 12))).toMatchObject({
       end_date: "2027-01-02",
       periodMonth: 1,
       periodYear: 2027,
-      start_date: "2026-12-27"
+      start_date: "2027-01-02"
     });
   });
 
@@ -141,7 +141,7 @@ describe("dashboard view model", () => {
       periodMonth: 8,
       periodType: "daily",
       periodYear: 2026,
-      start_date: "2026-08-19"
+      start_date: "2026-08-25"
     });
   });
 
@@ -361,7 +361,7 @@ describe("dashboard period type filters", () => {
   const dailyFilters = createDefaultFilters(new Date(2026, 5, 11, 12));
 
   it("keeps a manual date range untouched while on the daily period", () => {
-    const filters = applyPeriodType(dailyFilters, "daily");
+    const filters = applyPeriodType({ ...dailyFilters, start_date: "2026-06-05" }, "daily");
 
     expect(filters).toMatchObject({
       end_date: "2026-06-11",

@@ -13,6 +13,7 @@ import { usePublicOrderStatusNotifications } from "./use-public-order-status-not
 import { usePublicQrDialog } from "./use-public-qr-dialog";
 import { usePublicQrOrderScanner } from "./use-public-qr-order-scanner";
 import { usePublicSearch } from "./use-public-search";
+import { createCartRefreshDeduper } from "../cart-refresh-deduper";
 import { totalCartQty } from "../utils";
 
 interface UsePublicBrowseWorkflowParams {
@@ -110,13 +111,23 @@ export function usePublicBrowseWorkflow({
   });
   // QR เมนูอย่างเดียว (ສ້າງ QR ເມນູອາຫານ) — ไม่มีตะกร้าให้ sync/แจ้งเตือนเลย
   const viewOnly = Boolean(table?.view_only);
-  const refreshCartRealtime = useCallback(
-    () => loadCart({ t: token, lang }).then(() => undefined),
+  // visibility, Socket และการเปิดตะกร้าอาจชนกันในช่วงเดียวกัน จึงแชร์เฉพาะ
+  // background request; refresh หลัง mutation ใน store ยังยิงใหม่จาก Backend เสมอ
+  const backgroundCartRefreshRef = useRef<ReturnType<
+    typeof createCartRefreshDeduper
+  > | null>(null);
+  backgroundCartRefreshRef.current ??= createCartRefreshDeduper();
+  const refreshCartInBackground = useCallback(
+    () =>
+      backgroundCartRefreshRef.current!(
+        `${token}:${lang}`,
+        () => loadCart({ t: token, lang }).then(() => undefined),
+      ),
     [loadCart, token, lang],
   );
   usePublicOrderRealtime({
     branchUuid: viewOnly ? undefined : table?.branch_uuid_fk,
-    refresh: refreshCartRealtime,
+    refresh: refreshCartInBackground,
   });
   const cartOrderUuids = useMemo(
     () => Array.from(new Set(cart.map((order) => order.order_uuid).filter(Boolean))),
@@ -137,11 +148,11 @@ export function usePublicBrowseWorkflow({
     createOrder,
     deleteItem,
     ensureCartLoaded,
-    loadCart,
     lang,
     loadProductItem,
     loadingItem,
     playCartFlyAnimation,
+    refreshCart: refreshCartInBackground,
     saving,
     submittedSearch: search.submittedSearch,
     table,

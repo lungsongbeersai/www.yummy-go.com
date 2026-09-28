@@ -33,6 +33,8 @@ import {
   productNeedsModal,
   productOptionCount,
   resolveSetOrderDetails,
+  tableSelectionUrl,
+  tableZoneUuid,
   selectedOrderTable,
   selectedTastesFromUuids,
   selectedToppingsFromQtyMap,
@@ -161,6 +163,39 @@ describe("order customer helpers", () => {
     expect(orderCustomerUrl({ tableUuid: "table 1", tableName: "A&B" })).toBe(
       "/posAll/order?table_uuid=table+1&table_name=A%26B",
     );
+    expect(
+      orderCustomerUrl({
+        tableUuid: "table-1",
+        tableName: "T1",
+        zoneUuid: "zone-2",
+      }),
+    ).toBe(
+      "/posAll/order?table_uuid=table-1&table_name=T1&zone_uuid=zone-2",
+    );
+  });
+
+  it("keeps table navigation anchored to the table's zone", () => {
+    const zones = [
+      { zone_uuid: "zone-1", zone_name: "A", tables: [] },
+      {
+        zone_uuid: "zone-2",
+        zone_name: "B",
+        tables: [
+          {
+            table_uuid: "table-1",
+            table_name: "T1",
+            table_status: TableStatus.OCCUPIED,
+          },
+        ],
+      },
+    ];
+
+    expect(tableZoneUuid(zones, "table-1")).toBe("zone-2");
+    expect(tableZoneUuid(zones, "missing")).toBe("");
+    expect(tableSelectionUrl("zone-2")).toBe(
+      "/posAll/tables?zone_uuid=zone-2",
+    );
+    expect(tableSelectionUrl()).toBe("/posAll/tables");
   });
 
   it("builds a synthetic table identity for counter orders (no real table)", () => {

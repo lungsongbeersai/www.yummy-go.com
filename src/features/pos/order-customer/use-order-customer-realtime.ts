@@ -36,15 +36,6 @@ export function useOrderCustomerRealtime({ branchUuid, refresh }: UseOrderCustom
   );
 
   useEffect(() => {
-    function handleVisibilityChange() {
-      if (document.visibilityState === "visible") void refresh().catch(() => undefined);
-    }
-
-    document.addEventListener("visibilitychange", handleVisibilityChange);
-    return () => document.removeEventListener("visibilitychange", handleVisibilityChange);
-  }, [refresh]);
-
-  useEffect(() => {
     if (!branchUuid) return;
     const activeBranchUuid = branchUuid;
 

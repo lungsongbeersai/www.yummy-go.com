@@ -3,6 +3,7 @@ import {
   arraysHaveSameValues,
   cashDrawerEnabledOf,
   formatIpInput,
+  initialPrinterFormValues,
   kitchenCutModeOf,
   mergeUsbPrinterOptions,
   printerFormValues,
@@ -160,6 +161,21 @@ describe("printerFormValues", () => {
         cate_uuid_fk: ["category-1"],
       }).selectedDevice,
     ).toBe("win:Kitchen");
+  });
+
+  it("uses the Agent LAN URL for a new shared-printer owner", () => {
+    expect(
+      initialPrinterFormValues(
+        null,
+        {
+          agent_id: "owner-agent",
+          agent_name: "Owner POS",
+          device_code: "OWNER-PC",
+          agent_url: "http://192.168.100.20:7777",
+        },
+        false,
+      ).agentUrl,
+    ).toBe("http://192.168.100.20:7777");
   });
 });
 

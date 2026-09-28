@@ -14,6 +14,7 @@ export interface Branch extends ApiEntity {
   branch_address?: string;
   branch_email?: string;
   branch_qr?: string;
+  branch_opened_on?: string | null;
   vat_status?: number;
   vat_name?: number;
   charge_status?: number;

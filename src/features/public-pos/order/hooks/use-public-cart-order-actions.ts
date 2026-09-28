@@ -29,7 +29,6 @@ interface UsePublicCartOrderActionsParams {
   createOrder: PublicPosState["createOrder"];
   deleteItem: PublicPosState["deleteItem"];
   ensureCartLoaded: PublicPosState["ensureCartLoaded"];
-  loadCart: PublicPosState["loadCart"];
   lang: string;
   loadProductItem: PublicPosState["loadProductItem"];
   loadingItem: boolean;
@@ -37,6 +36,7 @@ interface UsePublicCartOrderActionsParams {
     product: CateProductItem | ProdItem,
     sourceRect?: DOMRect | null,
   ) => void;
+  refreshCart: () => Promise<void>;
   saving: boolean;
   submittedSearch: string;
   table: QRScanResponse | null;
@@ -57,11 +57,11 @@ export function usePublicCartOrderActions({
   createOrder,
   deleteItem,
   ensureCartLoaded,
-  loadCart,
   lang,
   loadProductItem,
   loadingItem,
   playCartFlyAnimation,
+  refreshCart,
   saving,
   submittedSearch,
   table,
@@ -130,8 +130,7 @@ export function usePublicCartOrderActions({
     confirming,
     confirmKitchen,
     deleteItem,
-    loadCart,
-    lang,
+    refreshCart,
     t,
     toast,
     token,

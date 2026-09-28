@@ -8,12 +8,16 @@ import {
   branchVatSummary,
   buildBranchPayload,
   buildStorePayload,
+  annualDaysRemaining,
   isStoreActive,
   isStorePlc,
+  isStoreTest,
   missingBranchField,
   missingStoreField,
+  normalizeStoreReportSummary,
   storeAuthUserUpdate,
-  storeBranchName
+  storeBranchName,
+  storeType
 } from "@/features/settings/store-branch/store-branch-utils";
 
 describe("store branch utils", () => {
@@ -193,9 +197,36 @@ describe("store branch utils", () => {
     expect(storeBranchName({ store_name_la: "LA", store_name_eng: "EN" }, "store")).toBe("LA");
     expect(storeBranchName({ branch_name_eng: "EN" }, "branch")).toBe("EN");
     expect(isStorePlc({ store_status: 1 })).toBe(true);
+    expect(isStoreTest({ store_status: 3 })).toBe(true);
+    expect(storeType({ store_status: 3 })).toBe("test");
+    expect(storeType({ store_status: 99 })).toBe("general");
     expect(isStoreActive({ store_active: 2 })).toBe(false);
     expect(branchVatSummary({ vat_status: 1, vat_name: 7 }).percentLabel).toBe("7%");
     expect(branchChargeSummary({ charge_status: 1, charge_name: 2.5 }).percentLabel).toBe("2.5%");
+  });
+
+  it("normalizes the all-store report summary and annual countdown", () => {
+    expect(
+      normalizeStoreReportSummary({
+        total: "12",
+        general: 7,
+        plc: "2",
+        test: 3,
+        active: "10",
+        inactive: 2
+      })
+    ).toEqual({ total: 12, general: 7, plc: 2, test: 3, active: 10, inactive: 2 });
+    expect(normalizeStoreReportSummary(null)).toEqual({
+      total: 0,
+      general: 0,
+      plc: 0,
+      test: 0,
+      active: 0,
+      inactive: 0
+    });
+    expect(annualDaysRemaining({ annual_days_remaining: "14" })).toBe(14);
+    expect(annualDaysRemaining({ annual_days_remaining: -3 })).toBe(-3);
+    expect(annualDaysRemaining({ annual_days_remaining: null })).toBeNull();
   });
 
   it("keeps the three VAT types apart", () => {
