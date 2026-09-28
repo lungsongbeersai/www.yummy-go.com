@@ -65,7 +65,13 @@ export function DepositDialog({
             </TabsTrigger>
           </TabsList>
           <TabsContent value="create">
-            <DepositCreateForm branchUuid={branchUuid} open={open} orderItems={orderItems} onOpenChange={onOpenChange} />
+            <DepositCreateForm
+              branchUuid={branchUuid}
+              open={open}
+              orderItems={orderItems}
+              orderUuid={orderUuid}
+              onOpenChange={onOpenChange}
+            />
           </TabsContent>
           <TabsContent value="withdraw">
             <DepositWithdrawForm branchUuid={branchUuid} open={open} orderUuid={orderUuid} onOpenChange={onOpenChange} />

@@ -16,6 +16,8 @@ import { errorMessage } from "@/stores/store-utils";
 
 interface DepositState {
   rows: DepositRow[];
+  orderRows: DepositRow[];
+  loadedOrderUuid: string | null;
   total: number;
   totalPages: number;
   detail: DepositRow | null;
@@ -23,6 +25,8 @@ interface DepositState {
   detailLoading: boolean;
   error: string | null;
   loading: boolean;
+  orderLoading: boolean;
+  orderError: string | null;
   saving: boolean;
   withdrawing: boolean;
   loadList: (params: {
@@ -33,6 +37,11 @@ interface DepositState {
     lang?: string;
   }) => Promise<DepositRow[]>;
   loadDetail: (depositUuid: string, lang?: string) => Promise<DepositRow>;
+  loadOrderDeposits: (params: {
+    branchUuid: string;
+    orderUuid: string;
+    lang?: string;
+  }) => Promise<DepositRow[]>;
   create: (input: DepositCreateInput) => Promise<DepositCreateResponse>;
   withdraw: (input: DepositWithdrawInput) => Promise<DepositWithdrawResponse>;
   clearDetail: () => void;
@@ -41,6 +50,8 @@ interface DepositState {
 
 const initialState = {
   rows: [] as DepositRow[],
+  orderRows: [] as DepositRow[],
+  loadedOrderUuid: null as string | null,
   total: 0,
   totalPages: 1,
   detail: null as DepositRow | null,
@@ -48,12 +59,15 @@ const initialState = {
   detailLoading: false,
   error: null as string | null,
   loading: false,
+  orderLoading: false,
+  orderError: null as string | null,
   saving: false,
   withdrawing: false
 };
 
 let listRequestId = 0;
 let detailRequestId = 0;
+let orderRequestId = 0;
 
 export const useDepositStore = create<DepositState>((set, get) => ({
   ...initialState,
@@ -106,13 +120,47 @@ export const useDepositStore = create<DepositState>((set, get) => ({
       throw error;
     }
   },
+  loadOrderDeposits: async ({ branchUuid, orderUuid, lang }) => {
+    const requestId = ++orderRequestId;
+    const isCurrentSession = createSessionGuard();
+    set({
+      orderRows: [],
+      loadedOrderUuid: orderUuid,
+      orderError: null,
+      orderLoading: true
+    });
+    try {
+      const response = await depositService.fetchDepositList({
+        branch_uuid: branchUuid,
+        order_uuid: orderUuid,
+        status: "all",
+        limit: 100,
+        lang
+      });
+      if (isCurrentSession() && requestId === orderRequestId) {
+        set({ orderRows: response.data, orderLoading: false });
+      }
+      return response.data;
+    } catch (error) {
+      if (isCurrentSession() && requestId === orderRequestId) {
+        set({ orderError: errorMessage(error), orderLoading: false });
+      }
+      throw error;
+    }
+  },
   create: async (input) => {
     const isCurrentSession = createSessionGuard();
     set({ error: null, saving: true });
     try {
       const response = await depositService.createDeposit(input);
       if (isCurrentSession()) {
-        set({ rows: [...response.deposits, ...get().rows], saving: false });
+        set({
+          rows: [...response.deposits, ...get().rows],
+          orderRows: input.order_uuid
+            ? [...response.deposits, ...get().orderRows]
+            : get().orderRows,
+          saving: false
+        });
       }
       return response;
     } catch (error) {
@@ -148,6 +196,7 @@ export const useDepositStore = create<DepositState>((set, get) => ({
   reset: () => {
     listRequestId += 1;
     detailRequestId += 1;
+    orderRequestId += 1;
     set(initialState);
   }
 }));

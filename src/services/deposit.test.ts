@@ -32,6 +32,7 @@ describe("deposit service", () => {
     await fetchDepositList({
       branch_uuid: "branch-1",
       customer_uuid: "customer-1",
+      order_uuid: "order-1",
       status: "all",
       search: "beer",
       lang: "la"
@@ -41,6 +42,7 @@ describe("deposit service", () => {
       params: {
         branch_uuid: "branch-1",
         customer_uuid: "customer-1",
+        order_uuid: "order-1",
         status: "all",
         search: "beer",
         page: 1,
@@ -54,6 +56,7 @@ describe("deposit service", () => {
     await createDeposit({
       branch_uuid: "branch-1",
       customer_uuid: "customer-1",
+      order_uuid: "order-1",
       items: [
         { pro_detail_uuid: "detail-1", deposit_qty: 1 },
         { pro_detail_uuid: "detail-2", deposit_qty: 2 }
@@ -66,6 +69,7 @@ describe("deposit service", () => {
       data: {
         branch_uuid: "branch-1",
         customer_uuid: "customer-1",
+        order_uuid: "order-1",
         items: [
           { pro_detail_uuid: "detail-1", deposit_qty: 1 },
           { pro_detail_uuid: "detail-2", deposit_qty: 2 }

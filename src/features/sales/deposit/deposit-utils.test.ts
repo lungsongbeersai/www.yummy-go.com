@@ -3,6 +3,8 @@ import type { DepositRow } from "@/services/deposit";
 import {
   depositBadgeVariant,
   depositDateSchedule,
+  depositedQuantityByProduct,
+  remainingDepositQuantity,
   toDepositQtyInput,
   validateDepositCreate,
   validateDepositWithdraw
@@ -17,6 +19,7 @@ function makeDeposit(overrides: Partial<DepositRow> = {}): DepositRow {
     customer_name: "customer",
     customer_phone: "",
     pro_detail_uuid_fk: "detail-1",
+    order_uuid_fk: null,
     product_name: "Whisky",
     unit_name: "bottle",
     deposit_qty: 2,
@@ -109,6 +112,28 @@ describe("depositDateSchedule", () => {
     });
     expect(depositDateSchedule(0, now).expireDate).toBe("");
     expect(depositDateSchedule(1.5, now).expireDate).toBe("");
+  });
+});
+
+describe("order deposit availability", () => {
+  it("sums prior deposits by product and ignores cancelled deposits", () => {
+    expect(
+      depositedQuantityByProduct([
+        { pro_detail_uuid_fk: "detail-1", deposit_qty: 1, status: "ACTIVE" },
+        { pro_detail_uuid_fk: "detail-1", deposit_qty: 0.5, status: "WITHDRAWN" },
+        { pro_detail_uuid_fk: "detail-1", deposit_qty: 5, status: "CANCELLED" },
+        { pro_detail_uuid_fk: "detail-2", deposit_qty: 2, status: "EXPIRED" }
+      ])
+    ).toEqual(new Map([
+      ["detail-1", 1.5],
+      ["detail-2", 2]
+    ]));
+  });
+
+  it("returns only the quantity that has not been deposited", () => {
+    expect(remainingDepositQuantity(3, 1)).toBe(2);
+    expect(remainingDepositQuantity(3, 3)).toBe(0);
+    expect(remainingDepositQuantity(3, 5)).toBe(0);
   });
 });
 

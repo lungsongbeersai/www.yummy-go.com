@@ -60,6 +60,27 @@ export function toDepositQtyInput(value: string | number | null | undefined) {
   return Number.isFinite(parsed) ? Math.max(parsed, 0) : 0;
 }
 
+export function depositedQuantityByProduct(
+  rows: Array<Pick<DepositRow, "deposit_qty" | "pro_detail_uuid_fk" | "status">>
+) {
+  const quantities = new Map<string, number>();
+
+  for (const row of rows) {
+    if (row.status === "CANCELLED") continue;
+    const current = quantities.get(row.pro_detail_uuid_fk) ?? 0;
+    quantities.set(
+      row.pro_detail_uuid_fk,
+      Math.round((current + Number(row.deposit_qty || 0)) * 1000) / 1000
+    );
+  }
+
+  return quantities;
+}
+
+export function remainingDepositQuantity(orderedQty: number, depositedQty: number) {
+  return Math.max(0, Math.round((orderedQty - depositedQty) * 1000) / 1000);
+}
+
 export function validateDepositCreate(input: {
   customerUuid: string;
   items: DepositCreateItemDraft[];
