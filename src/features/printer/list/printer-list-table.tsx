@@ -27,6 +27,8 @@ import {
   isOwnedPrinter,
   mappingTypeOf,
   printerCategories,
+  printerHealth,
+  printerReachable,
   printerZones,
   zoneLabel,
   type PrinterTableRow,
@@ -76,10 +78,11 @@ export function PrinterListTable({
         rows={filteredRows}
         idKey="print_config_uuid"
         rowClassName={(row) => {
+          // ปิดใช้ = ตั้งใจปิด ไม่ใช่ error (เหตุผลเดียวกับ PrinterStatusBadge) — ใช้โทนกลางแทนแดง
           if (!row.is_active) {
-            return "border-l-4 border-l-destructive bg-destructive/5 hover:bg-destructive/10";
+            return "border-l-4 border-l-border bg-muted/30 hover:bg-muted/50";
           }
-          if (row.is_shared && row.agent_online === false) {
+          if (printerHealth(row) === "unreachable") {
             return "border-l-4 border-l-warning bg-warning/5 hover:bg-warning/10";
           }
           if (!isOwnedPrinter(row)) {
@@ -166,7 +169,7 @@ export function PrinterListTable({
               <div className="flex flex-col gap-1">
                 <span className="truncate">{row.interface_value}</span>
                 {row.endpoint_duplicate ? (
-                  <Badge className="whitespace-nowrap bg-amber-100 text-amber-900">
+                  <Badge className="whitespace-nowrap border-warning/30 bg-warning/10 text-warning">
                     {t("printer.duplicateAddress")}
                   </Badge>
                 ) : null}
@@ -263,8 +266,7 @@ export function PrinterListTable({
               Boolean(togglingUuid) ||
               !userUuid ||
               !row.print_config_uuid ||
-              (row.is_shared === true && row.agent_online === false) ||
-              (row.is_shared !== true && row.is_local_device === false),
+              !printerReachable(row),
             keepOpenOnSelect: true,
             onSelect: (row) => void onTest(row),
           },
@@ -287,8 +289,7 @@ export function PrinterListTable({
               Boolean(togglingUuid) ||
               !userUuid ||
               !row.print_config_uuid ||
-              (row.is_shared === true && row.agent_online === false) ||
-              (row.is_shared !== true && row.is_local_device === false),
+              !printerReachable(row),
             keepOpenOnSelect: true,
             onSelect: (row) => void onTestDrawer(row),
           },

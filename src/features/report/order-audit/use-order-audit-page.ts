@@ -33,7 +33,8 @@ export function useOrderAuditPage() {
   const [selectedGroupId, setSelectedGroupId] = useState("");
   const [mobileFilterOpen, setMobileFilterOpen] = useState(false);
   const [mobileDetailOpen, setMobileDetailOpen] = useState(false);
-  const [summaryVisible, setSummaryVisible] = useState(true);
+  // การ์ดสรุปซ่อนไว้ก่อน — ผู้ใช้กดปุ่ม "แสดงสรุป" เองเมื่ออยากดู
+  const [summaryVisible, setSummaryVisible] = useState(false);
   const branchUuid = scope.normalizeBranchFilters(applied).branchUuid;
   const draftBranch = scope.normalizeBranchFilters(draft).branchUuid;
   const dateRangeValid = validAuditDateRange(draft.dateFrom, draft.dateTo);

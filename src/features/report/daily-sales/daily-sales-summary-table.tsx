@@ -15,6 +15,7 @@ import { money } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import type { ApiEntity } from "@/services/shared/types";
 import { SortableReportTableHead } from "../report-sort-table-head";
+import type { ReportColumnOption } from "../shared/report-column-visibility";
 import { ReportIndeterminateCheckbox } from "../shared/report-row-selection";
 import { useLocalTableSort } from "../shared/report-sort-utils";
 import type {
@@ -60,18 +61,37 @@ type SummaryColumnKey =
   | "changeAmount"
   | "lastPaidAt";
 
+type SummaryColumnFooter = {
+  keys: string[];
+  kind: "money" | "number";
+  strong?: boolean;
+  tone?: "discount" | "total";
+};
+
 type SummaryColumn = {
   align?: "left" | "right";
+  footer?: SummaryColumnFooter;
+  hideable?: boolean;
   key: SummaryColumnKey;
   label: string;
   minWidth: string;
   sortableKey: string;
 };
 
+/** ตัวเลือกของเมนู "คอลัมน์" — เลขบิลเป็นคอลัมน์หลักของแถว ซ่อนไม่ได้ */
+export function summaryColumnOptions(t: (key: string) => string): ReportColumnOption[] {
+  return summaryColumns(t).map((column) => ({
+    hideable: column.hideable,
+    id: column.key,
+    label: column.label,
+  }));
+}
+
 function summaryColumns(t: (key: string) => string): SummaryColumn[] {
   return [
     {
       key: "invoice",
+      hideable: false,
       label: t("report.columns.invoiceNumber"),
       minWidth: "min-w-[132px]",
       sortableKey: "order_invoice",
@@ -96,6 +116,7 @@ function summaryColumns(t: (key: string) => string): SummaryColumn[] {
     },
     {
       key: "quantity",
+      footer: { keys: ["total_qty"], kind: "number" },
       label: t("report.columns.quantity"),
       align: "right",
       minWidth: "min-w-[92px]",
@@ -103,6 +124,7 @@ function summaryColumns(t: (key: string) => string): SummaryColumn[] {
     },
     {
       key: "amount",
+      footer: { keys: ["amount"], kind: "money" },
       label: t("report.columns.totalAmount"),
       align: "right",
       minWidth: "min-w-[132px]",
@@ -110,6 +132,7 @@ function summaryColumns(t: (key: string) => string): SummaryColumn[] {
     },
     {
       key: "discountBill",
+      footer: { keys: ["discount_bill"], kind: "money", tone: "discount" },
       label: t("report.columns.billDiscount"),
       align: "right",
       minWidth: "min-w-[132px]",
@@ -117,6 +140,7 @@ function summaryColumns(t: (key: string) => string): SummaryColumn[] {
     },
     {
       key: "afterDiscount",
+      footer: { keys: ["after_discount"], kind: "money" },
       label: t("report.columns.afterDiscount"),
       align: "right",
       minWidth: "min-w-[138px]",
@@ -124,6 +148,7 @@ function summaryColumns(t: (key: string) => string): SummaryColumn[] {
     },
     {
       key: "serviceCharge",
+      footer: { keys: ["sum_servicecharge"], kind: "money" },
       label: t("dashboard.serviceCharge"),
       align: "right",
       minWidth: "min-w-[138px]",
@@ -131,6 +156,7 @@ function summaryColumns(t: (key: string) => string): SummaryColumn[] {
     },
     {
       key: "vat",
+      footer: { keys: ["sum_vate"], kind: "money" },
       label: t("dashboard.vat"),
       align: "right",
       minWidth: "min-w-[104px]",
@@ -138,6 +164,7 @@ function summaryColumns(t: (key: string) => string): SummaryColumn[] {
     },
     {
       key: "total",
+      footer: { keys: ["sum_total"], kind: "money", strong: true, tone: "total" },
       label: t("common.total"),
       align: "right",
       minWidth: "min-w-[132px]",
@@ -145,6 +172,7 @@ function summaryColumns(t: (key: string) => string): SummaryColumn[] {
     },
     {
       key: "paidCash",
+      footer: { keys: ["paid_cash", "receive_cash"], kind: "money" },
       label: t("report.columns.paidCash"),
       align: "right",
       minWidth: "min-w-[132px]",
@@ -152,6 +180,7 @@ function summaryColumns(t: (key: string) => string): SummaryColumn[] {
     },
     {
       key: "paidTransfer",
+      footer: { keys: ["paid_transfer", "receive_transfer"], kind: "money" },
       label: t("report.columns.paidTransfer"),
       align: "right",
       minWidth: "min-w-[142px]",
@@ -159,6 +188,7 @@ function summaryColumns(t: (key: string) => string): SummaryColumn[] {
     },
     {
       key: "changeAmount",
+      footer: { keys: ["change_amount"], kind: "money" },
       label: t("report.columns.changeAmount"),
       align: "right",
       minWidth: "min-w-[124px]",
@@ -175,6 +205,7 @@ function summaryColumns(t: (key: string) => string): SummaryColumn[] {
 
 export function SummaryReportTable({
   columns,
+  isColumnVisible,
   pageStart,
   rows,
   selectedRecordIds,
@@ -185,6 +216,7 @@ export function SummaryReportTable({
   onToggleRows,
 }: {
   columns: ReportColumn[];
+  isColumnVisible: (id: string) => boolean;
   pageStart: number;
   reportTotal: ApiEntity;
   rows: ApiEntity[];
@@ -196,8 +228,8 @@ export function SummaryReportTable({
 }) {
   const { t } = useTranslation();
   const activeColumns = useMemo(
-    () => (typePage === "bill" ? summaryColumns(t) : null),
-    [t, typePage],
+    () => (typePage === "bill" ? summaryColumns(t).filter((column) => isColumnVisible(column.key)) : null),
+    [isColumnVisible, t, typePage],
   );
   const columnByHeader = useMemo(
     () => new Map(columns.map((column) => [column.header, column])),
@@ -229,11 +261,11 @@ export function SummaryReportTable({
   );
 
   return (
-    <div className="w-full min-w-0">
-      <Table className="w-max min-w-full table-auto text-sm">
-        <TableHeader className="[&_th]:sticky [&_th]:top-0 [&_th]:z-30 [&_th]:h-9 [&_th]:whitespace-nowrap [&_th]:border-b [&_th]:border-border [&_th]:bg-muted [&_th]:px-2 [&_th]:text-xs [&_th]:font-medium [&_th]:text-muted-foreground">
+    // container ของ Table เป็นตัวสกรอลเอง — หัวตาราง sticky ด้านบน, แถวรวม sticky ด้านล่าง
+    <Table containerClassName="min-h-0 flex-1 overflow-auto">
+        <TableHeader className="sticky top-0 z-30 bg-muted">
           <TableRow>
-            <TableHead className="w-10 text-center">
+            <TableHead>
               <ReportIndeterminateCheckbox
                 aria-label={t("common.selectAll")}
                 checked={allVisibleSelected}
@@ -242,7 +274,7 @@ export function SummaryReportTable({
               />
             </TableHead>
 
-            <TableHead className="w-px text-center">{t("fields.no")}</TableHead>
+            <TableHead>{t("fields.no")}</TableHead>
 
             {activeColumns
               ? activeColumns.map((column) => (
@@ -251,11 +283,7 @@ export function SummaryReportTable({
                     align={column.align}
                     sort={sort}
                     sortKey={column.sortableKey}
-                    className={cn(
-                      "h-9",
-                      column.minWidth,
-                      column.align === "right" && "text-right",
-                    )}
+                    className={cn(column.minWidth, column.align === "right" && "text-right")}
                     onSort={toggleSort}
                   >
                     {column.label}
@@ -301,7 +329,7 @@ export function SummaryReportTable({
                     "bg-primary/5",
                 )}
               >
-                <TableCell className="w-10 text-center">
+                <TableCell>
                   <Checkbox
                     aria-label={t("common.selectRow", {
                       name: textValue(
@@ -319,7 +347,7 @@ export function SummaryReportTable({
                   />
                 </TableCell>
 
-                <TableCell className="w-px text-center text-xs tabular-nums text-muted-foreground">
+                <TableCell className="tabular-nums text-muted-foreground">
                   {pageStart + index}
                 </TableCell>
 
@@ -345,6 +373,7 @@ export function SummaryReportTable({
           })}
           {activeColumns ? (
             <SummaryReportFooterRow
+              columns={activeColumns}
               reportTotal={reportTotal}
               summaryCards={summaryCards}
               summaryLabel={t("report.summary")}
@@ -352,8 +381,7 @@ export function SummaryReportTable({
             />
           ) : null}
         </TableBody>
-      </Table>
-    </div>
+    </Table>
   );
 }
 
@@ -365,11 +393,10 @@ function summaryCellClass(row: ApiEntity, column: SummaryColumn) {
   const value = summaryCellValue(row, column.sortableKey);
 
   return cn(
-    "h-9 whitespace-nowrap px-2 text-xs",
     column.minWidth,
     column.align === "right" && "text-right tabular-nums",
-    column.key === "invoice" && "font-semibold",
-    column.key === "total" && "font-semibold",
+    column.key === "invoice" && "font-medium",
+    column.key === "total" && "font-medium text-primary-text",
     firstNumber(value) === 0 &&
       [
         "amount",
@@ -436,21 +463,26 @@ function renderSummaryCell(row: ApiEntity, column: SummaryColumn) {
   }
 }
 
+// แถวรวมท้ายตาราง: ป้าย "สรุป" กินช่องเช็กบ็อกซ์ + ลำดับ + คอลัมน์ข้อความที่แสดงอยู่ด้านหน้า
+// แล้วต่อด้วยยอดรวมของแต่ละคอลัมน์ตัวเลขที่แสดงอยู่ — นับจากคอลัมน์ที่เปิดอยู่จริง ไม่ fix colSpan
 function SummaryReportFooterRow({
   billCountLabel,
+  columns,
   reportTotal,
   summaryCards,
   summaryLabel,
 }: {
   billCountLabel: string;
+  columns: SummaryColumn[];
   reportTotal: ApiEntity;
   summaryCards: SummaryCards;
   summaryLabel: string;
 }) {
+  const firstFooterIndex = columns.findIndex((column) => column.footer);
+  const leadingCount = firstFooterIndex === -1 ? columns.length : firstFooterIndex;
+
   return (
-    <TableRow className="border-t-2 border-primary bg-primary/5 font-semibold text-foreground hover:bg-primary/5">
-      <SummaryFooterBlankCell />
-      <SummaryFooterBlankCell />
+    <TableRow className="hover:bg-transparent">
       <SummaryFooterLabelCell
         billCount={summaryMetricNumber(summaryCards, reportTotal, [
           "bill_count",
@@ -458,58 +490,19 @@ function SummaryReportFooterRow({
           "total_bills",
         ])}
         billCountLabel={billCountLabel}
-        colSpan={4}
+        colSpan={2 + leadingCount}
         label={summaryLabel}
       />
-      <SummaryFooterNumberCell
-        value={summaryMetricNumber(summaryCards, reportTotal, ["total_qty"])}
-      />
-      <SummaryFooterMoneyCell
-        value={summaryMetricNumber(summaryCards, reportTotal, ["amount"])}
-      />
-      <SummaryFooterMoneyCell
-        tone="discount"
-        value={summaryMetricNumber(summaryCards, reportTotal, [
-          "discount_bill",
-        ])}
-      />
-      <SummaryFooterMoneyCell
-        value={summaryMetricNumber(summaryCards, reportTotal, [
-          "after_discount",
-        ])}
-      />
-      <SummaryFooterMoneyCell
-        value={summaryMetricNumber(summaryCards, reportTotal, [
-          "sum_servicecharge",
-        ])}
-      />
-      <SummaryFooterMoneyCell
-        value={summaryMetricNumber(summaryCards, reportTotal, ["sum_vate"])}
-      />
-      <SummaryFooterMoneyCell
-        strong
-        tone="total"
-        value={summaryMetricNumber(summaryCards, reportTotal, ["sum_total"])}
-      />
-      <SummaryFooterMoneyCell
-        value={summaryMetricNumber(summaryCards, reportTotal, [
-          "paid_cash",
-          "receive_cash",
-        ])}
-      />
-      <SummaryFooterMoneyCell
-        value={summaryMetricNumber(summaryCards, reportTotal, [
-          "paid_transfer",
-          "receive_transfer",
-        ])}
-      />
-      <SummaryFooterMoneyCell
-        value={summaryMetricNumber(summaryCards, reportTotal, [
-          "change_amount",
-        ])}
-      />
-      <SummaryFooterBlankCell />
+      {columns.slice(leadingCount).map((column) => {
+        const footer = column.footer;
+        if (!footer) return <SummaryFooterBlankCell key={column.key} />;
+        const value = summaryMetricNumber(summaryCards, reportTotal, footer.keys);
+        return footer.kind === "number" ? (
+          <SummaryFooterNumberCell key={column.key} value={value} />
+        ) : (
+          <SummaryFooterMoneyCell key={column.key} strong={footer.strong} tone={footer.tone} value={value} />
+        );
+      })}
     </TableRow>
   );
 }
-

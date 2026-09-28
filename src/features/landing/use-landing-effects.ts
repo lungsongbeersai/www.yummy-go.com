@@ -3,9 +3,18 @@
 import { useEffect } from "react";
 import type { RefObject } from "react";
 import type { SceneApi } from "./scene-api";
+import {
+  LANDING_TOUR_STOPS,
+  smoothstep,
+  tourIntroOpacity,
+  tourProgressFromScroll,
+  tourStopIndex
+} from "./landing-tour";
 
 export interface LandingEffectsRefs {
   rootRef: RefObject<HTMLDivElement | null>;
+  /** section ทัวร์ร้านอาหาร (สูงหลายจอ มีเนื้อหา sticky ข้างใน) */
+  tourRef: RefObject<HTMLElement | null>;
   canvasRef: RefObject<HTMLCanvasElement | null>;
   progressRef: RefObject<HTMLDivElement | null>;
   ringRef: RefObject<HTMLDivElement | null>;
@@ -24,7 +33,7 @@ const REDUCED_MOTION_QUERY = "(prefers-reduced-motion: reduce)";
 const FINE_POINTER_QUERY = "(hover: hover) and (pointer: fine)";
 
 export function useLandingEffects(refs: LandingEffectsRefs): void {
-  const { rootRef, canvasRef, progressRef, ringRef, scrollHintRef, backTopRef, sceneRef } = refs;
+  const { rootRef, tourRef, canvasRef, progressRef, ringRef, scrollHintRef, backTopRef, sceneRef } = refs;
 
   useEffect(() => {
     const root = rootRef.current;
@@ -50,9 +59,26 @@ export function useLandingEffects(refs: LandingEffectsRefs): void {
     // scrollHeight เป็น forced synchronous layout — อ่านทุกเฟรมตอนสกรอลล์คือสาเหตุหลัก
     // ที่เฟรมตก จึงแคชไว้แล้วคำนวณใหม่เฉพาะตอนความสูงเอกสารเปลี่ยนจริง
     let scrollRange = 0;
+    let tourTop = 0;
+    let tourHeight = 0;
     const measureScrollRange = () => {
       scrollRange = Math.max(document.documentElement.scrollHeight - window.innerHeight, 0);
+      const tour = tourRef.current;
+      if (tour) {
+        tourTop = tour.getBoundingClientRect().top + window.scrollY;
+        tourHeight = tour.offsetHeight;
+      }
     };
+
+    const tourCards = Array.from(root.querySelectorAll<HTMLElement>("[data-tour-card]"));
+    const tourDots = Array.from(root.querySelectorAll<HTMLElement>("[data-tour-dot]"));
+    const tourIntro = root.querySelector<HTMLElement>("[data-tour-intro]");
+    // ตั้ง --tour-progress ที่รางอย่างเดียว — custom property สืบทอดลงลูกทุกตัว ถ้าตั้งที่ section
+    // เบราว์เซอร์ต้องคิด style ใหม่ทั้งทัวร์ทุกเฟรมสกรอลล์
+    const tourRail = root.querySelector<HTMLElement>("[data-tour-rail]");
+    let lastTourProgress = "";
+    let lastTourStop = -1;
+    let lastIntroOpacity = "";
     measureScrollRange();
 
     // เก็บค่าที่เขียนล่าสุดไว้ เพื่อไม่สั่ง style/attribute ซ้ำเมื่อค่าไม่เปลี่ยน
@@ -66,7 +92,7 @@ export function useLandingEffects(refs: LandingEffectsRefs): void {
 
       const scrollY = window.scrollY;
       const viewportHeight = Math.max(window.innerHeight, 1);
-      const heroProgress = Math.min(scrollY / viewportHeight, 1);
+      const tourProgress = tourProgressFromScroll(scrollY, tourTop, tourHeight, viewportHeight);
       const totalProgress = scrollRange > 0 ? Math.min(scrollY / scrollRange, 1) : 0;
       const showBackTop = scrollY > 700;
 
@@ -90,13 +116,39 @@ export function useLandingEffects(refs: LandingEffectsRefs): void {
         lastBackTopVisible = showBackTop;
       }
 
-      sceneRef.current?.onScroll(heroProgress, totalProgress);
+      // สถานะทัวร์เขียนลง DOM ตรง ๆ — เปลี่ยนเฉพาะตอนข้ามจุด ไม่ re-render React ทุกเฟรมสกรอลล์
+      const tourStop = tourStopIndex(tourProgress);
+      if (tourStop !== lastTourStop) {
+        lastTourStop = tourStop;
+        root.dataset.tourStop = LANDING_TOUR_STOPS[tourStop];
+        for (const card of tourCards) card.dataset.active = String(card.dataset.tourCard === LANDING_TOUR_STOPS[tourStop]);
+        for (const dot of tourDots) {
+          if (dot.dataset.tourDot === LANDING_TOUR_STOPS[tourStop]) dot.setAttribute("aria-current", "step");
+          else dot.removeAttribute("aria-current");
+        }
+      }
+      const tourProgressText = tourProgress.toFixed(3);
+      if (tourRail && tourProgressText !== lastTourProgress) {
+        tourRail.style.setProperty("--tour-progress", tourProgressText);
+        lastTourProgress = tourProgressText;
+      }
+      const introOpacity = tourIntroOpacity(tourProgress).toFixed(3);
+      // ปิดการเคลื่อนไหว = ทัวร์ไม่ปักจอ เนื้อหา intro ต้องอยู่ครบตลอด ไม่จางตามสกรอลล์
+      if (tourIntro && !reducedMotion && introOpacity !== lastIntroOpacity) {
+        tourIntro.style.opacity = introOpacity;
+        tourIntro.style.visibility = Number(introOpacity) < 0.02 ? "hidden" : "";
+        lastIntroOpacity = introOpacity;
+      }
+
+      sceneRef.current?.onScroll(tourProgress, totalProgress);
       // อ่าน canvas ตอนใช้งานเสมอ เพราะการสลับ tier จะ remount <canvas> เป็น node ใหม่
       const canvas = canvasRef.current;
       if (canvas && root.dataset.sceneReady === "true") {
+        // หลังทัวร์จบ sticky หลุด — ค่อย ๆ จางฉากออกตลอดหนึ่งจอถัดไปแทนการตัดหาย
+        const pastTour = (scrollY - (tourTop + tourHeight - viewportHeight)) / viewportHeight;
         const canvasOpacity = root.dataset.sceneActive === "true"
-          ? Math.max(0.28, 1 - heroProgress * 0.72).toFixed(3)
-          : "0.18";
+          ? (1 - smoothstep(pastTour)).toFixed(3)
+          : "0";
         if (canvasOpacity !== lastCanvasOpacity) {
           canvas.style.opacity = canvasOpacity;
           lastCanvasOpacity = canvasOpacity;
@@ -329,5 +381,5 @@ export function useLandingEffects(refs: LandingEffectsRefs): void {
       resetMagnetic(activeMagnetic);
       resetTilt(activeTilt);
     };
-  }, [rootRef, canvasRef, progressRef, ringRef, scrollHintRef, backTopRef, sceneRef]);
+  }, [rootRef, tourRef, canvasRef, progressRef, ringRef, scrollHintRef, backTopRef, sceneRef]);
 }

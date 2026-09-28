@@ -1,16 +1,30 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { ArrowLeftRight, Banknote, CircleX, HandCoins, Landmark, ReceiptText, TrendingUp, Users } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { AppPagination } from "@/components/common/app-pagination";
+import { BlockingLoadingDialog } from "@/components/common/blocking-loading-dialog";
+import { EmptyState } from "@/components/common/empty-state";
 import { PAGE_LIMIT_OPTIONS, pageLimitSize, pageRange, pageTotalPages } from "@/lib/pagination";
-import { ReportPageShell } from "@/features/report/shared/report-page-shell";
+import { ReportColumnsMenu, useReportColumnVisibility } from "@/features/report/shared/report-column-visibility";
+import { ReportError } from "@/features/report/shared/report-error";
+import {
+  ReportExportMenu,
+  ReportMobileFilterBar,
+  ReportPage,
+  ReportPaginationBar,
+  ReportRefreshButton,
+  ReportResultArea,
+  ReportSummaryToggle,
+  ReportToolbar,
+} from "@/features/report/shared/report-layout";
+import { ReportStatCards } from "@/features/report/shared/report-stat-cards";
 import { useReportRowSelection } from "@/features/report/shared/report-row-selection";
-import { ReportTableCard } from "@/features/report/shared/report-table-card";
 import { useReportBranchSelection } from "@/features/report/shared/use-report-branch-selection";
 import { reportLocationParams } from "@/features/report/shared/report-location";
 import { useReportLocationOptions } from "@/features/report/shared/use-report-location-options";
-import { businessDateInputValue } from "@/lib/format";
+import { businessDateInputValue, money } from "@/lib/format";
 import { authStoreUuid, useAuthStore } from "@/stores/auth-store";
 import { useEmployeeSalesReportStore } from "@/stores/report-store";
 import type { EmployeeSalesRow } from "@/services/report";
@@ -20,8 +34,9 @@ import { EmployeeSalesExportSurface } from "./employee-sales-report-components";
 import { EmployeeSalesFilterBar, EmployeeSalesFilterSheet, type EmployeeSalesDraft } from "./employee-sales-filter-sheet";
 import { EmployeeSalesRowCard } from "./employee-sales-row-card";
 import { EmployeeSalesSkeleton } from "./employee-sales-skeleton";
-import { EmployeeSalesTable } from "./employee-sales-table";
+import { EmployeeSalesTable, employeeSalesColumnOptions } from "./employee-sales-table";
 import { useEmployeeSalesReportExport } from "./use-employee-sales-report-export";
+import { formatReportDateRange } from "@/features/report/shared/report-date-format";
 
 const SUMMARY_ID = "employee-sales-summary";
 // อ้างอิงเดิมทุกครั้งตอนยังไม่มีข้อมูล — ป้องกัน useReportRowSelection มองว่า "rows" เปลี่ยนทุก
@@ -53,7 +68,8 @@ function EmployeeSalesReport() {
   const [applied, setApplied] = useState(draft);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [mobileFilterOpen, setMobileFilterOpen] = useState(false);
-  const [summaryVisible, setSummaryVisible] = useState(true);
+  // การ์ดสรุปซ่อนไว้ก่อน — ผู้ใช้กดปุ่ม "แสดงสรุป" เองเมื่ออยากดู
+  const [summaryVisible, setSummaryVisible] = useState(false);
   const [refreshToken, setRefreshToken] = useState(0);
   const [page, setPage] = useState(1);
   const branchUuid = scope.normalizeBranchFilters(applied).branchUuid;
@@ -85,6 +101,8 @@ function EmployeeSalesReport() {
   const reportTitle = t("employeeSales.title");
   const branchLabel = scope.branchLabelFor(branchUuid);
   const rowSelection = useReportRowSelection({ getRowId: employeeSalesRowId, rows });
+  const columnOptions = useMemo(() => employeeSalesColumnOptions(t), [t]);
+  const columns = useReportColumnVisibility("employee-sales", columnOptions);
   const exportHook = useEmployeeSalesReportExport({
     branchLabel,
     branchUuid,
@@ -129,109 +147,145 @@ function EmployeeSalesReport() {
     onDraftChange: setDraft,
   };
 
+  const summary = current?.summary ?? null;
+  const controlsDisabled = loading || Boolean(exportHook.exporting);
+  const errors = [!branchUuid ? t("report.branchRequired") : null, scope.branchError, error].filter(
+    (message): message is string => Boolean(message),
+  );
+  const refreshButton = <ReportRefreshButton disabled={controlsDisabled} loading={loading} onRefresh={refresh} />;
+
   return (
     <>
-      <ReportPageShell
-        accessibleTitle={t("employeeSales.title")}
-        variant="compact"
-        dateFrom={applied.dateFrom}
-        dateTo={applied.dateTo}
-        loading={loading}
-        exporting={Boolean(exportHook.exporting)}
-        exportingTitle={exportTitle}
-        errors={[
-          !branchUuid ? t("report.branchRequired") : null,
-          scope.branchError,
-          error,
-        ]}
-        inlineFilters={actions => (
-          <EmployeeSalesFilterBar
-            actions={actions}
-            canApply={valid}
-            loading={loading}
-            onApply={apply}
-            {...filterFieldProps}
+      <ReportPage title={reportTitle}>
+        <ReportMobileFilterBar
+          dateFrom={applied.dateFrom}
+          dateTo={applied.dateTo}
+          disabled={controlsDisabled}
+          refreshButton={refreshButton}
+          onOpenFilters={() => setMobileFilterOpen(true)}
+        />
+        <EmployeeSalesFilterBar actions={refreshButton} canApply={valid} loading={loading} onApply={apply} {...filterFieldProps} />
+        <EmployeeSalesFilterSheet
+          canApply={valid}
+          dateRangeInvalid={!dateRangeValid}
+          loading={loading}
+          open={mobileFilterOpen}
+          onApply={apply}
+          onOpenChange={(open) => {
+            if (!open) setDraft(applied);
+            setMobileFilterOpen(open);
+          }}
+          {...filterFieldProps}
+        />
+
+        {errors.map((message) => (
+          <ReportError key={message} message={message} />
+        ))}
+
+        <ReportToolbar
+          title={reportTitle}
+          selectedLabel={rowSelection.selectedCount ? t("report.selectedForExport", { count: rowSelection.selectedCount }) : null}
+          onClearSelection={rowSelection.clearSelection}
+          actions={
+            <>
+              <ReportSummaryToggle
+                controlsId={SUMMARY_ID}
+                visible={summaryVisible}
+                onToggle={() => setSummaryVisible((visible) => !visible)}
+              />
+              <ReportColumnsMenu disabled={controlsDisabled} options={columnOptions} visibility={columns} />
+              <ReportExportMenu
+                disabled={exportHook.exportDisabled}
+                exporting={Boolean(exportHook.exporting)}
+                onExportExcel={() => void exportHook.exportExcel()}
+                onExportPdf={() => void exportHook.exportPdf()}
+                onPrint={() => void exportHook.printReport()}
+              />
+            </>
+          }
+        />
+
+        {/* เดิมหน้านี้ส่ง summary={null} — มีปุ่มสรุปแต่ไม่มีอะไรให้ดู ทั้งที่ API ส่งยอดรวมมาครบ */}
+        {summaryVisible && summary ? (
+          <ReportStatCards
+            id={SUMMARY_ID}
+            stats={[
+              { icon: TrendingUp, key: "grand_total", label: t("employeeSales.grandTotal"), tone: "highlight", value: money(summary.grand_total) },
+              { icon: Users, key: "employees", label: t("employeeSales.employeeCount"), tone: "info", value: summary.employee_count.toLocaleString("en-US") },
+              { icon: ReceiptText, key: "bills", label: t("employeeSales.billCount"), tone: "info", value: summary.bill_count.toLocaleString("en-US") },
+              { icon: Banknote, key: "cash", label: t("employeeSales.cash"), tone: "success", value: money(summary.cash) },
+              { icon: ArrowLeftRight, key: "transfer", label: t("employeeSales.transfer"), tone: "info", value: money(summary.transfer) },
+              { icon: HandCoins, key: "credit", label: t("employeeSales.credit"), tone: "warning", value: money(summary.credit) },
+              { icon: Landmark, key: "vat", label: t("employeeSales.vat"), tone: "warning", value: money(summary.vat) },
+              {
+                icon: CircleX,
+                key: "cancel",
+                label: t("employeeSales.cancelledBadge", { count: summary.cancel_bill_count }),
+                negative: summary.cancel_total_amount > 0,
+                tone: "danger",
+                value: money(summary.cancel_total_amount),
+              },
+            ]}
           />
-        )}
-        filterSheet={
-          <EmployeeSalesFilterSheet
-            canApply={valid}
-            dateRangeInvalid={!dateRangeValid}
-            loading={loading}
-            open={mobileFilterOpen}
-            onApply={apply}
-            onOpenChange={open => { if (!open) setDraft(applied); setMobileFilterOpen(open); }}
-            {...filterFieldProps}
-          />
-        }
-        summaryCardsId={SUMMARY_ID}
-        summaryVisible={summaryVisible}
-        onToggleSummary={() => setSummaryVisible(visible => !visible)}
-        summary={null}
-        onOpenFilters={() => setMobileFilterOpen(true)}
-        onRefresh={refresh}
-        table={
-          <ReportTableCard
-            cardClassName="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden rounded-none border-x-0 border-b-0 border-border bg-card shadow-none"
-            contentClassName="flex min-h-0 flex-1 flex-col p-0"
-            contentWrapperClassName="flex min-h-0 flex-1 flex-col gap-3 overflow-auto p-3 md:p-4"
-            headerVariant="compact"
-            title={reportTitle}
-            skeletonMode="whenEmpty"
-            renderLoading={() => <EmployeeSalesSkeleton />}
-            emptyTitle={t("employeeSales.empty")}
-            emptyDescription={t("employeeSales.emptyDescription")}
-            loading={loading}
-            rowsLength={pagedRows.length}
-            selectedCount={rowSelection.selectedCount}
-            exportDisabled={exportHook.exportDisabled}
-            exporting={exportHook.exporting}
-            footer={
+        ) : null}
+
+        {loading && !pagedRows.length ? (
+          <ReportResultArea>
+            <EmployeeSalesSkeleton />
+          </ReportResultArea>
+        ) : pagedRows.length ? (
+          <>
+            <ReportResultArea framed busy={loading} className="hidden md:flex">
+              <EmployeeSalesTable
+                isColumnVisible={columns.isVisible}
+                rows={pagedRows}
+                selectedRowIds={rowSelection.selectedRowIds}
+                summary={summary}
+                onSelect={setSelectedId}
+                onToggleRow={rowSelection.toggleRow}
+                onToggleRows={rowSelection.toggleRows}
+              />
+            </ReportResultArea>
+            <div className="md:hidden">
+              <EmployeeSalesRowCard
+                rows={pagedRows}
+                selectedRowIds={rowSelection.selectedRowIds}
+                total={summary?.grand_total ?? 0}
+                onSelect={setSelectedId}
+                onToggleRow={rowSelection.toggleRow}
+              />
+            </div>
+            <ReportPaginationBar>
               <AppPagination
                 page={page}
                 totalPages={totalPages}
                 rangeLabel={t("common.showingRange", { start: range.start, end: range.end, total: rows.length })}
                 onPageChange={setPage}
               />
-            }
-            onClearSelection={rowSelection.clearSelection}
-            onExportExcel={() => void exportHook.exportExcel()}
-            onExportPdf={() => void exportHook.exportPdf()}
-            onExportPrint={() => void exportHook.printReport()}
-          >
-            <EmployeeSalesTable
-              rows={pagedRows}
-              selectedRowIds={rowSelection.selectedRowIds}
-              onSelect={setSelectedId}
-              onToggleRow={rowSelection.toggleRow}
-              onToggleRows={rowSelection.toggleRows}
-            />
-            <EmployeeSalesRowCard
-              rows={pagedRows}
-              selectedRowIds={rowSelection.selectedRowIds}
-              onSelect={setSelectedId}
-              onToggleRow={rowSelection.toggleRow}
-            />
-          </ReportTableCard>
-        }
-        exportSurface={
-          exportHook.exporting === "pdf" || exportHook.exporting === "print" ? (
-            <EmployeeSalesExportSurface
-              containerRef={exportReportRef}
-              dateRange={`${t("report.reportDate")}: ${applied.dateFrom} - ${applied.dateTo}`}
-              rows={exportHook.exportData?.rows ?? current?.user_reports ?? []}
-              showSummary={summaryVisible}
-              summary={exportHook.exportData?.summary ?? current?.summary ?? emptyEmployeeSalesSummary}
-              title={exportHook.exportData?.reportName || reportTitle}
-            />
-          ) : undefined
-        }
-      />
+            </ReportPaginationBar>
+          </>
+        ) : (
+          <EmptyState title={t("employeeSales.empty")} description={t("employeeSales.emptyDescription")} />
+        )}
+      </ReportPage>
+
+      {exportHook.exporting === "pdf" || exportHook.exporting === "print" ? (
+        <EmployeeSalesExportSurface
+          containerRef={exportReportRef}
+          dateRange={`${t("report.reportDate")}: ${formatReportDateRange(applied.dateFrom, applied.dateTo)}`}
+          rows={exportHook.exportData?.rows ?? current?.user_reports ?? []}
+          showSummary={summaryVisible}
+          summary={exportHook.exportData?.summary ?? current?.summary ?? emptyEmployeeSalesSummary}
+          title={exportHook.exportData?.reportName || reportTitle}
+        />
+      ) : null}
+      <BlockingLoadingDialog open={Boolean(exportHook.exporting)} title={exportTitle} description={t("report.exportingDescription")} />
 
       <EmployeeSalesDetailSheet
         row={selected}
-        language={language}
-        onOpenChange={open => { if (!open) setSelectedId(null); }}
+        onOpenChange={(open) => {
+          if (!open) setSelectedId(null);
+        }}
       />
     </>
   );

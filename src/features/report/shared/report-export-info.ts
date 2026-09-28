@@ -1,3 +1,4 @@
+import { formatReportDateRange } from "@/features/report/shared/report-date-format";
 // Header rows shared by every report's Excel/PDF export file.
 export function exportInfoRows(
   t: (key: string) => string,
@@ -18,7 +19,7 @@ export function exportInfoRows(
       : []),
     {
       Metric: t("report.reportDate"),
-      Value: `${input.dateFrom} - ${input.dateTo}`,
+      Value: `${formatReportDateRange(input.dateFrom, input.dateTo)}`,
     },
     ...(input.paymentMethodLabel
       ? [

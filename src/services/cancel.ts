@@ -58,6 +58,7 @@ export interface CancelledBill extends ApiEntity {
   order_cancel_reason?: string;
   order_cancelled_at?: string;
   order_cancelled_by?: string;
+  /** ชื่อ/อีเมลผู้กดยกเลิก — backend รุ่นเก่ายังไม่ส่ง */
   order_cancelled_by_name?: string;
   order_date?: string;
   order_discount_amount?: number | string;

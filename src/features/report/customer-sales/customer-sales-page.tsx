@@ -1,16 +1,30 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { HandPlatter, Landmark, ReceiptText, TrendingUp, Users, Wallet } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { AppPagination } from "@/components/common/app-pagination";
+import { BlockingLoadingDialog } from "@/components/common/blocking-loading-dialog";
+import { EmptyState } from "@/components/common/empty-state";
 import { LoadingState } from "@/components/common/loading-state";
-import { ReportPageShell } from "@/features/report/shared/report-page-shell";
-import { ReportSummaryCardsGrid } from "@/features/report/shared/report-metric-display";
+import { ReportColumnsMenu, useReportColumnVisibility } from "@/features/report/shared/report-column-visibility";
+import { ReportError } from "@/features/report/shared/report-error";
+import {
+  ReportExportMenu,
+  ReportMobileFilterBar,
+  ReportPage,
+  ReportPaginationBar,
+  ReportRefreshButton,
+  ReportResultArea,
+  ReportSummaryToggle,
+  ReportToolbar,
+} from "@/features/report/shared/report-layout";
+import { ReportStatCards } from "@/features/report/shared/report-stat-cards";
 import { useReportRowSelection } from "@/features/report/shared/report-row-selection";
-import { ReportTableCard } from "@/features/report/shared/report-table-card";
 import { useReportBranchSelection } from "@/features/report/shared/use-report-branch-selection";
 import { reportLocationParams } from "@/features/report/shared/report-location";
 import { useReportLocationOptions } from "@/features/report/shared/use-report-location-options";
+import { money } from "@/lib/format";
 import { PAGE_LIMIT_OPTIONS, pageLimitSize, pageRange, pageTotalPages } from "@/lib/pagination";
 import { authStoreUuid, useAuthStore } from "@/stores/auth-store";
 import { useCustomerSalesReportStore } from "@/stores/report-store";
@@ -19,9 +33,10 @@ import { CustomerSalesDetailDialog } from "./customer-sales-detail-dialog";
 import { CustomerSalesExportSurface } from "./customer-sales-components";
 import { customerSalesRowId, emptyCustomerSalesSummary } from "./customer-sales-excel";
 import { CustomerSalesFilterBar, CustomerSalesFilterSheet, type CustomerSalesDraft } from "./customer-sales-filter";
-import { CustomerSalesRowCard, CustomerSalesTable } from "./customer-sales-table";
-import { customerSalesSummaryMetricConfigs, customerSalesToday, validCustomerSalesDateRange } from "./customer-sales-utils";
+import { CustomerSalesRowCard, CustomerSalesTable, customerSalesColumnOptions } from "./customer-sales-table";
+import { customerSalesToday, validCustomerSalesDateRange } from "./customer-sales-utils";
 import { useCustomerSalesExport } from "./use-customer-sales-export";
+import { formatReportDateRange } from "@/features/report/shared/report-date-format";
 
 const SUMMARY_ID = "customer-sales-summary";
 // อ้างอิงเดิมทุกครั้งตอนยังไม่มีข้อมูล — ป้องกัน useReportRowSelection มองว่า "rows" เปลี่ยนทุก
@@ -48,7 +63,8 @@ function CustomerSalesReport() {
   const [page, setPage] = useState(1);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [mobileFilterOpen, setMobileFilterOpen] = useState(false);
-  const [summaryVisible, setSummaryVisible] = useState(true);
+  // การ์ดสรุปซ่อนไว้ก่อน — ผู้ใช้กดปุ่ม "แสดงสรุป" เองเมื่ออยากดู
+  const [summaryVisible, setSummaryVisible] = useState(false);
   const [refreshToken, setRefreshToken] = useState(0);
   const branchUuid = scope.normalizeBranchFilters(applied).branchUuid;
   const draftBranch = scope.normalizeBranchFilters(draft).branchUuid;
@@ -76,13 +92,12 @@ function CustomerSalesReport() {
   const pagedRows = rows.slice(pageStart, pageStart + pageSize);
   const range = pageRange(pagedRows.length, page, pageSize);
   const selected = current?.customer_reports.find(row => row.customer_uuid === selectedId) ?? null;
-  const summaryCards = current ? customerSalesSummaryMetricConfigs(t).map(metric => ({
-    ...metric, value: current.summary[metric.key as keyof typeof current.summary],
-  })) : [];
   const reportTitle = t("report.customerSales.title");
   const branchLabel = scope.branchLabelFor(branchUuid);
   const exportReportRef = useRef<HTMLDivElement>(null);
   const rowSelection = useReportRowSelection({ getRowId: customerSalesRowId, rows });
+  const columnOptions = useMemo(() => customerSalesColumnOptions(t), [t]);
+  const columns = useReportColumnVisibility("customer-sales", columnOptions);
   const exportHook = useCustomerSalesExport({
     branchLabel,
     current,
@@ -128,119 +143,137 @@ function CustomerSalesReport() {
     onDraftChange: setDraft,
   };
 
+  const summary = current?.summary ?? null;
+  const controlsDisabled = loading || Boolean(exportHook.exporting);
+  const errors = [!branchUuid ? t("report.branchRequired") : null, scope.branchError, error].filter(
+    (message): message is string => Boolean(message),
+  );
+  const refreshButton = <ReportRefreshButton disabled={controlsDisabled} loading={loading} onRefresh={refresh} />;
+
   return (
     <>
-      <ReportPageShell
-        accessibleTitle={t("report.customerSales.title")}
-        variant="compact"
-        dateFrom={applied.dateFrom}
-        dateTo={applied.dateTo}
-        loading={loading}
-        exporting={Boolean(exportHook.exporting)}
-        exportingTitle={exportTitle}
-        errors={[
-          !branchUuid ? t("report.branchRequired") : null,
-          scope.branchError,
-          error,
-        ]}
-        inlineFilters={actions => (
-          <CustomerSalesFilterBar
-            actions={actions}
-            canApply={valid}
-            loading={loading}
-            onApply={apply}
-            {...filterFieldProps}
+      <ReportPage title={reportTitle}>
+        <ReportMobileFilterBar
+          dateFrom={applied.dateFrom}
+          dateTo={applied.dateTo}
+          disabled={controlsDisabled}
+          refreshButton={refreshButton}
+          onOpenFilters={() => setMobileFilterOpen(true)}
+        />
+        <CustomerSalesFilterBar actions={refreshButton} canApply={valid} loading={loading} onApply={apply} {...filterFieldProps} />
+        <CustomerSalesFilterSheet
+          canApply={valid}
+          dateRangeInvalid={!dateRangeValid}
+          loading={loading}
+          open={mobileFilterOpen}
+          onApply={apply}
+          onOpenChange={(open) => {
+            if (!open) setDraft(applied);
+            setMobileFilterOpen(open);
+          }}
+          {...filterFieldProps}
+        />
+
+        {errors.map((message) => (
+          <ReportError key={message} message={message} />
+        ))}
+
+        <ReportToolbar
+          title={reportTitle}
+          selectedLabel={rowSelection.selectedCount ? t("report.selectedForExport", { count: rowSelection.selectedCount }) : null}
+          onClearSelection={rowSelection.clearSelection}
+          actions={
+            <>
+              <ReportSummaryToggle
+                controlsId={SUMMARY_ID}
+                visible={summaryVisible}
+                onToggle={() => setSummaryVisible((visible) => !visible)}
+              />
+              <ReportColumnsMenu disabled={controlsDisabled} options={columnOptions} visibility={columns} />
+              <ReportExportMenu
+                disabled={exportHook.exportDisabled}
+                exporting={Boolean(exportHook.exporting)}
+                onExportExcel={() => void exportHook.exportExcel()}
+                onExportPdf={() => void exportHook.exportPdf()}
+                onPrint={() => void exportHook.printReport()}
+              />
+            </>
+          }
+        />
+
+        {/* 6 ใบพอดี 2 แถว (3 คอลัมน์) — ยอดรวมเป็นใบ highlight */}
+        {summaryVisible && summary ? (
+          <ReportStatCards
+            id={SUMMARY_ID}
+            className="lg:grid-cols-3"
+            stats={[
+              { icon: TrendingUp, key: "grand_total", label: t("report.customerSales.columns.grandTotal"), tone: "highlight", value: money(summary.grand_total) },
+              { icon: Users, key: "customers", label: t("report.customerSales.columns.customerCount"), tone: "info", value: summary.customer_count.toLocaleString("en-US") },
+              { icon: ReceiptText, key: "bills", label: t("report.customerSales.columns.billCount"), tone: "info", value: summary.bill_count.toLocaleString("en-US") },
+              { icon: Wallet, key: "net_sale", label: t("report.customerSales.columns.netSale"), tone: "success", value: money(summary.net_sale) },
+              { icon: HandPlatter, key: "service_charge", label: t("report.customerSales.columns.serviceCharge"), tone: "primary", value: money(summary.service_charge) },
+              { icon: Landmark, key: "vat", label: t("report.customerSales.columns.vat"), tone: "warning", value: money(summary.vat) },
+            ]}
           />
-        )}
-        filterSheet={
-          <CustomerSalesFilterSheet
-            canApply={valid}
-            dateRangeInvalid={!dateRangeValid}
-            loading={loading}
-            open={mobileFilterOpen}
-            onApply={apply}
-            onOpenChange={open => { if (!open) setDraft(applied); setMobileFilterOpen(open); }}
-            {...filterFieldProps}
-          />
-        }
-        summaryCardsId={SUMMARY_ID}
-        summaryVisible={summaryVisible}
-        onToggleSummary={() => setSummaryVisible(visible => !visible)}
-        summary={
-          current ? (
-            <ReportSummaryCardsGrid
-              cards={summaryCards}
-              gridClassName="sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-6"
-              cardClassName={() => "border-border bg-card"}
-              labelClassName={() => "text-muted-foreground"}
-              valueClassName={() => "font-black text-foreground"}
-            />
-          ) : null
-        }
-        onOpenFilters={() => setMobileFilterOpen(true)}
-        onRefresh={refresh}
-        table={
-          <ReportTableCard
-            cardClassName="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden rounded-none border-x-0 border-b-0 border-border bg-card shadow-none"
-            contentClassName="flex min-h-0 flex-1 flex-col p-0"
-            contentWrapperClassName="flex min-h-0 flex-1 flex-col gap-3 overflow-auto p-3 md:p-4"
-            headerVariant="compact"
-            title={reportTitle}
-            skeletonMode="whenEmpty"
-            renderLoading={() => <LoadingState label={t("common.loading")} variant="reportTable" />}
-            emptyTitle={t("report.customerSales.empty")}
-            emptyDescription={t("report.customerSales.emptyDescription")}
-            loading={loading}
-            rowsLength={pagedRows.length}
-            selectedCount={rowSelection.selectedCount}
-            exportDisabled={exportHook.exportDisabled}
-            exporting={exportHook.exporting}
-            footer={
+        ) : null}
+
+        {loading && !pagedRows.length ? (
+          <ReportResultArea>
+            <LoadingState label={t("common.loading")} variant="reportTable" />
+          </ReportResultArea>
+        ) : pagedRows.length ? (
+          <>
+            <ReportResultArea framed busy={loading} className="hidden md:flex">
+              <CustomerSalesTable
+                isColumnVisible={columns.isVisible}
+                rows={pagedRows}
+                selectedRowIds={rowSelection.selectedRowIds}
+                summary={summary}
+                onSelect={setSelectedId}
+                onToggleRow={rowSelection.toggleRow}
+                onToggleRows={rowSelection.toggleRows}
+              />
+            </ReportResultArea>
+            <div className="md:hidden">
+              <CustomerSalesRowCard
+                rows={pagedRows}
+                selectedRowIds={rowSelection.selectedRowIds}
+                total={summary?.grand_total ?? 0}
+                onSelect={setSelectedId}
+                onToggleRow={rowSelection.toggleRow}
+              />
+            </div>
+            <ReportPaginationBar>
               <AppPagination
                 page={page}
                 totalPages={totalPages}
                 rangeLabel={t("common.showingRange", { start: range.start, end: range.end, total: rows.length })}
                 onPageChange={setPage}
               />
-            }
-            onClearSelection={rowSelection.clearSelection}
-            onExportExcel={() => void exportHook.exportExcel()}
-            onExportPdf={() => void exportHook.exportPdf()}
-            onExportPrint={() => void exportHook.printReport()}
-          >
-            <CustomerSalesTable
-              rows={pagedRows}
-              selectedRowIds={rowSelection.selectedRowIds}
-              onSelect={setSelectedId}
-              onToggleRow={rowSelection.toggleRow}
-              onToggleRows={rowSelection.toggleRows}
-            />
-            <CustomerSalesRowCard
-              rows={pagedRows}
-              selectedRowIds={rowSelection.selectedRowIds}
-              onSelect={setSelectedId}
-              onToggleRow={rowSelection.toggleRow}
-            />
-          </ReportTableCard>
-        }
-        exportSurface={
-          exportHook.exporting === "pdf" || exportHook.exporting === "print" ? (
-            <CustomerSalesExportSurface
-              containerRef={exportReportRef}
-              dateRange={`${t("report.reportDate")}: ${applied.dateFrom} - ${applied.dateTo}`}
-              rows={exportHook.exportData?.rows ?? current?.customer_reports ?? EMPTY_ROWS}
-              showSummary={summaryVisible}
-              summary={exportHook.exportData?.summary ?? current?.summary ?? emptyCustomerSalesSummary}
-              title={exportHook.exportData?.reportName || reportTitle}
-            />
-          ) : undefined
-        }
-      />
+            </ReportPaginationBar>
+          </>
+        ) : (
+          <EmptyState title={t("report.customerSales.empty")} description={t("report.customerSales.emptyDescription")} />
+        )}
+      </ReportPage>
+
+      {exportHook.exporting === "pdf" || exportHook.exporting === "print" ? (
+        <CustomerSalesExportSurface
+          containerRef={exportReportRef}
+          dateRange={`${t("report.reportDate")}: ${formatReportDateRange(applied.dateFrom, applied.dateTo)}`}
+          rows={exportHook.exportData?.rows ?? current?.customer_reports ?? EMPTY_ROWS}
+          showSummary={summaryVisible}
+          summary={exportHook.exportData?.summary ?? current?.summary ?? emptyCustomerSalesSummary}
+          title={exportHook.exportData?.reportName || reportTitle}
+        />
+      ) : null}
+      <BlockingLoadingDialog open={Boolean(exportHook.exporting)} title={exportTitle} description={t("report.exportingDescription")} />
 
       <CustomerSalesDetailDialog
         row={selected}
-        language={language}
-        onOpenChange={open => { if (!open) setSelectedId(null); }}
+        onOpenChange={(open) => {
+          if (!open) setSelectedId(null);
+        }}
       />
     </>
   );

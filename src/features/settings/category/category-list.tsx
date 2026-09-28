@@ -22,61 +22,66 @@ import {
 import { CSS } from "@dnd-kit/utilities";
 import { GripVertical } from "lucide-react";
 import { useTranslation } from "react-i18next";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Spinner } from "@/components/ui/spinner";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import {
-  SettingsMobileCard,
-  SettingsMobileList,
-  SettingsMobileMeta,
-  SettingsMobileMetaGrid,
-  SettingsRowActions,
-  SettingsTableScroll,
-  SettingsEmptyRecords,} from "@/features/settings/shared/settings-shell";
+  Item,
+  ItemActions,
+  ItemContent,
+  ItemDescription,
+  ItemFooter,
+  ItemGroup,
+  ItemMedia,
+  ItemTitle
+} from "@/components/ui/item";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { SettingsRowActions } from "@/features/settings/shared/settings-shell";
 import { cn } from "@/lib/utils";
 import type { Category } from "@/services/category";
-import { CategoryIcon } from "./category-icon";
-import { CategoryCodeBadge, CategoryIdentity } from "./category-display";
-import {
-  categoryId,
-  categoryName,
-  categoryValue,
-  groupLabel
-} from "./category-utils";
+import { CategoryIconTile, categoryNames } from "./category-display";
+import { categoryId, groupLabel } from "./category-utils";
 
-export function CategoryListSurface({
+type CategoryListProps = {
+  rows: Category[];
+  selectedRows: Set<string>;
+  onDelete: (row: Category) => void;
+  onEdit: (row: Category) => void;
+  onToggleSelected: (id: string, checked: boolean) => void;
+};
+
+// The old table also had an "icon" column printing the raw icon code (e.g. "mdi-food"); the icon
+// itself now sits in the tile beside the name, and the code is still picked in the form.
+function CategoryName({ row }: { row: Category }) {
+  const { en, la } = categoryNames(row);
+  return (
+    <div className="flex items-center gap-3">
+      <CategoryIconTile row={row} />
+      <div className="flex min-w-0 flex-col gap-0.5">
+        <span className="truncate font-medium">{la}</span>
+        {en ? <span className="truncate text-muted-foreground">{en}</span> : null}
+      </div>
+    </div>
+  );
+}
+
+// Drag to reorder only works when the whole list is on one page (the order is saved as a whole).
+export function CategoryTable({
   allSelected,
-  backgroundLoading,
   dragEnabled,
   ids,
   pageStart,
-  rows,
-  selectedRows,
-  title,
-  toolbar,
-  onDelete,
-  onEdit,
   onReorder,
   onToggleAll,
-  onToggleSelected
-}: {
+  ...props
+}: CategoryListProps & {
   allSelected: boolean;
-  backgroundLoading: boolean;
   dragEnabled: boolean;
   ids: string[];
   pageStart: number;
-  rows: Category[];
-  selectedRows: Set<string>;
-  title: string;
-  toolbar: ReactNode;
-  onDelete: (row: Category) => void;
-  onEdit: (row: Category) => void;
   onReorder: (nextRows: Category[]) => void;
   onToggleAll: (checked: boolean) => void;
-  onToggleSelected: (id: string, checked: boolean) => void;
 }) {
+  const { rows, selectedRows, onDelete, onEdit, onToggleSelected } = props;
   const { t } = useTranslation();
   const sensors = useSensors(
     useSensor(MouseSensor, { activationConstraint: { distance: 5 } }),
@@ -85,7 +90,6 @@ export function CategoryListSurface({
   );
 
   function handleDragEnd(event: DragEndEvent) {
-    if (!dragEnabled) return;
     const { active, over } = event;
     if (!over || active.id === over.id) return;
     const oldIndex = rows.findIndex((row) => categoryId(row) === String(active.id));
@@ -94,183 +98,92 @@ export function CategoryListSurface({
     onReorder(arrayMove(rows, oldIndex, newIndex));
   }
 
-  return (
-    <div className="flex min-h-0 flex-1 flex-col">
-      <div className="shrink-0 border-b border-border bg-card/95 px-3 py-2.5 backdrop-blur sm:px-4 lg:px-5">
-        <div className="flex min-w-0 flex-col gap-2 xl:flex-row xl:items-center xl:justify-between">
-          <div className="min-w-0">
-            <p className="text-sm font-black">{t("settings.categoryList")}</p>
-          </div>
-          <div className="min-w-0 xl:max-w-[48rem]">{toolbar}</div>
-        </div>
-        {backgroundLoading ? (
-          <div className="mt-2 flex items-center gap-2 text-xs text-muted-foreground">
-            <Spinner aria-hidden />
-            {t("settings.refreshingCategoryList")}
-          </div>
-        ) : null}
-      </div>
-      {rows.length ? (
-        <>
-          <div className="hidden min-h-0 flex-1 md:flex">
-            <SettingsTableScroll>
-              {dragEnabled ? (
-                <DndContext sensors={sensors} collisionDetection={closestCenter} modifiers={[restrictToVerticalAxis]} onDragEnd={handleDragEnd}>
-                  <CategoryTable
-                    allSelected={allSelected}
-                    dragEnabled
-                    ids={ids}
-                    pageStart={pageStart}
-                    rows={rows}
-                    selectedRows={selectedRows}
-                    onDelete={onDelete}
-                    onEdit={onEdit}
-                    onToggleAll={onToggleAll}
-                    onToggleSelected={onToggleSelected}
-                  />
-                </DndContext>
-              ) : (
-                <CategoryTable
-                  allSelected={allSelected}
-                  dragEnabled={false}
-                  ids={ids}
-                  pageStart={pageStart}
-                  rows={rows}
-                  selectedRows={selectedRows}
-                  onDelete={onDelete}
-                  onEdit={onEdit}
-                  onToggleAll={onToggleAll}
-                  onToggleSelected={onToggleSelected}
-                />
-              )}
-            </SettingsTableScroll>
-          </div>
-          <div className="min-h-0 flex-1 overflow-y-auto md:hidden">
-            <CategoryMobileList
-              pageStart={pageStart}
-              rows={rows}
-              selectedRows={selectedRows}
-              onDelete={onDelete}
-              onEdit={onEdit}
-              onToggleSelected={onToggleSelected}
-            />
-          </div>
-        </>
-      ) : (
-        <SettingsEmptyRecords icon={<CategoryIcon allowRemoteFallback={false} value="" />} title={title.toLowerCase()} />
-      )}
-    </div>
-  );
-}
-
-function CategoryTable({
-  allSelected,
-  dragEnabled,
-  ids,
-  pageStart,
-  rows,
-  selectedRows,
-  onDelete,
-  onEdit,
-  onToggleAll,
-  onToggleSelected
-}: {
-  allSelected: boolean;
-  dragEnabled: boolean;
-  ids: string[];
-  pageStart: number;
-  rows: Category[];
-  selectedRows: Set<string>;
-  onDelete: (row: Category) => void;
-  onEdit: (row: Category) => void;
-  onToggleAll: (checked: boolean) => void;
-  onToggleSelected: (id: string, checked: boolean) => void;
-}) {
-  const { t } = useTranslation();
-  const tableBody = (
+  const body = (
     <TableBody>
       {rows.map((row, index) => {
         const id = categoryId(row);
         const selected = selectedRows.has(id);
-        const iconValue = categoryValue(row, "cate_icon");
-        const name = categoryName(row);
         const cells = (
           <>
-            <TableCell className="w-10 px-2">
-              <Checkbox aria-label={t("common.selectRow", { name })} checked={selected} onCheckedChange={(checked) => onToggleSelected(id, checked as boolean)} />
+            <TableCell>
+              <Checkbox
+                aria-label={t("common.selectRow", { name: categoryNames(row).la })}
+                checked={selected}
+                onCheckedChange={(checked) => onToggleSelected(id, checked === true)}
+              />
             </TableCell>
-            <TableCell className="w-px whitespace-nowrap px-2 text-center text-sm font-black tabular-nums text-muted-foreground">{pageStart + index}</TableCell>
-            <TableCell className="max-w-[30rem]">
-              <CategoryIdentity row={row} />
+            <TableCell className="text-center text-muted-foreground tabular-nums">{pageStart + index}</TableCell>
+            <TableCell>
+              <CategoryName row={row} />
             </TableCell>
-            <TableCell className="max-w-[18rem] text-muted-foreground">
-              <span className="block truncate">{groupLabel(row)}</span>
-            </TableCell>
-            <TableCell className="max-w-[14rem]">
-              <CategoryCodeBadge iconValue={iconValue} />
-            </TableCell>
+            <TableCell className="text-muted-foreground">{groupLabel(row)}</TableCell>
             <TableCell className="text-right">
               <SettingsRowActions row={row} onEdit={onEdit} onDelete={onDelete} />
             </TableCell>
           </>
         );
 
-        if (!dragEnabled) {
-          return (
-            <TableRow key={id || index} className="h-14" data-state={selected ? "selected" : undefined}>
-              {cells}
-            </TableRow>
-          );
-        }
-
-        return (
+        return dragEnabled ? (
           <SortableCategoryRow key={id || index} id={id} selected={selected}>
             {cells}
           </SortableCategoryRow>
+        ) : (
+          <TableRow key={id || index} data-state={selected ? "selected" : undefined}>
+            {cells}
+          </TableRow>
         );
       })}
     </TableBody>
   );
 
-  return (
-    <Table className="min-w-[980px]">
-      <TableHeader className="sticky top-0 z-10 bg-muted/95 backdrop-blur">
+  const table = (
+    <Table containerClassName="min-h-0 flex-1 overflow-auto">
+      <TableHeader className="sticky top-0 z-10 bg-muted">
         <TableRow>
-          {dragEnabled ? <TableHead className="w-10 px-2" aria-hidden /> : null}
-          <TableHead className="w-10 px-2">
-            <Checkbox aria-label={t("common.selectAll")} checked={allSelected} onCheckedChange={(checked) => onToggleAll(checked as boolean)} />
+          {dragEnabled ? <TableHead className="w-px" aria-hidden /> : null}
+          <TableHead className="w-px">
+            <Checkbox aria-label={t("common.selectAll")} checked={allSelected} onCheckedChange={(checked) => onToggleAll(checked === true)} />
           </TableHead>
-          <TableHead className="w-px whitespace-nowrap px-2 text-center">{t("fields.no")}</TableHead>
-          <TableHead>{t("nav.category")}</TableHead>
+          {/* w-px: handle, checkbox, number and actions shrink to their content. */}
+          <TableHead className="w-px text-center">{t("fields.no")}</TableHead>
+          <TableHead className="min-w-56">{t("nav.category")}</TableHead>
           <TableHead>{t("nav.food_group")}</TableHead>
-          <TableHead>{t("fields.icon")}</TableHead>
-          <TableHead className="w-16 text-right">{t("common.actions")}</TableHead>
+          <TableHead className="w-px">
+            <span className="sr-only">{t("common.actions")}</span>
+          </TableHead>
         </TableRow>
       </TableHeader>
       {dragEnabled ? (
         <SortableContext items={ids} strategy={verticalListSortingStrategy}>
-          {tableBody}
+          {body}
         </SortableContext>
       ) : (
-        tableBody
+        body
       )}
     </Table>
+  );
+
+  return dragEnabled ? (
+    <DndContext sensors={sensors} collisionDetection={closestCenter} modifiers={[restrictToVerticalAxis]} onDragEnd={handleDragEnd}>
+      {table}
+    </DndContext>
+  ) : (
+    table
   );
 }
 
 function SortableCategoryRow({ children, id, selected }: { children: ReactNode; id: string; selected: boolean }) {
   const { t } = useTranslation();
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id });
-  const style = {
-    transform: CSS.Transform.toString(transform),
-    transition,
-    opacity: isDragging ? 0.85 : 1,
-    position: "relative" as const
-  };
 
   return (
-    <TableRow ref={setNodeRef} style={style} data-state={selected ? "selected" : undefined} className={cn("h-14", isDragging && "shadow-md")}>
-      <TableCell className="w-10 px-2">
+    <TableRow
+      ref={setNodeRef}
+      style={{ transform: CSS.Transform.toString(transform), transition, position: "relative" }}
+      data-state={selected ? "selected" : undefined}
+      className={cn(isDragging && "bg-background opacity-90 shadow-md")}
+    >
+      <TableCell>
         <Button aria-label={t("common.reorder")} size="icon-sm" type="button" variant="ghost" {...attributes} {...listeners}>
           <GripVertical aria-hidden />
         </Button>
@@ -280,55 +193,36 @@ function SortableCategoryRow({ children, id, selected }: { children: ReactNode; 
   );
 }
 
-function CategoryMobileList({
-  pageStart,
-  rows,
-  selectedRows,
-  onDelete,
-  onEdit,
-  onToggleSelected
-}: {
-  pageStart: number;
-  rows: Category[];
-  selectedRows: Set<string>;
-  onDelete: (row: Category) => void;
-  onEdit: (row: Category) => void;
-  onToggleSelected: (id: string, checked: boolean) => void;
-}) {
+// Narrow pages: one Item per category — icon tile, names, then its food group. Two columns once
+// there is room.
+export function CategoryMobileList({ rows, selectedRows, onDelete, onEdit, onToggleSelected }: CategoryListProps) {
   const { t } = useTranslation();
 
   return (
-    <SettingsMobileList>
+    <ItemGroup className="@xl:grid @xl:grid-cols-2">
       {rows.map((row, index) => {
         const id = categoryId(row);
-        const name = categoryName(row);
-        const selected = selectedRows.has(id);
-        const iconValue = categoryValue(row, "cate_icon");
+        const { en, la } = categoryNames(row);
         return (
-          <SettingsMobileCard
-            key={id || index}
-            actions={<SettingsRowActions row={row} onEdit={onEdit} onDelete={onDelete} />}
-            badges={<Badge className="shrink-0 tabular-nums">{pageStart + index}</Badge>}
-            checked={selected}
-            leading={
-              <span className="grid size-10 place-items-center rounded-md bg-primary/10 text-primary">
-                <CategoryIcon allowRemoteFallback={false} value={iconValue} />
-              </span>
-            }
-            selectLabel={t("common.selectRow", { name })}
-            selected={selected}
-            title={name}
-            onCheckedChange={(checked) => onToggleSelected(id, checked)}
-          >
-            <SettingsMobileMetaGrid>
-              <SettingsMobileMeta label={t("fields.nameLa")} value={categoryValue(row, "cate_name_la", "-")} />
-              <SettingsMobileMeta label={t("fields.nameEn")} value={categoryValue(row, "cate_name_eng", "-")} />
-              <SettingsMobileMeta label={t("nav.food_group")} value={groupLabel(row)} />
-              <SettingsMobileMeta label={t("fields.icon")} value={<CategoryCodeBadge iconValue={iconValue} />} />
-            </SettingsMobileMetaGrid>
-          </SettingsMobileCard>
+          <Item key={id || index} variant="outline">
+            <Checkbox aria-label={t("common.selectRow", { name: la })} checked={selectedRows.has(id)} onCheckedChange={(checked) => onToggleSelected(id, checked === true)} />
+            <ItemMedia>
+              <CategoryIconTile row={row} />
+            </ItemMedia>
+            <ItemContent>
+              <ItemTitle>{la}</ItemTitle>
+              {en ? <ItemDescription>{en}</ItemDescription> : null}
+            </ItemContent>
+            <ItemActions>
+              <SettingsRowActions row={row} onEdit={onEdit} onDelete={onDelete} />
+            </ItemActions>
+            <ItemFooter className="justify-start gap-1.5">
+              <span className="text-muted-foreground">{t("nav.food_group")}:</span>
+              {groupLabel(row)}
+            </ItemFooter>
+          </Item>
         );
       })}
-    </SettingsMobileList>
+    </ItemGroup>
   );
 }

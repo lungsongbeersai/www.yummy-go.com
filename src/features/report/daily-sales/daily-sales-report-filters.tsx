@@ -1,12 +1,12 @@
 "use client";
 
 import type { ReactNode } from "react";
-import { SlidersHorizontal } from "lucide-react";
+import { Search, SlidersHorizontal } from "lucide-react";
 import { useTranslation } from "react-i18next";
-import { SearchInput } from "@/components/common/search-input";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Field, FieldLabel } from "@/components/ui/field";
+import { InputGroup, InputGroupAddon, InputGroupInput } from "@/components/ui/input-group";
 import { Popover, PopoverContent, PopoverTitle, PopoverTrigger } from "@/components/ui/popover";
 import {
   Select,
@@ -83,8 +83,10 @@ export function DailySalesFilterBar({
     <ReportFilterCard
       actions={actions}
       canApply={canApply}
-      className="hidden shrink-0 rounded-none border-x-0 border-t-0 shadow-none lg:block"
-      contentClassName="flex min-w-0 flex-wrap items-end gap-3 px-3 py-2.5"
+      // shrink-0: Card มี overflow-hidden ซึ่งทำให้ min-height ของ flex item เป็น 0 — ไม่ใส่ไว้ พอตาราง/skeleton
+      // กินความสูงเต็ม การ์ดตัวกรองจะถูกบีบจนช่องกรอกโดนตัดครึ่ง (เห็นตอนโหลด/รีเฟรช)
+      className="hidden shrink-0 shadow-none lg:block"
+      contentClassName="flex flex-wrap items-end gap-3 py-4"
       loading={loading}
       onApply={onApply}
     >
@@ -99,11 +101,11 @@ export function DailySalesFilterBar({
 
       <Popover>
         <PopoverTrigger asChild>
-          <Button type="button" variant="outline" className="relative h-9">
+          <Button type="button" variant="outline">
             <SlidersHorizontal data-icon="inline-start" />
             {t("report.filters.moreFilters")}
             {secondaryCount ? (
-              <Badge className="ml-1 h-4.5 min-w-4.5 justify-center rounded-full border-transparent bg-primary px-1 text-2xs text-primary-foreground">
+              <Badge>
                 {secondaryCount}
               </Badge>
             ) : null}
@@ -211,12 +213,9 @@ export function AppliedFilterBadges({
   ].filter(Boolean);
 
   return (
-    <div className="flex min-w-0 flex-wrap gap-1.5">
+    <div className="flex flex-wrap gap-2">
       {badges.map((label) => (
-        <Badge
-          key={label}
-          className="h-6 max-w-44 truncate border-border bg-muted px-2 text-xs font-normal text-muted-foreground"
-        >
+        <Badge key={label} variant="secondary">
           {label}
         </Badge>
       ))}
@@ -249,23 +248,27 @@ function DailySalesPrimaryFields({
   return (
     <>
       {/* ค้นหาเป็นตัวกรองปกติ = มีผลตอนกดปุ่ม "ໃຊ້" เหมือนช่องอื่น (เดิมอยู่หัวตารางและกรองทันทีที่พิมพ์) */}
-      <Field className="min-w-48 flex-1 gap-1.5 sm:col-span-2 lg:col-span-1">
-        <FieldLabel htmlFor={`${idPrefix}-search`} className="text-xs font-medium text-muted-foreground">
+      <Field className="min-w-48 flex-1 sm:col-span-2 lg:col-span-1">
+        <FieldLabel htmlFor={`${idPrefix}-search`}>
           {t("actions.search")}
         </FieldLabel>
-        <SearchInput
-          id={`${idPrefix}-search`}
-          ariaLabel={t("actions.search")}
-          placeholder={t("actions.search")}
-          value={draftFilters.search}
-          onChange={(value) => patch({ search: value })}
-          className="h-11 bg-background lg:h-9"
-        />
+        <InputGroup>
+          <InputGroupAddon>
+            <Search />
+          </InputGroupAddon>
+          <InputGroupInput
+            id={`${idPrefix}-search`}
+            type="search"
+            placeholder={t("actions.search")}
+            value={draftFilters.search}
+            onChange={(event) => patch({ search: event.target.value })}
+          />
+        </InputGroup>
       </Field>
-      <Field className="gap-1.5 lg:w-52 lg:flex-none">
+      <Field className="lg:w-48 lg:flex-none">
         <FieldLabel
           htmlFor={`${idPrefix}-branch`}
-          className="text-xs font-medium text-muted-foreground"
+         
         >
           {t("nav.branch")}
         </FieldLabel>
@@ -274,11 +277,7 @@ function DailySalesPrimaryFields({
           disabled={branchLoading || branchLocked || branchOptions.length <= 1}
           onValueChange={(value) => patch({ branchUuid: value, tableUuid: "all", zoneUuid: "all" })}
         >
-          {/* data-[size=default]: ต้องคุมทั้งสอง breakpoint — SelectTrigger ฐานมี data-[size=default]:h-7
-              เป็น attribute selector (specificity สูงกว่า class เดี่ยว) ถ้า lg ใช้ lg:h-9 เฉยๆ จะแพ้
-              data-[size=default]:h-11 แล้วค้าง 44px บนเดสก์ท็อป (สูงไม่เท่า date/ปุ่มที่ 36px)
-              ต้องใช้ lg:data-[size=default]:h-9 ให้ specificity เท่ากันทั้งคู่ */}
-          <SelectTrigger id={`${idPrefix}-branch`} className="w-full data-[size=default]:h-11 lg:data-[size=default]:h-9">
+          <SelectTrigger id={`${idPrefix}-branch`} className="w-full">
             <SelectValue placeholder={t("nav.branch")} />
           </SelectTrigger>
           <SelectContent>
@@ -292,10 +291,10 @@ function DailySalesPrimaryFields({
           </SelectContent>
         </Select>
       </Field>
-      <Field className="gap-1.5 lg:w-40 lg:flex-none">
+      <Field className="lg:w-36 lg:flex-none">
         <FieldLabel
           htmlFor={`${idPrefix}-date-from`}
-          className="text-xs font-medium text-muted-foreground"
+         
         >
           {t("report.filters.dateFrom")}
         </FieldLabel>
@@ -304,13 +303,12 @@ function DailySalesPrimaryFields({
           label={t("report.filters.dateFrom")}
           value={draftFilters.dateFrom}
           onValueChange={(dateFrom) => patch({ dateFrom })}
-          className="h-11 lg:h-9"
         />
       </Field>
-      <Field className="gap-1.5 lg:w-40 lg:flex-none">
+      <Field className="lg:w-36 lg:flex-none">
         <FieldLabel
           htmlFor={`${idPrefix}-date-to`}
-          className="text-xs font-medium text-muted-foreground"
+         
         >
           {t("report.filters.dateTo")}
         </FieldLabel>
@@ -319,7 +317,6 @@ function DailySalesPrimaryFields({
           label={t("report.filters.dateTo")}
           value={draftFilters.dateTo}
           onValueChange={(dateTo) => patch({ dateTo })}
-          className="h-11 lg:h-9"
         />
       </Field>
     </>
@@ -359,10 +356,10 @@ function DailySalesSecondaryFields({
         onTableChange={(tableUuid) => patch({ tableUuid })}
         onZoneChange={(zoneUuid) => patch({ tableUuid: "all", zoneUuid })}
       />
-      <Field className="min-w-0 gap-1.5">
+      <Field>
         <FieldLabel
           htmlFor={`${idPrefix}-payment-method`}
-          className="text-xs font-medium text-muted-foreground"
+         
         >
           {t("report.filters.paymentMethod")}
         </FieldLabel>
@@ -372,7 +369,7 @@ function DailySalesSecondaryFields({
             patch({ paymentMethod: value as ReportFilters["paymentMethod"] })
           }
         >
-          <SelectTrigger id={`${idPrefix}-payment-method`} className="w-full data-[size=default]:h-11 lg:data-[size=default]:h-9">
+          <SelectTrigger id={`${idPrefix}-payment-method`} className="w-full">
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
@@ -386,10 +383,10 @@ function DailySalesSecondaryFields({
           </SelectContent>
         </Select>
       </Field>
-      <Field className="min-w-0 gap-1.5">
+      <Field>
         <FieldLabel
           htmlFor={`${idPrefix}-order-by`}
-          className="text-xs font-medium text-muted-foreground"
+         
         >
           {t("report.filters.orderBy")}
         </FieldLabel>
@@ -399,7 +396,7 @@ function DailySalesSecondaryFields({
             patch({ orderBy: value as ReportFilters["orderBy"] })
           }
         >
-          <SelectTrigger id={`${idPrefix}-order-by`} className="w-full data-[size=default]:h-11 lg:data-[size=default]:h-9">
+          <SelectTrigger id={`${idPrefix}-order-by`} className="w-full">
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
@@ -413,10 +410,10 @@ function DailySalesSecondaryFields({
           </SelectContent>
         </Select>
       </Field>
-      <Field className="min-w-0 gap-1.5">
+      <Field>
         <FieldLabel
           htmlFor={`${idPrefix}-limit`}
-          className="text-xs font-medium text-muted-foreground"
+         
         >
           {draftFilters.typePage === "detail"
             ? detailPaginationBasis === "bills"
@@ -430,7 +427,7 @@ function DailySalesSecondaryFields({
             patch({ limit: value === "All" ? "All" : Number(value) })
           }
         >
-          <SelectTrigger id={`${idPrefix}-limit`} className="w-full data-[size=default]:h-11 lg:data-[size=default]:h-9">
+          <SelectTrigger id={`${idPrefix}-limit`} className="w-full">
             <SelectValue />
           </SelectTrigger>
           <SelectContent>

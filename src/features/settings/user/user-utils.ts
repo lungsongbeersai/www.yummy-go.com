@@ -70,12 +70,6 @@ export function userActiveLabel(status: string, active: string, inactive: string
   return Number(status || 1) === 1 ? active : inactive;
 }
 
-export function userActiveBadgeClass(status: string) {
-  return Number(status || 1) === 1
-    ? "border-primary/25 bg-primary/10 text-primary"
-    : "border-muted-foreground/20 bg-muted text-muted-foreground";
-}
-
 export function userRoleOptions(editing: User | null, roleOptions: Role[]) {
   const editingRoleId = roleId(editing);
   if (!editingRoleId || roleOptions.some((role) => roleId(role) === editingRoleId)) return roleOptions;

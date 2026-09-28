@@ -3,7 +3,7 @@
 import { Utensils } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { OptionSettingsPage, type OptionSaveArgs } from "@/features/settings/shared/option-settings-page";
-import { buildToppingPayload, missingToppingField, toppingName, toppingValue } from "@/features/settings/topping/topping-utils";
+import { buildToppingPayload, missingToppingField, toppingValue } from "@/features/settings/topping/topping-utils";
 import type { UrlPaginationState } from "@/lib/url-pagination";
 import type { FetchToppingsParams, SaveToppingInput, Topping } from "@/services/topping";
 import { useToppingStore } from "@/stores/topping-store";
@@ -44,12 +44,10 @@ export function ToppingSettingsPage({ initialPagination }: { initialPagination: 
       ]}
       formDescription={t("settings.toppingFormHint")}
       formTitle={t("settings.toppingDetails")}
-      getName={toppingName}
       icon={Utensils}
       idKey="topping_uuid"
       initialPagination={initialPagination}
       itemLabel={t("nav.topping")}
-      listTitle={t("settings.toppingList")}
       nameEngKey="topping_name_eng"
       nameKey="topping_name"
       nameLaKey="topping_name_la"
@@ -59,7 +57,6 @@ export function ToppingSettingsPage({ initialPagination }: { initialPagination: 
       scope={(storeUuid) => ({ store_uuid_fk: storeUuid })}
       slug="topping"
       store={useToppingStore}
-      tableClassName="min-w-[860px]"
       title={t("settings.modules.topping.title")}
       validateInput={(args) => {
         const missing = missingToppingField(toppingSaveArgs(args));

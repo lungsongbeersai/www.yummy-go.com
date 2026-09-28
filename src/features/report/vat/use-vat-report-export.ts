@@ -89,7 +89,7 @@ export function useVatReportExport({
             title: t("report.summary"),
             rows: vatSummaryRows(data.summary, t),
           },
-          vatTableSection(data, language, t),
+          vatTableSection(data, t),
         ],
         officialReportExcelLayout(t, data.reportName || reportTitle)
       ),

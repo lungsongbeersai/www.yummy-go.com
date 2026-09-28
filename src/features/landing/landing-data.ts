@@ -78,8 +78,8 @@ export function pickText(text: LocalizedText, language: Language): string {
 
 export const landingCompany = {
   name: "Yummy-go",
-  // ไอคอนแบรนด์ตัวเดียวกับ root layout / login / app-shell เพื่อให้เอกลักษณ์ตรงกันทั้งแอป
-  logo: "/brand/icon.png",
+  // มาร์คแอปล้วน (ไม่มีวงกลมจุด/ตัวอักษรฝังแบบ icon.png) — อ่านชัดที่ขนาดเล็กบน header
+  logo: "/brand/icon-mark.png",
   tagline: {
     en: "The Restaurant POS That Runs Your Whole Shop",
     la: "ລະບົບ POS ຮ້ານອາຫານ ທີ່ຄຸມທັງຮ້ານໄດ້ໃນບ່ອນດຽວ"

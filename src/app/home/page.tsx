@@ -31,9 +31,7 @@ export const metadata: Metadata = {
   title: "Yummy-go — ລະບົບ POS ຮ້ານອາຫານ | Restaurant POS System",
   description:
     "ລະບົບ POS ຮ້ານອາຫານຄົບຊຸດ — ອໍເດີ, ໂຕະ, ສັ່ງຜ່ານ QR, ພິມບິນ, ສະຕັອກ ແລະ ລາຍງານ. ໃຊ້ໄດ້ທັງເວັບ, Windows ແລະ Android.",
-  icons: {
-    icon: "/brand/icon.png"
-  }
+  // ไอคอนแท็บสืบทอดจาก root layout — ไม่ override ที่นี่ ไม่งั้นไอคอนจะเปลี่ยนตอนล็อกอินเข้า POS
 };
 
 export default function HomePage() {

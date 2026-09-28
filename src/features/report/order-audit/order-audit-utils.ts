@@ -1,4 +1,5 @@
 import type { AuditValue, OrderAuditRow } from "@/services/report";
+import { formatReportDateTime } from "@/features/report/shared/report-date-format";
 
 type Translate = (key: string) => string;
 const MONEY_FIELDS = new Set([
@@ -23,13 +24,11 @@ export function auditToday(date = new Date()) {
   return `${values.year}-${values.month}-${values.day}`;
 }
 
-export function auditDateTime(value: string, language: string) {
+// 28/09/2026 13:16:54 in Vientiane time, like every other report date (see report-date-format).
+export function auditDateTime(value: string) {
   const date = new Date(value);
   if (!Number.isFinite(date.getTime())) return "—";
-  return new Intl.DateTimeFormat(language === "en" ? "en-GB" : "lo-LA", {
-    timeZone: "Asia/Vientiane", year: "numeric", month: "2-digit", day: "2-digit",
-    hour: "2-digit", minute: "2-digit", second: "2-digit", hourCycle: "h23",
-  }).format(date);
+  return formatReportDateTime(value);
 }
 
 export function validAuditDateRange(from: string, to: string) {

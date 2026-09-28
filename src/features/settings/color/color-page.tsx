@@ -40,13 +40,11 @@ export function ColorSettingsPage({ initialPagination }: { initialPagination: Ur
       idKey="color_uuid"
       initialPagination={initialPagination}
       itemLabel={t("nav.color")}
-      listTitle={t("settings.colorList")}
       nameKey="color_name"
       refreshLabel={t("settings.refreshingColorList")}
       renderBadges={(row) => <ColorCodeBadge code={colorCode(row)} />}
       slug="color"
       store={useColorStore}
-      tableClassName="min-w-[820px]"
       title={t("settings.modules.color.title")}
       validateInput={(args) => {
         const missing = missingColorField(colorSaveArgs(args));

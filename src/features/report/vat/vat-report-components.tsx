@@ -2,13 +2,14 @@
 
 import type { RefObject } from "react";
 import { useTranslation } from "react-i18next";
-import { formatShortDate, money } from "@/lib/format";
+import { money } from "@/lib/format";
 import type { VatReportRow, VatReportSummary } from "@/services/report";
 import {
   ReportOfficialHeader,
   ReportSignatures,
 } from "@/lib/export/official-layout";
 import { vatSummaryMetricConfigs } from "./vat-report-utils";
+import { formatReportDate } from "@/features/report/shared/report-date-format";
 
 // พื้นผิวสำหรับ export PDF (captureElementToPdf จับภาพ element นี้) — โครงเดียวกับ
 // EmployeeSalesExportSurface/CategorySalesExportSurface: หัวรายงานทางการ → ส่วนสรุป (ถ้าเปิดอยู่) →
@@ -16,7 +17,6 @@ import { vatSummaryMetricConfigs } from "./vat-report-utils";
 export function VatExportSurface({
   containerRef,
   dateRange,
-  language,
   rows,
   showSummary,
   summary,
@@ -24,7 +24,6 @@ export function VatExportSurface({
 }: {
   containerRef: RefObject<HTMLDivElement | null>;
   dateRange: string;
-  language: string;
   rows: VatReportRow[];
   showSummary: boolean;
   summary: VatReportSummary;
@@ -78,7 +77,7 @@ export function VatExportSurface({
         <tbody>
           {rows.map((row) => (
             <tr key={row.order_uuid}>
-              <td>{formatShortDate(row.sale_date, language)}</td>
+              <td>{formatReportDate(row.sale_date)}</td>
               <td>{row.order_invoice}</td>
               <td>{row.customer_name || "-"}</td>
               <td className="is-right">{money(row.discount_amount)}</td>

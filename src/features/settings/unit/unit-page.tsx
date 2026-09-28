@@ -49,7 +49,6 @@ export function UnitSettingsPage({ initialPagination }: { initialPagination: Url
       idKey="unite_uuid"
       initialPagination={initialPagination}
       itemLabel={t("nav.unit")}
-      listTitle={t("settings.unitList")}
       nameEngKey="unite_name_eng"
       nameKey="unite_name"
       nameLaKey="unite_name_la"
@@ -57,7 +56,6 @@ export function UnitSettingsPage({ initialPagination }: { initialPagination: Url
       scope={(storeUuid) => ({ store_uuid_fk: storeUuid })}
       slug="unit"
       store={useUnitStore}
-      tableClassName="min-w-[860px]"
       title={t("settings.modules.unit.title")}
       validateInput={(args) => {
         const missing = missingUnitField({ nameLa: unitSaveArgs(args).nameLa });

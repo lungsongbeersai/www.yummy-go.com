@@ -9,9 +9,9 @@ describe("order audit presentation", () => {
   it("uses Vientiane calendar dates without applying a sales-day cutoff", () => {
     expect(auditToday(new Date("2026-09-06T16:59:59Z"))).toBe("2026-09-06");
     expect(auditToday(new Date("2026-09-06T17:00:00Z"))).toBe("2026-09-07");
-    expect(auditDateTime("2026-09-06T17:00:00Z", "en")).toContain("07/09/2026");
-    expect(auditDateTime("2026-09-06T17:00:00Z", "en")).toContain("00:00:00");
-    expect(auditDateTime("invalid", "en")).toBe("—");
+    expect(auditDateTime("2026-09-06T17:00:00Z")).toContain("07/09/2026");
+    expect(auditDateTime("2026-09-06T17:00:00Z")).toContain("00:00:00");
+    expect(auditDateTime("invalid")).toBe("—");
   });
 
   it("validates real dates and a bounded date range", () => {

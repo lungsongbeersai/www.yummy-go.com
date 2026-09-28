@@ -1,145 +1,277 @@
 "use client";
 
+import { useMemo } from "react";
 import { useTranslation } from "react-i18next";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Checkbox } from "@/components/ui/checkbox";
+import {
+  Item,
+  ItemActions,
+  ItemContent,
+  ItemDescription,
+  ItemFooter,
+  ItemGroup,
+  ItemTitle,
+} from "@/components/ui/item";
+import { Progress } from "@/components/ui/progress";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import type { ReportColumnOption } from "@/features/report/shared/report-column-visibility";
+import { ReportIndeterminateCheckbox, selectionStateForVisibleIds } from "@/features/report/shared/report-row-selection";
+import { userInitials } from "@/features/settings/user/user-utils";
 import { money } from "@/lib/format";
 import { cn } from "@/lib/utils";
-import { ReportIndeterminateCheckbox, selectionStateForVisibleIds } from "@/features/report/shared/report-row-selection";
-import type { CustomerSalesRow } from "@/services/report";
+import type { CustomerSalesReportSummary, CustomerSalesRow } from "@/services/report";
+
+type CustomerMetricKey = "bill_count" | "net_sale" | "service_charge" | "vat" | "grand_total";
+
+type CustomerMetric = { key: CustomerMetricKey; kind: "money" | "number"; label: string };
+
+function customerMetrics(t: (key: string) => string): CustomerMetric[] {
+  return [
+    { key: "bill_count", kind: "number", label: t("report.customerSales.columns.billCount") },
+    { key: "net_sale", kind: "money", label: t("report.customerSales.columns.netSale") },
+    { key: "service_charge", kind: "money", label: t("report.customerSales.columns.serviceCharge") },
+    { key: "vat", kind: "money", label: t("report.customerSales.columns.vat") },
+    { key: "grand_total", kind: "money", label: t("report.customerSales.columns.grandTotal") },
+  ];
+}
+
+/** ตัวเลือกของเมนู "คอลัมน์" — ชื่อลูกค้ากับยอดรวมเป็นแกนของรายงาน ซ่อนไม่ได้ */
+export function customerSalesColumnOptions(t: (key: string) => string): ReportColumnOption[] {
+  return customerMetrics(t).map((metric) => ({
+    hideable: metric.key !== "grand_total",
+    id: metric.key,
+    label: metric.label,
+  }));
+}
+
+function displayMetric(value: number, kind: CustomerMetric["kind"]) {
+  return kind === "money" ? money(value) : value.toLocaleString("en-US");
+}
+
+// สัดส่วนยอดซื้อของลูกค้าต่อยอดรวมทั้งหมด — เห็นทันทีว่าลูกค้าคนไหนซื้อมากที่สุด
+function customerShare(row: CustomerSalesRow, total: number) {
+  if (total <= 0) return null;
+  return Math.min(100, Math.max(0, (row.summary.grand_total / total) * 100));
+}
+
+function customerName(row: CustomerSalesRow) {
+  return row.customer_name || row.member_code || "-";
+}
+
+function CustomerAvatar({ row }: { row: CustomerSalesRow }) {
+  return (
+    <Avatar>
+      <AvatarFallback>{userInitials(customerName(row))}</AvatarFallback>
+    </Avatar>
+  );
+}
+
+function footerCellClass(align: "left" | "right" = "left") {
+  return cn(
+    // แถวรวมค้างขอบล่าง — ทึบ (bg-background) แล้ววางสีธีมจางเป็นชั้น gradient ทับ
+    "sticky bottom-0 z-20 border-t border-primary/30 bg-background bg-linear-to-r from-primary/10 to-primary/10 font-medium text-primary-text",
+    align === "right" && "text-right tabular-nums",
+  );
+}
+
+function activate(event: React.KeyboardEvent, action: () => void) {
+  if (event.key !== "Enter" && event.key !== " ") return;
+  event.preventDefault();
+  action();
+}
 
 export function CustomerSalesTable({
+  isColumnVisible,
   rows,
   selectedRowIds,
+  summary,
   onSelect,
   onToggleRow,
   onToggleRows,
 }: {
+  isColumnVisible: (id: string) => boolean;
   rows: CustomerSalesRow[];
   selectedRowIds: Set<string>;
+  summary: CustomerSalesReportSummary | null;
   onSelect: (customerUuid: string) => void;
   onToggleRow: (row: CustomerSalesRow, selected: boolean) => void;
   onToggleRows: (rows: CustomerSalesRow[], selected: boolean) => void;
 }) {
   const { t } = useTranslation();
+  const metrics = useMemo(() => customerMetrics(t).filter((metric) => isColumnVisible(metric.key)), [isColumnVisible, t]);
   const { allVisibleSelected, someVisibleSelected } = selectionStateForVisibleIds(
-    rows.map(row => row.customer_uuid),
+    rows.map((row) => row.customer_uuid),
     selectedRowIds,
   );
+  const total = summary?.grand_total ?? 0;
 
   return (
-    <div className="hidden shrink-0 overflow-hidden rounded-lg border bg-card md:block">
-      <Table>
-        <TableHeader>
-          <TableRow>
-            <TableHead className="w-10 text-center">
-              <ReportIndeterminateCheckbox
-                aria-label={t("common.selectAll")}
-                checked={allVisibleSelected}
-                indeterminate={!allVisibleSelected && someVisibleSelected}
-                onCheckedChange={checked => onToggleRows(rows, checked as boolean)}
-              />
+    // container ของ Table เป็นตัวสกรอลเอง — หัวตาราง sticky ด้านบน, แถวรวม sticky ด้านล่าง
+    <Table containerClassName="min-h-0 flex-1 overflow-auto">
+      <TableHeader className="sticky top-0 z-30 bg-muted">
+        <TableRow>
+          <TableHead>
+            <ReportIndeterminateCheckbox
+              aria-label={t("common.selectAll")}
+              checked={allVisibleSelected}
+              indeterminate={!allVisibleSelected && someVisibleSelected}
+              onCheckedChange={(checked) => onToggleRows(rows, checked as boolean)}
+            />
+          </TableHead>
+          <TableHead className="min-w-64">{t("report.customerSales.customer")}</TableHead>
+          {metrics.map((metric) => (
+            <TableHead key={metric.key} className="text-right">
+              {metric.label}
             </TableHead>
-            <TableHead>{t("report.customerSales.customer")}</TableHead>
-            <TableHead className="text-right">{t("report.customerSales.columns.billCount")}</TableHead>
-            <TableHead className="text-right">{t("report.customerSales.columns.netSale")}</TableHead>
-            <TableHead className="text-right">{t("report.customerSales.columns.serviceCharge")}</TableHead>
-            <TableHead className="text-right">{t("report.customerSales.columns.vat")}</TableHead>
-            <TableHead className="text-right">{t("report.customerSales.columns.grandTotal")}</TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {rows.map(row => (
+          ))}
+        </TableRow>
+      </TableHeader>
+      <TableBody>
+        {rows.map((row) => {
+          const selected = selectedRowIds.has(row.customer_uuid);
+          const share = customerShare(row, total);
+
+          return (
             <TableRow
               key={row.customer_uuid}
               role="button"
               tabIndex={0}
-              className={cn(
-                "cursor-pointer hover:bg-muted/50 focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50 focus-visible:ring-inset",
-                selectedRowIds.has(row.customer_uuid) && "bg-primary/5 hover:bg-primary/10",
-              )}
+              data-state={selected ? "selected" : undefined}
+              className="cursor-pointer"
               onClick={() => onSelect(row.customer_uuid)}
-              onKeyDown={event => {
-                if (event.key !== "Enter" && event.key !== " ") return;
-                event.preventDefault();
-                onSelect(row.customer_uuid);
-              }}
+              onKeyDown={(event) => activate(event, () => onSelect(row.customer_uuid))}
             >
-              <TableCell className="w-10 text-center" onClick={event => event.stopPropagation()}>
+              <TableCell onClick={(event) => event.stopPropagation()}>
                 <Checkbox
-                  aria-label={t("common.selectRow", { name: row.customer_name || row.member_code })}
-                  checked={selectedRowIds.has(row.customer_uuid)}
-                  onCheckedChange={checked => onToggleRow(row, checked as boolean)}
+                  aria-label={t("common.selectRow", { name: customerName(row) })}
+                  checked={selected}
+                  onCheckedChange={(checked) => onToggleRow(row, checked as boolean)}
                 />
               </TableCell>
               <TableCell>
-                <p className="truncate font-medium" translate="no">{row.customer_name || "-"}</p>
-                <p className="truncate text-xs text-muted-foreground">{row.member_code} · {row.customer_phone}</p>
+                <div className="flex items-center gap-3">
+                  <CustomerAvatar row={row} />
+                  <div className="flex min-w-0 flex-1 flex-col gap-1.5">
+                    <span className="font-medium" translate="no">{row.customer_name || "-"}</span>
+                    <span className="text-muted-foreground">
+                      {row.member_code} · {row.customer_phone}
+                    </span>
+                    {share !== null ? (
+                      <span className="flex max-w-56 items-center gap-2">
+                        <Progress value={share} aria-hidden="true" />
+                        <span className="shrink-0 tabular-nums text-muted-foreground">{share.toFixed(1)}%</span>
+                      </span>
+                    ) : null}
+                  </div>
+                </div>
               </TableCell>
-              <TableCell className="text-right tabular-nums">{row.summary.bill_count}</TableCell>
-              <TableCell className="text-right tabular-nums">{money(row.summary.net_sale)}</TableCell>
-              <TableCell className="text-right tabular-nums">{money(row.summary.service_charge)}</TableCell>
-              <TableCell className="text-right tabular-nums">{money(row.summary.vat)}</TableCell>
-              <TableCell className="text-right font-medium tabular-nums">{money(row.summary.grand_total)}</TableCell>
+              {metrics.map((metric) => {
+                const value = row.summary[metric.key];
+                return (
+                  <TableCell
+                    key={metric.key}
+                    className={cn(
+                      "text-right tabular-nums",
+                      value === 0 && "text-muted-foreground",
+                      metric.key === "grand_total" && value !== 0 && "font-medium text-primary-text",
+                    )}
+                  >
+                    {displayMetric(value, metric.kind)}
+                  </TableCell>
+                );
+              })}
             </TableRow>
-          ))}
-        </TableBody>
-      </Table>
-    </div>
+          );
+        })}
+
+        {summary ? (
+          <TableRow className="hover:bg-transparent">
+            <TableCell className={footerCellClass()} colSpan={2}>
+              {t("report.summary")}
+              <span className="ml-2 font-normal text-muted-foreground">
+                {t("report.customerSales.columns.customerCount")}: {summary.customer_count.toLocaleString("en-US")}
+              </span>
+            </TableCell>
+            {metrics.map((metric) => (
+              <TableCell
+                key={metric.key}
+                className={cn(footerCellClass("right"), metric.key === "grand_total" ? "font-semibold" : "text-foreground")}
+              >
+                {displayMetric(summary[metric.key], metric.kind)}
+              </TableCell>
+            ))}
+          </TableRow>
+        ) : null}
+      </TableBody>
+    </Table>
   );
 }
 
+// จอเล็ก: ลูกค้าละ 1 Item — ยอดรวมด้านขวา, บิล/ยอดขายด้านล่าง, แถบสัดส่วนของยอดรวมทั้งหมด
+// แตะที่รายการเปิดรายละเอียด (ช่องติ๊กเลือกไว้สำหรับ export ไม่เปิดรายละเอียด)
 export function CustomerSalesRowCard({
   rows,
   selectedRowIds,
+  total,
   onSelect,
   onToggleRow,
 }: {
   rows: CustomerSalesRow[];
   selectedRowIds: Set<string>;
+  total: number;
   onSelect: (customerUuid: string) => void;
   onToggleRow: (row: CustomerSalesRow, selected: boolean) => void;
 }) {
   const { t } = useTranslation();
 
   return (
-    <div className="flex flex-col gap-2 md:hidden">
-      {rows.map(row => (
-        <div
-          key={row.customer_uuid}
-          role="button"
-          tabIndex={0}
-          className={cn(
-            "min-h-10 rounded-lg border bg-card px-4 py-3 focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50",
-            selectedRowIds.has(row.customer_uuid) && "bg-primary/5",
-          )}
-          onClick={() => onSelect(row.customer_uuid)}
-          onKeyDown={event => {
-            if (event.key !== "Enter" && event.key !== " ") return;
-            event.preventDefault();
-            onSelect(row.customer_uuid);
-          }}
-        >
-          <div className="flex items-start gap-2">
-            <div onClick={event => event.stopPropagation()}>
+    <ItemGroup>
+      {rows.map((row) => {
+        const share = customerShare(row, total);
+
+        return (
+          <Item
+            key={row.customer_uuid}
+            variant="outline"
+            role="button"
+            tabIndex={0}
+            className="cursor-pointer"
+            onClick={() => onSelect(row.customer_uuid)}
+            onKeyDown={(event) => activate(event, () => onSelect(row.customer_uuid))}
+          >
+            <div onClick={(event) => event.stopPropagation()}>
               <Checkbox
-                aria-label={t("common.selectRow", { name: row.customer_name || row.member_code })}
+                aria-label={t("common.selectRow", { name: customerName(row) })}
                 checked={selectedRowIds.has(row.customer_uuid)}
-                onCheckedChange={checked => onToggleRow(row, checked as boolean)}
+                onCheckedChange={(checked) => onToggleRow(row, checked as boolean)}
               />
             </div>
-            <div className="min-w-0 flex-1">
-              <p className="truncate font-medium" translate="no">{row.customer_name || "-"}</p>
-              <p className="truncate text-sm text-muted-foreground">{row.member_code} · {row.customer_phone}</p>
-            </div>
-          </div>
-          <div className="mt-2 grid grid-cols-2 gap-x-3 gap-y-1 text-sm">
-            <p className="text-muted-foreground">{t("report.customerSales.columns.billCount")}: <span className="text-foreground">{row.summary.bill_count}</span></p>
-            <p className="text-muted-foreground">{t("report.customerSales.columns.netSale")}: <span className="text-foreground">{money(row.summary.net_sale)}</span></p>
-            <p className="col-span-2 font-medium">{t("report.customerSales.columns.grandTotal")}: {money(row.summary.grand_total)}</p>
-          </div>
-        </div>
-      ))}
-    </div>
+            <CustomerAvatar row={row} />
+            <ItemContent>
+              <ItemTitle translate="no">{row.customer_name || "-"}</ItemTitle>
+              <ItemDescription>
+                {row.member_code} · {row.customer_phone}
+              </ItemDescription>
+            </ItemContent>
+            <ItemActions>
+              <span className="font-medium tabular-nums text-primary-text">{money(row.summary.grand_total)}</span>
+            </ItemActions>
+            <ItemFooter>
+              <span className="text-muted-foreground">
+                {t("report.customerSales.columns.billCount")} {row.summary.bill_count} ·{" "}
+                {t("report.customerSales.columns.netSale")} {money(row.summary.net_sale)}
+              </span>
+            </ItemFooter>
+            {share !== null ? (
+              <ItemFooter>
+                <Progress value={share} aria-hidden="true" />
+                <span className="shrink-0 tabular-nums text-muted-foreground">{share.toFixed(1)}%</span>
+              </ItemFooter>
+            ) : null}
+          </Item>
+        );
+      })}
+    </ItemGroup>
   );
 }

@@ -5,7 +5,7 @@ import { DndContext, MeasuringStrategy, closestCenter, type DragEndEvent } from 
 import { restrictToVerticalAxis } from "@dnd-kit/modifiers";
 import { SortableContext, useSortable, verticalListSortingStrategy } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { Boxes, ChevronRight, ChevronsUpDown, GripVertical, Package } from "lucide-react";
+import { ChevronRight, ChevronsUpDown, GripVertical } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -30,56 +30,42 @@ import {
 } from "./product-list-utils";
 import { ProductListActions } from "./product-list-actions";
 import { ProductMedia } from "./product-list-media";
-import {
-  ProductEnabledSwitch,
-  ProductStockBadge,
-  ProductStockSelect,
-  stockSummaryLabel
-} from "./product-list-status";
+import { ProductEnabledSwitch, ProductStockBadge, ProductStockSelect, stockSummaryLabel } from "./product-list-status";
 import type { ProductStatusKey, ProductTableRow } from "./product-list-types";
 import type { ProductListWorkflow } from "./use-product-list-workflow";
 
-function ProductNotificationSwitch({
-  row,
-  workflow
-}: {
-  row: ProductTableRow;
-  workflow: ProductListWorkflow;
-}) {
-  const notificationKey: ProductStatusKey = `notification:${row.prod_uuid}`;
-  const checked = binaryFlag(row.prod_notification, "2") === "1";
-  const disabled = workflow.pendingKeys.has(notificationKey);
-
+function LabeledSwitch({ children, label }: { children: ReactNode; label: string }) {
   return (
-    <div className="flex items-center gap-2 whitespace-nowrap">
-      <Switch
-        checked={checked}
-        disabled={disabled}
-        size="sm"
-        aria-label={workflow.t("product.notification.label")}
-        onCheckedChange={(nextChecked) => workflow.updateNotification(row, nextChecked)}
-      />
-      <span className="text-xs text-muted-foreground">
-        {checked ? workflow.t("common.active") : workflow.t("common.inactive")}
-      </span>
+    <div className="flex items-center gap-2">
+      {children}
+      <span className="text-muted-foreground">{label}</span>
     </div>
   );
 }
 
-function ProductStockModeSwitch({
-  row,
-  workflow
-}: {
-  row: ProductTableRow;
-  workflow: ProductListWorkflow;
-}) {
+function ProductNotificationSwitch({ row, workflow }: { row: ProductTableRow; workflow: ProductListWorkflow }) {
+  const notificationKey: ProductStatusKey = `notification:${row.prod_uuid}`;
+  const checked = binaryFlag(row.prod_notification, "2") === "1";
+
+  return (
+    <LabeledSwitch label={checked ? workflow.t("common.active") : workflow.t("common.inactive")}>
+      <Switch
+        checked={checked}
+        disabled={workflow.pendingKeys.has(notificationKey)}
+        size="sm"
+        aria-label={workflow.t("product.notification.label")}
+        onCheckedChange={(nextChecked) => workflow.updateNotification(row, nextChecked)}
+      />
+    </LabeledSwitch>
+  );
+}
+
+function ProductStockModeSwitch({ row, workflow }: { row: ProductTableRow; workflow: ProductListWorkflow }) {
   const details = productDetails(row);
   const pendingKey: ProductStatusKey = `stock-all:${row.prod_uuid}`;
   const pendingMode = workflow.pendingBulkStockModes[row.prod_uuid];
 
-  if (!details.length) {
-    return <span className="text-xs text-muted-foreground">{workflow.t("common.noData")}</span>;
-  }
+  if (!details.length) return <span className="text-muted-foreground">{workflow.t("common.noData")}</span>;
 
   const summary = detailStockSummary(details);
   const checked = pendingMode ? pendingMode === 1 : summary === "deduct";
@@ -90,7 +76,7 @@ function ProductStockModeSwitch({
     : stockSummaryLabel(workflow, summary);
 
   return (
-    <div className="flex items-center gap-2 whitespace-nowrap">
+    <LabeledSwitch label={label}>
       <Switch
         checked={checked}
         disabled={workflow.pendingKeys.has(pendingKey)}
@@ -98,8 +84,7 @@ function ProductStockModeSwitch({
         aria-label={workflow.t("product.stockBulk.label")}
         onCheckedChange={(nextChecked) => workflow.updateAllDetailStockModes(row, nextChecked ? 1 : 2)}
       />
-      <span className="text-xs text-muted-foreground">{label}</span>
-    </div>
+    </LabeledSwitch>
   );
 }
 
@@ -132,6 +117,8 @@ function SortableRow({
     opacity: isDragging ? 0.85 : 1,
     position: "relative" as const
   };
+  const hint = handleHint ?? handleLabel;
+  // ลากได้ = ปุ่มจับลาก, ลากไม่ได้แต่มีเหตุผลให้บอก = กดแล้วแจ้งเตือน, นอกนั้นปิดไว้เฉยๆ
   const dragHandle = dragEnabled ? (
     <Button
       aria-label={handleLabel}
@@ -143,27 +130,22 @@ function SortableRow({
       {...attributes}
       {...listeners}
     >
-      <GripVertical aria-hidden />
+      <GripVertical />
     </Button>
-  ) : onUnavailable ? (
+  ) : (
     <Button
       aria-disabled
-      aria-label={handleHint ?? handleLabel}
-      title={handleHint ?? handleLabel}
+      aria-label={hint}
+      title={hint}
       size="icon-sm"
       type="button"
       variant="ghost"
+      disabled={!onUnavailable}
       className="opacity-50"
       onClick={onUnavailable}
     >
-      <GripVertical aria-hidden />
+      <GripVertical />
     </Button>
-  ) : (
-    <span title={handleHint ?? handleLabel}>
-      <Button aria-label={handleHint ?? handleLabel} size="icon-sm" type="button" variant="ghost" disabled>
-        <GripVertical aria-hidden />
-      </Button>
-    </span>
   );
 
   return (
@@ -178,13 +160,7 @@ function SortableRow({
   );
 }
 
-function ProductDetailRows({
-  row,
-  workflow
-}: {
-  row: ProductTableRow;
-  workflow: ProductListWorkflow;
-}) {
+function ProductDetailRows({ row, workflow }: { row: ProductTableRow; workflow: ProductListWorkflow }) {
   const sensors = useReorderSensors();
   const details = productDetails(row);
   const isPromotion = String(workflow.statusSortFk) === "3";
@@ -215,70 +191,56 @@ function ProductDetailRows({
           return (
             <SortableRow
               key={detailUuid}
-              className="bg-muted/10 hover:bg-muted/20 [&>td]:whitespace-nowrap [&>td]:py-2.5"
+              // พื้นหลังจางแยกแถวย่อยออกจากแถวสินค้าหลัก — ไม่มีสิ่งนี้ตารางจะอ่านไม่ออกว่าแถวไหนเป็นขนาด/ราคาของสินค้าไหน
+              className="bg-muted/30"
               dragEnabled={workflow.canSortProductDetails && details.length > 1}
               handleLabel={workflow.t("common.reorder")}
               id={detailUuid}
             >
               {(dragHandle) => (
-              <>
-        <TableCell className="w-10 px-2" />
-        <TableCell>
-          <div className="flex items-center justify-center gap-1 whitespace-nowrap">
-            <Badge variant="outline" className="h-7 min-w-8 justify-center px-2 font-mono text-xs tabular-nums">
-              {index + 1}
-            </Badge>
-            {dragHandle}
-          </div>
-        </TableCell>
-        <TableCell />
-        <TableCell>
-          <div className="min-w-0 border-l border-border pl-4">
-            <p className="truncate text-sm font-black">{detailLabel(detail, index, workflow.language)}</p>
-          </div>
-        </TableCell>
-        <TableCell className="font-mono text-sm font-semibold tabular-nums">
-          {money(detail.pro_detail_bprice)}
-        </TableCell>
-        <TableCell className="font-mono text-sm font-semibold tabular-nums">
-          {isFoodSet ? money(row.prod_set_price) : money(detail.pro_detail_sprice)}
-        </TableCell>
-        <TableCell className="font-mono text-sm font-semibold tabular-nums">{detailStockQty(detail)}</TableCell>
-        <TableCell />
-        <TableCell>
-          {isFoodSet ? (
-            <ProductStockSelect compact detail={detail} prodUuid={row.prod_uuid} workflow={workflow} />
-          ) : (
-            <ProductStockBadge compact detail={detail} workflow={workflow} />
-          )}
-        </TableCell>
-        <TableCell />
-        <TableCell>
-          <div className="flex items-center gap-2 whitespace-nowrap">
-            <ProductEnabledSwitch detail={detail} workflow={workflow} />
-            <span className="text-xs text-muted-foreground">
-              {enabled ? workflow.t("common.active") : workflow.t("common.inactive")}
-            </span>
-          </div>
-        </TableCell>
-        {isPromotion ? (
-          <TableCell>
-            <div className="min-w-0 text-xs text-muted-foreground">
-              <p className="truncate">
-                {workflow.t("product.buyQty")}: {String(detail.pro_detail_cus_qtyBuy ?? 0)} /{" "}
-                {workflow.t("product.freeQty")}: {String(detail.pro_detail_cus_qtyFree ?? 0)}
-              </p>
-              <p className="truncate">
-                {shortDate(detail.pro_detail_sDate)} - {shortDate(detail.pro_detail_eDate)}
-              </p>
-              <p className="truncate">
-                {shortTime(detail.pro_detail_sTime)} - {shortTime(detail.pro_detail_eTime)}
-              </p>
-            </div>
-          </TableCell>
-        ) : null}
-        <TableCell />
-              </>
+                <>
+                  <TableCell />
+                  <TableCell>
+                    <div className="flex items-center gap-1 text-muted-foreground tabular-nums">
+                      {index + 1}
+                      {dragHandle}
+                    </div>
+                  </TableCell>
+                  <TableCell />
+                  <TableCell className="pl-12">{detailLabel(detail, index, workflow.language)}</TableCell>
+                  <TableCell className="text-right tabular-nums">{money(detail.pro_detail_bprice)}</TableCell>
+                  <TableCell className="text-right tabular-nums">
+                    {isFoodSet ? money(row.prod_set_price) : money(detail.pro_detail_sprice)}
+                  </TableCell>
+                  <TableCell className="text-right tabular-nums">{detailStockQty(detail)}</TableCell>
+                  <TableCell />
+                  <TableCell>
+                    {isFoodSet ? (
+                      <ProductStockSelect detail={detail} prodUuid={row.prod_uuid} workflow={workflow} />
+                    ) : (
+                      <ProductStockBadge detail={detail} workflow={workflow} />
+                    )}
+                  </TableCell>
+                  <TableCell />
+                  <TableCell>
+                    <LabeledSwitch label={enabled ? workflow.t("common.active") : workflow.t("common.inactive")}>
+                      <ProductEnabledSwitch detail={detail} workflow={workflow} />
+                    </LabeledSwitch>
+                  </TableCell>
+                  {isPromotion ? (
+                    <TableCell className="text-muted-foreground">
+                      <p>
+                        {workflow.t("product.buyQty")}: {String(detail.pro_detail_cus_qtyBuy ?? 0)} /{" "}
+                        {workflow.t("product.freeQty")}: {String(detail.pro_detail_cus_qtyFree ?? 0)}
+                      </p>
+                      <p>
+                        {shortDate(detail.pro_detail_sDate)} - {shortDate(detail.pro_detail_eDate)} ·{" "}
+                        {shortTime(detail.pro_detail_sTime)} - {shortTime(detail.pro_detail_eTime)}
+                      </p>
+                    </TableCell>
+                  ) : null}
+                  <TableCell />
+                </>
               )}
             </SortableRow>
           );
@@ -302,27 +264,27 @@ export function ProductListTable({ workflow }: { workflow: ProductListWorkflow }
   }
 
   return (
-    <div className="relative hidden min-h-0 flex-1 overflow-auto md:block">
-      <DndContext
-        collisionDetection={closestCenter}
-        measuring={{ droppable: { strategy: MeasuringStrategy.Always } }}
-        modifiers={[restrictToVerticalAxis]}
-        sensors={sensors}
-        onDragCancel={() => setDragging(false)}
-        onDragEnd={handleDragEnd}
-        onDragStart={() => setDragging(true)}
-      >
-      <Table className="w-max min-w-full table-auto">
-        <TableHeader className="sticky top-0 z-40 bg-background shadow-sm [&_th]:sticky [&_th]:top-0 [&_th]:z-40 [&_th]:whitespace-nowrap [&_th]:border-b [&_th]:border-border [&_th]:bg-background [&_th]:shadow-sm">
+    <DndContext
+      collisionDetection={closestCenter}
+      measuring={{ droppable: { strategy: MeasuringStrategy.Always } }}
+      modifiers={[restrictToVerticalAxis]}
+      sensors={sensors}
+      onDragCancel={() => setDragging(false)}
+      onDragEnd={handleDragEnd}
+      onDragStart={() => setDragging(true)}
+    >
+      {/* container ของ Table เป็นตัวสกรอลเอง (ทั้งสองแกน) หัวตาราง sticky จึงค้างอยู่ด้านบนได้ */}
+      <Table containerClassName="min-h-0 flex-1 overflow-auto">
+        <TableHeader className="sticky top-0 z-20 bg-background">
           <TableRow>
-            <TableHead className="w-10 px-2">
+            <TableHead>
               <Checkbox
                 aria-label={workflow.t("common.selectAll")}
                 checked={workflow.allSelected}
-                onCheckedChange={(checked) => workflow.toggleAllSelected(checked as boolean)}
+                onCheckedChange={(checked) => workflow.toggleAllSelected(checked === true)}
               />
             </TableHead>
-            <TableHead className="w-28 text-center">{workflow.t("common.order")}</TableHead>
+            <TableHead>{workflow.t("common.order")}</TableHead>
             <TableHead>{workflow.t("nav.category")}</TableHead>
             <TableHead>
               <div className="flex items-center gap-2">
@@ -339,144 +301,115 @@ export function ProductListTable({ workflow }: { workflow: ProductListWorkflow }
                 >
                   <ChevronsUpDown />
                 </Button>
-                <span>{workflow.t("fields.prod_name")}</span>
+                {workflow.t("fields.prod_name")}
               </div>
             </TableHead>
-            <TableHead>{workflow.t("fields.bprice")}</TableHead>
-            <TableHead>{isFoodSet ? workflow.t("product.setPrice") : workflow.t("fields.sprice")}</TableHead>
-            <TableHead>{workflow.t("fields.qtyStock")}</TableHead>
-            <TableHead>{workflow.t("product.orderPoint")}</TableHead>
+            <TableHead className="text-right">{workflow.t("fields.bprice")}</TableHead>
+            <TableHead className="text-right">
+              {isFoodSet ? workflow.t("product.setPrice") : workflow.t("fields.sprice")}
+            </TableHead>
+            <TableHead className="text-right">{workflow.t("fields.qtyStock")}</TableHead>
+            <TableHead className="text-right">{workflow.t("product.orderPoint")}</TableHead>
             <TableHead>{workflow.t("product.stockBulk.label")}</TableHead>
             <TableHead>{workflow.t("product.notification.label")}</TableHead>
             <TableHead>{workflow.t("product.detailEnabledStatus")}</TableHead>
             {isPromotion ? <TableHead>{workflow.t("product.promotionTime.label")}</TableHead> : null}
-            <TableHead className="text-right">{workflow.t("common.actions")}</TableHead>
+            <TableHead>
+              <span className="sr-only">{workflow.t("common.actions")}</span>
+            </TableHead>
           </TableRow>
         </TableHeader>
 
-        <TableBody className="bg-card">
-          <SortableContext
-            items={workflow.filteredRows.map((row) => row.prod_uuid)}
-            strategy={verticalListSortingStrategy}
-          >
-          {workflow.filteredRows.flatMap((row, index) => {
-            const details = productDetails(row);
-            const hasDetails = details.length > 0;
-            const expanded = hasDetails && !workflow.collapsedProducts.has(row.prod_uuid) && !dragging;
-            const selected = workflow.selectedRows.has(row.prod_uuid);
-            const orderPoint = productOrderPoint(row);
+        <TableBody>
+          <SortableContext items={workflow.filteredRows.map((row) => row.prod_uuid)} strategy={verticalListSortingStrategy}>
+            {workflow.filteredRows.flatMap((row, index) => {
+              const details = productDetails(row);
+              const hasDetails = details.length > 0;
+              const expanded = hasDetails && !workflow.collapsedProducts.has(row.prod_uuid) && !dragging;
+              const selected = workflow.selectedRows.has(row.prod_uuid);
+              const orderPoint = productOrderPoint(row);
+              const name = productName(row, workflow.language);
 
-            const rowsToRender = [
-              <SortableRow
-                key={row.prod_uuid}
-                className={cn(
-                  // แถบสลับสีอ่อนๆ ต่อแถว ช่วยตาไล่ตามแถวในตารางที่มีคอลัมน์เยอะ (13 คอลัมน์) — เดิมทุกแถวสีเดียวกันหมด
-                  // ดูเป็นผืนเดียวรวมกัน data-[state=selected] ยังชนะอยู่เพราะ specificity ของ attribute selector สูงกว่า
-                  index % 2 === 1 ? "bg-muted/10" : "bg-card",
-                  "data-[state=selected]:bg-primary/5 [&>td]:whitespace-nowrap [&>td]:py-3",
-                  expanded && "border-l-4 border-l-primary/50"
-                )}
-                dragEnabled={workflow.canSortProducts}
-                handleHint={workflow.t("product.sortHint")}
-                handleLabel={workflow.t("common.reorder")}
-                id={row.prod_uuid}
-                selected={selected}
-                onUnavailable={workflow.notifySortUnavailable}
-              >
-              {(dragHandle) => (
-              <>
-                <TableCell className="w-10 px-2">
-                  <Checkbox
-                    aria-label={workflow.t("common.selectRow", { name: productName(row, workflow.language) })}
-                    checked={selected}
-                    onCheckedChange={(checked) => workflow.toggleSelected(row.prod_uuid, checked as boolean)}
-                  />
-                </TableCell>
-                <TableCell>
-                  <div className="flex items-center justify-center gap-1 whitespace-nowrap">
-                    <Badge variant="outline" className="h-7 min-w-8 justify-center px-2 font-mono text-xs tabular-nums">
-                      {index + 1}
-                    </Badge>
-                    {dragHandle}
-                  </div>
-                </TableCell>
-                <TableCell>
-                  <p className="max-w-40 truncate font-semibold">{categoryName(row, workflow.language)}</p>
-                </TableCell>
-                <TableCell>
-                  <div className="flex min-w-0 items-center gap-3">
-                    <Button
-                      type="button"
-                      size="icon-sm"
-                      variant="ghost"
-                      aria-label={`${workflow.t("product.sections.details")} ${productName(row, workflow.language)}`}
-                      aria-expanded={expanded}
-                      disabled={!hasDetails}
-                      onClick={() => workflow.toggleProductDetails(row.prod_uuid)}
-                    >
-                      {hasDetails ? (
-                        <ChevronRight
-                          className={cn(
-                            "transition-transform duration-150 ease-out motion-reduce:transition-none",
-                            expanded && "rotate-90"
-                          )}
+              const rowsToRender = [
+                <SortableRow
+                  key={row.prod_uuid}
+                  dragEnabled={workflow.canSortProducts}
+                  handleHint={workflow.t("product.sortHint")}
+                  handleLabel={workflow.t("common.reorder")}
+                  id={row.prod_uuid}
+                  selected={selected}
+                  onUnavailable={workflow.notifySortUnavailable}
+                >
+                  {(dragHandle) => (
+                    <>
+                      <TableCell>
+                        <Checkbox
+                          aria-label={workflow.t("common.selectRow", { name })}
+                          checked={selected}
+                          onCheckedChange={(checked) => workflow.toggleSelected(row.prod_uuid, checked === true)}
                         />
-                      ) : (
-                        <Package />
-                      )}
-                    </Button>
-                    <ProductMedia row={row} />
-                    <div className="min-w-0">
-                      <div className="flex min-w-0 items-center gap-1.5">
-                        <p className="max-w-56 truncate font-black">{productName(row, workflow.language)}</p>
-                        {hasDetails ? (
-                          <Badge variant="outline" className="shrink-0 gap-1 text-xs">
-                            <Boxes className="size-3" />
-                            {details.length}
-                          </Badge>
-                        ) : null}
-                      </div>
-                      <p className="mt-0.5 max-w-56 truncate text-xs text-muted-foreground">
-                        {row.prod_code || "-"} / {unitName(row, workflow.language)}
-                      </p>
-                    </div>
-                  </div>
-                </TableCell>
-                <TableCell />
-                <TableCell />
-                <TableCell className="font-mono text-sm font-bold tabular-nums">
-                  {/* {totalStockQty(row)} */}
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex items-center gap-1 text-muted-foreground tabular-nums">
+                          {index + 1}
+                          {dragHandle}
+                        </div>
+                      </TableCell>
+                      <TableCell>{categoryName(row, workflow.language)}</TableCell>
+                      <TableCell>
+                        <div className="flex items-center gap-2">
+                          <Button
+                            type="button"
+                            size="icon-sm"
+                            variant="ghost"
+                            aria-label={`${workflow.t("product.sections.details")} ${name}`}
+                            aria-expanded={expanded}
+                            disabled={!hasDetails}
+                            onClick={() => workflow.toggleProductDetails(row.prod_uuid)}
+                          >
+                            <ChevronRight className={cn("transition-transform", expanded && "rotate-90")} />
+                          </Button>
+                          <ProductMedia row={row} />
+                          <div>
+                            <div className="flex items-center gap-2 font-medium">
+                              {name}
+                              {hasDetails ? <Badge variant="secondary">{details.length}</Badge> : null}
+                            </div>
+                            <div className="text-muted-foreground">
+                              {row.prod_code || "-"} · {unitName(row, workflow.language)}
+                            </div>
+                          </div>
+                        </div>
+                      </TableCell>
+                      <TableCell />
+                      <TableCell />
+                      <TableCell />
+                      <TableCell className="text-right tabular-nums">{orderPoint > 0 ? orderPoint : null}</TableCell>
+                      <TableCell>
+                        <ProductStockModeSwitch row={row} workflow={workflow} />
+                      </TableCell>
+                      <TableCell>
+                        <ProductNotificationSwitch row={row} workflow={workflow} />
+                      </TableCell>
+                      <TableCell />
+                      {isPromotion ? <TableCell /> : null}
+                      <TableCell className="text-right">
+                        <ProductListActions row={row} workflow={workflow} />
+                      </TableCell>
+                    </>
+                  )}
+                </SortableRow>
+              ];
 
-                </TableCell>
-                <TableCell className="font-mono text-sm font-semibold tabular-nums">
-                  {orderPoint > 0 ? orderPoint : null}
-                </TableCell>
-                <TableCell>
-                  <ProductStockModeSwitch row={row} workflow={workflow} />
-                </TableCell>
-                <TableCell>
-                  <ProductNotificationSwitch row={row} workflow={workflow} />
-                </TableCell>
-                <TableCell />
-                {isPromotion ? <TableCell /> : null}
-                <TableCell className="text-right">
-                  <ProductListActions row={row} workflow={workflow} />
-                </TableCell>
-              </>
-              )}
-              </SortableRow>
-            ];
+              if (expanded) {
+                rowsToRender.push(<ProductDetailRows key={`${row.prod_uuid}-details`} row={row} workflow={workflow} />);
+              }
 
-            if (expanded) {
-              rowsToRender.push(<ProductDetailRows key={`${row.prod_uuid}-details`} row={row} workflow={workflow} />);
-            }
-
-            return rowsToRender;
-          })}
+              return rowsToRender;
+            })}
           </SortableContext>
         </TableBody>
       </Table>
-      </DndContext>
-    </div>
+    </DndContext>
   );
 }

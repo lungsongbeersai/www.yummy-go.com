@@ -89,8 +89,9 @@ export function ZoneSalesFilterBar({
     <ReportFilterCard
       actions={actions}
       canApply={canApply}
-      className="hidden shrink-0 rounded-none border-x-0 border-t-0 shadow-none lg:block"
-      contentClassName="grid min-w-0 items-end gap-3 px-3 py-3 sm:grid-cols-2 lg:grid-cols-4 2xl:grid-cols-[repeat(3,minmax(0,1fr))_auto]"
+      // shrink-0: Card มี overflow-hidden (min-height ของ flex item = 0) — กันถูกบีบ ดู report-layout.tsx
+      className="hidden shrink-0 shadow-none lg:block"
+      contentClassName="grid items-end gap-3 py-4 lg:grid-cols-[repeat(4,minmax(0,1fr))_auto]"
       loading={loading}
       onApply={onApply}
     >

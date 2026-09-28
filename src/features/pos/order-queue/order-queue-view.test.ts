@@ -4,11 +4,14 @@ import {
   canSelectQueueItem,
   displayWaitMinutes,
   formatQueueWait,
+  groupQueueRowsByTable,
+  isQueueRowLate,
   liveWaitMinutes,
   queueItemAction,
   queueWaitParts,
   queueWaitUrgency,
   resolveProductMedia,
+  summarizeQueue,
   waitBadgeVariant
 } from "@/features/pos/order-queue/order-queue-view";
 import type { OrderQueueItem } from "@/services/pos";
@@ -241,5 +244,79 @@ describe("resolveProductMedia", () => {
       type: "image",
       src: "#not-a-color"
     });
+  });
+});
+
+function row(uuid: string, tableName: string | null, waitMinutes: number) {
+  return { item: item({ order_item_uuid: uuid, table_name: tableName }), waitMinutes };
+}
+
+describe("groupQueueRowsByTable", () => {
+  it("keeps first-seen table order and item order inside each ticket", () => {
+    const groups = groupQueueRowsByTable([
+      row("a", "T02", 12),
+      row("b", "T01", 8),
+      row("c", "T02", 3),
+      row("d", "T01", 9)
+    ]);
+
+    expect(groups.map((group) => group.key)).toEqual(["T02", "T01"]);
+    expect(groups[0].rows.map((entry) => entry.item.order_item_uuid)).toEqual(["a", "c"]);
+    expect(groups[1].rows.map((entry) => entry.item.order_item_uuid)).toEqual(["b", "d"]);
+  });
+
+  it("uses the longest wait in the ticket, not the first row", () => {
+    const [group] = groupQueueRowsByTable([row("a", "T01", 2), row("b", "T01", 14)]);
+    expect(group.oldestWait).toBe(14);
+  });
+
+  it("merges blank, null and padded table names into consistent keys", () => {
+    const groups = groupQueueRowsByTable([
+      row("a", null, 1),
+      row("b", "  ", 1),
+      row("c", " T01 ", 1),
+      row("d", "T01", 1)
+    ]);
+
+    expect(groups.map((group) => [group.key, group.rows.length])).toEqual([
+      ["", 2],
+      ["T01", 2]
+    ]);
+  });
+
+  it("returns no tickets for an empty queue", () => {
+    expect(groupQueueRowsByTable([])).toEqual([]);
+  });
+});
+
+describe("isQueueRowLate", () => {
+  it("uses the 10-minute manage threshold for orders waiting to be sent", () => {
+    expect(isQueueRowLate(9, 1)).toBe(false);
+    expect(isQueueRowLate(10, 1)).toBe(true);
+  });
+
+  it("uses the 20-minute threshold once orders are in the kitchen", () => {
+    expect(isQueueRowLate(19, 2)).toBe(false);
+    expect(isQueueRowLate(20, 2)).toBe(true);
+  });
+
+  it("never flags finished tabs", () => {
+    expect(isQueueRowLate(500, 4)).toBe(false);
+    expect(isQueueRowLate(500, 9)).toBe(false);
+  });
+});
+
+describe("summarizeQueue", () => {
+  it("counts items, distinct real tables, oldest wait and late rows", () => {
+    expect(
+      summarizeQueue(
+        [row("a", "T01", 4), row("b", "T01", 11), row("c", "T02", 2), row("d", null, 15)],
+        1
+      )
+    ).toEqual({ items: 4, tables: 2, oldestWait: 15, late: 2 });
+  });
+
+  it("returns zeros for an empty queue", () => {
+    expect(summarizeQueue([], 2)).toEqual({ items: 0, tables: 0, oldestWait: 0, late: 0 });
   });
 });

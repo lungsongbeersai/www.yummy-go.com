@@ -1,4 +1,3 @@
-import { dateTime } from "@/lib/format";
 import type { ReportPrintOp } from "@/services/report";
 import type { AuthUser } from "@/stores/auth-store";
 import type { DailySaleItemsBillGroup } from "@/stores/report-store";
@@ -8,6 +7,7 @@ import {
   receiptHeaderHtml,
   receiptMetaRowHtml,
 } from "../shared/report-receipt-print";
+import { formatReportDateRange, formatReportDateTime } from "@/features/report/shared/report-date-format";
 
 export interface DailySalesPrintLabels {
   billCount: string;
@@ -209,9 +209,9 @@ export function renderDailySalesPrintHtml(data: DailySalesPrintData) {
     ${receiptHeaderHtml({ branchName: data.branchName, storeName: data.storeName, title: labels.title })}
     ${dividerHtml}
     <section class="meta">
-      ${receiptMetaRowHtml(labels.period, `${data.dateFrom} - ${data.dateTo}`)}
+      ${receiptMetaRowHtml(labels.period, `${formatReportDateRange(data.dateFrom, data.dateTo)}`)}
       ${receiptMetaRowHtml(labels.printedBy, data.cashier)}
-      ${receiptMetaRowHtml(labels.printedAt, dateTime(new Date().toISOString()))}
+      ${receiptMetaRowHtml(labels.printedAt, formatReportDateTime(new Date().toISOString()))}
     </section>
     ${dividerHtml}
     ${invoiceHeaderHtml}
@@ -279,9 +279,9 @@ export function buildDailySalesReportOps(data: DailySalesPrintData): ReportPrint
     ...(data.branchName ? [{ type: "text", text: data.branchName, align: "center", size: 26 } as ReportPrintOp] : []),
     { type: "text", text: labels.title, align: "center", bold: true, size: 36 },
     divider,
-    { type: "text", text: `${labels.period}: ${data.dateFrom} - ${data.dateTo}`, align: "left", size: 28 },
+    { type: "text", text: `${labels.period}: ${formatReportDateRange(data.dateFrom, data.dateTo)}`, align: "left", size: 28 },
     { type: "text", text: `${labels.printedBy}: ${data.cashier}`, align: "left", size: 28 },
-    { type: "text", text: `${labels.printedAt}: ${dateTime(new Date().toISOString())}`, align: "left", size: 24 },
+    { type: "text", text: `${labels.printedAt}: ${formatReportDateTime(new Date().toISOString())}`, align: "left", size: 24 },
     divider,
     // หัวตาราง "ເລກທີ່ບິນ / ຍອດລວມ" แสดงครั้งเดียวบนสุด ไม่วนซ้ำต่อวันที่ — ฝั่ง HTML แถวนี้ไม่มี class "strong"
     // จึงไม่ตัวหนา ฝั่งนี้ต้องตรงกัน แล้วตามด้วย divider จำลอง .invoice-table-header border-bottom ของฝั่ง HTML

@@ -4,6 +4,12 @@ import type { ApiEntity } from "@/services/shared/types";
 import type { AuthUser } from "@/stores/auth-store";
 import {
   billBranch,
+  billClock,
+  billDay,
+  billQtyTotal,
+  billState,
+  cancelDateChoices,
+  groupCancelableBillsByDate,
   billCanCancel,
   billDateValue,
   billInvoice,
@@ -359,5 +365,59 @@ describe("sales list utils", () => {
     expect(dateOptionLabel({ value: "custom" } as CancelableDateOption)).toBe("custom");
     expect(pageBounds(2, 20, 8, 45)).toEqual({ start: 21, end: 28 });
     expect(pageBounds(1, 20, 0, 0)).toEqual({ start: 0, end: 0 });
+  });
+});
+
+describe("cancel sale redesign helpers", () => {
+  it("maps numeric order status to a readable bill state", () => {
+    expect(billState({ order_status: 2, order_is_cancelled: 0, order_balance: 0 })).toBe("paid");
+    expect(billState({ order_status: 2, order_is_cancelled: 0, order_balance: 1500 })).toBe("debt");
+    expect(billState({ order_is_cancelled: 1, order_balance: 1500 })).toBe("cancelled");
+    expect(billState({ order: { order_is_cancelled: 0 }, payment: { balance: 20 } })).toBe("debt");
+  });
+
+  it("reads the bill quantity from list rows and detail totals", () => {
+    expect(billQtyTotal({ order_qty: 5 })).toBe(5);
+    expect(billQtyTotal({ totals: { order_qty: 3 } })).toBe(3);
+    expect(billQtyTotal({})).toBeNull();
+  });
+
+  it("formats date-only order dates without inventing a time", () => {
+    expect(billDay({ order_date: "2026-09-24" })).toEqual({ key: "2026-09-24", label: "24/09/2026" });
+    expect(billClock({ order_date: "2026-09-24" })).toBe("");
+    expect(billClock({ order_date: "2026-09-24T00:00:00.000Z" })).toBe("");
+  });
+
+  it("keeps the server clock when the API sends a real time", () => {
+    expect(billDay({ created_at: "2026-09-24 18:42:10" }).key).toBe("2026-09-24");
+    expect(billClock({ created_at: "2026-09-24 18:42:10" })).toBe("18:42");
+  });
+
+  it("groups consecutive bills by business day in API order", () => {
+    const groups = groupCancelableBillsByDate([
+      { order_uuid: "a", order_date: "2026-09-24" },
+      { order_uuid: "b", order_date: "2026-09-24" },
+      { order_uuid: "c", order_date: "2026-09-23" }
+    ]);
+
+    expect(groups.map((group) => [group.label, group.bills.map((bill) => bill.order_uuid)])).toEqual([
+      ["24/09/2026", ["a", "b"]],
+      ["23/09/2026", ["c"]]
+    ]);
+    expect(groupCancelableBillsByDate([])).toEqual([]);
+  });
+
+  it("always offers today and yesterday, preferring API labels", () => {
+    const labels = { today: "Today", yesterday: "Yesterday" };
+
+    expect(cancelDateChoices([{ value: "yesterday", label: "ມື້ວານ" }], labels)).toEqual([
+      { value: "today", label: "Today" },
+      { value: "yesterday", label: "ມື້ວານ" }
+    ]);
+    expect(cancelDateChoices([], labels).map((choice) => choice.value)).toEqual(["today", "yesterday"]);
+    expect(cancelDateChoices([{ date_select: "2026-09-20", label: "20/09" }], labels).at(-1)).toEqual({
+      value: "2026-09-20",
+      label: "20/09"
+    });
   });
 });

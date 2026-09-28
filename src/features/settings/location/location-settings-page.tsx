@@ -3,15 +3,14 @@
 import { useEffect, useMemo, useState } from "react";
 import type { TFunction } from "i18next";
 import { useTranslation } from "react-i18next";
+import { ChevronsDownUp, ChevronsUpDown } from "lucide-react";
 import { ConfirmDialog } from "@/components/common/confirm-dialog";
-import {
-  SettingsModuleShell,
-  SettingsPaginationFooter,
-  SettingsToolbar
-} from "@/features/settings/shared/settings-shell";
+import { Button } from "@/components/ui/button";
+import { SettingsListPageLayout } from "@/features/settings/shared/settings-list-page-layout";
+import { SettingsEmptyRecords } from "@/features/settings/shared/settings-shell";
 import { useSettingsCrudController } from "@/features/settings/shared/use-settings-crud-controller";
 import { LocationFormDialog } from "./location-form-dialog";
-import { LocationListSurface } from "./location-list";
+import { DistrictMobileList, DistrictTable, LOCATION_ICONS, ProvinceMobileList, ProvinceTable } from "./location-list";
 import type { LocationLabels, LocationSettingsRow } from "./location-types";
 import {
   buildDistrictPayload,
@@ -23,7 +22,6 @@ import {
   missingProvinceField,
   type LocationKind
 } from "@/features/settings/location/location-utils";
-import { PAGE_LIMIT_OPTIONS } from "@/lib/pagination";
 import { canManageLocationSettings } from "@/lib/permissions";
 import type { UrlPaginationState } from "@/lib/url-pagination";
 import type { District, FetchDistrictsParams, SaveDistrictInput } from "@/services/district";
@@ -53,11 +51,8 @@ function buildLocationLabels(t: TFunction): LocationLabels {
   };
 }
 
-// หน้าจังหวัดไม่มีกลุ่มอำเภอ/แถวที่พับไว้ ใช้ค่าคงที่ว่างเปล่าเหล่านี้กันสร้าง object/Set ใหม่ทุก render
-const EMPTY_COLLAPSED = new Set<string>();
-const EMPTY_DISTRICT_GROUPS: ReturnType<typeof buildNumberedDistrictGroups> = [];
+// หน้าจังหวัดไม่มีรายชื่อจังหวัดให้เลือกในฟอร์ม — ค่าคงที่ว่างกันสร้าง array ใหม่ทุก render
 const EMPTY_PROVINCES: LocationSettingsRow[] = [];
-function NOOP() {}
 
 function ProvinceSettingsPage({ initialPagination }: { initialPagination: UrlPaginationState }) {
   const { t } = useTranslation();
@@ -140,96 +135,45 @@ function ProvinceSettingsPage({ initialPagination }: { initialPagination: UrlPag
     await crudRemove(row);
   }
 
-  // ใช้เองเป็นแผนที่จังหวัด->แถวเพื่อส่งให้ LocationListSurface ตามชนิด props ที่ต้องการ แต่หน้า
-  // จังหวัดไม่ได้ใช้ค่านี้แสดงผลจริง (ใช้เฉพาะฝั่งอำเภอ อ้างอิงจังหวัดของแต่ละแถว)
-  const provinceById = useMemo(() => {
-    const map = new Map<string, LocationSettingsRow>();
-    rows.forEach((row) => {
-      const id = locationValue(row, "province_uuid");
-      if (id) map.set(id, row);
-    });
-    return map;
-  }, [rows]);
-
-  const addLabel = `${t("actions.add")} ${labels.province}`;
-  const listTitle = t("settings.provinceList");
-  const refreshLabel = t("settings.refreshingProvinceList");
-  const toolbar = (
-    <SettingsToolbar
-      state={{
-        search,
-        limit,
-        orderBy,
-        limitOptions: PAGE_LIMIT_OPTIONS,
-        orderOptions: [
-          { label: labels.sortAsc, value: "ASC" },
-          { label: labels.sortDesc, value: "DESC" }
-        ],
-        selectedCount: selectedRows.size,
-        onApply: applyFilters,
-        onLimit: changeLimit,
-        onOrder: (nextOrder) => {
-          setOrderBy(nextOrder);
-          setPage(1);
-        },
-        onSearch: setSearch
-      }}
-    />
-  );
-  const listSurface = (
-    <LocationListSurface
-      allCollapsed={false}
-      allSelected={allSelected}
-      backgroundLoading={backgroundLoading}
-      canManage={canManage}
-      collapsedProvinces={EMPTY_COLLAPSED}
-      districtGroups={EMPTY_DISTRICT_GROUPS}
-      kind="province"
-      labels={labels}
-      listTitle={listTitle}
-      pageStart={pageStart}
-      provinceById={provinceById}
-      refreshLabel={refreshLabel}
-      rows={rows}
-      selectedRows={selectedRows}
-      title={title}
-      toolbar={toolbar}
-      onDelete={handleDeleteTarget}
-      onEdit={handleEdit}
-      onToggleAll={toggleAll}
-      onToggleAllGroups={NOOP}
-      onToggleProvinceCollapse={NOOP}
-      onToggleSelected={toggleSelected}
-    />
-  );
+  const handlers = { canManage, selectedRows, onDelete: handleDeleteTarget, onEdit: handleEdit, onToggleSelected: toggleSelected };
 
   return (
-    <>
-      <SettingsModuleShell
-        addLabel={addLabel}
-        cardTitle={listTitle}
-        description={description}
-        emptyDescription={t("empty.adjustSearch")}
-        emptyTitle={t("settings.noRecords", { title: title.toLowerCase() })}
-        footer={
-          rows.length ? (
-            <SettingsPaginationFooter
-              page={page}
-              pageEnd={pageEnd}
-              pageStart={pageStart}
-              total={total}
-              totalPages={totalPages}
-              onPageChange={setPage}
-            />
-          ) : undefined
-        }
-        hideCardHeader
-        loading={fullLoading}
-        loadingLabel={t("settings.loading", { title })}
-        table={listSurface}
-        title={title}
-        onAdd={canManage ? openCreate : undefined}
-      />
+    <SettingsListPageLayout
+      id="province"
+      title={title}
+      description={description}
+      icon={LOCATION_ICONS.province}
+      addLabel={`${t("actions.add")} ${labels.province}`}
+      onAdd={canManage ? openCreate : undefined}
+      loading={fullLoading}
+      loadingLabel={t("settings.loading", { title })}
+      search={search}
+      searching={backgroundLoading}
+      searchingLabel={t("settings.refreshingProvinceList")}
+      onSearchChange={setSearch}
+      onSearchApply={applyFilters}
+      orderBy={orderBy}
+      onOrderChange={(nextOrder) => {
+        setOrderBy(nextOrder);
+        setPage(1);
+      }}
+      allSelected={allSelected}
+      selectAllLabel={t("common.selectAll")}
+      selectedCount={selectedRows.size}
+      onToggleAll={toggleAll}
+      hasRows={rows.length > 0}
+      table={<ProvinceTable {...handlers} allSelected={allSelected} pageStart={pageStart} rows={rows} onToggleAll={toggleAll} />}
+      mobileList={<ProvinceMobileList {...handlers} rows={rows} />}
+      empty={<SettingsEmptyRecords icon={<LOCATION_ICONS.province aria-hidden />} title={title.toLowerCase()} />}
+      page={page}
+      pageStart={pageStart}
+      pageEnd={pageEnd}
+      total={total}
+      totalPages={totalPages}
+      limit={limit}
+      onLimitChange={changeLimit}
+      onPageChange={setPage}
+    >
       {canManage ? (
         <>
           <LocationFormDialog
@@ -260,7 +204,7 @@ function ProvinceSettingsPage({ initialPagination }: { initialPagination: UrlPag
           />
         </>
       ) : null}
-    </>
+    </SettingsListPageLayout>
   );
 }
 
@@ -396,85 +340,58 @@ function DistrictSettingsPage({ initialPagination }: { initialPagination: UrlPag
     await crudRemove(row);
   }
 
-  const addLabel = `${t("actions.add")} ${labels.district}`;
-  const listTitle = t("settings.districtList");
-  const refreshLabel = t("settings.refreshingDistrictList");
-  const toolbar = (
-    <SettingsToolbar
-      state={{
-        search,
-        limit,
-        orderBy,
-        limitOptions: PAGE_LIMIT_OPTIONS,
-        orderOptions: [
-          { label: labels.sortAsc, value: "ASC" },
-          { label: labels.sortDesc, value: "DESC" }
-        ],
-        selectedCount: selectedRows.size,
-        onApply: applyFilters,
-        onLimit: changeLimit,
-        onOrder: (nextOrder) => {
-          setOrderBy(nextOrder);
-          setPage(1);
-        },
-        onSearch: setSearch
-      }}
-    />
-  );
-  const listSurface = (
-    <LocationListSurface
-      allCollapsed={allCollapsed}
-      allSelected={allSelected}
-      backgroundLoading={backgroundLoading}
-      canManage={canManage}
-      collapsedProvinces={collapsedProvinces}
-      districtGroups={numberedDistrictGroups}
-      kind="district"
-      labels={labels}
-      listTitle={listTitle}
-      pageStart={pageStart}
-      provinceById={provinceById}
-      refreshLabel={refreshLabel}
-      rows={rows}
-      selectedRows={selectedRows}
-      title={title}
-      toolbar={toolbar}
-      onDelete={handleDeleteTarget}
-      onEdit={handleEdit}
-      onToggleAll={toggleAll}
-      onToggleAllGroups={toggleAllGroups}
-      onToggleProvinceCollapse={toggleProvinceCollapse}
-      onToggleSelected={toggleSelected}
-    />
-  );
+  const handlers = { canManage, selectedRows, onDelete: handleDeleteTarget, onEdit: handleEdit, onToggleSelected: toggleSelected };
+  const groupProps = {
+    collapsedProvinces,
+    groups: numberedDistrictGroups,
+    onToggleProvinceCollapse: toggleProvinceCollapse
+  };
 
   return (
-    <>
-      <SettingsModuleShell
-        addLabel={addLabel}
-        cardTitle={listTitle}
-        description={description}
-        emptyDescription={t("empty.adjustSearch")}
-        emptyTitle={t("settings.noRecords", { title: title.toLowerCase() })}
-        footer={
-          rows.length ? (
-            <SettingsPaginationFooter
-              page={page}
-              pageEnd={pageEnd}
-              pageStart={pageStart}
-              total={total}
-              totalPages={totalPages}
-              onPageChange={setPage}
-            />
-          ) : undefined
-        }
-        hideCardHeader
-        loading={fullLoading}
-        loadingLabel={t("settings.loading", { title })}
-        table={listSurface}
-        title={title}
-        onAdd={canManage ? openCreate : undefined}
-      />
+    <SettingsListPageLayout
+      id="district"
+      title={title}
+      description={description}
+      icon={LOCATION_ICONS.district}
+      addLabel={`${t("actions.add")} ${labels.district}`}
+      onAdd={canManage ? openCreate : undefined}
+      loading={fullLoading}
+      loadingLabel={t("settings.loading", { title })}
+      search={search}
+      searching={backgroundLoading}
+      searchingLabel={t("settings.refreshingDistrictList")}
+      onSearchChange={setSearch}
+      onSearchApply={applyFilters}
+      orderBy={orderBy}
+      onOrderChange={(nextOrder) => {
+        setOrderBy(nextOrder);
+        setPage(1);
+      }}
+      toolbarExtra={
+        groupedDistricts.length ? (
+          <Button type="button" variant="outline" onClick={toggleAllGroups}>
+            {allCollapsed ? <ChevronsUpDown data-icon="inline-start" /> : <ChevronsDownUp data-icon="inline-start" />}
+            {allCollapsed ? t("actions.expandAll") : t("actions.collapseAll")}
+          </Button>
+        ) : null
+      }
+      allSelected={allSelected}
+      selectAllLabel={t("common.selectAll")}
+      selectedCount={selectedRows.size}
+      onToggleAll={toggleAll}
+      hasRows={rows.length > 0}
+      table={<DistrictTable {...handlers} {...groupProps} allSelected={allSelected} onToggleAll={toggleAll} />}
+      mobileList={<DistrictMobileList {...handlers} {...groupProps} />}
+      empty={<SettingsEmptyRecords icon={<LOCATION_ICONS.district aria-hidden />} title={title.toLowerCase()} />}
+      page={page}
+      pageStart={pageStart}
+      pageEnd={pageEnd}
+      total={total}
+      totalPages={totalPages}
+      limit={limit}
+      onLimitChange={changeLimit}
+      onPageChange={setPage}
+    >
       {canManage ? (
         <>
           <LocationFormDialog
@@ -505,6 +422,6 @@ function DistrictSettingsPage({ initialPagination }: { initialPagination: UrlPag
           />
         </>
       ) : null}
-    </>
+    </SettingsListPageLayout>
   );
 }

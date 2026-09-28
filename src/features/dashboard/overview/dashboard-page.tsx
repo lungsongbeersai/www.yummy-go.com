@@ -21,8 +21,10 @@ import {
 } from "@/features/dashboard/overview/dashboard-widgets";
 import {
   applyPeriodMonth,
+  applyPeriodMonthEnd,
   applyPeriodType,
   applyPeriodYear,
+  applyPeriodYearEnd,
   asRow,
   branchLabel,
   createDashboardModel,
@@ -64,6 +66,7 @@ const dashboardCopyKeys = [
   "cumulativePercent",
   "cutoff",
   "daily",
+  "dailyAverage",
   "dailySales",
   "dailySalesSubtitle",
   "days",
@@ -81,6 +84,8 @@ const dashboardCopyKeys = [
   "mixed",
   "mixedPayment",
   "month",
+  "monthFrom",
+  "monthTo",
   "monthly",
   "noData",
   "occupied",
@@ -125,6 +130,8 @@ const dashboardCopyKeys = [
   "warnings",
   "watchProduct",
   "year",
+  "yearFrom",
+  "yearTo",
   "yearly",
 ] as const;
 
@@ -368,9 +375,19 @@ function DashboardPageContent() {
     setFilters((current) => applyPeriodYear(current, Number(value)));
   }, []);
 
+  const handlePeriodYearEndChange = useCallback((value: string) => {
+    isAutoTodayRef.current = false;
+    setFilters((current) => applyPeriodYearEnd(current, Number(value)));
+  }, []);
+
   const handlePeriodMonthChange = useCallback((value: string) => {
     isAutoTodayRef.current = false;
     setFilters((current) => applyPeriodMonth(current, Number(value)));
+  }, []);
+
+  const handlePeriodMonthEndChange = useCallback((value: string) => {
+    isAutoTodayRef.current = false;
+    setFilters((current) => applyPeriodMonthEnd(current, Number(value)));
   }, []);
 
   const handleApply = useCallback(() => {
@@ -466,8 +483,10 @@ function DashboardPageContent() {
         onBranchChange={setSelectedBranch}
         onFilterChange={handleFilterChange}
         onPeriodMonthChange={handlePeriodMonthChange}
+        onPeriodMonthEndChange={handlePeriodMonthEndChange}
         onPeriodTypeChange={handlePeriodTypeChange}
         onPeriodYearChange={handlePeriodYearChange}
+        onPeriodYearEndChange={handlePeriodYearEndChange}
         onReset={handleReset}
         periodTypeOptions={periodTypeOptions}
         yearOptions={yearOptions}
@@ -512,7 +531,6 @@ function DashboardPageContent() {
             copy={copy}
             highestRevenueProduct={model.highestRevenueProduct}
             insights={model.insights}
-            kpis={model.kpis}
             productSummary={productSummary}
           />
         </div>

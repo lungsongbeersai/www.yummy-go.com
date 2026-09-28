@@ -1,35 +1,23 @@
 "use client";
 
-import { Badge } from "@/components/ui/badge";
+import { cn } from "@/lib/utils";
+import { SETTINGS_ACCENT } from "@/features/settings/shared/settings-tones";
 import type { Category } from "@/services/category";
 import { CategoryIcon } from "./category-icon";
-import {
-  categoryName,
-  categoryValue
-} from "./category-utils";
+import { categoryValue } from "./category-utils";
 
-export function CategoryCodeBadge({ iconValue }: { iconValue: string }) {
+/** The category's own icon in the settings accent tile (the icon replaces the generic module icon). */
+export function CategoryIconTile({ row }: { row: Category }) {
   return (
-    <Badge className="max-w-full border-primary/20 bg-primary/10 text-primary" translate="no">
-      {iconValue || "-"}
-    </Badge>
+    <span aria-hidden className={cn("flex size-8 shrink-0 items-center justify-center rounded-lg", SETTINGS_ACCENT.soft)}>
+      <CategoryIcon allowRemoteFallback={false} className="size-4" value={categoryValue(row, "cate_icon")} />
+    </span>
   );
 }
 
-export function CategoryIdentity({ row }: { row: Category }) {
-  const iconValue = categoryValue(row, "cate_icon");
-
-  return (
-    <div className="flex min-w-0 items-center gap-3">
-      <span className="grid size-10 shrink-0 place-items-center rounded-md bg-primary/10 text-primary">
-        <CategoryIcon allowRemoteFallback={false} value={iconValue} />
-      </span>
-      <div className="min-w-0">
-        <p className="truncate font-black">{categoryName(row)}</p>
-        <p className="mt-0.5 truncate text-xs text-muted-foreground">
-          {categoryValue(row, "cate_name_la", "-")} / {categoryValue(row, "cate_name_eng", "-")}
-        </p>
-      </div>
-    </div>
-  );
+// Lao name leads, English underneath (the old row repeated both again as "LA / EN").
+export function categoryNames(row: Category) {
+  const la = categoryValue(row, "cate_name_la", categoryValue(row, "cate_name", "-"));
+  const en = categoryValue(row, "cate_name_eng");
+  return { en: en && en !== la ? en : "", la };
 }

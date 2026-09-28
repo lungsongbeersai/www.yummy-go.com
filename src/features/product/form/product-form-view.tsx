@@ -1,16 +1,16 @@
 "use client";
 
 import { Check, Plus, RefreshCcw, Save } from "lucide-react";
-import { BackButton } from "@/components/common/back-button";
+import Link from "next/link";
 import { FormattedNumberInput } from "@/components/common/formatted-number-input";
-import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 import { ButtonGroup } from "@/components/ui/button-group";
 import {
   Card,
   CardContent,
   CardDescription,
+  CardFooter,
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
@@ -107,15 +107,43 @@ export function ProductFormView({ form }: { form: ProductFormWorkflow }) {
   const unitInvalid = invalidFieldIds.has(FIELD_IDS.unit);
   const setPriceInvalid = invalidFieldIds.has(FIELD_IDS.setPrice);
 
+  const formId = "product-form";
+  const saveButton = (
+    <Button type="submit" form={formId} disabled={saveDisabled}>
+      {saveNotice === "saved" ? (
+        <Check data-icon="inline-start" />
+      ) : saveDisabled ? (
+        <Spinner data-icon="inline-start" />
+      ) : (
+        <Save data-icon="inline-start" />
+      )}
+      {saveButtonLabel}
+    </Button>
+  );
+  const cancelLink = (
+    <Link className={buttonVariants({ variant: "outline" })} href="/products">
+      {t("actions.cancel")}
+    </Link>
+  );
+  const statusText =
+    saveNotice !== "idle" ? (
+      <p role="status" aria-live="polite" className="text-muted-foreground">
+        {saveNotice === "saving" ? t("product.saving") : t("product.savedNext")}
+      </p>
+    ) : null;
+
   return (
-    <div className="flex flex-col gap-4">
-      <div className="flex flex-col items-start gap-2">
-        <BackButton fallbackHref="/products" label={t("product.title")} />
-        <h1 className="text-2xl font-bold">{title}</h1>
-        <p className="text-sm text-muted-foreground">
-          {t("product.formDescription")}
-        </p>
-        <div className="flex flex-wrap gap-2">
+    // app shell จำกัดความกว้าง + padding ให้แล้ว — ไม่ซ้อน max-w/mx-auto อีกชั้น
+    // จอ xl: ฟอร์มซ้าย + การ์ดสรุป/ปุ่มบันทึกค้างด้านขวา, จอเล็กกว่า: การ์ดสรุปอยู่บน + แผงปุ่มลอยด้านล่าง
+    <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_20rem] xl:items-start">
+      <Card className="xl:sticky xl:top-[calc(var(--app-shell-header-height,4rem)+1.5rem)] xl:order-last">
+        <CardHeader>
+          <CardTitle>
+            <h1>{title}</h1>
+          </CardTitle>
+          <CardDescription>{t("product.formDescription")}</CardDescription>
+        </CardHeader>
+        <CardContent className="flex flex-wrap gap-2">
           <Badge variant="secondary">{typeLabel}</Badge>
           <Badge variant="secondary">{imageLabel}</Badge>
           {tasteCount > 0 ? (
@@ -128,26 +156,17 @@ export function ProductFormView({ form }: { form: ProductFormWorkflow }) {
               {t("common.selectedCount", { count: toppingCount })}
             </Badge>
           ) : null}
-        </div>
-      </div>
-
-      {saveNotice !== "idle" ? (
-        <Alert role="status" aria-live="polite">
-          {saveNotice === "saving" ? (
-            <Spinner role="presentation" aria-hidden="true" />
-          ) : (
-            <Check aria-hidden="true" />
-          )}
-          <AlertDescription>
-            {saveNotice === "saving"
-              ? t("product.saving")
-              : t("product.savedNext")}
-          </AlertDescription>
-        </Alert>
-      ) : null}
+        </CardContent>
+        <CardFooter className="hidden flex-col items-stretch gap-2 xl:flex">
+          {statusText}
+          {saveButton}
+          {cancelLink}
+        </CardFooter>
+      </Card>
 
       {/* noValidate: native "required" popups would block submit before our toast + scroll-to-field runs. */}
       <form
+        id={formId}
         noValidate
         onSubmit={(event) => {
           event.preventDefault();
@@ -155,8 +174,6 @@ export function ProductFormView({ form }: { form: ProductFormWorkflow }) {
         }}
         className="flex flex-col gap-4"
       >
-        <ProductFormImageSection form={form} />
-
         <Card>
           <CardHeader>
             <CardTitle>{t("product.sections.general")}</CardTitle>
@@ -341,22 +358,27 @@ export function ProductFormView({ form }: { form: ProductFormWorkflow }) {
           </CardContent>
         </Card>
 
+        {/* ประเภทสินค้ามาก่อน (คำอธิบายหัวฟอร์มบอกให้เริ่มจากประเภท) — รูป/สีเป็นเรื่องรองลงมา */}
+        <ProductFormImageSection form={form} />
+
         <ProductFormTastesSection form={form} />
 
         <ProductFormDetailsSection form={form} />
 
         <ProductFormToppingsSection form={form} />
 
-        <Button type="submit" disabled={saveDisabled} className="self-end">
-          {saveNotice === "saved" ? (
-            <Check data-icon="inline-start" />
-          ) : saveDisabled ? (
-            <Spinner data-icon="inline-start" />
-          ) : (
-            <Save data-icon="inline-start" />
-          )}
-          {saveButtonLabel}
-        </Button>
+        {/* แผงปุ่มลอยเป็น Card ของตัวเอง (ไม่ใช่แถบตัดทับการ์ดเนื้อหา) — ฟอร์มยาวเกือบ 2 จอ ปุ่มบันทึกต้องเห็นตลอด
+            bottom บวกความสูง bottom nav ของ Android ที่ fixed ทับอยู่ (เว็บไม่มีตัวแปรนี้ = 0) */}
+        <Card
+          size="sm"
+          className="sticky bottom-[calc(1rem+var(--app-shell-bottom-nav-height,0px))] shadow-lg xl:hidden"
+        >
+          <CardContent className="flex flex-wrap items-center justify-end gap-2">
+            <div className="mr-auto">{statusText}</div>
+            {cancelLink}
+            {saveButton}
+          </CardContent>
+        </Card>
       </form>
 
       <CategoryFormDialog

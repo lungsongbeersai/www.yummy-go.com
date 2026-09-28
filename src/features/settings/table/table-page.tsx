@@ -3,16 +3,14 @@
 import { useEffect, useMemo, useState } from "react";
 import { useResetOnChange } from "@/hooks/use-reset-on-change";
 import { useTranslation } from "react-i18next";
+import { ChevronsDownUp, ChevronsUpDown, Trash2 } from "lucide-react";
 import { ConfirmDialog } from "@/components/common/confirm-dialog";
-import {
-  SettingsModuleShell,
-  SettingsPaginationFooter,
-  SettingsToolbar
-} from "@/features/settings/shared/settings-shell";
+import { Button } from "@/components/ui/button";
+import { SettingsListPageLayout } from "@/features/settings/shared/settings-list-page-layout";
+import { SettingsEmptyRecords } from "@/features/settings/shared/settings-shell";
 import { optionPageRange, optionPageSize, optionTotalPages } from "@/features/settings/shared/option-settings-utils";
 import { useOptionRowSelection } from "@/features/settings/shared/use-option-row-selection";
 import { useSettingsCrudController } from "@/features/settings/shared/use-settings-crud-controller";
-import { PAGE_LIMIT_OPTIONS } from "@/lib/pagination";
 import type { UrlPaginationState } from "@/lib/url-pagination";
 import type { FetchTablesParams, SaveTableInput, Table as DiningTable, TableListRow } from "@/services/table";
 import type { Zone } from "@/services/zone";
@@ -20,7 +18,8 @@ import { useBranchStore } from "@/stores/branch-store";
 import { useReferenceStore } from "@/stores/reference-store";
 import { removeTables, useTableStore } from "@/stores/table-store";
 import { TableFormDialog } from "./table-form-dialog";
-import { TableListSurface } from "./table-list";
+import { TABLE_ICON } from "./table-display";
+import { TableSettingsMobileList, TableSettingsTable } from "./table-list";
 import {
   branchServiceCharge,
   buildGroupedTableRows,
@@ -303,74 +302,71 @@ export function TableSettingsPage({ initialPagination }: { initialPagination: Ur
     }
   }
 
-  const toolbar = (
-    <SettingsToolbar
-      state={{
-        search,
-        limit,
-        orderBy,
-        limitOptions: PAGE_LIMIT_OPTIONS,
-        selectedCount: selectedRows.size,
-        onApply: applyFilters,
-        onLimit: changeLimit,
-        onOrder: (nextOrder) => {
-          setOrderBy(nextOrder);
-          setPage(1);
-        },
-        onSearch: setSearch
-      }}
-    />
-  );
-
-  const listSurface = (
-    <TableListSurface
-      allCollapsed={allCollapsed}
-      allSelected={allSelected}
-      backgroundLoading={backgroundLoading}
-      collapsedZones={collapsedZones}
-      groupedRows={groupedTableRows}
-      selectedRows={selectedRows}
-      serviceChargeRateLabel={serviceChargeRateLabel}
-      title={title}
-      toolbar={toolbar}
-      zoneById={zoneById}
-      onDelete={setDeleteTarget}
-      onDeleteSelected={() => setBulkDeleteOpen(true)}
-      onEdit={openEdit}
-      onToggleAll={toggleAll}
-      onToggleAllZones={setAllZonesCollapsed}
-      onToggleSelected={toggleSelected}
-      onToggleZoneCollapse={toggleZoneCollapse}
-    />
-  );
+  const listProps = {
+    collapsedZones,
+    groupedRows: groupedTableRows,
+    selectedRows,
+    serviceChargeRateLabel,
+    onDelete: setDeleteTarget,
+    onEdit: openEdit,
+    onToggleSelected: toggleSelected,
+    onToggleZoneCollapse: toggleZoneCollapse
+  };
 
   return (
-    <>
-      <SettingsModuleShell
-        addLabel={`${t("actions.add")} ${t("nav.table")}`}
-        cardTitle={t("settings.tableList")}
-        description={description}
-        emptyDescription={t("empty.adjustSearch")}
-        emptyTitle={t("settings.noRecords", { title: title.toLowerCase() })}
-        footer={
-          rows.length ? (
-            <SettingsPaginationFooter
-              page={page}
-              pageEnd={pageEnd}
-              pageStart={pageStart}
-              total={displayTotal}
-              totalPages={totalPages}
-              onPageChange={setPage}
-            />
-          ) : undefined
-        }
-        hideCardHeader
-        loading={fullLoading}
-        loadingLabel={t("settings.loading", { title })}
-        table={listSurface}
-        title={title}
-        onAdd={openCreate}
-      />
+    <SettingsListPageLayout
+      id="table"
+      title={title}
+      description={description}
+      icon={TABLE_ICON}
+      addLabel={`${t("actions.add")} ${t("nav.table")}`}
+      onAdd={openCreate}
+      loading={fullLoading}
+      loadingLabel={t("settings.loading", { title })}
+      search={search}
+      searching={backgroundLoading}
+      searchingLabel={t("settings.refreshingTableList")}
+      onSearchChange={setSearch}
+      onSearchApply={applyFilters}
+      orderBy={orderBy}
+      onOrderChange={(nextOrder) => {
+        setOrderBy(nextOrder);
+        setPage(1);
+      }}
+      toolbarExtra={
+        <>
+          {tableGroups.length ? (
+            <Button type="button" variant="outline" onClick={() => setAllZonesCollapsed(!allCollapsed)}>
+              {allCollapsed ? <ChevronsUpDown data-icon="inline-start" /> : <ChevronsDownUp data-icon="inline-start" />}
+              {allCollapsed ? t("actions.expandAll") : t("actions.collapseAll")}
+            </Button>
+          ) : null}
+          {/* Bulk delete only exists while something is selected; it opens a confirmation first. */}
+          {selectedRows.size ? (
+            <Button type="button" variant="destructive" onClick={() => setBulkDeleteOpen(true)}>
+              <Trash2 data-icon="inline-start" />
+              {t("actions.deleteSelected")} ({selectedRows.size})
+            </Button>
+          ) : null}
+        </>
+      }
+      allSelected={allSelected}
+      selectAllLabel={t("common.selectAll")}
+      selectedCount={selectedRows.size}
+      onToggleAll={toggleAll}
+      hasRows={groupedTableRows.length > 0}
+      table={<TableSettingsTable {...listProps} allSelected={allSelected} onToggleAll={toggleAll} />}
+      mobileList={<TableSettingsMobileList {...listProps} />}
+      empty={<SettingsEmptyRecords icon={<TABLE_ICON aria-hidden />} title={title.toLowerCase()} />}
+      page={page}
+      pageStart={pageStart}
+      pageEnd={pageEnd}
+      total={displayTotal}
+      totalPages={totalPages}
+      limit={limit}
+      onLimitChange={changeLimit}
+      onPageChange={setPage}
+    >
       <TableFormDialog
         branchUuid={branchUuid}
         editing={editingTable}
@@ -408,6 +404,6 @@ export function TableSettingsPage({ initialPagination }: { initialPagination: Ur
         onConfirm={() => void removeSelectedRows()}
         onOpenChange={setBulkDeleteOpen}
       />
-    </>
+    </SettingsListPageLayout>
   );
 }

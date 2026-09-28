@@ -7,7 +7,6 @@ import {
   parseBulkCredentialPaste,
   roleId,
   roleName,
-  userActiveBadgeClass,
   userActiveLabel,
   userId,
   userInitials,
@@ -54,8 +53,6 @@ describe("user settings utils", () => {
     expect(userInitials("")).toBe("U");
     expect(userActiveLabel("1", "Active", "Inactive")).toBe("Active");
     expect(userActiveLabel("2", "Active", "Inactive")).toBe("Inactive");
-    expect(userActiveBadgeClass("1")).toContain("text-primary");
-    expect(userActiveBadgeClass("2")).toContain("text-muted-foreground");
   });
 
   it("keeps an editing role visible when it is missing from role options", () => {

@@ -1,9 +1,7 @@
 "use client";
 
-import type { RefObject } from "react";
-import { Printer, RefreshCcw } from "lucide-react";
+import type { ReactNode } from "react";
 import { useTranslation } from "react-i18next";
-import { Button } from "@/components/ui/button";
 import { Field, FieldLabel } from "@/components/ui/field";
 import {
   Select,
@@ -13,7 +11,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Spinner } from "@/components/ui/spinner";
 import { ReportFilterCard, ReportFilterSheet } from "../shared/report-filter-shell";
 import { ReportDateRangeFields } from "../shared/report-filter-fields";
 import { ReportLocationFields } from "../shared/report-location-fields";
@@ -45,7 +42,7 @@ function DailyClosingFilterFields({
 
   return (
     <>
-      <Field className="gap-1.5" data-disabled={branchLocked || disabled}>
+      <Field data-disabled={branchLocked || disabled}>
         <FieldLabel htmlFor={`${idPrefix}-branch`}>{t("fields.branch_uuid_fk")}</FieldLabel>
         <Select
           value={draftFilters.branchUuid}
@@ -85,7 +82,6 @@ function DailyClosingFilterFields({
         dateFrom={draftFilters.dateFrom}
         dateTo={draftFilters.dateTo}
         disabled={disabled}
-        fieldClassName="gap-1.5"
         idPrefix={idPrefix}
         onDateFromChange={dateFrom => onDraftChange({ ...draftFilters, dateFrom })}
         onDateToChange={dateTo => onDraftChange({ ...draftFilters, dateTo })}
@@ -95,51 +91,21 @@ function DailyClosingFilterFields({
 }
 
 interface FilterBarProps extends FieldsProps {
-  actionsRef: RefObject<HTMLDivElement | null>;
+  actions: ReactNode;
   canApply: boolean;
   loading: boolean;
-  printDisabled: boolean;
-  printing: boolean;
-  refreshDisabled: boolean;
   onApply: () => void;
-  onPrint: () => void;
-  onRefresh: () => void;
 }
 
-// จอ lg ขึ้นไปกรองได้จากหน้าเลย โครงเดียวกับ category-sales/payment-methods
-// actionsRef ครอบปุ่ม refresh/print ไว้เป็นเป้าของ IntersectionObserver (ใน page) เพื่อโชว์ปุ่มพิมพ์ลอย
-// เมื่อแถบนี้เลื่อนพ้นจอ — จอเล็กที่ card นี้ถูกซ่อนไว้ ปุ่มลอยจึงโชว์ตลอดโดยอัตโนมัติ
-export function DailyClosingFilterBar({
-  actionsRef,
-  canApply,
-  loading,
-  printDisabled,
-  printing,
-  refreshDisabled,
-  onApply,
-  onPrint,
-  onRefresh,
-  ...fieldProps
-}: FilterBarProps) {
-  const { t } = useTranslation();
-
+// จอ lg ขึ้นไปกรองได้จากหน้าเลย โครงเดียวกับรายงานหน้าอื่น — ปุ่มพิมพ์อยู่ในแถบเครื่องมือของหน้า
+export function DailyClosingFilterBar({ actions, canApply, loading, onApply, ...fieldProps }: FilterBarProps) {
   return (
     <ReportFilterCard
-      actions={
-        <div ref={actionsRef} className="flex min-w-0 flex-wrap items-center gap-2">
-          <Button type="button" variant="outline" className="h-9" disabled={refreshDisabled} onClick={onRefresh}>
-            <RefreshCcw data-icon="inline-start" className={loading ? "animate-spin" : undefined} aria-hidden="true" />
-            {t("actions.refresh")}
-          </Button>
-          <Button type="button" className="h-9" disabled={printDisabled} onClick={onPrint}>
-            {printing ? <Spinner aria-hidden="true" data-icon="inline-start" /> : <Printer data-icon="inline-start" aria-hidden="true" />}
-            {t("report.dailyClosing.printClosingReport")}
-          </Button>
-        </div>
-      }
+      actions={actions}
       canApply={canApply}
-      className="hidden shrink-0 rounded-none border-x-0 border-t-0 shadow-none lg:block"
-      contentClassName="grid min-w-0 items-end gap-3 px-3 py-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5"
+      // shrink-0: Card มี overflow-hidden (min-height ของ flex item = 0) — กันถูกบีบ ดู report-layout.tsx
+      className="hidden shrink-0 shadow-none lg:block"
+      contentClassName="grid items-end gap-3 py-4 lg:grid-cols-3 xl:grid-cols-6"
       loading={loading}
       onApply={onApply}
     >
@@ -148,7 +114,7 @@ export function DailyClosingFilterBar({
   );
 }
 
-// จอเล็ก: modal เดียวกับรายงานอื่น (ReportFilterSheet) — ปุ่มพิมพ์ใช้ FAB ลอยของ page แทน (ดู page.tsx)
+// จอเล็ก: modal เดียวกับรายงานอื่น (ReportFilterSheet)
 export function DailyClosingFilterSheet({
   canApply,
   loading,

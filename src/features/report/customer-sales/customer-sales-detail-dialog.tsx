@@ -7,8 +7,9 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { cn } from "@/lib/utils";
-import { formatShortDate, money } from "@/lib/format";
+import { money } from "@/lib/format";
 import type { CustomerSalesRow } from "@/services/report";
+import { formatReportDate } from "@/features/report/shared/report-date-format";
 
 function SectionHeading({ children }: { children: ReactNode }) {
   return (
@@ -30,11 +31,9 @@ function StatTile({ emphasis, label, value }: { emphasis?: boolean; label: strin
 
 export function CustomerSalesDetailDialog({
   row,
-  language,
   onOpenChange,
 }: {
   row: CustomerSalesRow | null;
-  language: string;
   onOpenChange: (open: boolean) => void;
 }) {
   const { t } = useTranslation();
@@ -93,7 +92,7 @@ export function CustomerSalesDetailDialog({
                       {row.details.map(order => (
                         <TableRow key={order.order_uuid}>
                           <TableCell className="whitespace-nowrap tabular-nums text-muted-foreground">
-                            {formatShortDate(order.sale_date, language)}
+                            {formatReportDate(order.sale_date)}
                           </TableCell>
                           <TableCell className="font-medium" translate="no">{order.order_invoice}</TableCell>
                           <TableCell className="text-right tabular-nums">{order.total_qty}</TableCell>

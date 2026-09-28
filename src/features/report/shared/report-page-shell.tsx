@@ -7,6 +7,7 @@ import { BlockingLoadingDialog } from "@/components/common/blocking-loading-dial
 import { FilterHeaderToolbar } from "@/components/common/filter-header-toolbar";
 import { Button } from "@/components/ui/button";
 import { ReportError } from "./report-error";
+import { formatReportDateRange } from "@/features/report/shared/report-date-format";
 
 export interface ReportPageShellProps {
   accessibleTitle: string;
@@ -59,7 +60,7 @@ export function ReportPageShell({
   onToggleSummary,
 }: ReportPageShellProps) {
   const { t } = useTranslation();
-  const dateRangeLabel = `${dateFrom} - ${dateTo}`;
+  const dateRangeLabel = `${formatReportDateRange(dateFrom, dateTo)}`;
   const controlsDisabled = loading || exporting;
 
   const filterControl = (

@@ -1,9 +1,12 @@
 "use client";
 
+import { ArrowRight } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { EmptyState } from "@/components/common/empty-state";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Card, CardAction, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Drawer, DrawerContent, DrawerDescription, DrawerHeader, DrawerTitle } from "@/components/ui/drawer";
+import { Separator } from "@/components/ui/separator";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { cn } from "@/lib/utils";
 import type { OrderAuditRow } from "@/services/report";
@@ -19,77 +22,73 @@ interface OrderAuditDetailPanelProps {
   language: string;
 }
 
+// แผงรายละเอียดเหตุการณ์ (ขวา / drawer บนจอเล็ก): หัวบิล + ผู้แก้ + เวลา แล้วตามด้วยการ์ดต่อรายการที่ถูกแก้
 export function OrderAuditDetailPanel({ branchLabel, className, group, language }: OrderAuditDetailPanelProps) {
   const { t } = useTranslation();
-  const cardClass = cn(
-    "min-h-0 overflow-hidden rounded-none border-x-0 border-b-0 border-border bg-card py-0 shadow-none xl:flex xl:min-h-0 xl:flex-col",
-    className,
-  );
 
   if (!group) {
     return (
-      <Card className={cardClass}>
-        <div className="flex min-h-96 flex-1 items-center justify-center p-4">
-          <EmptyState title={t("orderAudit.noSelection")} description={t("orderAudit.selectEventHint")} />
-        </div>
-      </Card>
+      <section className={cn("min-h-0 flex-col p-3", className)}>
+        <EmptyState title={t("orderAudit.noSelection")} description={t("orderAudit.selectEventHint")} />
+      </section>
     );
   }
 
   const entityClusters = groupRowsByEntity(group);
 
   return (
-    <Card className={cardClass}>
-      <CardHeader className="flex-col items-stretch gap-1.5 border-b border-border px-3 py-2.5 md:px-4">
-        <CardTitle className="truncate text-base font-semibold">
+    <section className={cn("min-h-0 flex-col", className)}>
+      <div className="flex shrink-0 flex-col gap-1 border-b p-3">
+        {/* Sized like a CardTitle / description: unset, the meta line inherits the 16px document
+            size and dwarfs the 12px tables below it. */}
+        <h3 className="flex flex-wrap items-center gap-2 text-sm font-medium">
           {group.relatedOrderUuid ? (
-            <span className="text-muted-foreground">{group.relatedOrderInvoice || group.relatedOrderUuid} → </span>
+            <>
+              <span className="text-muted-foreground">{group.relatedOrderInvoice || group.relatedOrderUuid}</span>
+              <ArrowRight aria-hidden="true" className="size-4 text-muted-foreground" />
+            </>
           ) : null}
           {group.orderInvoice || group.orderUuid}
-        </CardTitle>
-        <dl className="grid grid-cols-1 gap-1 text-xs text-muted-foreground min-[430px]:grid-cols-2">
-          <div>
-            <dt className="inline">{branchLabel} · </dt>
-            <dd className="inline text-foreground">{group.actorName || t(`orderAudit.actorTypes.${group.actorType}`)}</dd>
-          </div>
-          <div>
-            <dt className="inline">{t("orderAudit.time")}: </dt>
-            <dd className="inline text-foreground">{auditDateTime(group.recordedAt, language)}</dd>
-          </div>
-        </dl>
-      </CardHeader>
-      <CardContent className="flex min-h-0 flex-1 flex-col p-0">
-        <div className="min-h-0 flex-1 overflow-auto p-2 sm:p-3">
-          <div className="flex flex-col gap-3">
-            {entityClusters.map((rows) => (
-              <OrderAuditEntityCluster key={rows[0].entity_uuid} rows={rows} language={language} />
-            ))}
-          </div>
-        </div>
-      </CardContent>
-    </Card>
+        </h3>
+        <p className="text-xs text-muted-foreground">
+          {branchLabel} · <span className="text-foreground">{group.actorName || t(`orderAudit.actorTypes.${group.actorType}`)}</span>
+          {" · "}
+          {t("orderAudit.time")}: <span className="text-foreground">{auditDateTime(group.recordedAt)}</span>
+        </p>
+      </div>
+      <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-auto p-3">
+        {entityClusters.map((rows) => (
+          <OrderAuditEntityCluster key={rows[0].entity_uuid} rows={rows} language={language} />
+        ))}
+      </div>
+    </section>
   );
 }
 
 function OrderAuditEntityCluster({ rows, language }: { rows: OrderAuditRow[]; language: string }) {
   const { t } = useTranslation();
   const head = rows[0];
-  const label = groupEntityLabel(head, language);
+  const entityType = t(`orderAudit.entities.${head.entity_type}`);
 
   return (
-    <div className="overflow-hidden rounded-lg border border-border">
-      <div className="flex min-w-0 items-center justify-between gap-2 border-b border-border bg-muted/30 px-3 py-2">
-        <p className="min-w-0 truncate text-sm font-semibold text-foreground">
-          {label || t(`orderAudit.entities.${head.entity_type}`)}
-        </p>
-        <span className="shrink-0 text-xs text-muted-foreground">{t(`orderAudit.entities.${head.entity_type}`)}</span>
-      </div>
-      <div className="flex flex-col divide-y divide-border">
-        {rows.map((row) => (
-          <OrderAuditRowChanges key={row.audit_id} row={row} language={language} />
+    // shrink-0: Card มี overflow-hidden (min-height ของ flex item = 0) — ไม่งั้นถูกบีบให้พอดีกล่อง
+    // แล้วเนื้อหาโดนตัดทิ้งแทนที่กล่องแม่จะสกรอล
+    <Card size="sm" className="shrink-0">
+      <CardHeader>
+        <CardTitle>{groupEntityLabel(head, language) || entityType}</CardTitle>
+        <CardAction>
+          <Badge variant="outline">{entityType}</Badge>
+        </CardAction>
+      </CardHeader>
+      <CardContent className="flex flex-col gap-3">
+        {rows.map((row, index) => (
+          <div key={row.audit_id} className="flex flex-col gap-3">
+            {index ? <Separator /> : null}
+            <OrderAuditRowChanges row={row} language={language} />
+          </div>
         ))}
-      </div>
-    </div>
+      </CardContent>
+    </Card>
   );
 }
 
@@ -98,43 +97,46 @@ function OrderAuditRowChanges({ row, language }: { row: OrderAuditRow; language:
   const changes = auditChanges(row, language, t);
 
   return (
-    <div className="flex flex-col gap-2 px-3 py-2.5">
+    <div className="flex flex-col gap-2">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <OrderAuditActionBadge action={row.action} label={t(`orderAudit.actions.${row.action}`)} />
-        <time dateTime={row.recorded_at} className="text-xs tabular-nums text-muted-foreground">
-          {auditDateTime(row.recorded_at, language)}
+        <time dateTime={row.recorded_at} className="tabular-nums text-muted-foreground">
+          {auditDateTime(row.recorded_at)}
         </time>
       </div>
       {row.reason ? (
-        <p className="text-xs text-muted-foreground">
-          {t("orderAudit.reason")}: {row.reason}
+        <p className="text-muted-foreground">
+          {t("orderAudit.reason")}: <span className="text-foreground">{row.reason}</span>
         </p>
       ) : null}
       {changes.length ? (
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead className="h-8">{t("orderAudit.field")}</TableHead>
-              <TableHead className="h-8">{t("orderAudit.before")}</TableHead>
-              <TableHead className="h-8">{t("orderAudit.after")}</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {changes.map((change) => (
-              <TableRow key={change.field}>
-                <TableCell className="py-1.5">{change.label}</TableCell>
-                <TableCell className="max-w-48 break-words whitespace-pre-wrap py-1.5 text-muted-foreground line-through decoration-muted-foreground/50">
-                  {change.before}
-                </TableCell>
-                <TableCell className="max-w-48 break-words whitespace-pre-wrap py-1.5 font-medium text-foreground">
-                  {change.after}
-                </TableCell>
+        <div className="overflow-hidden rounded-md border">
+          <Table>
+            <TableHeader className="bg-muted">
+              <TableRow>
+                <TableHead>{t("orderAudit.field")}</TableHead>
+                <TableHead>{t("orderAudit.before")}</TableHead>
+                <TableHead>{t("orderAudit.after")}</TableHead>
               </TableRow>
-            ))}
-          </TableBody>
-        </Table>
+            </TableHeader>
+            <TableBody>
+              {changes.map((change) => (
+                <TableRow key={change.field}>
+                  <TableCell className="text-muted-foreground">{change.label}</TableCell>
+                  {/* ก่อนแก้ = แดงขีดฆ่า, หลังแก้ = เขียว — อ่านแบบ diff ได้ในแวบเดียว */}
+                  <TableCell className="max-w-48 break-words whitespace-pre-wrap text-destructive line-through decoration-destructive/40">
+                    {change.before}
+                  </TableCell>
+                  <TableCell className="max-w-48 break-words whitespace-pre-wrap font-medium text-success">
+                    {change.after}
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </div>
       ) : null}
-      <p className="break-all text-2xs text-muted-foreground">
+      <p className="break-all text-muted-foreground">
         {t("orderAudit.reference")}: {row.audit_id} · {row.entity_uuid}
       </p>
     </div>
@@ -154,19 +156,12 @@ export function OrderAuditDetailDrawer({ branchLabel, group, language, onOpenCha
 
   return (
     <Drawer open={open} onOpenChange={onOpenChange}>
-      <DrawerContent className="h-[calc(100dvh-0.75rem)] max-h-[92dvh] gap-0 overflow-hidden rounded-t-xl xl:hidden">
+      <DrawerContent className="h-[calc(100dvh-0.75rem)] max-h-[92dvh] xl:hidden">
         <DrawerHeader className="sr-only">
           <DrawerTitle>{t("orderAudit.eventDetail")}</DrawerTitle>
           <DrawerDescription>{t("orderAudit.selectEventHint")}</DrawerDescription>
         </DrawerHeader>
-        <div className="min-h-0 flex-1 overflow-hidden">
-          <OrderAuditDetailPanel
-            branchLabel={branchLabel}
-            className="flex h-full flex-col rounded-none border-0 shadow-none"
-            group={group}
-            language={language}
-          />
-        </div>
+        <OrderAuditDetailPanel branchLabel={branchLabel} className="flex flex-1" group={group} language={language} />
       </DrawerContent>
     </Drawer>
   );

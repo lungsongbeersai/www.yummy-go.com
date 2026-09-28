@@ -473,3 +473,84 @@ export function shouldOpenMobileDetail() {
   if (typeof window === "undefined") return false;
   return !window.matchMedia("(min-width: 1280px)").matches;
 }
+
+export type CancelBillState = "cancelled" | "debt" | "paid";
+
+// order_status ของ API เป็นเลขล้วน (เช่น 2) — เดิมโชว์เลขนั้นตรง ๆ เป็น badge ซึ่งอ่านไม่รู้เรื่อง
+// สถานะที่พนักงานต้องรู้ก่อนยกเลิกมีแค่ 3 อย่าง: ถูกยกเลิกไปแล้ว / ยังค้างจ่าย / จ่ายครบ
+export function billState(...sources: BillSource[]): CancelBillState {
+  const cancelled = readFromBillSections(sources, ["order_is_cancelled", "is_cancelled"], ["order", "self"]);
+  if (isPresent(cancelled) && isTruthy(cancelled)) return "cancelled";
+  const balance = numberFromBillSections(sources, ["order_balance", "balance", "debt_amount"], ["payment", "self", "order"]);
+  return balance !== null && balance > 0 ? "debt" : "paid";
+}
+
+export function billQtyTotal(...sources: BillSource[]) {
+  return numberFromBillSections(sources, ["order_qty", "qty", "quantity"], ["totals", "self", "order"]);
+}
+
+const DATE_ONLY_PATTERN = /^(\d{4})-(\d{2})-(\d{2})(?:[ T]00:00:00(?:\.0+)?Z?)?$/;
+const DATE_PREFIX_PATTERN = /^(\d{4})-(\d{2})-(\d{2})/;
+const CLOCK_PATTERN = /^\d{4}-\d{2}-\d{2}[ T](\d{2}):(\d{2})/;
+
+// order_date เป็นวันที่ล้วน ("2026-09-24") — new Date() อ่านเป็นเที่ยงคืน UTC แล้ว dateTime() แปลง
+// เป็นเวลาท้องถิ่นกลายเป็น "7:00:00 AM" ทุกบิล (เวลาปลอมที่ไม่มีอยู่จริง) จึงแยกวันที่ล้วนออกมาเอง
+export function billDay(...sources: BillSource[]) {
+  const raw = textValue(readFromBillSections(sources, dateKeys, ["order", "self"]), "");
+  const match = DATE_PREFIX_PATTERN.exec(raw);
+  if (match) return { key: `${match[1]}-${match[2]}-${match[3]}`, label: `${match[3]}/${match[2]}/${match[1]}` };
+  return { key: raw, label: raw ? dateTime(raw) : "-" };
+}
+
+/** HH:mm เฉพาะเมื่อ API ส่งเวลาจริงมาด้วย — วันที่ล้วนคืน "" แทนการเดาเวลา */
+export function billClock(...sources: BillSource[]) {
+  const raw = textValue(readFromBillSections(sources, dateKeys, ["order", "self"]), "");
+  if (!raw || DATE_ONLY_PATTERN.test(raw)) return "";
+  const match = CLOCK_PATTERN.exec(raw);
+  return match ? `${match[1]}:${match[2]}` : "";
+}
+
+export interface CancelableBillDateGroup {
+  bills: CancelableBill[];
+  key: string;
+  label: string;
+}
+
+// จัดกลุ่มบิลที่ติดกันตามวัน — คงลำดับเดิมจาก API (ASC/DESC) ไม่เรียงใหม่ แบบเดียวกับ sales-list
+export function groupCancelableBillsByDate(bills: CancelableBill[]) {
+  const groups: CancelableBillDateGroup[] = [];
+  for (const bill of bills) {
+    const day = billDay(bill);
+    const last = groups.at(-1);
+    if (last?.key === day.key) last.bills.push(bill);
+    else groups.push({ bills: [bill], key: day.key, label: day.label });
+  }
+  return groups;
+}
+
+export interface CancelDateChoice {
+  label: string;
+  value: string;
+}
+
+// route (page.tsx) รับแค่ today/yesterday และ backend ยกเลิกได้เฉพาะสองวันนี้ — แสดงสองตัวเลือกนี้
+// เสมอเป็นปุ่มสลับ (API ส่ง date_options มาไม่ครบทุกครั้ง) ใช้ป้ายจาก API ถ้ามี ค่าอื่นที่ API ส่งมาต่อท้าย
+export function cancelDateChoices(
+  options: CancelableDateOption[],
+  fallbackLabels: { today: string; yesterday: string }
+): CancelDateChoice[] {
+  const apiLabels = new Map(
+    options.map((option) => [dateOptionValue(option), dateOptionLabel(option)] as const).filter(([value]) => Boolean(value))
+  );
+  const choices: CancelDateChoice[] = [
+    { value: "today", label: apiLabels.get("today") || fallbackLabels.today },
+    { value: "yesterday", label: apiLabels.get("yesterday") || fallbackLabels.yesterday }
+  ];
+  for (const [value, label] of apiLabels) {
+    if (!choices.some((choice) => choice.value === value)) choices.push({ value, label });
+  }
+  return choices;
+}
+
+/** ปุ่มเหตุผลสำเร็จรูปในหน้าต่างยกเลิก — key ใน cancelSale.reasons.* */
+export const CANCEL_REASON_PRESETS = ["customerChanged", "wrongItems", "wrongPayment", "duplicate", "test"] as const;

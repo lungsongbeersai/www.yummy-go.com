@@ -2,13 +2,28 @@
 
 import type { ReactNode } from "react";
 import { BlockingLoadingDialog } from "@/components/common/blocking-loading-dialog";
-import { ChevronDown, ChevronRight, Download, FileSpreadsheet, Printer } from "lucide-react";
+import {
+  BadgePercent,
+  ChevronDown,
+  ChevronsDownUp,
+  ChevronsUpDown,
+  Download,
+  FileSpreadsheet,
+  FileText,
+  HandPlatter,
+  Landmark,
+  Package,
+  Printer,
+  ReceiptText,
+  Tag,
+  TrendingUp,
+  Wallet,
+  type LucideIcon,
+} from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { EmptyState } from "@/components/common/empty-state";
 import { LoadingState } from "@/components/common/loading-state";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Spinner } from "@/components/ui/spinner";
 import {
   DropdownMenu,
@@ -17,9 +32,9 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { money } from "@/lib/format";
-import { cn } from "@/lib/utils";
+import { ReportStatCards, type ReportStat, type ReportStatTone } from "../shared/report-stat-cards";
 import type {
   ReportExportAction,
   ReportExportProgress,
@@ -51,6 +66,9 @@ interface DailySalesTableCardProps {
 interface ReportTableActionsProps {
   allDetailGroupsExpanded: boolean;
   billGroupsLength: number;
+  columnsMenu: ReactNode;
+  summaryCards: ReactNode;
+  summaryToggle: ReactNode;
   exportDisabled: boolean;
   exporting: ReportExportAction | null;
   loading: boolean;
@@ -66,59 +84,38 @@ interface ReportTableActionsProps {
   onTypePageChange: (typePage: ReportTab) => void;
 }
 
-interface ReportTypeSwitchProps {
-  disabled: boolean;
-  value: ReportTab;
-  onChange: (typePage: ReportTab) => void;
-}
+
+// ชนิดของตัวเลขต่อการ์ด (ดูความหมายของสีใน report-stat-cards.tsx) — ยอดสุทธิเป็นใบ highlight
+const SUMMARY_CARD_PRESENTATION: Record<string, { icon: LucideIcon; tone: ReportStatTone }> = {
+  bill_count: { icon: ReceiptText, tone: "info" },
+  total_qty: { icon: Package, tone: "info" },
+  amount: { icon: Wallet, tone: "success" },
+  discount_bill: { icon: BadgePercent, tone: "danger" },
+  sum_discount: { icon: Tag, tone: "danger" },
+  sum_servicecharge: { icon: HandPlatter, tone: "primary" },
+  sum_vate: { icon: Landmark, tone: "warning" },
+  sum_total: { icon: TrendingUp, tone: "highlight" },
+};
 
 export function DailySalesSummaryCards({
   cards,
   reportTotal,
   summaryCards,
 }: DailySalesSummaryCardsProps) {
-  return (
-    <section className="grid shrink-0 gap-2 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-6">
-      {cards.map((card) => {
-        const value = summaryCardValue(summaryCards, reportTotal, card.keys);
-        const tone = summaryCardTone(card);
+  const stats: ReportStat[] = cards.map((card) => {
+    const value = firstNumber(summaryCardValue(summaryCards, reportTotal, card.keys));
+    const presentation = SUMMARY_CARD_PRESENTATION[card.keys[0] ?? ""] ?? { icon: ReceiptText, tone: "primary" };
 
-        return (
-          // ป้ายกำกับเงียบเหมือนกันทุกใบ แล้วให้ "ตัวเลข" เป็นตัวบอกโทน — เดิมทั้ง 6 ใบ
-          // มีทั้งแถบสีซ้าย ป้ายสี และตัวเลขหนา 900 พร้อมกัน จนไม่มีใบไหนเด่นกว่ากัน
-          // (uppercase ไม่มีผลกับอักษรลาวอยู่แล้ว)
-          <Card key={card.label} className="overflow-hidden border-border bg-card py-0 shadow-none">
-            <CardContent className="p-3">
-              <p className="truncate text-xs leading-5 text-muted-foreground">{card.label}</p>
-              <p
-                className={cn(
-                  "mt-0.5 truncate text-lg leading-7 font-semibold tabular-nums",
-                  tone === "danger" ? "text-destructive" : "text-foreground",
-                )}
-              >
-                {card.kind === "money"
-                  ? money(firstNumber(value))
-                  : firstNumber(value).toLocaleString("en-US")}
-              </p>
-            </CardContent>
-          </Card>
-        );
-      })}
-    </section>
-  );
-}
+    return {
+      ...presentation,
+      key: card.label,
+      label: card.label,
+      negative: presentation.tone === "danger" && value > 0,
+      value: card.kind === "money" ? money(value) : value.toLocaleString("en-US"),
+    };
+  });
 
-function summaryCardTone(card: SummaryCardConfig) {
-  if (
-    card.keys.some((key) =>
-      ["debt", "discount", "cancel"].some((token) => key.includes(token)),
-    )
-  ) {
-    return "danger";
-  }
-
-  if (card.kind === "money") return "primary";
-  return "neutral";
+  return <ReportStatCards stats={stats} />;
 }
 
 export function ReportExportLoadingDialog({
@@ -155,48 +152,42 @@ export function DailySalesTableCard({
 }: DailySalesTableCardProps) {
   const { t } = useTranslation();
 
-  // py-0 กัน py ฐานของ Card บวกซ้อนกับ py ของ CardHeader ใน ReportTableActions ด้านล่าง
   return (
-    <Card className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden rounded-none border-x-0 border-b-0 border-border bg-card py-0 shadow-none">
+    <>
       <ReportTableActions {...actions} />
+      {actions.summaryCards}
 
-      <CardContent
-        aria-busy={loading}
-        className="flex min-h-0 flex-1 flex-col p-0"
-      >
-        {loading && !rowsLength ? (
-          <div className="min-h-80 p-4">
-            <LoadingState label={t("report.loading")} variant="reportTable" />
+      {loading && !rowsLength ? (
+        <div className="min-h-96 flex-1 overflow-hidden lg:min-h-0">
+          {/* skeleton เป็น h-full — ต้องครอบให้ได้แค่ความสูงที่เหลือ ไม่งั้นมันขอเต็มหน้าแล้วไปบีบตัวกรองด้านบน */}
+          <LoadingState label={t("report.loading")} variant="reportTable" />
+        </div>
+      ) : rowsLength ? (
+        <>
+          {/* กรอบตารางแบบ shadcn Data Table — ตารางสกรอลอยู่ในกรอบ, แบ่งหน้าอยู่นอกกรอบด้านล่าง
+              จอเล็กทั้งหน้าสกรอล จึงให้กรอบมีความสูงขั้นต่ำไว้ ไม่งั้น flex-1 จะหดจนเหลือศูนย์ */}
+          <div aria-busy={loading} className="flex min-h-96 flex-1 flex-col overflow-hidden rounded-lg border lg:min-h-0">
+            {children}
           </div>
-        ) : rowsLength ? (
-          <>
-            <div className="min-h-0 flex-1 scroll-pb-10 overflow-auto">{children}</div>
-            {/* ระยะในและเส้นคั่นเดียวกับ footer ของหน้าอื่นที่ใช้ AppPagination — เดิมไม่มีทั้งคู่ */}
-            <div className="shrink-0 border-t border-border bg-card px-4 py-3 text-sm text-muted-foreground">
-              {footer}
-            </div>
-          </>
-        ) : (
-          <div className="min-h-80 p-4">
-            <EmptyState
-              title={t("report.noData")}
-              description={t("report.adjustFilters")}
-            />
-          </div>
-        )}
-      </CardContent>
-    </Card>
+          {footer}
+        </>
+      ) : (
+        <EmptyState title={t("report.noData")} description={t("report.adjustFilters")} />
+      )}
+    </>
   );
 }
 
 function ReportTableActions({
   allDetailGroupsExpanded,
   billGroupsLength,
+  columnsMenu,
   exportDisabled,
   exporting,
   loading,
   selectedBillCount,
   selectedCount,
+  summaryToggle,
   typePage,
   onClearSelection,
   onCollapseAllBills,
@@ -210,170 +201,76 @@ function ReportTableActions({
   const isDetail = typePage === "detail";
   const selectedDisplayCount = isDetail ? selectedBillCount : selectedCount;
   const disabled = loading || Boolean(exporting);
+  const expandLabel = allDetailGroupsExpanded ? t("actions.collapseAll") : t("actions.expandAll");
 
   return (
-    <CardHeader className="shrink-0 border-b border-border bg-card px-2 py-2 sm:px-3">
-      <div className="flex w-full min-w-0 flex-col gap-2">
-        {/* โครงคงที่ 2 แถบ: ซ้าย = สลับมุมมอง + ค้นหา / ขวา = ปุ่มสั่งงาน
-            เดิม grid สลับโครง 3 แบบตาม breakpoint ทำให้ปุ่ม export กระโดดข้ามแถวไปมา */}
-        <div className="flex w-full min-w-0 flex-wrap items-center gap-2">
-          <div className="flex min-w-0 flex-1 flex-wrap items-center gap-2">
-            <ReportTypeSwitch
-              disabled={disabled}
-              value={typePage}
-              onChange={onTypePageChange}
-            />
-          </div>
+    <div className="flex flex-wrap items-center gap-2">
+      <Tabs
+        value={typePage}
+        onValueChange={(value) => {
+          if (value === "bill" || value === "detail") onTypePageChange(value);
+        }}
+      >
+        <TabsList>
+          <TabsTrigger value="bill" disabled={disabled}>
+            {t("report.salesReportByBill")}
+          </TabsTrigger>
+          <TabsTrigger value="detail" disabled={disabled}>
+            {t("report.detailedSalesReport")}
+          </TabsTrigger>
+        </TabsList>
+      </Tabs>
 
-          <div className="flex min-w-0 shrink-0 items-center gap-1.5">
-            {isDetail && billGroupsLength ? (
-              // เดิมเป็นไอคอนเปล่าไม่มีข้อความและไม่มี tooltip — เดาไม่ออกว่าปุ่มทำอะไร
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                className="h-9 min-w-9 rounded-md px-2.5"
-                disabled={disabled}
-                title={allDetailGroupsExpanded ? t("actions.collapseAll") : t("actions.expandAll")}
-                onClick={
-                  allDetailGroupsExpanded
-                    ? onCollapseAllBills
-                    : onExpandAllBills
-                }
-              >
-                {allDetailGroupsExpanded ? (
-                  <ChevronDown data-icon="inline-start" />
-                ) : (
-                  <ChevronRight data-icon="inline-start" />
-                )}
-                <span className="hidden sm:inline">
-                  {allDetailGroupsExpanded ? t("actions.collapseAll") : t("actions.expandAll")}
-                </span>
-                <span className="sr-only sm:hidden">
-                  {allDetailGroupsExpanded ? t("actions.collapseAll") : t("actions.expandAll")}
-                </span>
-              </Button>
-            ) : null}
-
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  aria-label={t("common.export")}
-                  className="h-9 min-w-9 rounded-md px-2.5"
-                  disabled={exportDisabled}
-                >
-                  {exporting === "excel" || exporting === "pdf" || exporting === "print" ? (
-                    <Spinner aria-hidden="true" data-icon="inline-start" />
-                  ) : (
-                    <Download data-icon="inline-start" />
-                  )}
-                  <span className="hidden sm:inline">{t("common.export")}</span>
-                  <ChevronDown data-icon="inline-end" />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-44">
-                <DropdownMenuGroup>
-                  <DropdownMenuItem
-                    disabled={exportDisabled}
-                    onSelect={onExportExcel}
-                  >
-                    <FileSpreadsheet data-icon="inline-start" />
-                    {t("report.exportExcel")}
-                  </DropdownMenuItem>
-                  <DropdownMenuItem
-                    disabled={exportDisabled}
-                    onSelect={onExportPdf}
-                  >
-                    <Download data-icon="inline-start" />
-                    {t("report.exportPdf")}
-                  </DropdownMenuItem>
-                  <DropdownMenuItem
-                    disabled={exportDisabled}
-                    onSelect={onPrintReport}
-                  >
-                    <Printer data-icon="inline-start" />
-                    {t("report.print")}
-                  </DropdownMenuItem>
-                </DropdownMenuGroup>
-              </DropdownMenuContent>
-            </DropdownMenu>
-          </div>
-        </div>
-
-        {selectedDisplayCount > 0 ? (
-          <div className="flex min-w-0 flex-wrap items-center gap-1.5">
-            <Badge className="h-6 max-w-full truncate border-primary/20 bg-primary/10 px-2 text-xs text-primary">
-              {isDetail
-                ? t("report.selectedBillsForPrint", {
-                    count: selectedDisplayCount,
-                  })
-                : t("report.selectedForExport", {
-                    count: selectedDisplayCount,
-                  })}
-            </Badge>
-
-            <Button
-              type="button"
-              size="xs"
-              variant="ghost"
-              className="h-6 px-2 text-xs text-muted-foreground"
-              onClick={onClearSelection}
-            >
-              {t("report.clearSelection")}
-            </Button>
-          </div>
-        ) : null}
-      </div>
-    </CardHeader>
-  );
-}
-
-function ReportTypeSwitch({
-  disabled,
-  value,
-  onChange,
-}: ReportTypeSwitchProps) {
-  const { t } = useTranslation();
-
-  return (
-    // เดิม w-full ไม่มี max-width กำกับ + พ่อแม่เป็น flex-1 (ReportTableActions) ทำให้ toggle
-    // ยืดเต็มความกว้างที่เหลือทั้งหมด (เกือบเต็มจอ) ปุ่ม 2 อันเลยกลายเป็นแท่งยักษ์มีที่ว่างเยอะเกินจริง
-    // — ใส่ max-w กันไว้ให้เป็น segmented control ขนาดพอดีคำเหมือนที่อื่นในแอป
-    <ToggleGroup
-      type="single"
-      value={value}
-      disabled={disabled}
-      className="grid h-9 w-full max-w-sm grid-cols-2 rounded-md border border-border bg-muted/70 p-1"
-      onValueChange={(nextValue) => {
-        if (nextValue === "bill" || nextValue === "detail")
-          onChange(nextValue);
-      }}
-    >
-      {(["bill", "detail"] as const).map((nextTypePage) => (
-        <ToggleGroupItem
-          key={nextTypePage}
-          value={nextTypePage}
-          aria-label={
-            nextTypePage === "bill"
-              ? t("report.salesReportByBill")
-              : t("report.detailedSalesReport")
-          }
-          className={cn(
-            "h-7 min-w-0 rounded-sm px-2 text-xs font-medium data-[state=on]:font-semibold",
-            "data-[state=on]:bg-background data-[state=on]:text-foreground data-[state=on]:shadow-sm",
-            "text-muted-foreground hover:text-foreground",
-          )}
-        >
-          <span className="block truncate">
-            {nextTypePage === "bill"
-              ? t("report.salesReportByBill")
-              : t("report.detailedSalesReport")}
+      {/* แสดงเฉพาะตอนมีรายการถูกเลือก — ผลของการเลือกคือ export/พิมพ์เฉพาะรายการนั้น */}
+      {selectedDisplayCount > 0 ? (
+        <div className="flex items-center gap-2">
+          <span className="text-xs text-muted-foreground">
+            {isDetail
+              ? t("report.selectedBillsForPrint", { count: selectedDisplayCount })
+              : t("report.selectedForExport", { count: selectedDisplayCount })}
           </span>
-        </ToggleGroupItem>
-      ))}
-    </ToggleGroup>
+          <Button type="button" variant="ghost" onClick={onClearSelection}>
+            {t("report.clearSelection")}
+          </Button>
+        </div>
+      ) : null}
+
+      <div className="ml-auto flex items-center gap-2">
+        {isDetail && billGroupsLength ? (
+          <Button type="button" variant="outline" disabled={disabled} title={expandLabel} onClick={allDetailGroupsExpanded ? onCollapseAllBills : onExpandAllBills}>
+            {allDetailGroupsExpanded ? <ChevronsDownUp data-icon="inline-start" /> : <ChevronsUpDown data-icon="inline-start" />}
+            <span className="hidden sm:inline">{expandLabel}</span>
+            <span className="sr-only sm:hidden">{expandLabel}</span>
+          </Button>
+        ) : null}
+        {summaryToggle}
+        {columnsMenu}
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button type="button" variant="outline" aria-label={t("common.export")} disabled={exportDisabled}>
+              {exporting ? <Spinner data-icon="inline-start" /> : <Download data-icon="inline-start" />}
+              <span className="hidden sm:inline">{t("common.export")}</span>
+              <ChevronDown data-icon="inline-end" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end">
+            <DropdownMenuGroup>
+              <DropdownMenuItem disabled={exportDisabled} onSelect={onExportExcel}>
+                <FileSpreadsheet />
+                {t("report.exportExcel")}
+              </DropdownMenuItem>
+              <DropdownMenuItem disabled={exportDisabled} onSelect={onExportPdf}>
+                <FileText />
+                {t("report.exportPdf")}
+              </DropdownMenuItem>
+              <DropdownMenuItem disabled={exportDisabled} onSelect={onPrintReport}>
+                <Printer />
+                {t("report.print")}
+              </DropdownMenuItem>
+            </DropdownMenuGroup>
+          </DropdownMenuContent>
+        </DropdownMenu>
+      </div>
+    </div>
   );
 }

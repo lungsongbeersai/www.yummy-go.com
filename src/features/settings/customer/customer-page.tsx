@@ -1,30 +1,29 @@
 "use client";
 
 import { isActiveStatus, StatusBadge } from "@/components/common/status-badge";
-import { Users } from "lucide-react";
+import { MapPin, Users } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { ConfirmDialog } from "@/components/common/confirm-dialog";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Spinner } from "@/components/ui/spinner";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import {
-  SettingsMobileCard,
-  SettingsMobileList,
-  SettingsMobileMeta,
-  SettingsMobileMetaGrid,
-  SettingsModuleShell,
-  SettingsPaginationFooter,
-  SettingsRowActions,
-  SettingsTableScroll,
-  SettingsToolbar,
-  SettingsEmptyRecords,} from "@/features/settings/shared/settings-shell";
+  Item,
+  ItemActions,
+  ItemContent,
+  ItemDescription,
+  ItemFooter,
+  ItemGroup,
+  ItemMedia,
+  ItemTitle
+} from "@/components/ui/item";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { SettingsListPageLayout } from "@/features/settings/shared/settings-list-page-layout";
+import { SettingsEmptyRecords, SettingsRowActions } from "@/features/settings/shared/settings-shell";
+import { SETTINGS_ACCENT } from "@/features/settings/shared/settings-tones";
 import { useSettingsCrudController } from "@/features/settings/shared/use-settings-crud-controller";
-import { PAGE_LIMIT_OPTIONS } from "@/lib/pagination";
 import type { UrlPaginationState } from "@/lib/url-pagination";
 import type { Customer, FetchCustomersParams, SaveCustomerInput } from "@/services/customer";
-import type { SortOrder } from "@/services/shared/types";
 import { useCustomerStore } from "@/stores/customer-store";
 import { CustomerFormDialog } from "./customer-form-dialog";
 import {
@@ -36,22 +35,16 @@ import {
   customerStatus
 } from "./customer-utils";
 
-const ORDER_OPTIONS: Array<{ labelKey: "asc" | "desc"; value: SortOrder }> = [
-  { labelKey: "asc", value: "ASC" },
-  { labelKey: "desc", value: "DESC" }
-];
-
 function customerInitials(name: string) {
   const compact = name.trim().replace(/\s+/g, "");
   return (compact.slice(0, 2) || "C").toUpperCase();
 }
 
+// Initials in the settings accent, like the icon tiles on the other settings lists.
 function CustomerAvatar({ name }: { name: string }) {
   return (
-    <Avatar size="lg">
-      <AvatarFallback className="bg-primary/10 font-black text-primary">
-        {customerInitials(name)}
-      </AvatarFallback>
+    <Avatar>
+      <AvatarFallback className={SETTINGS_ACCENT.soft}>{customerInitials(name)}</AvatarFallback>
     </Avatar>
   );
 }
@@ -59,26 +52,18 @@ function CustomerAvatar({ name }: { name: string }) {
 function MemberCodeBadge({ code }: { code: string }) {
   if (!code) return null;
   return (
-    <Badge className="max-w-full shrink-0 border-primary/20 bg-primary/10 text-primary" translate="no">
+    <Badge variant="secondary" className="tabular-nums" translate="no">
       {code}
     </Badge>
   );
 }
 
-function CustomerIdentity({ row }: { row: Customer }) {
-  const name = customerName(row);
-  const code = customerMemberCode(row);
-
+function CustomerAddress({ row }: { row: Customer }) {
   return (
-    <div className="flex min-w-0 items-center gap-3">
-      <CustomerAvatar name={name} />
-      <div className="min-w-0">
-        <div className="flex min-w-0 flex-wrap items-center gap-2">
-          <p className="min-w-0 truncate font-black">{name}</p>
-          <MemberCodeBadge code={code} />
-        </div>
-      </div>
-    </div>
+    <span className="flex min-w-0 items-center gap-1.5 text-muted-foreground">
+      <MapPin aria-hidden className="size-3.5 shrink-0" />
+      <span className="truncate">{customerAddress(row)}</span>
+    </span>
   );
 }
 
@@ -134,174 +119,140 @@ export function CustomerSettingsPage({ initialPagination }: { initialPagination:
     }
   });
 
-  const table = rows.length ? (
-    <SettingsTableScroll>
-      <Table className="min-w-[1040px]">
-        <TableHeader className="sticky top-0 z-10 bg-muted/95 backdrop-blur">
-          <TableRow>
-            <TableHead className="w-10 px-2">
-              <Checkbox aria-label={t("common.selectAll")} checked={allSelected} onCheckedChange={(checked) => toggleAll(checked as boolean)} />
-            </TableHead>
-            <TableHead className="w-px whitespace-nowrap px-2 text-center">{t("fields.no")}</TableHead>
-            <TableHead>{t("nav.customer")}</TableHead>
-            <TableHead>{t("fields.customer_phone")}</TableHead>
-            <TableHead>{t("fields.customer_address")}</TableHead>
-            <TableHead>{t("fields.customer_status")}</TableHead>
-            <TableHead className="w-16 text-right">{t("common.actions")}</TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {rows.map((row, index) => {
-            const id = rowId(row);
-            const name = customerName(row);
-            const selected = selectedRows.has(id);
-            return (
-              <TableRow key={id || index} className="h-14" data-state={selected ? "selected" : undefined}>
-                <TableCell className="w-10 px-2">
-                  <Checkbox aria-label={t("common.selectRow", { name })} checked={selected} onCheckedChange={(checked) => toggleSelected(id, checked as boolean)} />
-                </TableCell>
-                <TableCell className="w-px whitespace-nowrap px-2 text-center text-sm font-black text-muted-foreground">{pageStart + index}</TableCell>
-                <TableCell className="max-w-[28rem]">
-                  <CustomerIdentity row={row} />
-                </TableCell>
-                <TableCell className="max-w-56">
-                  <span className="block truncate text-muted-foreground" translate="no">
-                    {customerPhone(row)}
-                  </span>
-                </TableCell>
-                <TableCell className="max-w-[24rem]">
-                  <span className="line-clamp-2 break-words text-muted-foreground">
-                    {customerAddress(row)}
-                  </span>
-                </TableCell>
-                <TableCell>
-                  <StatusBadge active={isActiveStatus(customerStatus(row))} />
-                </TableCell>
-                <TableCell className="text-right">
-                  <SettingsRowActions row={row} onEdit={openEdit} onDelete={setDeleteTarget} />
-                </TableCell>
-              </TableRow>
-            );
-          })}
-        </TableBody>
-      </Table>
-    </SettingsTableScroll>
-  ) : null;
+  const table = (
+    <Table containerClassName="min-h-0 flex-1 overflow-auto">
+      <TableHeader className="sticky top-0 z-10 bg-muted">
+        <TableRow>
+          <TableHead className="w-px">
+            <Checkbox aria-label={t("common.selectAll")} checked={allSelected} onCheckedChange={(checked) => toggleAll(checked === true)} />
+          </TableHead>
+          {/* w-px: checkbox, number and actions shrink to their content. */}
+          <TableHead className="w-px text-center">{t("fields.no")}</TableHead>
+          <TableHead className="min-w-56">{t("nav.customer")}</TableHead>
+          <TableHead>{t("fields.customer_address")}</TableHead>
+          <TableHead>{t("fields.customer_status")}</TableHead>
+          <TableHead className="w-px">
+            <span className="sr-only">{t("common.actions")}</span>
+          </TableHead>
+        </TableRow>
+      </TableHeader>
+      <TableBody>
+        {rows.map((row, index) => {
+          const id = rowId(row);
+          const name = customerName(row);
+          const selected = selectedRows.has(id);
+          return (
+            <TableRow key={id || index} data-state={selected ? "selected" : undefined}>
+              <TableCell>
+                <Checkbox aria-label={t("common.selectRow", { name })} checked={selected} onCheckedChange={(checked) => toggleSelected(id, checked === true)} />
+              </TableCell>
+              <TableCell className="text-center text-muted-foreground tabular-nums">{pageStart + index}</TableCell>
+              <TableCell>
+                {/* The phone sits under the name (it identifies the customer) rather than in a column. */}
+                <div className="flex items-center gap-3">
+                  <CustomerAvatar name={name} />
+                  <div className="flex min-w-0 flex-col gap-0.5">
+                    <span className="flex items-center gap-2">
+                      <span className="truncate font-medium">{name}</span>
+                      <MemberCodeBadge code={customerMemberCode(row)} />
+                    </span>
+                    <span className="truncate text-muted-foreground tabular-nums" translate="no">
+                      {customerPhone(row)}
+                    </span>
+                  </div>
+                </div>
+              </TableCell>
+              <TableCell className="max-w-72">
+                <CustomerAddress row={row} />
+              </TableCell>
+              <TableCell>
+                <StatusBadge active={isActiveStatus(customerStatus(row))} />
+              </TableCell>
+              <TableCell className="text-right">
+                <SettingsRowActions row={row} onEdit={openEdit} onDelete={setDeleteTarget} />
+              </TableCell>
+            </TableRow>
+          );
+        })}
+      </TableBody>
+    </Table>
+  );
 
-  const mobileList = rows.length ? (
-    <SettingsMobileList>
+  // Narrow pages: one Item per customer, two columns once there is room.
+  const mobileList = (
+    <ItemGroup className="@xl:grid @xl:grid-cols-2">
       {rows.map((row, index) => {
         const id = rowId(row);
         const name = customerName(row);
-        const code = customerMemberCode(row);
-        const selected = selectedRows.has(id);
         return (
-          <SettingsMobileCard
-            key={id || index}
-            actions={<SettingsRowActions row={row} onEdit={openEdit} onDelete={setDeleteTarget} />}
-            badges={<MemberCodeBadge code={code} />}
-            checked={selected}
-            leading={<CustomerAvatar name={name} />}
-            selectLabel={t("common.selectRow", { name })}
-            selected={selected}
-            subtitle={
-              <span className="block truncate" translate="no">
+          <Item key={id || index} variant="outline">
+            <Checkbox aria-label={t("common.selectRow", { name })} checked={selectedRows.has(id)} onCheckedChange={(checked) => toggleSelected(id, checked === true)} />
+            <ItemMedia>
+              <CustomerAvatar name={name} />
+            </ItemMedia>
+            <ItemContent>
+              <ItemTitle>
+                {name}
+                <MemberCodeBadge code={customerMemberCode(row)} />
+              </ItemTitle>
+              <ItemDescription className="tabular-nums" translate="no">
                 {customerPhone(row)}
-              </span>
-            }
-            title={name}
-            onCheckedChange={(checked) => toggleSelected(id, checked)}
-          >
-            <SettingsMobileMetaGrid>
-              <SettingsMobileMeta
-                label={t("fields.customer_status")}
-                value={<StatusBadge active={isActiveStatus(customerStatus(row))} />}
-              />
-              <SettingsMobileMeta
-                label={t("fields.customer_address")}
-                value={<span className="line-clamp-3 break-words">{customerAddress(row)}</span>}
-              />
-            </SettingsMobileMetaGrid>
-          </SettingsMobileCard>
+              </ItemDescription>
+            </ItemContent>
+            <ItemActions>
+              <SettingsRowActions row={row} onEdit={openEdit} onDelete={setDeleteTarget} />
+            </ItemActions>
+            <ItemFooter className="flex-wrap">
+              <CustomerAddress row={row} />
+              <StatusBadge active={isActiveStatus(customerStatus(row))} />
+            </ItemFooter>
+          </Item>
         );
       })}
-    </SettingsMobileList>
-  ) : null;
-
-  const toolbar = (
-    <SettingsToolbar
-      state={{
-        search,
-        limit,
-        orderBy,
-        limitOptions: PAGE_LIMIT_OPTIONS,
-        orderOptions: ORDER_OPTIONS.map((option) => ({ label: t(`common.${option.labelKey}`), value: option.value })),
-        selectedCount: selectedRows.size,
-        onApply: applyFilters,
-        onLimit: changeLimit,
-        onOrder: (nextOrder) => {
-          setOrderBy(nextOrder);
-          setPage(1);
-        },
-        onSearch: setSearch
-      }}
-    />
-  );
-
-  const listSurface = (
-    <div className="flex min-h-0 flex-1 flex-col">
-      <div className="shrink-0 border-b border-border bg-card/95 px-3 py-2.5 backdrop-blur sm:px-4 lg:px-5">
-        <div className="flex min-w-0 flex-col gap-2 xl:flex-row xl:items-center xl:justify-between">
-          <div className="min-w-0">
-            <p className="text-sm font-black">{t("settings.customerList")}</p>
-          </div>
-          <div className="min-w-0 xl:max-w-[48rem]">{toolbar}</div>
-        </div>
-        {backgroundLoading ? (
-          <div className="mt-2 flex items-center gap-2 text-xs text-muted-foreground">
-            <Spinner aria-hidden />
-            {t("settings.refreshingCustomerList")}
-          </div>
-        ) : null}
-      </div>
-      {rows.length ? (
-        <>
-          <div className="hidden min-h-0 flex-1 md:flex">{table}</div>
-          <div className="min-h-0 flex-1 overflow-y-auto md:hidden">{mobileList}</div>
-        </>
-      ) : (
-        <SettingsEmptyRecords icon={<Users aria-hidden />} title={title.toLowerCase()} />
-      )}
-    </div>
+    </ItemGroup>
   );
 
   return (
-    <>
-      <SettingsModuleShell
-        addLabel={`${t("actions.add")} ${t("nav.customer")}`}
-        cardTitle={t("settings.customerList")}
-        description={description}
-        emptyDescription={t("empty.adjustSearch")}
-        emptyTitle={t("settings.noRecords", { title: title.toLowerCase() })}
-        footer={
-          rows.length ? (
-            <SettingsPaginationFooter
-              page={page}
-              pageEnd={pageEnd}
-              pageStart={pageStart}
-              total={total}
-              totalPages={totalPages}
-              onPageChange={setPage}
-            />
-          ) : undefined
-        }
-        hideCardHeader
-        loading={fullLoading}
-        loadingLabel={t("settings.loading", { title })}
-        table={listSurface}
-        title={title}
-        onAdd={openCreate}
-      />
+    <SettingsListPageLayout
+      id="customer"
+      title={title}
+      description={description}
+      icon={Users}
+      addLabel={`${t("actions.add")} ${t("nav.customer")}`}
+      onAdd={openCreate}
+      loading={fullLoading}
+      loadingLabel={t("settings.loading", { title })}
+      search={search}
+      searching={backgroundLoading}
+      searchingLabel={t("settings.refreshingCustomerList")}
+      onSearchChange={setSearch}
+      onSearchApply={applyFilters}
+      orderBy={orderBy}
+      onOrderChange={(nextOrder) => {
+        setOrderBy(nextOrder);
+        setPage(1);
+      }}
+      orderOptions={[
+        { label: t("common.asc"), value: "ASC" },
+        { label: t("common.desc"), value: "DESC" }
+      ]}
+      allSelected={allSelected}
+      selectAllLabel={t("common.selectAll")}
+      selectedCount={selectedRows.size}
+      onToggleAll={toggleAll}
+      hasRows={rows.length > 0}
+      table={table}
+      mobileList={mobileList}
+      empty={<SettingsEmptyRecords icon={<Users aria-hidden />} title={title.toLowerCase()} />}
+      page={page}
+      pageStart={pageStart}
+      pageEnd={pageEnd}
+      total={total}
+      totalPages={totalPages}
+      limit={limit}
+      onLimitChange={changeLimit}
+      onPageChange={setPage}
+    >
       <CustomerFormDialog
         editing={editing}
         open={dialogOpen}
@@ -322,6 +273,6 @@ export function CustomerSettingsPage({ initialPagination }: { initialPagination:
           if (!nextOpen) setDeleteTarget(null);
         }}
       />
-    </>
+    </SettingsListPageLayout>
   );
 }

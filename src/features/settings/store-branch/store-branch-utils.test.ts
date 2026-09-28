@@ -17,6 +17,7 @@ import {
   normalizeStoreReportSummary,
   storeAuthUserUpdate,
   storeBranchName,
+  storeMatchesCardFilter,
   storeType
 } from "@/features/settings/store-branch/store-branch-utils";
 
@@ -270,5 +271,19 @@ describe("store branch utils", () => {
     expect(
       buildBranchPayload({ ...branchPayload, vatPercent: "0", vatStatus: "1" })
     ).toMatchObject({ vat_status: VAT_EXEMPT, vat_name: 0 });
+  });
+
+  it("matches stores against the summary-card filters", () => {
+    const plcOpen = { store_status: 1, store_active: 1 };
+    const generalClosed = { store_status: 2, store_active: 2 };
+    const testOpen = { store_status: 3, store_active: 1 };
+    const rows = [plcOpen, generalClosed, testOpen];
+
+    expect(rows.filter((row) => storeMatchesCardFilter(row, null))).toEqual(rows);
+    expect(rows.filter((row) => storeMatchesCardFilter(row, "plc"))).toEqual([plcOpen]);
+    expect(rows.filter((row) => storeMatchesCardFilter(row, "general"))).toEqual([generalClosed]);
+    expect(rows.filter((row) => storeMatchesCardFilter(row, "test"))).toEqual([testOpen]);
+    expect(rows.filter((row) => storeMatchesCardFilter(row, "active"))).toEqual([plcOpen, testOpen]);
+    expect(rows.filter((row) => storeMatchesCardFilter(row, "inactive"))).toEqual([generalClosed]);
   });
 });

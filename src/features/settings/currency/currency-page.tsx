@@ -68,14 +68,12 @@ export function CurrencySettingsPage({ initialPagination }: { initialPagination:
       idKey="currency_uuid"
       initialPagination={initialPagination}
       itemLabel={t("nav.currency")}
-      listTitle={t("settings.currencyList")}
       nameKey="currency_name"
       refreshLabel={t("settings.refreshingCurrencyList")}
       renderBadges={(row) => <ColorCodeBadge code={currencyIcon(row)} />}
       renderLeading={(row) => <CurrencyFlag code={currencyIcon(row)} label={currencyName(row)} />}
       slug="currency"
       store={useCurrencyStore}
-      tableClassName="min-w-[860px]"
       title={t("settings.modules.currency.title")}
       validateInput={(args) => {
         const missing = missingCurrencyField(currencySaveArgs(args));

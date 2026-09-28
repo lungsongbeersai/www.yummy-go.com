@@ -159,7 +159,7 @@ describe("daily sales report basic helpers", () => {
     expect(readValue(row, ["invoice_number", "invoice_no"])).toBe("INV-9");
     expect(textValue(undefined, "fallback")).toBe("fallback");
     expect(firstNumber(undefined, "bad", "12000")).toBe(12_000);
-    expect(formatDate("2026-05-29")).toBe("2026-05-29");
+    expect(formatDate("2026-05-29")).toBe("29/05/2026");
   });
 
   it("detects cancelled rows and image color/source", () => {
@@ -496,7 +496,7 @@ describe("daily sales report export helpers", () => {
     ).toEqual([
       { Metric: "report.filters.typePage", Value: "report.salesReportByBill" },
       { Metric: "dashboard.branch", Value: "Main branch" },
-      { Metric: "report.reportDate", Value: "2026-07-01 - 2026-07-13" },
+      { Metric: "report.reportDate", Value: "01/07/2026 - 13/07/2026" },
       { Metric: "report.filters.paymentMethod", Value: "Cash" },
     ]);
   });
@@ -510,7 +510,7 @@ describe("daily sales report export helpers", () => {
       }),
     ).toEqual([
       { Metric: "dashboard.branch", Value: "Main branch" },
-      { Metric: "report.reportDate", Value: "2026-07-01 - 2026-07-13" },
+      { Metric: "report.reportDate", Value: "01/07/2026 - 13/07/2026" },
     ]);
   });
 });

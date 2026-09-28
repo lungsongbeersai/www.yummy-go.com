@@ -24,6 +24,7 @@ import type {
   ReportTab,
   SummaryCards,
 } from "./daily-sales-report-types";
+import { formatReportDateTime } from "@/features/report/shared/report-date-format";
 
 export const reportImageKeys = [
   "prod_image",
@@ -177,13 +178,9 @@ export function detailPaginationBasis(
   return "lines";
 }
 
+// 28/09/2026 for a business date, 28/09/2026 13:16:54 for a timestamp (see report-date-format).
 export function formatDate(value: unknown) {
-  const raw = textValue(value, "");
-  if (!raw) return "-";
-  if (/^\d{4}-\d{2}-\d{2}$/.test(raw)) return raw;
-  const date = new Date(raw);
-  if (Number.isNaN(date.getTime())) return raw;
-  return date.toLocaleString();
+  return formatReportDateTime(textValue(value, ""));
 }
 
 export function isTruthy(value: unknown) {

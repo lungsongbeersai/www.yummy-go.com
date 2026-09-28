@@ -15,9 +15,12 @@ export const metadata: Metadata = {
     template: "%s | Yummy Go",
   },
   description: "Clean rebuilt restaurant POS workspace",
+  // ไอคอนแท็บเดียวกันทุกหน้า (หน้าแนะนำ, ล็อกอิน, POS) — กำหนดที่นี่ที่เดียว ห้าม override รายหน้า
+  // favicon ต้องมีมุมโปร่งใสในตัว เพราะเบราว์เซอร์ไม่ลบมุมให้; ส่วน apple-touch-icon ต้องทึบเต็มกรอบ
+  // เพราะ iOS ตัดมุมเอง (มุมโปร่งใสจะกลายเป็นสีดำบนหน้าจอโฮม)
   icons: {
-    icon: "/brand/icon.png",
-    apple: "/brand/icon.png"
+    icon: [{ url: "/brand/icon-mark-rounded.png", sizes: "192x192", type: "image/png" }],
+    apple: "/brand/icon-mark.png"
   }
 };
 

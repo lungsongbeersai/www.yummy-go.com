@@ -49,7 +49,6 @@ export function ZoneSettingsPage({ initialPagination }: { initialPagination: Url
       idKey="zone_uuid"
       initialPagination={initialPagination}
       itemLabel={t("nav.zone")}
-      listTitle={t("settings.zoneList")}
       nameEngKey="zone_name_eng"
       nameKey="zone_name"
       nameLaKey="zone_name_la"
@@ -59,7 +58,6 @@ export function ZoneSettingsPage({ initialPagination }: { initialPagination: Url
       scope={(_, user) => ({ branch_uuid_fk: user?.branch_uuid ?? "" })}
       slug="zone"
       store={useZoneStore}
-      tableClassName="min-w-[860px]"
       title={t("settings.modules.zone.title")}
       validateInput={(args) => {
         const missing = missingZoneField(zoneSaveArgs(args));

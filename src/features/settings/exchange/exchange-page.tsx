@@ -7,7 +7,6 @@ import { Coins } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { ConfirmDialog } from "@/components/common/confirm-dialog";
 import { FormattedNumberInput } from "@/components/common/formatted-number-input";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Dialog, DialogDescription, DialogTitle } from "@/components/ui/dialog";
@@ -17,23 +16,26 @@ import { Spinner } from "@/components/ui/spinner";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { CurrencyFlag } from "@/features/settings/shared/currency-flag";
 import {
+  Item,
+  ItemActions,
+  ItemContent,
+  ItemDescription,
+  ItemFooter,
+  ItemGroup,
+  ItemMedia,
+  ItemTitle
+} from "@/components/ui/item";
+import { SettingsListPageLayout } from "@/features/settings/shared/settings-list-page-layout";
+import {
   SettingsDialogBody,
   SettingsDialogContent,
   SettingsDialogFooter,
   SettingsDialogForm,
   SettingsDialogHeader,
-  SettingsMobileCard,
-  SettingsMobileList,
-  SettingsMobileMeta,
-  SettingsMobileMetaGrid,
-  SettingsModuleShell,
-  SettingsPaginationFooter,
-  SettingsRowActions,
-  SettingsTableScroll,
-  SettingsToolbar,
-  SettingsEmptyRecords,} from "@/features/settings/shared/settings-shell";
+  SettingsEmptyRecords,
+  SettingsRowActions
+} from "@/features/settings/shared/settings-shell";
 import { useSettingsCrudController } from "@/features/settings/shared/use-settings-crud-controller";
-import { PAGE_LIMIT_OPTIONS } from "@/lib/pagination";
 import type { UrlPaginationState } from "@/lib/url-pagination";
 import type { Currency } from "@/services/currency";
 import type { Exchange, FetchExchangesParams, SaveExchangeInput } from "@/services/exchange";
@@ -58,11 +60,12 @@ const ORDER_OPTIONS: Array<{ labelKey: "asc" | "desc"; value: SortOrder }> = [
   { labelKey: "desc", value: "DESC" }
 ];
 
-function RateBadge({ rate }: { rate: string }) {
+// The rate is a number to compare down the column: plain, right-aligned, tabular — not a badge.
+function Rate({ rate }: { rate: string }) {
   return (
-    <Badge className="border-primary/20 bg-primary/10 text-primary" translate="no">
+    <span className="font-medium tabular-nums" translate="no">
       {rate}
-    </Badge>
+    </span>
   );
 }
 
@@ -90,9 +93,9 @@ function CurrencyIdentity({
     <div className="flex min-w-0 items-center gap-3">
       <CurrencyFlag code={icon} label={name} />
       <div className="min-w-0">
-        <p className="truncate font-black">{name}</p>
+        <p className="truncate font-medium">{name}</p>
         {meta ? (
-          <p className="mt-0.5 truncate text-xs text-muted-foreground" translate="no">
+          <p className="truncate text-muted-foreground" translate="no">
             {meta}
           </p>
         ) : null}
@@ -210,164 +213,126 @@ export function ExchangeSettingsPage({ initialPagination }: { initialPagination:
     setDialogOpen(true);
   }
 
-  const table = rows.length ? (
-    <SettingsTableScroll>
-      <Table className="min-w-[940px]">
-        <TableHeader className="sticky top-0 z-10 bg-muted/95 backdrop-blur">
-          <TableRow>
-            <TableHead className="w-10 px-2">
-              <Checkbox aria-label={t("common.selectAll")} checked={allSelected} onCheckedChange={(checked) => toggleAll(checked as boolean)} />
-            </TableHead>
-            <TableHead className="w-px whitespace-nowrap px-2 text-center">{t("fields.no")}</TableHead>
-            <TableHead>{t("nav.currency")}</TableHead>
-            <TableHead>{t("fields.ex_price")}</TableHead>
-            <TableHead>{t("fields.ex_status")}</TableHead>
-            <TableHead className="w-16 text-right">{t("common.actions")}</TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {rows.map((row, index) => {
-            const id = exchangeId(row);
-            const selected = selectedRows.has(id);
-            const name = currencyName(row, currencyById);
-            return (
-              <TableRow key={id || index} className="h-14" data-state={selected ? "selected" : undefined}>
-                <TableCell className="w-10 px-2">
-                  <Checkbox aria-label={t("common.selectRow", { name })} checked={selected} onCheckedChange={(checked) => toggleSelected(id, checked as boolean)} />
-                </TableCell>
-                <TableCell className="w-px whitespace-nowrap px-2 text-center text-sm font-black text-muted-foreground">{pageStart + index}</TableCell>
-                <TableCell className="max-w-[28rem]">
-                  <CurrencyIdentity currencyById={currencyById} row={row} />
-                </TableCell>
-                <TableCell>
-                  <RateBadge rate={exchangeRate(row)} />
-                </TableCell>
-                <TableCell>
-                  <StatusBadge active={isActiveStatus(exchangeStatus(row))} />
-                </TableCell>
-                <TableCell className="text-right">
-                  <SettingsRowActions row={row} onEdit={openEdit} onDelete={setDeleteTarget} />
-                </TableCell>
-              </TableRow>
-            );
-          })}
-        </TableBody>
-      </Table>
-    </SettingsTableScroll>
-  ) : null;
-
-  const mobileList = rows.length ? (
-    <SettingsMobileList>
-      {rows.map((row, index) => {
-        const id = exchangeId(row);
-        const selected = selectedRows.has(id);
-        const icon = currencyIcon(row, currencyById);
-        return (
-          <SettingsMobileCard
-            key={id || index}
-            actions={<SettingsRowActions row={row} onEdit={openEdit} onDelete={setDeleteTarget} />}
-            badges={
-              <>
-                <RateBadge rate={exchangeRate(row)} />
+  const table = (
+    <Table containerClassName="min-h-0 flex-1 overflow-auto">
+      <TableHeader className="sticky top-0 z-10 bg-muted">
+        <TableRow>
+          <TableHead className="w-px">
+            <Checkbox aria-label={t("common.selectAll")} checked={allSelected} onCheckedChange={(checked) => toggleAll(checked === true)} />
+          </TableHead>
+          {/* w-px: checkbox, number and actions shrink to their content. */}
+          <TableHead className="w-px text-center">{t("fields.no")}</TableHead>
+          <TableHead className="min-w-56">{t("nav.currency")}</TableHead>
+          <TableHead className="text-right">{t("fields.ex_price")}</TableHead>
+          <TableHead>{t("fields.ex_status")}</TableHead>
+          <TableHead className="w-px">
+            <span className="sr-only">{t("common.actions")}</span>
+          </TableHead>
+        </TableRow>
+      </TableHeader>
+      <TableBody>
+        {rows.map((row, index) => {
+          const id = exchangeId(row);
+          const selected = selectedRows.has(id);
+          const name = currencyName(row, currencyById);
+          return (
+            <TableRow key={id || index} data-state={selected ? "selected" : undefined}>
+              <TableCell>
+                <Checkbox aria-label={t("common.selectRow", { name })} checked={selected} onCheckedChange={(checked) => toggleSelected(id, checked === true)} />
+              </TableCell>
+              <TableCell className="text-center text-muted-foreground tabular-nums">{pageStart + index}</TableCell>
+              <TableCell>
+                <CurrencyIdentity currencyById={currencyById} row={row} />
+              </TableCell>
+              <TableCell className="text-right">
+                <Rate rate={exchangeRate(row)} />
+              </TableCell>
+              <TableCell>
                 <StatusBadge active={isActiveStatus(exchangeStatus(row))} />
-              </>
-            }
-            checked={selected}
-            leading={<CurrencyFlag code={icon} label={currencyName(row, currencyById)} />}
-            selectLabel={t("common.selectRow", { name: currencyName(row, currencyById) })}
-            selected={selected}
-            subtitle={
-              <span className="block truncate" translate="no">
-                {icon !== "-" ? icon : "-"}
-              </span>
-            }
-            title={currencyName(row, currencyById)}
-            onCheckedChange={(checked) => toggleSelected(id, checked)}
-          >
-            <SettingsMobileMetaGrid>
-              <SettingsMobileMeta label={t("fields.ex_price")} value={<RateBadge rate={exchangeRate(row)} />} />
-              <SettingsMobileMeta label={t("fields.ex_status")} value={<StatusBadge active={isActiveStatus(exchangeStatus(row))} />} />
-            </SettingsMobileMetaGrid>
-          </SettingsMobileCard>
-        );
-      })}
-    </SettingsMobileList>
-  ) : null;
-
-  const toolbar = (
-    <SettingsToolbar
-      state={{
-        search,
-        limit,
-        orderBy,
-        limitOptions: PAGE_LIMIT_OPTIONS,
-        orderOptions: ORDER_OPTIONS.map((option) => ({ label: t(`common.${option.labelKey}`), value: option.value })),
-        selectedCount: selectedRows.size,
-        onApply: applyFilters,
-        onLimit: changeLimit,
-        onOrder: (nextOrder) => {
-          setOrderBy(nextOrder);
-          setPage(1);
-        },
-        onSearch: setSearch
-      }}
-    />
+              </TableCell>
+              <TableCell className="text-right">
+                <SettingsRowActions row={row} onEdit={openEdit} onDelete={setDeleteTarget} />
+              </TableCell>
+            </TableRow>
+          );
+        })}
+      </TableBody>
+    </Table>
   );
 
-  const listSurface = (
-    <div className="flex min-h-0 flex-1 flex-col">
-      <div className="shrink-0 border-b border-border bg-card/95 px-3 py-2.5 backdrop-blur sm:px-4 lg:px-5">
-        <div className="flex min-w-0 flex-col gap-2 xl:flex-row xl:items-center xl:justify-between">
-          <div className="min-w-0">
-            <p className="text-sm font-black">{t("settings.exchangeList")}</p>
-          </div>
-          <div className="min-w-0 xl:max-w-[48rem]">{toolbar}</div>
-        </div>
-        {backgroundLoading ? (
-          <div className="mt-2 flex items-center gap-2 text-xs text-muted-foreground">
-            <Spinner aria-hidden />
-            {t("settings.refreshingList")}
-          </div>
-        ) : null}
-      </div>
-      {rows.length ? (
-        <>
-          <div className="hidden min-h-0 flex-1 md:flex">{table}</div>
-          <div className="min-h-0 flex-1 overflow-y-auto md:hidden">{mobileList}</div>
-        </>
-      ) : (
-        <SettingsEmptyRecords icon={<Coins aria-hidden />} title={title.toLowerCase()} />
-      )}
-    </div>
+  // Narrow pages: one Item per rate, two columns once there is room.
+  const mobileList = (
+    <ItemGroup className="@xl:grid @xl:grid-cols-2">
+      {rows.map((row, index) => {
+        const id = exchangeId(row);
+        const icon = currencyIcon(row, currencyById);
+        const name = currencyName(row, currencyById);
+        return (
+          <Item key={id || index} variant="outline">
+            <Checkbox aria-label={t("common.selectRow", { name })} checked={selectedRows.has(id)} onCheckedChange={(checked) => toggleSelected(id, checked === true)} />
+            <ItemMedia>
+              <CurrencyFlag code={icon} label={name} />
+            </ItemMedia>
+            <ItemContent>
+              <ItemTitle>{name}</ItemTitle>
+              {icon !== "-" ? (
+                <ItemDescription translate="no">{icon}</ItemDescription>
+              ) : null}
+            </ItemContent>
+            <ItemActions>
+              <SettingsRowActions row={row} onEdit={openEdit} onDelete={setDeleteTarget} />
+            </ItemActions>
+            <ItemFooter>
+              <span className="flex items-center gap-1.5">
+                <span className="text-muted-foreground">{t("fields.ex_price")}:</span>
+                <Rate rate={exchangeRate(row)} />
+              </span>
+              <StatusBadge active={isActiveStatus(exchangeStatus(row))} />
+            </ItemFooter>
+          </Item>
+        );
+      })}
+    </ItemGroup>
   );
 
   return (
-    <>
-      <SettingsModuleShell
-        addLabel={`${t("actions.add")} ${t("nav.exchange_rate")}`}
-        cardTitle={t("settings.exchangeList")}
-        description={description}
-        emptyDescription={t("empty.adjustSearch")}
-        emptyTitle={t("settings.noRecords", { title: title.toLowerCase() })}
-        footer={
-          rows.length ? (
-            <SettingsPaginationFooter
-              page={page}
-              pageEnd={pageEnd}
-              pageStart={pageStart}
-              total={total}
-              totalPages={totalPages}
-              onPageChange={setPage}
-            />
-          ) : undefined
-        }
-        hideCardHeader
-        loading={fullLoading}
-        loadingLabel={t("settings.loading", { title })}
-        table={listSurface}
-        title={title}
-        onAdd={openCreate}
-      />
+    <SettingsListPageLayout
+      id="exchange"
+      title={title}
+      description={description}
+      icon={Coins}
+      addLabel={`${t("actions.add")} ${t("nav.exchange_rate")}`}
+      onAdd={openCreate}
+      loading={fullLoading}
+      loadingLabel={t("settings.loading", { title })}
+      search={search}
+      searching={backgroundLoading}
+      searchingLabel={t("settings.refreshingList")}
+      onSearchChange={setSearch}
+      onSearchApply={applyFilters}
+      orderBy={orderBy}
+      onOrderChange={(nextOrder) => {
+        setOrderBy(nextOrder);
+        setPage(1);
+      }}
+      orderOptions={ORDER_OPTIONS.map((option) => ({ label: t(`common.${option.labelKey}`), value: option.value }))}
+      allSelected={allSelected}
+      selectAllLabel={t("common.selectAll")}
+      selectedCount={selectedRows.size}
+      onToggleAll={toggleAll}
+      hasRows={rows.length > 0}
+      table={table}
+      mobileList={mobileList}
+      empty={<SettingsEmptyRecords icon={<Coins aria-hidden />} title={title.toLowerCase()} />}
+      page={page}
+      pageStart={pageStart}
+      pageEnd={pageEnd}
+      total={total}
+      totalPages={totalPages}
+      limit={limit}
+      onLimitChange={changeLimit}
+      onPageChange={setPage}
+    >
       <ExchangeFormDialog
         currencies={currencyOptions}
         description={description}
@@ -393,7 +358,7 @@ export function ExchangeSettingsPage({ initialPagination }: { initialPagination:
           if (!nextOpen) setDeleteTarget(null);
         }}
       />
-    </>
+    </SettingsListPageLayout>
   );
 }
 

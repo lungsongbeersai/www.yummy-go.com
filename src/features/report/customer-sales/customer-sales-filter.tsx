@@ -1,9 +1,10 @@
 "use client";
 
 import type { ReactNode } from "react";
+import { Search } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { Field, FieldLabel } from "@/components/ui/field";
-import { SearchInput } from "@/components/common/search-input";
+import { InputGroup, InputGroupAddon, InputGroupInput } from "@/components/ui/input-group";
 import {
   ReportBranchField,
   ReportDateRangeFields,
@@ -82,10 +83,8 @@ function CustomerSalesFilterFields({
         onTableChange={tableUuid => onDraftChange(previous => ({ ...previous, tableUuid }))}
         onZoneChange={zoneUuid => onDraftChange(previous => ({ ...previous, tableUuid: "all", zoneUuid }))}
       />
-      <div className="flex flex-col gap-1.5">
-        <label className="text-xs font-bold text-muted-foreground" htmlFor={`${idPrefix}-customer`}>
-          {t("report.customerSales.customer")}
-        </label>
+      <Field>
+        <FieldLabel htmlFor={`${idPrefix}-customer`}>{t("report.customerSales.customer")}</FieldLabel>
         <CustomerSalesCombobox
           id={`${idPrefix}-customer`}
           label={draft.customerLabel}
@@ -93,7 +92,7 @@ function CustomerSalesFilterFields({
           value={draft.customerUuid}
           onSelect={customer => onDraftChange(previous => selectCustomer(customer, previous))}
         />
-      </div>
+      </Field>
       <ReportDateRangeFields
         idPrefix={idPrefix}
         dateFrom={draft.dateFrom}
@@ -101,17 +100,23 @@ function CustomerSalesFilterFields({
         onDateFromChange={dateFrom => onDraftChange(previous => ({ ...previous, dateFrom }))}
         onDateToChange={dateTo => onDraftChange(previous => ({ ...previous, dateTo }))}
       />
-      <Field className="min-w-0 gap-1.5">
-        <FieldLabel htmlFor={`${idPrefix}-search`} className="text-xs font-bold text-muted-foreground">
-          {t("actions.search")}
-        </FieldLabel>
-        <SearchInput
-          id={`${idPrefix}-search`}
-          ariaLabel={t("actions.search")}
-          placeholder={t("report.customerSales.searchPlaceholder")}
-          value={draft.search}
-          onChange={search => onDraftChange(previous => ({ ...previous, search }))}
-        />
+      <Field>
+        <FieldLabel htmlFor={`${idPrefix}-search`}>{t("actions.search")}</FieldLabel>
+        <InputGroup>
+          <InputGroupAddon>
+            <Search />
+          </InputGroupAddon>
+          <InputGroupInput
+            id={`${idPrefix}-search`}
+            type="search"
+            placeholder={t("report.customerSales.searchPlaceholder")}
+            value={draft.search}
+            onChange={event => {
+              const search = event.target.value;
+              onDraftChange(previous => ({ ...previous, search }));
+            }}
+          />
+        </InputGroup>
       </Field>
       <ReportSelectField
         id={`${idPrefix}-order-by`}
@@ -136,8 +141,9 @@ export function CustomerSalesFilterBar({
     <ReportFilterCard
       actions={actions}
       canApply={canApply}
-      className="hidden shrink-0 rounded-none border-x-0 border-t-0 shadow-none lg:block"
-      contentClassName="grid min-w-0 items-end gap-3 px-3 py-3 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-[repeat(7,minmax(0,1fr))_auto]"
+      // shrink-0: Card มี overflow-hidden (min-height ของ flex item = 0) — กันถูกบีบ ดู report-layout.tsx
+      className="hidden shrink-0 shadow-none lg:block"
+      contentClassName="grid items-end gap-3 py-4 lg:grid-cols-3 2xl:grid-cols-[repeat(8,minmax(0,1fr))_auto]"
       loading={loading}
       onApply={onApply}
     >

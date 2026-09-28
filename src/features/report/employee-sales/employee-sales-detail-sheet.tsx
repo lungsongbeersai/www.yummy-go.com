@@ -24,8 +24,9 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { userInitials } from "@/features/settings/user/user-utils";
 import { useResetOnChange } from "@/hooks/use-reset-on-change";
 import { cn } from "@/lib/utils";
-import { formatShortDate, money } from "@/lib/format";
+import { money } from "@/lib/format";
 import type { EmployeeSalesGroupItem, EmployeeSalesOrder, EmployeeSalesRow } from "@/services/report";
+import { formatReportDate } from "@/features/report/shared/report-date-format";
 
 interface OrderGroupBreakdown {
   groupName: string;
@@ -132,11 +133,9 @@ type MobileView = "list" | "detail";
 
 export function EmployeeSalesDetailSheet({
   row,
-  language,
   onOpenChange,
 }: {
   row: EmployeeSalesRow | null;
-  language: string;
   onOpenChange: (open: boolean) => void;
 }) {
   const { t } = useTranslation();
@@ -270,7 +269,6 @@ export function EmployeeSalesDetailSheet({
             <div className="grid min-h-0 flex-1 grid-cols-1 overflow-hidden md:grid-cols-[18rem_minmax(0,1fr)] md:divide-x md:divide-border">
               <div className={cn("min-h-0 flex-col overflow-hidden", mobileView === "list" ? "flex" : "hidden md:flex")}>
                 <EmployeeOrderList
-                  language={language}
                   orders={row.orders}
                   selectedOrderUuid={selectedOrderUuid}
                   onSelect={selectOrder}
@@ -279,7 +277,6 @@ export function EmployeeSalesDetailSheet({
               <div className={cn("min-h-0 flex-col overflow-hidden", mobileView === "detail" ? "flex" : "hidden md:flex")}>
                 <EmployeeOrderDetail
                   breakdowns={selectedBreakdowns}
-                  language={language}
                   order={selectedOrder}
                   onBack={() => setMobileView("list")}
                 />
@@ -293,12 +290,10 @@ export function EmployeeSalesDetailSheet({
 }
 
 function EmployeeOrderList({
-  language,
   orders,
   onSelect,
   selectedOrderUuid,
 }: {
-  language: string;
   orders: EmployeeSalesOrder[];
   onSelect: (order: EmployeeSalesOrder) => void;
   selectedOrderUuid: string | null;
@@ -319,7 +314,6 @@ function EmployeeOrderList({
           {orders.map(order => (
             <EmployeeOrderListItem
               key={order.order_uuid}
-              language={language}
               order={order}
               selected={order.order_uuid === selectedOrderUuid}
               onSelect={() => onSelect(order)}
@@ -336,12 +330,10 @@ function EmployeeOrderList({
 }
 
 function EmployeeOrderListItem({
-  language,
   order,
   onSelect,
   selected,
 }: {
-  language: string;
   order: EmployeeSalesOrder;
   onSelect: () => void;
   selected: boolean;
@@ -367,7 +359,7 @@ function EmployeeOrderListItem({
         </span>
       </div>
       <div className="flex min-w-0 items-center justify-between gap-2 text-xs leading-5 text-muted-foreground">
-        <span className="truncate">{formatShortDate(order.sale_date, language)}</span>
+        <span className="truncate">{formatReportDate(order.sale_date)}</span>
         <span className="flex shrink-0 items-center gap-1 tabular-nums">
           <Package className="size-3 shrink-0" />
           {order.total_qty}
@@ -379,12 +371,10 @@ function EmployeeOrderListItem({
 
 function EmployeeOrderDetail({
   breakdowns,
-  language,
   order,
   onBack,
 }: {
   breakdowns: OrderGroupBreakdown[];
-  language: string;
   order: EmployeeSalesOrder | null;
   onBack: () => void;
 }) {
@@ -415,7 +405,7 @@ function EmployeeOrderDetail({
           </Button>
           <div className="min-w-0">
             <p className="truncate text-sm font-semibold text-foreground" translate="no">{order.order_invoice}</p>
-            <p className="text-xs text-muted-foreground">{formatShortDate(order.sale_date, language)}</p>
+            <p className="text-xs text-muted-foreground">{formatReportDate(order.sale_date)}</p>
           </div>
         </div>
         <div className="flex shrink-0 flex-col items-end gap-0.5">

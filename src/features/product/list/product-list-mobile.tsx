@@ -6,16 +6,23 @@ import { restrictToVerticalAxis } from "@dnd-kit/modifiers";
 import { SortableContext, useSortable, verticalListSortingStrategy } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { AnimatePresence, motion } from "motion/react";
-import { Boxes, ChevronRight, GripVertical } from "lucide-react";
+import { ChevronDown, GripVertical } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Separator } from "@/components/ui/separator";
+import {
+  Item,
+  ItemActions,
+  ItemContent,
+  ItemDescription,
+  ItemFooter,
+  ItemGroup,
+  ItemTitle
+} from "@/components/ui/item";
 import { useReorderSensors } from "@/hooks/use-reorder-sensors";
 import { money } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import {
-  binaryFlag,
   categoryName,
   detailLabel,
   detailStockQty,
@@ -29,10 +36,10 @@ import {
   unitName
 } from "./product-list-utils";
 import { ProductListActions } from "./product-list-actions";
-import { DetailMetric, ProductMedia } from "./product-list-media";
+import { ProductMedia } from "./product-list-media";
 import {
   ProductEnabledSwitch,
-  ProductStatusBadges,
+  ProductNotificationStatus,
   ProductStockBadge,
   ProductStockSelect,
   ProductStockSummaryStatus
@@ -64,48 +71,108 @@ function SortableMobileItem({
     transition,
     opacity: isDragging ? 0.85 : 1
   };
+  const hint = handleHint ?? handleLabel;
   const dragHandle = dragEnabled ? (
     <Button
       aria-label={handleLabel}
       title={handleLabel}
       size="icon-sm"
       type="button"
-      variant="outline"
+      variant="ghost"
       className="cursor-grab touch-none active:cursor-grabbing"
       {...attributes}
       {...listeners}
     >
-      <GripVertical aria-hidden />
+      <GripVertical />
     </Button>
-  ) : onUnavailable ? (
+  ) : (
     <Button
       aria-disabled
-      aria-label={handleHint ?? handleLabel}
-      title={handleHint ?? handleLabel}
+      aria-label={hint}
+      title={hint}
       size="icon-sm"
       type="button"
-      variant="outline"
+      variant="ghost"
+      disabled={!onUnavailable}
       className="opacity-50"
       onClick={onUnavailable}
     >
-      <GripVertical aria-hidden />
+      <GripVertical />
     </Button>
-  ) : (
-    <span title={handleHint ?? handleLabel}>
-      <Button aria-label={handleHint ?? handleLabel} size="icon-sm" type="button" variant="outline" disabled>
-        <GripVertical aria-hidden />
-      </Button>
-    </span>
   );
 
   return (
-    <div ref={setNodeRef} style={style} className={cn(isDragging && "relative z-10")}>
+    <div ref={setNodeRef} role="listitem" style={style} className={cn(isDragging && "relative z-10")}>
       {children(dragHandle)}
     </div>
   );
 }
 
-function ProductMobileCard({
+function ProductDetailItems({ row, workflow }: { row: ProductTableRow; workflow: ProductListWorkflow }) {
+  const sensors = useReorderSensors();
+  const details = productDetails(row);
+  const detailIds = details.map((detail, index) => productDetailUuid(detail) || String(index));
+  const isPromotion = String(workflow.statusSortFk) === "3";
+  const isFoodSet = String(workflow.statusSortFk) === "2";
+
+  function handleDragEnd(event: DragEndEvent) {
+    const { active, over } = event;
+    if (!over || active.id === over.id) return;
+    void workflow.reorderProductDetail(row, String(active.id), String(over.id));
+  }
+
+  return (
+    <DndContext collisionDetection={closestCenter} modifiers={[restrictToVerticalAxis]} sensors={sensors} onDragEnd={handleDragEnd}>
+      <SortableContext items={detailIds} strategy={verticalListSortingStrategy}>
+        <ItemGroup>
+          {details.map((detail, index) => (
+            <SortableMobileItem
+              key={detailIds[index]}
+              dragEnabled={workflow.canSortProductDetails && details.length > 1}
+              handleLabel={workflow.t("common.reorder")}
+              id={detailIds[index]}
+            >
+              {(dragHandle) => (
+                <Item variant="muted" size="sm">
+                  <ItemContent>
+                    <ItemTitle>{detailLabel(detail, index, workflow.language)}</ItemTitle>
+                    <ItemDescription>
+                      {workflow.t("fields.bprice")} {money(detail.pro_detail_bprice)} ·{" "}
+                      {isFoodSet ? workflow.t("product.setPrice") : workflow.t("fields.sprice")}{" "}
+                      {isFoodSet ? money(row.prod_set_price) : money(detail.pro_detail_sprice)} ·{" "}
+                      {workflow.t("fields.qtyStock")} {detailStockQty(detail)}
+                    </ItemDescription>
+                    {isPromotion ? (
+                      <ItemDescription>
+                        {workflow.t("product.buyQty")} {String(detail.pro_detail_cus_qtyBuy ?? 0)} /{" "}
+                        {workflow.t("product.freeQty")} {String(detail.pro_detail_cus_qtyFree ?? 0)} ·{" "}
+                        {shortDate(detail.pro_detail_sDate)} - {shortDate(detail.pro_detail_eDate)} ·{" "}
+                        {shortTime(detail.pro_detail_sTime)} - {shortTime(detail.pro_detail_eTime)}
+                      </ItemDescription>
+                    ) : null}
+                  </ItemContent>
+                  <ItemActions>
+                    {dragHandle}
+                    <ProductEnabledSwitch detail={detail} workflow={workflow} />
+                  </ItemActions>
+                  <ItemFooter>
+                    {isFoodSet ? (
+                      <ProductStockSelect compact detail={detail} prodUuid={row.prod_uuid} workflow={workflow} />
+                    ) : (
+                      <ProductStockBadge detail={detail} workflow={workflow} />
+                    )}
+                  </ItemFooter>
+                </Item>
+              )}
+            </SortableMobileItem>
+          ))}
+        </ItemGroup>
+      </SortableContext>
+    </DndContext>
+  );
+}
+
+function ProductMobileItem({
   dragHandle,
   dragging,
   row,
@@ -116,190 +183,75 @@ function ProductMobileCard({
   row: ProductTableRow;
   workflow: ProductListWorkflow;
 }) {
-  const detailSensors = useReorderSensors();
   const details = productDetails(row);
-  const detailIds = details.map((detail, index) => productDetailUuid(detail) || String(index));
   const expanded = details.length > 0 && !workflow.collapsedProducts.has(row.prod_uuid) && !dragging;
-
-  function handleDetailDragEnd(event: DragEndEvent) {
-    const { active, over } = event;
-    if (!over || active.id === over.id) return;
-    void workflow.reorderProductDetail(row, String(active.id), String(over.id));
-  }
-  const isPromotion = String(workflow.statusSortFk) === "3";
-  const isFoodSet = String(workflow.statusSortFk) === "2";
   const orderPoint = productOrderPoint(row);
   const selected = workflow.selectedRows.has(row.prod_uuid);
+  const name = productName(row, workflow.language);
 
   return (
-    <div
-      className="overflow-hidden rounded-lg border border-border bg-card p-2.5 shadow-sm data-[state=selected]:border-primary/60 data-[state=selected]:bg-primary/5"
-      data-state={selected ? "selected" : undefined}
-    >
-      <div className="flex min-w-0 items-start gap-3">
-        <Checkbox
-          aria-label={workflow.t("common.selectRow", { name: productName(row, workflow.language) })}
-          checked={selected}
-          className="mt-1"
-          onCheckedChange={(checked) => workflow.toggleSelected(row.prod_uuid, checked as boolean)}
-        />
-        <ProductMedia row={row} className="size-16" />
-        <div className="min-w-0 flex-1">
-          <div className="flex min-w-0 items-start justify-between gap-2">
-            <div className="min-w-0">
-              <p className="truncate font-black">{productName(row, workflow.language)}</p>
-              <p className="mt-0.5 truncate text-xs text-muted-foreground">
-                {row.prod_code || "-"} / {unitName(row, workflow.language)}
-              </p>
-              {/* แจ้งเตือนย้ายมาอยู่แถวป้ายกำกับนี้แทนกล่อง metric แยกของตัวเอง — เป็นค่าสถานะ
-                  แบบ badge อยู่แล้วเหมือนหมวดหมู่/สถานะเปิดขาย จัดกลุ่มด้วยกันเป็นธรรมชาติกว่า
-                  เปิดพื้นที่ให้ราคา/สต๊อกด้านล่างกว้างขึ้นแทนที่จะแบ่ง 3 คอลัมน์แคบๆ */}
-              <div className="mt-1 flex flex-wrap items-center gap-1.5">
-                <Badge className="bg-muted text-muted-foreground">{categoryName(row, workflow.language)}</Badge>
-                <Badge className="bg-primary/10 text-primary">{workflow.activeStatusLabel}</Badge>
-                <ProductStatusBadges row={row} workflow={workflow} />
-              </div>
-            </div>
-            <div className="flex shrink-0 items-center gap-1">
-              <Badge>{row.row_number}</Badge>
-              {dragHandle}
-              <ProductListActions row={row} workflow={workflow} />
-            </div>
-          </div>
-        </div>
-      </div>
+    <Item variant="outline">
+      <Checkbox
+        aria-label={workflow.t("common.selectRow", { name })}
+        checked={selected}
+        onCheckedChange={(checked) => workflow.toggleSelected(row.prod_uuid, checked === true)}
+      />
+      <ProductMedia row={row} />
+      <ItemContent>
+        <ItemTitle>{name}</ItemTitle>
+        <ItemDescription>
+          {row.prod_code || "-"} · {unitName(row, workflow.language)} · {categoryName(row, workflow.language)}
+        </ItemDescription>
+      </ItemContent>
+      <ItemActions>
+        {dragHandle}
+        <ProductListActions row={row} workflow={workflow} />
+      </ItemActions>
 
-      <Separator className="my-2.5" />
+      <ItemFooter>
+        <span className="tabular-nums">{productPriceLabel(row)}</span>
+        <ProductStockSummaryStatus row={row} workflow={workflow} />
+      </ItemFooter>
+      <ItemFooter>
+        <ProductNotificationStatus row={row} workflow={workflow} />
+        {orderPoint > 0 ? (
+          <Badge variant="outline">
+            {workflow.t("product.orderPoint")} {orderPoint}
+          </Badge>
+        ) : null}
+      </ItemFooter>
 
-      {/* ราคา/สต๊อกเป็นสองตัวเลขที่ต้องใช้บ่อยที่สุดตอนไล่ดูรายการ — รวมเป็นแถบเดียวคั่นกลาง
-          แทนกล่องเดิม 3 กล่องแยกกัน (ราคา/สต๊อก/แจ้งเตือน) ที่บีบทุกอย่างแคบเท่ากันหมดจนอ่านยาก
-          ทั้งที่ราคา/สต๊อกสำคัญกว่าแจ้งเตือนชัดเจน */}
-      <div className="grid grid-cols-2 divide-x divide-border overflow-hidden rounded-md bg-muted/15 text-xs">
-        <div className="min-w-0 p-2">
-          <p className="text-muted-foreground">{workflow.t("fields.prod_price")}</p>
-          <p className="mt-0.5 truncate font-mono font-semibold tabular-nums">{productPriceLabel(row)}</p>
-        </div>
-        <div className="min-w-0 p-2">
-          <p className="text-muted-foreground">{workflow.t("fields.qtyStock")}</p>
-          <div className="mt-0.5">
-            <ProductStockSummaryStatus row={row} workflow={workflow} />
-          </div>
-          {orderPoint > 0 ? (
-            <p className="mt-0.5 text-muted-foreground">
-              {workflow.t("product.orderPoint")}: {orderPoint}
-            </p>
-          ) : null}
-        </div>
-      </div>
+      {details.length ? (
+        <ItemFooter>
+          <Button
+            type="button"
+            size="sm"
+            variant="ghost"
+            aria-expanded={expanded}
+            onClick={() => workflow.toggleProductDetails(row.prod_uuid)}
+          >
+            {workflow.t("product.sections.details")}
+            <Badge variant="secondary">{details.length}</Badge>
+            <ChevronDown data-icon="inline-end" className={cn("transition-transform", expanded && "rotate-180")} />
+          </Button>
+        </ItemFooter>
+      ) : null}
 
-      <div className="mt-2.5 flex flex-col gap-2">
-        <Button
-          type="button"
-          size="sm"
-          variant="outline"
-          className="w-full justify-between"
-          disabled={!details.length}
-          aria-expanded={expanded}
-          onClick={() => workflow.toggleProductDetails(row.prod_uuid)}
-        >
-          <span className="flex items-center gap-2">
-            <Boxes data-icon="inline-start" />
-            {workflow.t("product.sections.details")} ({details.length})
-          </span>
-          <ChevronRight
-            data-icon="inline-end"
-            className={cn(
-              "transition-transform duration-150 ease-out motion-reduce:transition-none",
-              expanded && "rotate-90"
-            )}
-          />
-        </Button>
-
-        <AnimatePresence initial={false}>
-          {expanded ? (
-            <motion.div
-              key={`${row.prod_uuid}-mobile-details`}
-              initial={workflow.detailMotion.initial}
-              animate={workflow.detailMotion.animate}
-              exit={{ ...workflow.detailMotion.exit, pointerEvents: "none" }}
-              transition={workflow.detailMotion.transition}
-              className="origin-top transform-gpu will-change-transform"
-            >
-              <DndContext
-                collisionDetection={closestCenter}
-                modifiers={[restrictToVerticalAxis]}
-                sensors={detailSensors}
-                onDragEnd={handleDetailDragEnd}
-              >
-              <SortableContext items={detailIds} strategy={verticalListSortingStrategy}>
-              <div className="flex flex-col gap-2">
-                {details.map((detail, index) => (
-                  <SortableMobileItem
-                    key={detailIds[index]}
-                    dragEnabled={workflow.canSortProductDetails && details.length > 1}
-                    handleLabel={workflow.t("common.reorder")}
-                    id={detailIds[index]}
-                  >
-                  {(detailDragHandle) => (
-                  <div className="rounded-md border border-border bg-background p-2.5">
-                    <div className="flex items-start justify-between gap-3">
-                      <div className="min-w-0">
-                        <p className="truncate text-sm font-bold">{detailLabel(detail, index, workflow.language)}</p>
-                        <p className="text-xs text-muted-foreground">
-                          {isFoodSet ? workflow.t("pos.product") : workflow.t("fields.size")}
-                        </p>
-                      </div>
-                      <div className="flex shrink-0 items-center gap-2">
-                        {detailDragHandle}
-                        <ProductEnabledSwitch detail={detail} workflow={workflow} />
-                        <Badge className={binaryFlag(detail.pro_detail_enabled, "1") === "1" ? "bg-primary/10 text-primary" : "bg-secondary text-secondary-foreground"}>
-                          {binaryFlag(detail.pro_detail_enabled, "1") === "1"
-                            ? workflow.t("common.active")
-                            : workflow.t("common.inactive")}
-                        </Badge>
-                      </div>
-                    </div>
-                    <div className="mt-2 grid grid-cols-3 gap-2">
-                      <DetailMetric label={workflow.t("fields.bprice")} value={money(detail.pro_detail_bprice)} />
-                      <DetailMetric
-                        label={isFoodSet ? workflow.t("product.setPrice") : workflow.t("fields.sprice")}
-                        value={isFoodSet ? money(row.prod_set_price) : money(detail.pro_detail_sprice)}
-                      />
-                      <DetailMetric label={workflow.t("fields.qtyStock")} value={String(detailStockQty(detail))} />
-                    </div>
-                    <div className="mt-2">
-                      {isFoodSet ? (
-                        <ProductStockSelect compact detail={detail} prodUuid={row.prod_uuid} workflow={workflow} />
-                      ) : (
-                        <ProductStockBadge compact detail={detail} workflow={workflow} />
-                      )}
-                    </div>
-                    {isPromotion ? (
-                      <div className="mt-2 rounded-md bg-muted/20 p-2 text-xs text-muted-foreground">
-                        <p>
-                          {workflow.t("product.buyQty")}: {String(detail.pro_detail_cus_qtyBuy ?? 0)} /{" "}
-                          {workflow.t("product.freeQty")}: {String(detail.pro_detail_cus_qtyFree ?? 0)}
-                        </p>
-                        <p>
-                          {shortDate(detail.pro_detail_sDate)} - {shortDate(detail.pro_detail_eDate)}
-                        </p>
-                        <p>
-                          {shortTime(detail.pro_detail_sTime)} - {shortTime(detail.pro_detail_eTime)}
-                        </p>
-                      </div>
-                    ) : null}
-                  </div>
-                  )}
-                  </SortableMobileItem>
-                ))}
-              </div>
-              </SortableContext>
-              </DndContext>
-            </motion.div>
-          ) : null}
-        </AnimatePresence>
-      </div>
-    </div>
+      <AnimatePresence initial={false}>
+        {expanded ? (
+          <motion.div
+            key={`${row.prod_uuid}-mobile-details`}
+            initial={workflow.detailMotion.initial}
+            animate={workflow.detailMotion.animate}
+            exit={{ ...workflow.detailMotion.exit, pointerEvents: "none" }}
+            transition={workflow.detailMotion.transition}
+            className="basis-full origin-top"
+          >
+            <ProductDetailItems row={row} workflow={workflow} />
+          </motion.div>
+        ) : null}
+      </AnimatePresence>
+    </Item>
   );
 }
 
@@ -315,38 +267,31 @@ export function ProductListMobile({ workflow }: { workflow: ProductListWorkflow 
   }
 
   return (
-    <div className="min-h-0 flex-1 overflow-y-auto p-3 md:hidden">
-      <DndContext
-        collisionDetection={closestCenter}
-        measuring={{ droppable: { strategy: MeasuringStrategy.Always } }}
-        modifiers={[restrictToVerticalAxis]}
-        sensors={sensors}
-        onDragCancel={() => setDragging(false)}
-        onDragEnd={handleDragEnd}
-        onDragStart={() => setDragging(true)}
-      >
-        <SortableContext
-          items={workflow.filteredRows.map((row) => row.prod_uuid)}
-          strategy={verticalListSortingStrategy}
-        >
-          <div className="flex flex-col gap-2">
-            {workflow.filteredRows.map((row) => (
-              <SortableMobileItem
-                key={row.prod_uuid}
-                dragEnabled={workflow.canSortProducts}
-                handleHint={workflow.t("product.sortHint")}
-                handleLabel={workflow.t("common.reorder")}
-                id={row.prod_uuid}
-                onUnavailable={workflow.notifySortUnavailable}
-              >
-                {(dragHandle) => (
-                  <ProductMobileCard dragHandle={dragHandle} dragging={dragging} row={row} workflow={workflow} />
-                )}
-              </SortableMobileItem>
-            ))}
-          </div>
-        </SortableContext>
-      </DndContext>
-    </div>
+    <DndContext
+      collisionDetection={closestCenter}
+      measuring={{ droppable: { strategy: MeasuringStrategy.Always } }}
+      modifiers={[restrictToVerticalAxis]}
+      sensors={sensors}
+      onDragCancel={() => setDragging(false)}
+      onDragEnd={handleDragEnd}
+      onDragStart={() => setDragging(true)}
+    >
+      <SortableContext items={workflow.filteredRows.map((row) => row.prod_uuid)} strategy={verticalListSortingStrategy}>
+        <ItemGroup>
+          {workflow.filteredRows.map((row) => (
+            <SortableMobileItem
+              key={row.prod_uuid}
+              dragEnabled={workflow.canSortProducts}
+              handleHint={workflow.t("product.sortHint")}
+              handleLabel={workflow.t("common.reorder")}
+              id={row.prod_uuid}
+              onUnavailable={workflow.notifySortUnavailable}
+            >
+              {(dragHandle) => <ProductMobileItem dragHandle={dragHandle} dragging={dragging} row={row} workflow={workflow} />}
+            </SortableMobileItem>
+          ))}
+        </ItemGroup>
+      </SortableContext>
+    </DndContext>
   );
 }

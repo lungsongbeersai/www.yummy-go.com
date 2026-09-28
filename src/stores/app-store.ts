@@ -69,6 +69,18 @@ export const useAppStore = create<AppState>()(
     }),
     {
       name: "yummy-go-app",
+      // v1: ค่าเริ่มต้นของเสียงแจ้งเตือนเปลี่ยนจาก "default" (orderNew1) เป็น "ding"
+      // persist บันทึกค่าเริ่มต้นลง localStorage ตั้งแต่เปิดแอปครั้งแรก ผู้ใช้เดิมที่ไม่เคยเลือกเสียง
+      // จึงมีค่า "default" ค้างอยู่ — ย้ายเป็น "ding" ด้วย (แยกไม่ออกว่าใครตั้งใจเลือก "default" ไว้
+      // แต่ยังเลือกกลับได้จากเมนูในชื่อ "เสียงเดิม")
+      version: 1,
+      migrate: (persistedState, version) => {
+        if (version < 1 && persistedState && typeof persistedState === "object") {
+          const state = persistedState as { orderAlertSound?: unknown };
+          if (state.orderAlertSound === "default") state.orderAlertSound = DEFAULT_ORDER_ALERT_SOUND;
+        }
+        return persistedState as AppState;
+      },
       partialize: ({ theme, themeColor, fontScale, language, orderAlertSound, collapsed }) => ({
         theme,
         themeColor,
