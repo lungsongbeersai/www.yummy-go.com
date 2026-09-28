@@ -55,6 +55,7 @@ function bill(overrides: Partial<CancelHistoryBill>): CancelHistoryBill {
     branchUuid: "",
     cancelReason: "",
     cancelledAt: "",
+    cancelledBy: "",
     cancelledByName: "",
     discountAmount: 0,
     grandTotal: 0,

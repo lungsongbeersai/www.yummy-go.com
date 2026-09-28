@@ -203,10 +203,10 @@ function HistoryListItem({
         <span className={cn("line-clamp-2 text-xs leading-5 wrap-break-word", row.cancelReason ? "text-foreground/80" : "text-muted-foreground italic")}>
           {row.cancelReason || t("cancelHistory.noReason")}
         </span>
-        {row.cancelledByName ? (
+        {row.cancelledByName || row.cancelledBy ? (
           <span className="flex min-w-0 items-center gap-1 text-xs leading-5 text-muted-foreground">
             <UserRound aria-hidden="true" className="size-3 shrink-0" />
-            <span className="truncate">{row.cancelledByName}</span>
+            <span className="truncate">{row.cancelledByName || row.cancelledBy}</span>
           </span>
         ) : null}
       </span>

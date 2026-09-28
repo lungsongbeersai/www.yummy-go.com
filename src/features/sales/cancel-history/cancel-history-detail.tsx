@@ -144,7 +144,7 @@ function CancellationCard({ row }: { row: CancelHistoryBill }) {
         </div>
       </div>
       <dl className="grid grid-cols-1 gap-x-4 gap-y-2 border-t border-destructive/15 pt-3 sm:grid-cols-2">
-        <InfoItem icon={<UserRound />} label={t("cancelHistory.cancelledBy")} value={row.cancelledByName || "-"} />
+        <InfoItem icon={<UserRound />} label={t("cancelHistory.cancelledBy")} value={row.cancelledByName || row.cancelledBy || "-"} />
         <InfoItem icon={<CalendarDays />} label={t("cancelHistory.columns.cancelledAt")} value={cancelledAt} />
       </dl>
     </section>
