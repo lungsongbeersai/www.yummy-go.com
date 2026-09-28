@@ -48,38 +48,46 @@ describe("SCENE_PROFILES", () => {
     expect(SCENE_PROFILES.low).toEqual({
       tier: "low",
       maxDpr: 1,
-      maxPixels: 900_000,
+      maxPixels: 1_000_000,
       antialias: false,
-      stars: 500,
-      dust: 60,
-      bloom: 0
+      shadowMapSize: 0,
+      lite: true,
+      stars: 300,
+      dust: 40,
+      maxFps: 30
     });
     expect(SCENE_PROFILES.medium).toEqual({
       tier: "medium",
-      maxDpr: 1.75,
-      maxPixels: 2_200_000,
-      antialias: false,
-      stars: 1_100,
-      dust: 130,
-      bloom: 0
+      maxDpr: 1.5,
+      maxPixels: 2_000_000,
+      antialias: true,
+      shadowMapSize: 0,
+      lite: false,
+      stars: 600,
+      dust: 70,
+      maxFps: 60
     });
     expect(SCENE_PROFILES.high).toEqual({
       tier: "high",
-      maxDpr: 2.5,
-      maxPixels: 4_000_000,
+      maxDpr: 2,
+      maxPixels: 3_500_000,
       antialias: true,
-      stars: 1_800,
-      dust: 200,
-      bloom: 0.85
+      shadowMapSize: 1024,
+      lite: false,
+      stars: 900,
+      dust: 110,
+      maxFps: 0
     });
     expect(SCENE_PROFILES.ultra).toEqual({
       tier: "ultra",
-      maxDpr: 3,
-      maxPixels: 8_300_000,
+      maxDpr: 2.5,
+      maxPixels: 6_000_000,
       antialias: true,
-      stars: 3_000,
-      dust: 320,
-      bloom: 1.05
+      shadowMapSize: 2048,
+      lite: false,
+      stars: 1_400,
+      dust: 160,
+      maxFps: 0
     });
   });
 
@@ -90,16 +98,23 @@ describe("SCENE_PROFILES", () => {
       expect(tiers[index].maxPixels).toBeGreaterThan(tiers[index - 1].maxPixels);
       expect(tiers[index].stars).toBeGreaterThan(tiers[index - 1].stars);
       expect(tiers[index].dust).toBeGreaterThan(tiers[index - 1].dust);
-      expect(tiers[index].bloom).toBeGreaterThanOrEqual(tiers[index - 1].bloom);
+      expect(tiers[index].shadowMapSize).toBeGreaterThanOrEqual(tiers[index - 1].shadowMapSize);
     }
   });
 
-  it("enables bloom only on the tiers that can afford the extra passes", () => {
-    expect(SCENE_PROFILES.low.bloom).toBe(0);
-    expect(SCENE_PROFILES.medium.bloom).toBe(0);
-    expect(SCENE_PROFILES.high.bloom).toBeGreaterThan(0);
-    // ultra ตรงกับค่าต้นฉบับใน Claude Design (scene3d.js ใช้ 1.05)
-    expect(SCENE_PROFILES.ultra.bloom).toBe(1.05);
+  it("keeps real shadows and the frame cap off the tiers that cannot afford them", () => {
+    expect(SCENE_PROFILES.low.shadowMapSize).toBe(0);
+    expect(SCENE_PROFILES.medium.shadowMapSize).toBe(0);
+    expect(SCENE_PROFILES.high.shadowMapSize).toBeGreaterThan(0);
+    expect(SCENE_PROFILES.low.lite).toBe(true);
+    expect(SCENE_PROFILES.low.maxFps).toBe(30);
+    expect(SCENE_PROFILES.ultra.maxFps).toBe(0);
+  });
+
+  it("never renders a full-screen background above ~6MP, even on ultra", () => {
+    for (const profile of Object.values(SCENE_PROFILES)) {
+      expect(profile.maxPixels).toBeLessThanOrEqual(6_000_000);
+    }
   });
 });
 
@@ -166,26 +181,24 @@ describe("resolveSceneProfile", () => {
 });
 
 describe("calculateSceneDpr", () => {
-  it("renders a 3x phone at native DPR on ultra", () => {
-    expect(calculateSceneDpr(393, 852, 3, SCENE_PROFILES.ultra)).toBe(3);
-  });
-
-  it("fixes the old blurry mobile output — high is far sharper than the previous 1.0 cap", () => {
-    const high = calculateSceneDpr(393, 852, 3, SCENE_PROFILES.high);
-    expect(high).toBe(2.5);
-    expect(calculateSceneDpr(393, 852, 3, SCENE_PROFILES.medium)).toBe(1.75);
+  it("caps a 3x phone at the tier DPR instead of rendering 9x the pixels", () => {
+    expect(calculateSceneDpr(393, 852, 3, SCENE_PROFILES.ultra)).toBe(2.5);
+    expect(calculateSceneDpr(393, 852, 3, SCENE_PROFILES.high)).toBe(2);
+    expect(calculateSceneDpr(393, 852, 3, SCENE_PROFILES.medium)).toBe(1.5);
     expect(calculateSceneDpr(393, 852, 3, SCENE_PROFILES.low)).toBe(1);
   });
 
-  it("renders 4K desktops at native DPR on ultra without exceeding the pixel budget", () => {
+  it("renders 1440p at native DPR on ultra and scales 4K just under native", () => {
+    expect(calculateSceneDpr(2_560, 1_440, 1, SCENE_PROFILES.ultra)).toBe(1);
     const dpr = calculateSceneDpr(3_840, 2_160, 1, SCENE_PROFILES.ultra);
-    expect(dpr).toBe(1);
-    expect(3_840 * 2_160 * dpr ** 2).toBeLessThanOrEqual(SCENE_PROFILES.ultra.maxPixels);
+    expect(dpr).toBeLessThan(1);
+    expect(dpr).toBeGreaterThan(0.8);
+    expect(3_840 * 2_160 * dpr ** 2).toBeLessThanOrEqual(SCENE_PROFILES.ultra.maxPixels + 1);
   });
 
   it("keeps the pixel budget on oversized viewports", () => {
-    const dpr = calculateSceneDpr(5_120, 2_880, 2, SCENE_PROFILES.high);
-    expect(5_120 * 2_880 * dpr ** 2).toBeCloseTo(SCENE_PROFILES.high.maxPixels, 5);
+    const dpr = calculateSceneDpr(3_840, 2_160, 2, SCENE_PROFILES.high);
+    expect(3_840 * 2_160 * dpr ** 2).toBeCloseTo(SCENE_PROFILES.high.maxPixels, 5);
   });
 
   it("never exceeds the real device DPR", () => {

@@ -98,8 +98,36 @@ export const landingUi = {
     en: "Thanks — we'll get back to you shortly.",
     la: "ຂອບໃຈ — ພວກເຮົາຈະຕິດຕໍ່ກັບໄປໄວໆນີ້."
   },
-  scrollHint: { en: "Scroll to explore", la: "ເລື່ອນລົງເພື່ອສຳຫຼວດ" },
-  interactHint: { en: "Click or drag the background", la: "ຄລິກ ຫຼື ລາກພື້ນຫຼັງ" },
+  scrollHint: { en: "Scroll to tour the shop", la: "ເລື່ອນລົງເພື່ອທົວຮ້ານ" },
+  interactHint: {
+    en: "Drag to look around · Click a table",
+    la: "ລາກເພື່ອເບິ່ງຮອບຮ້ານ · ຄລິກທີ່ໂຕະ"
+  },
+  tourRailLabel: { en: "Restaurant tour", la: "ທົວຮ້ານອາຫານ" },
+  tourStopIntro: { en: "Overview", la: "ພາບລວມ" },
+  tourStep: { en: "Stop {current} of {total}", la: "ຈຸດທີ {current} ຈາກ {total}" },
+  tourTryTables: {
+    en: "Try it: click a table in the shop. Green is free, amber has ordered, red needs staff.",
+    la: "ລອງເບິ່ງ: ຄລິກໂຕະໃນຮ້ານ. ສີຂຽວແມ່ນວ່າງ, ສີເຫຼືອງແມ່ນສັ່ງແລ້ວ, ສີແດງແມ່ນເອີ້ນພະນັກງານ."
+  },
+  tourTryQr: {
+    en: "Watch each order fly from the table straight to the kitchen.",
+    la: "ເບິ່ງອໍເດີບິນຈາກໂຕະໄປຫາຄົວໂດຍກົງ."
+  },
+  tourTryPrint: {
+    en: "Every new order lands on the kitchen rail as a printed ticket.",
+    la: "ທຸກອໍເດີໃໝ່ຈະພິມອອກເປັນໃບສັ່ງຢູ່ຮາງໃນຄົວ."
+  },
+  tourTryCounter: {
+    en: "The receipt prints the moment the bill is paid.",
+    la: "ບິນຈະພິມອອກທັນທີທີ່ຊຳລະເງິນ."
+  },
+  tourTryReports: {
+    en: "Today's sales update as each bill is paid.",
+    la: "ຍອດຂາຍມື້ນີ້ອັບເດດທຸກຄັ້ງທີ່ຊຳລະບິນ."
+  },
+  tooltipOpen: { en: "Click to see this feature", la: "ຄລິກເພື່ອເບິ່ງຟີເຈີນີ້" },
+  tooltipTable: { en: "Click to change the table status", la: "ຄລິກເພື່ອປ່ຽນສະຖານະໂຕະ" },
   statFeatures: { en: "Features", la: "ຟີເຈີ" },
   statPlatforms: { en: "Platforms", la: "ແພລດຟອມ" },
   statReports: { en: "Report types", la: "ຊະນິດລາຍງານ" },
@@ -112,9 +140,10 @@ export const landingUi = {
   qualityMedium: { en: "Medium", la: "ປານກາງ" },
   qualityMediumHint: { en: "Balanced", la: "ສົມດຸນ" },
   qualityHigh: { en: "High", la: "ສູງ" },
-  qualityHighHint: { en: "Sharp on retina screens", la: "ຄົມຊັດເທິງຈໍລະອຽດສູງ" },
+  qualityHighHint: { en: "Sharp on retina screens, with shadows", la: "ຄົມຊັດເທິງຈໍລະອຽດສູງ ພ້ອມເງົາ" },
   qualityUltra: { en: "Ultra", la: "ສູງສຸດ" },
-  qualityUltraHint: { en: "Full resolution, needs a strong GPU", la: "ຄວາມລະອຽດເຕັມ ຕ້ອງການ GPU ແຮງ" },
+  qualityUltraHint: { en: "Sharpest image + soft shadows, needs a strong GPU", la: "ຄົມຊັດທີ່ສຸດ + ເງົານຸ່ມ ຕ້ອງການ GPU ແຮງ" },
+  qualityDrawCalls: { en: "draws", la: "draws" },
   qualityFps: { en: "FPS", la: "FPS" },
   qualityStatsHint: { en: "Live frame rate and render scale", la: "ເຟຣມເຣດ ແລະ ຄວາມລະອຽດຈິງ" },
   qualityAdaptive: { en: "Auto-scaled to", la: "ປັບຄວາມລະອຽດເປັນ" },

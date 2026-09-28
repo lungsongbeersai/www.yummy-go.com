@@ -1,12 +1,36 @@
-import type { BufferGeometry, Material, Mesh, Object3D, Sprite, Texture } from "three";
-import type { EffectComposer } from "three/examples/jsm/postprocessing/EffectComposer.js";
-import type { UnrealBloomPass } from "three/examples/jsm/postprocessing/UnrealBloomPass.js";
 import {
-  BLOOM_RADIUS,
-  BLOOM_THRESHOLD,
-  calculateSceneDpr,
-  type SceneProfile
-} from "@/features/landing/scene-quality";
+  ACESFilmicToneMapping,
+  AdditiveBlending,
+  BufferAttribute,
+  BufferGeometry,
+  CanvasTexture,
+  Color,
+  DirectionalLight,
+  DoubleSide,
+  Fog,
+  HemisphereLight,
+  Mesh,
+  MeshBasicMaterial,
+  NeutralToneMapping,
+  PCFShadowMap,
+  PerspectiveCamera,
+  Plane,
+  PMREMGenerator,
+  PointLight,
+  Points,
+  PointsMaterial,
+  Raycaster,
+  RingGeometry,
+  Scene,
+  Spherical,
+  SRGBColorSpace,
+  Vector2,
+  Vector3,
+  WebGLRenderer,
+  type Texture
+} from "three";
+import { RoomEnvironment } from "three/examples/jsm/environments/RoomEnvironment.js";
+import { calculateSceneDpr, type SceneProfile } from "@/features/landing/scene-quality";
 import {
   EMPTY_FPS_SAMPLE,
   getAdaptiveScale,
@@ -14,59 +38,106 @@ import {
   pushFpsSample,
   type FpsSample
 } from "@/features/landing/scene-performance";
-import type { SceneApi, SceneStats } from "@/features/landing/scene-api";
+import {
+  LANDING_TOUR_FEATURE_STOPS,
+  LANDING_TOUR_STOPS,
+  smoothstep,
+  tourPosition,
+  tourSegment,
+  type LandingTourFeatureStop,
+  type LandingTourStop
+} from "@/features/landing/landing-tour";
+import { buildRestaurant, collectDisposables, type RestaurantHotspot } from "@/features/landing/scene-restaurant";
+import type { SceneApi, SceneHotspotEvent, SceneStats } from "@/features/landing/scene-api";
 
 export type { SceneApi, SceneStats } from "@/features/landing/scene-api";
 
 /** จำนวนหน้าต่างวัด FPS ที่ต้องรอหลังปรับ scale ก่อนจะปรับอีกครั้ง (~2 วินาที) */
 const ADAPTIVE_COOLDOWN_WINDOWS = 3;
 
+/** ขยับเกินเท่านี้ (px) = ลาก ไม่ใช่คลิก */
+const CLICK_SLOP = 6;
+
+/** ระหว่างที่เมาส์ค้างอยู่บนวัตถุ ยิง raycast ซ้ำอย่างมากเท่านี้ (วินาที) — กล้องขยับ วัตถุใต้เมาส์อาจเปลี่ยน */
+const HOVER_RECHECK_SECONDS = 0.12;
+
 interface SceneOptions {
   profile: SceneProfile;
   /** โหมด Auto เท่านั้น — ลด/เพิ่ม render scale ตาม FPS ที่วัดได้จริง */
   adaptive?: boolean;
   onStats?: (stats: SceneStats) => void;
+  /** เมาส์ชี้วัตถุในร้าน (null = ไม่ได้ชี้อะไร) */
+  onHotspot?: (hotspot: SceneHotspotEvent | null) => void;
+  /** คลิกวัตถุที่เป็นตัวแทนจุดทัวร์ (ไม่ใช่โต๊ะ) — หน้าเลื่อนทัวร์ไปจุดนั้น */
+  onSelect?: (stop: LandingTourFeatureStop) => void;
 }
 
-interface SatelliteMotion {
-  mesh: Mesh;
-  radius: number;
-  speed: number;
-  phase: number;
-  verticalSpeed: number;
+interface CameraStop {
+  position: [number, number, number];
+  target: [number, number, number];
 }
 
-interface Shockwave {
-  mesh: Mesh;
-  progress: number;
-}
+// มุมกล้องของแต่ละจุดทัวร์ — ลำดับเดียวกับ LANDING_TOUR_STOPS
+// กล้องต้องอยู่ในกรอบเสาไฟ (|x| < 7.5, z < 5) หรือสูงกว่าสายไฟ (y > 5.6) ไม่งั้นหลอดไฟจะบังเต็มจอ
+const CAMERA_STOPS: Record<LandingTourStop, CameraStop> = {
+  intro: { position: [0, 10.4, 19.6], target: [0, 0.6, 0.4] },
+  tables: { position: [-1.6, 6.4, 8.8], target: [0.2, 0.8, 2.4] },
+  qr: { position: [6.4, 3.0, 4.8], target: [4.0, 1.5, 1.6] },
+  print: { position: [6.2, 3.6, 3.4], target: [3.9, 1.4, -3.4] },
+  counter: { position: [-5.4, 3.3, 3.4], target: [-4.6, 1.4, -3.2] },
+  reports: { position: [0.7, 3.2, 1.6], target: [0.4, 1.3, -4.6] }
+};
 
 function makeGlowTexture(): HTMLCanvasElement {
   const canvas = document.createElement("canvas");
-  canvas.width = canvas.height = 256;
+  canvas.width = canvas.height = 128;
   const context = canvas.getContext("2d");
   if (context) {
-    const gradient = context.createRadialGradient(128, 128, 0, 128, 128, 128);
-    gradient.addColorStop(0, "rgba(140,190,255,0.9)");
-    gradient.addColorStop(0.22, "rgba(70,130,246,0.4)");
-    gradient.addColorStop(0.6, "rgba(40,80,200,0.12)");
+    const gradient = context.createRadialGradient(64, 64, 0, 64, 64, 64);
+    gradient.addColorStop(0, "rgba(255,236,200,1)");
+    gradient.addColorStop(0.22, "rgba(255,196,110,0.5)");
+    gradient.addColorStop(0.55, "rgba(255,150,60,0.12)");
     gradient.addColorStop(1, "rgba(0,0,0,0)");
     context.fillStyle = gradient;
-    context.fillRect(0, 0, 256, 256);
+    context.fillRect(0, 0, 128, 128);
   }
   return canvas;
 }
 
-export async function initScene(canvas: HTMLCanvasElement, opts: SceneOptions): Promise<SceneApi | null> {
-  const THREE = await import("three");
-  const coarsePointer = window.matchMedia("(pointer: coarse)").matches;
-  const { profile, adaptive = false, onStats } = opts;
+/** ท้องฟ้ากลางคืนโทนเขียว emerald (เข้มด้านบน → สว่างขึ้นที่ขอบฟ้า) — background texture เต็มจอ ถูกกว่าโดมท้องฟ้าเป็น mesh */
+function makeSkyTexture(): CanvasTexture {
+  const canvas = document.createElement("canvas");
+  canvas.width = 2;
+  canvas.height = 256;
+  const context = canvas.getContext("2d");
+  if (context) {
+    const gradient = context.createLinearGradient(0, 0, 0, 256);
+    gradient.addColorStop(0, "#030d0a");
+    gradient.addColorStop(0.55, "#06201a");
+    gradient.addColorStop(0.82, "#0c3528");
+    gradient.addColorStop(1, "#135040");
+    context.fillStyle = gradient;
+    context.fillRect(0, 0, 2, 256);
+  }
+  const texture = new CanvasTexture(canvas);
+  texture.colorSpace = SRGBColorSpace;
+  return texture;
+}
 
-  let renderer: import("three").WebGLRenderer;
+export async function initScene(canvas: HTMLCanvasElement, opts: SceneOptions): Promise<SceneApi | null> {
+  const coarsePointer = window.matchMedia("(pointer: coarse)").matches;
+  const { profile, adaptive = false, onStats, onHotspot, onSelect } = opts;
+  const shadows = profile.shadowMapSize > 0;
+  // เครื่องที่ตั้งเพดานเฟรมไว้: เว้นเฟรมให้ครบช่วงก่อนวาด (ลบ 1ms กันจังหวะ rAF แกว่งแล้วข้ามเฟรมเกิน)
+  const minFrameMs = profile.maxFps > 0 ? 1000 / profile.maxFps - 1 : 0;
+
+  let renderer: WebGLRenderer;
   try {
-    renderer = new THREE.WebGLRenderer({
+    renderer = new WebGLRenderer({
       canvas,
       antialias: profile.antialias,
+      alpha: false,
+      stencil: false,
       powerPreference: "high-performance"
     });
   } catch {
@@ -74,427 +145,398 @@ export async function initScene(canvas: HTMLCanvasElement, opts: SceneOptions): 
     return null;
   }
 
-  const scene = new THREE.Scene();
-  scene.background = new THREE.Color(0x050810);
-  scene.fog = new THREE.FogExp2(0x050810, 0.02);
+  // Neutral คงสีแบรนด์ (ส้มหญ้าฝรั่น/เขียวหยก) ได้ตรงกว่า ACES ที่ดันส้มไปเหลือง — Lambert (lite) ใช้ ACES ได้ดีกว่าเพราะไม่มี IBL
+  renderer.toneMapping = profile.lite ? ACESFilmicToneMapping : NeutralToneMapping;
+  renderer.toneMappingExposure = profile.lite ? 1.1 : 1;
+  renderer.shadowMap.enabled = shadows;
+  renderer.shadowMap.type = PCFShadowMap;
+  // ของที่สร้างเงาทั้งหมดไม่ขยับ — วาด shadow map ครั้งเดียว แทนการวาดทั้งร้านซ้ำทุกเฟรม
+  renderer.shadowMap.autoUpdate = false;
 
-  const camera = new THREE.PerspectiveCamera(55, 1, 0.1, 200);
-  camera.position.set(0, 0.4, 16);
+  const scene = new Scene();
+  const skyTexture = makeSkyTexture();
+  scene.background = skyTexture;
+  scene.fog = new Fog(new Color(0x0c2f25), 26, 62);
+
+  // IBL จากห้องจำลอง (สร้างครั้งเดียว) ให้แสงสะท้อนนุ่ม ๆ บนโลหะ/จาน/ไม้ขัดเงา — ถูกกว่าไฟจริงเพิ่มหลายดวง
+  let environment: Texture | null = null;
+  if (!profile.lite) {
+    const pmrem = new PMREMGenerator(renderer);
+    const room = new RoomEnvironment();
+    environment = pmrem.fromScene(room, 0.04).texture;
+    room.dispose();
+    pmrem.dispose();
+    scene.environment = environment;
+    scene.environmentIntensity = 0.32;
+  }
+
+  const camera = new PerspectiveCamera(42, 1, 0.1, 140);
 
   let renderScale = 1;
-  let composer: EffectComposer | null = null;
-  let bloomPass: UnrealBloomPass | null = null;
+  let viewportWidth = 1;
+  let viewportHeight = 1;
 
   const resizeRenderer = () => {
-    const width = Math.max(1, window.innerWidth);
-    const height = Math.max(1, window.innerHeight);
-    renderer.setPixelRatio(
-      calculateSceneDpr(width, height, window.devicePixelRatio || 1, profile, renderScale)
-    );
-    renderer.setSize(width, height, false);
-    // composer มี render target ของตัวเอง ต้องตาม pixel ratio ไม่งั้น bloom จะคมไม่เท่าฉาก
-    // setSize ของ composer ส่งขนาด x pixelRatio ต่อให้ทุก pass เอง bloom จึงปรับ target ตามให้แล้ว
-    composer?.setPixelRatio(renderer.getPixelRatio());
-    composer?.setSize(width, height);
-    camera.aspect = width / height;
+    viewportWidth = Math.max(1, window.innerWidth);
+    viewportHeight = Math.max(1, window.innerHeight);
+    renderer.setPixelRatio(calculateSceneDpr(viewportWidth, viewportHeight, window.devicePixelRatio || 1, profile, renderScale));
+    renderer.setSize(viewportWidth, viewportHeight, false);
+    camera.aspect = viewportWidth / viewportHeight;
+    // ต้องตรงกับ breakpoint ของ CSS (819px): จอกว้างข้อความอยู่ซ้าย จึงเลื่อนภาพร้านไปทางขวา
+    // จอแคบการ์ดอยู่ล่าง จึงเลื่อนร้านขึ้นแทน
+    const stacked = viewportWidth < 820;
+    const shiftX = stacked ? 0 : -viewportWidth * 0.15;
+    const shiftY = stacked ? viewportHeight * 0.16 : 0;
+    camera.setViewOffset(viewportWidth, viewportHeight, shiftX, shiftY, viewportWidth, viewportHeight);
     camera.updateProjectionMatrix();
   };
-
-  // Bloom คือสิ่งที่ทำให้เส้น wireframe/วงแหวน/ดาว เรืองแสงแบบต้นฉบับใน Claude Design
-  // three ขนส่ง postprocessing มาในแพ็กเกจอยู่แล้ว จึงไม่ต้องเพิ่ม dependency ใดๆ
-  if (profile.bloom > 0) {
-    try {
-      const [{ EffectComposer: Composer }, { RenderPass }, { UnrealBloomPass: BloomPass }] =
-        await Promise.all([
-          import("three/examples/jsm/postprocessing/EffectComposer.js"),
-          import("three/examples/jsm/postprocessing/RenderPass.js"),
-          import("three/examples/jsm/postprocessing/UnrealBloomPass.js")
-        ]);
-
-      // EffectComposer สร้าง render target เองโดยไม่มี MSAA — ต้องส่งเข้าไปเอง
-      // ไม่งั้น tier ที่เปิด antialias จะเสีย MSAA ไปทันทีที่เปิด bloom
-      const size = renderer.getSize(new THREE.Vector2());
-      const pixelRatio = renderer.getPixelRatio();
-      const target = new THREE.WebGLRenderTarget(
-        Math.max(1, size.width * pixelRatio),
-        Math.max(1, size.height * pixelRatio),
-        { type: THREE.HalfFloatType, samples: profile.antialias ? 4 : 0 }
-      );
-
-      composer = new Composer(renderer, target);
-      composer.addPass(new RenderPass(scene, camera));
-      bloomPass = new BloomPass(
-        new THREE.Vector2(window.innerWidth, window.innerHeight),
-        profile.bloom,
-        BLOOM_RADIUS,
-        BLOOM_THRESHOLD
-      );
-      composer.addPass(bloomPass);
-    } catch (error) {
-      // ฉากยังใช้งานได้เต็มรูปแบบโดยไม่มี bloom จึงไม่ต้องล้มทั้งฉาก
-      console.warn("[scene3d] bloom unavailable - rendering without postprocessing", error);
-      composer = null;
-      bloomPass = null;
-    }
-  }
-
   resizeRenderer();
 
-  scene.add(new THREE.AmbientLight(0x16244a, 1.15));
-  const primaryLight = new THREE.PointLight(0x3b82f6, 1.6, 90);
-  const secondaryLight = new THREE.PointLight(0x22d3ee, 1.2, 90);
-  scene.add(primaryLight, secondaryLight);
-  const directionalLight = new THREE.DirectionalLight(0x7ca6ff, 0.4);
-  directionalLight.position.set(4, 12, 8);
-  scene.add(directionalLight);
-
-  const corePosition = new THREE.Vector3(0, 0.6, -2);
-  const core = new THREE.Group();
-  core.position.copy(corePosition);
-  scene.add(core);
-
-  const inner = new THREE.Mesh(
-    new THREE.IcosahedronGeometry(2.05, 0),
-    new THREE.MeshPhongMaterial({
-      color: 0x0a1f4d,
-      emissive: 0x123c8f,
-      emissiveIntensity: 0.9,
-      shininess: 90,
-      flatShading: true
-    })
-  );
-  core.add(inner);
-
-  const blue = new THREE.Color(0x4c8dff);
-  const cyan = new THREE.Color(0x37e2ff);
-  const wireMaterial = new THREE.LineBasicMaterial({
-    color: 0x4c8dff,
-    transparent: true,
-    opacity: 0.55
-  });
-  const wireSource = new THREE.IcosahedronGeometry(3.05, 1);
-  const wire = new THREE.LineSegments(new THREE.WireframeGeometry(wireSource), wireMaterial);
-  wireSource.dispose();
-  core.add(wire);
-
-  const outerWireSource = new THREE.IcosahedronGeometry(4.05, 1);
-  const outerWire = new THREE.LineSegments(
-    new THREE.WireframeGeometry(outerWireSource),
-    new THREE.LineBasicMaterial({ color: 0x22d3ee, transparent: true, opacity: 0.12 })
-  );
-  outerWireSource.dispose();
-  core.add(outerWire);
-
-  const glowTexture = new THREE.CanvasTexture(makeGlowTexture());
-  const glow: Sprite = new THREE.Sprite(
-    new THREE.SpriteMaterial({
-      map: glowTexture,
-      blending: THREE.AdditiveBlending,
-      transparent: true,
-      opacity: 0.45,
-      depthWrite: false
-    })
-  );
-  glow.scale.set(15, 15, 1);
-  core.add(glow);
-
-  const rings: Mesh[] = [];
-  const ringColors = [0x3b82f6, 0x22d3ee, 0x60a5fa];
-  for (let index = 0; index < 3; index++) {
-    const ring = new THREE.Mesh(
-      new THREE.TorusGeometry(4.5 + index * 0.75, 0.022 + index * 0.008, 8, 200),
-      new THREE.MeshBasicMaterial({
-        color: ringColors[index],
-        transparent: true,
-        opacity: 0.4 - index * 0.09,
-        blending: THREE.AdditiveBlending,
-        depthWrite: false
-      })
-    );
-    ring.rotation.set(1.15 + index * 0.42, 0.32 * index, 0.5 * index);
-    core.add(ring);
-    rings.push(ring);
+  // ---------- lights: ฟ้า/พื้น + ไฟหลักหนึ่งดวง (เงา) + ไฟอุ่นกลางร้านหนึ่งดวง ----------
+  scene.add(new HemisphereLight(0xfff0dc, 0x0b2a20, profile.lite ? 1.6 : 1.15));
+  const key = new DirectionalLight(0xffe8cc, profile.lite ? 1.4 : 1.7);
+  key.position.set(-6, 13, 8);
+  if (shadows) {
+    key.castShadow = true;
+    key.shadow.mapSize.set(profile.shadowMapSize, profile.shadowMapSize);
+    key.shadow.camera.left = -11;
+    key.shadow.camera.right = 11;
+    key.shadow.camera.top = 11;
+    key.shadow.camera.bottom = -11;
+    key.shadow.camera.near = 2;
+    key.shadow.camera.far = 36;
+    key.shadow.bias = -0.0005;
+    key.shadow.normalBias = 0.025;
+    key.shadow.radius = 3;
   }
+  scene.add(key);
+  const warmLight = new PointLight(0xffb45c, 34, 24, 1.5);
+  warmLight.position.set(0, 4.6, 1.6);
+  scene.add(warmLight);
 
-  const satellites: SatelliteMotion[] = [];
-  for (let index = 0; index < 8; index++) {
-    const satellite = new THREE.Mesh(
-      new THREE.OctahedronGeometry(0.14 + (index % 3) * 0.05, 0),
-      new THREE.MeshPhongMaterial({
-        color: 0x0e2a5c,
-        emissive: index % 2 ? 0x22d3ee : 0x3b82f6,
-        emissiveIntensity: 1.6,
-        flatShading: true
-      })
-    );
-    core.add(satellite);
-    satellites.push({
-      mesh: satellite,
-      radius: 4.9 + ((index * 0.37) % 2.3),
-      speed: 0.22 + (index % 4) * 0.09,
-      phase: (index / 8) * Math.PI * 2,
-      verticalSpeed: 0.6 + (index % 3) * 0.5
-    });
+  const glowTexture = new CanvasTexture(makeGlowTexture());
+  glowTexture.colorSpace = SRGBColorSpace;
+  const restaurant = buildRestaurant({ lite: profile.lite, shadows, glowTexture });
+  scene.add(restaurant.root);
+
+  // ---------- sky stars + fireflies ----------
+  const starPositions = new Float32Array(profile.stars * 3);
+  for (let index = 0; index < profile.stars; index++) {
+    const theta = Math.random() * Math.PI * 2;
+    const phi = Math.random() * Math.PI * 0.42;
+    const radius = 70 + Math.random() * 20;
+    starPositions[index * 3] = Math.sin(phi) * Math.cos(theta) * radius;
+    starPositions[index * 3 + 1] = Math.cos(phi) * radius * 0.6 + 8;
+    starPositions[index * 3 + 2] = Math.sin(phi) * Math.sin(theta) * radius;
   }
-
-  const grid = new THREE.GridHelper(120, 60, 0x2451b8, 0x0d1e46);
-  grid.position.y = -7.5;
-  grid.material.transparent = true;
-  grid.material.opacity = 0.32;
-  scene.add(grid);
-
-  const makePoints = (
-    count: number,
-    minRadius: number,
-    maxRadius: number,
-    size: number,
-    opacity: number,
-    map?: Texture
-  ) => {
-    const positions = new Float32Array(count * 3);
-    const colors = new Float32Array(count * 3);
-    const palette = [0x1d4ed8, 0x3b82f6, 0x60a5fa, 0x22d3ee, 0x93c5fd].map(
-      (color) => new THREE.Color(color)
-    );
-    const position = new THREE.Vector3();
-
-    for (let index = 0; index < count; index++) {
-      position
-        .set(Math.random() * 2 - 1, Math.random() * 2 - 1, Math.random() * 2 - 1)
-        .normalize()
-        .multiplyScalar(minRadius + Math.random() * (maxRadius - minRadius));
-      positions[index * 3] = position.x;
-      positions[index * 3 + 1] = position.y * 0.8;
-      positions[index * 3 + 2] = position.z;
-      const color = palette[(Math.random() * palette.length) | 0];
-      const intensity = 0.5 + Math.random() * 0.5;
-      colors[index * 3] = color.r * intensity;
-      colors[index * 3 + 1] = color.g * intensity;
-      colors[index * 3 + 2] = color.b * intensity;
-    }
-
-    const geometry = new THREE.BufferGeometry();
-    geometry.setAttribute("position", new THREE.BufferAttribute(positions, 3));
-    geometry.setAttribute("color", new THREE.BufferAttribute(colors, 3));
-    const material = new THREE.PointsMaterial({
-      size,
-      vertexColors: true,
-      transparent: true,
-      opacity,
-      blending: THREE.AdditiveBlending,
-      depthWrite: false,
-      sizeAttenuation: true,
-      map: map ?? null
-    });
-    if (map) material.alphaTest = 0.01;
-    return new THREE.Points(geometry, material);
-  };
-
-  const stars = makePoints(profile.stars, 9, 36, 0.085, 0.85);
+  const starGeometry = new BufferGeometry();
+  starGeometry.setAttribute("position", new BufferAttribute(starPositions, 3));
+  const stars = new Points(
+    starGeometry,
+    new PointsMaterial({ color: 0xfff1d6, size: 0.35, transparent: true, opacity: 0.8, fog: false, depthWrite: false })
+  );
   scene.add(stars);
-  const dust = makePoints(profile.dust, 6, 24, 0.9, 0.12, glowTexture);
-  scene.add(dust);
 
-  const shockwaves: Shockwave[] = [];
-  for (let index = 0; index < 3; index++) {
-    const shockwave = new THREE.Mesh(
-      new THREE.RingGeometry(0.92, 1, 64),
-      new THREE.MeshBasicMaterial({
-        color: 0x8fc2ff,
-        transparent: true,
-        opacity: 0,
-        blending: THREE.AdditiveBlending,
-        side: THREE.DoubleSide,
-        depthWrite: false
-      })
-    );
-    shockwave.position.copy(corePosition);
-    shockwave.visible = false;
-    scene.add(shockwave);
-    shockwaves.push({ mesh: shockwave, progress: -1 });
+  // หิ่งห้อยหมุนทั้งก้อน — ไม่อัปเดตตำแหน่งทีละจุดบน CPU แล้วส่ง buffer ขึ้น GPU ทุกเฟรม
+  const fireflyCount = profile.dust;
+  const fireflyPositions = new Float32Array(fireflyCount * 3);
+  for (let index = 0; index < fireflyCount; index++) {
+    const angle = Math.random() * Math.PI * 2;
+    const radius = 3 + Math.random() * 10;
+    fireflyPositions[index * 3] = Math.cos(angle) * radius;
+    fireflyPositions[index * 3 + 1] = 0.6 + Math.random() * 5;
+    fireflyPositions[index * 3 + 2] = Math.sin(angle) * radius;
   }
+  const fireflyGeometry = new BufferGeometry();
+  fireflyGeometry.setAttribute("position", new BufferAttribute(fireflyPositions, 3));
+  const fireflyMaterial = new PointsMaterial({
+    map: glowTexture,
+    color: 0xa7f3d0,
+    size: 0.7,
+    transparent: true,
+    opacity: 0.75,
+    blending: AdditiveBlending,
+    depthWrite: false,
+    toneMapped: false
+  });
+  const fireflies = new Points(fireflyGeometry, fireflyMaterial);
+  scene.add(fireflies);
+
+  // ---------- click ripples ----------
+  const rippleGeometry = new RingGeometry(0.9, 1, 48);
+  rippleGeometry.rotateX(-Math.PI / 2);
+  const ripples: Array<{ mesh: Mesh; material: MeshBasicMaterial; progress: number; scale: number }> = [];
+  for (let index = 0; index < 3; index++) {
+    const material = new MeshBasicMaterial({
+      color: 0x6ee7b7,
+      transparent: true,
+      opacity: 0,
+      depthWrite: false,
+      side: DoubleSide,
+      blending: AdditiveBlending,
+      toneMapped: false
+    });
+    const ripple = new Mesh(rippleGeometry, material);
+    ripple.visible = false;
+    scene.add(ripple);
+    ripples.push({ mesh: ripple, material, progress: -1, scale: 1 });
+  }
+
+  const hotspotByProxy = new Map(restaurant.hotspots.map((hotspot) => [hotspot.proxy, hotspot] as const));
+  const proxies = restaurant.hotspots.map((hotspot) => hotspot.proxy);
+
+  const stopVectors = LANDING_TOUR_STOPS.map((stop) => ({
+    position: new Vector3(...CAMERA_STOPS[stop].position),
+    target: new Vector3(...CAMERA_STOPS[stop].target)
+  }));
 
   const targetPointer = { x: 0, y: 0 };
   const currentPointer = { x: 0, y: 0 };
-  const spin = { x: 0, y: 0 };
-  let heroProgress = 0;
-  let totalProgress = 0;
-  let punch = 0;
-  let flash = 0;
-  let hovering = false;
+  const orbit = { yaw: 0, pitch: 0 };
+  let tourProgress = 0;
+  // ค่าที่กล้องใช้จริง — ไล่ตาม tourProgress แบบนุ่ม ๆ เพราะสกรอลล์ด้วยล้อเมาส์มาเป็นขั้น ๆ กล้องจะกระตุกตาม
+  let smoothProgress = 0;
   let scrolling = false;
   let dragging = false;
+  let pointerDown: { x: number; y: number; moved: boolean } | null = null;
   let lastPointerX = 0;
   let lastPointerY = 0;
   let previousUserSelect = "";
+  let needsRaycast = false;
+  let lastRaycastTime = 0;
+  let hovered: RestaurantHotspot | null = null;
+  let lastHotspotKey = "";
   let active = false;
   let disposed = false;
   let animationFrame = 0;
   let resizeFrame = 0;
   let previousFrameTime: number | null = null;
+  let lastRenderAt = 0;
   let elapsedTime = 0;
   let fpsSample: FpsSample = EMPTY_FPS_SAMPLE;
   let measuredFps = 0;
   let adaptiveCooldown = 0;
+  let drawCalls = 0;
+  let triangles = 0;
 
   const readStats = (): SceneStats => ({
     fps: measuredFps,
     dpr: Math.round(renderer.getPixelRatio() * 100) / 100,
     tier: profile.tier,
     adaptive,
-    renderScale
+    renderScale,
+    drawCalls,
+    triangles
   });
-
   const emitStats = () => onStats?.(readStats());
 
-  const raycaster = new THREE.Raycaster();
-  const normalizedPointer = new THREE.Vector2();
-  const lookTarget = new THREE.Vector3();
+  const raycaster = new Raycaster();
+  const normalizedPointer = new Vector2();
+  const cameraPosition = new Vector3();
+  const cameraTarget = new Vector3();
+  const offset = new Vector3();
+  const spherical = new Spherical();
+  const projected = new Vector3();
+  const floorPlane = new Plane(new Vector3(0, 1, 0), 0);
+  const floorHit = new Vector3();
+  const weights = Object.fromEntries(LANDING_TOUR_FEATURE_STOPS.map((stop) => [stop, 0])) as Record<LandingTourFeatureStop, number>;
 
   const isInteractive = (target: EventTarget | null) =>
     target instanceof Element && Boolean(target.closest("a,button,input,textarea,select,label,[data-no-pulse]"));
 
+  const setPointerFromClient = (clientX: number, clientY: number) => {
+    normalizedPointer.set((clientX / viewportWidth) * 2 - 1, -((clientY / viewportHeight) * 2 - 1));
+  };
+
+  // ชนกล่องล่องหนแค่ ~8 กล่อง แทนการไล่ทุกสามเหลี่ยมของร้าน
+  const pickHotspot = (): RestaurantHotspot | null => {
+    raycaster.setFromCamera(normalizedPointer, camera);
+    const hit = raycaster.intersectObjects(proxies, false)[0];
+    return hit ? (hotspotByProxy.get(hit.object as Mesh) ?? null) : null;
+  };
+
+  const spawnRipple = (x: number, z: number, scale = 1) => {
+    const ripple = ripples.find((item) => item.progress < 0) ?? ripples[0];
+    ripple.progress = 0;
+    ripple.scale = scale;
+    ripple.mesh.position.set(x, 0.05, z);
+    ripple.mesh.scale.setScalar(scale);
+    ripple.mesh.visible = true;
+  };
+
   const pulse = () => {
     if (!active || disposed) return;
-    const shockwave = shockwaves.find((item) => item.progress < 0) ?? shockwaves[0];
-    shockwave.progress = 0;
-    shockwave.mesh.scale.set(1, 1, 1);
-    shockwave.mesh.visible = true;
-    punch = 1;
-    flash = 1;
+    spawnRipple(0, 0, 1.5);
   };
 
   const onMouseMove = (event: MouseEvent) => {
-    targetPointer.x = (event.clientX / Math.max(1, window.innerWidth)) * 2 - 1;
-    targetPointer.y = -((event.clientY / Math.max(1, window.innerHeight)) * 2 - 1);
+    targetPointer.x = (event.clientX / viewportWidth) * 2 - 1;
+    targetPointer.y = -((event.clientY / viewportHeight) * 2 - 1);
+    setPointerFromClient(event.clientX, event.clientY);
+    needsRaycast = true;
   };
 
   const onPointerDown = (event: PointerEvent) => {
     if (!active || !event.isPrimary || isInteractive(event.target)) return;
-    dragging = true;
+    pointerDown = { x: event.clientX, y: event.clientY, moved: false };
     lastPointerX = event.clientX;
     lastPointerY = event.clientY;
-    previousUserSelect = document.body.style.userSelect;
-    document.body.style.userSelect = "none";
-    pulse();
   };
 
   const onPointerMove = (event: PointerEvent) => {
-    if (!active || !dragging) return;
-    spin.y += (event.clientX - lastPointerX) * 0.0022;
-    spin.x += (event.clientY - lastPointerY) * 0.0014;
+    if (!active || !pointerDown) return;
+    if (!pointerDown.moved) {
+      if (Math.hypot(event.clientX - pointerDown.x, event.clientY - pointerDown.y) < CLICK_SLOP) return;
+      pointerDown.moved = true;
+      dragging = true;
+      previousUserSelect = document.body.style.userSelect;
+      document.body.style.userSelect = "none";
+    }
+    orbit.yaw = Math.max(-1.3, Math.min(1.3, orbit.yaw - (event.clientX - lastPointerX) * 0.005));
+    orbit.pitch = Math.max(-0.35, Math.min(0.35, orbit.pitch - (event.clientY - lastPointerY) * 0.003));
     lastPointerX = event.clientX;
     lastPointerY = event.clientY;
   };
 
-  const onPointerUp = () => {
-    dragging = false;
-    document.body.style.userSelect = previousUserSelect;
+  const onPointerUp = (event: PointerEvent) => {
+    const down = pointerDown;
+    pointerDown = null;
+    if (dragging) {
+      dragging = false;
+      document.body.style.userSelect = previousUserSelect;
+      return;
+    }
+    if (!down || !active || event.type === "pointercancel") return;
+
+    // คลิกเฉย ๆ (ไม่ได้ลาก): โต๊ะ = เปลี่ยนสถานะ, วัตถุอื่น = พาทัวร์ไปจุดนั้น, พื้นว่าง = ระลอกคลื่น
+    setPointerFromClient(event.clientX, event.clientY);
+    const hotspot = pickHotspot();
+    if (hotspot?.tableIndex !== undefined) {
+      restaurant.cycleTable(hotspot.tableIndex);
+      spawnRipple(hotspot.center.x, hotspot.center.z, 0.9);
+      return;
+    }
+    if (hotspot) {
+      onSelect?.(hotspot.stop);
+      return;
+    }
+    raycaster.setFromCamera(normalizedPointer, camera);
+    if (raycaster.ray.intersectPlane(floorPlane, floorHit) && floorHit.length() < 9.5) spawnRipple(floorHit.x, floorHit.z, 1);
   };
 
   const onOrientation = (event: DeviceOrientationEvent) => {
     if (!active || event.gamma == null || event.beta == null) return;
-    targetPointer.x = Math.max(-1, Math.min(1, event.gamma / 28));
-    targetPointer.y = Math.max(-1, Math.min(1, -(event.beta - 45) / 28));
+    targetPointer.x = Math.max(-1, Math.min(1, event.gamma / 30));
+    targetPointer.y = Math.max(-1, Math.min(1, -(event.beta - 45) / 30));
+  };
+
+  const emitHotspot = () => {
+    if (!onHotspot) return;
+    if (!hovered) {
+      if (lastHotspotKey) {
+        lastHotspotKey = "";
+        onHotspot(null);
+      }
+      return;
+    }
+    projected.copy(hovered.anchor).project(camera);
+    const x = Math.round((projected.x * 0.5 + 0.5) * viewportWidth);
+    const y = Math.round((-projected.y * 0.5 + 0.5) * viewportHeight);
+    const hotspotKey = `${hovered.stop}:${hovered.tableIndex ?? ""}:${x}:${y}`;
+    if (hotspotKey === lastHotspotKey) return;
+    lastHotspotKey = hotspotKey;
+    onHotspot({ stop: hovered.stop, x, y, table: hovered.tableIndex !== undefined });
+  };
+
+  const updateCamera = (deltaSeconds: number, time: number) => {
+    smoothProgress += (tourProgress - smoothProgress) * (1 - Math.exp(-6 * deltaSeconds));
+    if (Math.abs(tourProgress - smoothProgress) < 0.0001) smoothProgress = tourProgress;
+    const position = tourPosition(smoothProgress);
+    const segment = tourSegment(position);
+    const from = stopVectors[segment.from];
+    const to = stopVectors[segment.to];
+    cameraPosition.lerpVectors(from.position, to.position, segment.t);
+    cameraTarget.lerpVectors(from.target, to.target, segment.t);
+
+    LANDING_TOUR_FEATURE_STOPS.forEach((stop, index) => {
+      weights[stop] = smoothstep(1 - Math.abs(position - (index + 1)));
+    });
+
+    // จอแนวตั้งเห็นร้านแคบ — ถอยกล้องออกตามสัดส่วนจอให้ของหลักยังอยู่ในเฟรม
+    const aspect = camera.aspect;
+    const fit = aspect < 1.1 ? 1 + (1.1 - aspect) * 0.95 : 1;
+    const introWeight = 1 - smoothstep(position);
+
+    if (!dragging) {
+      // ปล่อยเมาส์แล้วมุมที่ลากค่อย ๆ คืนสู่มุมทัวร์ — ไม่งั้นการ์ดข้อความจะไม่ตรงกับสิ่งที่เห็น
+      const settle = Math.exp(-(0.7 + (1 - introWeight) * 1.1) * deltaSeconds);
+      orbit.yaw *= settle;
+      orbit.pitch *= settle;
+    }
+
+    offset.subVectors(cameraPosition, cameraTarget).multiplyScalar(fit);
+    spherical.setFromVector3(offset);
+    spherical.theta += orbit.yaw + currentPointer.x * 0.1 + introWeight * Math.sin(time * 0.18) * 0.2;
+    spherical.phi = Math.max(0.32, Math.min(1.42, spherical.phi + orbit.pitch - currentPointer.y * 0.04));
+    offset.setFromSpherical(spherical);
+    camera.position.copy(cameraTarget).add(offset);
+    camera.lookAt(cameraTarget);
   };
 
   const renderFrame = (deltaSeconds: number, time: number) => {
-    const pointerEase = 1 - Math.exp(-3.08 * deltaSeconds);
+    const pointerEase = 1 - Math.exp(-3 * deltaSeconds);
     currentPointer.x += (targetPointer.x - currentPointer.x) * pointerEase;
     currentPointer.y += (targetPointer.y - currentPointer.y) * pointerEase;
-    punch = Math.max(0, punch - deltaSeconds * 2.6);
-    flash = Math.max(0, flash - deltaSeconds * 2.2);
 
-    camera.position.x = currentPointer.x * 1.7;
-    camera.position.y = 0.4 - currentPointer.y * 1.3 - heroProgress * 7;
-    camera.position.z = 16 + heroProgress * 3 - punch * 0.6;
-    lookTarget.set(0, 0.6 - heroProgress * 6.2, -2);
-    camera.lookAt(lookTarget);
+    updateCamera(deltaSeconds, time);
 
-    normalizedPointer.set(targetPointer.x, targetPointer.y);
-    raycaster.setFromCamera(normalizedPointer, camera);
-    // hover เป็นเรื่องของอุปกรณ์ชี้ตำแหน่ง ไม่ใช่ระดับคุณภาพ — จอสัมผัสไม่มี hover จริง
-    hovering =
-      !coarsePointer && heroProgress < 0.5 && raycaster.ray.distanceToPoint(corePosition) < 3.6;
+    // hover เป็นเรื่องของอุปกรณ์ชี้ตำแหน่ง — จอสัมผัสไม่มี hover จริง ระหว่างสกรอลล์/ลากก็ข้าม
+    if (!coarsePointer && !dragging && !scrolling) {
+      if (needsRaycast || (hovered && time - lastRaycastTime > HOVER_RECHECK_SECONDS)) {
+        needsRaycast = false;
+        lastRaycastTime = time;
+        hovered = pickHotspot();
+      }
+    } else if (hovered) {
+      hovered = null;
+    }
+    emitHotspot();
 
-    core.rotation.y += deltaSeconds * 0.12 + spin.y * deltaSeconds * 60;
-    core.rotation.x += deltaSeconds * 0.03 + spin.x * deltaSeconds * 60;
-    // ใช้ exponential decay ไม่ใช่ (1 - k*dt) เพื่อให้ผลลัพธ์เท่ากันทุกเฟรมเรต (60/120/144Hz)
-    const spinDecay = Math.exp(-2.2 * deltaSeconds);
-    spin.x *= spinDecay;
-    spin.y *= spinDecay;
-    inner.rotation.y -= deltaSeconds * 0.2;
-    inner.rotation.x = currentPointer.y * 0.22;
-    outerWire.rotation.y -= deltaSeconds * 0.05;
+    restaurant.animate({ deltaSeconds, time, weights, hovered });
 
-    const targetScale = 1 + (hovering ? 0.06 : 0) + flash * 0.1;
-    core.scale.x += (targetScale - core.scale.x) * (1 - Math.exp(-6 * deltaSeconds));
-    core.scale.y = core.scale.z = core.scale.x;
+    warmLight.intensity = 32 + Math.sin(time * 1.3) * 2;
+    fireflies.rotation.y = time * 0.03;
+    fireflies.position.y = Math.sin(time * 0.6) * 0.15;
+    fireflyMaterial.opacity = 0.6 + Math.sin(time * 1.7) * 0.15;
+    stars.rotation.y = time * 0.003;
 
-    wireMaterial.opacity = Math.min(1, 0.5 + (hovering ? 0.28 : 0) + flash * 0.4);
-    wireMaterial.color.lerp(hovering ? cyan : blue, 1 - Math.exp(-5 * deltaSeconds));
-    glow.material.opacity = 0.4 + Math.sin(time * 1.4) * 0.07 + flash * 0.3 + (hovering ? 0.1 : 0);
-
-    rings.forEach((ring, index) => {
-      ring.rotation.z += deltaSeconds * (0.05 + index * 0.035);
-    });
-    satellites.forEach((satellite) => {
-      const angle = time * satellite.speed + satellite.phase;
-      satellite.mesh.position.set(
-        Math.cos(angle) * satellite.radius,
-        Math.sin(angle * satellite.verticalSpeed) * 1.15,
-        Math.sin(angle) * satellite.radius
-      );
-      satellite.mesh.rotation.y += deltaSeconds * 1.4;
-    });
-
-    stars.rotation.y = time * 0.016 + totalProgress * 1.4;
-    stars.material.opacity = 0.72 + Math.sin(time * 2.3) * 0.12 + flash * 0.25;
-    dust.rotation.y = -time * 0.01 - totalProgress * 0.5;
-
-    primaryLight.position.set(
-      Math.cos(time * 0.3) * 9,
-      5 + Math.sin(time * 0.2) * 2,
-      Math.sin(time * 0.3) * 9
-    );
-    secondaryLight.position.set(
-      Math.cos(time * 0.24 + Math.PI) * 8,
-      -3 + Math.cos(time * 0.31) * 2,
-      Math.sin(time * 0.24 + Math.PI) * 8
-    );
-
-    grid.position.z = (time * 1.4) % 2;
-
-    shockwaves.forEach((shockwave) => {
-      if (shockwave.progress < 0) return;
-      shockwave.progress += deltaSeconds / 0.85;
-      const material = shockwave.mesh.material as import("three").MeshBasicMaterial;
-      if (shockwave.progress >= 1) {
-        shockwave.progress = -1;
-        material.opacity = 0;
-        shockwave.mesh.visible = false;
+    ripples.forEach((ripple) => {
+      if (ripple.progress < 0) return;
+      ripple.progress += deltaSeconds / 0.9;
+      if (ripple.progress >= 1) {
+        ripple.progress = -1;
+        ripple.material.opacity = 0;
+        ripple.mesh.visible = false;
         return;
       }
-      shockwave.mesh.scale.setScalar(1 + shockwave.progress * 14);
-      material.opacity = (1 - shockwave.progress) * 0.8;
-      shockwave.mesh.quaternion.copy(camera.quaternion);
+      ripple.mesh.scale.setScalar(ripple.scale * (1 + ripple.progress * 2.6));
+      ripple.material.opacity = (1 - ripple.progress) * 0.7;
     });
 
-    // ระหว่างสกรอลล์ เบราว์เซอร์ต้องใช้ GPU ไปกับ layout/composite ของหน้าอยู่แล้ว
-    // ข้าม bloom (หลาย pass + render target เพิ่ม) เพื่อให้เฟรมเรตนิ่งแทนที่จะกระตุกเป็นช่วง
-    if (composer && !scrolling) composer.render();
-    else renderer.render(scene, camera);
+    renderer.render(scene, camera);
+    drawCalls = renderer.info.render.calls;
+    triangles = renderer.info.render.triangles;
   };
 
-  // วัด FPS แล้วให้โหมด Auto ปรับ render scale เอง (โหมดที่ผู้ใช้เลือก tier เองจะไม่ถูกแตะ)
   const trackPerformance = (rawSeconds: number) => {
     fpsSample = pushFpsSample(fpsSample, rawSeconds);
     if (!fpsSample.settled) return;
-
     measuredFps = fpsSample.fps;
 
+    // เพดานเฟรมตั้งใจให้ต่ำอยู่แล้ว — ห้ามเอาไปตีความว่าเครื่องช้าแล้วลดความละเอียดซ้ำ
+    const effectiveFps = profile.maxFps > 0 ? (measuredFps / profile.maxFps) * 60 : measuredFps;
     if (adaptive && adaptiveCooldown <= 0) {
-      const nextScale = getAdaptiveScale(renderScale, measuredFps);
+      const nextScale = getAdaptiveScale(renderScale, effectiveFps);
       if (nextScale !== renderScale) {
         renderScale = nextScale;
         adaptiveCooldown = ADAPTIVE_COOLDOWN_WINDOWS;
@@ -503,21 +545,22 @@ export async function initScene(canvas: HTMLCanvasElement, opts: SceneOptions): 
     } else if (adaptiveCooldown > 0) {
       adaptiveCooldown -= 1;
     }
-
     emitStats();
   };
 
   const onAnimationFrame = (now: number) => {
     animationFrame = 0;
     if (!active || disposed) return;
-
-    // ไม่มี frame cap แล้ว — rAF คุมจังหวะตามรีเฟรชจริงของจอ (60/120/144Hz)
+    if (minFrameMs > 0 && now - lastRenderAt < minFrameMs) {
+      animationFrame = window.requestAnimationFrame(onAnimationFrame);
+      return;
+    }
+    lastRenderAt = now;
     const frame = getFrameDelta(now, previousFrameTime);
     previousFrameTime = frame.frameTime;
     elapsedTime += frame.deltaSeconds;
     renderFrame(frame.deltaSeconds, elapsedTime);
     trackPerformance(frame.rawSeconds);
-
     if (active && !disposed) animationFrame = window.requestAnimationFrame(onAnimationFrame);
   };
 
@@ -531,6 +574,14 @@ export async function initScene(canvas: HTMLCanvasElement, opts: SceneOptions): 
     });
   };
 
+  // คอมไพล์ shader ทุกตัวก่อนเฟรมแรก (ขนานกันได้ถ้าไดรเวอร์รองรับ) — กันเฟรมแรก ๆ ค้างตอนเริ่มทัวร์
+  updateCamera(0, 0);
+  try {
+    await renderer.compileAsync(scene, camera);
+  } catch {
+    // คอมไพล์ล่วงหน้าไม่สำเร็จไม่ใช่ข้อผิดพลาดร้ายแรง — ปล่อยให้คอมไพล์ตอนวาดเฟรมแรกตามปกติ
+  }
+
   if (!coarsePointer) window.addEventListener("mousemove", onMouseMove, { passive: true });
   window.addEventListener("pointerdown", onPointerDown, { passive: true });
   window.addEventListener("pointermove", onPointerMove, { passive: true });
@@ -539,13 +590,13 @@ export async function initScene(canvas: HTMLCanvasElement, opts: SceneOptions): 
   window.addEventListener("resize", onResize, { passive: true });
   if (coarsePointer) window.addEventListener("deviceorientation", onOrientation, { passive: true });
 
+  renderer.shadowMap.needsUpdate = true;
   renderFrame(0, elapsedTime);
   emitStats();
 
   return {
-    onScroll(nextHeroProgress, nextTotalProgress) {
-      heroProgress = nextHeroProgress;
-      totalProgress = nextTotalProgress;
+    onScroll(nextTourProgress) {
+      tourProgress = nextTourProgress;
     },
     setActive(nextActive) {
       if (disposed || active === nextActive) return;
@@ -554,19 +605,22 @@ export async function initScene(canvas: HTMLCanvasElement, opts: SceneOptions): 
       fpsSample = EMPTY_FPS_SAMPLE;
 
       if (active) {
+        // กลับมาหลังหายไปนาน ให้กล้องไปอยู่ตำแหน่งปัจจุบันทันที ไม่ต้องเลื่อนผ่านทุกจุดทัวร์
+        smoothProgress = tourProgress;
         animationFrame = window.requestAnimationFrame(onAnimationFrame);
       } else {
         if (animationFrame) window.cancelAnimationFrame(animationFrame);
         animationFrame = 0;
         measuredFps = 0;
+        hovered = null;
+        emitHotspot();
       }
       emitStats();
     },
     setScrolling(nextScrolling) {
       if (disposed || scrolling === nextScrolling) return;
       scrolling = nextScrolling;
-      // รีเซ็ตหน้าต่างวัด เพราะช่วงข้าม/กลับเข้า bloom เป็นคนละภาระงานกัน
-      fpsSample = EMPTY_FPS_SAMPLE;
+      if (scrolling) needsRaycast = false;
     },
     pulse,
     dispose() {
@@ -585,37 +639,16 @@ export async function initScene(canvas: HTMLCanvasElement, opts: SceneOptions): 
       window.removeEventListener("pointercancel", onPointerUp);
       window.removeEventListener("resize", onResize);
       if (coarsePointer) window.removeEventListener("deviceorientation", onOrientation);
-      document.body.style.userSelect = previousUserSelect;
+      if (dragging) document.body.style.userSelect = previousUserSelect;
+      onHotspot?.(null);
 
-      const geometries = new Set<BufferGeometry>();
-      const materials = new Set<Material>();
-      const textures = new Set<Texture>();
-      scene.traverse((object: Object3D) => {
-        const resource = object as Object3D & {
-          geometry?: BufferGeometry;
-          material?: Material | Material[];
-        };
-        if (resource.geometry) geometries.add(resource.geometry);
-        const objectMaterials = Array.isArray(resource.material)
-          ? resource.material
-          : resource.material
-            ? [resource.material]
-            : [];
-        objectMaterials.forEach((material) => {
-          materials.add(material);
-          Object.values(material).forEach((value) => {
-            if (value instanceof THREE.Texture) textures.add(value);
-          });
-        });
-      });
-
+      const { geometries, materials, textures } = collectDisposables(scene);
       geometries.forEach((geometry) => geometry.dispose());
       textures.forEach((texture) => texture.dispose());
       materials.forEach((material) => material.dispose());
-      bloomPass?.dispose();
-      composer?.dispose();
-      composer = null;
-      bloomPass = null;
+      glowTexture.dispose();
+      skyTexture.dispose();
+      environment?.dispose();
       scene.clear();
       renderer.renderLists.dispose();
       renderer.dispose();

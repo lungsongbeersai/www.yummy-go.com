@@ -9,11 +9,15 @@ import {
   canEditPrinter,
   isOwnedPrinter,
   matchesPrinterOwnership,
+  matchesPrinterStatus,
   OWNER_ALL,
   OWNER_MINE,
   OWNER_SHARED,
   printerCategories,
+  printerHealth,
+  printerReachable,
   printerZones,
+  summarizePrinters,
 } from "./printer-page-utils";
 
 describe("agent download URL", () => {
@@ -135,22 +139,51 @@ describe("printers page online-only controls", () => {
   const hookSource = readFileSync(join(testDir, "use-printer-page.ts"), "utf8");
 
   it("keeps setup downloads and add-printer available", () => {
-    const toolbar = pageSource.slice(
-      pageSource.indexOf('<div className="flex shrink-0 items-center gap-2">'),
-    );
-    expect(toolbar).toContain('href="/printers/form"');
+    // ปุ่มดาวน์โหลดทั้ง 4 รวมเข้าเมนู "ติดตั้ง & ดาวน์โหลด" เดียว (printer-downloads-menu.tsx) ที่หน้าเรียกใช้ทุกขนาดจอ
+    const menuSource = readFileSync(join(testDir, "printer-downloads-menu.tsx"), "utf8");
+    expect(pageSource).toContain('href="/printers/form"');
+    expect(pageSource).toContain("<PrinterDownloadsMenu");
     for (const download of [
       "XPRINTER_DRIVER_URL",
       "/downloads/laoscript8.msi",
       "PRINTER_SETUP_DOWNLOAD_URL",
       "printer.downloadAgent",
     ]) {
-      expect(toolbar).toContain(download);
+      expect(menuSource).toContain(download);
     }
   });
 
   it("contains no retired transport-mode hooks", () => {
     expect(hookSource).not.toContain("useOfflineRefetchEpoch");
     expect(pageSource).not.toContain("useOfflineReadOnly");
+  });
+});
+
+describe("printer health", () => {
+  it("separates disabled, unreachable and ready printers", () => {
+    expect(printerHealth({ ...printer(true), is_active: false })).toBe("disabled");
+    expect(printerHealth({ ...printer(false), is_shared: true, agent_online: false })).toBe("unreachable");
+    expect(printerHealth({ ...printer(true), is_local_device: false })).toBe("unreachable");
+    expect(printerHealth({ ...printer(false), is_shared: true, agent_online: true })).toBe("ready");
+    expect(printerHealth(printer())).toBe("ready");
+  });
+
+  it("keeps test prints available on disabled but reachable printers", () => {
+    expect(printerReachable({ ...printer(true), is_active: false })).toBe(true);
+    expect(printerReachable({ ...printer(false), is_shared: true, agent_online: false })).toBe(false);
+    expect(printerReachable({ ...printer(true), is_local_device: false })).toBe(false);
+  });
+
+  it("filters and counts printers by status", () => {
+    const rows = [
+      printer(true),
+      { ...printer(true), is_active: false },
+      { ...printer(false), is_shared: true, agent_online: false },
+    ];
+
+    expect(rows.filter((row) => matchesPrinterStatus(row, "attention"))).toHaveLength(1);
+    expect(rows.filter((row) => matchesPrinterStatus(row, "inactive"))).toHaveLength(1);
+    expect(rows.filter((row) => matchesPrinterStatus(row, "all"))).toHaveLength(3);
+    expect(summarizePrinters(rows)).toEqual({ active: 2, attention: 1, inactive: 1, total: 3 });
   });
 });

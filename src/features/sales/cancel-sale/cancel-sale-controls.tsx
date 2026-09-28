@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { RefreshCcw, SlidersHorizontal } from "lucide-react";
+import { CalendarDays, Info, RefreshCcw, SlidersHorizontal } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { AppPagination } from "@/components/common/app-pagination";
 import { FilterHeaderToolbar } from "@/components/common/filter-header-toolbar";
@@ -10,19 +10,17 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Field, FieldLabel } from "@/components/ui/field";
 import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Sheet, SheetClose, SheetContent, SheetDescription, SheetFooter, SheetHeader, SheetTitle } from "@/components/ui/sheet";
-import { Spinner } from "@/components/ui/spinner";
+import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { cn } from "@/lib/utils";
-import type { CancelableDateOption } from "@/services/cancel";
 import type { PageLimit, SortOrder } from "@/services/shared/types";
 import {
   SALES_LIST_LIMIT_OPTIONS,
-  dateOptionLabel,
-  dateOptionValue,
-  orderOptions
+  orderOptions,
+  type CancelDateChoice
 } from "./cancel-sale-utils";
 
 export function SalesListToolbar({
-  dateOptions,
+  dateChoices,
   dateSelect,
   limit,
   loading,
@@ -32,7 +30,7 @@ export function SalesListToolbar({
   onOrderChange,
   onRefresh
 }: {
-  dateOptions: CancelableDateOption[];
+  dateChoices: CancelDateChoice[];
   dateSelect: string;
   limit: PageLimit;
   loading: boolean;
@@ -45,29 +43,35 @@ export function SalesListToolbar({
   const { t } = useTranslation();
   const [mobileFilterOpen, setMobileFilterOpen] = useState(false);
   const filterLabel = t("settings.filterTitle");
-  const currentDateLabel = dateOptionLabel(
-    dateOptions.find((option) => dateOptionValue(option) === dateSelect) ?? dateOptions[0]
-  );
+  const currentDateLabel = (dateChoices.find((choice) => choice.value === dateSelect) ?? dateChoices[0])?.label ?? "";
 
-  function renderDateSelect(id: string, triggerClassName: string) {
+  // ยกเลิกได้แค่วันนี้/เมื่อวาน — ปุ่มสลับเห็นตัวเลือกทั้งหมดทันทีและกดครั้งเดียว
+  // แทน dropdown ที่ต้องกดเปิดก่อนทั้งที่มีแค่ 2 ค่า
+  function renderDateToggle(itemClassName: string) {
     return (
-      <Select value={dateSelect} onValueChange={onDateChange}>
-        <SelectTrigger id={id} aria-label={t("cancelSale.dateFilter")} className={cn("w-full font-semibold", triggerClassName)}>
-          <SelectValue />
-        </SelectTrigger>
-        <SelectContent position="popper">
-          <SelectGroup>
-            {dateOptions.map((option) => {
-              const value = dateOptionValue(option);
-              return value ? (
-                <SelectItem key={value} value={value}>
-                  {dateOptionLabel(option)}
-                </SelectItem>
-              ) : null;
-            })}
-          </SelectGroup>
-        </SelectContent>
-      </Select>
+      <ToggleGroup
+        aria-label={t("cancelSale.dateFilter")}
+        type="single"
+        value={dateSelect}
+        onValueChange={(value) => {
+          if (value && value !== dateSelect) onDateChange(value);
+        }}
+        className="w-full gap-1 rounded-lg border border-border bg-muted p-1"
+      >
+        {dateChoices.map((choice) => (
+          <ToggleGroupItem
+            key={choice.value}
+            value={choice.value}
+            className={cn(
+              "flex-1 rounded-md px-3 font-semibold data-[state=on]:bg-card data-[state=on]:text-foreground data-[state=on]:shadow-sm",
+              itemClassName
+            )}
+          >
+            <CalendarDays data-icon="inline-start" />
+            {choice.label}
+          </ToggleGroupItem>
+        ))}
+      </ToggleGroup>
     );
   }
 
@@ -142,7 +146,7 @@ export function SalesListToolbar({
               variant="outline"
               onClick={onRefresh}
             >
-              {loading ? <Spinner data-icon="inline-start" /> : <RefreshCcw data-icon="inline-start" />}
+              <RefreshCcw className={loading ? "animate-spin" : undefined} data-icon="inline-start" />
               <span className="sr-only">{t("actions.refresh")}</span>
             </Button>
           }
@@ -152,12 +156,25 @@ export function SalesListToolbar({
       {/* py-0 กัน py ฐานของ Card (16px) บวกซ้อนกับ py ของ CardContent ด้านล่าง — ดู sales-list-filters.tsx */}
       <Card className="hidden min-w-0 shrink-0 rounded-none border-x-0 border-t-0 border-border bg-card py-0 shadow-none lg:block">
         <CardContent className="flex min-w-0 items-center gap-2 px-3 py-2.5">
-          <div className="w-[16rem] max-w-full flex-none xl:w-[18rem]">{renderDateSelect("cancel-sale-desktop-date", "h-9")}</div>
-          <div className="w-28 flex-none">{renderLimitSelect("cancel-sale-desktop-limit", "h-9")}</div>
-          <div className="w-32 flex-none">{renderOrderSelect("cancel-sale-desktop-order", "h-9")}</div>
-          <Button className="ml-auto h-9" disabled={loading} size="sm" type="button" variant="outline" onClick={onRefresh}>
-            {loading ? <Spinner data-icon="inline-start" /> : <RefreshCcw data-icon="inline-start" />}
-            {t("actions.refresh")}
+          <div className="w-64 flex-none xl:w-72">{renderDateToggle("h-7")}</div>
+          <div className="w-24 flex-none">{renderLimitSelect("cancel-sale-desktop-limit", "h-9")}</div>
+          <div className="w-36 flex-none">{renderOrderSelect("cancel-sale-desktop-order", "h-9")}</div>
+          {/* บอกกติกาไว้ตั้งแต่ก่อนเลือกบิล — เดิมรู้ว่ายกเลิกไม่ได้ก็ต่อเมื่อเจอปุ่มที่ถูกปิดไว้แล้ว */}
+          <p className="ml-2 hidden min-w-0 flex-1 items-center gap-1.5 text-xs text-muted-foreground xl:flex">
+            <Info aria-hidden="true" className="size-3.5 shrink-0" />
+            <span className="truncate">{t("cancelSale.cancelUnavailable")}</span>
+          </p>
+          <Button
+            type="button"
+            variant="outline"
+            size="icon"
+            className="ml-auto size-9 shrink-0"
+            aria-label={t("actions.refresh")}
+            title={t("actions.refresh")}
+            disabled={loading}
+            onClick={onRefresh}
+          >
+            <RefreshCcw className={loading ? "animate-spin" : undefined} />
           </Button>
         </CardContent>
       </Card>
@@ -166,12 +183,12 @@ export function SalesListToolbar({
         <SheetContent className="max-h-[85dvh] gap-0 overflow-hidden rounded-t-xl p-0 lg:hidden" side="bottom">
           <SheetHeader className="border-b border-border px-4 py-3 pr-12 text-left">
             <SheetTitle>{filterLabel}</SheetTitle>
-            <SheetDescription>{t("settings.filterDescription")}</SheetDescription>
+            <SheetDescription>{t("cancelSale.cancelUnavailable")}</SheetDescription>
           </SheetHeader>
           <div className="grid gap-4 overflow-y-auto px-4 py-4">
             <Field className="gap-2">
-              <FieldLabel htmlFor="cancel-sale-mobile-date">{t("cancelSale.dateFilter")}</FieldLabel>
-              {renderDateSelect("cancel-sale-mobile-date", "h-11")}
+              <FieldLabel>{t("cancelSale.dateFilter")}</FieldLabel>
+              {renderDateToggle("h-10")}
             </Field>
             <Field className="gap-2">
               <FieldLabel htmlFor="cancel-sale-mobile-limit">{t("common.rowsPerPage")}</FieldLabel>

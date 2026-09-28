@@ -19,12 +19,11 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { AppearanceControls } from "@/components/layout/appearance-controls";
-import { LanguageSwitch } from "@/components/layout/language-switch";
 import { useAppStore, type ThemeMode } from "@/stores/app-store";
 
-// One header entry point for every display preference. Replaces the draggable
-// floating palette button (it sat on top of form fields) and the separate
-// theme/language icon buttons that crowded the header.
+// One header entry point for theme and color preferences. Replaces the draggable
+// floating palette button (it sat on top of form fields). Language has its own
+// header button so cashiers can switch it in one click.
 export function DisplaySettingsMenu({ className }: { className?: string }) {
   const { t } = useTranslation();
   const theme = useAppStore((state) => state.theme);
@@ -70,11 +69,6 @@ export function DisplaySettingsMenu({ className }: { className?: string }) {
         </FieldSet>
         <Separator />
         <AppearanceControls idPrefix="header-appearance-theme-color" />
-        <Separator />
-        <FieldSet>
-          <FieldLegend variant="label">{t("app.appearance.languageLabel")}</FieldLegend>
-          <LanguageSwitch variant="outline" className="w-full *:flex-1" />
-        </FieldSet>
       </PopoverContent>
     </Popover>
   );

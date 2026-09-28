@@ -6,7 +6,8 @@ import type { SceneTier } from "@/lib/scene-quality";
 import { useSceneQualityStore } from "@/stores/scene-quality-store";
 import { readDeviceCapability } from "./scene-device";
 import { resolveSceneTier, SCENE_PROFILES } from "./scene-quality";
-import type { SceneApi, SceneStats } from "./scene-api";
+import type { SceneApi, SceneHotspotEvent, SceneStats } from "./scene-api";
+import type { LandingTourFeatureStop } from "./landing-tour";
 
 const REDUCED_MOTION_QUERY = "(prefers-reduced-motion: reduce)";
 const WIDE_VIEWPORT_QUERY = "(min-width: 1920px)";
@@ -20,8 +21,11 @@ export type SceneStatsListener = (stats: SceneStats | null) => void;
 
 export interface LandingSceneRefs {
   rootRef: RefObject<HTMLDivElement | null>;
+  /** section ทัวร์ — ฉากทำงานเฉพาะตอน section นี้อยู่ในจอ */
   heroRef: RefObject<HTMLElement | null>;
   canvasRef: RefObject<HTMLCanvasElement | null>;
+  onHotspot?: (hotspot: SceneHotspotEvent | null) => void;
+  onSelect?: (stop: LandingTourFeatureStop) => void;
 }
 
 export interface LandingScene {
@@ -48,13 +52,18 @@ function scheduleIdle(callback: () => void): () => void {
 }
 
 /** ถือครองวงจรชีวิตของฉาก 3D ทั้งหมด: เลือก tier, โหลดแบบ lazy, เปิด/ปิด, ทำลาย */
-export function useLandingScene({ rootRef, heroRef, canvasRef }: LandingSceneRefs): LandingScene {
+export function useLandingScene({ rootRef, heroRef, canvasRef, onHotspot, onSelect }: LandingSceneRefs): LandingScene {
   const setting = useSceneQualityStore((state) => state.setting);
   const hydrated = useSceneQualityStore((state) => state.hydrated);
   const sceneRef = useRef<SceneApi | null>(null);
   const statsRef = useRef<SceneStats | null>(null);
   const listenersRef = useRef(new Set<SceneStatsListener>());
   const [tier, setTier] = useState<SceneTier | null>(null);
+  // callback เปลี่ยนได้ทุก render แต่ฉากสร้างครั้งเดียว — ส่งผ่าน ref ไม่ให้ต้องสร้างฉากใหม่
+  const callbacksRef = useRef({ onHotspot, onSelect });
+  useEffect(() => {
+    callbacksRef.current = { onHotspot, onSelect };
+  }, [onHotspot, onSelect]);
 
   const adaptive = setting === "auto";
 
@@ -110,7 +119,8 @@ export function useLandingScene({ rootRef, heroRef, canvasRef }: LandingSceneRef
       sceneRef.current?.setActive(active);
       root.dataset.sceneActive = String(active);
       // ตอนหยุดฉากค้างค่าจางไว้เอง ตอนกลับมาปล่อยให้ CSS/สกรอลล์คุมต่อ
-      canvas.style.opacity = active ? "" : root.dataset.sceneReady === "true" ? "0.18" : "0";
+      // ฉากหยุด = ซ่อนไปเลย — เฟรมค้างจาง ๆ หลัง section อื่นทำให้อ่านข้อความยาก
+      canvas.style.opacity = active ? "" : "0";
     };
 
     const loadScene = async () => {
@@ -128,7 +138,9 @@ export function useLandingScene({ rootRef, heroRef, canvasRef }: LandingSceneRef
         const scene = await initScene(canvas, {
           profile: SCENE_PROFILES[tier],
           adaptive,
-          onStats: publishStats
+          onStats: publishStats,
+          onHotspot: (hotspot) => callbacksRef.current.onHotspot?.(hotspot),
+          onSelect: (stop) => callbacksRef.current.onSelect?.(stop)
         });
         if (!scene) return;
         if (disposed || reducedMotion) {

@@ -42,6 +42,7 @@ import { type BreadcrumbTrailItem } from "@/components/layout/shell-breadcrumbs"
 import { AppSidebar } from "@/components/layout/shell-sidebar-menu";
 import { useAppShellData } from "@/components/layout/use-app-shell-data";
 import { DisplaySettingsMenu } from "@/components/layout/web/display-settings-menu";
+import { LanguageSwitch } from "@/components/layout/language-switch";
 import {
   SidebarStoreHeader,
   SidebarUserMenu,
@@ -173,6 +174,7 @@ function AppHeader({ breadcrumbs }: { breadcrumbs: BreadcrumbTrailItem[] }) {
       <span className="min-w-0 truncate font-medium lg:hidden">{pageTitle}</span>
       <AppBreadcrumb breadcrumbs={breadcrumbs} />
       <div className="ml-auto flex shrink-0 items-center gap-1">
+        <LanguageSwitch compact size="icon" className={controlClassName} />
         <NotificationMenu triggerClassName={controlClassName} />
         <DisplaySettingsMenu className={controlClassName} />
       </div>

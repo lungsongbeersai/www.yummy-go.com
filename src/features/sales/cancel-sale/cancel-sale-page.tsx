@@ -13,7 +13,7 @@ import { useUrlPagination } from "@/hooks/use-url-pagination";
 import { isCapacitorNativeApp } from "@/lib/capacitor-platform";
 import { createMutationUuid } from "@/lib/pos/mutation-identity";
 import type { UrlPaginationState } from "@/lib/url-pagination";
-import type { CancelableBill, CancelableDateOption } from "@/services/cancel";
+import type { CancelableBill } from "@/services/cancel";
 import type { SortOrder } from "@/services/shared/types";
 import { useAppStore } from "@/stores/app-store";
 import { useAuthStore } from "@/stores/auth-store";
@@ -22,7 +22,7 @@ import { usePosStore } from "@/stores/pos-store";
 import { usePrinterStore } from "@/stores/printer-store";
 import { useToastStore } from "@/stores/toast-store";
 import { CancelBillDialog } from "./cancel-bill-dialog";
-import { SalesBillDetailPanel, SalesBillMobileSheet } from "./sales-bill-detail";
+import { SalesBillDetailDrawer, SalesBillDetailPanel } from "./sales-bill-detail";
 import { SalesBillListPanel } from "./cancel-sale-cards";
 import { SalesListToolbar } from "./cancel-sale-controls";
 import {
@@ -32,7 +32,7 @@ import {
   billIsSelected,
   billUuid,
   buildSalesListInvoicePrintData,
-  dateOptionValue,
+  cancelDateChoices,
   pageBounds,
   shouldOpenInitialCancelDialog,
   shouldOpenMobileDetail
@@ -96,10 +96,14 @@ export function CancelSalePage({
   const safeTotalPages = Math.max(1, totalPages);
   const reasonInvalid = reasonTouched && !cancelReason.trim();
 
-  const safeDateOptions = useMemo<CancelableDateOption[]>(() => {
-    const options = dateOptions.length ? dateOptions : [{ date_select: INITIAL_DATE_SELECT, label: t("cancelSale.today") }];
-    const selectedExists = options.some((option) => dateOptionValue(option) === dateSelect);
-    return selectedExists ? options : [{ date_select: dateSelect, label: dateSelect }, ...options];
+  const dateChoices = useMemo(() => {
+    const choices = cancelDateChoices(dateOptions, {
+      today: t("cancelSale.today"),
+      yesterday: t("cancelSale.yesterday")
+    });
+    return choices.some((choice) => choice.value === dateSelect)
+      ? choices
+      : [{ value: dateSelect, label: dateSelect }, ...choices];
   }, [dateOptions, dateSelect, t]);
 
   const load = useCallback(
@@ -348,7 +352,7 @@ export function CancelSalePage({
     // เต็มหน้าจอแบบ /sales/sales-list: toolbar ลอยอยู่บนแยกจากแผงลิสต์ ไม่ใช่ header ใหญ่ + section เดียว
     <div className="flex h-full min-h-0 flex-col overflow-hidden bg-muted/20">
       <SalesListToolbar
-        dateOptions={safeDateOptions}
+        dateChoices={dateChoices}
         dateSelect={dateSelect}
         limit={limit}
         loading={loading || detailLoading}
@@ -386,7 +390,7 @@ export function CancelSalePage({
         />
       </div>
 
-      <SalesBillMobileSheet
+      <SalesBillDetailDrawer
         bill={detailSource}
         canCancel={detailCanCancel}
         canReprintReceipt={canReprintReceipt}

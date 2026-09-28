@@ -13,11 +13,14 @@ import {
   agentDownloadUrl,
   categoryLabel,
   matchesPrinterOwnership,
+  matchesPrinterStatus,
   OWNER_ALL,
   type PrinterOwnerFilter,
+  type PrinterStatusFilter,
   printerCategories,
   roleLabel,
   STATUS_ALL,
+  summarizePrinters,
   TYPE_ALL,
 } from "./printer-page-utils";
 
@@ -57,7 +60,7 @@ export function usePrinterPage() {
   const [togglingUuid, setTogglingUuid] = useState("");
   const [searchText, setSearchText] = useState("");
   const [typeFilter, setTypeFilter] = useState(TYPE_ALL);
-  const [statusFilter, setStatusFilter] = useState(STATUS_ALL);
+  const [statusFilter, setStatusFilter] = useState<PrinterStatusFilter>(STATUS_ALL);
   const [ownerFilter, setOwnerFilter] = useState<PrinterOwnerFilter>(OWNER_ALL);
   const [agentFilesFailed, setAgentFilesFailed] = useState(false);
 
@@ -97,9 +100,7 @@ export function usePrinterPage() {
       .filter((printer) => {
         const matchesType =
           typeFilter === TYPE_ALL || printer.connect_type === typeFilter;
-        const matchesStatus =
-          statusFilter === STATUS_ALL ||
-          (statusFilter === "active" ? printer.is_active : !printer.is_active);
+        const matchesStatus = matchesPrinterStatus(printer, statusFilter);
         const matchesOwner = matchesPrinterOwnership(printer, ownerFilter);
         const roleText = printer.role_codes
           .map((code) => roleLabel(code, roles))
@@ -137,6 +138,8 @@ export function usePrinterPage() {
     statusFilter,
     typeFilter,
   ]);
+  // ตัวเลขบนไทล์สถานะนับจากทุกเครื่อง ไม่ใช่เฉพาะที่ผ่านตัวกรอง — ไทล์เองคือตัวกรองสถานะ
+  const summary = useMemo(() => summarizePrinters(printers), [printers]);
   const pageStart = filteredRows.length ? 1 : 0;
   const pageEnd = filteredRows.length;
   const agentStatusLabel = agentError ?? t(`printer.status.${agentStatus}`);
@@ -323,7 +326,9 @@ export function usePrinterPage() {
     filteredRows,
     pageStart,
     pageEnd,
+    agentStatus,
     agentStatusLabel,
+    summary,
     loading,
     deleteTarget,
     testingUuid,

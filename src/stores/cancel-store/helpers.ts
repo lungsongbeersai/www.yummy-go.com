@@ -18,6 +18,8 @@ export interface CancelHistoryBill {
   branchUuid: string;
   cancelReason: string;
   cancelledAt: string;
+  /** ชื่อ/อีเมลผู้กดยกเลิก — "" เมื่อ backend รุ่นเก่ายังไม่ส่ง order_cancelled_by_name */
+  cancelledByName: string;
   discountAmount: number;
   grandTotal: number;
   invoice: string;
@@ -88,6 +90,7 @@ function normalizeCancelledBill(row: CancelledBill): CancelHistoryBill {
     branchUuid: textValue(row.branch_uuid_fk),
     cancelReason: textValue(row.order_cancel_reason),
     cancelledAt: textValue(row.order_cancelled_at),
+    cancelledByName: textValue(row.order_cancelled_by_name),
     discountAmount: numberValue(row.order_discount_amount),
     grandTotal: numberValue(row.order_grand_total),
     invoice: textValue(row.order_invoice),

@@ -76,7 +76,7 @@ export function LandingQualitySwitch({ language, tier, subscribeStats }: Landing
   const activeTierLabel = tier ? text(TIER_LABEL[tier]) : "—";
   const statusText =
     stats && stats.fps > 0
-      ? `${stats.fps} ${text(landingUi.qualityFps)} · ${stats.dpr.toFixed(2)}×`
+      ? `${stats.fps} ${text(landingUi.qualityFps)} · ${stats.dpr.toFixed(2)}× · ${stats.drawCalls} ${text(landingUi.qualityDrawCalls)}`
       : text(landingUi.qualityOff);
 
   return (

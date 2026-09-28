@@ -18,10 +18,14 @@ export interface SceneProfile {
   maxPixels: number;
   /** MSAA เป็น context-creation parameter ของ WebGL เปลี่ยนกลางทางไม่ได้ ต้อง remount canvas */
   antialias: boolean;
+  /** ขนาด shadow map (0 = ไม่มีเงาจริง ใช้เงาปลอมใต้วัตถุอย่างเดียว) — เรนเดอร์ครั้งเดียวตอนสร้างฉาก */
+  shadowMapSize: number;
+  /** true = วัสดุ Lambert + ไม่มี environment map (ถูกกว่า PBR ราวครึ่งต่อพิกเซล) */
+  lite: boolean;
   stars: number;
   dust: number;
-  /** ความแรง UnrealBloom (0 = ปิด) — ต้นฉบับใน Claude Design ใช้ 1.05 บนเดสก์ท็อป */
-  bloom: number;
+  /** เพดานเฟรมเรต (0 = ตามรีเฟรชจอ) — เครื่องอ่อนได้ 30fps ที่นิ่ง ดีกว่า 40–50fps ที่กระตุก */
+  maxFps: number;
 }
 
 export interface DeviceCapability {
@@ -36,53 +40,58 @@ export interface DeviceCapability {
 
 /**
  * งบของแต่ละ tier ตั้งจากพิกเซลจริงที่ต้องเรนเดอร์ ไม่ใช่จาก "มือถือ/เดสก์ท็อป"
- * - low     ~0.9MP  กู้เครื่องอ่อน
- * - medium  ~2.2MP  โทรศัพท์ทั่วไปได้ DPR 1.75 (เดิมติดที่ 1.0 จึงเบลอ)
- * - high    ~4MP    โทรศัพท์ DPR 3 ได้ 2.5, จอ 1080p/Retina ได้ native
- * - ultra   ~8.3MP  = 4K พอดี → จอ 4K และมือถือ 3x เรนเดอร์ที่ native DPR ได้
+ * ฉากนี้เป็นพื้นหลังเต็มจอที่วาดทุกเฟรม — งบเดิม (ultra 8.3MP = 4K native + bloom) คือต้นเหตุหลักที่กระตุก
+ * - low     ~1MP    Lambert, ไม่มีเงา, 30fps
+ * - medium  ~2MP    PBR + MSAA, ไม่มีเงาจริง
+ * - high    ~3.5MP  + เงา 1024 (เรนเดอร์ครั้งเดียว ไม่ใช่ทุกเฟรม)
+ * - ultra   ~6MP    + เงา 2048 — จอ 1440p/Retina ได้ native, 4K ลดสเกลลงเล็กน้อย
  */
 export const SCENE_PROFILES = {
   low: {
     tier: "low",
     maxDpr: 1,
-    maxPixels: 900_000,
+    maxPixels: 1_000_000,
     antialias: false,
-    stars: 500,
-    dust: 60,
-    bloom: 0
+    shadowMapSize: 0,
+    lite: true,
+    stars: 300,
+    dust: 40,
+    maxFps: 30
   },
   medium: {
     tier: "medium",
-    maxDpr: 1.75,
-    maxPixels: 2_200_000,
-    antialias: false,
-    stars: 1_100,
-    dust: 130,
-    bloom: 0
+    maxDpr: 1.5,
+    maxPixels: 2_000_000,
+    antialias: true,
+    shadowMapSize: 0,
+    lite: false,
+    stars: 600,
+    dust: 70,
+    maxFps: 60
   },
   high: {
     tier: "high",
-    maxDpr: 2.5,
-    maxPixels: 4_000_000,
+    maxDpr: 2,
+    maxPixels: 3_500_000,
     antialias: true,
-    stars: 1_800,
-    dust: 200,
-    bloom: 0.85
+    shadowMapSize: 1024,
+    lite: false,
+    stars: 900,
+    dust: 110,
+    maxFps: 0
   },
   ultra: {
     tier: "ultra",
-    maxDpr: 3,
-    maxPixels: 8_300_000,
+    maxDpr: 2.5,
+    maxPixels: 6_000_000,
     antialias: true,
-    stars: 3_000,
-    dust: 320,
-    bloom: 1.05
+    shadowMapSize: 2048,
+    lite: false,
+    stars: 1_400,
+    dust: 160,
+    maxFps: 0
   }
 } as const satisfies Record<SceneTier, SceneProfile>;
-
-/** ค่า radius/threshold ของ UnrealBloom — ตรงกับต้นฉบับ scene3d.js ใน Claude Design */
-export const BLOOM_RADIUS = 0.55;
-export const BLOOM_THRESHOLD = 0.2;
 
 /** ต่ำกว่านี้ภาพเละจนไม่ช่วยอะไร ยอมเฟรมตกดีกว่า */
 export const MIN_SCENE_DPR = 0.5;

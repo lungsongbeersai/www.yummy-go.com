@@ -1,7 +1,8 @@
 "use client";
 
+import type { ReactNode } from "react";
 import { useTranslation } from "react-i18next";
-import { Apple, Download, MonitorDown } from "lucide-react";
+import { Apple, Download, Languages, MonitorDown, Settings2, Wrench } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -30,6 +31,28 @@ export function AgentPlatformIcon({ platform }: { platform: string }) {
   return <Download aria-hidden="true" />;
 }
 
+interface AgentFile {
+  agent_file_uuid: string;
+  download_url?: string;
+  file_name: string;
+  file_platform: string;
+}
+
+// ข้อความรองใต้ชื่อไฟล์ — เดิมเป็นปุ่มเรียงกัน 4 ปุ่มบนหัวหน้า ("ติดตั้ง Driver", "ดาวน์โหลด Agent",
+// "Lao Script 8", "Xprinter Utility") โดยไม่บอกว่าแต่ละไฟล์ใช้ทำอะไร คนตั้งเครื่องครั้งแรกเลือกไม่ถูก
+function MenuFileLabel({ hint, title }: { hint: string; title: ReactNode }) {
+  return (
+    <span className="flex min-w-0 flex-col">
+      <span className="truncate font-semibold">{title}</span>
+      <span className="text-xs text-muted-foreground">{hint}</span>
+    </span>
+  );
+}
+
+/**
+ * ไฟล์ติดตั้งทั้งหมดรวมอยู่ในเมนูเดียวทุกขนาดจอ — Agent อยู่บนสุดเพราะต้องมีก่อนเครื่องพิมพ์จะทำงานได้
+ * รายการ Agent โหลดจาก backend ตอนเปิดเมนู (onAgentOpenChange) ส่วนที่เหลือเป็นไฟล์ static ของเว็บ/ลิงก์ภายนอก
+ */
 export function PrinterDownloadsMenu({
   activeAgentFiles,
   agentFilesFailed,
@@ -38,19 +61,16 @@ export function PrinterDownloadsMenu({
   onDriverDownload,
   onLaoFontDownload,
   onPrinterSetupDownload,
+  triggerClassName,
 }: {
-  activeAgentFiles: Array<{
-    agent_file_uuid: string;
-    download_url?: string;
-    file_name: string;
-    file_platform: string;
-  }>;
+  activeAgentFiles: AgentFile[];
   agentFilesFailed: boolean;
   loadingAgentFiles: boolean;
   onAgentOpenChange: (open: boolean) => void;
   onDriverDownload: () => void;
   onLaoFontDownload: () => void;
   onPrinterSetupDownload: () => void;
+  triggerClassName?: string;
 }) {
   const { t } = useTranslation();
 
@@ -58,52 +78,17 @@ export function PrinterDownloadsMenu({
     <DropdownMenu onOpenChange={onAgentOpenChange}>
       <DropdownMenuTrigger asChild>
         <Button
-          className="shadow-sm"
-          size="sm"
+          className={triggerClassName}
           type="button"
           variant="outline"
-          aria-label={t("printer.downloadsMenu")}
+          aria-label={t("printer.setupMenu")}
         >
-          <Download data-icon="inline-start" />
-          <span className="hidden sm:inline">{t("printer.downloadsMenu")}</span>
+          <Settings2 data-icon="inline-start" />
+          <span className="hidden sm:inline">{t("printer.setupMenu")}</span>
         </Button>
       </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className="w-72">
-        <DropdownMenuGroup>
-          <DropdownMenuLabel>{t("printer.downloadsMenu")}</DropdownMenuLabel>
-          <DropdownMenuItem asChild>
-            <a
-              href={XPRINTER_DRIVER_URL}
-              download={XPRINTER_DRIVER_FILE_NAME}
-              onClick={onDriverDownload}
-            >
-              <Download />
-              {t("printer.installDriver")}
-            </a>
-          </DropdownMenuItem>
-          <DropdownMenuItem asChild>
-            <a
-              href="/downloads/laoscript8.msi"
-              download
-              onClick={onLaoFontDownload}
-            >
-              <Download />
-              {t("printer.downloadLaoFont")}
-            </a>
-          </DropdownMenuItem>
-          <DropdownMenuItem asChild>
-            <a
-              href={PRINTER_SETUP_DOWNLOAD_URL}
-              target="_blank"
-              rel="noreferrer"
-              onClick={onPrinterSetupDownload}
-            >
-              <Download />
-              {t("printer.downloadPrinterSetup")}
-            </a>
-          </DropdownMenuItem>
-        </DropdownMenuGroup>
-        <DropdownMenuSeparator />
+      <DropdownMenuContent align="end" className="w-80">
+        <p className="px-2 pt-1.5 pb-1 text-xs text-muted-foreground">{t("printer.setupMenuHint")}</p>
         <DropdownMenuGroup>
           <DropdownMenuLabel>{t("printer.downloadAgent")}</DropdownMenuLabel>
           {loadingAgentFiles ? (
@@ -138,14 +123,10 @@ export function PrinterDownloadsMenu({
                     }}
                   >
                     <AgentPlatformIcon platform={file.file_platform} />
-                    <span className="flex min-w-0 flex-col">
-                      <span className="truncate font-semibold">
-                        {platformLabel}
-                      </span>
-                      <span className="truncate text-xs text-muted-foreground">
-                        {file.file_name}
-                      </span>
-                    </span>
+                    <MenuFileLabel
+                      title={`${t("printer.agent")} · ${platformLabel}`}
+                      hint={file.file_name || t("printer.agentFileHint")}
+                    />
                   </a>
                 </DropdownMenuItem>
               );
@@ -155,6 +136,41 @@ export function PrinterDownloadsMenu({
               {t("printer.noAgentFiles")}
             </DropdownMenuItem>
           )}
+        </DropdownMenuGroup>
+        <DropdownMenuSeparator />
+        <DropdownMenuGroup>
+          <DropdownMenuLabel>{t("printer.downloadsMenu")}</DropdownMenuLabel>
+          <DropdownMenuItem asChild>
+            <a
+              href={XPRINTER_DRIVER_URL}
+              download={XPRINTER_DRIVER_FILE_NAME}
+              onClick={onDriverDownload}
+            >
+              <Download />
+              <MenuFileLabel title={t("printer.installDriver")} hint={t("printer.driverHint")} />
+            </a>
+          </DropdownMenuItem>
+          <DropdownMenuItem asChild>
+            <a
+              href="/downloads/laoscript8.msi"
+              download
+              onClick={onLaoFontDownload}
+            >
+              <Languages />
+              <MenuFileLabel title={t("printer.downloadLaoFont")} hint={t("printer.laoFontHint")} />
+            </a>
+          </DropdownMenuItem>
+          <DropdownMenuItem asChild>
+            <a
+              href={PRINTER_SETUP_DOWNLOAD_URL}
+              target="_blank"
+              rel="noreferrer"
+              onClick={onPrinterSetupDownload}
+            >
+              <Wrench />
+              <MenuFileLabel title={t("printer.downloadPrinterSetup")} hint={t("printer.setupUtilityHint")} />
+            </a>
+          </DropdownMenuItem>
         </DropdownMenuGroup>
       </DropdownMenuContent>
     </DropdownMenu>

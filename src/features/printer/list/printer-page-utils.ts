@@ -146,3 +146,58 @@ export function agentDownloadUrl(
     return `${downloadUrl}${separator}agent_download=${encodeURIComponent(String(cacheBust))}`;
   }
 }
+
+export const STATUS_ACTIVE = "active";
+export const STATUS_INACTIVE = "inactive";
+export const STATUS_ATTENTION = "attention";
+export type PrinterStatusFilter =
+  | typeof STATUS_ALL
+  | typeof STATUS_ACTIVE
+  | typeof STATUS_INACTIVE
+  | typeof STATUS_ATTENTION;
+
+export type PrinterHealth = "ready" | "disabled" | "unreachable";
+
+/**
+ * สถานะที่พนักงานต้องรู้จากการมองการ์ดครั้งเดียว — "unreachable" = เปิดใช้อยู่แต่เครื่องนี้สั่งพิมพ์ไม่ถึง
+ * (เครื่องที่แชร์มาแต่ Agent เจ้าของออฟไลน์ หรือเป็นเครื่องของอุปกรณ์อื่นที่ไม่ได้ต่อกับเครื่องนี้)
+ * เงื่อนไขเดียวกับที่ปิดปุ่มทดสอบพิมพ์ในตาราง/การ์ดมาตลอด แค่ยกขึ้นมาเป็นสถานะให้เห็นก่อนกด
+ */
+export function printerHealth(printer: Printer): PrinterHealth {
+  if (!printer.is_active) return "disabled";
+  if (printer.is_shared === true && printer.agent_online === false) return "unreachable";
+  if (printer.is_shared !== true && printer.is_local_device === false) return "unreachable";
+  return "ready";
+}
+
+/** ทดสอบพิมพ์/ลิ้นชักได้เฉพาะเครื่องที่เครื่องนี้ส่งงานถึง — ไม่ขึ้นกับเปิด/ปิดใช้ (พฤติกรรมเดิม) */
+export function printerReachable(printer: Printer) {
+  if (printer.is_shared === true) return printer.agent_online !== false;
+  return printer.is_local_device !== false;
+}
+
+export function matchesPrinterStatus(printer: Printer, filter: string) {
+  if (filter === STATUS_ACTIVE) return printer.is_active;
+  if (filter === STATUS_INACTIVE) return !printer.is_active;
+  if (filter === STATUS_ATTENTION) return printerHealth(printer) === "unreachable";
+  return true;
+}
+
+export interface PrinterSummary {
+  active: number;
+  attention: number;
+  inactive: number;
+  total: number;
+}
+
+export function summarizePrinters(printers: Printer[]): PrinterSummary {
+  return printers.reduce<PrinterSummary>(
+    (summary, printer) => ({
+      active: summary.active + (printer.is_active ? 1 : 0),
+      attention: summary.attention + (printerHealth(printer) === "unreachable" ? 1 : 0),
+      inactive: summary.inactive + (printer.is_active ? 0 : 1),
+      total: summary.total + 1,
+    }),
+    { active: 0, attention: 0, inactive: 0, total: 0 },
+  );
+}
