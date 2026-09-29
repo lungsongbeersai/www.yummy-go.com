@@ -33,7 +33,7 @@ export function CartNoteDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="w-[calc(100vw-2rem)] max-w-md rounded-[26px] border-yg-line bg-linear-to-b from-yg-bg2 to-yg-bg font-yg-sans text-yg-ink">
+      <DialogContent className="w-[calc(100vw-2rem)] max-w-md rounded-2xl border-yg-line bg-linear-to-b from-yg-bg2 to-yg-bg font-yg-sans text-yg-ink">
         <DialogHeader>
           <DialogTitle className="lao-tone-text font-yg-sans text-lg font-semibold text-yg-ink">
             {t("pos.editNote")}
@@ -57,7 +57,7 @@ export function CartNoteDialog({
             value={note}
             disabled={pending}
             placeholder={t("pos.notePlaceholder")}
-            className="min-h-28 resize-none rounded-2xl border-yg-line bg-yg-panel text-base text-yg-ink placeholder:text-yg-faint focus-visible:border-yg-accent-line focus-visible:ring-yg-accent/40"
+            className="min-h-28 resize-none rounded-xl border-yg-line bg-yg-panel text-base text-yg-ink placeholder:text-yg-faint focus-visible:border-yg-accent-line focus-visible:ring-yg-accent/40"
             onChange={(event) => onNoteChange(event.target.value)}
           />
         </div>
@@ -66,7 +66,7 @@ export function CartNoteDialog({
           <Button
             type="button"
             variant="outline"
-            className="h-11 rounded-xl border-yg-line bg-yg-panel text-yg-ink hover:bg-yg-panel-hover hover:text-yg-ink"
+            className="h-11 rounded-lg border-yg-line bg-yg-panel text-yg-ink hover:bg-yg-panel-hover hover:text-yg-ink"
             disabled={pending}
             onClick={() => onOpenChange(false)}
           >
@@ -74,7 +74,7 @@ export function CartNoteDialog({
           </Button>
           <Button
             type="button"
-            className="h-11 rounded-xl bg-yg-accent font-extrabold text-yg-on-accent hover:bg-yg-accent hover:brightness-105"
+            className="h-11 rounded-lg bg-yg-accent font-extrabold text-yg-on-accent hover:bg-yg-accent hover:brightness-105"
             disabled={pending}
             onClick={onSubmit}
           >

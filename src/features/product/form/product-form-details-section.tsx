@@ -1,6 +1,6 @@
 "use client";
 
-import { Info, Pencil, Plus, RefreshCcw, Save, Search, Trash2 } from "lucide-react";
+import { Boxes, Info, Pencil, Plus, RefreshCcw, Save, Search, Tags, Trash2 } from "lucide-react";
 import { ConfirmDialog } from "@/components/common/confirm-dialog";
 import { FormattedNumberInput } from "@/components/common/formatted-number-input";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -76,6 +76,7 @@ import {
   tasteUuid,
 } from "./product-form-utils";
 import type { ProductFormWorkflow } from "./use-product-form-workflow";
+import { ProductSectionTitle } from "./product-form-section-title";
 
 const NO_SET_PRODUCT_OPTION_VALUE = "__no-set-products__";
 
@@ -138,7 +139,7 @@ export function ProductFormDetailsSection({ form }: { form: ProductFormWorkflow 
     <>
       <Card id={PRODUCT_FORM_FIELD_IDS.detailsSection}>
         <CardHeader>
-          <CardTitle>{t("product.sections.details")}</CardTitle>
+          <ProductSectionTitle icon={Tags}>{t("product.sections.details")}</ProductSectionTitle>
           <CardDescription>{t("product.sections.detailsHint")}</CardDescription>
         </CardHeader>
         <CardContent>
@@ -661,7 +662,16 @@ export function ProductFormDetailsSection({ form }: { form: ProductFormWorkflow 
               );
             })}
 
-            <Button type="button" variant="outline" disabled={bulkStockSaving} onClick={addDetail}>
+            {/* Dashed, in the theme colour: "add another row" must not look like the neutral "+"
+                buttons that create a category/size/unit. */}
+            <Button
+              type="button"
+              variant="outline"
+              size="lg"
+              className="border-dashed border-primary/50 bg-primary/5 text-primary-text hover:border-primary hover:bg-primary/10 hover:text-primary-text"
+              disabled={bulkStockSaving}
+              onClick={addDetail}
+            >
               <Plus data-icon="inline-start" />
               {t("product.addDetail")}
             </Button>
@@ -671,7 +681,7 @@ export function ProductFormDetailsSection({ form }: { form: ProductFormWorkflow 
 
       <Card>
         <CardHeader>
-          <CardTitle>{t("product.stockBulk.label")}</CardTitle>
+          <ProductSectionTitle icon={Boxes}>{t("product.stockBulk.label")}</ProductSectionTitle>
           <CardDescription>{t("product.stockBulk.hint")}</CardDescription>
         </CardHeader>
         <CardContent>

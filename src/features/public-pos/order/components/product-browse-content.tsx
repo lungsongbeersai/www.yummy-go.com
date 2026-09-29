@@ -161,10 +161,11 @@ export function ProductBrowseContent({
 
       {/* บาร์นี้ sticky ตลอดการเลื่อน — เดิมมี backdrop-blur-xl ซึ่งบังคับให้เบราว์เซอร์
           re-blur พื้นหลังทุกเฟรมขณะเลื่อน (สาเหตุหลักของอาการกระตุกบนจอ 120Hz)
-          ตัด blur ออก ใช้พื้นทึบเกือบเต็ม (opacity สูง) แทน หน้าตาแทบไม่ต่างแต่ compositing ถูกกว่ามาก */}
+          ตัด blur ออก ใช้พื้นทึบแทน (เดิม /95 ยังเห็นเมนูทะลุบาร์ตอนเลื่อน จึงทึบเต็ม) compositing ถูกกว่ามาก
+          border-b: เส้นใต้แถบหมวดหมู่ ขีดขอบของแถบที่เลื่อนซ้าย-ขวาได้ และแยกแถบออกจากเมนูตอนติดด้านบน */}
       <div
         ref={categoryBarRef}
-        className="yg-rise yg-rise-1 sticky top-0 z-20 -mx-(--yg-gutter) bg-yg-bg/95 px-(--yg-gutter) py-2"
+        className="yg-rise yg-rise-1 sticky top-0 z-20 -mx-(--yg-gutter) border-b border-yg-divider bg-yg-bg px-(--yg-gutter) py-2"
       >
         <div className="mx-auto flex max-w-280 flex-col gap-2">
           <div className="flex gap-2">
@@ -175,7 +176,7 @@ export function ProductBrowseContent({
               aria-haspopup="dialog"
               aria-expanded={search.searchOpen}
               disabled={loadingMenu}
-              className="relative h-11 min-w-0 flex-1 justify-start rounded-2xl border-yg-line bg-yg-panel pl-10 pr-4 text-sm font-medium shadow-none backdrop-blur-md hover:border-yg-accent-line hover:bg-yg-panel disabled:opacity-100"
+              className="relative h-11 min-w-0 flex-1 justify-start rounded-xl border-yg-line bg-yg-panel pl-10 pr-4 text-sm font-medium shadow-none backdrop-blur-md hover:border-yg-accent-line hover:bg-yg-panel disabled:opacity-100"
             >
               {loadingMenu ? (
                 <Loader2
@@ -199,7 +200,7 @@ export function ProductBrowseContent({
             </Button>
 
             <div
-              className="flex shrink-0 gap-0.5 rounded-2xl border border-yg-line bg-yg-panel p-1 backdrop-blur-md"
+              className="flex shrink-0 gap-0.5 rounded-xl border border-yg-line bg-yg-panel p-1 backdrop-blur-md"
               role="group"
               aria-label={`${gridLayoutLabel} / ${listLayoutLabel}`}
             >
@@ -235,7 +236,7 @@ export function ProductBrowseContent({
                           ref={(element) => {
                             categoryTabRefs.current[category.cateUuid] = element;
                           }}
-                          className="h-11 flex-none gap-1.5 rounded-full border border-yg-line bg-yg-panel px-3 text-sm font-bold text-yg-muted shadow-none backdrop-blur-md duration-150 ease-out active:scale-[0.95] active:duration-75 motion-reduce:transition-none data-[state=active]:border-yg-accent data-[state=active]:bg-yg-accent data-[state=active]:text-yg-on-accent data-[state=active]:shadow-[0_8px_20px_-8px_var(--yg-accent)]"
+                          className="h-11 flex-none gap-1.5 rounded-full border border-yg-line bg-yg-panel px-3 text-sm font-bold text-yg-muted shadow-none backdrop-blur-md duration-150 ease-out active:scale-[0.95] active:duration-75 motion-reduce:transition-none data-[state=active]:border-yg-accent data-[state=active]:bg-yg-accent data-[state=active]:text-yg-on-accent"
                         >
                           {jumpingCateUuid === category.cateUuid ? (
                             <Loader2 className="size-4 shrink-0 animate-spin" />
@@ -248,7 +249,9 @@ export function ProductBrowseContent({
                       ))}
                     </TabsList>
                   </div>
-                  {/* <HorizontalScrollArrows scrollRef={categoryRailRef} /> */}
+                  {/* Fades + arrows on the sides that still have categories: without them the
+                      strip gave no hint that it scrolls left and right. */}
+                  <HorizontalScrollArrows scrollRef={categoryRailRef} variant="edge" />
                 </div>
 
                 {/* อยู่นอกแถบเลื่อน — กดถึงได้เสมอไม่ต้องเลื่อนหา ใช้ตอนหมวดเยอะจนแถบ pill ไม่พอ */}
@@ -456,7 +459,7 @@ function LayoutModeButton({
       size="icon-sm"
       variant="ghost"
       className={cn(
-        "size-9 rounded-xl",
+        "size-9 rounded-lg",
         active
           ? "bg-yg-accent-soft text-yg-accent-strong hover:bg-yg-accent-soft"
           : "text-yg-faint hover:bg-yg-panel-hover hover:text-yg-ink",

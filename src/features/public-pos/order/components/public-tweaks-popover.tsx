@@ -67,7 +67,7 @@ export function PublicTweaksPopover({
       <PopoverContent
         align="end"
         sideOffset={10}
-        className="w-64 rounded-[20px] border-yg-line bg-yg-bg2 p-3.5 font-yg-sans text-yg-ink shadow-[0_24px_60px_-20px_rgb(0_0_0/0.35)] dark:shadow-[0_24px_60px_-20px_rgb(0_0_0/0.8)]"
+        className="w-64 rounded-xl border-yg-line bg-yg-bg2 p-3.5 font-yg-sans text-yg-ink shadow-[0_24px_60px_-20px_rgb(0_0_0/0.35)] dark:shadow-[0_24px_60px_-20px_rgb(0_0_0/0.8)]"
       >
         <p className="text-2xs font-extrabold uppercase tracking-[0.2em] text-yg-accent">
           {t("pos.tweaksTitle")}
@@ -78,7 +78,7 @@ export function PublicTweaksPopover({
             {t("app.theme")}
           </span>
           <div
-            className="grid grid-cols-2 gap-1 rounded-2xl border border-yg-line bg-yg-panel2 p-1"
+            className="grid grid-cols-2 gap-1 rounded-lg border border-yg-line bg-yg-panel2 p-1"
             role="group"
             aria-label={t("app.theme")}
           >
@@ -123,7 +123,7 @@ export function PublicTweaksPopover({
           </div>
         </div>
 
-        <div className="mt-3 flex items-center justify-between gap-3 rounded-2xl border border-yg-line bg-yg-panel2 px-3 py-2.5">
+        <div className="mt-3 flex items-center justify-between gap-3 rounded-lg border border-yg-line bg-yg-panel2 px-3 py-2.5">
           <span className="min-w-0 flex-1 text-xs font-bold text-yg-ink">
             {t("pos.tweaksHeroVisible")}
           </span>
@@ -156,7 +156,7 @@ function ThemeOption({
       aria-pressed={active}
       onClick={onSelect}
       className={cn(
-        "flex h-11 items-center justify-center gap-1.5 rounded-xl text-xs font-bold transition-colors outline-none focus-visible:ring-2 focus-visible:ring-yg-accent focus-visible:ring-offset-2 focus-visible:ring-offset-yg-bg2 motion-reduce:transition-none",
+        "flex h-11 items-center justify-center gap-1.5 rounded-md text-xs font-bold transition-colors outline-none focus-visible:ring-2 focus-visible:ring-yg-accent focus-visible:ring-offset-2 focus-visible:ring-offset-yg-bg2 motion-reduce:transition-none",
         active
           ? "bg-yg-accent text-yg-on-accent"
           : "text-yg-muted hover:bg-yg-panel-hover hover:text-yg-ink",
@@ -191,7 +191,7 @@ function AccentOption({
       title={label}
       onClick={onSelect}
       className={cn(
-        "flex h-16 flex-col items-center justify-center gap-1.5 rounded-2xl border transition-colors outline-none focus-visible:ring-2 focus-visible:ring-yg-accent focus-visible:ring-offset-2 focus-visible:ring-offset-yg-bg2 motion-reduce:transition-none",
+        "flex h-16 flex-col items-center justify-center gap-1.5 rounded-lg border transition-colors outline-none focus-visible:ring-2 focus-visible:ring-yg-accent focus-visible:ring-offset-2 focus-visible:ring-offset-yg-bg2 motion-reduce:transition-none",
         active
           ? "border-yg-accent bg-yg-accent-soft"
           : "border-yg-line bg-yg-panel2 hover:bg-yg-panel-hover",

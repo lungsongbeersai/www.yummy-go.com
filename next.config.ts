@@ -6,9 +6,15 @@ const appDir = dirname(fileURLToPath(import.meta.url));
 const capacitorDevOrigin = process.env.CAPACITOR_DEV_ORIGIN?.trim();
 
 const nextConfig: NextConfig = {
-  // 192.168.100.247 คือ LAN IP เครื่อง dev ปัจจุบัน ให้ Capacitor Android ทดสอบผ่าน Wi-Fi ได้
-  // (ไม่งั้น Next dev server บล็อก /_next/static/chunks/*.js เป็น 403 ทุกไฟล์ เพราะ origin ไม่อยู่ใน allowlist)
-  // เปลี่ยนค่านี้ถ้า PC เปลี่ยนเครือข่าย — เช็คด้วย `ipconfig` (adapter Wi-Fi)
+  // Dev server only (`next dev`); a production build ignores this list.
+  // Next dev blocks /_next/static/chunks/*.js with 403 for any origin not listed (localhost is
+  // always allowed), so a phone that opens the dev server by LAN IP loads the HTML and then
+  // spins forever. Two ways to test Capacitor Android on a real phone:
+  //   - USB (simplest): `adb reverse tcp:3000 tcp:3000`, then the app with
+  //     CAPACITOR_SERVER_URL=http://localhost:3000 — localhost needs no entry here.
+  //   - Wi-Fi: start the dev server with CAPACITOR_DEV_ORIGIN=<LAN IP> (see `ipconfig`) and the
+  //     app with CAPACITOR_SERVER_URL=http://<LAN IP>:3000. No IP is hard-coded: it changes
+  //     with the network.
   allowedDevOrigins: [
     "127.0.0.1",
     ...(capacitorDevOrigin ? [capacitorDevOrigin] : []),

@@ -8,10 +8,24 @@ import {
 import { DEFAULT_PUBLIC_CATEGORY_ICON } from "@/features/public-pos/order/constants";
 import type { PublicDisplayProduct } from "@/features/public-pos/order/types";
 
+// Shown to the customer beside the table name, so it speaks the customer's language: the
+// staff-side states (cashier creating an order, customer calling staff) read as "busy".
+// An unknown code shows nothing; before, the raw number ("4") leaked onto the page.
 export function tableStatusLabel(status: number, t: TFunction) {
-  if (Number(status) === TableStatus.AVAILABLE) return t("common.free");
-  if (Number(status) === TableStatus.OCCUPIED) return t("common.busy");
-  return String(status);
+  switch (Number(status)) {
+    case TableStatus.AVAILABLE:
+      return t("common.free");
+    case TableStatus.OCCUPIED:
+    case TableStatus.CASHIER_CREATING_ORDER:
+    case TableStatus.CALL_STAFF:
+      return t("common.busy");
+    case TableStatus.AWAITING_CONFIRM:
+      return t("pos.cartStatusWaitingConfirm");
+    case TableStatus.AWAITING_PAYMENT:
+      return t("pos.tableStatusAwaitingPayment");
+    default:
+      return "";
+  }
 }
 
 export function publicCategoryIconName(icon?: string | null) {

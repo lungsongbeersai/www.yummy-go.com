@@ -43,7 +43,7 @@ export function PublicQrDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-h-[calc(100dvh-2rem-env(safe-area-inset-top,0px)-env(safe-area-inset-bottom,0px))] gap-0 overflow-hidden rounded-[26px] border-yg-line bg-linear-to-b from-yg-bg2 to-yg-bg p-0 font-yg-sans text-yg-ink sm:max-w-105">
+      <DialogContent className="max-h-[calc(100dvh-2rem-env(safe-area-inset-top,0px)-env(safe-area-inset-bottom,0px))] gap-0 overflow-hidden rounded-2xl border-yg-line bg-linear-to-b from-yg-bg2 to-yg-bg p-0 font-yg-sans text-yg-ink sm:max-w-105">
         <DialogHeader className="px-5 pb-3 pt-5 pr-12 text-left">
           <DialogTitle className="lao-tone-text font-yg-sans text-xl font-semibold leading-snug text-yg-ink">
             {t("pos.qrCode")}
@@ -54,7 +54,7 @@ export function PublicQrDialog({
         </DialogHeader>
 
         <div className="grid place-items-center px-5 pb-5">
-          <div className="grid place-items-center rounded-[20px] border border-yg-line bg-yg-panel p-4">
+          <div className="grid place-items-center rounded-xl border border-yg-line bg-yg-panel p-4">
             {dataUrl ? (
               <Image
                 src={dataUrl}
@@ -63,12 +63,12 @@ export function PublicQrDialog({
                 height={260}
                 unoptimized
                 // พื้นขาวคงที่ทั้งสองโหมด — QR ต้องมี quiet zone สว่างจึงสแกนติด
-                className="size-58 rounded-2xl bg-white object-contain p-2 sm:size-65"
+                className="size-58 rounded-md bg-white object-contain p-2 sm:size-65"
               />
             ) : targetUrl ? (
-              <Skeleton className="size-58 rounded-2xl sm:size-65" />
+              <Skeleton className="size-58 rounded-md sm:size-65" />
             ) : (
-              <div className="grid size-58 place-items-center rounded-2xl bg-yg-panel2 text-yg-faint sm:size-65">
+              <div className="grid size-58 place-items-center rounded-md bg-yg-panel2 text-yg-faint sm:size-65">
                 <ImageIcon className="size-8" />
               </div>
             )}
@@ -82,7 +82,7 @@ export function PublicQrDialog({
                 <Button
                   type="button"
                   variant="outline"
-                  className="h-11 min-w-0 rounded-xl px-4 font-black"
+                  className="h-11 min-w-0 rounded-lg px-4 font-black"
                   disabled={!canShare}
                   onClick={onShare}
                 >
@@ -99,7 +99,7 @@ export function PublicQrDialog({
               <TooltipTrigger asChild>
                 <Button
                   type="button"
-                  className="h-11 min-w-0 rounded-xl px-4 font-black"
+                  className="h-11 min-w-0 rounded-lg px-4 font-black"
                   disabled={!canDownload}
                   onClick={onDownload}
                 >

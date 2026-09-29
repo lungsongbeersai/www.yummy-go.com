@@ -114,6 +114,21 @@ describe("dashboard view model", () => {
     ]);
   });
 
+  it("reads each day's debt for the payment lines", () => {
+    const model = createDashboardModel(
+      dashboardData({
+        charts: {
+          monthly_daily_payments: [
+            { business_date: "2026-09-05", cash_total: 8143000, day: "5", debt_total: 1194000, transfer_total: 0 }
+          ]
+        }
+      }),
+      createDefaultFilters()
+    );
+
+    expect(model.paymentTrendRows).toMatchObject([{ cash: 8143000, debt: 1194000, transfer: 0 }]);
+  });
+
   it("defaults both daily dates to the current business date", () => {
     expect(createDefaultFilters(new Date(2026, 5, 11, 12))).toEqual({
       end_date: "2026-06-11",

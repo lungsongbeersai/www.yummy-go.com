@@ -176,7 +176,7 @@ function PublicPosAlert({
           <Button
             type="button"
             onClick={onAction}
-            className="mt-2 h-11 rounded-xl border border-yg-accent-line bg-yg-accent-soft px-4 text-xs font-extrabold text-yg-accent-strong transition-[filter,transform] hover:bg-yg-accent-soft hover:brightness-110 focus-visible:ring-yg-accent focus-visible:ring-offset-yg-bg motion-reduce:transition-none"
+            className="mt-2 h-11 rounded-lg border border-yg-accent-line bg-yg-accent-soft px-4 text-xs font-extrabold text-yg-accent-strong transition-[filter,transform] hover:bg-yg-accent-soft hover:brightness-110 focus-visible:ring-yg-accent focus-visible:ring-offset-yg-bg motion-reduce:transition-none"
           >
             {actionLabel}
           </Button>

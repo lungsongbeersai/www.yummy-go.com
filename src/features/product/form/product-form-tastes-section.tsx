@@ -1,6 +1,6 @@
 "use client";
 
-import { Pencil, Plus, RefreshCcw, Save, Search, Trash2 } from "lucide-react";
+import { Pencil, Plus, RefreshCcw, Save, Search, Soup, Trash2 } from "lucide-react";
 import { ConfirmDialog } from "@/components/common/confirm-dialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -10,7 +10,6 @@ import {
   CardContent,
   CardDescription,
   CardHeader,
-  CardTitle,
 } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
@@ -61,6 +60,7 @@ import {
   tasteUuid,
 } from "./product-form-utils";
 import type { ProductFormWorkflow } from "./use-product-form-workflow";
+import { ProductSectionTitle } from "./product-form-section-title";
 
 export function ProductFormTastesSection({ form }: { form: ProductFormWorkflow }) {
   const {
@@ -127,7 +127,7 @@ export function ProductFormTastesSection({ form }: { form: ProductFormWorkflow }
       {!isSet ? (
         <Card id={PRODUCT_FORM_FIELD_IDS.tastesSection}>
           <CardHeader>
-            <CardTitle>{sectionTitle}</CardTitle>
+            <ProductSectionTitle icon={Soup}>{sectionTitle}</ProductSectionTitle>
             <CardDescription>{sectionHint}</CardDescription>
             <CardAction>
               <Button

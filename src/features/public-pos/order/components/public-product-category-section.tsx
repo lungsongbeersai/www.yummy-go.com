@@ -155,7 +155,7 @@ export const ProductCategorySection = memo(function ProductCategorySection({
             type="button"
             variant="ghost"
             size="icon"
-            className="size-11 shrink-0 rounded-xl text-yg-muted hover:bg-yg-panel-hover hover:text-yg-ink"
+            className="size-11 shrink-0 rounded-full text-yg-muted hover:bg-yg-panel-hover hover:text-yg-ink"
             aria-label={category.cateName}
             aria-expanded={!collapsed}
             onClick={() => onToggleCollapse(category.cateUuid)}
@@ -176,7 +176,8 @@ export const ProductCategorySection = memo(function ProductCategorySection({
       ) : products.length ? (
         <div
           className={
-            layoutMode === "list" ? "grid grid-cols-1 gap-2.5" : PRODUCT_GRID_CLASS
+            // List rows sit on the page with a hairline between them instead of cards.
+            layoutMode === "list" ? "flex flex-col divide-y divide-yg-divider" : PRODUCT_GRID_CLASS
           }
         >
           {products.map((product) => (
@@ -194,7 +195,7 @@ export const ProductCategorySection = memo(function ProductCategorySection({
           ))}
         </div>
       ) : (
-        <div className="rounded-2xl border border-dashed border-yg-line bg-yg-panel2 p-4 text-center text-sm font-semibold text-yg-muted">
+        <div className="rounded-xl border border-dashed border-yg-line bg-yg-panel2 p-4 text-center text-sm font-semibold text-yg-muted">
           {t("pos.noProductsInCategory")}
         </div>
       )}

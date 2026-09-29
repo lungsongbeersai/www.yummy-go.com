@@ -1,8 +1,9 @@
 "use client";
 
 import Image from "next/image";
+import { useState, type ReactNode } from "react";
 import { ImageIcon, Utensils } from "lucide-react";
-import { IMAGE_CROP_ASPECT_CLASS } from "@/config/image-crop";
+import { IMAGE_CROP_ASPECT, IMAGE_CROP_ASPECT_CLASS } from "@/config/image-crop";
 import { cn } from "@/lib/utils";
 import { ProductImageStatus } from "@/config/pos-constants";
 import type { CateProductItem, ProdItem } from "@/services/pos";
@@ -21,12 +22,16 @@ export function ProductMedia({
   blockedState,
   blockedLabel,
   preload = false,
+  overlay,
 }: {
   product: CateProductItem | ProdItem;
   variant?: "card" | "sheet" | "sheetThumb" | "listThumb";
   blockedState?: ProductBlockedState | null;
   blockedLabel?: string;
   preload?: boolean;
+  /** Pinned to the picture's own box (its corners), e.g. the card's "+" button. Without a
+   *  photo it sits on the media box instead. */
+  overlay?: ReactNode;
 }) {
   const imageUrl = productImageUrl(product);
   const colorCandidate = product.prodColor || product.prodImage;
@@ -49,6 +54,34 @@ export function ProductMedia({
         : "(min-width: 1024px) 240px, (min-width: 640px) 30vw, 50vw";
 
   if (imageUrl) {
+    // Tiles (everything but the sheet banner): the picture is fitted by its own shape, so its
+    // rounded corners are the picture's corners (see FittedTileImage). No plate behind it: a
+    // tinted box around a narrower picture read as a second, differently shaped frame.
+    if (variant !== "sheet") {
+      return (
+        <div className={cn("relative w-full overflow-hidden", mediaClass)}>
+          <FittedTileImage
+            alt={product.prodName}
+            blocked={Boolean(blockedState)}
+            boxRatio={variant === "listThumb" ? 1 : IMAGE_CROP_ASPECT}
+            inset={variant === "listThumb"}
+            preload={preload}
+            // card 18 − padding 8 and the 14px list thumbnail both give 10; the small sheet thumbnail 8.
+            radiusClass={variant === "sheetThumb" ? "rounded-md" : "rounded-lg"}
+            sizes={imageSizes}
+            src={imageUrl}
+          >
+            {overlay}
+          </FittedTileImage>
+          <ProductMediaStateOverlay
+            blockedState={blockedState}
+            label={blockedLabel}
+            compact={variant === "listThumb" || variant === "sheetThumb"}
+          />
+        </div>
+      );
+    }
+
     return (
       <div
         className={cn("relative w-full overflow-hidden", mediaClass)}
@@ -66,17 +99,9 @@ export function ProductMedia({
           fetchPriority={preload ? "high" : undefined}
           quality={60}
           sizes={imageSizes}
-          className={cn(
-            "object-contain",
-            variant === "listThumb" ? "p-1.5" : "",
-            blockedState ? "saturate-[0.55]" : "",
-          )}
+          className={cn("object-contain", blockedState ? "saturate-[0.55]" : "")}
         />
-        <ProductMediaStateOverlay
-          blockedState={blockedState}
-          label={blockedLabel}
-          compact={variant === "listThumb" || variant === "sheetThumb"}
-        />
+        <ProductMediaStateOverlay blockedState={blockedState} label={blockedLabel} />
       </div>
     );
   }
@@ -97,6 +122,7 @@ export function ProductMedia({
             aria-hidden="true"
           />
         </span>
+        {overlay}
         <ProductMediaStateOverlay
           blockedState={blockedState}
           label={blockedLabel}
@@ -120,6 +146,7 @@ export function ProductMedia({
           aria-hidden="true"
         />
       </span>
+      {overlay}
       <ProductMediaStateOverlay
         blockedState={blockedState}
         label={blockedLabel}
@@ -157,6 +184,72 @@ function ProductMediaStateOverlay({
       >
         {label}
       </span>
+    </div>
+  );
+}
+
+// Rounded corners on a letterboxed picture: with fill + object-contain the corners belong to the
+// box, and a picture narrower or shorter than the box keeps square ones. So the image element
+// takes the picture's own shape instead: once the file loads its ratio says whether it is wider than the
+// box (full width, auto height) or taller (full height, auto width). Pictures are never
+// cropped, as before. Until the load the tile shows the contain layout.
+function FittedTileImage({
+  alt,
+  blocked,
+  boxRatio,
+  children,
+  inset,
+  preload,
+  radiusClass,
+  sizes,
+  src,
+}: {
+  alt: string;
+  blocked: boolean;
+  boxRatio: number;
+  children?: ReactNode;
+  inset: boolean;
+  preload: boolean;
+  radiusClass: string;
+  sizes: string;
+  src: string;
+}) {
+  const [ratio, setRatio] = useState<{ src: string; value: number } | null>(null);
+  const loadedRatio = ratio?.src === src ? ratio.value : null;
+  // The picture box: its ratio once known, as wide or as tall as the frame allows.
+  const fit = loadedRatio === null ? "h-full w-full" : loadedRatio >= boxRatio ? "h-auto w-full" : "h-full w-auto";
+
+  return (
+    // absolute inset gives the frame a definite height, which max-h-full needs.
+    <div className={cn("absolute inset-0 flex items-center justify-center", inset ? "p-1.5" : "")}>
+      {/* This box is exactly the picture, so children (the "+" button) pin to its corners. */}
+      <div
+        className={cn("relative max-h-full max-w-full", fit)}
+        style={loadedRatio === null ? undefined : { aspectRatio: loadedRatio }}
+      >
+        <Image
+          src={src}
+          alt={alt}
+          // A placeholder shape only; the real ratio comes from the loaded file.
+          width={480}
+          height={480}
+          preload={preload || undefined}
+          loading={preload ? "eager" : "lazy"}
+          fetchPriority={preload ? "high" : undefined}
+          quality={60}
+          sizes={sizes}
+          onLoad={(event) => {
+            const { naturalHeight, naturalWidth } = event.currentTarget;
+            if (naturalWidth && naturalHeight) setRatio({ src, value: naturalWidth / naturalHeight });
+          }}
+          className={cn(
+            "size-full object-contain",
+            loadedRatio === null ? "" : radiusClass,
+            blocked ? "saturate-[0.55]" : "",
+          )}
+        />
+        {children}
+      </div>
     </div>
   );
 }

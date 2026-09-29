@@ -63,7 +63,7 @@ export function PublicSearchSheet({
       >
         <SheetHeader className="shrink-0 border-b border-yg-line bg-yg-bg2/85 px-4 py-4 text-left backdrop-blur-xl">
           <div className="flex min-w-0 items-center gap-3 pr-10">
-            <span className="grid size-11 shrink-0 place-items-center rounded-2xl border border-yg-accent-line bg-yg-accent-soft text-yg-accent-strong">
+            <span className="grid size-11 shrink-0 place-items-center rounded-xl border border-yg-accent-line bg-yg-accent-soft text-yg-accent-strong">
               <Search className="size-5" />
             </span>
             <div className="min-w-0">
@@ -91,12 +91,12 @@ export function PublicSearchSheet({
                   value={value}
                   onChange={(event) => onValueChange(event.target.value)}
                   placeholder={t("pos.searchMenu")}
-                  className="h-12.5 rounded-[15px] border-yg-line bg-yg-panel pl-10 text-base font-medium text-yg-ink shadow-none backdrop-blur-md placeholder:text-yg-faint focus-visible:border-yg-accent-line focus-visible:ring-yg-accent/40"
+                  className="h-12.5 rounded-xl border-yg-line bg-yg-panel pl-10 text-base font-medium text-yg-ink shadow-none backdrop-blur-md placeholder:text-yg-faint focus-visible:border-yg-accent-line focus-visible:ring-yg-accent/40"
                 />
               </div>
               <Button
                 type="submit"
-                className="h-12.5 rounded-[15px] bg-yg-accent px-5 font-extrabold text-yg-on-accent shadow-[0_8px_22px_-8px_var(--yg-accent)] hover:bg-yg-accent hover:brightness-105"
+                className="h-12.5 rounded-xl bg-yg-accent px-5 font-extrabold text-yg-on-accent hover:bg-yg-accent hover:brightness-105"
                 disabled={loading}
               >
                 {loading ? (
@@ -108,7 +108,7 @@ export function PublicSearchSheet({
               </Button>
             </form>
 
-            <section className="grid gap-3 rounded-[20px] border border-yg-line bg-yg-panel p-3.5 backdrop-blur-md">
+            <section className="grid gap-3 rounded-2xl border border-yg-line bg-yg-panel p-3.5 backdrop-blur-md">
               <div className="flex min-w-0 items-center justify-between gap-3">
                 <div className="flex min-w-0 items-center gap-2">
                   <Clock3 className="size-4 shrink-0 text-yg-accent-strong" />
@@ -121,7 +121,7 @@ export function PublicSearchSheet({
                     type="button"
                     variant="ghost"
                     size="sm"
-                    className="min-h-11 shrink-0 rounded-xl px-2.5 text-xs font-bold text-yg-muted hover:bg-yg-panel-hover hover:text-yg-ink"
+                    className="min-h-11 shrink-0 rounded-lg px-2.5 text-xs font-bold text-yg-muted hover:bg-yg-panel-hover hover:text-yg-ink"
                     onClick={onClearHistory}
                   >
                     <Trash2 className="size-3.5" />
@@ -137,7 +137,7 @@ export function PublicSearchSheet({
                       key={item}
                       type="button"
                       variant="outline"
-                      className="h-12 justify-start rounded-[15px] border-yg-line bg-yg-panel2 px-3.5 text-left font-semibold text-yg-ink hover:border-yg-accent-line hover:bg-yg-panel-hover hover:text-yg-ink"
+                      className="h-12 justify-start rounded-lg border-yg-line bg-yg-panel2 px-3.5 text-left font-semibold text-yg-ink hover:border-yg-accent-line hover:bg-yg-panel-hover hover:text-yg-ink"
                       onClick={() => onHistorySelect(item)}
                     >
                       <Clock3 className="size-4 shrink-0 text-yg-accent-strong" />
@@ -146,7 +146,7 @@ export function PublicSearchSheet({
                   ))}
                 </div>
               ) : (
-                <div className="rounded-[15px] border border-dashed border-yg-line bg-yg-panel2 p-5 text-center text-sm font-semibold text-yg-muted">
+                <div className="rounded-xl border border-dashed border-yg-line bg-yg-panel2 p-5 text-center text-sm font-semibold text-yg-muted">
                   {t("pos.searchHistoryEmpty")}
                 </div>
               )}

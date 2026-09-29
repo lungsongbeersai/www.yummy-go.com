@@ -1,6 +1,6 @@
 "use client";
 
-import { Pencil, Plus, RefreshCcw, Save, Search, Trash2 } from "lucide-react";
+import { Cherry, Pencil, Plus, RefreshCcw, Save, Search, Trash2 } from "lucide-react";
 import { ConfirmDialog } from "@/components/common/confirm-dialog";
 import { FormattedNumberInput } from "@/components/common/formatted-number-input";
 import { Badge } from "@/components/ui/badge";
@@ -11,7 +11,6 @@ import {
   CardContent,
   CardDescription,
   CardHeader,
-  CardTitle,
 } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
@@ -67,6 +66,7 @@ import {
 } from "./product-form-utils";
 import { ProductFormChoiceGroup } from "./product-form-choice-group";
 import type { ProductFormWorkflow } from "./use-product-form-workflow";
+import { ProductSectionTitle } from "./product-form-section-title";
 
 export function ProductFormToppingsSection({ form }: { form: ProductFormWorkflow }) {
   const {
@@ -132,7 +132,7 @@ export function ProductFormToppingsSection({ form }: { form: ProductFormWorkflow
     <>
       <Card id={PRODUCT_FORM_FIELD_IDS.toppingsSection}>
         <CardHeader>
-          <CardTitle>{t("product.sections.toppings")}</CardTitle>
+          <ProductSectionTitle icon={Cherry}>{t("product.sections.toppings")}</ProductSectionTitle>
           <CardDescription>{t("product.sections.toppingsHint")}</CardDescription>
           <CardAction>
             <Button

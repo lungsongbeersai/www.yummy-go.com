@@ -148,7 +148,8 @@ function cropPreviewStyle(src: string, area: CropArea | null): CSSProperties | u
   };
 }
 
-function ImageCropDialog({
+// Exported for pages that bring their own picker (the profile avatar), so they reuse the same crop.
+export function ImageCropDialog({
   aspect,
   cropShape,
   onConfirm,

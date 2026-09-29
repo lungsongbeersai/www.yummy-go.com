@@ -49,7 +49,7 @@ export function PublicCategoryMenu({
           variant="ghost"
           size="icon"
           aria-label={label}
-          className="size-11 shrink-0 rounded-2xl border border-yg-line bg-yg-panel text-yg-muted backdrop-blur-md duration-150 ease-out hover:border-yg-accent-line hover:bg-yg-panel-hover hover:text-yg-ink active:scale-90 active:duration-75 motion-reduce:transition-none"
+          className="size-11 shrink-0 rounded-full border border-yg-line bg-yg-panel text-yg-muted backdrop-blur-md duration-150 ease-out hover:border-yg-accent-line hover:bg-yg-panel-hover hover:text-yg-ink active:scale-90 active:duration-75 motion-reduce:transition-none"
         >
           <LayoutGrid className="size-4.5" />
         </Button>
@@ -58,7 +58,7 @@ export function PublicCategoryMenu({
       <PopoverContent
         align="end"
         sideOffset={10}
-        className="w-72 rounded-[20px] border-yg-line bg-yg-bg2 p-2 font-yg-sans text-yg-ink shadow-[0_24px_60px_-20px_rgb(0_0_0/0.35)] dark:shadow-[0_24px_60px_-20px_rgb(0_0_0/0.8)]"
+        className="w-72 rounded-xl border-yg-line bg-yg-bg2 p-2 font-yg-sans text-yg-ink shadow-[0_24px_60px_-20px_rgb(0_0_0/0.35)] dark:shadow-[0_24px_60px_-20px_rgb(0_0_0/0.8)]"
       >
         <p className="px-2 pb-2 pt-1 text-2xs font-extrabold uppercase tracking-[0.2em] text-yg-accent">
           {label}
@@ -79,7 +79,7 @@ export function PublicCategoryMenu({
                   setOpen(false);
                 }}
                 className={cn(
-                  "flex h-11 min-w-0 items-center gap-2.5 rounded-xl px-2.5 text-left text-sm font-bold transition-[color,background-color,transform] duration-150 ease-out outline-none focus-visible:ring-2 focus-visible:ring-yg-accent focus-visible:ring-offset-2 focus-visible:ring-offset-yg-bg2 active:scale-[0.97] active:duration-75 motion-reduce:transition-none",
+                  "flex h-11 min-w-0 items-center gap-2.5 rounded-lg px-2.5 text-left text-sm font-bold transition-[color,background-color,transform] duration-150 ease-out outline-none focus-visible:ring-2 focus-visible:ring-yg-accent focus-visible:ring-offset-2 focus-visible:ring-offset-yg-bg2 active:scale-[0.97] active:duration-75 motion-reduce:transition-none",
                   active
                     ? "bg-yg-accent-soft text-yg-accent-strong"
                     : "text-yg-muted hover:bg-yg-panel-hover hover:text-yg-ink",
