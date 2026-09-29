@@ -482,6 +482,17 @@ export function paymentValidation(
   return null;
 }
 
+export function transferAccountValidation(
+  transferAmount: number,
+  accountUuid: string,
+  loading: boolean,
+) {
+  if (transferAmount <= 0) return null;
+  if (loading) return "pos.transferAccountsLoading";
+  if (!accountUuid) return "pos.transferAccountRequired";
+  return null;
+}
+
 export function amountInput(value: string, allowDecimal = true) {
   const normalized = value.replace(allowDecimal ? /[^\d.]/g : /\D/g, "");
   if (!allowDecimal) return normalized.replace(/^0+(?=\d)/, "");

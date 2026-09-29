@@ -441,6 +441,7 @@ export function SelectedTableCartPanelContent({
           summary={workflow.paymentContext.summary}
           table={selectedTable}
           onCompleted={workflow.handlePaymentCompleted}
+          onTransferAccountQrChange={workflow.setPaymentAccountQrUrl}
           onOpenChange={(nextOpen) => {
             if (!nextOpen) workflow.setPaymentContext(null);
           }}

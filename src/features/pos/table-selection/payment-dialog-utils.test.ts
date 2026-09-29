@@ -33,6 +33,7 @@ import {
   quickCashAmounts,
   rawCaretFromDisplayCaret,
   remainingCurrencyInput,
+  transferAccountValidation,
   withReceiptPrintLabels,
 } from "./payment-dialog-utils";
 
@@ -218,6 +219,17 @@ describe("payment dialog helpers", () => {
     expect(paymentValidation("cash", "order-1", 50000, mixed, "")).toBe(
       "pos.paymentCustomerRequired",
     );
+  });
+
+  it("requires a branch receiving account whenever the payment includes a transfer", () => {
+    expect(transferAccountValidation(0, "", false)).toBeNull();
+    expect(transferAccountValidation(50000, "", true)).toBe(
+      "pos.transferAccountsLoading",
+    );
+    expect(transferAccountValidation(50000, "", false)).toBe(
+      "pos.transferAccountRequired",
+    );
+    expect(transferAccountValidation(50000, "account-1", false)).toBeNull();
   });
 
   it("settles the rounded foreign due as exact while larger tender creates change", () => {

@@ -128,6 +128,59 @@ interface PaymentSummaryStripItem {
   tone?: "primary" | "strong";
 }
 
+function TransferAccountField({
+  failed,
+  loading,
+  options,
+  value,
+  onValueChange,
+}: {
+  failed: boolean;
+  loading: boolean;
+  options: Array<{ label: string; value: string }>;
+  value: string;
+  onValueChange: (value: string) => void;
+}) {
+  const { t } = useTranslation();
+
+  return (
+    <Field className="gap-1.5">
+      <FieldLabel htmlFor="payment-transfer-account">
+        {t("pos.transferAccount")}
+      </FieldLabel>
+      <Select
+        disabled={loading || !options.length}
+        value={value}
+        onValueChange={onValueChange}
+      >
+        <SelectTrigger id="payment-transfer-account" className="w-full">
+          <SelectValue
+            placeholder={
+              loading
+                ? t("pos.transferAccountsLoading")
+                : t("pos.selectTransferAccount")
+            }
+          />
+        </SelectTrigger>
+        <SelectContent>
+          <SelectGroup>
+            {options.map((option) => (
+              <SelectItem key={option.value} value={option.value}>
+                {option.label}
+              </SelectItem>
+            ))}
+          </SelectGroup>
+        </SelectContent>
+      </Select>
+      {!loading && (!options.length || failed) ? (
+        <FieldDescription className="font-semibold text-destructive">
+          {t("pos.transferAccountsUnavailable")}
+        </FieldDescription>
+      ) : null}
+    </Field>
+  );
+}
+
 function PaymentSummaryStrip({ items }: { items: PaymentSummaryStripItem[] }) {
   return (
     <div className="grid min-h-9 grid-cols-2 overflow-hidden rounded-lg border border-border bg-card">
@@ -186,7 +239,7 @@ export function PaymentDialogContent({
     activeTenderLabel,
     allowDecimalAmount,
     backspaceActiveAmount,
-    branchQrUrl,
+    accountQrUrl,
     canPrintInvoice,
     clearActiveAmount,
     confirmOpen,
@@ -215,16 +268,22 @@ export function PaymentDialogContent({
     requestSubmit,
     selectedCurrency,
     selectedTab,
+    selectedTransferAccount,
+    selectedTransferAccountUuid,
     setActiveSplitField,
     setConfirmOpen,
     setDueDate,
     setNote,
     setOrderChannel,
+    setSelectedTransferAccountUuid,
     splitCashInput,
     splitTransferInput,
     submitPayment,
     table,
     totalAmount,
+    transferAccountOptions,
+    transferAccountsFailed,
+    transferAccountsLoading,
     validation,
   } = workflow;
   const {
@@ -564,6 +623,32 @@ export function PaymentDialogContent({
               <div className="h-full min-h-0">
                 {activeTenderField ? (
                   <div className="grid h-full min-h-0 grid-rows-[auto_auto_minmax(196px,1fr)] gap-1.5 min-[430px]:gap-2 sm:grid-rows-[auto_auto_minmax(0,1fr)] sm:gap-3 lg:mx-auto lg:h-auto lg:max-w-xl lg:grid-rows-none lg:content-start">
+                    {activeTab === "cash_transfer" ? (
+                      <div className="rounded-lg border border-border bg-card p-2 min-[430px]:p-2.5 lg:p-4">
+                        <TransferAccountField
+                          failed={transferAccountsFailed}
+                          loading={transferAccountsLoading}
+                          options={transferAccountOptions}
+                          value={selectedTransferAccountUuid}
+                          onValueChange={setSelectedTransferAccountUuid}
+                        />
+                        {accountQrUrl ? (
+                          <div className="mt-2 flex items-center gap-3 rounded-md border border-border bg-muted/30 p-2">
+                            <Image
+                              alt={t("pos.accountQr")}
+                              className="size-16 shrink-0 rounded-md bg-background object-contain p-1"
+                              height={64}
+                              src={accountQrUrl}
+                              unoptimized
+                              width={64}
+                            />
+                            <p className="text-xs text-muted-foreground">
+                              {t("pos.transferPaymentHint")}
+                            </p>
+                          </div>
+                        ) : null}
+                      </div>
+                    ) : null}
                     <div className="rounded-lg border border-border bg-card p-2 min-[430px]:p-2.5 lg:p-4">
                       <Field className="gap-1 min-[430px]:gap-1.5">
                         <FieldLabel htmlFor="payment-active-amount">
@@ -656,13 +741,20 @@ export function PaymentDialogContent({
                 ) : activeTab === "transfer" ? (
                   <div className="grid min-h-0 place-items-center rounded-lg border border-border bg-card p-3 sm:p-4 lg:h-full">
                     <div className="grid w-full max-w-130 gap-3">
+                      <TransferAccountField
+                        failed={transferAccountsFailed}
+                        loading={transferAccountsLoading}
+                        options={transferAccountOptions}
+                        value={selectedTransferAccountUuid}
+                        onValueChange={setSelectedTransferAccountUuid}
+                      />
                       <div className="grid min-h-0 place-items-center rounded-lg border border-border bg-muted/30 p-3">
-                        {branchQrUrl ? (
+                        {accountQrUrl ? (
                           <Image
-                            alt={t("pos.branchQr")}
+                            alt={t("pos.accountQr")}
                             className="aspect-square max-h-[min(42dvh,18rem)] w-full max-w-[min(42dvh,18rem)] rounded-md bg-background object-contain p-3 shadow-sm"
                             height={288}
-                            src={branchQrUrl}
+                            src={accountQrUrl}
                             unoptimized
                             width={288}
                           />
@@ -675,13 +767,13 @@ export function PaymentDialogContent({
                           {t("pos.paymentTransfer")}
                         </Badge>
                       </div>
-                      {branchQrUrl ? (
+                      {accountQrUrl ? (
                         <p className="text-center text-sm text-muted-foreground">
                           {t("pos.transferPaymentHint")}
                         </p>
                       ) : (
                         <p className="text-center text-sm font-semibold text-muted-foreground">
-                          {t("pos.noBranchQr")}
+                          {t("pos.noAccountQr")}
                         </p>
                       )}
                     </div>
@@ -938,6 +1030,16 @@ export function PaymentDialogContent({
                     : t("pos.paymentTitle")}
                 </dd>
               </div>
+              {selectedTransferAccount && payment.transfer > 0 ? (
+                <div className="flex min-h-14 items-center justify-between gap-4 border-t border-border px-4 py-3 sm:px-5">
+                  <dt className="text-muted-foreground">
+                    {t("pos.transferAccount")}
+                  </dt>
+                  <dd className="max-w-[65%] text-right font-bold">
+                    {selectedTransferAccount.label}
+                  </dd>
+                </div>
+              ) : null}
               <div className="flex min-h-14 items-center justify-between gap-4 border-t border-border px-4 py-3 sm:px-5">
                 <dt className="text-muted-foreground">
                   {t("pos.amountReceived")}

@@ -9,6 +9,7 @@ export interface PaymentDialogProps {
   hasRealTable?: boolean;
   onCompleted: () => Promise<void>;
   onOpenChange: (open: boolean) => void;
+  onTransferAccountQrChange?: (qrUrl: string | null) => void;
   open: boolean;
   orders: CartOrder[];
   paymentKind?: PaymentKind;

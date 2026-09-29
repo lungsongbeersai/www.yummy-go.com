@@ -7,7 +7,6 @@ import {
   withCustomerDisplayOrderMode,
   withCustomerDisplayPaymentMode,
 } from "@/features/customer-display/shared/customer-display-sync";
-import { getBranchQrUrl } from "@/lib/image";
 import { canManageDiscounts, canManagePayments } from "@/lib/permissions";
 import { isBranchRealtimeEvent, subscribeBranchVatUpdated, type BranchVatUpdatedPayload } from "@/lib/socket";
 import type {
@@ -232,6 +231,9 @@ export function useSelectedTableCartPanelWorkflow({
   const [paymentContext, setPaymentContext] = useState<PaymentContext | null>(
     null,
   );
+  const [paymentAccountQrUrl, setPaymentAccountQrUrl] = useState<string | null>(
+    null,
+  );
   const [splitSelectedItemUuids, setSplitSelectedItemUuids] =
     useState<SplitItemQuantities>(() => new Map());
   const taxRate = formatRate(summary.taxRate);
@@ -261,10 +263,6 @@ export function useSelectedTableCartPanelWorkflow({
   }, [branchUuid, onCartRefresh]);
 
   const invoice = cartOrderInvoice(orders);
-  const branchQrUrl = useMemo(() => {
-    const branchQr = optionalString(...orders.map((order) => order.branch_qr));
-    return branchQr ? getBranchQrUrl(branchQr) : null;
-  }, [orders]);
   const visibleItemCount = cartDisplayQuantityCount(displayCart);
   const currentOrderUuid = useMemo(() => firstCartOrderUuid(orders), [orders]);
   const currentOrder = useMemo(
@@ -376,12 +374,12 @@ export function useSelectedTableCartPanelWorkflow({
     return withCustomerDisplayPaymentMode(orderPayload, {
       amount: paymentAmount,
       invoice: cartOrderInvoice(paymentContext.orders) ?? invoice,
-      qrUrl: branchQrUrl,
+      qrUrl: paymentAccountQrUrl,
     });
   }, [
-    branchQrUrl,
     displayCart,
     invoice,
+    paymentAccountQrUrl,
     paymentContext,
     selectedTable,
     summary,
@@ -1514,6 +1512,7 @@ export function useSelectedTableCartPanelWorkflow({
     setNoteTarget,
     setDepositDialogOpen,
     setPaymentContext,
+    setPaymentAccountQrUrl,
     setQuantityTarget,
     setSplitItemQuantity,
     setTableActionsOpen,

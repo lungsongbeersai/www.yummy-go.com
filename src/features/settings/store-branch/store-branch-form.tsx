@@ -12,12 +12,6 @@ import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectVa
 import { Spinner } from "@/components/ui/spinner";
 import { Textarea } from "@/components/ui/textarea";
 import { DEFAULT_CROP, SettingsImageCropPanel, cropImageFile, type CropState } from "@/features/settings/shared/settings-image-crop";
-import {
-  QR_CROP_ASPECT,
-  QR_CROP_ASPECT_CLASS,
-  QR_CROP_OUTPUT_HEIGHT,
-  QR_CROP_OUTPUT_WIDTH
-} from "@/config/image-crop";
 import { cn } from "@/lib/utils";
 import {
   SettingsDialogBody,
@@ -41,6 +35,7 @@ import {
   type StoreBranchKind
 } from "./store-branch-utils";
 import type { StoreBranchLabels, StoreBranchSettingsRow } from "./store-branch-types";
+import { BranchTransferAccounts } from "./branch-transfer-accounts";
 
 export function StoreBranchFormDialog({
   activeStoreUuid,
@@ -177,7 +172,7 @@ function EntityForm({
   saving: boolean;
 }) {
   const recordKey = `${kind}-${editing ? storeBranchId(editing, kind) : "new"}`;
-  const imageFieldName = kind === "store" ? "store_logo" : "branch_qr";
+  const imageFieldName = "store_logo";
   const disabled = !canEdit || saving;
   const [selectedImage, setSelectedImage] = useState<File | null>(null);
   const [crop, setCrop] = useState<CropState>(DEFAULT_CROP);
@@ -198,7 +193,7 @@ function EntityForm({
   const [chargeStatus, setChargeStatus] = useState("2");
   const [chargePercent, setChargePercent] = useState("0");
   const formHint = kind === "store" ? labels.storeHint : labels.branchHint;
-  const existingSrc = editing ? imageUrl(editing, kind) : "";
+  const existingSrc = kind === "store" && editing ? imageUrl(editing, kind) : "";
   const canSubmit =
     !disabled &&
     (kind === "store"
@@ -239,8 +234,7 @@ function EntityForm({
       const croppedFile = await cropImageFile(
         selectedImage,
         crop,
-        labels.imageLoadFailed,
-        kind === "branch" ? { aspect: QR_CROP_ASPECT, outputHeight: QR_CROP_OUTPUT_HEIGHT, outputWidth: QR_CROP_OUTPUT_WIDTH } : undefined
+        labels.imageLoadFailed
       );
       formData.set(imageFieldName, croppedFile);
     }
@@ -260,29 +254,34 @@ function EntityForm({
       </SettingsDialogHeader>
 
       <SettingsDialogBody className="p-0 sm:p-0">
-        <div className="grid min-h-full gap-4 p-4 lg:grid-cols-[20rem_minmax(0,1fr)] lg:p-5">
-          <SettingsImageCropPanel
-            aspect={kind === "branch" ? QR_CROP_ASPECT : undefined}
-            aspectClass={kind === "branch" ? QR_CROP_ASPECT_CLASS : undefined}
-            crop={crop}
-            className="rounded-lg border border-border lg:max-h-[calc(100dvh-12rem)] lg:overflow-y-auto"
-            description={labels.cropHint}
-            disabled={!canEdit}
-            emptyLabel={kind === "store" ? labels.store : labels.branch}
-            existingSrc={existingSrc}
-            fileSupportText={labels.imageSupport}
-            fieldId={`${recordKey}-${imageFieldName}`}
-            previewMaxClassName="max-w-[10rem] sm:max-w-56 lg:max-w-none"
-            removeLabel={labels.cancelImage}
-            saving={saving}
-            selectedFile={selectedImage}
-            sideBorderAt="lg"
-            title={labels.cropImage}
-            uploadLabel={labels.uploadImage}
-            zoomLabel={labels.zoom}
-            onCropChange={setCrop}
-            onFileChange={setSelectedImage}
-          />
+        <div
+          className={cn(
+            "grid min-h-full gap-4 p-4 lg:p-5",
+            kind === "store" && "lg:grid-cols-[20rem_minmax(0,1fr)]",
+          )}
+        >
+          {kind === "store" ? (
+            <SettingsImageCropPanel
+              crop={crop}
+              className="rounded-lg border border-border lg:max-h-[calc(100dvh-12rem)] lg:overflow-y-auto"
+              description={labels.cropHint}
+              disabled={!canEdit}
+              emptyLabel={labels.store}
+              existingSrc={existingSrc}
+              fileSupportText={labels.imageSupport}
+              fieldId={`${recordKey}-${imageFieldName}`}
+              previewMaxClassName="max-w-[10rem] sm:max-w-56 lg:max-w-none"
+              removeLabel={labels.cancelImage}
+              saving={saving}
+              selectedFile={selectedImage}
+              sideBorderAt="lg"
+              title={labels.cropImage}
+              uploadLabel={labels.uploadImage}
+              zoomLabel={labels.zoom}
+              onCropChange={setCrop}
+              onFileChange={setSelectedImage}
+            />
+          ) : null}
 
           <FieldGroup className="min-w-0 gap-4">
             <FieldSet className="gap-4 rounded-lg border border-border bg-card p-4">
@@ -541,6 +540,11 @@ function EntityForm({
                     </Field>
                   </FieldGroup>
                 </FieldSet>
+
+                <BranchTransferAccounts
+                  branchUuid={storeBranchId(editing, "branch")}
+                  disabled={disabled}
+                />
               </>
             )}
           </FieldGroup>

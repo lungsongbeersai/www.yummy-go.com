@@ -403,7 +403,6 @@ function BranchSettingsPage({ initialPagination }: { initialPagination: UrlPagin
   const { t } = useTranslation();
   const labels = useStoreBranchLabels();
   const updateUser = useAuthStore((state) => state.updateUser);
-  const branchQrUrl = useReferenceStore((state) => state.branchQrUrl);
   const saveBranchRow = useBranchSettingsStore((state) => state.save);
   const loadBranchRows = useBranchSettingsStore((state) => state.load);
   const removeBranchRow = useBranchSettingsStore((state) => state.remove);
@@ -488,9 +487,9 @@ function BranchSettingsPage({ initialPagination }: { initialPagination: UrlPagin
   const { start: pageStart, end: pageEnd } = optionPageRange(visibleRows.length, page, pageSize);
 
   function imageUrl(row: StoreBranchSettingsRow, rowKind: StoreBranchKind) {
-    if (rowKind !== "branch") return "";
-    const key = storeBranchValue(row, "branch_qr");
-    return key ? branchQrUrl(key) : "";
+    void row;
+    void rowKind;
+    return "";
   }
 
   function missingFieldDescription(field: ReturnType<typeof missingBranchField>) {
@@ -519,7 +518,6 @@ function BranchSettingsPage({ initialPagination }: { initialPagination: UrlPagin
     if (!id && !canCreate) return;
     if (id && !canEdit) return;
 
-    const qr = formData.get("branch_qr");
     const input = buildBranchPayload({
       address: String(formData.get("branch_address") ?? ""),
       chargePercent: String(formData.get("charge_name") ?? ""),
@@ -527,7 +525,7 @@ function BranchSettingsPage({ initialPagination }: { initialPagination: UrlPagin
       editing,
       email: String(formData.get("branch_email") ?? ""),
       name: String(formData.get("branch_name") ?? ""),
-      qr: qr instanceof File && qr.size ? qr : null,
+      qr: null,
       storeUuid,
       tel: String(formData.get("branch_tel") ?? ""),
       vatPercent: String(formData.get("vat_name") ?? ""),

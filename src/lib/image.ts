@@ -21,6 +21,10 @@ export function getBranchQrUrl(filename: string) {
   return uploadedUrl(filename, "uploaded/qrcode");
 }
 
+export function getAccountQrUrl(filename: string) {
+  return uploadedUrl(filename, "uploaded/qrcode");
+}
+
 export function getProductImageUrl(filename: string) {
   return filename?.startsWith("#") ? filename : uploadedUrl(filename, "uploaded/products");
 }

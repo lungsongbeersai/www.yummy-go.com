@@ -21,7 +21,7 @@ import {
   canProgrammaticallyFocusTextInput,
 } from "@/lib/input-focus";
 import { toApiLanguage, toLanguage } from "@/lib/language";
-import { getBranchQrUrl } from "@/lib/image";
+import { getAccountQrUrl } from "@/lib/image";
 import { OrderChannelEnum, type OrderChannel } from "@/config/pos-constants";
 import type {
   PaymentResponse,
@@ -29,8 +29,10 @@ import type {
   SplitBillResponse,
 } from "@/services/pos";
 import type { Exchange } from "@/services/exchange";
+import type { BranchAccount } from "@/services/bank-account";
 import { useAppStore } from "@/stores/app-store";
 import { useAuthStore } from "@/stores/auth-store";
+import { useBankAccountStore } from "@/stores/bank-account-store";
 import { usePosStore } from "@/stores/pos-store";
 import { usePrinterStore } from "@/stores/printer-store";
 import { useReferenceStore } from "@/stores/reference-store";
@@ -41,7 +43,6 @@ import { queuedDocumentPrintOutcome } from "../queued-document-print";
 import {
   cartOrdersBelongToTable,
   cartOrderInvoice,
-  optionalString,
 } from "../utils";
 import {
   openLocalInvoicePrintWindow,
@@ -75,17 +76,20 @@ import {
   tenderInputLak,
   tenderInputValue,
   tenderLabel,
+  transferAccountValidation,
   type PaymentTab,
   type SplitTenderField,
   type TenderField,
 } from "../payment-dialog-utils";
 
 const EMPTY_EXCHANGES: Exchange[] = [];
+const EMPTY_TRANSFER_ACCOUNTS: BranchAccount[] = [];
 
 export function usePaymentDialogWorkflow({
   hasRealTable = true,
   onCompleted,
   onOpenChange,
+  onTransferAccountQrChange,
   open,
   orders,
   paymentKind = "full",
@@ -96,6 +100,9 @@ export function usePaymentDialogWorkflow({
   const { t } = useTranslation();
   const language = useAppStore((state) => state.language);
   const user = useAuthStore((state) => state.user);
+  const fetchPosTransferAccounts = useBankAccountStore(
+    (state) => state.fetchPosTransferAccounts,
+  );
   const exchanges = (useReferenceStore((state) => state.options.exchangeRates) ?? EMPTY_EXCHANGES) as Exchange[];
   const loadExchangeRates = useReferenceStore((state) => state.loadExchangeRates);
   const exchangeRatesLoading = useReferenceStore((state) => state.loadingKeys.exchangeRates ?? false);
@@ -123,14 +130,19 @@ export function usePaymentDialogWorkflow({
   const [currencyValue, setCurrencyValue] = useState(LAK_CURRENCY_VALUE);
   const [dueDate, setDueDate] = useState("");
   const [note, setNote] = useState("");
+  const [transferAccounts, setTransferAccounts] = useState<BranchAccount[]>(
+    EMPTY_TRANSFER_ACCOUNTS,
+  );
+  const [transferAccountsLoading, setTransferAccountsLoading] = useState(false);
+  const [transferAccountsFailed, setTransferAccountsFailed] = useState(false);
+  const [selectedTransferAccountUuid, setSelectedTransferAccountUuid] =
+    useState("");
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [processing, setProcessing] = useState(false);
   const [invoicePrinting, setInvoicePrinting] = useState(false);
   const isSplitPayment = paymentKind === "split";
   const totalAmount = Math.max(0, Number(summary.grandTotal ?? 0));
   const invoice = cartOrderInvoice(orders);
-  const branchQr = optionalString(...orders.map((order) => order.branch_qr));
-  const branchQrUrl = branchQr ? getBranchQrUrl(branchQr) : null;
   const orderUuid = firstOrderUuid(orders);
   const currencyOptions = useMemo(
     () => exchangeCurrencyOptions(exchanges),
@@ -207,7 +219,7 @@ export function usePaymentDialogWorkflow({
     () => quickCashAmounts(activeExactAmount, selectedCurrency),
     [activeExactAmount, selectedCurrency],
   );
-  const validation = paymentValidation(
+  const paymentAmountValidation = paymentValidation(
     activeTab,
     orderUuid,
     totalAmount,
@@ -215,6 +227,14 @@ export function usePaymentDialogWorkflow({
     customers.customerUuid,
     isSplitPayment ? splitBillItemUuids : undefined,
   );
+  const requiresTransferAccount = payment.transfer > 0;
+  const validation =
+    paymentAmountValidation ||
+    transferAccountValidation(
+      payment.transfer,
+      selectedTransferAccountUuid,
+      transferAccountsLoading,
+    );
   const hasPrintableSplitContext =
     !isSplitPayment ||
     (splitBillItemUuids.length > 0 && Boolean(customers.customerUuid));
@@ -225,6 +245,40 @@ export function usePaymentDialogWorkflow({
     !invoicePrinting;
   const selectedTab =
     paymentTabs.find((tab) => tab.value === activeTab) ?? paymentTabs[0];
+  const transferAccountOptions = useMemo(
+    () =>
+      transferAccounts.map((account) => ({
+        label: `${
+          toApiLanguage(language) === "eng"
+            ? account.bank_name_eng || account.bank_name_la
+            : account.bank_name_la || account.bank_name_eng
+        } · ${account.account_name} · ${account.account_number}`,
+        value: account.account_uuid,
+      })),
+    [language, transferAccounts],
+  );
+  const selectedTransferAccount =
+    transferAccountOptions.find(
+      (account) => account.value === selectedTransferAccountUuid,
+    ) ?? null;
+  const selectedTransferAccountRecord = transferAccounts.find(
+    (account) => account.account_uuid === selectedTransferAccountUuid,
+  );
+  const accountQrValue =
+    selectedTransferAccountRecord?.account_qr ||
+    selectedTransferAccountRecord?.account_qr_raw ||
+    "";
+  const accountQrUrl = accountQrValue
+    ? getAccountQrUrl(accountQrValue)
+    : null;
+
+  useEffect(() => {
+    if (!onTransferAccountQrChange) return;
+    onTransferAccountQrChange(
+      open && requiresTransferAccount ? accountQrUrl : null,
+    );
+    return () => onTransferAccountQrChange(null);
+  }, [accountQrUrl, onTransferAccountQrChange, open, requiresTransferAccount]);
   const activeInputValue = activeTenderField
     ? tenderInputValue(
         activeTenderField,
@@ -265,6 +319,10 @@ export function usePaymentDialogWorkflow({
     setCurrencyValue(LAK_CURRENCY_VALUE);
     setDueDate("");
     setNote("");
+    setTransferAccounts(EMPTY_TRANSFER_ACCOUNTS);
+    setTransferAccountsLoading(true);
+    setTransferAccountsFailed(false);
+    setSelectedTransferAccountUuid("");
     setConfirmOpen(false);
     paymentUuidRef.current = createMutationUuid();
     splitOperationUuidRef.current = createMutationUuid();
@@ -279,6 +337,29 @@ export function usePaymentDialogWorkflow({
       lang: toApiLanguage(language),
     }).catch(() => undefined);
   }, [isSplitPayment, language, loadExchangeRates, open, totalAmount, user]);
+
+  useEffect(() => {
+    if (!open) return;
+    let active = true;
+
+    void fetchPosTransferAccounts()
+      .then((accounts) => {
+        if (!active) return;
+        setTransferAccounts(accounts);
+      })
+      .catch(() => {
+        if (!active) return;
+        setTransferAccounts([]);
+        setTransferAccountsFailed(true);
+      })
+      .finally(() => {
+        if (active) setTransferAccountsLoading(false);
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [fetchPosTransferAccounts, open]);
 
   // สกุลเงินที่เลือกหลุดจากรายการ (โหลดอัตราใหม่/สลับร้าน) = กลับไปใช้ LAK
   useResetOnDeps([currencyOptions, currencyValue], () => {
@@ -524,6 +605,9 @@ export function usePaymentDialogWorkflow({
         order_uuid: orderUuid,
         ...(hasRealTable ? { table_uuid: table.table_uuid } : {}),
         customer_uuid_fk: customers.customerUuid,
+        ...(requiresTransferAccount && selectedTransferAccountUuid
+          ? { account_uuid_fk: selectedTransferAccountUuid }
+          : {}),
         payment_method: selectedTab.method,
         amount: totalAmount,
         cash_payment_amount: payment.cash,
@@ -628,7 +712,7 @@ export function usePaymentDialogWorkflow({
       exchangeRates: currencyOptions,
       invoice,
       orders,
-      qrUrl: branchQrUrl,
+      qrUrl: accountQrUrl,
       selectedCustomer: customers.selectedCustomerOption,
       summary,
       table,
@@ -645,6 +729,9 @@ export function usePaymentDialogWorkflow({
             document_type: "invoice",
             order_channel: orderChannel,
             customer_uuid_fk: customers.customerUuid,
+            ...(requiresTransferAccount && selectedTransferAccountUuid
+              ? { account_uuid_fk: selectedTransferAccountUuid }
+              : {}),
             payment_method: selectedTab.method,
             amount: totalAmount,
             cash_payment_amount: payment.cash,
@@ -816,7 +903,7 @@ export function usePaymentDialogWorkflow({
     activeTenderLabel,
     allowDecimalAmount,
     backspaceActiveAmount,
-    branchQrUrl,
+    accountQrUrl,
     canPrintInvoice,
     clearActiveAmount,
     confirmOpen,
@@ -845,12 +932,15 @@ export function usePaymentDialogWorkflow({
     replaceActiveAmount,
     requestSubmit,
     selectedCurrency,
+    selectedTransferAccount,
+    selectedTransferAccountUuid,
     selectedTab,
     setActiveSplitField,
     setConfirmOpen,
     setDueDate,
     setNote,
     setOrderChannel,
+    setSelectedTransferAccountUuid,
     splitBillItemUuids,
     splitCashInput,
     splitTransferInput,
@@ -858,6 +948,9 @@ export function usePaymentDialogWorkflow({
     summary,
     table,
     totalAmount,
+    transferAccountOptions,
+    transferAccountsFailed,
+    transferAccountsLoading,
     validation,
   };
 }

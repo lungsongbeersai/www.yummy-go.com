@@ -710,6 +710,7 @@ export interface PaymentInput extends ApiEntity {
   order_uuid: string;
   table_uuid?: string;
   customer_uuid_fk?: string;
+  account_uuid_fk?: string;
   payment_method: PaymentMethod;
   order_channel: OrderChannel;
   amount: number;
@@ -735,6 +736,7 @@ export interface PaymentRecord extends ApiEntity {
   payment_uuid?: string;
   order_uuid_fk?: string;
   customer_uuid_fk?: string;
+  account_uuid_fk?: string | null;
   payment_method?: number;
   amount?: string | number;
   cash_payment_amount?: string | number;
@@ -790,6 +792,7 @@ export interface SplitBillInput extends ApiEntity {
   document_type: "receipt" | "invoice";
   order_channel: OrderChannel;
   customer_uuid_fk: string;
+  account_uuid_fk?: string;
   payment_method: PaymentMethod;
   amount: number;
   cash_payment_amount: number;

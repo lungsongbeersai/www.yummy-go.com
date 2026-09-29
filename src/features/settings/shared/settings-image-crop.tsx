@@ -326,6 +326,7 @@ function ImageCropDialogBody({
 }
 
 export function SettingsImageCropPanel({
+  accept = "image/jpeg,image/png,image/gif",
   aspect = IMAGE_CROP_ASPECT,
   aspectClass = IMAGE_CROP_ASPECT_CLASS,
   crop,
@@ -349,6 +350,7 @@ export function SettingsImageCropPanel({
   uploadLabel,
   zoomLabel
 }: {
+  accept?: string;
   aspect?: number;
   aspectClass?: string;
   crop: CropState;
@@ -454,7 +456,7 @@ export function SettingsImageCropPanel({
               className="sr-only"
               disabled={inputDisabled}
               type="file"
-              accept="image/jpeg,image/png,image/gif"
+              accept={accept}
               onChange={handleFileChange}
             />
             <FieldDescription>{fileSupportText}</FieldDescription>
