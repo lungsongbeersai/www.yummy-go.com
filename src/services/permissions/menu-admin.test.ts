@@ -3,10 +3,14 @@ import {
   buildCreateMainMenuPayload,
   buildCreateSubMenuPayload,
   buildMainMenuSortPayload,
+  buildMoveSubMenuInput,
+  buildPromotedMainMenuInput,
+  findSubMenuParent,
   buildSubMenuSortPayload,
   normalizePermissionMainMenu,
   normalizePermissionMenuTreeResponse,
-  permissionMenuBadgeValue
+  permissionMenuBadgeValue,
+  type PermissionSubMenu
 } from "@/services/permissions/menu-admin";
 
 describe("permission menu service helpers", () => {
@@ -198,5 +202,50 @@ describe("permission menu service helpers", () => {
     expect(permissionMenuBadgeValue(0)).toBe(2);
     expect(permissionMenuBadgeValue(undefined)).toBe(2);
     expect(normalizePermissionMainMenu({ menu_badge: 0 }).menu_badge).toBe(2);
+  });
+});
+
+describe("moving a submenu", () => {
+  const submenu: PermissionSubMenu = {
+    menu_id: "menu-1",
+    sub_id: "sub-1",
+    sub_path: "/setting/store",
+    sub_sort: 3,
+    sub_status: 2,
+    sub_title: "Store",
+    sub_title_eng: "",
+    sub_title_la: "ຮ້ານ"
+  };
+  const menus = [
+    normalizePermissionMainMenu({ menu_id: "menu-1", sub_detail: [submenu] }),
+    normalizePermissionMainMenu({ menu_id: "menu-2", sub_detail: [] })
+  ];
+
+  it("finds the main menu a submenu sits under", () => {
+    expect(findSubMenuParent(menus, "sub-1")?.menu_id).toBe("menu-1");
+    expect(findSubMenuParent(menus, "missing")).toBeNull();
+  });
+
+  it("keeps the sub_id when saving it under another main menu", () => {
+    expect(buildMoveSubMenuInput(submenu, "menu-2")).toEqual({
+      menu_id: "menu-2",
+      sub_id: "sub-1",
+      sub_path: "/setting/store",
+      sub_status: 2,
+      sub_title_eng: "Store",
+      sub_title_la: "ຮ້ານ"
+    });
+  });
+
+  it("promotes to a main menu with its title and path, submenus hidden and no badge", () => {
+    expect(buildPromotedMainMenuInput(submenu, "settings")).toEqual({
+      menu_badge: 2,
+      menu_badge_text: "",
+      menu_icon: "settings",
+      menu_path: "/setting/store",
+      menu_status: 2,
+      menu_title_eng: "Store",
+      menu_title_la: "ຮ້ານ"
+    });
   });
 });

@@ -1,6 +1,6 @@
 "use client";
 
-import type { CSSProperties } from "react";
+import { useRef, type CSSProperties, type ReactNode } from "react";
 import {
   closestCenter,
   DndContext,
@@ -12,27 +12,34 @@ import { SortableContext, useSortable, verticalListSortingStrategy } from "@dnd-
 import { CSS } from "@dnd-kit/utilities";
 import {
   ArrowDown,
+  ArrowRightLeft,
   ArrowUp,
   FileText,
   GripVertical,
+  Info,
+  ListTree,
   Pencil,
   Plus,
   Search,
   Trash2
 } from "lucide-react";
 import { useTranslation } from "react-i18next";
+import { MenuIcon } from "@/components/common/menu-icon";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
 import {
   Empty,
+  EmptyContent,
   EmptyDescription,
   EmptyHeader,
   EmptyMedia,
   EmptyTitle
 } from "@/components/ui/empty";
-import { MenuIcon } from "@/components/common/menu-icon";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import { InputGroup, InputGroupAddon, InputGroupInput } from "@/components/ui/input-group";
 import { Separator } from "@/components/ui/separator";
+import { Spinner } from "@/components/ui/spinner";
+import { SETTINGS_ACCENT } from "@/features/settings/shared/settings-tones";
 import { cn } from "@/lib/utils";
 import type { PermissionMainMenu, PermissionSubMenu } from "@/services/permissions/menu-admin";
 import {
@@ -60,7 +67,6 @@ interface PermissionMenuBuilderProps {
   sensors: Sensors;
   sorting: boolean;
   visibleMenus: PermissionMainMenu[];
-  onAddMain: () => void;
   onAddSub: (menu: PermissionMainMenu) => void;
   onDeleteMain: (menu: PermissionMainMenu) => void;
   onDeleteSub: (menu: PermissionMainMenu, submenu: PermissionSubMenu) => void;
@@ -70,10 +76,14 @@ interface PermissionMenuBuilderProps {
   onMoveSub: (menu: PermissionMainMenu, subId: string, direction: PermissionMenuMoveDirection) => void;
   onReorderMain: (event: DragEndEvent) => void;
   onReorderSub: (menu: PermissionMainMenu, event: DragEndEvent) => void;
+  onRelocateSub: (menu: PermissionMainMenu, submenu: PermissionSubMenu) => void;
   onSearchChange: (search: string) => void;
   onSelectMenu: (menuId: string) => void;
 }
 
+// Two cards: the main menus on the left (pick, search, reorder) and the picked menu with its
+// submenus on the right. Container queries, not viewport breakpoints: the app sidebar takes
+// 16rem, so the page itself decides when the two cards fit side by side.
 export function PermissionMenuBuilder({
   busy,
   mainSearch,
@@ -84,7 +94,6 @@ export function PermissionMenuBuilder({
   sensors,
   sorting,
   visibleMenus,
-  onAddMain,
   onAddSub,
   onDeleteMain,
   onDeleteSub,
@@ -94,50 +103,59 @@ export function PermissionMenuBuilder({
   onMoveSub,
   onReorderMain,
   onReorderSub,
+  onRelocateSub,
   onSearchChange,
   onSelectMenu
 }: PermissionMenuBuilderProps) {
   const { t } = useTranslation();
   const sortDisabled = busy || searchActive;
+  const listRef = useRef<HTMLDivElement>(null);
+  const detailRef = useRef<HTMLDivElement>(null);
+
+  // Stacked (narrow page), the details sit below the list, out of sight: bring them into view so
+  // a tap visibly does something. Side by side they are already on screen.
+  function selectMenu(menuId: string) {
+    onSelectMenu(menuId);
+    const list = listRef.current;
+    const detail = detailRef.current;
+    if (!list || !detail || detail.getBoundingClientRect().top < list.getBoundingClientRect().bottom) return;
+    const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    detail.scrollIntoView({ behavior: reduceMotion ? "auto" : "smooth", block: "start" });
+  }
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col lg:grid lg:grid-cols-[minmax(18rem,24rem)_minmax(0,1fr)]">
-      <section className="flex max-h-[42dvh] min-h-64 min-w-0 flex-col border-b border-border lg:max-h-none lg:border-b-0 lg:border-r">
-        <div className="shrink-0 border-b border-border p-3">
-          <div className="flex min-w-0 items-start justify-between gap-2">
-            <div className="min-w-0">
-              <h2 className="truncate text-sm font-black">{t("permissionMenu.mainList")}</h2>
-              <p className="mt-0.5 truncate text-xs text-muted-foreground">
-                {t("permissionMenu.mainListHint")}
-              </p>
-            </div>
-            <Button className="shrink-0" disabled={busy} size="sm" type="button" onClick={onAddMain}>
-              <Plus data-icon="inline-start" />
-              {t("permissionMenu.addMain")}
-            </Button>
-          </div>
-          <div className="mt-3 flex min-w-0 items-center gap-2 rounded-md border border-input bg-background px-2.5 shadow-sm transition-colors focus-within:border-ring focus-within:ring-[3px] focus-within:ring-ring/50">
-            <Search aria-hidden className="shrink-0 text-muted-foreground" />
-            <Input
+    <div className="flex flex-col gap-4 @4xl:grid @4xl:min-h-0 @4xl:flex-1 @4xl:grid-cols-[minmax(18rem,22rem)_minmax(0,1fr)]">
+      <Card ref={listRef} className="max-h-[45dvh] min-h-72 shrink-0 gap-0 py-0 @4xl:max-h-none @4xl:min-h-0">
+        <div className="flex shrink-0 flex-col gap-3 border-b p-3">
+          <PanelTitle
+            count={menus.length}
+            hint={t("permissionMenu.mainListHint")}
+            title={t("permissionMenu.mainList")}
+          />
+          <InputGroup>
+            <InputGroupAddon>
+              <Search />
+            </InputGroupAddon>
+            <InputGroupInput
               aria-label={t("permissionMenu.searchMain")}
               autoComplete="off"
-              className="h-9 min-w-0 flex-1 border-0 bg-transparent p-0 shadow-none focus-visible:ring-0"
               name="manage_menu_main_search"
               placeholder={t("permissionMenu.searchMainPlaceholder")}
               spellCheck={false}
               value={mainSearch}
               onChange={(event) => onSearchChange(event.target.value)}
             />
-          </div>
+          </InputGroup>
           {searchActive ? (
-            <Badge className="mt-2 border-primary/20 bg-primary/10 text-primary">
+            <p className="flex items-center gap-1.5 text-xs text-muted-foreground">
+              <Info aria-hidden className="size-3.5 shrink-0" />
               {t("permissionMenu.sortPausedBySearch")}
-            </Badge>
+            </p>
           ) : null}
         </div>
 
-        {/* settings-table-scroll กันพื้นที่ safe-area ล่างให้แล้ว (ดู globals.css) — หน้านี้
-            ไม่มี pagination/footer แบบ AppPagination (settings-shell.tsx) ที่กันไว้ให้เอง */}
+        {/* settings-table-scroll keeps the bottom safe-area clear (see globals.css): this page
+            has no pagination footer to do it. */}
         <div className="settings-table-scroll min-h-0 flex-1 overflow-y-auto p-2">
           {!menus.length ? (
             <PermissionMenuEmpty
@@ -152,11 +170,11 @@ export function PermissionMenuBuilder({
               onDragEnd={sortDisabled ? undefined : onReorderMain}
             >
               <SortableContext items={menuIds(visibleMenus)} strategy={verticalListSortingStrategy}>
-                <div className="flex flex-col gap-2">
+                <div className="flex flex-col gap-1">
                   {visibleMenus.map((menu) => {
                     const index = menus.findIndex((item) => item.menu_id === menu.menu_id);
                     return (
-                      <SortableMainMenuCard
+                      <SortableMainMenuRow
                         key={menu.menu_id}
                         busy={busy}
                         index={index}
@@ -165,7 +183,7 @@ export function PermissionMenuBuilder({
                         selected={menu.menu_id === selectedMenuId}
                         total={menus.length}
                         onMove={onMoveMain}
-                        onSelect={onSelectMenu}
+                        onSelect={selectMenu}
                       />
                     );
                   })}
@@ -179,9 +197,9 @@ export function PermissionMenuBuilder({
             />
           )}
         </div>
-      </section>
+      </Card>
 
-      <section className="flex min-h-96 min-w-0 flex-1 flex-col">
+      <Card ref={detailRef} className="min-h-96 gap-0 py-0 @4xl:min-h-0">
         {selectedMenu ? (
           <SelectedMenuPanel
             busy={busy}
@@ -195,14 +213,34 @@ export function PermissionMenuBuilder({
             onEditSub={onEditSub}
             onMoveSub={onMoveSub}
             onReorderSub={onReorderSub}
+            onRelocateSub={onRelocateSub}
           />
         ) : (
-          <PermissionMenuEmpty
-            description={t("permissionMenu.selectMenuDescription")}
-            title={t("permissionMenu.selectMenuTitle")}
-          />
+          <div className="flex flex-1 items-center p-4">
+            <PermissionMenuEmpty
+              description={t("permissionMenu.selectMenuDescription")}
+              title={t("permissionMenu.selectMenuTitle")}
+            />
+          </div>
         )}
-      </section>
+      </Card>
+    </div>
+  );
+}
+
+function PanelTitle({ action, count, hint, title }: { action?: ReactNode; count: number; hint: string; title: string }) {
+  return (
+    <div className="flex min-w-0 flex-wrap items-center gap-2">
+      <div className="flex min-w-40 flex-1 flex-col gap-0.5">
+        <h2 className="flex items-center gap-2 text-sm font-semibold">
+          {title}
+          <Badge variant="secondary" className="tabular-nums">
+            {count.toLocaleString("en-US")}
+          </Badge>
+        </h2>
+        <p className="text-xs text-muted-foreground">{hint}</p>
+      </div>
+      {action}
     </div>
   );
 }
@@ -218,7 +256,8 @@ function SelectedMenuPanel({
   onEditMain,
   onEditSub,
   onMoveSub,
-  onReorderSub
+  onReorderSub,
+  onRelocateSub
 }: {
   busy: boolean;
   menu: PermissionMainMenu;
@@ -231,6 +270,7 @@ function SelectedMenuPanel({
   onEditSub: (menu: PermissionMainMenu, submenu: PermissionSubMenu) => void;
   onMoveSub: (menu: PermissionMainMenu, subId: string, direction: PermissionMenuMoveDirection) => void;
   onReorderSub: (menu: PermissionMainMenu, event: DragEndEvent) => void;
+  onRelocateSub: (menu: PermissionMainMenu, submenu: PermissionSubMenu) => void;
 }) {
   const { t } = useTranslation();
   const submenus = menuSubmenus(menu);
@@ -238,101 +278,107 @@ function SelectedMenuPanel({
 
   return (
     <>
-      <div className="shrink-0 border-b border-border p-4 lg:px-5">
-        <div className="flex min-w-0 flex-col gap-3 xl:flex-row xl:items-start xl:justify-between">
-          <div className="flex min-w-0 items-start gap-3">
-            <span className="grid size-11 shrink-0 place-items-center rounded-md bg-primary/10 text-primary [&_svg]:size-5">
-              <MenuIcon value={selectedIcon.value} />
-            </span>
-            <div className="min-w-0">
-              <p className="text-xs font-bold text-muted-foreground">{t("permissionMenu.selectedMenu")}</p>
-              <h2 className="mt-0.5 wrap-break-word text-lg font-black">{menu.menu_title || "-"}</h2>
-              <div className="mt-2 flex min-w-0 flex-wrap items-center gap-2">
-                <Badge>{badgeLabel(menu.menu_badge, t, menu.menu_badge_text)}</Badge>
-                <Badge className={cn("shrink-0", statusClass(menu.menu_status))}>
-                  {menuStatusLabel(menu.menu_status, t)}
-                </Badge>
-                {sorting ? (
-                  <Badge className="border-primary/20 bg-primary/10 text-primary">
-                    {t("permissionMenu.savingSort")}
-                  </Badge>
-                ) : null}
-              </div>
-              <p className="mt-2 max-w-full wrap-break-word font-mono text-xs text-muted-foreground" translate="no">
-                {menu.menu_path || "-"}
-              </p>
-            </div>
+      {/* The picked menu: the same theme-colour wash as the page header, so it reads as "this one". */}
+      <div className={cn("flex shrink-0 flex-wrap items-start gap-3 border-b p-4", SETTINGS_ACCENT.wash)}>
+        <span
+          aria-hidden
+          className={cn("flex size-12 shrink-0 items-center justify-center rounded-xl shadow-sm [&_svg]:size-6", SETTINGS_ACCENT.solid)}
+        >
+          <MenuIcon value={selectedIcon.value} />
+        </span>
+        <div className="flex min-w-48 flex-1 flex-col gap-1.5">
+          <p className="text-xs font-medium text-muted-foreground">{t("permissionMenu.selectedMenu")}</p>
+          <h2 className="text-lg/tight font-semibold wrap-break-word">{menu.menu_title || "-"}</h2>
+          <code className="w-fit max-w-full rounded-md bg-muted px-1.5 py-0.5 font-mono text-xs wrap-break-word text-muted-foreground" translate="no">
+            {menu.menu_path || "-"}
+          </code>
+          <div className="flex flex-wrap items-center gap-1.5">
+            <Badge className={statusClass(menu.menu_status)}>{menuStatusLabel(menu.menu_status, t)}</Badge>
+            <Badge variant="outline">{badgeLabel(menu.menu_badge, t, menu.menu_badge_text)}</Badge>
+            {sorting ? (
+              <Badge variant="secondary">
+                <Spinner data-icon="inline-start" />
+                {t("permissionMenu.savingSort")}
+              </Badge>
+            ) : null}
           </div>
-          <div className="grid grid-cols-3 gap-2 sm:flex sm:justify-end">
-            <Button disabled={busy} size="sm" type="button" variant="outline" onClick={() => onEditMain(menu)}>
-              <Pencil data-icon="inline-start" />
-              {t("actions.edit")}
-            </Button>
-            <Button disabled={busy} size="sm" type="button" variant="outline" onClick={() => onAddSub(menu)}>
+        </div>
+        <div className="flex shrink-0 items-center gap-2">
+          <Button disabled={busy} type="button" variant="outline" onClick={() => onEditMain(menu)}>
+            <Pencil data-icon="inline-start" />
+            {t("actions.edit")}
+          </Button>
+          <Button disabled={busy} type="button" variant="destructive" onClick={() => onDeleteMain(menu)}>
+            <Trash2 data-icon="inline-start" />
+            {t("actions.delete")}
+          </Button>
+        </div>
+      </div>
+
+      <div className="shrink-0 border-b px-4 py-3">
+        <PanelTitle
+          action={
+            <Button disabled={busy} type="button" onClick={() => onAddSub(menu)}>
               <Plus data-icon="inline-start" />
               {t("permissionMenu.addSub")}
             </Button>
-            <Button
-              className="text-destructive hover:text-destructive"
-              disabled={busy}
-              size="sm"
-              type="button"
-              variant="outline"
-              onClick={() => onDeleteMain(menu)}
-            >
-              <Trash2 data-icon="inline-start" />
-              {t("actions.delete")}
-            </Button>
-          </div>
-        </div>
+          }
+          count={submenus.length}
+          hint={t("permissionMenu.submenuListHint")}
+          title={t("permissionMenu.submenuList")}
+        />
       </div>
-      <div className="flex min-h-0 flex-1 flex-col">
-        <div className="flex shrink-0 flex-wrap items-center justify-between gap-2 border-b border-border px-4 py-3 lg:px-5">
-          <div className="min-w-0">
-            <h3 className="truncate text-sm font-black">{t("permissionMenu.submenuList")}</h3>
-            <p className="mt-0.5 text-xs text-muted-foreground">{t("permissionMenu.submenuListHint")}</p>
-          </div>
-        </div>
-        {/* เหตุผลเดียวกับ panel เมนูหลักด้านซ้าย — settings-table-scroll กันพื้นที่ safe-area ล่างให้แล้ว */}
-        <div className="settings-table-scroll min-h-0 flex-1 overflow-y-auto p-3 lg:p-4">
-          {submenus.length ? (
-            <DndContext
-              collisionDetection={closestCenter}
-              modifiers={[restrictToVerticalAxis]}
-              sensors={sensors}
-              onDragEnd={(event) => onReorderSub(menu, event)}
-            >
-              <SortableContext items={submenuIds(submenus)} strategy={verticalListSortingStrategy}>
-                <div className="flex flex-col gap-2">
-                  {submenus.map((submenu, index) => (
-                    <SortableSubMenuCard
-                      key={submenu.sub_id}
-                      busy={busy}
-                      index={index}
-                      menu={menu}
-                      submenu={submenu}
-                      total={submenus.length}
-                      onDelete={onDeleteSub}
-                      onEdit={onEditSub}
-                      onMove={onMoveSub}
-                    />
-                  ))}
-                </div>
-              </SortableContext>
-            </DndContext>
-          ) : (
-            <PermissionMenuEmpty
-              description={t("permissionMenu.noSubmenusDescription")}
-              title={t("permissionMenu.noSubmenus")}
-            />
-          )}
-        </div>
+
+      {/* Same reason as the main list: settings-table-scroll keeps the bottom safe-area clear. */}
+      <div className="settings-table-scroll min-h-0 flex-1 overflow-y-auto p-3">
+        {submenus.length ? (
+          <DndContext
+            collisionDetection={closestCenter}
+            modifiers={[restrictToVerticalAxis]}
+            sensors={sensors}
+            onDragEnd={(event) => onReorderSub(menu, event)}
+          >
+            <SortableContext items={submenuIds(submenus)} strategy={verticalListSortingStrategy}>
+              <ol aria-label={t("permissionMenu.submenuTableLabel", { title: menu.menu_title })} className="flex flex-col gap-2">
+                {submenus.map((submenu, index) => (
+                  <SortableSubMenuRow
+                    key={submenu.sub_id}
+                    busy={busy}
+                    index={index}
+                    menu={menu}
+                    submenu={submenu}
+                    total={submenus.length}
+                    onDelete={onDeleteSub}
+                    onEdit={onEditSub}
+                    onMove={onMoveSub}
+                    onRelocate={onRelocateSub}
+                  />
+                ))}
+              </ol>
+            </SortableContext>
+          </DndContext>
+        ) : (
+          <PermissionMenuEmpty
+            action={
+              <Button disabled={busy} type="button" variant="outline" onClick={() => onAddSub(menu)}>
+                <Plus data-icon="inline-start" />
+                {t("permissionMenu.addSub")}
+              </Button>
+            }
+            description={t("permissionMenu.noSubmenusDescription")}
+            title={t("permissionMenu.noSubmenus")}
+          />
+        )}
       </div>
     </>
   );
 }
 
-function SortableMainMenuCard({
+function sortableStyle(transform: Parameters<typeof CSS.Transform.toString>[0], transition: string | undefined): CSSProperties {
+  return { transform: CSS.Transform.toString(transform), transition };
+}
+
+function SortableMainMenuRow({
   busy,
   index,
   menu,
@@ -355,28 +401,25 @@ function SortableMainMenuCard({
   const sortDisabled = busy || searchActive;
   const selectedIcon = iconOption(menu.menu_icon);
   const badgeText = menuBadgeText(menu.menu_badge, menu.menu_badge_text);
+  const submenuCount = menu.sub_detail.length;
   const { attributes, isDragging, listeners, setNodeRef, transform, transition } = useSortable({
     disabled: sortDisabled,
     id: menu.menu_id
   });
-  const style: CSSProperties = {
-    transform: CSS.Transform.toString(transform),
-    transition
-  };
 
   return (
     <div
       ref={setNodeRef}
       className={cn(
-        "grid min-w-0 grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-2 rounded-md border border-border bg-background p-2 shadow-sm",
-        selected && "border-primary/40 bg-primary/5 ring-2 ring-primary/10",
-        isDragging && "relative bg-card shadow-md"
+        "group/row flex min-w-0 items-center gap-1 rounded-lg border border-transparent p-1 transition-colors hover:bg-muted/60",
+        selected && "border-primary/30 bg-primary/10 hover:bg-primary/10",
+        isDragging && "relative z-10 border-border bg-card shadow-md"
       )}
-      style={style}
+      style={sortableStyle(transform, transition)}
     >
       <Button
         aria-label={t("permissionMenu.reorderMain")}
-        className="cursor-grab active:cursor-grabbing"
+        className="cursor-grab text-muted-foreground active:cursor-grabbing"
         disabled={sortDisabled}
         size="icon-sm"
         type="button"
@@ -386,43 +429,60 @@ function SortableMainMenuCard({
       >
         <GripVertical aria-hidden />
       </Button>
-      <Button
+      <button
         aria-pressed={selected}
-        className="h-auto min-h-12 min-w-0 justify-start gap-3 px-2 py-1.5 text-left"
+        className="flex min-w-0 flex-1 items-center gap-2.5 rounded-md px-1 py-1 text-left outline-none focus-visible:ring-2 focus-visible:ring-ring/50 disabled:opacity-50"
         disabled={busy}
         type="button"
-        variant="ghost"
         onClick={() => onSelect(menu.menu_id)}
       >
-        <span className="grid size-9 shrink-0 place-items-center rounded-md bg-primary/10 text-primary [&_svg]:size-4">
+        {/* The picked row gets the solid tile, the rest the soft one. */}
+        <span
+          aria-hidden
+          className={cn(
+            "flex size-8 shrink-0 items-center justify-center rounded-lg [&_svg]:size-4",
+            selected ? SETTINGS_ACCENT.solid : SETTINGS_ACCENT.soft
+          )}
+        >
           <MenuIcon value={selectedIcon.value} />
         </span>
-        <span className="min-w-0 flex-1">
-          <span className="flex min-w-0 items-center gap-2">
-            <span className="truncate text-sm font-black">{menu.menu_title || "-"}</span>
+        <span className="flex min-w-0 flex-1 flex-col">
+          <span className="flex min-w-0 items-center gap-1.5">
+            <span className="truncate text-xs font-semibold">{menu.menu_title || "-"}</span>
             {badgeText ? (
-              <Badge className="max-w-20 shrink-0 truncate px-1.5 text-2xs" translate="no">
+              <Badge className="max-w-20 shrink-0 truncate" translate="no">
                 {badgeText}
               </Badge>
             ) : null}
           </span>
-          <span className="mt-1 block truncate font-mono text-xs text-muted-foreground" translate="no">
+          <span className="truncate font-mono text-2xs text-muted-foreground" translate="no">
             {menu.menu_path || "-"}
           </span>
         </span>
-      </Button>
-      <ReorderButtons
-        busy={sortDisabled}
-        itemTitle={menu.menu_title || "-"}
-        isFirst={index <= 0}
-        isLast={index >= total - 1}
-        onMove={(direction) => onMove(menu.menu_id, direction)}
-      />
+      </button>
+      {/* Arrows only on the picked row (touch and keyboard users); drag works on every row. */}
+      {selected ? (
+        <ReorderButtons
+          busy={sortDisabled}
+          isFirst={index <= 0}
+          isLast={index >= total - 1}
+          itemTitle={menu.menu_title || "-"}
+          onMove={(direction) => onMove(menu.menu_id, direction)}
+        />
+      ) : (
+        <Badge
+          aria-label={t("permissionMenu.submenuCount", { count: submenuCount })}
+          className="mr-1 min-w-6 shrink-0 justify-center tabular-nums"
+          variant={submenuCount ? "secondary" : "outline"}
+        >
+          {submenuCount}
+        </Badge>
+      )}
     </div>
   );
 }
 
-function SortableSubMenuCard({
+function SortableSubMenuRow({
   busy,
   index,
   menu,
@@ -430,7 +490,8 @@ function SortableSubMenuCard({
   total,
   onDelete,
   onEdit,
-  onMove
+  onMove,
+  onRelocate
 }: {
   busy: boolean;
   index: number;
@@ -440,58 +501,71 @@ function SortableSubMenuCard({
   onDelete: (menu: PermissionMainMenu, submenu: PermissionSubMenu) => void;
   onEdit: (menu: PermissionMainMenu, submenu: PermissionSubMenu) => void;
   onMove: (menu: PermissionMainMenu, subId: string, direction: PermissionMenuMoveDirection) => void;
+  onRelocate: (menu: PermissionMainMenu, submenu: PermissionSubMenu) => void;
 }) {
   const { t } = useTranslation();
   const { attributes, isDragging, listeners, setNodeRef, transform, transition } = useSortable({
     disabled: busy,
     id: submenu.sub_id
   });
-  const style: CSSProperties = {
-    transform: CSS.Transform.toString(transform),
-    transition
-  };
 
   return (
-    <div
+    <li
       ref={setNodeRef}
       className={cn(
-        "grid min-w-0 grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-2 rounded-md border border-border bg-background p-2 shadow-sm",
-        isDragging && "relative bg-card shadow-md"
+        "flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1 rounded-lg border bg-card p-2 transition-colors hover:border-primary/30",
+        isDragging && "relative z-10 shadow-md"
       )}
-      style={style}
+      style={sortableStyle(transform, transition)}
     >
-      <Button
-        aria-label={t("permissionMenu.reorderSub")}
-        className="cursor-grab active:cursor-grabbing"
-        disabled={busy}
-        size="icon-sm"
-        type="button"
-        variant="ghost"
-        {...attributes}
-        {...listeners}
-      >
-        <GripVertical aria-hidden />
-      </Button>
-      <div className="min-w-0 px-2">
-        <div className="flex min-w-0 flex-wrap items-center gap-2">
-          <p className="min-w-0 truncate text-sm font-black">{submenu.sub_title || "-"}</p>
-          <Badge className={cn("shrink-0", statusClass(submenu.sub_status))}>
-            {statusLabel(submenu.sub_status, t)}
-          </Badge>
+      <div className="flex min-w-48 flex-1 items-center gap-2">
+        <Button
+          aria-label={t("permissionMenu.reorderSub")}
+          className="cursor-grab text-muted-foreground active:cursor-grabbing"
+          disabled={busy}
+          size="icon-sm"
+          type="button"
+          variant="ghost"
+          {...attributes}
+          {...listeners}
+        >
+          <GripVertical aria-hidden />
+        </Button>
+        {/* Its position in the sidebar, 1-based. */}
+        <span
+          aria-hidden
+          className={cn("flex size-7 shrink-0 items-center justify-center rounded-full text-xs font-semibold tabular-nums", SETTINGS_ACCENT.soft)}
+        >
+          {index + 1}
+        </span>
+        <div className="flex min-w-0 flex-1 flex-col gap-0.5">
+          <p className="truncate text-xs font-semibold">{submenu.sub_title || "-"}</p>
+          <p className="truncate font-mono text-2xs text-muted-foreground" translate="no">
+            {submenu.sub_path || "-"}
+          </p>
         </div>
-        <p className="mt-1 wrap-break-word font-mono text-xs text-muted-foreground" translate="no">
-          {submenu.sub_path || "-"}
-        </p>
       </div>
-      <div className="flex shrink-0 items-center gap-1">
+      <div className="ml-auto flex shrink-0 items-center gap-1">
+        <Badge className={statusClass(submenu.sub_status)}>{statusLabel(submenu.sub_status, t)}</Badge>
+        <Separator orientation="vertical" className="mx-1 h-5" />
         <ReorderButtons
           busy={busy}
-          itemTitle={submenu.sub_title || "-"}
           isFirst={index <= 0}
           isLast={index >= total - 1}
+          itemTitle={submenu.sub_title || "-"}
           onMove={(direction) => onMove(menu, submenu.sub_id, direction)}
         />
-        <Separator orientation="vertical" className="mx-1 h-8" />
+        <Button
+          aria-label={t("permissionMenu.moveSubAction", { title: submenu.sub_title || "-" })}
+          disabled={busy}
+          size="icon-sm"
+          title={t("permissionMenu.moveSubAction", { title: submenu.sub_title || "-" })}
+          type="button"
+          variant="ghost"
+          onClick={() => onRelocate(menu, submenu)}
+        >
+          <ArrowRightLeft aria-hidden />
+        </Button>
         <Button
           aria-label={t("permissionMenu.editSub")}
           disabled={busy}
@@ -514,7 +588,7 @@ function SortableSubMenuCard({
           <Trash2 aria-hidden />
         </Button>
       </div>
-    </div>
+    </li>
   );
 }
 
@@ -534,7 +608,7 @@ function ReorderButtons({
   const { t } = useTranslation();
 
   return (
-    <div className="flex shrink-0 flex-col gap-1">
+    <div className="flex shrink-0 items-center">
       <Button
         aria-label={t("permissionMenu.moveUp", { title: itemTitle })}
         disabled={busy || isFirst}
@@ -560,21 +634,24 @@ function ReorderButtons({
 }
 
 function PermissionMenuEmpty({
+  action,
   description,
   title
 }: {
+  action?: ReactNode;
   description: string;
   title: string;
 }) {
   return (
-    <Empty className="min-h-52 border border-dashed bg-muted/20 p-4">
+    <Empty className="min-h-52 w-full border border-dashed p-4">
       <EmptyHeader>
-        <EmptyMedia variant="icon" className="bg-primary/10 text-primary">
-          <FileText aria-hidden />
+        <EmptyMedia variant="icon" className={SETTINGS_ACCENT.soft}>
+          {action ? <ListTree aria-hidden /> : <FileText aria-hidden />}
         </EmptyMedia>
         <EmptyTitle>{title}</EmptyTitle>
         <EmptyDescription>{description}</EmptyDescription>
       </EmptyHeader>
+      {action ? <EmptyContent>{action}</EmptyContent> : null}
     </Empty>
   );
 }

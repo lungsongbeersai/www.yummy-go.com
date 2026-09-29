@@ -236,3 +236,44 @@ export async function sortPermissionSubMenus(menuId: string, submenus: Pick<Perm
     "Failed to sort submenus"
   );
 }
+
+/** The backend kept the submenu under its old main menu: it ignored the new menu_id. */
+export class PermissionSubMenuMoveError extends Error {
+  constructor() {
+    super("The server did not move the submenu");
+    this.name = "PermissionSubMenuMoveError";
+  }
+}
+
+/** The main menu a submenu currently sits under, or null. */
+export function findSubMenuParent(menus: PermissionMainMenu[], subId: string) {
+  return menus.find((menu) => menu.sub_detail.some((submenu) => submenu.sub_id === subId)) ?? null;
+}
+
+// The same record saved again under another main menu. The sub_id stays, and so do the role
+// permissions (permission/save stores sub ids), which a delete + re-create would lose.
+export function buildMoveSubMenuInput(submenu: PermissionSubMenu, menuId: string): CreateSubMenuInput {
+  return {
+    menu_id: menuId,
+    sub_id: submenu.sub_id,
+    sub_path: submenu.sub_path,
+    sub_status: submenu.sub_status,
+    sub_title_eng: submenu.sub_title_eng || submenu.sub_title,
+    sub_title_la: submenu.sub_title_la || submenu.sub_title
+  };
+}
+
+// A submenu promoted to a main menu becomes a main menu with its title and path, submenus hidden,
+// holding just that submenu: the shape "Home" already has. Permissions are granted per submenu, so
+// the submenu has to stay; hiding it makes the main menu itself the link.
+export function buildPromotedMainMenuInput(submenu: PermissionSubMenu, icon: string): CreateMainMenuInput {
+  return {
+    menu_badge: 2,
+    menu_badge_text: "",
+    menu_icon: icon,
+    menu_path: submenu.sub_path,
+    menu_status: 2,
+    menu_title_eng: submenu.sub_title_eng || submenu.sub_title,
+    menu_title_la: submenu.sub_title_la || submenu.sub_title
+  };
+}

@@ -11,7 +11,7 @@ import {
   type DragEndEvent
 } from "@dnd-kit/core";
 import { arrayMove, sortableKeyboardCoordinates } from "@dnd-kit/sortable";
-import { ListTree, RefreshCcw } from "lucide-react";
+import { ListTree, Plus, RefreshCcw } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { ConfirmDialog } from "@/components/common/confirm-dialog";
 import { LoadingState } from "@/components/common/loading-state";
@@ -20,7 +20,11 @@ import { Spinner } from "@/components/ui/spinner";
 import { SettingsPageHeader } from "@/features/settings/shared/settings-page-header";
 import { useLatestValue } from "@/hooks/use-latest-value";
 import { canManagePermissionMenu } from "@/lib/permissions";
-import type { PermissionMainMenu, PermissionSubMenu } from "@/services/permissions/menu-admin";
+import {
+  PermissionSubMenuMoveError,
+  type PermissionMainMenu,
+  type PermissionSubMenu
+} from "@/services/permissions/menu-admin";
 import { authStoreUuid, useAuthStore } from "@/stores/auth-store";
 import { usePermissionsMenuStore } from "@/stores/permissions-menu-store";
 import { usePermissionsSidebarStore } from "@/stores/permissions-sidebar-store";
@@ -28,6 +32,11 @@ import { useToastStore } from "@/stores/toast-store";
 import { MainMenuDialog, SubMenuDialog } from "./permission-menu-dialogs";
 import { MAIN_FORM_INITIAL, SUB_FORM_INITIAL, type MainFormState, type SubFormState } from "./permission-menu-options";
 import { PermissionMenuBuilder } from "./permission-menu-builder";
+import {
+  MoveSubMenuDialog,
+  type PermissionSubMenuMoveRequest,
+  type PermissionSubMenuMoveTarget
+} from "./permission-menu-move-dialog";
 import { refreshPermissionSidebarMenu } from "./permission-menu-sidebar-refresh";
 import {
   filterPermissionMenus,
@@ -87,6 +96,9 @@ export function PermissionMenuPage() {
   const deleteSub = usePermissionsMenuStore((state) => state.deleteSub);
   const sortMain = usePermissionsMenuStore((state) => state.sortMain);
   const sortSub = usePermissionsMenuStore((state) => state.sortSub);
+  const moveSubToMenu = usePermissionsMenuStore((state) => state.moveSub);
+  const promoteSub = usePermissionsMenuStore((state) => state.promoteSub);
+  const [moveRequest, setMoveRequest] = useState<PermissionSubMenuMoveRequest | null>(null);
   const [mainDialogOpen, setMainDialogOpen] = useState(false);
   const [subDialogMenu, setSubDialogMenu] = useState<PermissionMainMenu | null>(null);
   const [mainForm, setMainForm] = useState<MainFormState>(MAIN_FORM_INITIAL);
@@ -280,6 +292,36 @@ export function PermissionMenuPage() {
     }
   }
 
+  async function relocateSub(target: PermissionSubMenuMoveTarget) {
+    if (!moveRequest) return;
+    const { submenu } = moveRequest;
+    try {
+      if (target.type === "main") {
+        await promoteSub(submenu.sub_id, language);
+      } else {
+        await moveSubToMenu(submenu.sub_id, target.menuId, language);
+        setSelectedMenuId(target.menuId);
+      }
+      refreshSidebarMenu();
+      setMoveRequest(null);
+      showToast({
+        title: t(target.type === "main" ? "permissionMenu.promoted" : "permissionMenu.subMoved", { title: submenu.sub_title }),
+        tone: "success"
+      });
+    } catch (error) {
+      showToast({
+        description:
+          error instanceof PermissionSubMenuMoveError
+            ? t("permissionMenu.moveUnsupported")
+            : error instanceof Error
+              ? error.message
+              : t("toasts.pleaseTryAgain"),
+        title: t("permissionMenu.moveFailed"),
+        tone: "error"
+      });
+    }
+  }
+
   function openCreateMainDialog() {
     setMainForm(MAIN_FORM_INITIAL);
     setMainDialogOpen(true);
@@ -311,7 +353,6 @@ export function PermissionMenuPage() {
       sensors={sensors}
       sorting={sorting}
       visibleMenus={visibleMenus}
-      onAddMain={openCreateMainDialog}
       onAddSub={openCreateSubDialog}
       onDeleteMain={(menu) => setDeleteTarget({ menu, type: "main" })}
       onDeleteSub={(menu, submenu) => setDeleteTarget({ menu, submenu, type: "sub" })}
@@ -321,6 +362,7 @@ export function PermissionMenuPage() {
       onMoveSub={moveSub}
       onReorderMain={reorderMain}
       onReorderSub={reorderSub}
+      onRelocateSub={(menu, submenu) => setMoveRequest({ menu, submenu })}
       onSearchChange={setMainSearch}
       onSelectMenu={setSelectedMenuId}
     />
@@ -329,26 +371,31 @@ export function PermissionMenuPage() {
   if (!allowed) return <LoadingState label={t("common.processing")} variant="table" />;
 
   return (
-    // Same frame as the settings list pages: header card, then the builder in a bordered panel
-    // that scrolls inside itself on wide screens (the whole page scrolls on phones).
-    <div className="flex h-full min-h-0 flex-col gap-4 overflow-y-auto p-4 lg:overflow-hidden">
-      <SettingsPageHeader
-        icon={ListTree}
-        title={t("permissionMenu.title")}
-        description={t("permissionMenu.description")}
-        count={fullLoading ? null : menus.length}
-        actions={
-          <Button disabled={loading || refreshing} type="button" variant="outline" onClick={refresh}>
-            {loading || refreshing ? <Spinner data-icon="inline-start" /> : <RefreshCcw data-icon="inline-start" />}
-            {t("actions.refresh")}
-          </Button>
-        }
-      />
-      {fullLoading ? (
-        <LoadingState label={t("permissionMenu.loading")} variant="settingsTable" />
-      ) : (
-        <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-lg border">{menuList}</div>
-      )}
+    // Same frame as the settings list pages: header card, then the builder. The page is the
+    // container: once both builder cards fit side by side (@4xl) the page stops scrolling and each
+    // card scrolls inside itself; narrower, the whole page scrolls.
+    <div className="@container h-full min-h-0 overflow-y-auto">
+      <div className="flex flex-col gap-4 p-4 @4xl:h-full">
+        <SettingsPageHeader
+          icon={ListTree}
+          title={t("permissionMenu.title")}
+          description={t("permissionMenu.description")}
+          count={fullLoading ? null : menus.length}
+          actions={
+            <>
+              <Button disabled={loading || refreshing} type="button" variant="outline" onClick={refresh}>
+                {loading || refreshing ? <Spinner data-icon="inline-start" /> : <RefreshCcw data-icon="inline-start" />}
+                {t("actions.refresh")}
+              </Button>
+              <Button disabled={busy} type="button" onClick={openCreateMainDialog}>
+                <Plus data-icon="inline-start" />
+                {t("permissionMenu.addMain")}
+              </Button>
+            </>
+          }
+        />
+        {fullLoading ? <LoadingState label={t("permissionMenu.loading")} variant="settingsTable" /> : menuList}
+      </div>
       <MainMenuDialog
         form={mainForm}
         open={mainDialogOpen}
@@ -374,6 +421,16 @@ export function PermissionMenuPage() {
           }
         }}
         onSave={saveSub}
+      />
+      <MoveSubMenuDialog
+        key={moveRequest?.submenu.sub_id ?? "closed"}
+        menus={menus}
+        request={moveRequest}
+        saving={saving}
+        onMove={relocateSub}
+        onOpenChange={(open) => {
+          if (!open && !saving) setMoveRequest(null);
+        }}
       />
       <ConfirmDialog
         cancelLabel={t("actions.cancel")}

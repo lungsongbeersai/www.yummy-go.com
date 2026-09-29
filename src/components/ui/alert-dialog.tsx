@@ -5,6 +5,7 @@ import { AlertDialog as AlertDialogPrimitive } from "radix-ui"
 
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
+import { shakeDialog, useMergedRef } from "@/components/ui/dialog-shake"
 
 function AlertDialog({
   ...props
@@ -46,15 +47,22 @@ function AlertDialogOverlay({
 
 function AlertDialogContent({
   className,
+  ref,
   size = "default",
   ...props
 }: React.ComponentProps<typeof AlertDialogPrimitive.Content> & {
   size?: "default" | "sm"
 }) {
+  const contentRef = React.useRef<HTMLDivElement>(null)
+  const mergedRef = useMergedRef(ref, contentRef)
+
   return (
     <AlertDialogPortal>
-      <AlertDialogOverlay />
+      {/* Radix already keeps an alert dialog open on a backdrop click (and exposes no outside
+          handler); the overlay is what that click lands on, so it triggers the shake. */}
+      <AlertDialogOverlay onPointerDown={() => shakeDialog(contentRef.current)} />
       <AlertDialogPrimitive.Content
+        ref={mergedRef}
         data-slot="alert-dialog-content"
         data-size={size}
         className={cn(

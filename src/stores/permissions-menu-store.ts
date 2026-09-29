@@ -6,7 +6,11 @@ import {
   createPermissionSubMenu,
   deletePermissionMainMenu,
   deletePermissionSubMenu,
+  buildMoveSubMenuInput,
+  buildPromotedMainMenuInput,
   fetchPermissionMenuTree,
+  findSubMenuParent,
+  PermissionSubMenuMoveError,
   sortPermissionMainMenus,
   sortPermissionSubMenus,
   type CreateMainMenuInput,
@@ -28,6 +32,10 @@ interface PermissionMenuState extends AsyncSlice {
   deleteMain: (menuId: string, lang?: string) => Promise<void>;
   deleteSub: (subId: string, lang?: string) => Promise<void>;
   load: (lang?: string, options?: { background?: boolean }) => Promise<void>;
+  /** Moves a submenu under another main menu, keeping its sub_id (and so its permissions). */
+  moveSub: (subId: string, targetMenuId: string, lang?: string) => Promise<void>;
+  /** Turns a submenu into a main menu of its own, placed right after its old main menu. */
+  promoteSub: (subId: string, lang?: string) => Promise<void>;
   reset: () => void;
   sortMain: (menus: PermissionMainMenu[], lang?: string) => Promise<void>;
   sortSub: (menuId: string, submenus: PermissionSubMenu[], lang?: string) => Promise<void>;
@@ -39,6 +47,36 @@ function withSubmenuSort(menuId: string, submenus: PermissionSubMenu[]) {
     menu_id: submenu.menu_id || menuId,
     sub_sort: index + 1
   }));
+}
+
+function requireSubmenu(menus: PermissionMainMenu[], subId: string) {
+  const parent = findSubMenuParent(menus, subId);
+  const submenu = parent?.sub_detail.find((item) => item.sub_id === subId);
+  if (!parent || !submenu) throw new Error("Submenu not found");
+  return { parent, submenu };
+}
+
+// Saves the submenu under targetMenuId, then reads the tree back to prove the backend moved it:
+// the create API is also its update API, and nothing documents that it honours a new menu_id.
+// If the backend inserted a copy instead of moving, the copy is deleted again. On success the
+// submenu goes last in its new main menu.
+async function moveSubmenuAndVerify(submenu: PermissionSubMenu, targetMenuId: string, lang?: string) {
+  const before = await fetchPermissionMenuTree(lang);
+  const targetBefore = new Set(
+    before.menus.find((menu) => menu.menu_id === targetMenuId)?.sub_detail.map((item) => item.sub_id) ?? []
+  );
+  await createPermissionSubMenu(buildMoveSubMenuInput(submenu, targetMenuId));
+  const after = await fetchPermissionMenuTree(lang);
+  const target = after.menus.find((menu) => menu.menu_id === targetMenuId);
+
+  if (findSubMenuParent(after.menus, submenu.sub_id)?.menu_id !== targetMenuId) {
+    const copies = (target?.sub_detail ?? []).filter((item) => !targetBefore.has(item.sub_id));
+    await Promise.all(copies.map((copy) => deletePermissionSubMenu(copy.sub_id)));
+    throw new PermissionSubMenuMoveError();
+  }
+
+  const siblings = (target?.sub_detail ?? []).filter((item) => item.sub_id !== submenu.sub_id);
+  await sortPermissionSubMenus(targetMenuId, [...siblings, submenu]);
 }
 
 export const usePermissionsMenuStore = create<PermissionMenuState>((set, get) => ({
@@ -121,6 +159,58 @@ export const usePermissionsMenuStore = create<PermissionMenuState>((set, get) =>
       if (isCurrentSession()) {
         set({ error: errorMessage(error), loading: false, refreshing: false });
       }
+      throw error;
+    }
+  },
+  moveSub: async (subId, targetMenuId, lang) => {
+    const isCurrentSession = createSessionGuard();
+    set({ error: null, saving: true });
+    try {
+      const { submenu } = requireSubmenu(get().menus, subId);
+      await moveSubmenuAndVerify(submenu, targetMenuId, lang);
+      if (!isCurrentSession()) return;
+      set({ saving: false });
+      await get().load(lang, { background: true });
+    } catch (error) {
+      if (isCurrentSession()) set({ error: errorMessage(error), saving: false });
+      throw error;
+    }
+  },
+  promoteSub: async (subId, lang) => {
+    const isCurrentSession = createSessionGuard();
+    set({ error: null, saving: true });
+    try {
+      const { parent, submenu } = requireSubmenu(get().menus, subId);
+      const existingIds = new Set(get().menus.map((menu) => menu.menu_id));
+      const created = await createPermissionMainMenu(buildPromotedMainMenuInput(submenu, parent.menu_icon));
+      // Fall back to finding the new record when the create response carries no id.
+      const menuId =
+        created?.menu_id ||
+        (await fetchPermissionMenuTree(lang)).menus.find(
+          (menu) => !existingIds.has(menu.menu_id) && menu.menu_path === submenu.sub_path
+        )?.menu_id;
+      if (!menuId) throw new Error("The new main menu was not found");
+
+      try {
+        await moveSubmenuAndVerify(submenu, menuId, lang);
+      } catch (error) {
+        // Don't leave an empty main menu behind.
+        await deletePermissionMainMenu(menuId).catch(() => undefined);
+        throw error;
+      }
+
+      const { menus } = await fetchPermissionMenuTree(lang);
+      const promoted = menus.find((menu) => menu.menu_id === menuId);
+      const rest = menus.filter((menu) => menu.menu_id !== menuId);
+      const parentIndex = rest.findIndex((menu) => menu.menu_id === parent.menu_id);
+      if (promoted && parentIndex >= 0) {
+        await sortPermissionMainMenus([...rest.slice(0, parentIndex + 1), promoted, ...rest.slice(parentIndex + 1)]);
+      }
+      if (!isCurrentSession()) return;
+      set({ saving: false });
+      await get().load(lang, { background: true });
+    } catch (error) {
+      if (isCurrentSession()) set({ error: errorMessage(error), saving: false });
       throw error;
     }
   },
