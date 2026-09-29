@@ -16,7 +16,7 @@ import {
 import { Spinner } from "@/components/ui/spinner";
 import { money } from "@/lib/format";
 import { cn } from "@/lib/utils";
-import { cartSummary, positiveNumber } from "./utils";
+import { cartSummary } from "./utils";
 
 export function CartSummaryDock({
   actionsDisabled = false,
@@ -40,10 +40,8 @@ export function CartSummaryDock({
   onPayBill,
   onPaySplitSelection,
   onTableActions,
-  serviceLabel,
   splitSelectedCount = 0,
   splitSelectedTotal = 0,
-  fullSummary = null,
   summary,
   taxLabel
 }: {
@@ -68,29 +66,20 @@ export function CartSummaryDock({
   onPayBill: () => void;
   onPaySplitSelection?: () => void;
   onTableActions?: () => void;
-  serviceLabel: string;
   splitSelectedCount?: number;
   splitSelectedTotal?: number;
-  fullSummary?: ReturnType<typeof cartSummary> | null;
   summary: ReturnType<typeof cartSummary>;
   taxLabel: string;
 }) {
   const { t } = useTranslation();
   const primaryIsSplit = splitSelectedCount > 0 && Boolean(onPaySplitSelection);
-  const discountTotal = positiveNumber(summary.orderDiscount);
-  const serviceTotal = positiveNumber(summary.serviceTotal);
-  const vatTotal = positiveNumber(summary.tax, summary.vatTotal, summary.orderVat);
-  const discountMetaValue = discountTotal !== null ? `-${money(discountTotal)}` : billDiscountValueLabel ?? null;
-  const discountRateLabel = billDiscountValueLabel?.trim().endsWith("%") ? billDiscountValueLabel.trim() : null;
-  const discountLabel = discountRateLabel ? `${t("pos.billDiscount")} (${discountRateLabel})` : t("pos.billDiscount");
+  const vatTotal = Number(
+    summary.tax ?? summary.vatTotal ?? summary.orderVat ?? 0,
+  );
   const summaryTitle = primaryIsSplit ? t("pos.paySelected") : t("pos.grandTotal");
-  const fullBillTotalLabel = primaryIsSplit && fullSummary ? money(fullSummary.grandTotal) : null;
   const summaryDetailRows = [
-    fullBillTotalLabel !== null ? { key: "full-bill", label: t("pos.fullBill"), value: fullBillTotalLabel } : null,
-    discountMetaValue !== null ? { key: "discount", label: discountLabel, value: discountMetaValue } : null,
-    serviceTotal !== null ? { key: "service", label: serviceLabel, value: money(serviceTotal) } : null,
-    vatTotal !== null ? { key: "vat", label: taxLabel, value: money(vatTotal) } : null
-  ].filter((item): item is { key: string; label: string; value: string } => Boolean(item));
+    { key: "vat", label: taxLabel, value: money(vatTotal) },
+  ];
   const primaryIsConfirm = !primaryIsSplit && newOrderCount > 0;
   const showConfirmCue = primaryIsConfirm && canConfirm && !confirming;
   const primaryDisabled = actionsDisabled || (primaryIsConfirm ? !canConfirm : primaryIsSplit ? !canPaySplitSelection : !canPay);
@@ -126,7 +115,51 @@ export function CartSummaryDock({
           compact ? "px-2.5 py-2" : "px-3 py-3",
         )}
       >
-        <div className="flex min-w-0 items-start justify-between gap-3">
+        <div
+          className={cn(
+            "flex flex-col font-bold",
+            neutral
+              ? "text-primary-foreground/75"
+              : "text-white/75",
+            compact
+              ? cn(
+                  "gap-1 text-xs font-medium leading-5",
+                  neutral ? "text-primary-foreground/85" : "text-white/85",
+                )
+              : "gap-1.5 text-sm leading-5",
+          )}
+        >
+          {summaryDetailRows.map((item) => (
+            <div key={item.key} className="flex min-w-0 items-center justify-between gap-3">
+              <span className="min-w-0 truncate">{item.label}</span>
+              <span
+                className={cn(
+                  "shrink-0 text-right tabular-nums",
+                  neutral
+                    ? compact
+                      ? "text-primary-foreground"
+                      : "text-primary-foreground/90"
+                    : compact
+                      ? "text-white"
+                      : "text-white/90",
+                )}
+              >
+                {item.value}
+              </span>
+            </div>
+          ))}
+        </div>
+        <div
+          className={cn(
+            "flex min-w-0 items-start justify-between gap-3 border-t",
+            compact
+              ? "mt-1.5 pt-1.5"
+              : "mt-2 pt-2",
+            neutral
+              ? "border-primary-foreground/20"
+              : "border-white/20",
+          )}
+        >
           <span
             className={cn(
               "shrink-0 leading-5",
@@ -141,48 +174,11 @@ export function CartSummaryDock({
           >
             {summaryTitle}
           </span>
-          {/* ยอดรวมคือตัวเลขสำคัญที่สุดบนจอ — ใหญ่สุดในสเกลที่ยังไม่เสี่ยงล้นกล่อง
-              (ไม่มี truncate เพราะตัดตัวเลขยอดเงินทิ้งไม่ได้ ยอดกีบหลักล้านจึงต้องพอดี) */}
+          {/* ยอดรวมคือตัวเลขสำคัญที่สุดบนจอ — วางเป็นบรรทัดสุดท้ายหลังส่วนลด/บริการ/VAT */}
           <span className={cn("min-w-0 text-right font-black tabular-nums", compact ? "text-xl leading-7" : "text-2xl leading-8")}>
             {money(summary.grandTotal)}
           </span>
         </div>
-        {summaryDetailRows.length > 0 ? (
-          <div
-            className={cn(
-              "flex flex-col border-t font-bold",
-              neutral
-                ? "border-primary-foreground/20 text-primary-foreground/75"
-                : "border-white/20 text-white/75",
-              compact
-                ? cn(
-                    "mt-1.5 gap-1 pt-1.5 text-xs font-medium leading-5",
-                    neutral ? "text-primary-foreground/85" : "text-white/85",
-                  )
-                : "mt-2 gap-1.5 pt-2 text-sm leading-5",
-            )}
-          >
-            {summaryDetailRows.map((item) => (
-              <div key={item.key} className="flex min-w-0 items-center justify-between gap-3">
-                <span className="min-w-0 truncate">{item.label}</span>
-                <span
-                  className={cn(
-                    "shrink-0 text-right tabular-nums",
-                    neutral
-                      ? compact
-                        ? "text-primary-foreground"
-                        : "text-primary-foreground/90"
-                      : compact
-                        ? "text-white"
-                        : "text-white/90",
-                  )}
-                >
-                  {item.value}
-                </span>
-              </div>
-            ))}
-          </div>
-        ) : null}
       </div>
 
       {onCreateEmployeeOrder ? (

@@ -343,10 +343,8 @@ export function SelectedTableCartPanelContent({
             confirming={workflow.confirming}
             discountPending={workflow.billDiscountPending}
             newOrderCount={workflow.newOrderItems.length}
-            serviceLabel={workflow.serviceLabel}
             splitSelectedCount={workflow.splitSelectedCount}
             splitSelectedTotal={workflow.splitSelectedTotal}
-            fullSummary={workflow.summary}
             summary={workflow.displaySummary}
             taxLabel={workflow.taxLabel}
             onBillDiscount={workflow.openBillDiscountDialog}
