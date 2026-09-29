@@ -26,5 +26,6 @@ const crud = createCrud<Deportment>(
 
 export const getDeportments = (params: FetchDeportmentsParams = {}) => crud.list(params);
 export const getDeportmentOptions = (lang = "la") => crud.options({ active_only: 1, lang });
+export const getAllDeportments = (lang = "la") => crud.options({ lang });
 export const saveDeportment = (input: SaveDeportmentInput) => crud.save(input);
 export const deleteDeportment = (deportment_uuid: string) => crud.delete(deportment_uuid);

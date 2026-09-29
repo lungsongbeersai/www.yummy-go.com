@@ -39,6 +39,7 @@ export interface LoginResult {
 export interface LoginSession {
   uuid: string;
   login_email: string;
+  login_name: string;
   branch_uuid: string;
   store_uuid_fk: string;
   login_status: number;

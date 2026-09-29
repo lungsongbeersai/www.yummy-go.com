@@ -342,41 +342,27 @@ export function UserSettingsPage({ initialPagination }: { initialPagination: Url
       showToast({ title: t("settings.saveFailed"), description: t("settings.createRoleFirst"), tone: "error" });
       return;
     }
-    let availablePositions = positions;
-    if (!availablePositions.length) {
+    if (!positions.length) {
       try {
-        availablePositions = await loadPositions(language);
-        setFetchedPositions(availablePositions);
+        setFetchedPositions(await loadPositions(language));
       } catch (error) {
         showToast({
           title: t("settings.loadFailed", { title: t("fields.position") }),
           description: error instanceof Error ? error.message : t("toasts.pleaseTryAgain"),
           tone: "error"
         });
-        return;
       }
     }
-    if (!availablePositions.length) {
-      showToast({ title: t("settings.saveFailed"), description: t("settings.createPositionFirst"), tone: "error" });
-      return;
-    }
-    let availableDeportments = deportments;
-    if (!availableDeportments.length) {
+    if (!deportments.length) {
       try {
-        availableDeportments = await loadDeportments(language);
-        setFetchedDeportments(availableDeportments);
+        setFetchedDeportments(await loadDeportments(language));
       } catch (error) {
         showToast({
           title: t("settings.loadFailed", { title: t("fields.deportment") }),
           description: error instanceof Error ? error.message : t("toasts.pleaseTryAgain"),
           tone: "error"
         });
-        return;
       }
-    }
-    if (!availableDeportments.length) {
-      showToast({ title: t("settings.saveFailed"), description: t("settings.createDeportmentFirst"), tone: "error" });
-      return;
     }
     setEditing(null);
     setDialogOpen(true);
@@ -582,6 +568,8 @@ export function UserSettingsPage({ initialPagination }: { initialPagination: Url
         onCropChange={setCrop}
         onFileChange={setSelectedProfileImage}
         onOpenChange={onDialogOpenChange}
+        onDeportmentOptionsChange={setFetchedDeportments}
+        onPositionOptionsChange={setFetchedPositions}
         onSubmit={submitUserForm}
       />
       <UserBulkDialog

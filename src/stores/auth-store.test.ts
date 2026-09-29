@@ -123,16 +123,17 @@ describe("auth store session isolation", () => {
     expect(disconnectSocketMock).toHaveBeenCalledOnce();
   });
 
-  it("deduplicates validation requests for the current token", async () => {
+  it("deduplicates validation requests and refreshes the current POS display name", async () => {
     const pending = deferred<Awaited<ReturnType<typeof validateLoginSession>>>();
     validateLoginSessionMock.mockReturnValueOnce(pending.promise);
-    useAuthStore.getState().login("token-1", authUser("user-1"));
+    useAuthStore.getState().login("token-1", { ...authUser("user-1"), name: "Old name" });
 
     const first = useAuthStore.getState().validateSession();
     const second = useAuthStore.getState().validateSession();
     pending.resolve({
       uuid: "user-1",
       login_email: "user-1@example.com",
+      login_name: "Noy",
       branch_uuid: "user-1-branch",
       store_uuid_fk: "user-1-store",
       login_status: 1,
@@ -141,6 +142,7 @@ describe("auth store session isolation", () => {
     await expect(first).resolves.toBe(true);
     await expect(second).resolves.toBe(true);
     expect(validateLoginSessionMock).toHaveBeenCalledOnce();
+    expect(useAuthStore.getState().user?.name).toBe("Noy");
   });
 
   it("resets the previous session before applying a new login", () => {

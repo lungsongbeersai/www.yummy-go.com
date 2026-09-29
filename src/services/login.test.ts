@@ -113,6 +113,7 @@ describe("online-only login service", () => {
     const session = {
       uuid: "login-1",
       login_email: "cashier@example.com",
+      login_name: "Noy",
       branch_uuid: "branch-1",
       store_uuid_fk: "store-1",
       login_status: 1,

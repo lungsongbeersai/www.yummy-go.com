@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { Settings2 } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -15,6 +16,7 @@ import { useResetOnChange } from "@/hooks/use-reset-on-change";
 import type { Deportment } from "@/services/deportment";
 import type { Position, Role, User } from "@/services/user";
 import type { Zone } from "@/services/zone";
+import type { UserTaxonomyKind } from "@/stores/user-taxonomy-store";
 import {
   roleId,
   roleName,
@@ -28,6 +30,7 @@ import {
   userValue,
   zoneName
 } from "./user-utils";
+import { UserTaxonomyDialog } from "./user-taxonomy-dialog";
 
 export function UserFormDialog({
   crop,
@@ -39,6 +42,8 @@ export function UserFormDialog({
   onCropChange,
   onFileChange,
   onOpenChange,
+  onDeportmentOptionsChange,
+  onPositionOptionsChange,
   onSubmit,
   open,
   profileSrc,
@@ -58,6 +63,8 @@ export function UserFormDialog({
   onCropChange: (crop: CropState) => void;
   onFileChange: (file: File | null) => void;
   onOpenChange: (open: boolean) => void;
+  onDeportmentOptionsChange: (rows: Deportment[]) => void;
+  onPositionOptionsChange: (rows: Position[]) => void;
   onSubmit: (formData: FormData) => Promise<void>;
   open: boolean;
   profileSrc: string;
@@ -80,6 +87,7 @@ export function UserFormDialog({
   );
   const [loginActive, setLoginActive] = useState(() => userValue(editing, "login_active", "1"));
   const [selectedZoneUuids, setSelectedZoneUuids] = useState(() => userZoneUuids(editing));
+  const [taxonomyKind, setTaxonomyKind] = useState<UserTaxonomyKind | null>(null);
   const roles = useMemo(() => userRoleOptions(editing, roleOptions), [editing, roleOptions]);
   const formKey = userId(editing) || "new";
 
@@ -90,6 +98,7 @@ export function UserFormDialog({
     setSelectedDeportmentUuid(deportmentId(editing));
     setLoginActive(userValue(editing, "login_active", "1"));
     setSelectedZoneUuids(userZoneUuids(editing));
+    setTaxonomyKind(null);
   });
 
   function toggleZone(zoneUuid: string, checked: boolean) {
@@ -101,6 +110,7 @@ export function UserFormDialog({
   }
 
   return (
+    <>
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent
         className="!flex h-[calc(100dvh-1rem-env(safe-area-inset-top,0px)-env(safe-area-inset-bottom,0px))] max-h-[calc(100dvh-1rem-env(safe-area-inset-top,0px)-env(safe-area-inset-bottom,0px))] w-[calc(100vw-1rem)] max-w-6xl flex-col gap-0 overflow-hidden p-0 sm:h-auto sm:max-h-[calc(100dvh-2rem-env(safe-area-inset-top,0px)-env(safe-area-inset-bottom,0px))] sm:w-[calc(100vw-2rem)] sm:max-w-6xl"
@@ -179,56 +189,80 @@ export function UserFormDialog({
                     <Field>
                       <FieldLabel htmlFor="deportment_uuid_fk">{t("fields.deportment")}</FieldLabel>
                       <input name="deportment_uuid_fk" type="hidden" value={selectedDeportmentUuid} />
-                      <Select
-                        disabled={saving}
-                        required
-                        value={selectedDeportmentUuid}
-                        onValueChange={setSelectedDeportmentUuid}
-                      >
-                        <SelectTrigger id="deportment_uuid_fk" className="w-full">
-                          <SelectValue placeholder={t("settings.selectDeportment")} />
-                        </SelectTrigger>
-                        <SelectContent position="popper">
-                          <SelectGroup>
-                            {deportmentOptions.map((deportment) => {
-                              const id = deportmentId(deportment);
-                              if (!id) return null;
-                              return (
-                                <SelectItem key={id} value={id}>
-                                  {deportmentName(deportment)}
-                                </SelectItem>
-                              );
-                            })}
-                          </SelectGroup>
-                        </SelectContent>
-                      </Select>
+                      <div className="flex gap-2">
+                        <Select
+                          disabled={saving}
+                          required
+                          value={selectedDeportmentUuid}
+                          onValueChange={setSelectedDeportmentUuid}
+                        >
+                          <SelectTrigger id="deportment_uuid_fk" className="min-w-0 flex-1">
+                            <SelectValue placeholder={t("settings.selectDeportment")} />
+                          </SelectTrigger>
+                          <SelectContent position="popper">
+                            <SelectGroup>
+                              {deportmentOptions.map((deportment) => {
+                                const id = deportmentId(deportment);
+                                if (!id) return null;
+                                return (
+                                  <SelectItem key={id} value={id}>
+                                    {deportmentName(deportment)}
+                                  </SelectItem>
+                                );
+                              })}
+                            </SelectGroup>
+                          </SelectContent>
+                        </Select>
+                        <Button
+                          type="button"
+                          size="icon"
+                          variant="outline"
+                          disabled={saving}
+                          aria-label={t("settings.manageUserTaxonomy", { name: t("fields.deportment") })}
+                          onClick={() => setTaxonomyKind("deportment")}
+                        >
+                          <Settings2 />
+                        </Button>
+                      </div>
                     </Field>
                     <Field>
                       <FieldLabel htmlFor="position_uuid_fk">{t("fields.position")}</FieldLabel>
                       <input name="position_uuid_fk" type="hidden" value={selectedPositionUuid} />
-                      <Select
-                        disabled={saving}
-                        required
-                        value={selectedPositionUuid}
-                        onValueChange={setSelectedPositionUuid}
-                      >
-                        <SelectTrigger id="position_uuid_fk" className="w-full">
-                          <SelectValue placeholder={t("settings.selectPosition")} />
-                        </SelectTrigger>
-                        <SelectContent position="popper">
-                          <SelectGroup>
-                            {positionOptions.map((position) => {
-                              const id = positionId(position);
-                              if (!id) return null;
-                              return (
-                                <SelectItem key={id} value={id}>
-                                  {positionName(position)}
-                                </SelectItem>
-                              );
-                            })}
-                          </SelectGroup>
-                        </SelectContent>
-                      </Select>
+                      <div className="flex gap-2">
+                        <Select
+                          disabled={saving}
+                          required
+                          value={selectedPositionUuid}
+                          onValueChange={setSelectedPositionUuid}
+                        >
+                          <SelectTrigger id="position_uuid_fk" className="min-w-0 flex-1">
+                            <SelectValue placeholder={t("settings.selectPosition")} />
+                          </SelectTrigger>
+                          <SelectContent position="popper">
+                            <SelectGroup>
+                              {positionOptions.map((position) => {
+                                const id = positionId(position);
+                                if (!id) return null;
+                                return (
+                                  <SelectItem key={id} value={id}>
+                                    {positionName(position)}
+                                  </SelectItem>
+                                );
+                              })}
+                            </SelectGroup>
+                          </SelectContent>
+                        </Select>
+                        <Button
+                          type="button"
+                          size="icon"
+                          variant="outline"
+                          disabled={saving}
+                          aria-label={t("settings.manageUserTaxonomy", { name: t("fields.position") })}
+                          onClick={() => setTaxonomyKind("position")}
+                        >
+                          <Settings2 />
+                        </Button>
+                      </div>
                     </Field>
                     <Field>
                       <FieldLabel id="zone_uuid_fks_label">{t("nav.zone")}</FieldLabel>
@@ -345,5 +379,17 @@ export function UserFormDialog({
         </form>
       </DialogContent>
     </Dialog>
+    {taxonomyKind ? (
+      <UserTaxonomyDialog
+        kind={taxonomyKind}
+        open
+        selectedUuid={taxonomyKind === "position" ? selectedPositionUuid : selectedDeportmentUuid}
+        onDeportmentOptionsChange={onDeportmentOptionsChange}
+        onOpenChange={(nextOpen) => { if (!nextOpen) setTaxonomyKind(null); }}
+        onPositionOptionsChange={onPositionOptionsChange}
+        onSelect={taxonomyKind === "position" ? setSelectedPositionUuid : setSelectedDeportmentUuid}
+      />
+    ) : null}
+    </>
   );
 }

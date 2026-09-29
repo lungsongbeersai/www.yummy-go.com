@@ -3,8 +3,10 @@ import { toFormData } from "@/lib/form-data";
 import { toApiLanguage } from "@/lib/language";
 import { createCrud, saveEntity } from "@/services/shared/crud";
 import { requiredText } from "@/services/shared/validators";
+import { getPositionOptions } from "@/services/position";
 import type { ApiDataResponse, ApiEntity, ApiListResponse, ApiMessageResponse, FetchParams } from "@/services/shared/types";
 export { getUserProfileUrl } from "@/lib/image";
+export type { Position } from "@/services/position";
 
 export interface UserZone extends ApiEntity {
   zone_uuid: string;
@@ -53,14 +55,6 @@ export interface Role extends ApiEntity {
   roles_name_eng?: string;
 }
 export type RolesResponse = ApiDataResponse<Role[]>;
-export interface Position extends ApiEntity {
-  position_uuid: string;
-  position_code?: string;
-  position_name?: string;
-  position_name_la?: string;
-  position_name_eng?: string;
-}
-export type PositionsResponse = ApiDataResponse<Position[]>;
 export interface SaveUserInput extends ApiEntity {
   login_uuid?: string;
   login_email?: string;
@@ -132,10 +126,7 @@ export async function getRoles(lang = "la", roles_id: number | string = "") {
   return result.data ?? [];
 }
 export async function getPositions(lang = "la") {
-  const result = await apiRequest<PositionsResponse>("get", "/api/v1/register/positions", {
-    params: { lang: toApiLanguage(lang) }
-  });
-  return result.data ?? [];
+  return getPositionOptions(lang);
 }
 export async function saveUser(input: SaveUserInput) {
   if (input.login_uuid && !(input.login_profile instanceof File)) {

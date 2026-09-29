@@ -187,7 +187,17 @@ export const useAuthStore = create<AuthState>()(
 
         sessionValidationToken = token;
         const request = validateLoginSession()
-          .then(() => get().isLoggedIn && get().token === token)
+          .then((session) => {
+            const current = get();
+            if (!current.isLoggedIn || current.token !== token || !current.user) return false;
+
+            const displayName = String(session.login_name ?? "").trim();
+            if (current.user.name !== displayName) {
+              set({ user: normalizeAuthUser({ ...current.user, name: displayName }) });
+            }
+
+            return true;
+          })
           .finally(() => {
             if (sessionValidationRequest === request) {
               sessionValidationRequest = null;
