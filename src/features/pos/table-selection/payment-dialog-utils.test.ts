@@ -34,6 +34,7 @@ import {
   rawCaretFromDisplayCaret,
   remainingCurrencyInput,
   transferAccountValidation,
+  transferAccountOptionLabel,
   withReceiptPrintLabels,
 } from "./payment-dialog-utils";
 
@@ -230,6 +231,21 @@ describe("payment dialog helpers", () => {
       "pos.transferAccountRequired",
     );
     expect(transferAccountValidation(50000, "account-1", false)).toBeNull();
+  });
+
+  it("uses the bank as the transfer label when legacy account details are blank", () => {
+    expect(transferAccountOptionLabel({
+      bank_name_la: "BCEL",
+      bank_name_eng: "BCEL",
+      account_name: "",
+      account_number: "",
+    }, "la")).toBe("BCEL");
+    expect(transferAccountOptionLabel({
+      bank_name_la: "BCEL",
+      bank_name_eng: "BCEL",
+      account_name: "Main",
+      account_number: "123",
+    }, "eng")).toBe("BCEL · Main · 123");
   });
 
   it("settles the rounded foreign due as exact while larger tender creates change", () => {

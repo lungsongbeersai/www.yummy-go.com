@@ -66,6 +66,25 @@ export const LAK_CURRENCY_OPTION: PaymentCurrencyOption = {
   base: true,
 };
 
+export function transferAccountOptionLabel(
+  account: {
+    account_name?: string;
+    account_number?: string;
+    bank_name_eng?: string;
+    bank_name_la?: string;
+  },
+  language: string,
+) {
+  const bankName = language === "eng"
+    ? account.bank_name_eng || account.bank_name_la
+    : account.bank_name_la || account.bank_name_eng;
+
+  return [bankName, account.account_name, account.account_number]
+    .map((value) => String(value ?? "").trim())
+    .filter(Boolean)
+    .join(" · ");
+}
+
 export const paymentTabs: Array<{
   value: PaymentTab;
   method: PaymentMethod;

@@ -300,7 +300,10 @@ export function BranchTransferAccounts({
                       : account.bank_name_la || account.bank_name_eng}
                   </p>
                   <p className="truncate text-sm text-muted-foreground">
-                    {account.account_name} · {account.account_number}
+                    {[account.account_name, account.account_number]
+                      .map((value) => value.trim())
+                      .filter(Boolean)
+                      .join(" · ") || "—"}
                   </p>
                 </div>
               </div>

@@ -181,11 +181,11 @@ export function AccountSettingsPage() {
       </TableRow></TableHeader>
       <TableBody>{list.visibleRows.map((row, index) => (
         <TableRow key={row.account_uuid} data-state={list.selectedRows.has(row.account_uuid) ? "selected" : undefined}>
-          <TableCell><Checkbox aria-label={t("common.selectRow", { name: row.account_name })} checked={list.selectedRows.has(row.account_uuid)} onCheckedChange={(checked) => list.toggleSelected(row.account_uuid, checked === true)} /></TableCell>
+          <TableCell><Checkbox aria-label={t("common.selectRow", { name: row.account_name || bankName(row, language) })} checked={list.selectedRows.has(row.account_uuid)} onCheckedChange={(checked) => list.toggleSelected(row.account_uuid, checked === true)} /></TableCell>
           <TableCell className="text-center text-muted-foreground tabular-nums">{list.pageStart + index}</TableCell>
-          <TableCell className="font-medium">{row.account_name}</TableCell>
+          <TableCell className="font-medium">{row.account_name || "—"}</TableCell>
           <TableCell>{bankName(row, language)}</TableCell>
-          <TableCell className="tabular-nums" translate="no">{row.account_number}</TableCell>
+          <TableCell className="tabular-nums" translate="no">{row.account_number || "—"}</TableCell>
           <TableCell>{row.account_qr ? <Image alt={t("settings.storeBranch.accountQr")} className="size-10 rounded border bg-background object-contain p-1" height={40} src={row.account_qr} unoptimized width={40} /> : "—"}</TableCell>
           <TableCell><StatusBadge active={Number(row.account_status) === 1} /></TableCell>
           <TableCell className="text-right"><SettingsRowActions row={row} onEdit={openEdit} onDelete={setDeleteTarget} /></TableCell>
@@ -197,11 +197,11 @@ export function AccountSettingsPage() {
   const mobileList = (
     <ItemGroup className="@xl:grid @xl:grid-cols-2">{list.visibleRows.map((row) => (
       <Item key={row.account_uuid} variant="outline">
-        <Checkbox aria-label={t("common.selectRow", { name: row.account_name })} checked={list.selectedRows.has(row.account_uuid)} onCheckedChange={(checked) => list.toggleSelected(row.account_uuid, checked === true)} />
+        <Checkbox aria-label={t("common.selectRow", { name: row.account_name || bankName(row, language) })} checked={list.selectedRows.has(row.account_uuid)} onCheckedChange={(checked) => list.toggleSelected(row.account_uuid, checked === true)} />
         <ItemMedia className="grid size-10 place-items-center overflow-hidden rounded-md bg-primary/10 text-primary">
           {row.account_qr ? <Image alt={t("settings.storeBranch.accountQr")} className="size-full object-contain" height={40} src={row.account_qr} unoptimized width={40} /> : <Landmark aria-hidden />}
         </ItemMedia>
-        <ItemContent><ItemTitle>{row.account_name}</ItemTitle><ItemDescription>{bankName(row, language)} · <span className="tabular-nums" translate="no">{row.account_number}</span></ItemDescription></ItemContent>
+        <ItemContent><ItemTitle>{row.account_name || bankName(row, language)}</ItemTitle><ItemDescription>{[bankName(row, language), row.account_number].filter(Boolean).join(" · ")}</ItemDescription></ItemContent>
         <ItemActions><SettingsRowActions row={row} onEdit={openEdit} onDelete={setDeleteTarget} /></ItemActions>
         <ItemFooter><StatusBadge active={Number(row.account_status) === 1} /></ItemFooter>
       </Item>

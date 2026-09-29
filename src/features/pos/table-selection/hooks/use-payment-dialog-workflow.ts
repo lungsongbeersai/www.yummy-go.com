@@ -76,6 +76,7 @@ import {
   tenderInputLak,
   tenderInputValue,
   tenderLabel,
+  transferAccountOptionLabel,
   transferAccountValidation,
   type PaymentTab,
   type SplitTenderField,
@@ -248,11 +249,7 @@ export function usePaymentDialogWorkflow({
   const transferAccountOptions = useMemo(
     () =>
       transferAccounts.map((account) => ({
-        label: `${
-          toApiLanguage(language) === "eng"
-            ? account.bank_name_eng || account.bank_name_la
-            : account.bank_name_la || account.bank_name_eng
-        } · ${account.account_name} · ${account.account_number}`,
+        label: transferAccountOptionLabel(account, toApiLanguage(language)),
         value: account.account_uuid,
       })),
     [language, transferAccounts],
