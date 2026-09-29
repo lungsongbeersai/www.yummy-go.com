@@ -2,9 +2,10 @@ import axios from "axios";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { normalizeLoginEmail } from "@/lib/login-email";
 
-const apiMocks = vi.hoisted(() => ({ post: vi.fn() }));
+const apiMocks = vi.hoisted(() => ({ post: vi.fn(), request: vi.fn() }));
 
 vi.mock("@/lib/api", () => ({
+  apiRequest: apiMocks.request,
   publicApiClient: { post: apiMocks.post },
   ServiceError: class ServiceError extends Error {
     constructor(message: string, public statusCode = 500) {
@@ -14,7 +15,7 @@ vi.mock("@/lib/api", () => ({
   },
 }));
 
-import { checkLogin } from "@/services/login";
+import { checkLogin, validateLoginSession } from "@/services/login";
 
 function loginResponse(overrides: Record<string, unknown> = {}) {
   return {
@@ -39,6 +40,7 @@ function loginResponse(overrides: Record<string, unknown> = {}) {
 describe("online-only login service", () => {
   beforeEach(() => {
     apiMocks.post.mockReset();
+    apiMocks.request.mockReset();
   });
 
   afterEach(() => {
@@ -105,5 +107,24 @@ describe("online-only login service", () => {
       code: "ERR_NETWORK",
     });
     expect(apiMocks.post).toHaveBeenCalledOnce();
+  });
+
+  it("validates a restored session with the authenticated endpoint", async () => {
+    const session = {
+      uuid: "login-1",
+      login_email: "cashier@example.com",
+      branch_uuid: "branch-1",
+      store_uuid_fk: "store-1",
+      login_status: 1,
+    };
+    apiMocks.request.mockResolvedValue(session);
+
+    await expect(validateLoginSession()).resolves.toEqual(session);
+    expect(apiMocks.request).toHaveBeenCalledWith(
+      "post",
+      "/api/v1/access-data",
+      undefined,
+      "Unable to validate session",
+    );
   });
 });

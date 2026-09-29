@@ -5,7 +5,8 @@ vi.mock("@/lib/socket", () => ({
 }));
 
 vi.mock("@/services/login", () => ({
-  checkLogin: vi.fn()
+  checkLogin: vi.fn(),
+  validateLoginSession: vi.fn()
 }));
 
 vi.mock("@/stores/session-store-registry", () => ({

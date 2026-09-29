@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { disconnectSocket } from "@/lib/socket";
 import { getBranchOptions, type Branch } from "@/services/branch";
 import { getExecutiveDashboard, type ExecutiveDashboardResponse } from "@/services/dashboard";
-import { checkLogin, type LoginResult } from "@/services/login";
+import { checkLogin, validateLoginSession, type LoginResult } from "@/services/login";
 import { getProducts, type Product } from "@/services/product";
 import { useAuthStore, type AuthUser } from "@/stores/auth-store";
 import { useBranchStore } from "@/stores/branch-store";
@@ -17,7 +17,8 @@ vi.mock("@/lib/socket", () => ({
 }));
 
 vi.mock("@/services/login", () => ({
-  checkLogin: vi.fn()
+  checkLogin: vi.fn(),
+  validateLoginSession: vi.fn()
 }));
 
 vi.mock("@/services/branch", async (importOriginal) => {
@@ -45,6 +46,7 @@ vi.mock("@/services/product", async (importOriginal) => {
 });
 
 const checkLoginMock = vi.mocked(checkLogin);
+const validateLoginSessionMock = vi.mocked(validateLoginSession);
 const disconnectSocketMock = vi.mocked(disconnectSocket);
 const getBranchOptionsMock = vi.mocked(getBranchOptions);
 const getExecutiveDashboardMock = vi.mocked(getExecutiveDashboard);
@@ -119,6 +121,26 @@ describe("auth store session isolation", () => {
     expect(usePermissionsSidebarStore.getState().requestKey).toBe("");
     expect(usePermissionsAccessStore.getState().selectedStoreUuid).toBe("");
     expect(disconnectSocketMock).toHaveBeenCalledOnce();
+  });
+
+  it("deduplicates validation requests for the current token", async () => {
+    const pending = deferred<Awaited<ReturnType<typeof validateLoginSession>>>();
+    validateLoginSessionMock.mockReturnValueOnce(pending.promise);
+    useAuthStore.getState().login("token-1", authUser("user-1"));
+
+    const first = useAuthStore.getState().validateSession();
+    const second = useAuthStore.getState().validateSession();
+    pending.resolve({
+      uuid: "user-1",
+      login_email: "user-1@example.com",
+      branch_uuid: "user-1-branch",
+      store_uuid_fk: "user-1-store",
+      login_status: 1,
+    });
+
+    await expect(first).resolves.toBe(true);
+    await expect(second).resolves.toBe(true);
+    expect(validateLoginSessionMock).toHaveBeenCalledOnce();
   });
 
   it("resets the previous session before applying a new login", () => {

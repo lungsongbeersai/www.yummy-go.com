@@ -26,8 +26,11 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const hydrated = useAuthStore((state) => state.hydrated);
   const isLoggedIn = useAuthStore((state) => state.isLoggedIn);
+  const token = useAuthStore((state) => state.token);
+  const validateSession = useAuthStore((state) => state.validateSession);
   const isNativeApp = useIsCapacitorNativeApp();
   const [minSplashElapsed, setMinSplashElapsed] = useState(false);
+  const [validatedToken, setValidatedToken] = useState<string | null>(null);
 
   useEffect(() => {
     const timer = setTimeout(() => setMinSplashElapsed(true), MIN_NATIVE_SPLASH_MS);
@@ -42,9 +45,53 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
     }
   }, [hydrated, isLoggedIn, pathname, router]);
 
+  useEffect(() => {
+    if (!hydrated || !isLoggedIn || !token) {
+      return;
+    }
+
+    let cancelled = false;
+    validateSession()
+      .catch(() => false)
+      .finally(() => {
+        const current = useAuthStore.getState();
+        if (!cancelled && current.isLoggedIn && current.token === token) {
+          setValidatedToken(token);
+        }
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [hydrated, isLoggedIn, token, validateSession]);
+
+  useEffect(() => {
+    if (!hydrated || !isLoggedIn || !token || validatedToken !== token) return;
+
+    const checkSession = () => {
+      void validateSession().catch(() => false);
+    };
+    const checkVisibleSession = () => {
+      if (document.visibilityState === "visible") checkSession();
+    };
+
+    checkSession();
+    window.addEventListener("focus", checkSession);
+    document.addEventListener("visibilitychange", checkVisibleSession);
+    const interval = window.setInterval(checkSession, 30_000);
+
+    return () => {
+      window.clearInterval(interval);
+      window.removeEventListener("focus", checkSession);
+      document.removeEventListener("visibilitychange", checkVisibleSession);
+    };
+  }, [hydrated, isLoggedIn, pathname, token, validateSession, validatedToken]);
+
   const showNativeSplash = isNativeApp && !minSplashElapsed;
 
-  if (!hydrated || !isLoggedIn || showNativeSplash) {
+  const validatingSession = hydrated && isLoggedIn && Boolean(token) && validatedToken !== token;
+
+  if (!hydrated || !isLoggedIn || validatingSession || showNativeSplash) {
     if (isNativeApp) return <NativeLoadingScreen />;
     // Signed out and about to be redirected to the public entry page: no app chrome.
     if (hydrated && !isLoggedIn) return <LoadingState label={t("common.processing")} />;

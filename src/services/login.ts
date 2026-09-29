@@ -1,4 +1,4 @@
-import { publicApiClient, ServiceError } from "@/lib/api";
+import { apiRequest, publicApiClient, ServiceError } from "@/lib/api";
 import { normalizeLoginEmail } from "@/lib/login-email";
 import type { AuthUser, AuthZone } from "@/stores/auth-store";
 
@@ -34,6 +34,14 @@ export interface LoginResult {
   token: string;
   user: AuthUser;
   source?: "online";
+}
+
+export interface LoginSession {
+  uuid: string;
+  login_email: string;
+  branch_uuid: string;
+  store_uuid_fk: string;
+  login_status: number;
 }
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -86,4 +94,13 @@ export async function checkLogin(login_email: string, login_password: string): P
     { timeout: 8000 },
   );
   return mapLoginResponse(response.data);
+}
+
+export function validateLoginSession() {
+  return apiRequest<LoginSession>(
+    "post",
+    "/api/v1/access-data",
+    undefined,
+    "Unable to validate session",
+  );
 }

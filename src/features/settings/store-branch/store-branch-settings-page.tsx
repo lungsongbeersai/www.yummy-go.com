@@ -52,6 +52,7 @@ export function StoreBranchSettingsPage({ initialPagination, kind }: { initialPa
 function StoreSettingsPage({ initialPagination }: { initialPagination: UrlPaginationState }) {
   const { t } = useTranslation();
   const labels = useStoreBranchLabels();
+  const logout = useAuthStore((state) => state.logout);
   const updateUser = useAuthStore((state) => state.updateUser);
   const resetPassword = useReferenceStore((state) => state.resetPassword);
   const storeLogoUrl = useReferenceStore((state) => state.storeLogoUrl);
@@ -221,6 +222,10 @@ function StoreSettingsPage({ initialPagination }: { initialPagination: UrlPagina
       const nextRows = await loadStoreRows(requestParams, { background: true });
       const updated = id ? nextRows.find((row) => storeBranchId(row, "store") === id) : null;
       if (updated && id === storeUuid) {
+        if (Number(updated.store_active) !== 1) {
+          logout();
+          return;
+        }
         updateUser(storeAuthUserUpdate(updated));
       }
       showToast({ title: labels.saved, tone: "success" });

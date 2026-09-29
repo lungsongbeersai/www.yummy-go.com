@@ -3,7 +3,7 @@
 import { create } from "zustand";
 import { createJSONStorage, persist, type StateStorage } from "zustand/middleware";
 import { disconnectSocket } from "@/lib/socket";
-import { checkLogin } from "@/services/login";
+import { checkLogin, validateLoginSession } from "@/services/login";
 import { resetSessionStores } from "@/stores/session-store-registry";
 import { errorMessage } from "@/stores/store-utils";
 
@@ -96,6 +96,7 @@ interface AuthState {
   error: string | null;
   login: (token: string, user: AuthUser, rememberMe?: boolean) => void;
   loginWithPassword: (email: string, password: string, rememberMe?: boolean) => Promise<AuthUser | null>;
+  validateSession: () => Promise<boolean>;
   logout: () => void;
   updateUser: (updates: Partial<AuthUser>) => void;
   setHydrated: (hydrated: boolean) => void;
@@ -104,6 +105,8 @@ interface AuthState {
 const STORAGE_KEY = "yummy-go-auth";
 const isBrowser = typeof window !== "undefined";
 let loginRequestId = 0;
+let sessionValidationRequest: Promise<boolean> | null = null;
+let sessionValidationToken: string | null = null;
 
 function authenticatedState(token: string, user: AuthUser, rememberMe: boolean) {
   return {
@@ -151,6 +154,8 @@ export const useAuthStore = create<AuthState>()(
       error: null,
       login: (token, user, rememberMe = false) => {
         loginRequestId += 1;
+        sessionValidationRequest = null;
+        sessionValidationToken = null;
         resetSessionStores();
         set(authenticatedState(token, user, rememberMe));
       },
@@ -161,6 +166,8 @@ export const useAuthStore = create<AuthState>()(
           const result = await checkLogin(email, password);
           if (requestId !== loginRequestId) return null;
 
+          sessionValidationRequest = null;
+          sessionValidationToken = null;
           resetSessionStores();
           set(authenticatedState(result.token, result.user, rememberMe));
           return result.user;
@@ -171,8 +178,29 @@ export const useAuthStore = create<AuthState>()(
           throw error;
         }
       },
+      validateSession: () => {
+        const { isLoggedIn, token } = get();
+        if (!isLoggedIn || !token) return Promise.resolve(false);
+        if (sessionValidationRequest && sessionValidationToken === token) {
+          return sessionValidationRequest;
+        }
+
+        sessionValidationToken = token;
+        const request = validateLoginSession()
+          .then(() => get().isLoggedIn && get().token === token)
+          .finally(() => {
+            if (sessionValidationRequest === request) {
+              sessionValidationRequest = null;
+              sessionValidationToken = null;
+            }
+          });
+        sessionValidationRequest = request;
+        return request;
+      },
       logout: () => {
         loginRequestId += 1;
+        sessionValidationRequest = null;
+        sessionValidationToken = null;
         disconnectSocket();
         resetSessionStores();
         set({
