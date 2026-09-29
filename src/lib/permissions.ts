@@ -47,7 +47,7 @@ export function canManageStorePermissions(status: number | null | undefined) {
 }
 
 export function canViewSettingModule(slug: string, status: number | null | undefined) {
-  if (slug === "store" || slug === "branch") return canViewStoreBranch(status);
+  if (["store", "branch", "bank", "account"].includes(slug)) return canViewStoreBranch(status);
   return true;
 }
 

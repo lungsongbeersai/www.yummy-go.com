@@ -5,6 +5,8 @@ const apiMocks = vi.hoisted(() => ({ apiRequest: vi.fn() }));
 vi.mock("@/lib/api", () => ({ apiRequest: apiMocks.apiRequest }));
 
 import {
+  deleteBank,
+  deleteBranchAccount,
   fetchBanks,
   fetchBranchAccounts,
   fetchPosTransferAccounts,
@@ -80,6 +82,27 @@ describe("bank account service", () => {
     expect(apiMocks.apiRequest).toHaveBeenCalledWith(
       "get",
       "/api/v1/posAll/transfer_accounts",
+    );
+  });
+
+  it("uses scoped delete endpoints for banks and branch accounts", async () => {
+    await deleteBank("bank-1");
+    expect(apiMocks.apiRequest).toHaveBeenLastCalledWith(
+      "delete",
+      "/api/v1/bank/delete",
+      { params: { bank_uuid: "bank-1" } },
+    );
+
+    await deleteBranchAccount("account-1", "branch-1");
+    expect(apiMocks.apiRequest).toHaveBeenLastCalledWith(
+      "delete",
+      "/api/v1/account/delete",
+      {
+        params: {
+          account_uuid: "account-1",
+          branch_uuid_fk: "branch-1",
+        },
+      },
     );
   });
 

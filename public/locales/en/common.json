@@ -570,6 +570,7 @@
   },
   "nav": {
     "add_printer": "Add printer",
+    "bank": "Banks",
     "bill_sales_summary": "Bill sales summary",
     "branch": "Branch",
     "cancel_sales_invoice_report": "Cancelled invoice report",
@@ -626,6 +627,7 @@
     "table": "Table",
     "taste": "Taste",
     "topping": "Topping",
+    "transfer_account": "Transfer accounts",
     "unit": "Unit",
     "user": "User",
     "vat_summary": "VAT summary",
@@ -3098,6 +3100,21 @@
     "userList": "User list",
     "userProfileSection": "Profile image",
     "userZoneHint": "Leave as all zones for unrestricted POS access, or select one or more zones so this user can only see and sell from tables in those zones.",
+    "bankAccount": {
+      "accountDeleted": "Transfer account deleted",
+      "accountDetails": "Account details",
+      "accountDetailsHint": "Choose a bank and enter the account details shown in POSAll.",
+      "accountFormHint": "Active accounts are available for transfer payments in POSAll.",
+      "addBankFirst": "Add and activate a bank before creating a transfer account.",
+      "bankDeleted": "Bank deleted",
+      "bankFormHint": "Manage the bank names used by transfer accounts.",
+      "deleteAccountConfirm": "Delete this transfer account? Accounts used by payment history cannot be deleted; deactivate them instead.",
+      "deleteBankConfirm": "Delete this bank? Banks that still have accounts cannot be deleted; deactivate them instead.",
+      "loadBanksFailed": "Failed to load banks",
+      "loadReferencesFailed": "Failed to load branches and banks",
+      "loadingAccounts": "Loading transfer accounts",
+      "loadingBanks": "Loading banks"
+    },
     "storeBranch": {
       "addBranch": "Add branch",
       "addAccount": "Add account",
@@ -3173,6 +3190,7 @@
       "storeList": "Store list",
       "storeNameRequired": "Enter the Lao store name.",
       "storeSummary": "All-store overview",
+      "status": "Status",
       "tableStatus": "Table usage",
       "tableStatusHint": "Choose whether this store uses tables for ordering.",
       "taxBilling": "Tax and service charge",
@@ -3196,6 +3214,14 @@
       "vatExcluded": "VAT excluded"
     },
     "modules": {
+      "account": {
+        "title": "Transfer accounts",
+        "description": "Manage receiving accounts and payment QR images for each branch."
+      },
+      "bank": {
+        "title": "Banks",
+        "description": "Bank master data used by transfer accounts."
+      },
       "branch": {
         "title": "Branches",
         "description": "Restaurant branch details."

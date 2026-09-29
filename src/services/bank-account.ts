@@ -63,6 +63,12 @@ export async function saveBank(input: SaveBankInput) {
   return response.data;
 }
 
+export async function deleteBank(bankUuid: string) {
+  await apiRequest("delete", "/api/v1/bank/delete", {
+    params: { bank_uuid: bankUuid },
+  });
+}
+
 export async function fetchBranchAccounts(branchUuid: string) {
   if (!branchUuid) return [];
   const response = await apiRequest<ApiListResponse<BranchAccount>>(
@@ -84,6 +90,18 @@ export async function saveBranchAccount(input: SaveBranchAccountInput) {
     { data },
   );
   return response.data;
+}
+
+export async function deleteBranchAccount(
+  accountUuid: string,
+  branchUuid: string,
+) {
+  await apiRequest("delete", "/api/v1/account/delete", {
+    params: {
+      account_uuid: accountUuid,
+      branch_uuid_fk: branchUuid,
+    },
+  });
 }
 
 export async function fetchPosTransferAccounts() {

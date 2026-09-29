@@ -30,6 +30,8 @@ export const routeBreadcrumbs: Record<string, RouteBreadcrumbItem[]> = {
     { path: "/report/daily-closing", title: "daily_store_closing_report" }
   ],
   "/settings/manage-menu": [{ path: "/settings/manage-menu", title: "manage_menu" }],
+  "/settings/bank": [{ path: "/settings/bank", title: "bank" }],
+  "/settings/account": [{ path: "/settings/account", title: "transfer_account" }],
   "/settings/unit": [{ path: "/settings/unit", title: "unit" }],
   "/settings/manage-access-permissions": [
     { path: "/settings/manage-access-permissions", title: "manage_access_permissions" }

@@ -70,6 +70,8 @@ const Menu: MenuItem[] = [
     children: [
       { path: "/settings/store", title: "store", allowedStatus: STORE_BRANCH_VIEW_STATUSES },
       { path: "/settings/branch", title: "branch", allowedStatus: STORE_BRANCH_VIEW_STATUSES },
+      { path: "/settings/bank", title: "bank", allowedStatus: STORE_BRANCH_VIEW_STATUSES },
+      { path: "/settings/account", title: "transfer_account", allowedStatus: STORE_BRANCH_VIEW_STATUSES },
       { path: "/settings/province", title: "province" },
       { path: "/settings/district", title: "district" },
       { path: "/settings/topping", title: "topping" },
