@@ -16,6 +16,7 @@ export interface UserZone extends ApiEntity {
 export interface User extends ApiEntity {
   login_uuid: string;
   login_email?: string;
+  login_name?: string;
   login_status?: number;
   login_active?: number;
   login_profile?: string;
@@ -31,6 +32,10 @@ export interface User extends ApiEntity {
   roles_name?: string;
   roles_name_la?: string;
   roles_name_eng?: string;
+  position_uuid_fk?: string | null;
+  position_name?: string | null;
+  position_name_la?: string | null;
+  position_name_eng?: string | null;
   btn_disabled?: string;
   btn_disible?: string;
 }
@@ -44,13 +49,23 @@ export interface Role extends ApiEntity {
   roles_name_eng?: string;
 }
 export type RolesResponse = ApiDataResponse<Role[]>;
+export interface Position extends ApiEntity {
+  position_uuid: string;
+  position_code?: string;
+  position_name?: string;
+  position_name_la?: string;
+  position_name_eng?: string;
+}
+export type PositionsResponse = ApiDataResponse<Position[]>;
 export interface SaveUserInput extends ApiEntity {
   login_uuid?: string;
   login_email?: string;
+  login_name?: string;
   login_password?: string;
   login_active?: number;
   login_profile?: File | string;
   roles_id_fk?: number | string;
+  position_uuid_fk?: string;
   branch_uuid_fk?: string;
   zone_uuid_fk?: string | null;
   zone_uuid_fks?: string[];
@@ -108,6 +123,12 @@ export async function getRoles(lang = "la", roles_id: number | string = "") {
   if (!roleId) return [];
   const result = await apiRequest<RolesResponse>("post", `/api/v1/login/roles?lang=${toApiLanguage(lang)}`, {
     data: { roles_id: roleId }
+  });
+  return result.data ?? [];
+}
+export async function getPositions(lang = "la") {
+  const result = await apiRequest<PositionsResponse>("get", "/api/v1/register/positions", {
+    params: { lang: toApiLanguage(lang) }
   });
   return result.data ?? [];
 }

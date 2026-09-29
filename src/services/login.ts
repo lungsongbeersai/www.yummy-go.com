@@ -8,7 +8,10 @@ interface LoginApiResponse {
   token: string;
   login_uuid: string;
   login_email: string;
+  login_name?: string;
   login_status: number;
+  position_uuid_fk?: string | null;
+  position_name?: string;
   login_profile?: string;
   zone_uuid_fk?: string | null;
   zone_uuid_fks?: string[];
@@ -43,12 +46,15 @@ function mapLoginResponse(data: LoginApiResponse): LoginResult {
     user: {
       uuid: data.login_uuid,
       email: data.login_email,
+      name: data.login_name ?? "",
       status: data.login_status,
       profile: data.login_profile ?? "",
       zone_uuid: data.zone_uuid_fk ?? "",
       zone_uuids: data.zone_uuid_fks ?? [],
       zones: data.zones ?? [],
       zone_name: data.zone_name ?? "",
+      position_uuid: data.position_uuid_fk ?? "",
+      position_name: data.position_name ?? "",
       branch_uuid: data.branch_uuid ?? "",
       branch_name: data.branch_name ?? "",
       branch_tel: data.branch_tel ?? "",

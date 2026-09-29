@@ -12,11 +12,13 @@ import { Spinner } from "@/components/ui/spinner";
 import { AVATAR_CROP_ASPECT, AVATAR_CROP_ASPECT_CLASS } from "@/config/image-crop";
 import { SettingsImageCropPanel, type CropState } from "@/features/settings/shared/settings-image-crop";
 import { useResetOnChange } from "@/hooks/use-reset-on-change";
-import type { Role, User } from "@/services/user";
+import type { Position, Role, User } from "@/services/user";
 import type { Zone } from "@/services/zone";
 import {
   roleId,
   roleName,
+  positionId,
+  positionName,
   userId,
   userRoleOptions,
   userZoneUuids,
@@ -36,6 +38,7 @@ export function UserFormDialog({
   onSubmit,
   open,
   profileSrc,
+  positionOptions,
   roleOptions,
   saving,
   selectedProfileImage,
@@ -53,6 +56,7 @@ export function UserFormDialog({
   onSubmit: (formData: FormData) => Promise<void>;
   open: boolean;
   profileSrc: string;
+  positionOptions: Position[];
   roleOptions: Role[];
   saving: boolean;
   selectedProfileImage: File | null;
@@ -63,13 +67,18 @@ export function UserFormDialog({
   const [selectedRoleId, setSelectedRoleId] = useState(
     () => roleId(editing) || String(loggedRoleId || "")
   );
+  const [selectedPositionUuid, setSelectedPositionUuid] = useState(
+    () => positionId(editing)
+  );
   const [loginActive, setLoginActive] = useState(() => userValue(editing, "login_active", "1"));
   const [selectedZoneUuids, setSelectedZoneUuids] = useState(() => userZoneUuids(editing));
   const roles = useMemo(() => userRoleOptions(editing, roleOptions), [editing, roleOptions]);
   const formKey = userId(editing) || "new";
 
   useResetOnChange(`${formKey}:${loggedRoleId}:${open}`, () => {
-    setSelectedRoleId(roleId(editing) || String(loggedRoleId || ""));
+    const nextRoleId = roleId(editing) || String(loggedRoleId || "");
+    setSelectedRoleId(nextRoleId);
+    setSelectedPositionUuid(positionId(editing));
     setLoginActive(userValue(editing, "login_active", "1"));
     setSelectedZoneUuids(userZoneUuids(editing));
   });
@@ -159,6 +168,33 @@ export function UserFormDialog({
                       </Select>
                     </Field>
                     <Field>
+                      <FieldLabel htmlFor="position_uuid_fk">{t("fields.position")}</FieldLabel>
+                      <input name="position_uuid_fk" type="hidden" value={selectedPositionUuid} />
+                      <Select
+                        disabled={saving}
+                        required
+                        value={selectedPositionUuid}
+                        onValueChange={setSelectedPositionUuid}
+                      >
+                        <SelectTrigger id="position_uuid_fk" className="w-full">
+                          <SelectValue placeholder={t("settings.selectPosition")} />
+                        </SelectTrigger>
+                        <SelectContent position="popper">
+                          <SelectGroup>
+                            {positionOptions.map((position) => {
+                              const id = positionId(position);
+                              if (!id) return null;
+                              return (
+                                <SelectItem key={id} value={id}>
+                                  {positionName(position)}
+                                </SelectItem>
+                              );
+                            })}
+                          </SelectGroup>
+                        </SelectContent>
+                      </Select>
+                    </Field>
+                    <Field>
                       <FieldLabel id="zone_uuid_fks_label">{t("nav.zone")}</FieldLabel>
                       {selectedZoneUuids.map((zoneUuid) => (
                         <input key={zoneUuid} name="zone_uuid_fks" type="hidden" value={zoneUuid} />
@@ -213,6 +249,20 @@ export function UserFormDialog({
                   </div>
 
                   <div className="grid gap-4 sm:grid-cols-2">
+                    <Field className="sm:col-span-2">
+                      <FieldLabel htmlFor="login_name">{t("fields.displayName")}</FieldLabel>
+                      <Input
+                        autoComplete="name"
+                        defaultValue={userValue(editing, "login_name")}
+                        disabled={saving}
+                        id="login_name"
+                        maxLength={150}
+                        name="login_name"
+                        placeholder={t("settings.displayNamePlaceholder")}
+                        required
+                      />
+                      <FieldDescription>{t("settings.displayNameHint")}</FieldDescription>
+                    </Field>
                     <Field>
                       <FieldLabel htmlFor="login_email">{t("fields.login_email")}</FieldLabel>
                       <Input
@@ -251,7 +301,7 @@ export function UserFormDialog({
             <Button disabled={saving} type="button" variant="outline" onClick={() => onOpenChange(false)}>
               {t("actions.cancel")}
             </Button>
-            <Button disabled={saving || !currentBranchUuid || !selectedRoleId} type="submit">
+            <Button disabled={saving || !currentBranchUuid || !selectedRoleId || !selectedPositionUuid} type="submit">
               {saving ? <Spinner data-icon="inline-start" /> : null}
               {saving ? t("common.processing") : t("actions.save")}
             </Button>

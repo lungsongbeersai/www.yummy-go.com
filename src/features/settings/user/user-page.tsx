@@ -19,7 +19,7 @@ import type { ChangePasswordValues } from "@/lib/password";
 import { canCreateStoreBranch } from "@/lib/permissions";
 import type { UrlPaginationState } from "@/lib/url-pagination";
 import type { Store } from "@/services/store";
-import type { FetchUsersParams, Role, SaveUserInput, User } from "@/services/user";
+import type { FetchUsersParams, Position, Role, SaveUserInput, User } from "@/services/user";
 import type { Zone } from "@/services/zone";
 import type { SortOrder } from "@/services/shared/types";
 import { useReferenceStore } from "@/stores/reference-store";
@@ -42,6 +42,7 @@ const ORDER_OPTIONS: Array<{ labelKey: "asc" | "desc"; value: SortOrder }> = [
 ];
 
 const EMPTY_ROLES: Role[] = [];
+const EMPTY_POSITIONS: Position[] = [];
 // Ceiling for "every user" while a store filter is on (the whole system has ~140 today).
 const STORE_FILTER_FETCH_LIMIT = 5000;
 const EMPTY_ZONES: Zone[] = [];
@@ -49,11 +50,13 @@ const EMPTY_ZONES: Zone[] = [];
 export function UserSettingsPage({ initialPagination }: { initialPagination: UrlPaginationState }) {
   const { t } = useTranslation();
   const loadRoles = useReferenceStore((state) => state.loadRoles);
+  const loadPositions = useReferenceStore((state) => state.loadPositions);
   const loadZones = useReferenceStore((state) => state.loadZones);
   const userProfileUrl = useReferenceStore((state) => state.userProfileUrl);
   const changePassword = useReferenceStore((state) => state.changePassword);
   const changingPassword = useReferenceStore((state) => Boolean(state.loadingKeys.password));
   const [fetchedRoles, setFetchedRoles] = useState<Role[]>([]);
+  const [fetchedPositions, setFetchedPositions] = useState<Position[]>([]);
   const [fetchedZones, setFetchedZones] = useState<Zone[]>([]);
   const [selectedProfileImage, setSelectedProfileImage] = useState<File | null>(null);
   const [crop, setCrop] = useState<CropState>(DEFAULT_CROP);
@@ -115,7 +118,9 @@ export function UserSettingsPage({ initialPagination }: { initialPagination: Url
         branchUuid: editingRow?.branch_uuid_fk || currentUser?.branch_uuid || "",
         editing: editingRow,
         email: String(formData.get("login_email") ?? ""),
+        name: String(formData.get("login_name") ?? ""),
         password: String(formData.get("login_password") ?? "").trim(),
+        positionUuid: String(formData.get("position_uuid_fk") ?? "").trim(),
         profile: formData.get("login_profile"),
         selectedRoleId: String(formData.get("roles_id_fk") ?? "").trim(),
         zoneUuids: formData
@@ -142,8 +147,12 @@ export function UserSettingsPage({ initialPagination }: { initialPagination: Url
     title,
     validateInput: ({ editing: editingRow, formData }) => {
       const selectedRoleId = String(formData.get("roles_id_fk") ?? "").trim();
+      const positionUuid = String(formData.get("position_uuid_fk") ?? "").trim();
+      const name = String(formData.get("login_name") ?? "").trim();
       const password = String(formData.get("login_password") ?? "").trim();
       if (!selectedRoleId) return t("settings.createRoleFirst");
+      if (!positionUuid) return t("settings.positionRequired");
+      if (!name) return t("settings.displayNameRequired");
       if (!userId(editingRow) && !password) return t("settings.passwordRequired");
       return null;
     }
@@ -175,6 +184,7 @@ export function UserSettingsPage({ initialPagination }: { initialPagination: Url
   const loggedRoleId = Number(user?.status ?? 0);
   // ยังไม่มีสิทธิ์ที่อ้างอิง = ไม่มีตัวเลือก แต่คงค่าที่โหลดไว้ไม่ให้รายการกะพริบตอนสลับ
   const roles = loggedRoleId ? fetchedRoles : EMPTY_ROLES;
+  const positions = fetchedPositions.length ? fetchedPositions : EMPTY_POSITIONS;
   const zones = branchUuid ? fetchedZones : EMPTY_ZONES;
 
   useEffect(() => {
@@ -251,6 +261,25 @@ export function UserSettingsPage({ initialPagination }: { initialPagination: Url
   }, [language, loadRoles, loggedRoleId, showToast, t]);
 
   useEffect(() => {
+    let active = true;
+    loadPositions(language)
+      .then((nextPositions) => {
+        if (active) setFetchedPositions(nextPositions);
+      })
+      .catch((error) => {
+        showToast({
+          title: t("settings.loadFailed", { title: t("fields.position") }),
+          description: error instanceof Error ? error.message : t("toasts.pleaseTryAgain"),
+          tone: "error"
+        });
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [language, loadPositions, showToast, t]);
+
+  useEffect(() => {
     if (!branchUuid) return;
 
     let active = true;
@@ -284,6 +313,10 @@ export function UserSettingsPage({ initialPagination }: { initialPagination: Url
     }
     if (!roles.length) {
       showToast({ title: t("settings.saveFailed"), description: t("settings.createRoleFirst"), tone: "error" });
+      return;
+    }
+    if (!positions.length) {
+      showToast({ title: t("settings.saveFailed"), description: t("settings.createPositionFirst"), tone: "error" });
       return;
     }
     setEditing(null);
@@ -480,6 +513,7 @@ export function UserSettingsPage({ initialPagination }: { initialPagination: Url
         loggedRoleId={loggedRoleId}
         open={dialogOpen}
         profileSrc={editing ? userProfileUrl(userValue(editing, "login_profile")) : ""}
+        positionOptions={positions}
         roleOptions={roles}
         saving={saving}
         selectedProfileImage={selectedProfileImage}

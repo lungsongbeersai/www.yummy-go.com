@@ -19,10 +19,12 @@ import {
   canCreateUser,
   changeUserPassword,
   getRoles,
+  getPositions,
   getUserById,
   updateProfileImage as updateProfileImageRequest,
   type ChangePasswordInput,
   type Role,
+  type Position,
   type UpdateProfileImageInput,
   type UpdateProfileImageResponse,
   type User
@@ -48,7 +50,8 @@ type ReferenceKey =
   | "units"
   | "zones"
   | "tables"
-  | "roles";
+  | "roles"
+  | "positions";
 
 type ReferenceRequestKey = ReferenceKey | "user" | "password" | "profileImage";
 
@@ -84,6 +87,7 @@ interface ReferenceState {
   loadZones: (lang?: string, branchUuid?: string) => Promise<Zone[]>;
   loadTables: (lang?: string) => Promise<ZoneGroup[]>;
   loadRoles: (lang?: string, rolesId?: number | string) => Promise<Role[]>;
+  loadPositions: (lang?: string) => Promise<Position[]>;
   loadUser: (loginUuid: string) => Promise<User>;
   resetPassword: (email: string) => Promise<void>;
   changePassword: (input: ChangePasswordInput) => Promise<void>;
@@ -182,6 +186,7 @@ export const useReferenceStore = create<ReferenceState>((set) => {
     loadZones: (lang, branchUuid) => loadOption("zones", () => getZoneOptions(lang, branchUuid)),
     loadTables: (lang) => loadOption("tables", () => getTableOptions(lang)),
     loadRoles: (lang, rolesId) => loadOption("roles", () => getRoles(lang, rolesId ?? useAuthStore.getState().user?.status ?? "")),
+    loadPositions: (lang) => loadOption("positions", () => getPositions(lang)),
     loadUser: async (loginUuid) => {
       const isCurrentRequest = createReferenceRequestGuard("user");
       set((state) => ({ loadingKeys: { ...state.loadingKeys, user: true }, error: null }));

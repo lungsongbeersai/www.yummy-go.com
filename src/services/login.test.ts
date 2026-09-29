@@ -23,6 +23,7 @@ function loginResponse(overrides: Record<string, unknown> = {}) {
     token: "token-1",
     login_uuid: "login-1",
     login_email: "cashier@example.com",
+    login_name: "Noy",
     login_status: 1,
     login_profile: "profile.png",
     branch_uuid: "branch-1",
@@ -62,6 +63,7 @@ describe("online-only login service", () => {
     await expect(checkLogin("cashier@example.com", "password")).resolves.toMatchObject({
       source: "online",
       user: {
+        name: "Noy",
         store_table_status: 2,
         zone_uuid: "zone-1",
         zone_uuids: ["zone-1", "zone-2"],

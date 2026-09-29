@@ -1,5 +1,5 @@
 import type { ApiEntity } from "@/services/shared/types";
-import type { Role, SaveUserInput, User } from "@/services/user";
+import type { Position, Role, SaveUserInput, User } from "@/services/user";
 
 export function userValue(row: ApiEntity | null | undefined, key: string, fallback = "") {
   const raw = row?.[key];
@@ -17,6 +17,18 @@ export function roleId(row: Role | User | null | undefined) {
 
 export function roleName(row: Role | User | null | undefined) {
   return userValue(row, "roles_name", userValue(row, "role_name", userValue(row, "roles_name_la", userValue(row, "roles_name_eng", "-"))));
+}
+
+export function positionId(row: Position | User | null | undefined) {
+  return userValue(row, "position_uuid_fk", userValue(row, "position_uuid"));
+}
+
+export function positionName(row: Position | User | null | undefined) {
+  return userValue(
+    row,
+    "position_name",
+    userValue(row, "position_name_la", userValue(row, "position_name_eng", "-"))
+  );
 }
 
 export function branchName(row: ApiEntity | null | undefined) {
@@ -193,7 +205,9 @@ export function buildUserSaveInput({
   branchUuid,
   editing,
   email,
+  name,
   password,
+  positionUuid,
   profile,
   selectedRoleId,
   zoneUuids
@@ -202,7 +216,9 @@ export function buildUserSaveInput({
   branchUuid: string;
   editing: User | null;
   email: string;
+  name: string;
   password: string;
+  positionUuid: string;
   profile: FormDataEntryValue | null;
   selectedRoleId: string;
   zoneUuids: string[];
@@ -212,7 +228,9 @@ export function buildUserSaveInput({
     branch_uuid_fk: branchUuid,
     roles_id_fk: Number(selectedRoleId),
     login_email: email.trim(),
+    login_name: name.trim(),
     login_active: Number(active || 1),
+    position_uuid_fk: positionUuid.trim(),
     zone_uuid_fks: [...new Set(zoneUuids.map((zoneUuid) => zoneUuid.trim()).filter(Boolean))]
   };
   if (id) input.login_uuid = id;

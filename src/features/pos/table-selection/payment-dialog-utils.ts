@@ -753,7 +753,7 @@ export function buildInvoicePrintData({
     branchAddress: optionalString(user.branch_address) ?? "",
     branchName: optionalString(user.branch_name) ?? "",
     branchTel: optionalString(user.branch_tel) ?? "",
-    cashier: optionalString(user.email?.split("@")[0], user.email) ?? "-",
+    cashier: optionalString(user.name) ?? "-",
     customer: selectedCustomer
       ? optionalString(
           selectedCustomer.customer_name,

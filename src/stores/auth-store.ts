@@ -17,12 +17,15 @@ export interface AuthZone {
 export interface AuthUser {
   uuid: string;
   email: string;
+  name?: string;
   status: number;
   profile: string;
   zone_uuid?: string;
   zone_uuids?: string[];
   zones?: AuthZone[];
   zone_name?: string;
+  position_uuid?: string;
+  position_name?: string;
   branch_uuid: string;
   branch_name: string;
   branch_tel: string;

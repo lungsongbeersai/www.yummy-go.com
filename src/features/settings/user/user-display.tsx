@@ -8,11 +8,11 @@ import { cn } from "@/lib/utils";
 import { userActiveLabel, userInitials } from "./user-utils";
 
 // Initials fall back to the settings accent, like the icon tiles on the other settings lists.
-export function UserAvatar({ email, src }: { email: string; src: string }) {
+export function UserAvatar({ label, src }: { label: string; src: string }) {
   return (
     <Avatar>
-      {src ? <AvatarImage alt={email} src={src} /> : null}
-      <AvatarFallback className={SETTINGS_ACCENT.soft}>{userInitials(email)}</AvatarFallback>
+      {src ? <AvatarImage alt={label} src={src} /> : null}
+      <AvatarFallback className={SETTINGS_ACCENT.soft}>{userInitials(label)}</AvatarFallback>
     </Avatar>
   );
 }

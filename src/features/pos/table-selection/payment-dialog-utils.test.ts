@@ -357,6 +357,7 @@ describe("payment dialog helpers", () => {
       user: {
         uuid: "user-1",
         email: "cashier@example.com",
+        name: "Noy",
         store_name: "<Store>",
         branch_name: "Branch",
       } as unknown as AuthUser,
@@ -364,6 +365,7 @@ describe("payment dialog helpers", () => {
 
     const html = renderLocalInvoiceHtml(data, "safe");
     expect(data.customer).toBe("<VIP>");
+    expect(data.cashier).toBe("Noy");
     expect(data.items[0]).toMatchObject({
       name: "Noodle (M)",
       displayTotal: 20000,
@@ -407,6 +409,7 @@ describe("payment dialog helpers", () => {
       user: {
         uuid: "user-1",
         email: "cashier@example.com",
+        name: "Noy",
         store_name: "Store",
       } as unknown as AuthUser,
     });

@@ -17,7 +17,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { SettingsRowActions } from "@/features/settings/shared/settings-shell";
 import type { User } from "@/services/user";
 import { UserActiveBadge, UserAvatar, UserBadges } from "./user-display";
-import { branchName, isProtectedUser, roleName, userId, userValue, zoneName } from "./user-utils";
+import { branchName, isProtectedUser, positionName, roleName, userId, userValue, zoneName } from "./user-utils";
 
 type UserListProps = {
   currentLoginUuid: string;
@@ -72,6 +72,7 @@ function rowFlags(row: User, currentLoginUuid: string) {
   const id = userId(row);
   return {
     currentRow: Boolean(currentLoginUuid && id === currentLoginUuid),
+    displayName: userValue(row, "login_name", "-"),
     email: userValue(row, "login_email", "-"),
     id,
     protectedRow: isProtectedUser(row)
@@ -107,14 +108,14 @@ export function UserTable({
       </TableHeader>
       <TableBody>
         {rows.map((row, index) => {
-          const { currentRow, email, id, protectedRow } = rowFlags(row, currentLoginUuid);
+          const { currentRow, displayName, email, id, protectedRow } = rowFlags(row, currentLoginUuid);
           const selected = selectedRows.has(id);
           return (
             <TableRow key={id || index} data-state={selected ? "selected" : undefined}>
               <TableCell>
                 {/* Your own account and protected accounts can't be bulk-edited, so they can't be selected. */}
                 <Checkbox
-                  aria-label={t("common.selectRow", { name: email })}
+                  aria-label={t("common.selectRow", { name: displayName })}
                   checked={selected}
                   disabled={protectedRow || currentRow}
                   onCheckedChange={(checked) => onToggleSelected(id, checked === true)}
@@ -122,17 +123,19 @@ export function UserTable({
               </TableCell>
               <TableCell className="text-center text-muted-foreground tabular-nums">{pageStart + index}</TableCell>
               <TableCell>
-                {/* The role sits under the email: together they say who this account is. */}
                 <div className="flex items-center gap-3">
-                  <UserAvatar email={email} src={profileUrl(userValue(row, "login_profile"))} />
+                  <UserAvatar label={displayName} src={profileUrl(userValue(row, "login_profile"))} />
                   <div className="flex min-w-0 flex-col gap-0.5">
                     <span className="flex items-center gap-2">
-                      <span className="truncate font-medium" translate="no">
-                        {email}
+                      <span className="truncate font-medium">
+                        {displayName}
                       </span>
                       <UserBadges currentRow={currentRow} protectedRow={protectedRow} />
                     </span>
-                    <span className="truncate text-muted-foreground">{roleName(row)}</span>
+                    <span className="truncate text-muted-foreground" translate="no">{email}</span>
+                    <span className="truncate text-xs text-muted-foreground">
+                      {positionName(row)} · {roleName(row)}
+                    </span>
                   </div>
                 </div>
               </TableCell>
@@ -160,27 +163,29 @@ export function UserMobileList(props: UserListProps) {
   return (
     <ItemGroup className="@xl:grid @xl:grid-cols-2">
       {rows.map((row, index) => {
-        const { currentRow, email, id, protectedRow } = rowFlags(row, currentLoginUuid);
+        const { currentRow, displayName, email, id, protectedRow } = rowFlags(row, currentLoginUuid);
         return (
           <Item key={id || index} variant="outline">
             <Checkbox
-              aria-label={t("common.selectRow", { name: email })}
+              aria-label={t("common.selectRow", { name: displayName })}
               checked={selectedRows.has(id)}
               disabled={protectedRow || currentRow}
               onCheckedChange={(checked) => onToggleSelected(id, checked === true)}
             />
             <ItemMedia>
-              <UserAvatar email={email} src={profileUrl(userValue(row, "login_profile"))} />
+              <UserAvatar label={displayName} src={profileUrl(userValue(row, "login_profile"))} />
             </ItemMedia>
-            {/* min-w-0 + a truncated email: a long address would otherwise push the ☰ menu onto its
-                own line. The badges go to the footer for the same reason. */}
+            {/* min-w-0 keeps long identity text from pushing the action menu onto its own line. */}
             <ItemContent className="min-w-0">
               <ItemTitle className="w-full">
                 <span className="truncate" translate="no">
-                  {email}
+                  {displayName}
                 </span>
               </ItemTitle>
-              <ItemDescription>{roleName(row)}</ItemDescription>
+              <ItemDescription>
+                <span translate="no">{email}</span>
+                <span className="block">{positionName(row)} · {roleName(row)}</span>
+              </ItemDescription>
             </ItemContent>
             <ItemActions>
               <UserRowActions {...props} currentRow={currentRow} protectedRow={protectedRow} row={row} />
