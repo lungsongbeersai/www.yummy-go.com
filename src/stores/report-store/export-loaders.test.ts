@@ -144,7 +144,19 @@ describe("report export loaders", () => {
         total: 2,
         totalPages: 1,
         report_name: "Payment report",
-        report_total: { total: 300 }
+        report_total: { total: 300 },
+        transfer_account_rows: [
+          {
+            account_uuid: "account-1",
+            account_name: "Main",
+            account_number: "001",
+            bank_uuid: "bank-1",
+            bank_name: "BCEL",
+            bill_count: 1,
+            payment_count: 1,
+            transfer_amount: 200,
+          },
+        ]
     };
 
     const data = await loadPaymentMethodsReportExportData(
@@ -165,5 +177,8 @@ describe("report export loaders", () => {
     expect(data.reportName).toBe("Payment report");
     expect(data.reportTotal).toEqual({ total: 300 });
     expect(data.rows.map((row) => row.paymentMethodName)).toEqual(["Cash", "Transfer"]);
+    expect(data.transferAccounts).toMatchObject([
+      { accountName: "Main", accountNumber: "001", bankName: "BCEL", transferAmount: 200 },
+    ]);
   });
 });

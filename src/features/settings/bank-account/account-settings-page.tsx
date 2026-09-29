@@ -1,11 +1,32 @@
 "use client";
 
 import Image from "next/image";
+import type { ReactNode } from "react";
 import { useCallback, useEffect, useState } from "react";
-import { CreditCard, Landmark } from "lucide-react";
+import {
+  DndContext,
+  KeyboardSensor,
+  MouseSensor,
+  TouchSensor,
+  closestCenter,
+  useSensor,
+  useSensors,
+  type DragEndEvent,
+} from "@dnd-kit/core";
+import { restrictToVerticalAxis } from "@dnd-kit/modifiers";
+import {
+  SortableContext,
+  arrayMove,
+  sortableKeyboardCoordinates,
+  useSortable,
+  verticalListSortingStrategy,
+} from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
+import { CreditCard, GripVertical, Landmark } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { ConfirmDialog } from "@/components/common/confirm-dialog";
 import { StatusBadge } from "@/components/common/status-badge";
+import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Item, ItemActions, ItemContent, ItemDescription, ItemFooter, ItemGroup, ItemMedia, ItemTitle } from "@/components/ui/item";
 import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -17,6 +38,7 @@ import type { Branch } from "@/services/branch";
 import { authStoreUuid, useAuthStore } from "@/stores/auth-store";
 import { useBankAccountStore } from "@/stores/bank-account-store";
 import { useToastStore } from "@/stores/toast-store";
+import { cn } from "@/lib/utils";
 import { AccountFormDialog } from "./bank-account-form-dialogs";
 import { useClientSettingsList } from "./use-client-settings-list";
 
@@ -37,6 +59,222 @@ function bankName(account: BranchAccount, language: string) {
     || account.bank_name_eng;
 }
 
+type AccountTableProps = {
+  allSelected: boolean;
+  dragEnabled: boolean;
+  language: string;
+  pageStart: number;
+  rows: BranchAccount[];
+  selectedRows: Set<string>;
+  onDelete: (row: BranchAccount) => void;
+  onEdit: (row: BranchAccount) => void;
+  onReorder: (rows: BranchAccount[]) => void;
+  onToggleAll: (checked: boolean) => void;
+  onToggleSelected: (id: string, checked: boolean) => void;
+};
+
+function AccountTable({
+  allSelected,
+  dragEnabled,
+  language,
+  pageStart,
+  rows,
+  selectedRows,
+  onDelete,
+  onEdit,
+  onReorder,
+  onToggleAll,
+  onToggleSelected,
+}: AccountTableProps) {
+  const { t } = useTranslation();
+  const sensors = useSensors(
+    useSensor(MouseSensor, { activationConstraint: { distance: 5 } }),
+    useSensor(TouchSensor, {
+      activationConstraint: { delay: 150, tolerance: 5 },
+    }),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    }),
+  );
+
+  function handleDragEnd(event: DragEndEvent) {
+    const { active, over } = event;
+    if (!over || active.id === over.id) return;
+    const oldIndex = rows.findIndex(
+      (row) => row.account_uuid === String(active.id),
+    );
+    const newIndex = rows.findIndex(
+      (row) => row.account_uuid === String(over.id),
+    );
+    if (oldIndex < 0 || newIndex < 0) return;
+    onReorder(arrayMove(rows, oldIndex, newIndex));
+  }
+
+  const body = (
+    <TableBody>
+      {rows.map((row, index) => {
+        const selected = selectedRows.has(row.account_uuid);
+        const cells = (
+          <>
+            <TableCell>
+              <Checkbox
+                aria-label={t("common.selectRow", {
+                  name: row.account_name || bankName(row, language),
+                })}
+                checked={selected}
+                onCheckedChange={(checked) =>
+                  onToggleSelected(row.account_uuid, checked === true)
+                }
+              />
+            </TableCell>
+            <TableCell className="text-center text-muted-foreground tabular-nums">
+              {pageStart + index}
+            </TableCell>
+            <TableCell className="font-medium">
+              {row.account_name || "—"}
+            </TableCell>
+            <TableCell>{bankName(row, language)}</TableCell>
+            <TableCell className="tabular-nums" translate="no">
+              {row.account_number || "—"}
+            </TableCell>
+            <TableCell>
+              {row.account_qr ? (
+                <Image
+                  alt={t("settings.storeBranch.accountQr")}
+                  className="size-10 rounded border bg-background object-contain p-1"
+                  height={40}
+                  src={row.account_qr}
+                  unoptimized
+                  width={40}
+                />
+              ) : (
+                "—"
+              )}
+            </TableCell>
+            <TableCell>
+              <StatusBadge active={Number(row.account_status) === 1} />
+            </TableCell>
+            <TableCell className="text-right">
+              <SettingsRowActions
+                row={row}
+                onEdit={onEdit}
+                onDelete={onDelete}
+              />
+            </TableCell>
+          </>
+        );
+
+        return dragEnabled ? (
+          <SortableAccountRow
+            key={row.account_uuid}
+            id={row.account_uuid}
+            selected={selected}
+          >
+            {cells}
+          </SortableAccountRow>
+        ) : (
+          <TableRow
+            key={row.account_uuid}
+            data-state={selected ? "selected" : undefined}
+          >
+            {cells}
+          </TableRow>
+        );
+      })}
+    </TableBody>
+  );
+
+  const table = (
+    <Table containerClassName="min-h-0 flex-1 overflow-auto">
+      <TableHeader className="sticky top-0 z-10 bg-muted">
+        <TableRow>
+          {dragEnabled ? <TableHead className="w-px" aria-hidden /> : null}
+          <TableHead className="w-px">
+            <Checkbox
+              aria-label={t("common.selectAll")}
+              checked={allSelected}
+              onCheckedChange={(checked) => onToggleAll(checked === true)}
+            />
+          </TableHead>
+          <TableHead className="w-px text-center">{t("fields.no")}</TableHead>
+          <TableHead>{t("settings.storeBranch.accountName")}</TableHead>
+          <TableHead>{t("settings.storeBranch.bank")}</TableHead>
+          <TableHead>{t("settings.storeBranch.accountNumber")}</TableHead>
+          <TableHead>{t("settings.storeBranch.accountQr")}</TableHead>
+          <TableHead>{t("settings.storeBranch.status")}</TableHead>
+          <TableHead className="w-px">
+            <span className="sr-only">{t("common.actions")}</span>
+          </TableHead>
+        </TableRow>
+      </TableHeader>
+      {dragEnabled ? (
+        <SortableContext
+          items={rows.map((row) => row.account_uuid)}
+          strategy={verticalListSortingStrategy}
+        >
+          {body}
+        </SortableContext>
+      ) : (
+        body
+      )}
+    </Table>
+  );
+
+  return dragEnabled ? (
+    <DndContext
+      sensors={sensors}
+      collisionDetection={closestCenter}
+      modifiers={[restrictToVerticalAxis]}
+      onDragEnd={handleDragEnd}
+    >
+      {table}
+    </DndContext>
+  ) : (
+    table
+  );
+}
+
+function SortableAccountRow({
+  children,
+  id,
+  selected,
+}: {
+  children: ReactNode;
+  id: string;
+  selected: boolean;
+}) {
+  const { t } = useTranslation();
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } =
+    useSortable({ id });
+
+  return (
+    <TableRow
+      ref={setNodeRef}
+      style={{
+        transform: CSS.Transform.toString(transform),
+        transition,
+        position: "relative",
+      }}
+      data-state={selected ? "selected" : undefined}
+      className={cn(isDragging && "bg-background opacity-90 shadow-md")}
+    >
+      <TableCell>
+        <Button
+          aria-label={t("common.reorder")}
+          size="icon-sm"
+          type="button"
+          variant="ghost"
+          {...attributes}
+          {...listeners}
+        >
+          <GripVertical aria-hidden />
+        </Button>
+      </TableCell>
+      {children}
+    </TableRow>
+  );
+}
+
 export function AccountSettingsPage() {
   const { t, i18n } = useTranslation();
   const user = useAuthStore((state) => state.user);
@@ -46,6 +284,7 @@ export function AccountSettingsPage() {
   const fetchBranchAccounts = useBankAccountStore((state) => state.fetchBranchAccounts);
   const fetchBranches = useBankAccountStore((state) => state.fetchBranches);
   const saveBranchAccount = useBankAccountStore((state) => state.saveBranchAccount);
+  const sortBranchAccounts = useBankAccountStore((state) => state.sortBranchAccounts);
   const [banks, setBanks] = useState<Bank[]>([]);
   const [branches, setBranches] = useState<Branch[]>([]);
   const [branchUuid, setBranchUuid] = useState("");
@@ -54,6 +293,7 @@ export function AccountSettingsPage() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [sorting, setSorting] = useState(false);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editing, setEditing] = useState<BranchAccount | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<BranchAccount | null>(null);
@@ -158,8 +398,33 @@ export function AccountSettingsPage() {
     }
   }
 
+  async function handleReorder(nextRows: BranchAccount[]) {
+    if (!branchUuid || sorting) return;
+    const previousRows = rows;
+    const persistedRows = list.orderBy === "DESC" ? [...nextRows].reverse() : nextRows;
+    setRows(persistedRows);
+    setSorting(true);
+    try {
+      await sortBranchAccounts(branchUuid, persistedRows);
+      showToast({
+        title: t("settings.bankAccount.orderSaved"),
+        tone: "success",
+      });
+      await loadAccounts(branchUuid, true);
+    } catch (error) {
+      setRows(previousRows);
+      showToast({
+        title: t("settings.bankAccount.orderSaveFailed"),
+        description: error instanceof Error ? error.message : "",
+        tone: "error",
+      });
+    } finally {
+      setSorting(false);
+    }
+  }
+
   const branchSelector = branches.length > 1 ? (
-    <Select value={branchUuid} onValueChange={(value) => { setBranchUuid(value); list.setPage(1); }}>
+    <Select disabled={sorting} value={branchUuid} onValueChange={(value) => { setBranchUuid(value); list.setPage(1); }}>
       <SelectTrigger aria-label={t("nav.branch")} className="w-full @xl:w-64"><SelectValue placeholder={t("settings.storeBranch.noBranch")} /></SelectTrigger>
       <SelectContent position="popper"><SelectGroup>
         {branches.map((branch) => <SelectItem key={branch.branch_uuid} value={branch.branch_uuid}>{branchName(branch, language)}</SelectItem>)}
@@ -167,31 +432,26 @@ export function AccountSettingsPage() {
     </Select>
   ) : null;
 
+  const dragEnabled =
+    !sorting &&
+    !refreshing &&
+    list.visibleRows.length > 1 &&
+    list.visibleRows.length === rows.length;
+
   const table = (
-    <Table containerClassName="min-h-0 flex-1 overflow-auto">
-      <TableHeader className="sticky top-0 z-10 bg-muted"><TableRow>
-        <TableHead className="w-px"><Checkbox aria-label={t("common.selectAll")} checked={list.allSelected} onCheckedChange={(checked) => list.toggleAll(checked === true)} /></TableHead>
-        <TableHead className="w-px text-center">{t("fields.no")}</TableHead>
-        <TableHead>{t("settings.storeBranch.accountName")}</TableHead>
-        <TableHead>{t("settings.storeBranch.bank")}</TableHead>
-        <TableHead>{t("settings.storeBranch.accountNumber")}</TableHead>
-        <TableHead>{t("settings.storeBranch.accountQr")}</TableHead>
-        <TableHead>{t("settings.storeBranch.status")}</TableHead>
-        <TableHead className="w-px"><span className="sr-only">{t("common.actions")}</span></TableHead>
-      </TableRow></TableHeader>
-      <TableBody>{list.visibleRows.map((row, index) => (
-        <TableRow key={row.account_uuid} data-state={list.selectedRows.has(row.account_uuid) ? "selected" : undefined}>
-          <TableCell><Checkbox aria-label={t("common.selectRow", { name: row.account_name || bankName(row, language) })} checked={list.selectedRows.has(row.account_uuid)} onCheckedChange={(checked) => list.toggleSelected(row.account_uuid, checked === true)} /></TableCell>
-          <TableCell className="text-center text-muted-foreground tabular-nums">{list.pageStart + index}</TableCell>
-          <TableCell className="font-medium">{row.account_name || "—"}</TableCell>
-          <TableCell>{bankName(row, language)}</TableCell>
-          <TableCell className="tabular-nums" translate="no">{row.account_number || "—"}</TableCell>
-          <TableCell>{row.account_qr ? <Image alt={t("settings.storeBranch.accountQr")} className="size-10 rounded border bg-background object-contain p-1" height={40} src={row.account_qr} unoptimized width={40} /> : "—"}</TableCell>
-          <TableCell><StatusBadge active={Number(row.account_status) === 1} /></TableCell>
-          <TableCell className="text-right"><SettingsRowActions row={row} onEdit={openEdit} onDelete={setDeleteTarget} /></TableCell>
-        </TableRow>
-      ))}</TableBody>
-    </Table>
+    <AccountTable
+      allSelected={list.allSelected}
+      dragEnabled={dragEnabled}
+      language={language}
+      pageStart={list.pageStart}
+      rows={list.visibleRows}
+      selectedRows={list.selectedRows}
+      onDelete={setDeleteTarget}
+      onEdit={openEdit}
+      onReorder={(nextRows) => void handleReorder(nextRows)}
+      onToggleAll={list.toggleAll}
+      onToggleSelected={list.toggleSelected}
+    />
   );
 
   const mobileList = (
@@ -217,11 +477,11 @@ export function AccountSettingsPage() {
       description={t("settings.modules.account.description")}
       icon={CreditCard}
       addLabel={t("settings.storeBranch.addAccount")}
-      onAdd={branchUuid && hasActiveBank ? openCreate : undefined}
+      onAdd={branchUuid && hasActiveBank && !sorting ? openCreate : undefined}
       loading={loading}
       loadingLabel={t("settings.loading", { title })}
       search={list.search}
-      searching={refreshing}
+      searching={refreshing || sorting}
       searchingLabel={t("settings.bankAccount.loadingAccounts")}
       onSearchChange={list.setSearch}
       onSearchApply={list.applySearch}

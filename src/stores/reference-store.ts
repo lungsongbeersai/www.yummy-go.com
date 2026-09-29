@@ -1,7 +1,7 @@
 "use client";
 
 import { create } from "zustand";
-import { getBranchQrUrl, getProductImageUrl, getStoreLogoUrl, getUserProfileUrl } from "@/lib/image";
+import { getProductImageUrl, getStoreLogoUrl, getUserProfileUrl } from "@/lib/image";
 import { getBranchOptions, getStoreUuid, setStoreUuid, type Branch } from "@/services/branch";
 import { getCategoryOptions, sortCategories, type Category, type SortCategoryInput } from "@/services/category";
 import { getColorOptions, type Color } from "@/services/color";
@@ -97,7 +97,6 @@ interface ReferenceState {
   updateProfileImage: (input: UpdateProfileImageInput) => Promise<UpdateProfileImageResponse>;
   sortCategoryRows: (input: SortCategoryInput) => ReturnType<typeof sortCategories>;
   canCreateUser: () => boolean;
-  branchQrUrl: (filename: string) => string;
   storeLogoUrl: (filename: string) => string;
   productImageUrl: (filename: string) => string;
   userProfileUrl: (profilePath: string | null) => string;
@@ -236,7 +235,6 @@ export const useReferenceStore = create<ReferenceState>((set) => {
     },
     sortCategoryRows: (input) => sortCategories(input),
     canCreateUser: () => canCreateUser(useAuthStore.getState().user?.status),
-    branchQrUrl: getBranchQrUrl,
     storeLogoUrl: getStoreLogoUrl,
     productImageUrl: getProductImageUrl,
     userProfileUrl: getUserProfileUrl,

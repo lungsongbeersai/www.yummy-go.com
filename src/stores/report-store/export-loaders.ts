@@ -41,7 +41,8 @@ import {
 import {
   normalizePaymentMethodsReportResponse,
   type PaymentMethodReportRow,
-  type PaymentMethodSummaryCard
+  type PaymentMethodSummaryCard,
+  type TransferAccountReportRow
 } from "./payment-method-normalizers";
 import {
   normalizeCategorySalesReportResponse,
@@ -95,6 +96,7 @@ export type PaymentMethodsReportExportData = {
   reportName: string;
   reportTotal: ApiEntity;
   rows: PaymentMethodReportRow[];
+  transferAccounts: TransferAccountReportRow[];
 };
 
 export type CategorySalesReportExportData = {
@@ -276,7 +278,8 @@ export async function loadPaymentMethodsReportExportData(
     cards: firstData.cards,
     reportName: firstData.reportName,
     reportTotal: firstData.reportTotal,
-    rows: firstData.rows
+    rows: firstData.rows,
+    transferAccounts: firstData.transferAccounts
   };
 }
 

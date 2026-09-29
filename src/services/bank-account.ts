@@ -23,6 +23,7 @@ export interface BranchAccount extends ApiEntity {
   account_number: string;
   account_qr?: string;
   account_qr_raw?: string;
+  account_sort?: number;
   account_status: number;
   bank_name_la: string;
   bank_name_eng: string;
@@ -100,6 +101,21 @@ export async function deleteBranchAccount(
     params: {
       account_uuid: accountUuid,
       branch_uuid_fk: branchUuid,
+    },
+  });
+}
+
+export async function sortBranchAccounts(
+  branchUuid: string,
+  accounts: Array<Pick<BranchAccount, "account_uuid">>,
+) {
+  await apiRequest("post", "/api/v1/account/sort", {
+    data: {
+      branch_uuid_fk: branchUuid,
+      items: accounts.map((account, index) => ({
+        account_uuid: account.account_uuid,
+        account_sort: index + 1,
+      })),
     },
   });
 }

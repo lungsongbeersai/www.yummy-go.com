@@ -1,6 +1,10 @@
 import { firstNumberOrZero as firstNumber } from "@/lib/values";
 import type { ApiEntity } from "@/services/shared/types";
-import type { PaymentMethodOption, PaymentMethodReportRow } from "@/stores/report-store";
+import type {
+  PaymentMethodOption,
+  PaymentMethodReportRow,
+  TransferAccountReportRow,
+} from "@/stores/report-store";
 import { paymentMethodFallbackOptions } from "../shared/report-payment-method-options";
 import type {
   PaymentMethodsExportData,
@@ -135,6 +139,46 @@ export function exportPaymentMethodRows(
   ];
 }
 
+export function exportTransferAccountRows(
+  rows: TransferAccountReportRow[],
+  t: (key: string) => string,
+) {
+  return rows.map((row) => ({
+    [t("report.paymentMethodsReport.columns.bank")]: row.bankName || row.bankNameLa || row.bankNameEng || t("report.paymentMethodsReport.unknownBank"),
+    [t("report.paymentMethodsReport.columns.account")]: row.accountName || t("report.paymentMethodsReport.unspecifiedAccount"),
+    [t("report.paymentMethodsReport.columns.accountNumber")]: row.accountNumber || "-",
+    [t("report.paymentMethodsReport.columns.billsCount")]: row.billCount,
+    [t("report.paymentMethodsReport.columns.transactions")]: row.paymentCount,
+    [t("report.paymentMethodsReport.columns.transferAmount")]: row.transferAmount,
+  }));
+}
+
+export interface TransferAccountGroup {
+  bankName: string;
+  key: string;
+  rows: TransferAccountReportRow[];
+  total: number;
+}
+
+export function groupTransferAccounts(rows: TransferAccountReportRow[]): TransferAccountGroup[] {
+  const groups = new Map<string, TransferAccountGroup>();
+
+  for (const row of rows) {
+    const bankName = row.bankName || row.bankNameLa || row.bankNameEng;
+    const key = row.bankUuid || bankName || "unassigned";
+    const group = groups.get(key) ?? { bankName, key, rows: [], total: 0 };
+    group.rows.push(row);
+    group.total += row.transferAmount;
+    groups.set(key, group);
+  }
+
+  return [...groups.values()];
+}
+
+export function isTransferPaymentMethodRow(row: PaymentMethodReportRow) {
+  return row.paymentMethodCode === "2" || /transfer|bank|ໂອນ|โอน/i.test(row.paymentMethodName);
+}
+
 export function paymentMethodReportRowId(row: PaymentMethodReportRow) {
   return `${row.paymentMethodCode}:${row.sortOrder}`;
 }
@@ -185,6 +229,7 @@ export function emptyExportData(): PaymentMethodsExportData {
     cards: [],
     reportName: "",
     reportTotal: {},
-    rows: []
+    rows: [],
+    transferAccounts: []
   };
 }

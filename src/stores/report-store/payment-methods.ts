@@ -20,7 +20,8 @@ import {
   type PaymentMethodReportRow,
   type PaymentMethodsPagination,
   type PaymentMethodsReportNormalized,
-  type PaymentMethodSummaryCard
+  type PaymentMethodSummaryCard,
+  type TransferAccountReportRow
 } from "./payment-method-normalizers";
 
 interface PaymentMethodsReportFields {
@@ -36,6 +37,7 @@ interface PaymentMethodsReportFields {
   summaryCards: ApiEntity;
   total: number;
   totalPages: number;
+  transferAccounts: TransferAccountReportRow[];
 }
 
 const emptyState: PaymentMethodsReportFields = {
@@ -50,7 +52,8 @@ const emptyState: PaymentMethodsReportFields = {
   rows: [],
   summaryCards: {},
   total: 0,
-  totalPages: 1
+  totalPages: 1,
+  transferAccounts: []
 };
 
 export const usePaymentMethodsReportStore = createReportStore<
@@ -78,7 +81,8 @@ export const usePaymentMethodsReportStore = createReportStore<
       rows: merged.rows,
       summaryCards: merged.summaryCards,
       total: pagination.total,
-      totalPages: pagination.totalPages
+      totalPages: pagination.totalPages,
+      transferAccounts: merged.transferAccounts
     };
   },
   emptyState

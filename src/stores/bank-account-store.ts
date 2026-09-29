@@ -9,6 +9,7 @@ import {
   fetchPosTransferAccounts,
   saveBank,
   saveBranchAccount,
+  sortBranchAccounts,
 } from "@/services/bank-account";
 import { getBranchOptions } from "@/services/branch";
 
@@ -21,6 +22,7 @@ interface BankAccountStore {
   fetchPosTransferAccounts: typeof fetchPosTransferAccounts;
   saveBank: typeof saveBank;
   saveBranchAccount: typeof saveBranchAccount;
+  sortBranchAccounts: typeof sortBranchAccounts;
 }
 
 export const useBankAccountStore = create<BankAccountStore>(() => ({
@@ -32,4 +34,5 @@ export const useBankAccountStore = create<BankAccountStore>(() => ({
   fetchPosTransferAccounts,
   saveBank,
   saveBranchAccount,
+  sortBranchAccounts,
 }));

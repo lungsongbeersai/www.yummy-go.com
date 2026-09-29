@@ -85,6 +85,21 @@ export function transferAccountOptionLabel(
     .join(" · ");
 }
 
+export function preferredTransferAccountUuid(
+  accounts: Array<{ account_uuid?: string }>,
+  currentAccountUuid: string,
+) {
+  const currentUuid = currentAccountUuid.trim();
+  if (
+    currentUuid &&
+    accounts.some((account) => account.account_uuid === currentUuid)
+  ) {
+    return currentUuid;
+  }
+
+  return String(accounts[0]?.account_uuid ?? "").trim();
+}
+
 export const paymentTabs: Array<{
   value: PaymentTab;
   method: PaymentMethod;

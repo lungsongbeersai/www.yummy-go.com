@@ -458,7 +458,6 @@
     "branch_name": "Name",
     "branch_name_eng": "Name EN",
     "branch_name_la": "Name LA",
-    "branch_qr": "QR image",
     "branch_tel": "Phone",
     "cate_icon": "Icon",
     "cate_name": "Name",
@@ -2175,11 +2174,14 @@
     "paymentMethodsReport": {
       "adjustFilters": "Adjust the date range, branch, payment method, or order.",
       "columns": {
+        "account": "Account",
+        "accountNumber": "Account number",
         "activeCount": "Active",
         "amount": "Amount",
         "avgBill": "Average bill",
         "billTotal": "Bill total",
         "billsCount": "Bills",
+        "bank": "Bank",
         "cancelledCount": "Cancelled",
         "cancelledTotal": "Cancelled total",
         "changeAmount": "Change",
@@ -2200,6 +2202,8 @@
         "rowsCount": "Rows",
         "serviceCharge": "Service charge",
         "toppingTotal": "Topping total",
+        "transactions": "Transactions",
+        "transferAmount": "Transfer amount",
         "total": "Total",
         "grandTotal": "Net sales",
         "vat": "VAT"
@@ -2217,7 +2221,12 @@
       "noData": "No payment method report data",
       "rowsLabel": "{{count}} payment method row(s)",
       "title": "Payment method report",
-      "totalSummary": "Total summary"
+      "totalSummary": "Total summary",
+      "transferAccountsCount": "{{count}} account(s)",
+      "transferBreakdownDescription": "Transfer receipts grouped by bank and destination account.",
+      "transferBreakdownTitle": "Transfer details by bank and account",
+      "unknownBank": "Bank not recorded",
+      "unspecifiedAccount": "Account not recorded"
     },
     "categorySales": {
       "productsCount": "{{count}} products",
@@ -3113,7 +3122,9 @@
       "loadBanksFailed": "Failed to load banks",
       "loadReferencesFailed": "Failed to load branches and banks",
       "loadingAccounts": "Loading transfer accounts",
-      "loadingBanks": "Loading banks"
+      "loadingBanks": "Loading banks",
+      "orderSaved": "Account order saved",
+      "orderSaveFailed": "Failed to save account order"
     },
     "storeBranch": {
       "addBranch": "Add branch",

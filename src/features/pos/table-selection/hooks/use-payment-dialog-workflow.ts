@@ -69,6 +69,7 @@ import {
   paymentNote,
   paymentTabs,
   paymentValidation,
+  preferredTransferAccountUuid,
   quickCashAmounts,
   rawCaretFromDisplayCaret,
   remainingCurrencyInput,
@@ -343,6 +344,9 @@ export function usePaymentDialogWorkflow({
       .then((accounts) => {
         if (!active) return;
         setTransferAccounts(accounts);
+        setSelectedTransferAccountUuid((currentAccountUuid) =>
+          preferredTransferAccountUuid(accounts, currentAccountUuid),
+        );
       })
       .catch(() => {
         if (!active) return;

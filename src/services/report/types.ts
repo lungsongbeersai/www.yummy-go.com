@@ -223,6 +223,7 @@ export interface PaymentMethodsReportResponse extends ApiEntity {
   methods?: unknown;
   page?: number;
   payment_rows?: unknown;
+  transfer_account_rows?: unknown;
   payment_method_summaries?: unknown;
   payment_summary?: unknown;
   payment_summary_by_method?: unknown;

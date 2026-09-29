@@ -1,7 +1,7 @@
 import type { ReportPrintOp } from "@/services/report";
 import type { ApiEntity } from "@/services/shared/types";
 import type { AuthUser } from "@/stores/auth-store";
-import type { PaymentMethodReportRow } from "@/stores/report-store";
+import type { PaymentMethodReportRow, TransferAccountReportRow } from "@/stores/report-store";
 import { escapeHtml } from "@/services/printer/invoice-print-window";
 import { firstNumber } from "./payment-methods-report-utils";
 import {
@@ -18,6 +18,8 @@ export interface PaymentMethodsPrintLabels {
   period: string;
   printedAt: string;
   printedBy: string;
+  transactions?: string;
+  transferDetails?: string;
   title: string;
 }
 
@@ -36,6 +38,7 @@ export interface PaymentMethodsPrintData {
   labels: PaymentMethodsPrintLabels;
   rows: PaymentMethodsPrintRow[];
   storeName: string;
+  transferAccounts: TransferAccountReportRow[];
 }
 
 // รายงานนี้มีไว้กระทบยอดตามวิธีชำระ (เงินสดในลิ้นชักตรงไหม โอน/เครดิตค้างเท่าไร) ไม่ใช่ดูโครงสร้างยอดขาย
@@ -47,6 +50,7 @@ export function buildPaymentMethodsPrintData({
   labels,
   reportTotal,
   rows,
+  transferAccounts = [],
   user,
 }: {
   dateFrom: string;
@@ -54,6 +58,7 @@ export function buildPaymentMethodsPrintData({
   labels: PaymentMethodsPrintLabels;
   reportTotal: ApiEntity;
   rows: PaymentMethodReportRow[];
+  transferAccounts?: TransferAccountReportRow[];
   user: AuthUser;
 }): PaymentMethodsPrintData {
   return {
@@ -65,6 +70,7 @@ export function buildPaymentMethodsPrintData({
     labels,
     rows: rows.map((row) => ({ billCount: row.billCount, grandTotal: row.grandTotal, name: row.paymentMethodName })),
     storeName: user.store_name,
+    transferAccounts,
   };
 }
 
@@ -94,6 +100,16 @@ export function renderPaymentMethodsPrintHtml(data: PaymentMethodsPrintData) {
     ${dividerHtml}
     ${listHeaderHtml}
     ${rows.map((r) => row(`${r.name} (${r.billCount})`, r.grandTotal)).join("") || `<p style="text-align:center">-</p>`}
+    ${data.transferAccounts.length ? `
+      ${dividerHtml}
+      <div class="total-row list-header"><span>${escapeHtml(labels.transferDetails || "Transfer details")}</span><span>${escapeHtml(labels.transactions || "Transactions")}</span></div>
+      ${data.transferAccounts.map((account) => {
+        const bank = account.bankName || account.bankNameLa || account.bankNameEng || "-";
+        const name = account.accountName || "-";
+        const number = account.accountNumber ? ` · ${account.accountNumber}` : "";
+        return row(`${bank} · ${name}${number} (${account.paymentCount})`, account.transferAmount);
+      }).join("")}
+    ` : ""}
     ${dividerHtml}
     ${row(labels.grandTotal, data.grandTotal, "grand-total")}`;
 
@@ -129,6 +145,24 @@ export function buildPaymentMethodsReportOps(data: PaymentMethodsPrintData): Rep
     { type: "lr", left: labels.itemsHeaderLeft, right: labels.itemsHeaderRight, bold: false, size: 24 },
     divider,
     ...rows.map((row) => lr(`${row.name} (${row.billCount})`, row.grandTotal)),
+    ...(data.transferAccounts.length
+      ? [
+          divider,
+          {
+            type: "text",
+            text: labels.transferDetails || "Transfer details",
+            align: "left",
+            bold: true,
+            size: 28,
+          } as ReportPrintOp,
+          ...data.transferAccounts.map((account) => {
+            const bank = account.bankName || account.bankNameLa || account.bankNameEng || "-";
+            const name = account.accountName || "-";
+            const number = account.accountNumber ? ` · ${account.accountNumber}` : "";
+            return lr(`${bank} · ${name}${number} (${account.paymentCount})`, account.transferAmount);
+          }),
+        ]
+      : []),
     divider,
     { ...lr(labels.grandTotal, data.grandTotal, true), size: 34 },
     { type: "blank", n: 2 },

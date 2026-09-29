@@ -1,7 +1,8 @@
 import { describe, expect, it } from "vitest";
-import type { PaymentMethodReportRow } from "@/stores/report-store";
+import type { PaymentMethodReportRow, TransferAccountReportRow } from "@/stores/report-store";
 import {
   exportPaymentMethodRows,
+  groupTransferAccounts,
   paymentMethodExportMetricConfigs,
   paymentMethodsFileBaseName,
   paymentMethodRowMetricConfigs
@@ -154,5 +155,40 @@ describe("payment method report helpers", () => {
     expect(exported[2].VAT).not.toBe(150_026);
     // เมตริกที่ backend ไม่ได้ส่ง summary มาให้ ต้องเป็น 0 ไม่ใช่เดาจากแถว
     expect(exported[2]["Topping total"]).toBe(0);
+  });
+
+  it("groups transfer accounts by bank and totals each bank independently", () => {
+    const transferRows: TransferAccountReportRow[] = [
+      {
+        accountName: "Main",
+        accountNumber: "001",
+        accountUuid: "account-1",
+        bankName: "BCEL",
+        bankNameEng: "BCEL",
+        bankNameLa: "BCEL",
+        bankUuid: "bank-1",
+        billCount: 2,
+        paymentCount: 2,
+        sortOrder: 1,
+        transferAmount: 30000,
+      },
+      {
+        accountName: "Second",
+        accountNumber: "002",
+        accountUuid: "account-2",
+        bankName: "BCEL",
+        bankNameEng: "BCEL",
+        bankNameLa: "BCEL",
+        bankUuid: "bank-1",
+        billCount: 1,
+        paymentCount: 1,
+        sortOrder: 2,
+        transferAmount: 20000,
+      },
+    ];
+
+    expect(groupTransferAccounts(transferRows)).toMatchObject([
+      { bankName: "BCEL", key: "bank-1", total: 50000, rows: transferRows },
+    ]);
   });
 });

@@ -30,6 +30,8 @@ const labels: PaymentMethodsPrintLabels = {
   period: "Period",
   printedAt: "Printed at",
   printedBy: "Printed by",
+  transactions: "Transactions",
+  transferDetails: "Transfer details",
   title: "Payment methods report",
 };
 
@@ -65,6 +67,21 @@ function printData() {
       row(),
       row({ billCount: 3, grandTotal: 110000, paymentMethodCode: "transfer", paymentMethodName: "Transfer", sortOrder: 2 }),
     ],
+    transferAccounts: [
+      {
+        accountName: "Main",
+        accountNumber: "001",
+        accountUuid: "account-1",
+        bankName: "BCEL",
+        bankNameEng: "BCEL",
+        bankNameLa: "BCEL",
+        bankUuid: "bank-1",
+        billCount: 3,
+        paymentCount: 3,
+        sortOrder: 1,
+        transferAmount: 110000,
+      },
+    ],
     user,
   });
 }
@@ -88,6 +105,7 @@ describe("renderPaymentMethodsPrintHtml", () => {
     expect(html).toContain("@page { size: 80mm auto");
     expect(html).toContain("Cash (5)");
     expect(html).toContain("Transfer (3)");
+    expect(html).toContain("BCEL · Main · 001 (3)");
     expect(html).toContain('class="total-row grand-total"');
   });
 
@@ -132,6 +150,7 @@ describe("buildPaymentMethodsReportOps", () => {
     expect(cashRow?.bold).toBe(false);
     expect(transferRow?.type).toBe("lr");
     expect(transferRow?.bold).toBe(false);
+    expect(ops.find((op) => op.left === "BCEL · Main · 001 (3)")?.right).toBe("110,000");
   });
 
   it("prints the grand total as a single bold lr row at size 34, matching daily-sales exactly", () => {

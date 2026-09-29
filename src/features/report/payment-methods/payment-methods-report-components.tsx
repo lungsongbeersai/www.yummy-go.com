@@ -42,6 +42,7 @@ import type {
   PaymentMethodOption,
   PaymentMethodReportRow,
   PaymentMethodSummaryCard,
+  TransferAccountReportRow,
 } from "@/stores/report-store";
 import {
   ReportBranchField,
@@ -59,6 +60,7 @@ import {
 import type { PaymentMethodsReportFilters } from "./payment-methods-report-types";
 import {
   displayMetric,
+  groupTransferAccounts,
   paymentMethodExportMetricConfigs,
   paymentMethodExportTotals,
   paymentMethodReportRowId,
@@ -138,6 +140,70 @@ export function PaymentMethodsSummaryCards({
       id={id}
       stats={[...stats.filter((stat) => stat.tone === "highlight"), ...stats.filter((stat) => stat.tone !== "highlight")]}
     />
+  );
+}
+
+export function PaymentTransferAccountBreakdown({
+  rows,
+}: {
+  rows: TransferAccountReportRow[];
+}) {
+  const { t } = useTranslation();
+  const groups = groupTransferAccounts(rows);
+
+  if (!groups.length) return null;
+
+  return (
+    <section className="flex flex-col gap-3">
+      <div>
+        <h2 className="text-base font-semibold">{t("report.paymentMethodsReport.transferBreakdownTitle")}</h2>
+        <p className="text-sm text-muted-foreground">{t("report.paymentMethodsReport.transferBreakdownDescription")}</p>
+      </div>
+      <div className="grid gap-4 xl:grid-cols-2">
+        {groups.map((group) => (
+          <Card key={group.key} size="sm" className="overflow-hidden">
+            <CardHeader className="border-b bg-muted/30">
+              <CardDescription className="flex items-center gap-2">
+                <Landmark aria-hidden="true" className="size-4" />
+                {t("report.paymentMethodsReport.columns.bank")}
+              </CardDescription>
+              <CardTitle>{group.bankName || t("report.paymentMethodsReport.unknownBank")}</CardTitle>
+              <CardAction className="text-right">
+                <p className="text-xs text-muted-foreground">
+                  {t("report.paymentMethodsReport.transferAccountsCount", { count: group.rows.length })}
+                </p>
+                <p className="font-semibold tabular-nums text-primary-text">{displayMetric(group.total, "money")}</p>
+              </CardAction>
+            </CardHeader>
+            <CardContent className="p-0">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>{t("report.paymentMethodsReport.columns.account")}</TableHead>
+                    <TableHead className="text-right">{t("report.paymentMethodsReport.columns.billsCount")}</TableHead>
+                    <TableHead className="text-right">{t("report.paymentMethodsReport.columns.transactions")}</TableHead>
+                    <TableHead className="text-right">{t("report.paymentMethodsReport.columns.transferAmount")}</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {group.rows.map((account) => (
+                    <TableRow key={account.accountUuid || `${group.key}-${account.sortOrder}`}>
+                      <TableCell>
+                        <p className="font-medium">{account.accountName || t("report.paymentMethodsReport.unspecifiedAccount")}</p>
+                        <p className="text-xs text-muted-foreground">{account.accountNumber || "-"}</p>
+                      </TableCell>
+                      <TableCell className="text-right tabular-nums">{account.billCount}</TableCell>
+                      <TableCell className="text-right tabular-nums">{account.paymentCount}</TableCell>
+                      <TableCell className="text-right font-medium tabular-nums">{displayMetric(account.transferAmount, "money")}</TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </CardContent>
+          </Card>
+        ))}
+      </div>
+    </section>
   );
 }
 
@@ -532,6 +598,7 @@ export function PaymentMethodsExportSurface({
   methodLabel,
   reportTotal,
   rows,
+  transferAccounts,
   title,
 }: {
   containerRef: RefObject<HTMLDivElement | null>;
@@ -539,6 +606,7 @@ export function PaymentMethodsExportSurface({
   methodLabel: string;
   reportTotal: Record<string, unknown>;
   rows: PaymentMethodReportRow[];
+  transferAccounts: TransferAccountReportRow[];
   title: string;
 }) {
   const { t } = useTranslation();
@@ -590,6 +658,35 @@ export function PaymentMethodsExportSurface({
           </tr>
         </tbody>
       </table>
+      {transferAccounts.length ? (
+        <>
+          <h2 className="report-print-section-title">{t("report.paymentMethodsReport.transferBreakdownTitle")}</h2>
+          <table className="report-print-table">
+            <thead>
+              <tr>
+                <th>{t("report.paymentMethodsReport.columns.bank")}</th>
+                <th>{t("report.paymentMethodsReport.columns.account")}</th>
+                <th>{t("report.paymentMethodsReport.columns.accountNumber")}</th>
+                <th className="is-right">{t("report.paymentMethodsReport.columns.billsCount")}</th>
+                <th className="is-right">{t("report.paymentMethodsReport.columns.transactions")}</th>
+                <th className="is-right">{t("report.paymentMethodsReport.columns.transferAmount")}</th>
+              </tr>
+            </thead>
+            <tbody>
+              {transferAccounts.map((account) => (
+                <tr key={account.accountUuid || `${account.bankUuid}-${account.sortOrder}`}>
+                  <td>{account.bankName || account.bankNameLa || account.bankNameEng || t("report.paymentMethodsReport.unknownBank")}</td>
+                  <td>{account.accountName || t("report.paymentMethodsReport.unspecifiedAccount")}</td>
+                  <td>{account.accountNumber || "-"}</td>
+                  <td className="is-right">{account.billCount}</td>
+                  <td className="is-right">{account.paymentCount}</td>
+                  <td className="is-right">{displayMetric(account.transferAmount, "money")}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </>
+      ) : null}
       <ReportSignatures />
     </div>
   );

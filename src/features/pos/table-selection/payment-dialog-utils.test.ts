@@ -29,6 +29,7 @@ import {
   paymentIsExactSettlement,
   paymentNote,
   paymentValidation,
+  preferredTransferAccountUuid,
   preserveFirstCustomerAutoSelect,
   quickCashAmounts,
   rawCaretFromDisplayCaret,
@@ -246,6 +247,22 @@ describe("payment dialog helpers", () => {
       account_name: "Main",
       account_number: "123",
     }, "eng")).toBe("BCEL · Main · 123");
+  });
+
+  it("selects the first transfer account without replacing a valid choice", () => {
+    const accounts = [
+      { account_uuid: "account-1" },
+      { account_uuid: "account-2" },
+    ];
+
+    expect(preferredTransferAccountUuid(accounts, "")).toBe("account-1");
+    expect(preferredTransferAccountUuid(accounts, "account-2")).toBe(
+      "account-2",
+    );
+    expect(preferredTransferAccountUuid(accounts, "stale-account")).toBe(
+      "account-1",
+    );
+    expect(preferredTransferAccountUuid([], "stale-account")).toBe("");
   });
 
   it("settles the rounded foreign due as exact while larger tender creates change", () => {

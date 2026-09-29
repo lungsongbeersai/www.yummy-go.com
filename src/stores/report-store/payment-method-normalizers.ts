@@ -44,6 +44,20 @@ export interface PaymentMethodReportRow {
   vat: number;
 }
 
+export interface TransferAccountReportRow {
+  accountName: string;
+  accountNumber: string;
+  accountUuid: string;
+  bankName: string;
+  bankNameEng: string;
+  bankNameLa: string;
+  bankUuid: string;
+  billCount: number;
+  paymentCount: number;
+  sortOrder: number;
+  transferAmount: number;
+}
+
 export interface PaymentMethodsPagination {
   limit: PageLimit;
   page: number;
@@ -59,6 +73,7 @@ export interface PaymentMethodsReportNormalized {
   reportTotal: ApiEntity;
   rows: PaymentMethodReportRow[];
   summaryCards: ApiEntity;
+  transferAccounts: TransferAccountReportRow[];
 }
 
 function isRecord(value: unknown): value is ApiEntity {
@@ -92,6 +107,7 @@ function responseRoot(response: PaymentMethodsReportResponse) {
       data.items ||
       data.methods ||
       data.payment_rows ||
+      data.transfer_account_rows ||
       data.payment_method_summaries ||
       data.payment_summary_by_method
     )
@@ -233,6 +249,22 @@ function normalizeRow(row: ApiEntity, index: number): PaymentMethodReportRow {
   };
 }
 
+function normalizeTransferAccount(row: ApiEntity, index: number): TransferAccountReportRow {
+  return {
+    accountName: textValue(readValue(row, ["account_name", "accountName"])),
+    accountNumber: textValue(readValue(row, ["account_number", "accountNumber"])),
+    accountUuid: textValue(readValue(row, ["account_uuid", "accountUuid"])),
+    bankName: textValue(readValue(row, ["bank_name", "bankName"])),
+    bankNameEng: textValue(readValue(row, ["bank_name_eng", "bankNameEng"])),
+    bankNameLa: textValue(readValue(row, ["bank_name_la", "bankNameLa"])),
+    bankUuid: textValue(readValue(row, ["bank_uuid", "bankUuid"])),
+    billCount: numberValue(readValue(row, ["bill_count", "billCount"])),
+    paymentCount: numberValue(readValue(row, ["payment_count", "paymentCount"])),
+    sortOrder: firstNumber(readValue(row, ["account_sort", "sort_order", "sortOrder"]), index + 1),
+    transferAmount: numberValue(readValue(row, ["transfer_amount", "transferAmount", "amount"])),
+  };
+}
+
 function totalPages(root: ApiEntity, total: number, limit: PageLimit, page: number) {
   const explicit = firstNumber(root.totalPages, root.total_pages, root.total_page, root.totalPage);
   if (explicit > 0) return Math.max(1, explicit);
@@ -251,6 +283,13 @@ export function normalizePaymentMethodsReportResponse(
   const page = firstNumber(root.page, requestedPage) || requestedPage;
   const limitValue = normalizeLimit(root.limit, requestedLimit);
   const reportTotal = normalizeReportTotal(root);
+  const transferAccounts = asRecords(root.transfer_account_rows)
+    .map(normalizeTransferAccount)
+    .sort((left, right) => {
+      const bankOrder = (left.bankName || left.bankNameLa || left.bankNameEng)
+        .localeCompare(right.bankName || right.bankNameLa || right.bankNameEng);
+      return bankOrder || left.sortOrder - right.sortOrder;
+    });
 
   return {
     cards: normalizeCards(root).map(normalizeCard).sort((left, right) => left.sortOrder - right.sortOrder),
@@ -264,6 +303,7 @@ export function normalizePaymentMethodsReportResponse(
     reportName: textValue(root.report_name, ""),
     reportTotal,
     rows,
-    summaryCards: asRecord(root.summary ?? root.summary_cards)
+    summaryCards: asRecord(root.summary ?? root.summary_cards),
+    transferAccounts,
   };
 }

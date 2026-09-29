@@ -37,7 +37,8 @@ export {
   type PaymentMethodOption,
   type PaymentMethodReportRow,
   type PaymentMethodSummaryCard,
-  type PaymentMethodsPagination
+  type PaymentMethodsPagination,
+  type TransferAccountReportRow
 } from "@/stores/report-store/payment-method-normalizers";
 export {
   normalizeCategorySalesReportResponse,

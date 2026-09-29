@@ -64,10 +64,6 @@ export function depositExpireDaysValue(value: unknown): number | null {
   return Number.isFinite(parsed) && parsed > 0 ? parsed : null;
 }
 
-export function storeBranchMediaKey(row: StoreBranchRow, kind: StoreBranchKind) {
-  return kind === "store" ? storeBranchValue(row, "store_logo") : storeBranchValue(row, "branch_qr");
-}
-
 export function isStorePlc(row: StoreBranchRow) {
   return storeBranchNumber(row, "store_status", STORE_STATUS.GENERAL) === STORE_STATUS.PLC;
 }
@@ -225,7 +221,6 @@ export function buildBranchPayload({
   editing,
   email,
   name,
-  qr,
   storeUuid,
   tel,
   vatPercent,
@@ -237,7 +232,6 @@ export function buildBranchPayload({
   editing: StoreBranchRow;
   email: string;
   name: string;
-  qr?: File | null;
   storeUuid: string;
   tel: string;
   vatPercent: string;
@@ -255,7 +249,6 @@ export function buildBranchPayload({
     charge_status: Number(chargeStatus || 2),
     charge_name: Number(percentOrZero(chargePercent))
   };
-  if (qr) payload.branch_qr = qr;
   return payload;
 }
 

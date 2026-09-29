@@ -1,7 +1,6 @@
 import { createCrud, listParams } from "@/services/shared/crud";
 import { apiRequest, ServiceError } from "@/lib/api";
 import type { ApiDataResponse, ApiEntity, ApiListResponse, FetchParams } from "@/services/shared/types";
-export { getBranchQrUrl } from "@/lib/image";
 
 let explicitStoreUuid = "";
 
@@ -13,7 +12,6 @@ export interface Branch extends ApiEntity {
   branch_tel?: string;
   branch_address?: string;
   branch_email?: string;
-  branch_qr?: string;
   branch_opened_on?: string | null;
   vat_status?: number;
   vat_name?: number;
@@ -28,7 +26,6 @@ export interface SaveBranchInput extends ApiEntity {
   branch_tel?: string | FormDataEntryValue;
   branch_address?: string | FormDataEntryValue;
   branch_email?: string | FormDataEntryValue;
-  branch_qr?: File | string;
   store_uuid_fk?: string;
   vat_status?: number | string;
   vat_name?: number | string;
@@ -44,8 +41,7 @@ const crud = createCrud<Branch>(
     create: "/api/v1/branch/create",
     delete: "/api/v1/branch/delete"
   },
-  "branch_uuid",
-  true
+  "branch_uuid"
 );
 
 export const setStoreUuid = (uuid: string) => {
@@ -83,8 +79,6 @@ export const saveBranch = (input: SaveBranchInput) => {
     charge_status: Number(input.charge_status ?? 2),
     charge_name: Number(input.charge_name ?? 0)
   };
-
-  if (input.branch_qr) payload.branch_qr = input.branch_qr;
 
   return crud.save(payload);
 };

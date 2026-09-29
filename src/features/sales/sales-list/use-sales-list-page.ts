@@ -215,8 +215,7 @@ export function useSalesListPage(initialPagination: UrlPaginationState) {
         textValue(readValue(baseReceiptSource, ["branch_address"]), "") ||
         textValue(readValue(currentBranch ?? {}, ["branch_address"]), ""),
       branch_qr:
-        textValue(readValue(baseReceiptSource, ["branch_qr", "qr_url", "payment_qr", "branch_qr_url"]), "") ||
-        textValue(readValue(currentBranch ?? {}, ["branch_qr"]), ""),
+        textValue(readValue(baseReceiptSource, ["branch_qr", "qr_url", "payment_qr", "branch_qr_url"]), ""),
       branch_tel:
         textValue(readValue(baseReceiptSource, ["branch_tel", "branch_phone", "tel", "phone"]), "") ||
         textValue(readValue(currentBranch ?? {}, ["branch_tel", "branch_phone", "tel", "phone"]), "")

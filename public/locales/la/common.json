@@ -459,7 +459,6 @@
     "branch_name": "ຊື່",
     "branch_name_eng": "ຊື່ EN",
     "branch_name_la": "ຊື່ LA",
-    "branch_qr": "ຮູບ QR",
     "branch_tel": "ເບີໂທ",
     "cate_icon": "ໄອຄອນ",
     "cate_name": "ຊື່",
@@ -2171,11 +2170,14 @@
     "paymentMethodsReport": {
       "adjustFilters": "ປັບຊ່ວງວັນທີ, ສາຂາ, ວິທີຊຳລະ ຫຼື ການຈັດລຽງ.",
       "columns": {
+        "account": "ບັນຊີ",
+        "accountNumber": "ເລກບັນຊີ",
         "activeCount": "ໃຊ້ງານ",
         "amount": "ຍອດຂາຍ",
         "avgBill": "ສະເລ່ຍຕໍ່ບິນ",
         "billTotal": "ຍອດບິນ",
         "billsCount": "ຈຳນວນບິນ",
+        "bank": "ທະນາຄານ",
         "cancelledCount": "ຍົກເລີກ",
         "cancelledTotal": "ຍອດຍົກເລີກ",
         "changeAmount": "ເງິນທອນ",
@@ -2196,6 +2198,8 @@
         "rowsCount": "ແຖວ",
         "serviceCharge": "ຄ່າບໍລິການ",
         "toppingTotal": "ລວມທອບປິ້ງ",
+        "transactions": "ລາຍການໂອນ",
+        "transferAmount": "ຍອດເງິນໂອນ",
         "total": "ລວມເປັນເງິນ",
         "grandTotal": "ຍອດຂາຍສຸດທິ",
         "vat": "VAT"
@@ -2220,7 +2224,12 @@
       "noData": "ບໍ່ມີຂໍ້ມູນລາຍງານວິທີຊຳລະ",
       "rowsLabel": "{{count}} ແຖວວິທີຊຳລະ",
       "title": "ລາຍງານແຍກປະເພດຊຳລະ",
-      "totalSummary": "ສະຫຼຸບລວມ"
+      "totalSummary": "ສະຫຼຸບລວມ",
+      "transferAccountsCount": "{{count}} ບັນຊີ",
+      "transferBreakdownDescription": "ລາຍລະອຽດຍອດເງິນໂອນ ແຍກຕາມທະນາຄານ ແລະ ບັນຊີຮັບເງິນ.",
+      "transferBreakdownTitle": "ລາຍລະອຽດເງິນໂອນແຍກຕາມທະນາຄານ ແລະ ບັນຊີ",
+      "unknownBank": "ບໍ່ລະບຸທະນາຄານ",
+      "unspecifiedAccount": "ບໍ່ລະບຸບັນຊີ"
     },
     "categorySales": {
       "productsCount": "{{count}} ສິນຄ້າ",
@@ -3116,7 +3125,9 @@
       "loadBanksFailed": "ໂຫຼດລາຍການທະນາຄານບໍ່ສຳເລັດ",
       "loadReferencesFailed": "ໂຫຼດຂໍ້ມູນສາຂາ ແລະ ທະນາຄານບໍ່ສຳເລັດ",
       "loadingAccounts": "ກຳລັງໂຫຼດບັນຊີຮັບໂອນ",
-      "loadingBanks": "ກຳລັງໂຫຼດທະນາຄານ"
+      "loadingBanks": "ກຳລັງໂຫຼດທະນາຄານ",
+      "orderSaved": "ບັນທຶກລຳດັບບັນຊີແລ້ວ",
+      "orderSaveFailed": "ບັນທຶກລຳດັບບັນຊີບໍ່ສຳເລັດ"
     },
     "storeBranch": {
       "addBranch": "ເພີ່ມສາຂາ",

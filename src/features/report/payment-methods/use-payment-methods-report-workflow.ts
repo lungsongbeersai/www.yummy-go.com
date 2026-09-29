@@ -25,6 +25,8 @@ import {
 import {
   emptyExportData,
   exportPaymentMethodRows,
+  exportTransferAccountRows,
+  isTransferPaymentMethodRow,
   paymentMethodCardsForTotal,
   paymentMethodOptions,
   paymentMethodReportRowId,
@@ -50,6 +52,7 @@ export function usePaymentMethodsReportWorkflow(
   const reportName = usePaymentMethodsReportStore((state) => state.reportName);
   const reportTotal = usePaymentMethodsReportStore((state) => state.reportTotal);
   const rows = usePaymentMethodsReportStore((state) => state.rows);
+  const transferAccounts = usePaymentMethodsReportStore((state) => state.transferAccounts);
   const loading = usePaymentMethodsReportStore((state) => state.loading);
   const error = usePaymentMethodsReportStore((state) => state.error);
   const total = usePaymentMethodsReportStore((state) => state.total);
@@ -127,7 +130,8 @@ export function usePaymentMethodsReportWorkflow(
         ...data,
         cards: paymentMethodCardsForTotal(data.cards, selectedReportTotal),
         reportTotal: selectedReportTotal,
-        rows: selectedRows
+        rows: selectedRows,
+        transferAccounts: selectedRows.some(isTransferPaymentMethodRow) ? data.transferAccounts : [],
       };
     },
     fileBaseName: paymentMethodsFileBaseName,
@@ -148,7 +152,13 @@ export function usePaymentMethodsReportWorkflow(
           {
             title: t("report.excel.rows"),
             rows: exportPaymentMethodRows(data.rows, t, data.reportTotal)
-          }
+          },
+          ...(data.transferAccounts.length
+            ? [{
+                title: t("report.paymentMethodsReport.transferBreakdownTitle"),
+                rows: exportTransferAccountRows(data.transferAccounts, t),
+              }]
+            : []),
         ],
         officialReportExcelLayout(t, data.reportName || context.reportTitle)
       );
@@ -165,7 +175,7 @@ export function usePaymentMethodsReportWorkflow(
   const activePaymentMethodLabel = selectedPaymentMethodLabel(paymentMethods, report.appliedFilters.paymentMethod, t);
   const activeBranchLabel = report.branchLabelFor(report.branchUuid);
   const reportTitle = reportName || t("report.paymentMethodsReport.title");
-  const renderedExportData = report.exportData ?? { cards, reportName, reportTotal, rows };
+  const renderedExportData = report.exportData ?? { cards, reportName, reportTotal, rows, transferAccounts };
 
   // ห้ามเขียน ref ระหว่าง render (react-hooks/refs) — อัปเดตผ่าน effect แทน ยังปลอดภัยเพราะ
   // buildExcelWorkbook ถูกเรียกจากปุ่ม export เท่านั้น ซึ่งเกิดหลัง effect นี้รันเสมอ
@@ -210,6 +220,8 @@ export function usePaymentMethodsReportWorkflow(
         period: t("report.dailyPrint.period"),
         printedAt: t("report.dailyPrint.printedAt"),
         printedBy: t("report.dailyPrint.printedBy"),
+        transactions: t("report.paymentMethodsReport.columns.transactions"),
+        transferDetails: t("report.paymentMethodsReport.transferBreakdownTitle"),
         title: reportTitle,
       };
 
@@ -219,6 +231,7 @@ export function usePaymentMethodsReportWorkflow(
         labels: printLabels,
         reportTotal,
         rows,
+        transferAccounts,
         user,
       });
 
@@ -307,6 +320,7 @@ export function usePaymentMethodsReportWorkflow(
     renderedExportData: renderedExportData ?? emptyExportData(),
     reportTitle,
     reportTotal,
-    rows
+    rows,
+    transferAccounts,
   };
 }

@@ -12,6 +12,7 @@ import {
   fetchPosTransferAccounts,
   saveBank,
   saveBranchAccount,
+  sortBranchAccounts,
 } from "@/services/bank-account";
 
 describe("bank account service", () => {
@@ -82,6 +83,27 @@ describe("bank account service", () => {
     expect(apiMocks.apiRequest).toHaveBeenCalledWith(
       "get",
       "/api/v1/posAll/transfer_accounts",
+    );
+  });
+
+  it("persists branch account order with one-based positions", async () => {
+    await sortBranchAccounts("branch-1", [
+      { account_uuid: "account-2" },
+      { account_uuid: "account-1" },
+    ]);
+
+    expect(apiMocks.apiRequest).toHaveBeenCalledWith(
+      "post",
+      "/api/v1/account/sort",
+      {
+        data: {
+          branch_uuid_fk: "branch-1",
+          items: [
+            { account_uuid: "account-2", account_sort: 1 },
+            { account_uuid: "account-1", account_sort: 2 },
+          ],
+        },
+      },
     );
   });
 

@@ -64,6 +64,21 @@ const paymentSummaryResponse: PaymentMethodsReportResponse = {
       payment_amount: 3727722,
     },
   ],
+  transfer_account_rows: [
+    {
+      account_uuid: "account-1",
+      bank_uuid: "bank-1",
+      bank_name: "BCEL",
+      bank_name_la: "ທະນາຄານ BCEL",
+      bank_name_eng: "BCEL",
+      account_name: "Main account",
+      account_number: "001-001",
+      account_sort: 1,
+      bill_count: 3,
+      payment_count: 4,
+      transfer_amount: 250000,
+    },
+  ],
 };
 
 describe("normalizePaymentMethodsReportResponse", () => {
@@ -92,6 +107,26 @@ describe("normalizePaymentMethodsReportResponse", () => {
       total: 79998726,
       total_qty: 434,
     });
+  });
+
+  it("maps transfer account details for bank and account breakdowns", () => {
+    const normalized = normalizePaymentMethodsReportResponse(paymentSummaryResponse, "All", 1);
+
+    expect(normalized.transferAccounts).toEqual([
+      {
+        accountName: "Main account",
+        accountNumber: "001-001",
+        accountUuid: "account-1",
+        bankName: "BCEL",
+        bankNameEng: "BCEL",
+        bankNameLa: "ທະນາຄານ BCEL",
+        bankUuid: "bank-1",
+        billCount: 3,
+        paymentCount: 4,
+        sortOrder: 1,
+        transferAmount: 250000,
+      },
+    ]);
   });
 
   it("maps payment_rows from the backend payment_summary_by_method response", () => {
