@@ -30,7 +30,7 @@ export function PublicSectionHeading({
     >
       <div className="flex min-w-0 items-center gap-2.5">
         {icon ? (
-          <span className="grid size-9 shrink-0 place-items-center rounded-xl border border-yg-accent-line bg-yg-accent-soft text-yg-accent-strong">
+          <span className="grid size-9 shrink-0 place-items-center rounded-lg border border-yg-accent-line bg-yg-accent-soft text-yg-accent-strong">
             {icon}
           </span>
         ) : null}

@@ -51,6 +51,8 @@ const dashboardCopyKeys = [
   "apply",
   "available",
   "avgBill",
+  "billCount",
+  "billUnit",
   "balance",
   "bestProduct",
   "branch",
@@ -510,9 +512,11 @@ function DashboardPageContent() {
         >
           <DashboardKpiGrid copy={copy} kpis={model.kpis} periodLabel={periodLabel} section={model.section} />
           <DashboardSalesGrid
+            accountingRows={model.accountingRows}
             copy={copy}
             paymentSummary={model.paymentSummary}
             paymentSummaryCards={model.paymentSummaryCards}
+            paymentTrendRows={model.paymentTrendRows}
             peakRevenueDay={model.peakRevenueDay}
             trendRows={model.trendRows}
           />
@@ -527,7 +531,6 @@ function DashboardPageContent() {
             onTopChange={handleTopChange}
           />
           <DashboardHealthGrid
-            accountingRows={model.accountingRows}
             copy={copy}
             highestRevenueProduct={model.highestRevenueProduct}
             insights={model.insights}

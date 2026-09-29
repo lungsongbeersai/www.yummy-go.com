@@ -47,7 +47,7 @@ export function CartQuantityDialog({
 }) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="w-[calc(100vw-2rem)] max-w-md rounded-[26px] border-yg-line bg-linear-to-b from-yg-bg2 to-yg-bg font-yg-sans text-yg-ink">
+      <DialogContent className="w-[calc(100vw-2rem)] max-w-md rounded-2xl border-yg-line bg-linear-to-b from-yg-bg2 to-yg-bg font-yg-sans text-yg-ink">
         {item ? (
           <CartQuantityDialogBody
             item={item}
@@ -134,7 +134,7 @@ function CartQuantityDialogBody({
           </FieldTitle>
           <div
             className={cn(
-              "rounded-2xl border border-yg-line bg-yg-panel p-4",
+              "rounded-xl border border-yg-line bg-yg-panel p-4",
               invalid && "border-destructive/60"
             )}
           >
@@ -184,7 +184,7 @@ function CartQuantityDialogBody({
                   aria-label={ariaLabel}
                   title={isDelete || isClear ? ariaLabel : undefined}
                   className={cn(
-                    "h-13 w-full touch-manipulation rounded-xl border-yg-line bg-yg-panel text-lg font-bold text-yg-ink tabular-nums hover:bg-yg-panel-hover",
+                    "h-13 w-full touch-manipulation rounded-lg border-yg-line bg-yg-panel text-lg font-bold text-yg-ink tabular-nums hover:bg-yg-panel-hover",
                     isClear && "text-destructive"
                   )}
                   disabled={pending}
@@ -208,7 +208,7 @@ function CartQuantityDialogBody({
         <Button
           type="button"
           variant="outline"
-          className="h-11 rounded-xl border-yg-line bg-yg-panel text-yg-ink hover:bg-yg-panel-hover hover:text-yg-ink"
+          className="h-11 rounded-lg border-yg-line bg-yg-panel text-yg-ink hover:bg-yg-panel-hover hover:text-yg-ink"
           disabled={pending}
           onClick={onCancel}
         >
@@ -216,7 +216,7 @@ function CartQuantityDialogBody({
         </Button>
         <Button
           type="button"
-          className="h-11 rounded-xl bg-yg-accent font-extrabold text-yg-on-accent hover:bg-yg-accent hover:brightness-105"
+          className="h-11 rounded-lg bg-yg-accent font-extrabold text-yg-on-accent hover:bg-yg-accent hover:brightness-105"
           disabled={pending || invalid}
           onClick={() => {
             if (check.value !== null) onSubmit(check.value);

@@ -118,7 +118,7 @@ export function CartGroup({
         </h3>
         <Badge
           variant="secondary"
-          className="h-5 rounded-full px-1.5 py-0 text-2xs"
+          className="h-5 rounded-sm px-1.5 py-0 text-2xs"
         >
           {items.length}
         </Badge>
@@ -250,7 +250,7 @@ function CartItemCard({
             {showItemStatus ? (
               <Badge
                 className={cn(
-                  "h-5 gap-1 rounded-md border px-1.5 py-0 text-2xs font-medium leading-4",
+                  "h-5 gap-1 rounded-sm border px-1.5 py-0 text-2xs font-medium leading-4",
                   status.className
                 )}
               >
@@ -259,7 +259,7 @@ function CartItemCard({
               </Badge>
             ) : null}
             {promotion.hasPromotion ? (
-              <Badge className="h-5 rounded-md border border-yg-accent-line bg-yg-accent-soft px-1.5 py-0 text-2xs font-bold text-yg-accent-strong">
+              <Badge className="h-5 rounded-sm border border-yg-accent-line bg-yg-accent-soft px-1.5 py-0 text-2xs font-bold text-yg-accent-strong">
                 {t("pos.buyShort")} {promotion.saleQty}{" "}
                 {t("pos.getShort")} {promotion.freeQty}
                 {promotion.totalReceiveQty && promotion.totalReceiveQty > qty
@@ -276,7 +276,7 @@ function CartItemCard({
                 <Badge
                   key={`${taste.taste_uuid_fk ?? taste.taste_name}-${tasteIndex}`}
                   variant="secondary"
-                  className="h-auto rounded-full px-1.5 py-0.5 text-2xs font-medium"
+                  className="h-auto rounded-sm px-1.5 py-0.5 text-2xs font-medium"
                 >
                   {taste.taste_name || taste.taste_name_la || taste.taste_name_eng || "-"}
                 </Badge>
@@ -291,7 +291,7 @@ function CartItemCard({
                   <Badge
                     key={`${topping.topping_name}-${toppingIndex}`}
                     variant="secondary"
-                    className="h-auto rounded-full px-1.5 py-0.5 text-2xs font-medium"
+                    className="h-auto rounded-sm px-1.5 py-0.5 text-2xs font-medium"
                   >
                     {topping.topping_name}
                     {toppingQty > 0 ? ` x${toppingQty}` : ""}
@@ -304,7 +304,7 @@ function CartItemCard({
             </div>
           ) : null}
           {item.detail?.order_it_note ? (
-            <p className="mt-1 line-clamp-2 rounded-lg bg-yg-panel2 px-2 py-1 text-xs font-medium text-yg-muted">
+            <p className="mt-1 line-clamp-2 rounded-md bg-yg-panel2 px-2 py-1 text-xs font-medium text-yg-muted">
               {item.detail.order_it_note}
             </p>
           ) : null}
@@ -321,7 +321,7 @@ function CartItemCard({
                   variant="outline"
                   size="icon"
                   aria-label={t("pos.decreaseQuantity")}
-                  className="h-11 w-11 rounded-md"
+                  className="h-11 w-11 rounded-lg"
                   disabled={saving || qty <= promotion.qtyStep}
                   onClick={() => onUpdateQty(uuid, "DECREASE", promotion.qtyStep)}
                 >
@@ -343,7 +343,7 @@ function CartItemCard({
                   variant="outline"
                   size="icon"
                   aria-label={t("pos.increaseQuantity")}
-                  className="h-11 w-11 rounded-md"
+                  className="h-11 w-11 rounded-lg"
                   disabled={saving}
                   onClick={() => onUpdateQty(uuid, "INCREASE", promotion.qtyStep)}
                 >
@@ -353,7 +353,7 @@ function CartItemCard({
             ) : (
               <Badge
                 variant="secondary"
-                className="h-5 rounded-full px-1.5 py-0 text-2xs font-medium"
+                className="h-5 rounded-sm px-1.5 py-0 text-2xs font-medium"
               >
                 {t("pos.quantityValue", { count: qty })}
               </Badge>
@@ -364,7 +364,7 @@ function CartItemCard({
                   type="button"
                   variant="outline"
                   size="icon"
-                  className="size-11 rounded-xl text-yg-accent-strong hover:bg-yg-panel-hover"
+                  className="size-11 rounded-lg text-yg-accent-strong hover:bg-yg-panel-hover"
                   disabled={saving}
                   aria-label={t("pos.editNote")}
                   title={t("pos.editNote")}
@@ -376,7 +376,7 @@ function CartItemCard({
                   type="button"
                   variant="ghost"
                   size="icon"
-                  className="h-11 w-11 rounded-md"
+                  className="h-11 w-11 rounded-lg"
                   disabled={saving}
                   aria-label={t("pos.deleteItem")}
                   title={t("pos.deleteItem")}
@@ -407,7 +407,7 @@ function CartItemMedia({ item }: { item: CartItem }) {
 
   if (imageUrl) {
     return (
-      <div className="relative size-14 shrink-0 overflow-hidden rounded-xl border border-yg-line">
+      <div className="relative size-14 shrink-0 overflow-hidden rounded-lg border border-yg-line">
         <Image
           src={imageUrl}
           alt={cartItemTitle(item)}
@@ -424,7 +424,7 @@ function CartItemMedia({ item }: { item: CartItem }) {
   if (colorSwatch) {
     return (
       <div
-        className="grid size-14 shrink-0 place-items-center rounded-md"
+        className="grid size-14 shrink-0 place-items-center rounded-lg"
         style={{ backgroundColor: colorSwatch }}
       >
         <span className="grid size-8 place-items-center rounded-full bg-black/20 text-white backdrop-blur-sm">
@@ -435,7 +435,7 @@ function CartItemMedia({ item }: { item: CartItem }) {
   }
 
   return (
-    <div className="grid size-14 shrink-0 place-items-center rounded-xl border border-yg-line bg-yg-panel2 text-yg-faint">
+    <div className="grid size-14 shrink-0 place-items-center rounded-lg border border-yg-line bg-yg-panel2 text-yg-faint">
       <ImageIcon className="size-6" aria-hidden="true" />
     </div>
   );

@@ -1,11 +1,10 @@
+"use client";
+
+import { useState } from "react";
 import Link from "next/link";
-import { ChevronRight } from "lucide-react";
+import { ChevronRight, LayoutGrid } from "lucide-react";
 import { useTranslation } from "react-i18next";
-import {
-  AccordionItem,
-  AccordionTrigger,
-  AccordionContent,
-} from "@/components/ui/accordion";
+import { Drawer, DrawerContent, DrawerDescription, DrawerHeader, DrawerTitle } from "@/components/ui/drawer";
 import { DestinationIcon } from "@/components/layout/capacitor/nav-destination-button";
 import { NativeRouteProgress } from "@/components/layout/capacitor/route-progress";
 import { menuItemLabel, routeIsActive } from "@/components/layout/shell-menu-helpers";
@@ -13,42 +12,70 @@ import type { MenuItem } from "@/config/menu";
 import { internalRoute } from "@/lib/routes";
 import { cn } from "@/lib/utils";
 
-// ตรงกับ sidebar ฝั่งเว็บ (web/app-shell.tsx renderItem): มีลูก = กางเป็นกลุ่มเสมอ ไม่สน
-// ว่า item.path ของกลุ่มจะมีหน้าเพจจริงรองรับหรือไม่ (เช่น "ตั้งค่า" ก็กางแทนการพาไปหน้า
+// ตรงกับ sidebar ฝั่งเว็บ (web/app-shell.tsx renderItem): มีลูก = เป็นกลุ่มเสมอ ไม่สน
+// ว่า item.path ของกลุ่มจะมีหน้าเพจจริงรองรับหรือไม่ (เช่น "ตั้งค่า" ก็เปิดกลุ่มแทนการพาไปหน้า
 // hub /settings) — path ของตัวลูกแต่ละอันต่างหากที่ใช้ navigate จริง
 export function needsMoreGroupDropdown(item: MenuItem): boolean {
   return Boolean(item.children?.length);
 }
+
+// Native list anatomy (Android Settings / Material 3 list item): full-width rows, no borders or
+// dividers, a 40px round tinted icon, a 16px label with an optional one-line summary, and a
+// pressed tint instead of a hover. Rows are 64px tall; the pressed tint bleeds to the screen
+// edge (-mx-3 undoes the shell's px-3) the way a ripple does.
+const ROW_CLASS =
+  "relative -mx-3 flex min-h-16 items-center gap-4 px-4 py-2 text-left transition-colors duration-150 select-none active:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset motion-reduce:transition-none";
+
+function RowIcon({ active = false, item }: { active?: boolean; item: MenuItem }) {
+  const hasIcon = Boolean(item.icon || item.iconName);
+  return (
+    <span
+      aria-hidden="true"
+      className={cn(
+        "flex size-10 shrink-0 items-center justify-center rounded-full",
+        active ? "bg-primary text-primary-foreground" : "bg-primary/10 text-primary-text",
+      )}
+    >
+      {/* Items without an icon of their own (a child pulled up from a group) get a neutral one,
+          so every row keeps the same shape. */}
+      {hasIcon ? <DestinationIcon className="size-5 shrink-0" item={item} /> : <LayoutGrid className="size-5" />}
+    </span>
+  );
+}
+
+function RowText({ active = false, label, summary }: { active?: boolean; label: string; summary?: string }) {
+  return (
+    <span className="flex min-w-0 flex-1 flex-col gap-0.5">
+      <span className={cn("truncate text-base", active ? "font-semibold text-primary-text" : "font-medium text-foreground")}>
+        {label}
+      </span>
+      {summary ? <span className="truncate text-[13px] text-muted-foreground">{summary}</span> : null}
+    </span>
+  );
+}
+
 export function MoreListRow({
   item,
   nested = false,
   pathname,
+  onNavigate,
 }: {
   item: MenuItem;
-  // ลูกของกลุ่ม (เรนเดอร์ใน AccordionContent ของ MoreGroupRow) ต้องเบากว่ารายการหลัก
-  // ชัดเจน ไม่งั้นสูง/ระยะ/ขนาดตัวอักษรเท่ากันหมดจนแยกลำดับชั้นไม่ออกเลยว่าอันไหนเป็นกลุ่ม
-  // อันไหนเป็นลูก (ตามที่รายงานมา) — min-h-11 (44px) ยังผ่านเกณฑ์ touch target ขั้นต่ำ
+  /** A row inside a group's bottom sheet: no icon circle, the label alone, 56px tall. */
   nested?: boolean;
   pathname: string;
+  onNavigate?: () => void;
 }) {
   const { t } = useTranslation();
   const label = menuItemLabel(item, t);
   const href = item.path;
-  const showChevron = Boolean(item.children?.length);
   const active = routeIsActive(pathname, item.path);
-  const iconClassName = nested ? "size-4 shrink-0" : "size-5 shrink-0";
 
   if (item.disabled || !href) {
     return (
-      <span
-        aria-disabled="true"
-        className={cn(
-          "flex items-center px-4 opacity-50",
-          nested ? "min-h-11 gap-3 text-sm" : "min-h-16 gap-4 text-base",
-        )}
-      >
-        <DestinationIcon className={iconClassName} item={item} />
-        <span className="min-w-0 flex-1 truncate">{label}</span>
+      <span aria-disabled="true" className={cn(ROW_CLASS, nested ? "min-h-14" : "", "opacity-50 active:bg-transparent")}>
+        {nested ? null : <RowIcon item={item} />}
+        <RowText label={label} />
       </span>
     );
   }
@@ -57,23 +84,20 @@ export function MoreListRow({
     <Link
       href={internalRoute(href)}
       aria-current={active ? "page" : undefined}
-      className={cn(
-        "relative flex items-center px-4 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset",
-        nested ? "min-h-11 gap-3 text-sm" : "min-h-16 gap-4 text-base",
-        active ? "font-bold text-primary" : "hover:bg-accent",
-      )}
+      className={cn(ROW_CLASS, nested ? "min-h-14" : "")}
+      onClick={onNavigate}
     >
-      <DestinationIcon className={iconClassName} item={item} />
-      <span className="min-w-0 flex-1 truncate">{label}</span>
-      {showChevron ? (
-        <ChevronRight className={cn(iconClassName, "text-muted-foreground")} />
-      ) : null}
+      {nested ? null : <RowIcon active={active} item={item} />}
+      <RowText active={active} label={label} />
+      <ChevronRight aria-hidden="true" className="size-5 shrink-0 text-muted-foreground/60" />
       <NativeRouteProgress />
     </Link>
   );
 }
 
-// กลุ่มไม่มี path ของตัวเอง — กางลูกเป็น dropdown ในที่เดิมแทนการ navigate ไปหน้าใหม่
+// A group opens a bottom sheet listing its pages — the native way to offer "one of these",
+// instead of a web accordion growing the list in place. The row's summary names what is inside,
+// so the sheet rarely has to be opened just to look.
 export function MoreGroupRow({
   item,
   pathname,
@@ -82,26 +106,44 @@ export function MoreGroupRow({
   pathname: string;
 }) {
   const { t } = useTranslation();
+  const [open, setOpen] = useState(false);
   const label = menuItemLabel(item, t);
+  const children = item.children ?? [];
+  const summary = children.map((child) => menuItemLabel(child, t)).join(", ");
+  const containsActive = children.some((child) => routeIsActive(pathname, child.path));
 
   return (
-    <AccordionItem value={item.title} className="border-b-0">
-      <AccordionTrigger className="min-h-16 items-center gap-4 px-4 py-0 text-base font-normal hover:no-underline">
-        <span className="flex min-w-0 flex-1 items-center gap-4">
-          <DestinationIcon item={item} />
-          <span className="min-w-0 flex-1 truncate text-left">{label}</span>
-        </span>
-      </AccordionTrigger>
-      {/* [&_a]:no-underline ทับ [&_a]:underline ของ AccordionContent เอง — ค่าเริ่มต้นนั้น
-          ออกแบบไว้สำหรับ prose/FAQ ที่มีลิงก์แทรกในเนื้อความ ไม่ใช่เมนู navigation แบบนี้
-          (ยืนยันแล้วว่า Accordion ในแอปนี้ใช้ที่นี่จุดเดียว ไม่กระทบที่อื่น) */}
-      <AccordionContent className="px-0 pb-0 [&_a]:no-underline">
-        <div className="flex flex-col pl-4">
-          {item.children?.map((child) => (
-            <MoreListRow key={child.path ?? child.title} item={child} nested pathname={pathname} />
+    <Drawer open={open} onOpenChange={setOpen}>
+      <button
+        type="button"
+        aria-haspopup="dialog"
+        className={cn(ROW_CLASS, "w-[calc(100%+1.5rem)]")}
+        onClick={() => setOpen(true)}
+      >
+        <RowIcon active={containsActive} item={item} />
+        <RowText active={containsActive} label={label} summary={summary} />
+        <ChevronRight aria-hidden="true" className="size-5 shrink-0 text-muted-foreground/60" />
+      </button>
+      {/* Edge-to-edge sheet with rounded top corners, above the gesture bar — the Android bottom
+          sheet, not the floating inset panel the shared drawer draws by default. */}
+      <DrawerContent className="p-0 pb-[max(env(safe-area-inset-bottom),0.75rem)] before:inset-0 before:rounded-none before:rounded-t-3xl before:border-0">
+        <DrawerHeader className="flex-row items-center gap-3 px-5 pt-3 pb-2 text-left">
+          <RowIcon item={item} />
+          <DrawerTitle className="min-w-0 truncate text-lg font-semibold">{label}</DrawerTitle>
+          <DrawerDescription className="sr-only">{summary}</DrawerDescription>
+        </DrawerHeader>
+        <nav aria-label={label} className="flex max-h-[60vh] flex-col overflow-y-auto overscroll-contain px-3 pb-2">
+          {children.map((child) => (
+            <MoreListRow
+              key={child.path ?? child.title}
+              item={child}
+              nested
+              pathname={pathname}
+              onNavigate={() => setOpen(false)}
+            />
           ))}
-        </div>
-      </AccordionContent>
-    </AccordionItem>
+        </nav>
+      </DrawerContent>
+    </Drawer>
   );
 }

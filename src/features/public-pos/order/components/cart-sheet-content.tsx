@@ -83,7 +83,7 @@ export function CartSheetContent({
         className={cn(
           "yg-shell overflow-hidden border-yg-line p-0 font-yg-sans text-yg-ink",
           isMobile
-            ? "mx-auto max-h-[92dvh] w-full max-w-xl rounded-t-[26px]"
+            ? "mx-auto max-h-[92dvh] w-full max-w-xl rounded-t-3xl"
             : "h-dvh max-h-none w-full max-w-120 rounded-none border-l sm:max-w-120"
         )}
       >
@@ -106,7 +106,7 @@ export function CartSheetContent({
                   type="button"
                   variant="ghost"
                   size="icon"
-                  className="size-11 rounded-xl text-yg-muted hover:bg-yg-panel-hover hover:text-yg-ink"
+                  className="size-11 rounded-full text-yg-muted hover:bg-yg-panel-hover hover:text-yg-ink"
                   aria-label={t("actions.close")}
                   disabled={saving || confirming}
                 >
@@ -216,7 +216,7 @@ export function CartSheetContent({
                 {confirmableItemQty > 0 ? (
                   <Button
                     type="button"
-                    className="h-13.5 w-full rounded-2xl bg-yg-accent text-base font-extrabold text-yg-on-accent shadow-[0_12px_30px_-12px_var(--yg-accent)] hover:bg-yg-accent hover:brightness-105 disabled:opacity-55 disabled:shadow-none"
+                    className="h-13.5 w-full rounded-xl bg-yg-accent text-base font-extrabold text-yg-on-accent hover:bg-yg-accent hover:brightness-105 disabled:opacity-55 disabled:shadow-none"
                     onClick={onConfirmKitchen}
                     disabled={!confirmableItems.length || saving || confirming}
                   >
@@ -273,20 +273,20 @@ function CartSheetLoadingSkeleton() {
                 className="rounded-2xl border border-yg-line bg-yg-panel p-3"
               >
                 <div className="grid grid-cols-[52px_minmax(0,1fr)] gap-2.5">
-                  <Skeleton className="size-12 rounded-lg" />
+                  <Skeleton className="size-12 rounded-xl" />
                   <div className="min-w-0">
                     <div className="flex items-start justify-between gap-2">
                       <div className="grid min-w-0 flex-1 gap-1.5">
                         <Skeleton className="h-4.5 w-4/5" />
                         <Skeleton className="h-4 w-16" />
-                        <Skeleton className="h-5 w-20 rounded-full" />
+                        <Skeleton className="h-5 w-20 rounded-sm" />
                       </div>
                       <Skeleton className="h-4.5 w-20" />
                     </div>
                     <div className="mt-3 flex items-center gap-2">
-                      <Skeleton className="h-10 w-10 rounded-md" />
-                      <Skeleton className="h-10 w-10 rounded-md" />
-                      <Skeleton className="h-10 w-10 rounded-md" />
+                      <Skeleton className="h-10 w-10 rounded-lg" />
+                      <Skeleton className="h-10 w-10 rounded-lg" />
+                      <Skeleton className="h-10 w-10 rounded-lg" />
                     </div>
                   </div>
                 </div>
@@ -313,8 +313,8 @@ function CartSheetFooterSkeleton() {
         </div>
       </div>
       <div className="grid grid-cols-2 gap-2">
-        <Skeleton className="h-13.5 rounded-2xl" />
-        <Skeleton className="h-13.5 rounded-2xl" />
+        <Skeleton className="h-13.5 rounded-xl" />
+        <Skeleton className="h-13.5 rounded-xl" />
       </div>
     </>
   );

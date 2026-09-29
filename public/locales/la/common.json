@@ -332,6 +332,8 @@
     "apply": "ຄົ້ນຫາ",
     "available": "ວ່າງ",
     "avgBill": "ບິນສະເລ່ຍ",
+    "billCount": "ຈຳນວນບິນ",
+    "billUnit": "ບິນ",
     "dailyAverage": "ສະເລ່ຍຕໍ່ມື້",
     "monthFrom": "ຈາກເດືອນ",
     "monthTo": "ຫາເດືອນ",

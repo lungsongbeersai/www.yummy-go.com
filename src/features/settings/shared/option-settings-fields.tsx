@@ -4,6 +4,7 @@ import { useDeferredValue, useMemo, useState, type CSSProperties, type ReactNode
 import { useResetOnChange, useResetOnDeps } from "@/hooks/use-reset-on-change";
 import { Check, CircleSlash2, Search, X } from "lucide-react";
 import { useTranslation } from "react-i18next";
+import { ColorPickerInput } from "@/components/common/color-picker-input";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@/components/ui/empty";
@@ -139,14 +140,13 @@ function ColorCodeInput({
       <div className="grid gap-4 sm:grid-cols-[auto_minmax(0,1fr)]">
         <Field>
           <FieldLabel htmlFor={`${id}-picker`}>{t("fields.color_picker")}</FieldLabel>
-          <Input
+          <ColorPickerInput
             id={`${id}-picker`}
             aria-label={t("fields.color_picker")}
             className="size-11 cursor-pointer p-1"
             disabled={disabled}
-            type="color"
             value={pickerColor(code)}
-            onChange={(event) => setCode(event.target.value)}
+            onValueChange={setCode}
           />
         </Field>
         <Field>

@@ -5,7 +5,6 @@ import {
   AlertTriangle,
   Armchair,
   ChartColumn,
-  CreditCard,
   Info,
   Landmark,
   Lightbulb,
@@ -19,9 +18,8 @@ import {
   BarChart,
   CartesianGrid,
   Cell,
-  Label,
-  Pie,
-  PieChart,
+  Line,
+  LineChart,
   PolarAngleAxis,
   RadialBar,
   RadialBarChart,
@@ -95,8 +93,9 @@ import {
   text,
 } from "@/features/dashboard/overview/dashboard-view-model";
 
-// Dataviz notes: the trend chart is single-series in the theme primary. Parts-of-a-whole
-// (payment methods, channels) are ranked bar lists coloured from --chart-cat-*, a
+// Dataviz notes: the daily chart draws one line per payment method (cash, transfer, debt) on
+// a single money axis; the bill view is one series in the theme primary. Categories
+// (payment methods, channels) are coloured from --chart-cat-*, a
 // validated categorical palette; every bar also carries its text label and value, which
 // the palette needs because slots 3-5 are under 3:1 on a light card.
 
@@ -187,25 +186,63 @@ function ShareRow({
 
 type TrendMetric = "orders" | "revenue";
 
+// The three payment methods drawn as lines. Keys match the API's payment_lines keys and the
+// daily rows' *_total fields (see TrendPoint); the slot is fixed per method, so a method
+// keeps its colour whatever the others do.
+const paymentLineKeys = ["cash", "transfer", "debt"] as const;
+
+function paymentMethods(cards: PaymentSummaryCard[], copy: DashboardCopy) {
+  const total =
+    cards.find((card) => card.important)?.value ||
+    cards.filter((card) => !card.important).reduce((sum, card) => sum + card.value, 0);
+
+  return {
+    methods: paymentLineKeys.map((key, index) => {
+      const card = cards.find((item) => item.key === key);
+      return { key, label: card?.label || copy[key], slot: categoricalSlot(index), value: card?.value ?? 0 };
+    }),
+    total,
+  };
+}
+
 function SalesTrendCard({
   copy,
+  paymentSummary,
+  paymentSummaryCards,
+  paymentTrendRows,
   peakRevenueDay,
   trendRows,
 }: {
   copy: DashboardCopy;
+  paymentSummary: PaymentSummary;
+  paymentSummaryCards: PaymentSummaryCard[];
+  paymentTrendRows: TrendPoint[];
   peakRevenueDay: TrendPoint | null;
   trendRows: TrendPoint[];
 }) {
   const [metric, setMetric] = useState<TrendMetric>("revenue");
   const isRevenue = metric === "revenue";
-  const config = {
-    [metric]: { label: isRevenue ? copy.revenue : copy.orders, color: "var(--primary)" },
-  } satisfies ChartConfig;
-  const data = trendRows.map((row) => ({ ...row, label: row.day || row.date }));
-  const format = (value: unknown) => (isRevenue ? formatKip(value) : `${formatNumber(value)} ${copy.orders}`);
-  const average = data.length ? data.reduce((sum, row) => sum + row[metric], 0) / data.length : 0;
+  const { methods, total } = paymentMethods(paymentSummaryCards, copy);
+  const lineConfig = Object.fromEntries(
+    methods.map((method) => [method.key, { color: method.slot.color, label: method.label }]),
+  ) satisfies ChartConfig;
+  const orderConfig = { orders: { label: copy.orders, color: "var(--primary)" } } satisfies ChartConfig;
+  // Payment lines come from the payment chart source; the daily sales rows carry the same
+  // *_total fields and stand in when it is missing.
+  const lineData = (paymentTrendRows.length ? paymentTrendRows : trendRows).map((row) => ({
+    ...row,
+    label: row.day || row.date,
+  }));
+  const orderData = trendRows.map((row) => ({ ...row, label: row.day || row.date }));
+  const data = isRevenue ? lineData : orderData;
+  const formatOrders = (value: unknown) => `${formatNumber(value)} ${copy.orders}`;
+  const averageRevenue = trendRows.length ? trendRows.reduce((sum, row) => sum + row.revenue, 0) / trendRows.length : 0;
+  const averageOrders = orderData.length ? orderData.reduce((sum, row) => sum + row.orders, 0) / orderData.length : 0;
   // The best day is drawn solid, the rest faded: the peak reads without hunting for it.
-  const peakIndex = data.reduce((best, row, index) => (row[metric] > data[best][metric] ? index : best), 0);
+  const peakIndex = orderData.reduce((best, row, index) => (row.orders > orderData[best].orders ? index : best), 0);
+  const splitWarning =
+    !paymentSummary.hasMixedSplitColumns &&
+    (paymentSummary.mixedTotal > 0 || paymentSummary.unallocatedMixedTotal > 0);
 
   return (
     <Card className="lg:col-span-2">
@@ -228,147 +265,102 @@ function SalesTrendCard({
           </ToggleGroup>
         </CardAction>
       </CardHeader>
-      <CardContent className="flex-1">
+      <CardContent className="flex flex-1 flex-col gap-4">
+        {/* Period totals per payment method. They double as the legend of the three lines, so a
+            line is never identified by colour alone. */}
+        <div className="grid gap-2 sm:grid-cols-3">
+          {methods.map((method) => (
+            <div key={method.key} className="flex min-w-0 flex-col gap-1 rounded-lg border p-3">
+              <span className="flex min-w-0 items-center gap-2 text-muted-foreground">
+                <span aria-hidden="true" className={cn("h-0.5 w-3 shrink-0 rounded-full", method.slot.dot)} />
+                <span className="truncate">{method.label}</span>
+                <span className="ml-auto shrink-0 tabular-nums">{formatPercent(share(method.value, total))}</span>
+              </span>
+              <span className="truncate text-sm font-semibold tabular-nums" title={formatKip(method.value)}>
+                {formatKip(method.value)}
+              </span>
+            </div>
+          ))}
+        </div>
         {data.length ? (
-          <ChartContainer config={config} className="aspect-auto h-72 w-full">
-            <BarChart data={data} margin={{ left: 0, right: 0, top: 8 }}>
-              <defs>
-                {/* var() only resolves in CSS, not in SVG presentation attributes. */}
-                <linearGradient id="dashboard-trend-fill" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="0%" style={{ stopColor: `var(--color-${metric})`, stopOpacity: 0.45 }} />
-                  <stop offset="100%" style={{ stopColor: `var(--color-${metric})`, stopOpacity: 0.15 }} />
-                </linearGradient>
-                <linearGradient id="dashboard-trend-peak" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="0%" style={{ stopColor: `var(--color-${metric})`, stopOpacity: 1 }} />
-                  <stop offset="100%" style={{ stopColor: `var(--color-${metric})`, stopOpacity: 0.7 }} />
-                </linearGradient>
-              </defs>
-              <CartesianGrid vertical={false} />
-              <XAxis dataKey="label" axisLine={false} tickLine={false} tickMargin={8} minTickGap={16} />
-              <YAxis
-                axisLine={false}
-                tickLine={false}
-                width={44}
-                tickFormatter={(value: number) => compactNumber.format(value)}
-              />
-              <ChartTooltip cursor={{ fill: "var(--muted)" }} content={<ChartTooltipContent formatter={format} />} />
-              <Bar dataKey={metric} radius={[6, 6, 0, 0]} maxBarSize={36}>
-                {data.map((row, index) => (
-                  <Cell
-                    key={row.date || index}
-                    fill={index === peakIndex && row[metric] > 0 ? "url(#dashboard-trend-peak)" : "url(#dashboard-trend-fill)"}
-                  />
-                ))}
-              </Bar>
-              {data.length > 1 && average > 0 ? (
-                <ReferenceLine y={average} stroke="var(--muted-foreground)" strokeDasharray="4 4" />
-              ) : null}
-            </BarChart>
-          </ChartContainer>
-        ) : (
-          <EmptyPanel label={copy.noData} />
-        )}
-      </CardContent>
-      {data.length ? (
-        <CardFooter className="flex-wrap gap-x-6 gap-y-2 text-muted-foreground tabular-nums">
-          {peakRevenueDay ? (
-            <span className="flex items-center gap-2">
-              <Badge>
-                <Trophy data-icon="inline-start" />
-                {copy.peakDay}
-              </Badge>
-              {peakRevenueDay.date} · {formatKip(peakRevenueDay.revenue)} · {formatNumber(peakRevenueDay.orders)} {copy.orders}
-            </span>
-          ) : null}
-          {data.length > 1 ? (
-            <span className="flex items-center gap-2">
-              {/* Legend for the dashed line drawn across the chart. */}
-              <span aria-hidden="true" className="w-4 border-t border-dashed border-muted-foreground" />
-              {copy.dailyAverage}: {format(average)}
-            </span>
-          ) : null}
-        </CardFooter>
-      ) : null}
-    </Card>
-  );
-}
-
-function PaymentMethodsCard({
-  cards,
-  copy,
-  paymentSummary,
-}: {
-  cards: PaymentSummaryCard[];
-  copy: DashboardCopy;
-  paymentSummary: PaymentSummary;
-}) {
-  const totalCard = cards.find((card) => card.important);
-  const methods = cards
-    .filter((card) => !card.important)
-    .map((card, index) => ({ card, slot: categoricalSlot(index) }));
-  const total = totalCard?.value || methods.reduce((sum, { card }) => sum + card.value, 0);
-  const ranked = [...methods].sort((left, right) => right.card.value - left.card.value);
-  const chartData = methods
-    .filter(({ card }) => card.value > 0)
-    .map(({ card, slot }) => ({ fill: slot.color, key: card.key, value: card.value }));
-  const config = Object.fromEntries(
-    methods.map(({ card, slot }) => [card.key, { color: slot.color, label: card.label }]),
-  ) satisfies ChartConfig;
-  const splitWarning =
-    !paymentSummary.hasMixedSplitColumns &&
-    (paymentSummary.mixedTotal > 0 || paymentSummary.unallocatedMixedTotal > 0);
-
-  return (
-    <Card>
-      <CardHeader>
-        <IconTitle icon={CreditCard}>{copy.paymentSplit}</IconTitle>
-        <CardDescription>{totalCard?.label ?? copy.paidTotal}</CardDescription>
-      </CardHeader>
-      <CardContent className="flex flex-col gap-4">
-        {chartData.length ? (
-          <ChartContainer config={config} className="mx-auto aspect-square h-52">
-            <PieChart>
-              <ChartTooltip
-                content={<ChartTooltipContent hideLabel nameKey="key" formatter={(value) => formatKip(value)} />}
-              />
-              {/* The box is sized in rem, so it resizes with the app's font-size setting. Radii are
-                  in % of the box, and the animation is off: an animated Pie keeps the sectors from
-                  its first render and never re-fits them, so a box that shrinks later clips the ring. */}
-              <Pie data={chartData} dataKey="value" nameKey="key" innerRadius="68%" outerRadius="94%" strokeWidth={3} stroke="var(--card)" isAnimationActive={false}>
-                {/* The total sits in the hole, so the ring reads as "parts of this number". */}
-                <Label
-                  content={({ viewBox }) =>
-                    viewBox && "cx" in viewBox && "cy" in viewBox ? (
-                      <text x={viewBox.cx} y={viewBox.cy} textAnchor="middle" dominantBaseline="middle">
-                        <tspan x={viewBox.cx} y={viewBox.cy} className="fill-foreground text-lg font-semibold">
-                          {compactNumber.format(total)}
-                        </tspan>
-                        <tspan x={viewBox.cx} y={(viewBox.cy ?? 0) + 20} className="fill-muted-foreground">
-                          ₭
-                        </tspan>
-                      </text>
-                    ) : null
+          isRevenue ? (
+            <ChartContainer config={lineConfig} className="aspect-auto h-72 w-full">
+              <LineChart data={data} margin={{ left: 0, right: 8, top: 8 }}>
+                <CartesianGrid vertical={false} />
+                <XAxis dataKey="label" axisLine={false} tickLine={false} tickMargin={8} minTickGap={16} />
+                <YAxis
+                  axisLine={false}
+                  tickLine={false}
+                  width={44}
+                  tickFormatter={(value: number) => compactNumber.format(value)}
+                />
+                <ChartTooltip
+                  cursor={{ stroke: "var(--muted-foreground)", strokeDasharray: "4 4" }}
+                  content={
+                    <ChartTooltipContent
+                      formatter={(value, name) => {
+                        const method = methods.find((item) => item.key === name);
+                        return (
+                          <PaymentTooltipRow
+                            dot={method?.slot.dot ?? neutralSlot.dot}
+                            label={method?.label ?? String(name)}
+                            value={formatKip(value)}
+                          />
+                        );
+                      }}
+                    />
                   }
                 />
-              </Pie>
-            </PieChart>
-          </ChartContainer>
-        ) : null}
-        {ranked.length ? (
-          <div className="flex flex-col gap-2.5">
-            {ranked.map(({ card, slot }) => (
-              <div key={card.key} className="flex items-center justify-between gap-3">
-                <span className="flex min-w-0 items-center gap-2">
-                  <span aria-hidden="true" className={cn("size-2.5 shrink-0 rounded-full", slot.dot)} />
-                  <span className="truncate font-medium">{card.label}</span>
-                </span>
-                <span className="flex shrink-0 items-center gap-3 tabular-nums">
-                  {formatKip(card.value)}
-                  <span className="w-12 text-right text-muted-foreground">{formatPercent(share(card.value, total))}</span>
-                </span>
-              </div>
-            ))}
-          </div>
+                {methods.map((method) => (
+                  <Line
+                    key={method.key}
+                    dataKey={method.key}
+                    type="monotone"
+                    stroke={`var(--color-${method.key})`}
+                    strokeWidth={2}
+                    dot={false}
+                    activeDot={{ r: 4, strokeWidth: 2, stroke: "var(--card)" }}
+                  />
+                ))}
+              </LineChart>
+            </ChartContainer>
+          ) : (
+            <ChartContainer config={orderConfig} className="aspect-auto h-72 w-full">
+              <BarChart data={data} margin={{ left: 0, right: 0, top: 8 }}>
+                <defs>
+                  {/* var() only resolves in CSS, not in SVG presentation attributes. */}
+                  <linearGradient id="dashboard-trend-fill" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" style={{ stopColor: "var(--color-orders)", stopOpacity: 0.45 }} />
+                    <stop offset="100%" style={{ stopColor: "var(--color-orders)", stopOpacity: 0.15 }} />
+                  </linearGradient>
+                  <linearGradient id="dashboard-trend-peak" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" style={{ stopColor: "var(--color-orders)", stopOpacity: 1 }} />
+                    <stop offset="100%" style={{ stopColor: "var(--color-orders)", stopOpacity: 0.7 }} />
+                  </linearGradient>
+                </defs>
+                <CartesianGrid vertical={false} />
+                <XAxis dataKey="label" axisLine={false} tickLine={false} tickMargin={8} minTickGap={16} />
+                <YAxis
+                  axisLine={false}
+                  tickLine={false}
+                  width={44}
+                  tickFormatter={(value: number) => compactNumber.format(value)}
+                />
+                <ChartTooltip cursor={{ fill: "var(--muted)" }} content={<ChartTooltipContent formatter={formatOrders} />} />
+                <Bar dataKey="orders" radius={[6, 6, 0, 0]} maxBarSize={36}>
+                  {orderData.map((row, index) => (
+                    <Cell
+                      key={row.date || index}
+                      fill={index === peakIndex && row.orders > 0 ? "url(#dashboard-trend-peak)" : "url(#dashboard-trend-fill)"}
+                    />
+                  ))}
+                </Bar>
+                {orderData.length > 1 && averageOrders > 0 ? (
+                  <ReferenceLine y={averageOrders} stroke="var(--muted-foreground)" strokeDasharray="4 4" />
+                ) : null}
+              </BarChart>
+            </ChartContainer>
+          )
         ) : (
           <EmptyPanel label={copy.noData} />
         )}
@@ -389,27 +381,70 @@ function PaymentMethodsCard({
           </Alert>
         ) : null}
       </CardContent>
+      {data.length ? (
+        <CardFooter className="flex-wrap gap-x-6 gap-y-2 text-muted-foreground tabular-nums">
+          {peakRevenueDay ? (
+            <span className="flex items-center gap-2">
+              <Badge>
+                <Trophy data-icon="inline-start" />
+                {copy.peakDay}
+              </Badge>
+              {peakRevenueDay.date} · {formatKip(peakRevenueDay.revenue)} · {formatNumber(peakRevenueDay.orders)} {copy.orders}
+            </span>
+          ) : null}
+          {data.length > 1 ? (
+            <span className="flex items-center gap-2">
+              {/* The dashed swatch is the legend of the average line, drawn only on the bill chart. */}
+              {isRevenue ? null : <span aria-hidden="true" className="w-4 border-t border-dashed border-muted-foreground" />}
+              {copy.dailyAverage}: {isRevenue ? formatKip(averageRevenue) : formatOrders(averageOrders)}
+            </span>
+          ) : null}
+        </CardFooter>
+      ) : null}
     </Card>
   );
 }
 
+// One tooltip row: the formatter replaces the whole default row, so it brings back the
+// line swatch and the method's name next to the amount.
+function PaymentTooltipRow({ dot, label, value }: { dot: string; label: string; value: string }) {
+  return (
+    <div className="flex w-full items-center gap-2">
+      <span aria-hidden="true" className={cn("h-0.5 w-3 shrink-0 rounded-full", dot)} />
+      <span className="text-muted-foreground">{label}</span>
+      <span className="ml-auto font-medium text-foreground tabular-nums">{value}</span>
+    </div>
+  );
+}
+
 export const DashboardSalesGrid = memo(function DashboardSalesGrid({
+  accountingRows,
   copy,
   paymentSummary,
   paymentSummaryCards,
+  paymentTrendRows,
   peakRevenueDay,
   trendRows,
 }: {
+  accountingRows: AccountingRow[];
   copy: DashboardCopy;
   paymentSummary: PaymentSummary;
   paymentSummaryCards: PaymentSummaryCard[];
+  paymentTrendRows: TrendPoint[];
   peakRevenueDay: TrendPoint | null;
   trendRows: TrendPoint[];
 }) {
   return (
     <div className="grid gap-4 lg:grid-cols-3">
-      <SalesTrendCard copy={copy} peakRevenueDay={peakRevenueDay} trendRows={trendRows} />
-      <PaymentMethodsCard cards={paymentSummaryCards} copy={copy} paymentSummary={paymentSummary} />
+      <SalesTrendCard
+        copy={copy}
+        paymentSummary={paymentSummary}
+        paymentSummaryCards={paymentSummaryCards}
+        paymentTrendRows={paymentTrendRows}
+        peakRevenueDay={peakRevenueDay}
+        trendRows={trendRows}
+      />
+      <AccountingCard copy={copy} rows={accountingRows} />
     </div>
   );
 });
@@ -787,7 +822,8 @@ function HighlightsCard({
         <IconTitle icon={Lightbulb}>{copy.insights}</IconTitle>
       </CardHeader>
       <CardContent>
-        <ItemGroup>
+        {/* The card spans the row on its own, so the items sit side by side once there is room. */}
+        <ItemGroup className="grid gap-2 md:grid-cols-[repeat(auto-fit,minmax(16rem,1fr))]">
           {items.map((item) => (
             <Item key={item.label} variant="outline">
               <ItemMedia variant="icon" className={cn("size-10 rounded-lg", highlightTones[item.tone])}>
@@ -807,21 +843,18 @@ function HighlightsCard({
 }
 
 export const DashboardHealthGrid = memo(function DashboardHealthGrid({
-  accountingRows,
   copy,
   highestRevenueProduct,
   insights,
   productSummary,
 }: {
-  accountingRows: AccountingRow[];
   copy: DashboardCopy;
   highestRevenueProduct: ProductRow | null;
   insights: Row;
   productSummary: Row;
 }) {
   return (
-    <div className="grid items-start gap-4 lg:grid-cols-2">
-      <AccountingCard copy={copy} rows={accountingRows} />
+    <div className="grid gap-4">
       <HighlightsCard
         copy={copy}
         highestRevenueProduct={highestRevenueProduct}

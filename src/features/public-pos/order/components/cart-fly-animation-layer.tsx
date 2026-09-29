@@ -80,7 +80,7 @@ function CartFlyAnimationItem({
 
   return (
     <div
-      className="fixed overflow-hidden rounded-2xl border border-yg-accent-line bg-yg-bg2 shadow-[0_18px_40px_-16px_var(--yg-accent)] will-change-transform"
+      className="fixed overflow-hidden rounded-lg border border-yg-accent-line bg-yg-bg2 shadow-[0_18px_40px_-16px_var(--yg-accent)] will-change-transform"
       style={{
         left: startX,
         top: startY,

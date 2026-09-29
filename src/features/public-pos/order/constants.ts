@@ -26,8 +26,10 @@ export const RAIL_RENDER_CHUNK = 12;
 export const LCP_PRIORITY_IMAGE_COUNT = 6;
 // auto-fill ตามดีไซน์ — คอลัมน์ปรับตามความกว้างจริงแทนการไล่ breakpoint
 // ทำให้จอคั่นกลางอย่างแท็บเล็ตแนวตั้งไม่เหลือช่องว่างค้างท้ายแถว
+// Columns per breakpoint rather than auto-fill: auto-fill with a 152px minimum dropped to
+// one column on 320px phones. 2 on phones, then 3 / 4 / 5 as the screen grows.
 export const PRODUCT_GRID_CLASS =
-  "grid grid-cols-[repeat(auto-fill,minmax(clamp(152px,42vw,222px),1fr))] gap-[clamp(12px,2vw,18px)]";
+  "grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-4 md:grid-cols-4 lg:grid-cols-5";
 export const CATEGORY_ANCHOR_FALLBACK_Y = 132;
 export const CATEGORY_TAIL_SPACER_HEIGHT = "clamp(140px, 18dvh, 220px)";
 export const CATEGORY_SCROLL_SUPPRESS_MS = 1800;

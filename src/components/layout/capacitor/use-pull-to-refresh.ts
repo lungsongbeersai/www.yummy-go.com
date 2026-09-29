@@ -8,6 +8,25 @@ const PULL_MAX = 120;
 // หน่วงระยะดึงให้รู้สึกมีแรงต้าน เหมือน pull-to-refresh ของ TikTok/Facebook แทนที่จะขยับ 1:1 กับนิ้ว
 const RESISTANCE = 0.5;
 
+// A pull only starts when the finger lands where "scroll up" has nowhere left to go. Checking the
+// page alone was wrong inside anything that scrolls on its own: in the More page's settings sheet
+// the page sits at the top, so every downward swipe (= scroll the list back up) was taken for a
+// pull, preventDefault()ed, and the list could not scroll back up (a long swipe even reloaded).
+// Modals (dialogs, sheets) never pull: refreshing the page behind them is not what a swipe means.
+function canStartPull(target: EventTarget | null) {
+  if ((document.scrollingElement?.scrollTop ?? 0) > 0) return false;
+  if (!(target instanceof Element)) return true;
+  if (target.closest('[role="dialog"], [role="alertdialog"], [data-vaul-drawer]')) return false;
+
+  for (let node: Element | null = target; node && node !== document.body; node = node.parentElement) {
+    if (node.scrollTop > 0) {
+      const overflowY = getComputedStyle(node).overflowY;
+      if (overflowY === "auto" || overflowY === "scroll") return false;
+    }
+  }
+  return true;
+}
+
 export function usePullToRefresh(enabled: boolean) {
   const [pullDistance, setPullDistance] = useState(0);
   const [refreshing, setRefreshing] = useState(false);
@@ -25,7 +44,7 @@ export function usePullToRefresh(enabled: boolean) {
     }
 
     function onTouchStart(e: TouchEvent) {
-      startY.current = atTop() ? e.touches[0].clientY : null;
+      startY.current = canStartPull(e.target) ? e.touches[0].clientY : null;
     }
 
     function onTouchMove(e: TouchEvent) {

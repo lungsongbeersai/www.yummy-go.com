@@ -20,7 +20,7 @@ export function PublicMenuHero({ onSearch }: { onSearch: () => void }) {
   const searchLabel = t("pos.searchMenu");
 
   return (
-    <section className="yg-rise relative flex min-h-[clamp(310px,42vw,420px)] overflow-hidden rounded-[28px] border border-yg-line shadow-[0_30px_70px_-30px_rgb(0_0_0/0.55)] dark:shadow-[0_30px_70px_-30px_rgb(0_0_0/0.8)]">
+    <section className="yg-rise relative flex min-h-[clamp(310px,42vw,420px)] overflow-hidden rounded-3xl border border-yg-line shadow-[0_30px_70px_-30px_rgb(0_0_0/0.55)] dark:shadow-[0_30px_70px_-30px_rgb(0_0_0/0.8)]">
       <div
         aria-hidden="true"
         className="absolute inset-0"
@@ -60,7 +60,7 @@ export function PublicMenuHero({ onSearch }: { onSearch: () => void }) {
             variant="outline"
             onClick={onSearch}
             aria-haspopup="dialog"
-            className="relative h-12.5 min-w-0 flex-1 justify-start rounded-[15px] border-yg-line bg-yg-bg/50 pl-10 pr-4 text-sm font-medium text-yg-faint backdrop-blur-sm hover:border-yg-accent-line hover:bg-yg-bg/50 hover:text-yg-muted focus-visible:ring-yg-accent focus-visible:ring-offset-yg-bg motion-reduce:transition-none"
+            className="relative h-12.5 min-w-0 flex-1 justify-start rounded-xl border-yg-line bg-yg-bg/50 pl-10 pr-4 text-sm font-medium text-yg-faint backdrop-blur-sm hover:border-yg-accent-line hover:bg-yg-bg/50 hover:text-yg-muted focus-visible:ring-yg-accent focus-visible:ring-offset-yg-bg motion-reduce:transition-none"
           >
             <Search
               className="pointer-events-none absolute left-3.5 top-1/2 size-4 -translate-y-1/2"
@@ -73,7 +73,7 @@ export function PublicMenuHero({ onSearch }: { onSearch: () => void }) {
             type="button"
             onClick={onSearch}
             aria-label={searchLabel}
-            className="h-12.5 flex-none rounded-[15px] bg-yg-accent px-5.5 text-sm font-extrabold text-yg-on-accent shadow-[0_8px_22px_-8px_var(--yg-accent)] hover:bg-yg-accent hover:brightness-105 focus-visible:ring-yg-accent focus-visible:ring-offset-yg-bg motion-reduce:transition-none"
+            className="h-12.5 flex-none rounded-xl bg-yg-accent px-5.5 text-sm font-extrabold text-yg-on-accent hover:bg-yg-accent hover:brightness-105 focus-visible:ring-yg-accent focus-visible:ring-offset-yg-bg motion-reduce:transition-none"
           >
             {t("pos.searchSubmit")}
           </Button>

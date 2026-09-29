@@ -1,12 +1,13 @@
 "use client";
 
+import { ImageIcon } from "lucide-react";
+import { ColorPickerInput } from "@/components/common/color-picker-input";
 import { ButtonGroup } from "@/components/ui/button-group";
 import {
   Card,
   CardContent,
   CardDescription,
   CardHeader,
-  CardTitle,
 } from "@/components/ui/card";
 import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
@@ -29,6 +30,7 @@ import {
 } from "./product-form-utils";
 import { ProductFormChoiceGroup } from "./product-form-choice-group";
 import type { ProductFormWorkflow } from "./use-product-form-workflow";
+import { ProductSectionTitle } from "./product-form-section-title";
 
 export function ProductFormImageSection({ form }: { form: ProductFormWorkflow }) {
   const {
@@ -55,7 +57,7 @@ export function ProductFormImageSection({ form }: { form: ProductFormWorkflow })
   return (
     <Card id={FIELD_IDS.imageSection}>
       <CardHeader>
-        <CardTitle>{t("product.sections.image")}</CardTitle>
+        <ProductSectionTitle icon={ImageIcon}>{t("product.sections.image")}</ProductSectionTitle>
         <CardDescription>{t("product.sections.imageHint")}</CardDescription>
       </CardHeader>
       <CardContent>
@@ -131,15 +133,14 @@ export function ProductFormImageSection({ form }: { form: ProductFormWorkflow })
               <Field data-invalid={colorInvalid}>
                 <FieldLabel htmlFor={FIELD_IDS.color}>{t("fields.color_code")}</FieldLabel>
                 <ButtonGroup>
-                  <Input
+                  <ColorPickerInput
                     id="prod-color-picker"
-                    type="color"
                     aria-label={t("fields.color_code")}
                     className="max-w-12 p-1"
                     value={isHexColor(colorValue) ? colorValue : DEFAULT_COLOR}
-                    onChange={(event) => {
+                    onValueChange={(value) => {
                       setColorChoice(CUSTOM_COLOR_VALUE);
-                      setColorValue(event.target.value);
+                      setColorValue(value);
                     }}
                   />
                   <Input

@@ -1,6 +1,6 @@
 "use client";
 
-import { Check, Plus, RefreshCcw, Save } from "lucide-react";
+import { Check, Package, PackagePlus, Plus, RefreshCcw, Save, X } from "lucide-react";
 import Link from "next/link";
 import { FormattedNumberInput } from "@/components/common/formatted-number-input";
 import { Badge } from "@/components/ui/badge";
@@ -31,6 +31,8 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Spinner } from "@/components/ui/spinner";
+import { SETTINGS_ACCENT } from "@/features/settings/shared/settings-tones";
+import { cn } from "@/lib/utils";
 import { CategoryFormDialog } from "@/features/settings/category/category-form-dialog";
 import { OptionFormDialog } from "@/features/settings/shared/option-settings-page";
 import type { BinaryFlag } from "./product-form-types";
@@ -51,6 +53,7 @@ import { ProductFormImageSection } from "./product-form-image-section";
 import { ProductFormTastesSection } from "./product-form-tastes-section";
 import { ProductFormToppingsSection } from "./product-form-toppings-section";
 import type { ProductFormWorkflow } from "./use-product-form-workflow";
+import { ProductSectionTitle } from "./product-form-section-title";
 
 export function ProductFormView({ form }: { form: ProductFormWorkflow }) {
   const {
@@ -120,8 +123,10 @@ export function ProductFormView({ form }: { form: ProductFormWorkflow }) {
       {saveButtonLabel}
     </Button>
   );
+  // Red, so leaving without saving never reads as the main action.
   const cancelLink = (
-    <Link className={buttonVariants({ variant: "outline" })} href="/products">
+    <Link className={buttonVariants({ variant: "destructive" })} href="/products">
+      <X data-icon="inline-start" />
       {t("actions.cancel")}
     </Link>
   );
@@ -136,23 +141,37 @@ export function ProductFormView({ form }: { form: ProductFormWorkflow }) {
     // app shell จำกัดความกว้าง + padding ให้แล้ว — ไม่ซ้อน max-w/mx-auto อีกชั้น
     // จอ xl: ฟอร์มซ้าย + การ์ดสรุป/ปุ่มบันทึกค้างด้านขวา, จอเล็กกว่า: การ์ดสรุปอยู่บน + แผงปุ่มลอยด้านล่าง
     <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_20rem] xl:items-start">
-      <Card className="xl:sticky xl:top-[calc(var(--app-shell-header-height,4rem)+1.5rem)] xl:order-last">
-        <CardHeader>
-          <CardTitle>
-            <h1>{title}</h1>
-          </CardTitle>
-          <CardDescription>{t("product.formDescription")}</CardDescription>
+      {/* The page header: the theme-colour wash and solid icon tile of the settings pages. */}
+      <Card
+        className={cn(
+          "ring-0 xl:sticky xl:top-[calc(var(--app-shell-header-height,4rem)+1.5rem)] xl:order-last",
+          SETTINGS_ACCENT.wash,
+        )}
+      >
+        <CardHeader className="flex items-center gap-3">
+          <span
+            aria-hidden
+            className={cn("flex size-11 shrink-0 items-center justify-center rounded-xl shadow-sm", SETTINGS_ACCENT.solid)}
+          >
+            <PackagePlus className="size-5" />
+          </span>
+          <div className="flex min-w-0 flex-col gap-0.5">
+            <CardTitle>
+              <h1 className="text-lg font-semibold">{title}</h1>
+            </CardTitle>
+            <CardDescription>{t("product.formDescription")}</CardDescription>
+          </div>
         </CardHeader>
         <CardContent className="flex flex-wrap gap-2">
-          <Badge variant="secondary">{typeLabel}</Badge>
-          <Badge variant="secondary">{imageLabel}</Badge>
+          <Badge className={SETTINGS_ACCENT.soft}>{typeLabel}</Badge>
+          <Badge className={SETTINGS_ACCENT.soft}>{imageLabel}</Badge>
           {tasteCount > 0 ? (
-            <Badge variant="secondary">
+            <Badge className={SETTINGS_ACCENT.soft}>
               {t("product.tasteSelectedCount", { count: tasteCount })}
             </Badge>
           ) : null}
           {prodToppingStatus === TOPPING_HAS ? (
-            <Badge variant="secondary">
+            <Badge className={SETTINGS_ACCENT.soft}>
               {t("common.selectedCount", { count: toppingCount })}
             </Badge>
           ) : null}
@@ -178,7 +197,7 @@ export function ProductFormView({ form }: { form: ProductFormWorkflow }) {
 
         <Card>
           <CardHeader>
-            <CardTitle>{t("product.sections.general")}</CardTitle>
+            <ProductSectionTitle icon={Package}>{t("product.sections.general")}</ProductSectionTitle>
             <CardDescription>{t("product.sections.generalHint")}</CardDescription>
           </CardHeader>
           <CardContent>

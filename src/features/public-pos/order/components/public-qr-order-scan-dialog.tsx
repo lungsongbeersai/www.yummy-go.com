@@ -38,7 +38,7 @@ export function PublicQrOrderScanDialog({
           <DialogDescription>{t("pos.qrScannerHint")}</DialogDescription>
         </DialogHeader>
 
-        <div className="relative mx-5 mb-5 aspect-square overflow-hidden rounded-2xl bg-muted">
+        <div className="relative mx-5 mb-5 aspect-square overflow-hidden rounded-xl bg-muted">
           <video
             ref={videoRef}
             className="size-full object-cover"

@@ -28,6 +28,7 @@ export type TrendPoint = {
   cash: number;
   date: string;
   day: string;
+  debt: number;
   mixed: number;
   orders: number;
   paid: number;
@@ -409,6 +410,7 @@ function normalizeTrendRows(rows: Row[]): TrendPoint[] {
     cash: numberFrom(row, "cash_total"),
     date: text(row.business_date),
     day: text(row.day),
+    debt: numberFrom(row, "debt_total"),
     mixed: numberFrom(row, "mixed_total") || numberFrom(row, "split_total") || numberFrom(row, "split_payment_total"),
     orders: numberFrom(row, "orders_count"),
     paid: numberFrom(row, "paid_total"),

@@ -93,7 +93,7 @@ export function ProductOrderSheetContent({
       variant="ghost"
       size="icon"
       aria-label={t("actions.close")}
-      className="absolute right-3.5 top-3.5 z-2 size-11 rounded-xl border border-yg-line bg-yg-bg/60 text-yg-ink backdrop-blur-md hover:bg-yg-bg/85 hover:text-yg-ink"
+      className="absolute right-3.5 top-3.5 z-2 size-11 rounded-full border border-yg-line bg-yg-bg/60 text-yg-ink backdrop-blur-md hover:bg-yg-bg/85 hover:text-yg-ink"
       disabled={saving}
     >
       <X aria-hidden="true" />
@@ -118,7 +118,7 @@ export function ProductOrderSheetContent({
           aria-busy={loading || saving}
           className={cn(
             PANEL_CLASS,
-            "h-[calc(100dvh-0.5rem)] max-h-none rounded-t-[26px] data-[side=bottom]:h-[calc(100dvh-0.5rem)]",
+            "h-[calc(100dvh-0.5rem)] max-h-none rounded-t-3xl data-[side=bottom]:h-[calc(100dvh-0.5rem)]",
           )}
           onEscapeKeyDown={(event) => {
             if (saving) event.preventDefault();
@@ -143,7 +143,7 @@ export function ProductOrderSheetContent({
         aria-busy={loading || saving}
         className={cn(
           PANEL_CLASS,
-          "max-h-[min(880px,92vh)] rounded-[26px] sm:max-w-125",
+          "max-h-[min(880px,92vh)] rounded-2xl sm:max-w-125",
         )}
         onEscapeKeyDown={(event) => {
           if (saving) event.preventDefault();
@@ -314,7 +314,7 @@ function ProductOrderForm({
             ) : null}
 
             {mode === "promotion" && selectedDetail ? (
-              <div className="rounded-2xl border border-yg-accent-line bg-yg-accent-soft px-4 py-3">
+              <div className="rounded-xl border border-yg-accent-line bg-yg-accent-soft px-4 py-3">
                 <p className="text-xs font-extrabold text-yg-accent-strong">
                   {t("pos.promoDeal")}
                 </p>
@@ -364,7 +364,7 @@ function ProductOrderForm({
                 disabled={saving}
                 onChange={(event) => onNoteChange(event.target.value)}
                 placeholder={t("pos.notePlaceholder")}
-                className="min-h-18 resize-none rounded-2xl border-yg-line bg-yg-panel text-base text-yg-ink placeholder:text-yg-faint focus-visible:border-yg-accent-line focus-visible:ring-yg-accent/40"
+                className="min-h-18 resize-none rounded-xl border-yg-line bg-yg-panel text-base text-yg-ink placeholder:text-yg-faint focus-visible:border-yg-accent-line focus-visible:ring-yg-accent/40"
               />
             </Field>
 
@@ -441,7 +441,7 @@ function ProductTasteFieldset({
               key={taste.tasteUuid}
               orientation="horizontal"
               className={cn(
-                "min-h-14 rounded-[15px] border border-yg-line bg-yg-panel px-4 py-2 shadow-none transition-[border-color,background-color]",
+                "min-h-14 rounded-xl border border-yg-line bg-yg-panel px-4 py-2 shadow-none transition-[border-color,background-color]",
                 selected && "border-yg-accent bg-yg-accent-soft",
                 blocked && "opacity-60",
               )}
@@ -509,7 +509,7 @@ function ProductSizeFieldset({
               <FieldLabel
                 htmlFor={id}
                 className={cn(
-                  "min-h-14 w-full cursor-pointer items-center rounded-[15px] border border-yg-line bg-yg-panel px-4 py-2 shadow-none transition-[border-color,background-color] hover:border-yg-accent-line has-data-[state=checked]:border-yg-accent has-data-[state=checked]:bg-yg-accent-soft motion-reduce:transition-none",
+                  "min-h-14 w-full cursor-pointer items-center rounded-xl border border-yg-line bg-yg-panel px-4 py-2 shadow-none transition-[border-color,background-color] hover:border-yg-accent-line has-data-[state=checked]:border-yg-accent has-data-[state=checked]:bg-yg-accent-soft motion-reduce:transition-none",
                   !enabled && "cursor-not-allowed opacity-60",
                 )}
               >
@@ -525,7 +525,7 @@ function ProductSizeFieldset({
                       {detail.sizeName || t("pos.size")}
                     </span>
                     {!enabled ? (
-                      <span className="shrink-0 rounded-md border border-yg-line bg-yg-panel2 px-1.5 py-0.5 text-2xs font-bold text-yg-muted">
+                      <span className="shrink-0 rounded-sm border border-yg-line bg-yg-panel2 px-1.5 py-0.5 text-2xs font-bold text-yg-muted">
                         {t("pos.outOfStock")}
                       </span>
                     ) : null}
@@ -570,7 +570,7 @@ function SetProductFieldset({ details }: { details: ProdDetail[] }) {
             <div
               key={detail.proDetailUuid}
               className={cn(
-                "flex min-h-12 items-center justify-between gap-3 rounded-[15px] border border-yg-line bg-yg-panel px-4 py-2",
+                "flex min-h-12 items-center justify-between gap-3 rounded-xl border border-yg-line bg-yg-panel px-4 py-2",
                 !enabled && "opacity-60",
               )}
             >
@@ -585,7 +585,7 @@ function SetProductFieldset({ details }: { details: ProdDetail[] }) {
               </span>
               <span className="flex shrink-0 items-center gap-2">
                 {!enabled ? (
-                  <span className="rounded-md border border-yg-line bg-yg-panel2 px-1.5 py-0.5 text-2xs font-bold text-yg-muted">
+                  <span className="rounded-sm border border-yg-line bg-yg-panel2 px-1.5 py-0.5 text-2xs font-bold text-yg-muted">
                     {t("pos.outOfStock")}
                   </span>
                 ) : null}
@@ -687,7 +687,7 @@ function ProductToppingRow({
       orientation="horizontal"
       data-disabled={!enabled || undefined}
       className={cn(
-        "min-h-16 flex-wrap rounded-[15px] border border-yg-line bg-yg-panel px-4 py-2.5 shadow-none transition-[border-color,background-color] motion-reduce:transition-none",
+        "min-h-16 flex-wrap rounded-xl border border-yg-line bg-yg-panel px-4 py-2.5 shadow-none transition-[border-color,background-color] motion-reduce:transition-none",
         selected && "border-yg-accent bg-yg-accent-soft",
         (!enabled || blocked) && "opacity-60",
       )}
@@ -719,7 +719,7 @@ function ProductToppingRow({
           {label}
         </span>
         {!enabled ? (
-          <span className="shrink-0 rounded-md border border-yg-line bg-yg-panel2 px-1.5 py-0.5 text-2xs font-bold text-yg-muted">
+          <span className="shrink-0 rounded-sm border border-yg-line bg-yg-panel2 px-1.5 py-0.5 text-2xs font-bold text-yg-muted">
             {t("pos.outOfStock")}
           </span>
         ) : null}
@@ -803,13 +803,13 @@ function ProductQuantityRow({
         <span className="text-sm font-extrabold text-yg-ink">
           {t("pos.qty")}
         </span>
-        <div className="flex items-center gap-1 rounded-[15px] border border-yg-line bg-yg-panel p-1">
+        <div className="flex items-center gap-1 rounded-xl border border-yg-line bg-yg-panel p-1">
           <Button
             type="button"
             size="icon"
             variant="ghost"
             aria-label={t("pos.decreaseQuantity")}
-            className="size-11 rounded-xl bg-yg-panel2 text-yg-ink hover:bg-yg-panel-hover"
+            className="size-11 rounded-lg bg-yg-panel2 text-yg-ink hover:bg-yg-panel-hover"
             onClick={() => handleQty(qty - qtyStep)}
             disabled={!selectedDetail || qty <= minQty || saving}
           >
@@ -819,7 +819,7 @@ function ProductQuantityRow({
             type="button"
             variant="ghost"
             aria-label={t("pos.editQuantity")}
-            className="h-11 min-w-10 rounded-xl px-2 text-center font-yg-mono text-base font-semibold text-yg-ink tabular-nums hover:bg-yg-panel-hover"
+            className="h-11 min-w-10 rounded-lg px-2 text-center font-yg-mono text-base font-semibold text-yg-ink tabular-nums hover:bg-yg-panel-hover"
             disabled={!selectedDetail || saving}
             onClick={() => setQtyDialogOpen(true)}
           >
@@ -830,7 +830,7 @@ function ProductQuantityRow({
             size="icon"
             variant="ghost"
             aria-label={t("pos.increaseQuantity")}
-            className="size-11 rounded-xl bg-yg-accent-soft text-yg-accent-strong hover:bg-yg-accent-line"
+            className="size-11 rounded-lg bg-yg-accent-soft text-yg-accent-strong hover:bg-yg-accent-line"
             onClick={() => handleQty(qty + qtyStep)}
             disabled={!selectedDetail || qty + qtyStep > maxQty || saving}
           >
@@ -880,7 +880,7 @@ function ProductOrderFooter({
   return (
     <div className="shrink-0 border-t border-yg-line bg-yg-bg/45 px-5 pt-3.5 pb-[calc(1rem+env(safe-area-inset-bottom))] backdrop-blur-md">
       {loading && !product ? (
-        <Skeleton className="h-13.5 w-full rounded-2xl" />
+        <Skeleton className="h-13.5 w-full rounded-xl" />
       ) : viewOnly ? (
         <div className="flex flex-col gap-2">
           <p className="text-center text-sm font-semibold text-yg-muted">
@@ -888,7 +888,7 @@ function ProductOrderFooter({
           </p>
           <Button
             type="button"
-            className="h-13.5 w-full rounded-2xl bg-yg-accent text-base font-extrabold text-yg-on-accent shadow-[0_12px_30px_-12px_var(--yg-accent)] hover:bg-yg-accent hover:brightness-105"
+            className="h-13.5 w-full rounded-xl bg-yg-accent text-base font-extrabold text-yg-on-accent hover:bg-yg-accent hover:brightness-105"
             onClick={onScanQr}
           >
             <ScanLine aria-hidden="true" data-icon="inline-start" />
@@ -898,7 +898,7 @@ function ProductOrderFooter({
       ) : (
         <Button
           type="submit"
-          className="h-13.5 w-full rounded-2xl bg-yg-accent text-base font-extrabold text-yg-on-accent shadow-[0_12px_30px_-12px_var(--yg-accent)] hover:bg-yg-accent hover:brightness-105 disabled:opacity-55 disabled:shadow-none"
+          className="h-13.5 w-full rounded-xl bg-yg-accent text-base font-extrabold text-yg-on-accent hover:bg-yg-accent hover:brightness-105 disabled:opacity-55 disabled:shadow-none"
           disabled={!canSubmit}
         >
           {saving ? (
@@ -955,14 +955,14 @@ function ProductOrderSheetSkeleton() {
           <Skeleton className="h-4 w-24" />
           <Skeleton className="h-4 w-16" />
         </div>
-        <Skeleton className="h-14 w-full rounded-[15px]" />
-        <Skeleton className="h-14 w-full rounded-[15px]" />
-        <Skeleton className="h-14 w-full rounded-[15px]" />
+        <Skeleton className="h-14 w-full rounded-xl" />
+        <Skeleton className="h-14 w-full rounded-xl" />
+        <Skeleton className="h-14 w-full rounded-xl" />
       </section>
 
       <section className="flex flex-col gap-2">
         <Skeleton className="h-4 w-16" />
-        <Skeleton className="h-18 w-full rounded-2xl" />
+        <Skeleton className="h-18 w-full rounded-xl" />
       </section>
     </div>
   );

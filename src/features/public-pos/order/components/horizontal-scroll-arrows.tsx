@@ -23,9 +23,13 @@ const INITIAL_SCROLL_STATE: HorizontalScrollState = {
 export function HorizontalScrollArrows({
   scrollRef,
   className,
+  variant = "overlay",
 }: {
   scrollRef: RefObject<HTMLDivElement | null>;
   className?: string;
+  /** overlay: big round buttons over a product rail (mouse only). edge: a fade on each side
+   *  that still has content, with a small arrow — the cue that a strip scrolls sideways. */
+  variant?: "edge" | "overlay";
 }) {
   const { t } = useTranslation();
   const [scrollState, setScrollState] =
@@ -88,8 +92,29 @@ export function HorizontalScrollArrows({
       behavior: prefersReducedMotion() ? "auto" : "smooth",
     });
   };
+  if (variant === "edge") {
+    return (
+      <>
+        <EdgeFade
+          side="left"
+          visible={scrollState.canScrollLeft}
+          label={t("pos.scrollLeft")}
+          onClick={() => scroll(-1)}
+        />
+        <EdgeFade
+          side="right"
+          visible={scrollState.canScrollRight}
+          label={t("pos.scrollRight")}
+          onClick={() => scroll(1)}
+        />
+      </>
+    );
+  }
+
+  // pointer-coarse:hidden — on a touch screen the rail is swiped, and the arrows only sat on
+  // top of the cards' names and prices. Mouse users keep them.
   const buttonClassName = cn(
-    "absolute top-1/2 z-10 size-11 -translate-y-1/2 rounded-full border border-yg-line bg-yg-bg2/90 text-yg-accent-strong shadow-[0_12px_30px_-12px_rgb(0_0_0/0.5)] backdrop-blur-md transition-[color,background-color,opacity] hover:border-yg-accent hover:bg-yg-accent hover:text-yg-on-accent disabled:opacity-0 motion-reduce:transition-none",
+    "absolute top-1/2 z-10 pointer-coarse:hidden size-11 -translate-y-1/2 rounded-full border border-yg-line bg-yg-bg2/90 text-yg-accent-strong shadow-[0_12px_30px_-12px_rgb(0_0_0/0.5)] backdrop-blur-md transition-[color,background-color,opacity] hover:border-yg-accent hover:bg-yg-accent hover:text-yg-on-accent disabled:opacity-0 motion-reduce:transition-none",
     className,
   );
 
@@ -118,5 +143,43 @@ export function HorizontalScrollArrows({
         <ChevronRight aria-hidden="true" />
       </Button>
     </>
+  );
+}
+
+// The fade says "there is more this way"; the arrow makes it tappable too. Hidden sides are
+// invisible (not just transparent) so their buttons leave the tab order.
+function EdgeFade({
+  label,
+  side,
+  visible,
+  onClick,
+}: {
+  label: string;
+  side: "left" | "right";
+  visible: boolean;
+  onClick: () => void;
+}) {
+  const Icon = side === "left" ? ChevronLeft : ChevronRight;
+  return (
+    <div
+      className={cn(
+        "pointer-events-none absolute inset-y-0 z-10 flex w-14 items-center transition-opacity duration-150 motion-reduce:transition-none",
+        side === "left"
+          ? "left-0 justify-start bg-linear-to-r from-yg-bg via-yg-bg/85 to-transparent"
+          : "right-0 justify-end bg-linear-to-l from-yg-bg via-yg-bg/85 to-transparent",
+        visible ? "opacity-100" : "invisible opacity-0",
+      )}
+    >
+      <Button
+        type="button"
+        size="icon"
+        variant="outline"
+        aria-label={label}
+        className="pointer-events-auto size-8 rounded-full border-yg-line bg-yg-bg2 text-yg-accent-strong shadow-[0_4px_12px_-4px_rgb(0_0_0/0.25)] hover:border-yg-accent hover:bg-yg-accent hover:text-yg-on-accent"
+        onClick={onClick}
+      >
+        <Icon className="size-4" aria-hidden="true" />
+      </Button>
+    </div>
   );
 }

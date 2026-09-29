@@ -331,6 +331,8 @@
     "apply": "Apply filters",
     "available": "Available",
     "avgBill": "Average bill",
+    "billCount": "Bills",
+    "billUnit": "Bill",
     "dailyAverage": "Daily average",
     "monthFrom": "From month",
     "monthTo": "To month",

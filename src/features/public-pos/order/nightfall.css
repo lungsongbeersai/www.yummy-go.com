@@ -19,11 +19,16 @@
      (-mx แล้ว px กลับ) อ้างอิงร่วมกัน ค่าตามไฟล์ดีไซน์ */
   --yg-gutter: clamp(14px, 3.6vw, 38px);
 
-  --yg-bg: #f3fbf7;
+  /* พื้นขาวล้วน (เจ้าของร้านขอ) — เดิม #f3fbf7 เขียวอ่อน */
+  --yg-bg: #ffffff;
   --yg-bg2: #ffffff;
   /* การ์ดในดีไซน์เดิมเป็นขาวทึบ ไม่ใช่แผ่นโปร่งแบบ Nightfall */
   --yg-panel: #ffffff;
   --yg-panel2: rgb(236 253 245 / 0.55); /* emerald-50 */
+  /* พื้นการ์ดสินค้าในมุมมองการ์ด — เทาอมเขียวอ่อนบนพื้นขาว ไม่มีขอบ */
+  --yg-card: #f3f7f5;
+  /* เส้นคั่นแถวในมุมมองรายการ — --yg-line (emerald-100) จางเกินจนมองไม่เห็นบนพื้นขาว */
+  --yg-divider: #e3e9e6;
   --yg-panel-hover: rgb(209 250 229 / 0.5); /* emerald-100 */
   --yg-line: #d1fae5; /* emerald-100 */
   --yg-line2: rgb(209 250 229 / 0.6);
@@ -42,15 +47,11 @@
   --yg-accent-soft: rgb(18 124 89 / 0.1);
   --yg-accent-line: rgb(18 124 89 / 0.28);
   --yg-on-accent: #ffffff; /* 5.18:1 บนปุ่มทึบ */
-  --yg-glow1: rgb(18 124 89 / 0.12);
-  --yg-glow2: rgb(70 120 220 / 0.06);
+  /* แสงพื้นหลังปิดในโหมดสว่าง ให้พื้นขาวสะอาดจริง */
+  --yg-glow1: transparent;
+  --yg-glow2: transparent;
 
-  --yg-shell: radial-gradient(
-    140% 90% at 82% -8%,
-    #e9f8f1 0%,
-    #f3fbf7 46%,
-    #eef8f3 100%
-  );
+  --yg-shell: #ffffff;
   --yg-scrim: rgb(15 23 42 / 0.45);
   --yg-media-glow: rgb(18 124 89 / 0.1);
 
@@ -73,6 +74,8 @@
   --yg-bg2: #1b1613;
   --yg-panel: rgb(255 248 238 / 0.045);
   --yg-panel2: rgb(255 248 238 / 0.028);
+  --yg-card: rgb(255 248 238 / 0.055);
+  --yg-divider: rgb(240 224 200 / 0.12);
   --yg-panel-hover: rgb(255 248 238 / 0.075);
   --yg-line: rgb(240 224 200 / 0.11);
   --yg-line2: rgb(240 224 200 / 0.06);
@@ -124,7 +127,7 @@
   --yg-accent-soft: rgb(143 99 24 / 0.1);
   --yg-accent-line: rgb(143 99 24 / 0.28);
   --yg-on-accent: #ffffff; /* 5.30:1 บนปุ่มทึบ */
-  --yg-glow1: rgb(143 99 24 / 0.12);
+  --yg-glow1: transparent;
 }
 
 :where(.dark) [data-yg-menu][data-yg-accent="gold"] {
@@ -142,7 +145,7 @@
   --yg-accent-soft: rgb(179 69 95 / 0.1);
   --yg-accent-line: rgb(179 69 95 / 0.28);
   --yg-on-accent: #ffffff; /* 5.34:1 */
-  --yg-glow1: rgb(179 69 95 / 0.12);
+  --yg-glow1: transparent;
 }
 
 :where(.dark) [data-yg-menu][data-yg-accent="rose"] {
@@ -163,6 +166,8 @@
   --color-yg-bg2: var(--yg-bg2);
   --color-yg-panel: var(--yg-panel);
   --color-yg-panel2: var(--yg-panel2);
+  --color-yg-card: var(--yg-card);
+  --color-yg-divider: var(--yg-divider);
   --color-yg-panel-hover: var(--yg-panel-hover);
   --color-yg-line: var(--yg-line);
   --color-yg-line2: var(--yg-line2);
@@ -277,7 +282,7 @@
    ต้องเขียนค่าตรง ๆ เพราะ --yg-* ถูกสโคปไว้ใต้ [data-yg-menu] ซึ่งอยู่ลึกกว่า body
    เบราว์เซอร์ที่ไม่รองรับ :has() จะเห็นพื้นเดิมเฉพาะตอนดึงเกินขอบเท่านั้น */
 html:has([data-yg-menu]) body {
-  background: #f3fbf7;
+  background: #ffffff;
 }
 
 html.dark:has([data-yg-menu]) body {

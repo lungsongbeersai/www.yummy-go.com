@@ -502,8 +502,8 @@ export const DashboardKpiGrid = memo(function DashboardKpiGrid({
       <KpiCard
         tone="info"
         icon={ReceiptText}
-        label={copy.orders}
-        value={formatNumber(orders)}
+        label={copy.billCount}
+        value={`${formatNumber(orders)} ${copy.billUnit}`}
         detail={copy.totalBills}
       />
       <KpiCard
@@ -623,7 +623,12 @@ function SalesSkeleton() {
     <div className="grid gap-4 lg:grid-cols-3">
       <Card className="lg:col-span-2">
         <SkeletonCardHeader action />
-        <CardContent>
+        <CardContent className="flex flex-col gap-4">
+          <div className="grid gap-2 sm:grid-cols-3">
+            {Array.from({ length: 3 }, (_, index) => (
+              <Skeleton key={index} className="h-16 w-full" />
+            ))}
+          </div>
           <Skeleton className="h-72 w-full" />
         </CardContent>
         <CardFooter>
@@ -632,16 +637,13 @@ function SalesSkeleton() {
       </Card>
       <Card>
         <SkeletonCardHeader />
-        <CardContent className="flex flex-col gap-4">
-          <Skeleton className="mx-auto size-52 rounded-full" />
-          <div className="flex flex-col gap-2.5">
-            {Array.from({ length: 3 }, (_, index) => (
-              <div key={index} className="flex justify-between gap-3">
-                <Skeleton className="h-4 w-24" />
-                <Skeleton className="h-4 w-32" />
-              </div>
-            ))}
-          </div>
+        <CardContent className="flex flex-col gap-2">
+          {Array.from({ length: 7 }, (_, index) => (
+            <div key={index} className="flex justify-between gap-3">
+              <Skeleton className="h-5 w-32" />
+              <Skeleton className="h-5 w-24" />
+            </div>
+          ))}
         </CardContent>
       </Card>
     </div>
@@ -710,22 +712,11 @@ function ProductsSkeleton() {
 
 function HealthSkeleton() {
   return (
-    <div className="grid items-start gap-4 lg:grid-cols-2">
-      <Card>
-        <SkeletonCardHeader />
-        <CardContent className="flex flex-col gap-2">
-          {Array.from({ length: 7 }, (_, index) => (
-            <div key={index} className="flex justify-between gap-3">
-              <Skeleton className="h-5 w-32" />
-              <Skeleton className="h-5 w-24" />
-            </div>
-          ))}
-        </CardContent>
-      </Card>
+    <div className="grid gap-4">
       <Card>
         <SkeletonCardHeader description={false} />
-        <CardContent className="flex flex-col gap-2.5">
-          {Array.from({ length: 2 }, (_, index) => (
+        <CardContent className="grid gap-2.5 md:grid-cols-3">
+          {Array.from({ length: 3 }, (_, index) => (
             <div key={index} className="flex items-center gap-3 rounded-md border px-3 py-2.5">
               <Skeleton className="size-10" />
               <div className="flex flex-1 flex-col gap-1">
