@@ -31,6 +31,10 @@ export function storeTableStatusValue(value: unknown) {
   return Number(value) === 2 ? 2 : 1;
 }
 
+export function lakRoundingVersionValue(value: unknown) {
+  return Number(value) === 2 ? 2 : 1;
+}
+
 export function storeBranchId(row: StoreBranchRow, kind: StoreBranchKind) {
   return storeBranchValue(row, kind === "store" ? "store_uuid" : "branch_uuid");
 }
@@ -47,6 +51,7 @@ export function storeAuthUserUpdate(row: StoreBranchRow) {
     store_logo: storeBranchValue(row, "store_logo"),
     store_name: storeBranchName(row, "store"),
     store_table_status: storeTableStatusValue(row?.store_table_status),
+    lak_rounding_version: lakRoundingVersionValue(row?.lak_rounding_version),
     deposit_expire_days: depositExpireDaysValue(row?.deposit_expire_days)
   };
 }
@@ -179,6 +184,7 @@ export function buildStorePayload({
   editing,
   email,
   logo,
+  lakRoundingVersion,
   nameEng,
   nameLa,
   status,
@@ -189,6 +195,7 @@ export function buildStorePayload({
   editing: StoreBranchRow;
   email: string;
   logo?: File | null;
+  lakRoundingVersion: string;
   nameEng: string;
   nameLa: string;
   status: string;
@@ -202,6 +209,7 @@ export function buildStorePayload({
     store_status: Number(status || 2),
     store_active: Number(active || 1),
     store_table_status: storeTableStatusValue(tableStatus),
+    lak_rounding_version: lakRoundingVersionValue(lakRoundingVersion),
     // ว่าง = ไม่แก้ค่าเดิม (backend เก็บค่าเดิมไว้เหมือน store_table_status) ไม่ใช่ล้างเป็นไม่มี default
     deposit_expire_days: depositExpireDays.trim() ? Number(depositExpireDays) : null
   };

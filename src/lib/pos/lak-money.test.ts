@@ -1,5 +1,11 @@
 import { describe, expect, it } from "vitest";
-import { roundLak } from "./lak-money";
+import {
+  LAK_ROUNDING_VERSION,
+  normalizeLakRoundingVersion,
+  roundLak,
+  roundLakForVersion,
+  roundLakToUnit
+} from "./lak-money";
 
 describe("roundLak", () => {
   it("rounds to the nearest 1,000 kip", () => {
@@ -13,5 +19,18 @@ describe("roundLak", () => {
   it("returns zero for invalid input", () => {
     expect(roundLak(Number.NaN)).toBe(0);
     expect(roundLak(Number.POSITIVE_INFINITY)).toBe(0);
+  });
+});
+
+describe("store LAK rounding", () => {
+  it("defaults missing or invalid settings to no thousand rounding", () => {
+    expect(normalizeLakRoundingVersion(undefined)).toBe(LAK_ROUNDING_VERSION.UNROUNDED);
+    expect(normalizeLakRoundingVersion("invalid")).toBe(LAK_ROUNDING_VERSION.UNROUNDED);
+    expect(roundLakToUnit(52_965.4)).toBe(52_965);
+  });
+
+  it("selects the order snapshot rounding rule", () => {
+    expect(roundLakForVersion(1)(52_965)).toBe(52_965);
+    expect(roundLakForVersion(2)(52_965)).toBe(53_000);
   });
 });

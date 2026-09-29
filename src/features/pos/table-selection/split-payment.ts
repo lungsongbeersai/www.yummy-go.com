@@ -1,5 +1,5 @@
 import { optionalBoolean, optionalNumber, optionalString } from "@/lib/values";
-import { roundLak } from "@/lib/pos/lak-money";
+import { roundLakForVersion } from "@/lib/pos/lak-money";
 import { calculateVat, normalizeVatStatus } from "@/lib/pos/vat";
 import type { CartItem, CartOrder, SplitBillItemQuantity } from "@/services/pos";
 import {
@@ -133,23 +133,23 @@ export function splitPaymentSelection(
     const orderUuid = optionalString(order.order_uuid);
     if (!orderUuid || selectedItems.length === 0) continue;
 
-    // Backend ปัดเงิน LAK เป็นหลัก 1,000 และปัดส่วนลด/ค่าบริการ/VAT ทีละขั้น
-    // การคำนวณฝั่งหน้าจอต้องใช้ลำดับเดียวกัน มิฉะนั้นปุ่ม "พอดี" อาจต่างจาก
-    // ยอดที่ Backend ตรวจแบบตรงจำนวนและชำระไม่ได้ โดยเฉพาะการแยกจ่ายบนมือถือ
-    const subtotal = roundLak(
+    // ใช้กติกาที่ snapshot ไว้กับบิล ไม่ใช่ค่าร้านปัจจุบัน เพื่อให้บิลที่เปิดอยู่
+    // ไม่เปลี่ยนยอดกลางทาง และยอดแยกจ่ายตรงกับ Backend ทุกขั้น
+    const roundMoney = roundLakForVersion(order.lak_rounding_version);
+    const subtotal = roundMoney(
       selectedItems.reduce(
         (sum, item) => sum + splitItemGrossTotal(item),
         0,
       ),
     );
-    const totalDiscount = roundLak(
+    const totalDiscount = roundMoney(
       selectedItems.reduce(
         (sum, item) =>
           sum + (optionalNumber(item.detail?.order_it_discount_amount) ?? 0),
         0,
       ),
     );
-    const netTotal = roundLak(subtotal - totalDiscount);
+    const netTotal = roundMoney(subtotal - totalDiscount);
     // service_charge_rate/vat_rate เป็น rate snapshot ของบิลและต้องมีสิทธิ์ก่อน
     // flag/config ปัจจุบัน เพื่อให้ cache เก่าและบิลที่เปิดไว้คิดยอดตรงกับ Backend
     const serviceRate = splitOrderRate({
@@ -168,13 +168,14 @@ export function splitPaymentSelection(
       status: order.branch_vat_status,
       configuredRate: order.vat_name,
     });
-    const serviceTotal = roundLak(netTotal * (serviceRate / 100));
+    const serviceTotal = roundMoney(netTotal * (serviceRate / 100));
     // VAT ใช้สูตรชุดเดียวกับ Backend ตาม snapshot ของบิล
     const taxStatus = normalizeVatStatus(order.vat_status);
     const vat = calculateVat({
       taxableAmount: netTotal + serviceTotal,
       vatStatus: taxStatus,
       vatRate: taxRate,
+      roundMoney,
     });
     const tax = vat.vatAmount;
     const grandTotal = vat.totalAfterVat;

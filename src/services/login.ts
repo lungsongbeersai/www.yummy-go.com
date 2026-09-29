@@ -27,6 +27,7 @@ interface LoginApiResponse {
   store_name?: string;
   store_logo?: string;
   store_table_status?: number;
+  lak_rounding_version?: number;
   deposit_expire_days?: number | null;
 }
 
@@ -77,6 +78,7 @@ function mapLoginResponse(data: LoginApiResponse): LoginResult {
       store_name: data.store_name ?? "",
       store_logo: data.store_logo ?? "",
       store_table_status: Number(data.store_table_status) === 2 ? 2 : 1,
+      lak_rounding_version: Number(data.lak_rounding_version) === 2 ? 2 : 1,
       deposit_expire_days: data.deposit_expire_days ?? null,
     },
   };

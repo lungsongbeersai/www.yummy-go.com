@@ -32,6 +32,7 @@ import {
   VAT_INCLUDED,
   missingBranchField,
   resolveBranchVatStatus,
+  lakRoundingVersionValue,
   missingStoreField,
   storeBranchId,
   storeBranchNumber,
@@ -190,6 +191,7 @@ function EntityForm({
   const [storeStatus, setStoreStatus] = useState("2");
   const [storeActive, setStoreActive] = useState("1");
   const [storeTableStatus, setStoreTableStatus] = useState("1");
+  const [lakRoundingVersion, setLakRoundingVersion] = useState("1");
   const [depositExpireDays, setDepositExpireDays] = useState("");
   const [vatStatus, setVatStatus] = useState(String(VAT_EXEMPT));
   const [vatPercent, setVatPercent] = useState("0");
@@ -217,6 +219,7 @@ function EntityForm({
     setStoreStatus(String(storeBranchNumber(editing, "store_status", 2)));
     setStoreActive(String(storeBranchNumber(editing, "store_active", 1)));
     setStoreTableStatus(String(storeTableStatusValue(storeBranchValue(editing, "store_table_status", "1"))));
+    setLakRoundingVersion(String(lakRoundingVersionValue(storeBranchValue(editing, "lak_rounding_version", "1"))));
     setDepositExpireDays(storeBranchValue(editing, "deposit_expire_days"));
     setVatStatus(
       String(
@@ -421,6 +424,20 @@ function EntityForm({
                     options={[
                       { label: labels.hasTables, value: "1" },
                       { label: labels.noTables, value: "2" }
+                    ]}
+                  />
+                  <FormSelectField
+                    className="sm:col-span-2"
+                    description={labels.roundingHint}
+                    disabled={disabled}
+                    id={`${recordKey}-lak-rounding-version`}
+                    label={labels.rounding}
+                    name="lak_rounding_version"
+                    value={lakRoundingVersion}
+                    onValueChange={setLakRoundingVersion}
+                    options={[
+                      { label: labels.noRounding, value: "1" },
+                      { label: labels.roundToThousand, value: "2" }
                     ]}
                   />
                   <Field className="sm:col-span-2">

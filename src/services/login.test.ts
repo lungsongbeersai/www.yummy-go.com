@@ -52,6 +52,7 @@ describe("online-only login service", () => {
     apiMocks.post.mockResolvedValue({
       status: 200,
       data: loginResponse({
+        lak_rounding_version: 2,
         store_table_status: 2,
         deportment_uuid_fk: "deportment-1",
         deportment_name: "Service",
@@ -71,6 +72,7 @@ describe("online-only login service", () => {
         deportment_uuid: "deportment-1",
         deportment_name: "Service",
         store_table_status: 2,
+        lak_rounding_version: 2,
         zone_uuid: "zone-1",
         zone_uuids: ["zone-1", "zone-2"],
         zone_name: "VIP"
@@ -95,7 +97,7 @@ describe("online-only login service", () => {
     apiMocks.post.mockResolvedValue({ status: 200, data: loginResponse() });
     await expect(checkLogin("cashier@example.com", "password")).resolves.toMatchObject({
       source: "online",
-      user: { store_table_status: 1 },
+      user: { store_table_status: 1, lak_rounding_version: 1 },
     });
   });
 

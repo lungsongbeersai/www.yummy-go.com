@@ -13,6 +13,7 @@ export interface Store extends ApiEntity {
   store_status?: number;
   store_active?: number;
   store_table_status?: number;
+  lak_rounding_version?: number;
   deposit_expire_days?: number | null;
   store_opened_on?: string | null;
   annual_due_on?: string | null;
@@ -31,6 +32,7 @@ export interface StoreResponse extends ApiListResponse<Store> {
 }
 export interface SaveStoreInput extends ApiEntity {
   store_table_status?: number;
+  lak_rounding_version?: number;
   deposit_expire_days?: number | null;
 }
 export interface FetchStoresParams extends FetchParams {}

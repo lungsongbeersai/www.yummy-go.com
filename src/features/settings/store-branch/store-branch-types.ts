@@ -49,6 +49,7 @@ export interface StoreBranchLabels {
   noBranch: string;
   noStore: string;
   noTables: string;
+  noRounding: string;
   open: string;
   openedOn: string;
   phone: string;
@@ -58,6 +59,9 @@ export interface StoreBranchLabels {
   refreshStore: string;
   resetFailed: string;
   resetPassword: string;
+  rounding: string;
+  roundingHint: string;
+  roundToThousand: string;
   save: string;
   saveFailed: string;
   saved: string;

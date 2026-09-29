@@ -37,12 +37,13 @@ export interface AuthUser {
   store_name: string;
   store_logo: string;
   store_table_status: number;
+  lak_rounding_version?: number;
   deposit_expire_days?: number | null;
 }
 
 type AuthStoreUuidSource = { store_uuid?: string; store_uuid_fk?: string } | null | undefined;
-type NormalizableAuthUser = Omit<AuthUser, "store_uuid" | "store_uuid_fk" | "store_table_status"> &
-  Partial<Pick<AuthUser, "store_uuid" | "store_uuid_fk" | "store_table_status">>;
+type NormalizableAuthUser = Omit<AuthUser, "store_uuid" | "store_uuid_fk" | "store_table_status" | "lak_rounding_version"> &
+  Partial<Pick<AuthUser, "store_uuid" | "store_uuid_fk" | "store_table_status" | "lak_rounding_version">>;
 
 interface PersistedAuthState {
   token?: string | null;
@@ -64,7 +65,14 @@ function normalizeAuthUser(user: NormalizableAuthUser | null): AuthUser | null {
   if (!user) return user;
   const storeUuid = authStoreUuid(user);
   const storeTableStatus = Number(user.store_table_status) === 2 ? 2 : 1;
-  return { ...user, store_uuid: storeUuid, store_uuid_fk: storeUuid, store_table_status: storeTableStatus };
+  const lakRoundingVersion = Number(user.lak_rounding_version) === 2 ? 2 : 1;
+  return {
+    ...user,
+    store_uuid: storeUuid,
+    store_uuid_fk: storeUuid,
+    store_table_status: storeTableStatus,
+    lak_rounding_version: lakRoundingVersion
+  };
 }
 
 function normalizePersistedAuthState(persistedState: unknown): PersistedAuthState {

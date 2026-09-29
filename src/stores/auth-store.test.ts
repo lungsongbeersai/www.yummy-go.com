@@ -161,10 +161,12 @@ describe("auth store session isolation", () => {
   it("defaults a legacy session without table status to a store with tables", () => {
     const legacyUser: Partial<AuthUser> = { ...authUser("legacy-user") };
     delete legacyUser.store_table_status;
+    delete legacyUser.lak_rounding_version;
 
     useAuthStore.getState().login("legacy-token", legacyUser as AuthUser);
 
     expect(useAuthStore.getState().user?.store_table_status).toBe(1);
+    expect(useAuthStore.getState().user?.lak_rounding_version).toBe(1);
   });
 
   it("does not let an older login response overwrite the active session", async () => {

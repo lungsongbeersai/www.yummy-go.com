@@ -29,6 +29,7 @@ describe("store branch utils", () => {
         depositExpireDays: "",
         editing: null,
         email: " plc@example.com ",
+        lakRoundingVersion: "1",
         nameEng: "PLC",
         nameLa: " ຮ້ານ ",
         status: "1",
@@ -41,6 +42,7 @@ describe("store branch utils", () => {
       store_status: 1,
       store_active: 1,
       store_table_status: 1,
+      lak_rounding_version: 1,
       deposit_expire_days: null
     });
 
@@ -50,6 +52,7 @@ describe("store branch utils", () => {
         depositExpireDays: "30",
         editing: { store_uuid: "store-1", store_name: "Old" },
         email: "store@example.com",
+        lakRoundingVersion: "2",
         nameEng: "",
         nameLa: "Store",
         status: "2",
@@ -63,6 +66,7 @@ describe("store branch utils", () => {
       store_status: 2,
       store_active: 2,
       store_table_status: 2,
+      lak_rounding_version: 2,
       deposit_expire_days: 30
     });
   });
@@ -74,6 +78,7 @@ describe("store branch utils", () => {
         depositExpireDays: "  ",
         editing: null,
         email: "store@example.com",
+        lakRoundingVersion: "1",
         nameEng: "Store",
         nameLa: "Store",
         status: "2",
@@ -89,6 +94,7 @@ describe("store branch utils", () => {
         depositExpireDays: "",
         editing: null,
         email: "store@example.com",
+        lakRoundingVersion: "1",
         nameEng: "Store",
         nameLa: "Store",
         status: "2",
@@ -105,6 +111,7 @@ describe("store branch utils", () => {
           depositExpireDays: "",
           editing: null,
           email: "store@example.com",
+          lakRoundingVersion: "1",
           nameEng: "Store",
           nameLa: "Store",
           status: "2",
@@ -120,12 +127,14 @@ describe("store branch utils", () => {
         store_logo: "logo.jpg",
         store_name_la: "Store LA",
         store_table_status: 2,
+        lak_rounding_version: 2,
         deposit_expire_days: 14
       })
     ).toEqual({
       store_logo: "logo.jpg",
       store_name: "Store LA",
       store_table_status: 2,
+      lak_rounding_version: 2,
       deposit_expire_days: 14
     });
 
@@ -135,7 +144,11 @@ describe("store branch utils", () => {
         store_name: "Store",
         store_table_status: 3
       })
-    ).toMatchObject({ store_table_status: 1, deposit_expire_days: null });
+    ).toMatchObject({
+      store_table_status: 1,
+      lak_rounding_version: 1,
+      deposit_expire_days: null
+    });
   });
 
   it("builds create and edit branch payloads", () => {

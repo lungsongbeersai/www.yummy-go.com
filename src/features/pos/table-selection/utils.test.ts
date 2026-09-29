@@ -689,6 +689,7 @@ describe("table selection utils", () => {
 
   it("rounds split service and VAT in the same order as the backend", () => {
     const cart = cartOrder({
+      lak_rounding_version: 2,
       service_charge_rate: 7,
       vat_rate: 10,
       items: [
@@ -716,6 +717,7 @@ describe("table selection utils", () => {
 
   it("splits a VAT-included bill without adding VAT on top", () => {
     const cart = cartOrder({
+      lak_rounding_version: 2,
       vat_rate: 10,
       vat_status: 2,
       items: [
@@ -769,6 +771,7 @@ describe("table selection utils", () => {
 
   it("rounds the split payment example to whole thousands of kip", () => {
     const cart = cartOrder({
+      lak_rounding_version: 2,
       service_charge_rate: 7,
       vat_rate: 10,
       items: [
@@ -791,6 +794,34 @@ describe("table selection utils", () => {
       serviceTotal: 3000,
       tax: 5000,
       grandTotal: 53000,
+    });
+  });
+
+  it("keeps exact kip totals when the bill disables thousand rounding", () => {
+    const cart = cartOrder({
+      lak_rounding_version: 1,
+      service_charge_rate: 7,
+      vat_rate: 10,
+      items: [
+        {
+          order_it_uuid: "item-1",
+          detail: {
+            order_it_qty: 1,
+            order_it_status: 4,
+            gross_total: 45000,
+            order_it_discount_amount: 0,
+          },
+        },
+      ],
+    });
+
+    const selection = splitPaymentSelection([cart], new Map([["item-1", 1]]));
+
+    expect(selection?.summary).toMatchObject({
+      subtotal: 45000,
+      serviceTotal: 3150,
+      tax: 4815,
+      grandTotal: 52965,
     });
   });
 

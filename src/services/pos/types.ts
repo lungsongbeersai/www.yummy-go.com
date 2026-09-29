@@ -349,6 +349,7 @@ export interface InitOrderWithoutTableResponse extends ApiEntity {
   order_balance?: number;
   store_uuid_fk?: string;
   store_table_status?: number;
+  lak_rounding_version?: number;
   use_table?: boolean;
   show_table?: boolean;
 }
@@ -486,6 +487,7 @@ export interface CartItem extends ApiEntity {
 
 export interface CartOrder extends ApiEntity {
   order_uuid: string;
+  lak_rounding_version?: number;
   order_invoice?: string;
   table_uuid_fk?: string;
   table_name_la?: string;
