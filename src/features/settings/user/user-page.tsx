@@ -18,6 +18,7 @@ import { useSettingsCrudController } from "@/features/settings/shared/use-settin
 import type { ChangePasswordValues } from "@/lib/password";
 import { canCreateStoreBranch } from "@/lib/permissions";
 import type { UrlPaginationState } from "@/lib/url-pagination";
+import type { Deportment } from "@/services/deportment";
 import type { Store } from "@/services/store";
 import type { FetchUsersParams, Position, Role, SaveUserInput, User } from "@/services/user";
 import type { Zone } from "@/services/zone";
@@ -43,6 +44,7 @@ const ORDER_OPTIONS: Array<{ labelKey: "asc" | "desc"; value: SortOrder }> = [
 
 const EMPTY_ROLES: Role[] = [];
 const EMPTY_POSITIONS: Position[] = [];
+const EMPTY_DEPORTMENTS: Deportment[] = [];
 // Ceiling for "every user" while a store filter is on (the whole system has ~140 today).
 const STORE_FILTER_FETCH_LIMIT = 5000;
 const EMPTY_ZONES: Zone[] = [];
@@ -51,12 +53,14 @@ export function UserSettingsPage({ initialPagination }: { initialPagination: Url
   const { t } = useTranslation();
   const loadRoles = useReferenceStore((state) => state.loadRoles);
   const loadPositions = useReferenceStore((state) => state.loadPositions);
+  const loadDeportments = useReferenceStore((state) => state.loadDeportments);
   const loadZones = useReferenceStore((state) => state.loadZones);
   const userProfileUrl = useReferenceStore((state) => state.userProfileUrl);
   const changePassword = useReferenceStore((state) => state.changePassword);
   const changingPassword = useReferenceStore((state) => Boolean(state.loadingKeys.password));
   const [fetchedRoles, setFetchedRoles] = useState<Role[]>([]);
   const [fetchedPositions, setFetchedPositions] = useState<Position[]>([]);
+  const [fetchedDeportments, setFetchedDeportments] = useState<Deportment[]>([]);
   const [fetchedZones, setFetchedZones] = useState<Zone[]>([]);
   const [selectedProfileImage, setSelectedProfileImage] = useState<File | null>(null);
   const [crop, setCrop] = useState<CropState>(DEFAULT_CROP);
@@ -116,6 +120,7 @@ export function UserSettingsPage({ initialPagination }: { initialPagination: Url
       buildUserSaveInput({
         active: String(formData.get("login_active") ?? 1),
         branchUuid: editingRow?.branch_uuid_fk || currentUser?.branch_uuid || "",
+        deportmentUuid: String(formData.get("deportment_uuid_fk") ?? "").trim(),
         editing: editingRow,
         email: String(formData.get("login_email") ?? ""),
         name: String(formData.get("login_name") ?? ""),
@@ -148,10 +153,12 @@ export function UserSettingsPage({ initialPagination }: { initialPagination: Url
     validateInput: ({ editing: editingRow, formData }) => {
       const selectedRoleId = String(formData.get("roles_id_fk") ?? "").trim();
       const positionUuid = String(formData.get("position_uuid_fk") ?? "").trim();
+      const deportmentUuid = String(formData.get("deportment_uuid_fk") ?? "").trim();
       const name = String(formData.get("login_name") ?? "").trim();
       const password = String(formData.get("login_password") ?? "").trim();
       if (!selectedRoleId) return t("settings.createRoleFirst");
       if (!positionUuid) return t("settings.positionRequired");
+      if (!deportmentUuid) return t("settings.deportmentRequired");
       if (!name) return t("settings.displayNameRequired");
       if (!userId(editingRow) && !password) return t("settings.passwordRequired");
       return null;
@@ -185,6 +192,7 @@ export function UserSettingsPage({ initialPagination }: { initialPagination: Url
   // ยังไม่มีสิทธิ์ที่อ้างอิง = ไม่มีตัวเลือก แต่คงค่าที่โหลดไว้ไม่ให้รายการกะพริบตอนสลับ
   const roles = loggedRoleId ? fetchedRoles : EMPTY_ROLES;
   const positions = fetchedPositions.length ? fetchedPositions : EMPTY_POSITIONS;
+  const deportments = fetchedDeportments.length ? fetchedDeportments : EMPTY_DEPORTMENTS;
   const zones = branchUuid ? fetchedZones : EMPTY_ZONES;
 
   useEffect(() => {
@@ -280,6 +288,25 @@ export function UserSettingsPage({ initialPagination }: { initialPagination: Url
   }, [language, loadPositions, showToast, t]);
 
   useEffect(() => {
+    let active = true;
+    loadDeportments(language)
+      .then((nextDeportments) => {
+        if (active) setFetchedDeportments(nextDeportments);
+      })
+      .catch((error) => {
+        showToast({
+          title: t("settings.loadFailed", { title: t("fields.deportment") }),
+          description: error instanceof Error ? error.message : t("toasts.pleaseTryAgain"),
+          tone: "error"
+        });
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [language, loadDeportments, showToast, t]);
+
+  useEffect(() => {
     if (!branchUuid) return;
 
     let active = true;
@@ -306,7 +333,7 @@ export function UserSettingsPage({ initialPagination }: { initialPagination: Url
     setCrop(DEFAULT_CROP);
   });
 
-  function openCreate() {
+  async function openCreate() {
     if (missingRequiredScope) {
       showToast({ title: t("settings.saveFailed"), description: requiredScopeDescription, tone: "error" });
       return;
@@ -315,8 +342,40 @@ export function UserSettingsPage({ initialPagination }: { initialPagination: Url
       showToast({ title: t("settings.saveFailed"), description: t("settings.createRoleFirst"), tone: "error" });
       return;
     }
-    if (!positions.length) {
+    let availablePositions = positions;
+    if (!availablePositions.length) {
+      try {
+        availablePositions = await loadPositions(language);
+        setFetchedPositions(availablePositions);
+      } catch (error) {
+        showToast({
+          title: t("settings.loadFailed", { title: t("fields.position") }),
+          description: error instanceof Error ? error.message : t("toasts.pleaseTryAgain"),
+          tone: "error"
+        });
+        return;
+      }
+    }
+    if (!availablePositions.length) {
       showToast({ title: t("settings.saveFailed"), description: t("settings.createPositionFirst"), tone: "error" });
+      return;
+    }
+    let availableDeportments = deportments;
+    if (!availableDeportments.length) {
+      try {
+        availableDeportments = await loadDeportments(language);
+        setFetchedDeportments(availableDeportments);
+      } catch (error) {
+        showToast({
+          title: t("settings.loadFailed", { title: t("fields.deportment") }),
+          description: error instanceof Error ? error.message : t("toasts.pleaseTryAgain"),
+          tone: "error"
+        });
+        return;
+      }
+    }
+    if (!availableDeportments.length) {
+      showToast({ title: t("settings.saveFailed"), description: t("settings.createDeportmentFirst"), tone: "error" });
       return;
     }
     setEditing(null);
@@ -509,6 +568,7 @@ export function UserSettingsPage({ initialPagination }: { initialPagination: Url
         crop={crop}
         currentBranchName={loginBranchName}
         currentBranchUuid={branchUuid}
+        deportmentOptions={deportments}
         editing={editing}
         loggedRoleId={loggedRoleId}
         open={dialogOpen}

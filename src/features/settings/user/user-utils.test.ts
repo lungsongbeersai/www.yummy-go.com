@@ -3,6 +3,8 @@ import {
   branchName,
   buildBulkUserInput,
   buildUserSaveInput,
+  deportmentId,
+  deportmentName,
   isProtectedUser,
   parseBulkCredentialPaste,
   positionId,
@@ -17,6 +19,7 @@ import {
   userValue,
   validateBulkCredentials
 } from "@/features/settings/user/user-utils";
+import type { Deportment } from "@/services/deportment";
 import type { Position, Role, User } from "@/services/user";
 
 describe("user settings utils", () => {
@@ -40,6 +43,13 @@ describe("user settings utils", () => {
     expect(positionId({ position_uuid: "position-2" } as Position)).toBe("position-2");
     expect(positionName({ position_name_eng: "Cashier" } as Position)).toBe("Cashier");
     expect(positionName({} as Position)).toBe("-");
+  });
+
+  it("resolves deportment ids and localized labels across API shapes", () => {
+    expect(deportmentId({ deportment_uuid_fk: "deportment-1" } as User)).toBe("deportment-1");
+    expect(deportmentId({ deportment_uuid: "deportment-2" } as Deportment)).toBe("deportment-2");
+    expect(deportmentName({ deportment_name_eng: "Service" } as Deportment)).toBe("Service");
+    expect(deportmentName({} as Deportment)).toBe("-");
   });
 
   it("reads multiple zone assignments and keeps legacy single-zone rows compatible", () => {
@@ -78,6 +88,7 @@ describe("user settings utils", () => {
       buildUserSaveInput({
         active: "2",
         branchUuid: "branch-1",
+        deportmentUuid: " deportment-1 ",
         editing: null,
         email: " user@example.com ",
         name: " Noy ",
@@ -94,6 +105,7 @@ describe("user settings utils", () => {
       login_name: "Noy",
       login_active: 2,
       login_password: "secret",
+      deportment_uuid_fk: "deportment-1",
       position_uuid_fk: "position-1",
       zone_uuid_fks: ["zone-1", "zone-2"]
     });
@@ -101,6 +113,7 @@ describe("user settings utils", () => {
     const editPayload = buildUserSaveInput({
         active: "1",
         branchUuid: "branch-1",
+        deportmentUuid: "deportment-1",
         editing: { login_uuid: "login-1" },
         email: "user@example.com",
         name: "Noy",

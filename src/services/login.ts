@@ -12,6 +12,8 @@ interface LoginApiResponse {
   login_status: number;
   position_uuid_fk?: string | null;
   position_name?: string;
+  deportment_uuid_fk?: string | null;
+  deportment_name?: string;
   login_profile?: string;
   zone_uuid_fk?: string | null;
   zone_uuid_fks?: string[];
@@ -55,6 +57,8 @@ function mapLoginResponse(data: LoginApiResponse): LoginResult {
       zone_name: data.zone_name ?? "",
       position_uuid: data.position_uuid_fk ?? "",
       position_name: data.position_name ?? "",
+      deportment_uuid: data.deportment_uuid_fk ?? "",
+      deportment_name: data.deportment_name ?? "",
       branch_uuid: data.branch_uuid ?? "",
       branch_name: data.branch_name ?? "",
       branch_tel: data.branch_tel ?? "",

@@ -6,6 +6,7 @@ import { getBranchOptions, getStoreUuid, setStoreUuid, type Branch } from "@/ser
 import { getCategoryOptions, sortCategories, type Category, type SortCategoryInput } from "@/services/category";
 import { getColorOptions, type Color } from "@/services/color";
 import { getCurrencyOptions, type Currency } from "@/services/currency";
+import { getDeportmentOptions, type Deportment } from "@/services/deportment";
 import { getAllExchanges, type Exchange, type FetchAllExchangesParams } from "@/services/exchange";
 import { getGroupOptions, type Group } from "@/services/group";
 import { getProvinceOptions, type Province } from "@/services/province";
@@ -51,7 +52,8 @@ type ReferenceKey =
   | "zones"
   | "tables"
   | "roles"
-  | "positions";
+  | "positions"
+  | "deportments";
 
 type ReferenceRequestKey = ReferenceKey | "user" | "password" | "profileImage";
 
@@ -88,6 +90,7 @@ interface ReferenceState {
   loadTables: (lang?: string) => Promise<ZoneGroup[]>;
   loadRoles: (lang?: string, rolesId?: number | string) => Promise<Role[]>;
   loadPositions: (lang?: string) => Promise<Position[]>;
+  loadDeportments: (lang?: string) => Promise<Deportment[]>;
   loadUser: (loginUuid: string) => Promise<User>;
   resetPassword: (email: string) => Promise<void>;
   changePassword: (input: ChangePasswordInput) => Promise<void>;
@@ -187,6 +190,7 @@ export const useReferenceStore = create<ReferenceState>((set) => {
     loadTables: (lang) => loadOption("tables", () => getTableOptions(lang)),
     loadRoles: (lang, rolesId) => loadOption("roles", () => getRoles(lang, rolesId ?? useAuthStore.getState().user?.status ?? "")),
     loadPositions: (lang) => loadOption("positions", () => getPositions(lang)),
+    loadDeportments: (lang) => loadOption("deportments", () => getDeportmentOptions(lang)),
     loadUser: async (loginUuid) => {
       const isCurrentRequest = createReferenceRequestGuard("user");
       set((state) => ({ loadingKeys: { ...state.loadingKeys, user: true }, error: null }));

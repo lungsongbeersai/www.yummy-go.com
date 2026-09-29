@@ -51,6 +51,8 @@ describe("online-only login service", () => {
       status: 200,
       data: loginResponse({
         store_table_status: 2,
+        deportment_uuid_fk: "deportment-1",
+        deportment_name: "Service",
         zone_uuid_fk: "zone-1",
         zone_uuid_fks: ["zone-1", "zone-2"],
         zones: [
@@ -64,6 +66,8 @@ describe("online-only login service", () => {
       source: "online",
       user: {
         name: "Noy",
+        deportment_uuid: "deportment-1",
+        deportment_name: "Service",
         store_table_status: 2,
         zone_uuid: "zone-1",
         zone_uuids: ["zone-1", "zone-2"],

@@ -12,11 +12,14 @@ import { Spinner } from "@/components/ui/spinner";
 import { AVATAR_CROP_ASPECT, AVATAR_CROP_ASPECT_CLASS } from "@/config/image-crop";
 import { SettingsImageCropPanel, type CropState } from "@/features/settings/shared/settings-image-crop";
 import { useResetOnChange } from "@/hooks/use-reset-on-change";
+import type { Deportment } from "@/services/deportment";
 import type { Position, Role, User } from "@/services/user";
 import type { Zone } from "@/services/zone";
 import {
   roleId,
   roleName,
+  deportmentId,
+  deportmentName,
   positionId,
   positionName,
   userId,
@@ -30,6 +33,7 @@ export function UserFormDialog({
   crop,
   currentBranchName,
   currentBranchUuid,
+  deportmentOptions,
   editing,
   loggedRoleId,
   onCropChange,
@@ -48,6 +52,7 @@ export function UserFormDialog({
   crop: CropState;
   currentBranchName: string;
   currentBranchUuid: string;
+  deportmentOptions: Deportment[];
   editing: User | null;
   loggedRoleId: number;
   onCropChange: (crop: CropState) => void;
@@ -70,6 +75,9 @@ export function UserFormDialog({
   const [selectedPositionUuid, setSelectedPositionUuid] = useState(
     () => positionId(editing)
   );
+  const [selectedDeportmentUuid, setSelectedDeportmentUuid] = useState(
+    () => deportmentId(editing)
+  );
   const [loginActive, setLoginActive] = useState(() => userValue(editing, "login_active", "1"));
   const [selectedZoneUuids, setSelectedZoneUuids] = useState(() => userZoneUuids(editing));
   const roles = useMemo(() => userRoleOptions(editing, roleOptions), [editing, roleOptions]);
@@ -79,6 +87,7 @@ export function UserFormDialog({
     const nextRoleId = roleId(editing) || String(loggedRoleId || "");
     setSelectedRoleId(nextRoleId);
     setSelectedPositionUuid(positionId(editing));
+    setSelectedDeportmentUuid(deportmentId(editing));
     setLoginActive(userValue(editing, "login_active", "1"));
     setSelectedZoneUuids(userZoneUuids(editing));
   });
@@ -160,6 +169,33 @@ export function UserFormDialog({
                               return (
                                 <SelectItem key={id} value={id}>
                                   {roleName(role)}
+                                </SelectItem>
+                              );
+                            })}
+                          </SelectGroup>
+                        </SelectContent>
+                      </Select>
+                    </Field>
+                    <Field>
+                      <FieldLabel htmlFor="deportment_uuid_fk">{t("fields.deportment")}</FieldLabel>
+                      <input name="deportment_uuid_fk" type="hidden" value={selectedDeportmentUuid} />
+                      <Select
+                        disabled={saving}
+                        required
+                        value={selectedDeportmentUuid}
+                        onValueChange={setSelectedDeportmentUuid}
+                      >
+                        <SelectTrigger id="deportment_uuid_fk" className="w-full">
+                          <SelectValue placeholder={t("settings.selectDeportment")} />
+                        </SelectTrigger>
+                        <SelectContent position="popper">
+                          <SelectGroup>
+                            {deportmentOptions.map((deportment) => {
+                              const id = deportmentId(deportment);
+                              if (!id) return null;
+                              return (
+                                <SelectItem key={id} value={id}>
+                                  {deportmentName(deportment)}
                                 </SelectItem>
                               );
                             })}
@@ -301,7 +337,7 @@ export function UserFormDialog({
             <Button disabled={saving} type="button" variant="outline" onClick={() => onOpenChange(false)}>
               {t("actions.cancel")}
             </Button>
-            <Button disabled={saving || !currentBranchUuid || !selectedRoleId || !selectedPositionUuid} type="submit">
+            <Button disabled={saving || !currentBranchUuid || !selectedRoleId || !selectedPositionUuid || !selectedDeportmentUuid} type="submit">
               {saving ? <Spinner data-icon="inline-start" /> : null}
               {saving ? t("common.processing") : t("actions.save")}
             </Button>

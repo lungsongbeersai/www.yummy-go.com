@@ -17,7 +17,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { SettingsRowActions } from "@/features/settings/shared/settings-shell";
 import type { User } from "@/services/user";
 import { UserActiveBadge, UserAvatar, UserBadges } from "./user-display";
-import { branchName, isProtectedUser, positionName, roleName, userId, userValue, zoneName } from "./user-utils";
+import { branchName, deportmentName, isProtectedUser, positionName, roleName, userId, userValue, zoneName } from "./user-utils";
 
 type UserListProps = {
   currentLoginUuid: string;
@@ -134,7 +134,7 @@ export function UserTable({
                     </span>
                     <span className="truncate text-muted-foreground" translate="no">{email}</span>
                     <span className="truncate text-xs text-muted-foreground">
-                      {positionName(row)} · {roleName(row)}
+                      {deportmentName(row)} · {positionName(row)} · {roleName(row)}
                     </span>
                   </div>
                 </div>
@@ -184,7 +184,7 @@ export function UserMobileList(props: UserListProps) {
               </ItemTitle>
               <ItemDescription>
                 <span translate="no">{email}</span>
-                <span className="block">{positionName(row)} · {roleName(row)}</span>
+                <span className="block">{deportmentName(row)} · {positionName(row)} · {roleName(row)}</span>
               </ItemDescription>
             </ItemContent>
             <ItemActions>

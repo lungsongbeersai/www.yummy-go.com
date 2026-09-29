@@ -26,6 +26,8 @@ export interface AuthUser {
   zone_name?: string;
   position_uuid?: string;
   position_name?: string;
+  deportment_uuid?: string;
+  deportment_name?: string;
   branch_uuid: string;
   branch_name: string;
   branch_tel: string;

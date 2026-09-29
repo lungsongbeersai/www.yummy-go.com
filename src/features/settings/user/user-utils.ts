@@ -1,4 +1,5 @@
 import type { ApiEntity } from "@/services/shared/types";
+import type { Deportment } from "@/services/deportment";
 import type { Position, Role, SaveUserInput, User } from "@/services/user";
 
 export function userValue(row: ApiEntity | null | undefined, key: string, fallback = "") {
@@ -28,6 +29,18 @@ export function positionName(row: Position | User | null | undefined) {
     row,
     "position_name",
     userValue(row, "position_name_la", userValue(row, "position_name_eng", "-"))
+  );
+}
+
+export function deportmentId(row: Deportment | User | null | undefined) {
+  return userValue(row, "deportment_uuid_fk", userValue(row, "deportment_uuid"));
+}
+
+export function deportmentName(row: Deportment | User | null | undefined) {
+  return userValue(
+    row,
+    "deportment_name",
+    userValue(row, "deportment_name_la", userValue(row, "deportment_name_eng", "-"))
   );
 }
 
@@ -203,6 +216,7 @@ export function buildBulkUserInput(
 export function buildUserSaveInput({
   active,
   branchUuid,
+  deportmentUuid,
   editing,
   email,
   name,
@@ -214,6 +228,7 @@ export function buildUserSaveInput({
 }: {
   active: string;
   branchUuid: string;
+  deportmentUuid: string;
   editing: User | null;
   email: string;
   name: string;
@@ -230,6 +245,7 @@ export function buildUserSaveInput({
     login_email: email.trim(),
     login_name: name.trim(),
     login_active: Number(active || 1),
+    deportment_uuid_fk: deportmentUuid.trim(),
     position_uuid_fk: positionUuid.trim(),
     zone_uuid_fks: [...new Set(zoneUuids.map((zoneUuid) => zoneUuid.trim()).filter(Boolean))]
   };

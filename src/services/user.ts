@@ -36,6 +36,10 @@ export interface User extends ApiEntity {
   position_name?: string | null;
   position_name_la?: string | null;
   position_name_eng?: string | null;
+  deportment_uuid_fk?: string | null;
+  deportment_name?: string | null;
+  deportment_name_la?: string | null;
+  deportment_name_eng?: string | null;
   btn_disabled?: string;
   btn_disible?: string;
 }
@@ -66,6 +70,7 @@ export interface SaveUserInput extends ApiEntity {
   login_profile?: File | string;
   roles_id_fk?: number | string;
   position_uuid_fk?: string;
+  deportment_uuid_fk?: string;
   branch_uuid_fk?: string;
   zone_uuid_fk?: string | null;
   zone_uuid_fks?: string[];
