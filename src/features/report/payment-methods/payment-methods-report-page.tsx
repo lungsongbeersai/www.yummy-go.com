@@ -27,7 +27,6 @@ import {
   PaymentMethodsFilterSheet,
   PaymentMethodsSummaryCards,
   PaymentMethodsTable,
-  PaymentTransferAccountBreakdown,
   paymentMethodMetricOptions,
 } from "./payment-methods-report-components";
 import { usePaymentMethodsReportWorkflow } from "./use-payment-methods-report-workflow";
@@ -165,7 +164,6 @@ export function PaymentMethodsReportPage({ initialPagination }: { initialPaginat
                 onToggleRows={report.rowSelection.toggleRows}
               />
             </ReportResultArea>
-            <PaymentTransferAccountBreakdown rows={report.transferAccounts} />
             <ReportPaginationBar>
               <AppPagination
                 page={report.page}
