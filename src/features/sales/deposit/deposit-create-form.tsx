@@ -2,7 +2,16 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useResetOnChange } from "@/hooks/use-reset-on-change";
-import { CalendarClock, Check, ChevronsUpDown, ClipboardList, Info, UserPlus, UserRound } from "lucide-react";
+import {
+  CalendarClock,
+  CalendarDays,
+  Check,
+  ChevronsUpDown,
+  ClipboardList,
+  Info,
+  UserPlus,
+  UserRound
+} from "lucide-react";
 import { useTranslation } from "react-i18next";
 import {
   AlertDialog,
@@ -35,7 +44,7 @@ import {
   cartItemDisplayName,
   cartItemName,
   cartItemQty,
-  cartItemUuid,
+  cartItemStatus,
   isCanceledCartItem,
   optionalString
 } from "@/features/pos/table-selection/utils";
@@ -49,7 +58,9 @@ import { useDepositStore } from "@/stores/deposit-store";
 import { useToastStore } from "@/stores/toast-store";
 import { DepositQtyStepper } from "./deposit-qty-stepper";
 import {
-  expireDateFromToday,
+  depositDateSchedule,
+  depositedQuantityByProduct,
+  remainingDepositQuantity,
   toDepositQtyInput,
   validateDepositCreate
 } from "./deposit-utils";
@@ -72,26 +83,45 @@ interface DepositableItem {
   proDetailUuid: string;
   name: string;
   orderedQty: number;
+  availableQty: number;
 }
 
-function depositableItems(orderItems: CartItem[]): DepositableItem[] {
-  const items: DepositableItem[] = [];
+function depositableItems(
+  orderItems: CartItem[],
+  depositedQtyByProduct: ReadonlyMap<string, number>
+): DepositableItem[] {
+  const items = new Map<string, Omit<DepositableItem, "availableQty">>();
   for (const item of orderItems) {
     if (isCanceledCartItem(item)) continue;
+    if (![1, 2, 3, 4].includes(cartItemStatus(item) ?? -1)) continue;
     // ฝากได้เฉพาะสินค้าที่ตัดสต๊อกจริง (เช่นขวดเครื่องดื่ม) ไม่ใช่รายการอาหารปรุงสด
     if (Number(item.pro_detail_stock ?? 1) !== 1) continue;
     const proDetailUuid = optionalString(item.pro_detail_uuid, item.pro_detail_uuid_fk);
-    const key = cartItemUuid(item) ?? proDetailUuid;
+    const key = proDetailUuid;
     if (!proDetailUuid || !key) continue;
     const sizeName = optionalString(item.detail?.size_name);
-    items.push({
-      key,
-      proDetailUuid,
-      name: cartItemDisplayName(cartItemName(item), sizeName),
-      orderedQty: cartItemQty(item)
-    });
+    const existing = items.get(proDetailUuid);
+    if (existing) {
+      existing.orderedQty += cartItemQty(item);
+    } else {
+      items.set(proDetailUuid, {
+        key,
+        proDetailUuid,
+        name: cartItemDisplayName(cartItemName(item), sizeName),
+        orderedQty: cartItemQty(item)
+      });
+    }
   }
-  return items;
+
+  return [...items.values()]
+    .map((item) => ({
+      ...item,
+      availableQty: remainingDepositQuantity(
+        item.orderedQty,
+        depositedQtyByProduct.get(item.proDetailUuid) ?? 0
+      )
+    }))
+    .filter((item) => item.availableQty > 0);
 }
 
 function validationKey(error: string | null) {
@@ -102,12 +132,14 @@ export function DepositCreateForm({
   open,
   branchUuid,
   onOpenChange,
-  orderItems
+  orderItems,
+  orderUuid
 }: {
   open: boolean;
   branchUuid?: string;
   onOpenChange: (open: boolean) => void;
   orderItems: CartItem[];
+  orderUuid?: string;
 }) {
   const { t } = useTranslation();
   const language = useAppStore((state) => state.language);
@@ -116,6 +148,11 @@ export function DepositCreateForm({
   const resolvedBranchUuid = branchUuid || user?.branch_uuid || "";
 
   const saving = useDepositStore((state) => state.saving);
+  const orderDeposits = useDepositStore((state) => state.orderRows);
+  const loadedOrderUuid = useDepositStore((state) => state.loadedOrderUuid);
+  const availabilityLoading = useDepositStore((state) => state.orderLoading);
+  const availabilityError = useDepositStore((state) => state.orderError);
+  const loadOrderDeposits = useDepositStore((state) => state.loadOrderDeposits);
   const createDepositAction = useDepositStore((state) => state.create);
   const showToast = useToastStore((state) => state.show);
 
@@ -132,11 +169,25 @@ export function DepositCreateForm({
   const [customerCreateSaving, setCustomerCreateSaving] = useState(false);
 
   const [selectedQty, setSelectedQty] = useState<Map<string, string>>(new Map());
-  const [expireDate, setExpireDate] = useState("");
+  const [datePreviewNow, setDatePreviewNow] = useState(() => new Date());
   const [note, setNote] = useState("");
   const [confirmOpen, setConfirmOpen] = useState(false);
 
-  const items = useMemo(() => depositableItems(orderItems), [orderItems]);
+  const depositedQtyByProduct = useMemo(
+    () => depositedQuantityByProduct(orderDeposits),
+    [orderDeposits]
+  );
+  const items = useMemo(
+    () => depositableItems(orderItems, depositedQtyByProduct),
+    [depositedQtyByProduct, orderItems]
+  );
+  const dateSchedule = useMemo(
+    () => depositDateSchedule(user?.deposit_expire_days, datePreviewNow),
+    [datePreviewNow, user?.deposit_expire_days]
+  );
+  const availabilityPending = Boolean(orderUuid) && (
+    loadedOrderUuid !== orderUuid || availabilityLoading
+  );
 
   const draftItems = useMemo(
     () =>
@@ -151,24 +202,32 @@ export function DepositCreateForm({
 
   const validationError = validateDepositCreate({
     customerUuid,
-    items: draftItems.map((item) => ({ proDetailUuid: item.proDetailUuid, qty: item.qty })),
-    expireDate
+    items: draftItems.map((item) => ({ proDetailUuid: item.proDetailUuid, qty: item.qty }))
   });
   // ฝากเกินจำนวนที่ลูกค้าสั่งจริงไม่ได้ — validateDepositCreate ใช้ร่วมกับหน้า
   // back-office ที่ไม่มีแนวคิด "จำนวนที่สั่ง" จึงเช็คส่วนนี้แยกไว้ในฝั่ง POS เท่านั้น
-  const exceedsOrderedQty = draftItems.some((item) => item.qty > item.orderedQty);
+  const exceedsOrderedQty = draftItems.some((item) => item.qty > item.availableQty);
 
-  // เปิด dialog นี้ใหม่ทุกครั้ง = เคลียร์ฟอร์ม + ตั้ง expire_date เริ่มต้นจาก
-  // ค่ามาตรฐานของร้าน (ยังแก้ไขได้ ค่าจริงคำนวณซ้ำที่ backend เสมอ)
+  // Opening a new dialog starts a fresh deposit draft. Dates are derived above
+  // for display only; the backend persists its own authoritative schedule.
   useResetOnChange(open, () => {
     setCustomerUuid("");
     setSelectedCustomer(null);
     setCustomerSearch("");
     setSelectedQty(new Map());
-    setExpireDate(expireDateFromToday(user?.deposit_expire_days));
+    setDatePreviewNow(new Date());
     setNote("");
     setConfirmOpen(false);
   });
+
+  useEffect(() => {
+    if (!open || !orderUuid || !resolvedBranchUuid) return;
+    void loadOrderDeposits({
+      branchUuid: resolvedBranchUuid,
+      orderUuid,
+      lang: language
+    }).catch(() => undefined);
+  }, [language, loadOrderDeposits, open, orderUuid, resolvedBranchUuid]);
 
   useEffect(() => {
     if (!storeUuid || !customerOpen) return;
@@ -182,7 +241,7 @@ export function DepositCreateForm({
   function toggleItem(item: DepositableItem, checked: boolean) {
     setSelectedQty((current) => {
       const next = new Map(current);
-      if (checked) next.set(item.key, String(item.orderedQty));
+      if (checked) next.set(item.key, String(item.availableQty));
       else next.delete(item.key);
       return next;
     });
@@ -222,6 +281,7 @@ export function DepositCreateForm({
   }
 
   function requestConfirmation() {
+    if (!orderUuid || availabilityPending || availabilityError) return;
     if (validationError) {
       showToast({ title: t(validationKey(validationError)), tone: "error" });
       return;
@@ -234,15 +294,21 @@ export function DepositCreateForm({
   }
 
   async function submitCreate() {
-    if (validationError || exceedsOrderedQty || saving) return;
+    if (
+      !orderUuid ||
+      availabilityPending ||
+      availabilityError ||
+      validationError ||
+      exceedsOrderedQty ||
+      saving
+    ) return;
 
     try {
       await createDepositAction({
-        request_uuid: crypto.randomUUID(),
         branch_uuid: resolvedBranchUuid,
         customer_uuid: customerUuid,
+        order_uuid: orderUuid,
         items: draftItems.map((item) => ({ pro_detail_uuid: item.proDetailUuid, deposit_qty: item.qty })),
-        expire_date: expireDate || undefined,
         note: note.trim(),
         lang: language
       });
@@ -342,12 +408,27 @@ export function DepositCreateForm({
             <FieldDescription>{t("deposit.itemsFromOrderHint")}</FieldDescription>
           </Field>
 
-          {items.length ? (
+          {availabilityPending ? (
+            <div className="flex items-center gap-2 rounded-md border border-dashed border-border p-3 text-sm text-muted-foreground">
+              <Spinner />
+              {t("deposit.checkingAvailability")}
+            </div>
+          ) : !orderUuid ? (
+            <div className="flex items-center gap-2 rounded-md border border-destructive/40 bg-destructive/5 p-3 text-sm text-destructive">
+              <Info className="size-4 shrink-0" aria-hidden />
+              {t("deposit.orderRequired")}
+            </div>
+          ) : availabilityError ? (
+            <div className="rounded-md border border-destructive/40 bg-destructive/5 p-3 text-sm text-destructive">
+              <p className="font-medium">{t("deposit.availabilityLoadFailed")}</p>
+              <p className="mt-1 text-xs">{availabilityError}</p>
+            </div>
+          ) : items.length ? (
             <div className="flex flex-col gap-2">
               {items.map((item) => {
                 const checked = selectedQty.has(item.key);
                 const qty = toDepositQtyInput(selectedQty.get(item.key));
-                const exceedsOrdered = checked && qty > item.orderedQty;
+                const exceedsOrdered = checked && qty > item.availableQty;
                 return (
                   <div key={item.key} className="flex flex-col gap-1">
                     <div
@@ -360,20 +441,20 @@ export function DepositCreateForm({
                     >
                       <Checkbox
                         checked={checked}
-                        disabled={saving}
+                        disabled={saving || availabilityPending}
                         onCheckedChange={(value) => toggleItem(item, value === true)}
                         aria-label={item.name}
                       />
                       <div className="min-w-0 flex-1">
                         <p className="truncate text-sm font-medium">{item.name}</p>
                         <p className="text-xs text-muted-foreground">
-                          {t("deposit.orderedQty", { qty: item.orderedQty })}
+                          {t("deposit.availableToDeposit", { qty: item.availableQty })}
                         </p>
                       </div>
                       {checked ? (
                         <DepositQtyStepper
                           qty={qty}
-                          maxQty={item.orderedQty}
+                          maxQty={item.availableQty}
                           disabled={saving}
                           invalid={exceedsOrdered}
                           onChange={(next) => setItemQty(item.key, String(next))}
@@ -392,7 +473,7 @@ export function DepositCreateForm({
           ) : (
             <div className="flex items-center gap-2 rounded-md border border-dashed border-border p-3 text-sm text-muted-foreground">
               <Info className="size-4 shrink-0" aria-hidden />
-              {t("deposit.noOrderItems")}
+              {t("deposit.noRemainingOrderItems")}
             </div>
           )}
         </FieldSet>
@@ -404,14 +485,28 @@ export function DepositCreateForm({
               {t("deposit.timingAndNote")}
             </FieldLegend>
           </Field>
-          <div className="grid gap-4 sm:grid-cols-2">
+          <div className="grid gap-4 sm:grid-cols-3">
+            <Field>
+              <FieldLabel>{t("deposit.depositDate")}</FieldLabel>
+              <div className="flex h-9 items-center gap-2 rounded-md border border-border bg-muted/30 px-3">
+                <CalendarDays className="size-4 shrink-0 text-muted-foreground" aria-hidden />
+                <time className="text-sm font-semibold tabular-nums" dateTime={dateSchedule.depositDate}>
+                  {dateSchedule.depositDate}
+                </time>
+              </div>
+              <FieldDescription>{t("deposit.depositDateTodayHint")}</FieldDescription>
+            </Field>
             <Field>
               <FieldLabel>{t("deposit.expireDate")}</FieldLabel>
               <div className="flex h-9 items-center gap-2 rounded-md border border-border bg-muted/30 px-3">
                 <CalendarClock className="size-4 shrink-0 text-muted-foreground" aria-hidden />
-                <span className="text-sm font-semibold tabular-nums">
-                  {expireDate || t("deposit.expireDateNotSet")}
-                </span>
+                {dateSchedule.expireDate ? (
+                  <time className="text-sm font-semibold tabular-nums" dateTime={dateSchedule.expireDate}>
+                    {dateSchedule.expireDate}
+                  </time>
+                ) : (
+                  <span className="text-sm font-semibold">{t("deposit.expireDateNotSet")}</span>
+                )}
               </div>
               <FieldDescription>
                 {user?.deposit_expire_days
@@ -443,7 +538,14 @@ export function DepositCreateForm({
         </Button>
         <Button
           type="button"
-          disabled={saving || Boolean(validationError) || exceedsOrderedQty}
+          disabled={
+            saving ||
+            availabilityPending ||
+            Boolean(availabilityError) ||
+            !orderUuid ||
+            Boolean(validationError) ||
+            exceedsOrderedQty
+          }
           onClick={requestConfirmation}
         >
           {saving

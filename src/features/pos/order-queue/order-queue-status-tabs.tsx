@@ -77,7 +77,7 @@ export function OrderQueueStatusTabs({
             {needsAttention ? (
               <span
                 aria-hidden="true"
-                className="absolute right-2.5 top-2.5 size-2 animate-pulse rounded-full bg-warning motion-reduce:animate-none"
+                className="absolute right-2.5 top-2.5 size-2 rounded-full bg-warning ring-4 ring-warning/20"
               />
             ) : null}
           </TabsTrigger>

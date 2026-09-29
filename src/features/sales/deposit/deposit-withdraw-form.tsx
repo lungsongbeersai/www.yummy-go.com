@@ -57,11 +57,13 @@ function validationKey(error: string | null) {
 export function DepositWithdrawForm({
   branchUuid,
   open,
+  onCompleted,
   onOpenChange,
   orderUuid
 }: {
   branchUuid?: string;
   open: boolean;
+  onCompleted?: () => Promise<void> | void;
   onOpenChange: (open: boolean) => void;
   orderUuid?: string;
 }) {
@@ -155,6 +157,15 @@ export function DepositWithdrawForm({
         note: note.trim(),
         lang: language
       });
+      try {
+        await onCompleted?.();
+      } catch (refreshError) {
+        showToast({
+          title: t("pos.orderFailed"),
+          description: refreshError instanceof Error ? refreshError.message : "",
+          tone: "error"
+        });
+      }
       setConfirmOpen(false);
       onOpenChange(false);
       showToast({ title: t("deposit.withdrawSuccess"), tone: "success" });

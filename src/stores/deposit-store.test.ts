@@ -37,6 +37,7 @@ function listResponse(depositUuid: string): DepositListResponse {
     total: 1,
     totalPages: 1,
     filter_status: "active",
+    order_uuid: null,
     search: "",
     data: [
       {
@@ -47,6 +48,7 @@ function listResponse(depositUuid: string): DepositListResponse {
         customer_name: "customer",
         customer_phone: "",
         pro_detail_uuid_fk: "detail-1",
+        order_uuid_fk: null,
         product_name: "Whisky",
         unit_name: "bottle",
         deposit_qty: 1,
@@ -111,6 +113,29 @@ describe("deposit store", () => {
     expect(useDepositStore.getState().detailLoading).toBe(false);
   });
 
+  it("loads all deposits linked to the current order", async () => {
+    fetchDepositListMock.mockResolvedValueOnce(listResponse("order-deposit"));
+
+    await useDepositStore.getState().loadOrderDeposits({
+      branchUuid: "branch-1",
+      orderUuid: "order-1",
+      lang: "la"
+    });
+
+    expect(fetchDepositListMock).toHaveBeenCalledWith({
+      branch_uuid: "branch-1",
+      order_uuid: "order-1",
+      status: "all",
+      limit: 100,
+      lang: "la"
+    });
+    expect(useDepositStore.getState().orderRows.map((row) => row.deposit_uuid)).toEqual([
+      "order-deposit"
+    ]);
+    expect(useDepositStore.getState().loadedOrderUuid).toBe("order-1");
+    expect(useDepositStore.getState().orderLoading).toBe(false);
+  });
+
   it("prepends every newly created deposit to rows", async () => {
     const created = listResponse("new-deposit").data[0];
     const createdSecond = listResponse("new-deposit-2").data[0];
@@ -118,14 +143,16 @@ describe("deposit store", () => {
       status: "success",
       message: "success",
       lang: "la",
+      request_uuid: "request-1",
       idempotent_replay: false,
+      deposit_date: "2026-09-16",
+      expire_date: "2026-12-31",
       deposits: [created, createdSecond]
     });
 
     useDepositStore.setState({ rows: [listResponse("existing").data[0]] });
 
     await useDepositStore.getState().create({
-      request_uuid: "request-1",
       branch_uuid: "branch-1",
       customer_uuid: "customer-1",
       items: [{ pro_detail_uuid: "detail-1", deposit_qty: 1 }]
@@ -137,5 +164,30 @@ describe("deposit store", () => {
       "existing"
     ]);
     expect(useDepositStore.getState().saving).toBe(false);
+  });
+
+  it("also updates the current order availability after a POS deposit", async () => {
+    const created = listResponse("new-order-deposit").data[0];
+    vi.mocked(depositService.createDeposit).mockResolvedValueOnce({
+      status: "success",
+      message: "success",
+      lang: "la",
+      request_uuid: "request-2",
+      idempotent_replay: false,
+      deposit_date: "2026-09-16",
+      expire_date: "2026-12-31",
+      deposits: [created]
+    });
+
+    await useDepositStore.getState().create({
+      branch_uuid: "branch-1",
+      customer_uuid: "customer-1",
+      order_uuid: "order-1",
+      items: [{ pro_detail_uuid: "detail-1", deposit_qty: 1 }]
+    });
+
+    expect(useDepositStore.getState().orderRows.map((row) => row.deposit_uuid)).toEqual([
+      "new-order-deposit"
+    ]);
   });
 });

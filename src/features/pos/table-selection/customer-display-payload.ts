@@ -2,6 +2,7 @@ import { optionalNumber, optionalString } from "@/lib/values";
 import type { CustomerDisplayPayload } from "@/features/customer-display/shared/customer-display-sync";
 import type { CartOrder, PosTable } from "@/services/pos";
 import {
+  chargeableCartItems,
   cartItemDisplayName,
   cartItemMedia,
   cartItemName,
@@ -11,7 +12,6 @@ import {
   cartOrders,
   cartSummary,
   positiveNumber,
-  visibleCartItems,
 } from "./cart-readers";
 
 export function buildCustomerDisplayPayload({
@@ -32,7 +32,7 @@ export function buildCustomerDisplayPayload({
     discount: discountTotal,
     grand_total: summary.grandTotal,
     invoice,
-    items: visibleCartItems(cart).map((item) => {
+    items: chargeableCartItems(cart).map((item) => {
       const name = cartItemName(item);
       const sizeName = optionalString(item.detail?.size_name);
       const media = cartItemMedia(item);

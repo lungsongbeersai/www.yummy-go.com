@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Check, ChevronsUpDown, PackagePlus, RefreshCcw, Wine } from "lucide-react";
+import { CalendarClock, CalendarDays, Check, ChevronsUpDown, PackagePlus, RefreshCcw, Wine } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { EmptyState } from "@/components/common/empty-state";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -46,7 +46,7 @@ import { useProductStore } from "@/stores/product-store";
 import { useToastStore } from "@/stores/toast-store";
 import {
   depositBadgeVariant,
-  expireDateFromToday,
+  depositDateSchedule,
   toDepositQtyInput,
   validateDepositCreate,
   validateDepositWithdraw
@@ -154,9 +154,7 @@ export function DepositPage() {
   const [selectedProductOption, setSelectedProductOption] = useState<ProductDetailOption | null>(null);
 
   const [depositQtyInput, setDepositQtyInput] = useState("1");
-  const [expireDate, setExpireDate] = useState(() =>
-    expireDateFromToday(useAuthStore.getState().user?.deposit_expire_days)
-  );
+  const [datePreviewNow, setDatePreviewNow] = useState(() => new Date());
   const [note, setNote] = useState("");
   const [confirmCreateOpen, setConfirmCreateOpen] = useState(false);
 
@@ -169,12 +167,15 @@ export function DepositPage() {
 
   const createValidationError = validateDepositCreate({
     customerUuid,
-    items: proDetailUuid ? [{ proDetailUuid, qty: depositQty }] : [],
-    expireDate
+    items: proDetailUuid ? [{ proDetailUuid, qty: depositQty }] : []
   });
   const withdrawValidationError = validateDepositWithdraw({ qtyWithdrawn: withdrawQty, deposit: detail });
 
   const productOptions = useMemo(() => productDetailOptions(productRows, isEng), [productRows, isEng]);
+  const dateSchedule = useMemo(
+    () => depositDateSchedule(user?.deposit_expire_days, datePreviewNow),
+    [datePreviewNow, user?.deposit_expire_days]
+  );
 
   const resetCreateForm = useCallback(() => {
     setCustomerUuid("");
@@ -184,9 +185,9 @@ export function DepositPage() {
     setSelectedProductOption(null);
     setProductSearch("");
     setDepositQtyInput("1");
-    setExpireDate(expireDateFromToday(user?.deposit_expire_days));
+    setDatePreviewNow(new Date());
     setNote("");
-  }, [user?.deposit_expire_days]);
+  }, []);
 
   const loadRows = useCallback(
     (nextBranchUuid: string, nextStatus: DepositListStatusFilter, nextSearch: string) => {
@@ -269,11 +270,9 @@ export function DepositPage() {
 
     try {
       await createDepositAction({
-        request_uuid: crypto.randomUUID(),
         branch_uuid: branchUuid,
         customer_uuid: customerUuid,
         items: [{ pro_detail_uuid: proDetailUuid, deposit_qty: depositQty }],
-        expire_date: expireDate || undefined,
         note: note.trim(),
         lang: language
       });
@@ -531,16 +530,36 @@ export function DepositPage() {
                 />
               </Field>
 
-              <Field>
-                <FieldLabel htmlFor="deposit-expire-date">{t("deposit.expireDate")}</FieldLabel>
-                <Input
-                  id="deposit-expire-date"
-                  type="date"
-                  value={expireDate}
-                  onChange={(event) => setExpireDate(event.target.value)}
-                />
-                <FieldDescription>{t("deposit.expireDateHelp")}</FieldDescription>
-              </Field>
+              <div className="grid grid-cols-2 gap-3">
+                <Field>
+                  <FieldLabel>{t("deposit.depositDate")}</FieldLabel>
+                  <div className="flex h-9 items-center gap-2 rounded-md border border-border bg-muted/30 px-3">
+                    <CalendarDays className="size-4 shrink-0 text-muted-foreground" aria-hidden />
+                    <time className="text-sm font-semibold tabular-nums" dateTime={dateSchedule.depositDate}>
+                      {dateSchedule.depositDate}
+                    </time>
+                  </div>
+                  <FieldDescription>{t("deposit.depositDateTodayHint")}</FieldDescription>
+                </Field>
+                <Field>
+                  <FieldLabel>{t("deposit.expireDate")}</FieldLabel>
+                  <div className="flex h-9 items-center gap-2 rounded-md border border-border bg-muted/30 px-3">
+                    <CalendarClock className="size-4 shrink-0 text-muted-foreground" aria-hidden />
+                    {dateSchedule.expireDate ? (
+                      <time className="text-sm font-semibold tabular-nums" dateTime={dateSchedule.expireDate}>
+                        {dateSchedule.expireDate}
+                      </time>
+                    ) : (
+                      <span className="text-sm font-semibold">{t("deposit.expireDateNotSet")}</span>
+                    )}
+                  </div>
+                  <FieldDescription>
+                    {user?.deposit_expire_days
+                      ? t("deposit.expireDateAutoHint", { days: user.deposit_expire_days })
+                      : t("deposit.expireDateNotSetHint")}
+                  </FieldDescription>
+                </Field>
+              </div>
 
               <Field>
                 <FieldLabel htmlFor="deposit-note">{t("deposit.note")}</FieldLabel>

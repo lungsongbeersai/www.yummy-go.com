@@ -210,7 +210,7 @@ export function LoginClient() {
                     id="login-email"
                     name="email"
                     type="email"
-                    placeholder="m@example.com"
+                    placeholder=""
                     autoComplete="email"
                     spellCheck={false}
                     required

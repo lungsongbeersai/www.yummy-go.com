@@ -18,7 +18,7 @@ import { shouldUnoptimizeProductImage } from "@/lib/pos/product-media";
 import { cn } from "@/lib/utils";
 import type { CartItem } from "@/services/pos";
 import type { CartItemAction, CartTab } from "./types";
-import { cartItemActionUuid, cartItemBaseUnitPrice, cartItemDisplayName, cartItemMedia, cartItemName, cartItemQty, cartItemRemovalActions, cartItemStatus, cartItemTotal, cartItemUuid, cartToppingDisplay, formatPlainValue, formatPositiveMoneyValue, formatQuantityValue, formatRate, isCanceledCartItem, isServedCartItem, optionalBoolean, optionalNumber, optionalString, positiveNumber, type CartItemMedia } from "./utils";
+import { cartItemActionUuid, cartItemBaseUnitPrice, cartItemDisplayName, cartItemMedia, cartItemName, cartItemQty, cartItemRemovalActions, cartItemStatus, cartItemTotal, cartItemUuid, cartToppingDisplay, formatPlainValue, formatPositiveMoneyValue, formatQuantityValue, formatRate, isCanceledCartItem, isDepositRedemptionItem, isServedCartItem, optionalBoolean, optionalNumber, optionalString, positiveNumber, type CartItemMedia } from "./utils";
 
 export function CartTabTrigger({
   active,
@@ -129,6 +129,25 @@ export function CartTabItems({
   return (
     <div className="flex min-h-full flex-col bg-background">
       {items.map((item, index) => {
+        const rowKey = String(
+          item.withdrawal_uuid ??
+            item.order_item_uuid ??
+            item.order_it_uuid ??
+            item.prod_uuid ??
+            item.product_uuid ??
+            index,
+        );
+
+        if (isDepositRedemptionItem(item)) {
+          return (
+            <DepositRedemptionItemRow
+              key={rowKey}
+              compact={compact}
+              item={item}
+            />
+          );
+        }
+
         const itemUuid = cartItemActionUuid(item);
         const quantityItemUuid = cartItemUuid(item);
         const splitEligible = canSplitItem ? canSplitItem(item) : false;
@@ -139,7 +158,7 @@ export function CartTabItems({
 
         return (
           <CartItemRow
-            key={String(item.order_item_uuid ?? item.order_it_uuid ?? item.prod_uuid ?? item.product_uuid ?? index)}
+            key={rowKey}
             editable={editable && itemCanMutate}
             item={item}
             actionDisabled={actionDisabled}
@@ -168,6 +187,47 @@ export function CartTabItems({
           />
         );
       })}
+    </div>
+  );
+}
+
+function DepositRedemptionItemRow({
+  compact,
+  item,
+}: {
+  compact: boolean;
+  item: CartItem;
+}) {
+  const title = cartItemDisplayName(
+    cartItemName(item),
+    optionalString(item.detail?.size_name),
+  );
+
+  return (
+    <div
+      className={cn(
+        "border-b border-border/80 bg-background last:border-b-0",
+        compact ? "px-2.5 py-2" : "px-2.5 py-2.5 sm:px-3",
+      )}
+    >
+      <div
+        className={cn(
+          "grid min-w-0 items-center gap-2",
+          compact
+            ? "grid-cols-[40px_minmax(0,1fr)]"
+            : "grid-cols-[40px_minmax(0,1fr)] sm:grid-cols-[44px_minmax(0,1fr)]",
+        )}
+      >
+        <CartProductMedia compact={compact} media={{ type: "empty" }} title={title} />
+        <p
+          className={cn(
+            "min-w-0 wrap-break-word font-bold text-foreground",
+            compact ? "text-sm leading-4.5" : "text-sm leading-5 sm:text-base",
+          )}
+        >
+          {title}
+        </p>
+      </div>
     </div>
   );
 }

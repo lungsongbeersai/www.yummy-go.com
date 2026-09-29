@@ -317,6 +317,13 @@ export function isCanceledCartItem(item: CartItem) {
   return isCanceledCartStatus(cartItemStatus(item), statusText);
 }
 
+export function isDepositRedemptionItem(item: CartItem) {
+  return Boolean(
+    item.is_deposit_redemption === true ||
+      (item.chargeable === false && optionalString(item.withdrawal_uuid)),
+  );
+}
+
 /**
  * Destructive row actions follow the Backend contract:
  * - an unsent 0/1 line can be hard-deleted, including from the table's New tab;
@@ -345,6 +352,14 @@ export function cartItems(cart: CartOrder | CartOrder[] | null) {
 // ชื่อฟังก์ชันนี้คงไว้เพื่อสื่อความหมาย "รายการที่แสดงผล" แม้จะไม่กรองอะไรจริง
 export function visibleCartItems(cart: CartOrder | CartOrder[] | null) {
   return cartItems(cart);
+}
+
+// รายการเบิกของฝากอยู่ใน items เพื่อให้หน้าตะกร้าเห็นเป็นประวัติ แต่ consumer
+// ที่สร้างข้อมูลการเงิน/ใบเสร็จต้องใช้เฉพาะ order item ที่คิดเงินจริงเท่านั้น
+export function chargeableCartItems(cart: CartOrder | CartOrder[] | null) {
+  return visibleCartItems(cart).filter(
+    (item) => !isDepositRedemptionItem(item),
+  );
 }
 
 export function cartOrderInvoice(orders: CartOrder[]) {
@@ -508,6 +523,19 @@ export function cartSummary(cart: CartOrder | CartOrder[] | null) {
 
 export function cartQuantityCount(cart: CartOrder | CartOrder[] | null) {
   return cartSummary(cart).orderQty ?? cartItemsQty(visibleCartItems(cart));
+}
+
+export function cartDisplayQuantityCount(
+  cart: CartOrder | CartOrder[] | null,
+) {
+  const items = visibleCartItems(cart);
+  const redeemedItems = items.filter(isDepositRedemptionItem);
+  const orderItems = items.filter((item) => !isDepositRedemptionItem(item));
+
+  return (
+    (cartSummary(cart).orderQty ?? cartItemsQty(orderItems)) +
+    cartItemsQty(redeemedItems)
+  );
 }
 
 export function firstCartOrderUuid(orders: CartOrder[]) {

@@ -12,6 +12,7 @@ export interface DepositRow {
   customer_name: string;
   customer_phone: string;
   pro_detail_uuid_fk: string;
+  order_uuid_fk: string | null;
   product_name: string;
   unit_name: string;
   deposit_qty: number;
@@ -63,6 +64,7 @@ export interface DepositListResponse {
   total: number;
   totalPages: number;
   filter_status: DepositListStatusFilter;
+  order_uuid: string | null;
   search: string;
   data: DepositRow[];
 }
@@ -81,11 +83,10 @@ export interface DepositCreateItemInput {
 }
 
 export interface DepositCreateInput {
-  request_uuid: string;
   branch_uuid: string;
   customer_uuid: string;
+  order_uuid?: string;
   items: DepositCreateItemInput[];
-  expire_date?: string;
   note?: string;
   lang?: string;
 }
@@ -94,7 +95,10 @@ export interface DepositCreateResponse {
   status: "success";
   message: string;
   lang: string;
+  request_uuid: string;
   idempotent_replay: boolean;
+  deposit_date: string | null;
+  expire_date: string | null;
   deposits: DepositRow[];
 }
 
@@ -133,6 +137,7 @@ function required(value: string, label: string) {
 export function fetchDepositList(params: {
   branch_uuid: string;
   customer_uuid?: string;
+  order_uuid?: string;
   status?: DepositListStatusFilter;
   search?: string;
   page?: number;
@@ -143,6 +148,7 @@ export function fetchDepositList(params: {
     params: {
       branch_uuid: required(params.branch_uuid, "branch_uuid"),
       ...(params.customer_uuid ? { customer_uuid: params.customer_uuid } : {}),
+      ...(params.order_uuid ? { order_uuid: params.order_uuid } : {}),
       status: params.status ?? "active",
       search: params.search ?? "",
       page: params.page ?? 1,
@@ -183,10 +189,11 @@ export function createDeposit(input: DepositCreateInput) {
 
   return apiRequest<DepositCreateResponse>("post", "/api/v1/posAll/deposit/create", {
     data: {
-      ...input,
-      request_uuid: required(input.request_uuid, "request_uuid"),
       branch_uuid: required(input.branch_uuid, "branch_uuid"),
       customer_uuid: required(input.customer_uuid, "customer_uuid"),
+      ...(input.order_uuid ? { order_uuid: input.order_uuid } : {}),
+      items: input.items,
+      ...(input.note ? { note: input.note } : {}),
       lang: toApiLanguage(input.lang)
     }
   });

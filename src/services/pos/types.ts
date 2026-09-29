@@ -456,6 +456,15 @@ export interface CartItem extends ApiEntity {
   order_it_uuid?: string;
   order_it_uuids?: string[];
   order_it_statuses?: number[];
+  // รายการเบิกของฝากถูกส่งมารวมใน fetch_cart เพื่อแสดงประวัติบนบิลเท่านั้น
+  // ไม่มี order_it_uuid และห้ามนำไปคิดเงิน/ส่งครัว/แก้ไขเหมือน order item ปกติ
+  is_deposit_redemption?: boolean;
+  withdrawal_uuid?: string;
+  deposit_uuid_fk?: string;
+  deposit_no?: string;
+  qty_withdrawn?: number;
+  withdrawn_at?: string;
+  chargeable?: boolean;
   set_instance_uuid?: string | null;
   set_quantity?: number;
   prod_uuid?: string;

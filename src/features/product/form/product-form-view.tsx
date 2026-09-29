@@ -174,6 +174,8 @@ export function ProductFormView({ form }: { form: ProductFormWorkflow }) {
         }}
         className="flex flex-col gap-4"
       >
+        <ProductFormImageSection form={form} />
+
         <Card>
           <CardHeader>
             <CardTitle>{t("product.sections.general")}</CardTitle>
@@ -357,9 +359,6 @@ export function ProductFormView({ form }: { form: ProductFormWorkflow }) {
             </FieldGroup>
           </CardContent>
         </Card>
-
-        {/* ประเภทสินค้ามาก่อน (คำอธิบายหัวฟอร์มบอกให้เริ่มจากประเภท) — รูป/สีเป็นเรื่องรองลงมา */}
-        <ProductFormImageSection form={form} />
 
         <ProductFormTastesSection form={form} />
 
