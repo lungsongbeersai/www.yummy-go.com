@@ -1523,10 +1523,19 @@ html.swan1-legacy-colors .app-shell[data-desktop-pos-order-layout="true"] .pos-s
    Reset individual translate as well in case this model later gets a newer WebView. */
 html.swan1-legacy-colors [data-slot="dialog-content"],
 html.swan1-legacy-colors [data-slot="alert-dialog-content"] {
-  top: 50% !important;
-  left: 50% !important;
-  translate: none !important;
   transform: translate(-50%, -50%);
+}
+
+/* Tailwind's !top/!left/!translate utilities on the payment dialog live in a
+   cascade layer. Layered important rules outrank unlayered important rules,
+   which otherwise leave that dialog anchored at the viewport's top-left. */
+@layer base {
+  html.swan1-legacy-colors [data-slot="dialog-content"],
+  html.swan1-legacy-colors [data-slot="alert-dialog-content"] {
+    top: 50% !important;
+    left: 50% !important;
+    translate: none !important;
+  }
 }
 
 html.swan1-legacy-colors [data-pos-product-options-dialog],
