@@ -161,7 +161,7 @@ export type PrinterHealth = "ready" | "disabled" | "unreachable";
 /**
  * สถานะที่พนักงานต้องรู้จากการมองการ์ดครั้งเดียว — "unreachable" = เปิดใช้อยู่แต่เครื่องนี้สั่งพิมพ์ไม่ถึง
  * (เครื่องที่แชร์มาแต่ Agent เจ้าของออฟไลน์ หรือเป็นเครื่องของอุปกรณ์อื่นที่ไม่ได้ต่อกับเครื่องนี้)
- * เงื่อนไขเดียวกับที่ปิดปุ่มทดสอบพิมพ์ในตาราง/การ์ดมาตลอด แค่ยกขึ้นมาเป็นสถานะให้เห็นก่อนกด
+ * สถานะนี้ใช้กับ routing งานจริง; shared TCP ที่ Agent เจ้าของออฟไลน์ยังเปิดให้ทดสอบส่งตรงได้
  */
 export function printerHealth(printer: Printer): PrinterHealth {
   if (!printer.is_active) return "disabled";
@@ -170,9 +170,17 @@ export function printerHealth(printer: Printer): PrinterHealth {
   return "ready";
 }
 
-/** ทดสอบพิมพ์/ลิ้นชักได้เฉพาะเครื่องที่เครื่องนี้ส่งงานถึง — ไม่ขึ้นกับเปิด/ปิดใช้ (พฤติกรรมเดิม) */
+/** ความพร้อมสำหรับปุ่มทดสอบพิมพ์/ลิ้นชัก — ไม่ขึ้นกับเปิด/ปิดใช้ */
 export function printerReachable(printer: Printer) {
-  if (printer.is_shared === true) return printer.agent_online !== false;
+  // A shared TCP printer can still be tested directly: native Mobile writes
+  // to port 9100, while a desktop uses its own local Agent. USB/CUPS/Windows
+  // queues still require the owning Agent to be online.
+  if (printer.is_shared === true) {
+    return (
+      printer.agent_online !== false ||
+      String(printer.connect_type || "").trim().toLowerCase() === "tcp"
+    );
+  }
   return printer.is_local_device !== false;
 }
 

@@ -42,6 +42,7 @@ import {
   type FetchPrintersForLocalAgentParams,
   type FetchPrintersParams,
   type PendingPrintJobData,
+  type PrintJob,
   type Printer,
   type PrinterCategoryRole,
   type PrinterDeviceContext,
@@ -65,6 +66,32 @@ type AgentStatus = "unchecked" | "connected" | "offline";
 
 function textValue(value: unknown) {
   return String(value ?? "").trim();
+}
+
+function localSharedTcpTestJob(
+  job: PrintJob,
+  printer: Printer | undefined,
+  agent: AgentInfo | null,
+) {
+  const agentId = textValue(agent?.agent_id);
+  const deviceCode = textValue(agent?.device_code);
+  if (
+    printer?.is_shared !== true ||
+    textValue(printer.connect_type).toLowerCase() !== "tcp" ||
+    !agentId ||
+    !deviceCode ||
+    isBrowserPrinterAgentId(agentId)
+  ) {
+    return null;
+  }
+
+  return {
+    ...job,
+    agent_id: agentId,
+    agent_name: textValue(agent?.agent_name) || agentId,
+    agent_url: textValue(agent?.agent_url) || undefined,
+    device_code: deviceCode,
+  };
 }
 
 interface PrinterState {
@@ -475,7 +502,17 @@ export const usePrinterStore = create<PrinterState>((set, get) => ({
         });
       } else {
         phase = "dispatchPrintJob";
-        await dispatchPrintJob(job);
+        const localAgent = get().agent;
+        const localTestJob = localSharedTcpTestJob(
+          job,
+          selectedPrinter,
+          localAgent,
+        );
+        if (localTestJob && localAgent) {
+          await dispatchPrintJob(localTestJob, localAgent);
+        } else {
+          await dispatchPrintJob(job);
+        }
       }
 
       phase = "done";
@@ -574,7 +611,17 @@ export const usePrinterStore = create<PrinterState>((set, get) => ({
         });
       } else {
         phase = "dispatchPrintJob";
-        await dispatchPrintJob(job);
+        const localAgent = get().agent;
+        const localTestJob = localSharedTcpTestJob(
+          job,
+          selectedPrinter,
+          localAgent,
+        );
+        if (localTestJob && localAgent) {
+          await dispatchPrintJob(localTestJob, localAgent);
+        } else {
+          await dispatchPrintJob(job);
+        }
       }
 
       phase = "done";

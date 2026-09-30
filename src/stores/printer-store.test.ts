@@ -305,6 +305,70 @@ describe("printer store", () => {
     expect(dispatchPrintJobMock).toHaveBeenCalledWith(job);
   });
 
+  it("tests an offline shared TCP printer through the requesting desktop Agent", async () => {
+    const localAgent = {
+      agent_id: "mac-agent",
+      agent_name: "MacBook Agent",
+      agent_url: "http://192.168.100.22:7777",
+      device_code: "MACBOOK",
+    };
+    const remoteJob = {
+      agent_id: "owner-agent",
+      agent_name: "Owner Agent",
+      agent_url: "http://192.168.100.78:7777",
+      device_code: "INCLUDEPRO",
+      interface_value: "tcp://192.168.100.78:9100",
+      lang: "la",
+      ops: [{ type: "text" as const, text: "Test" }],
+      paper_width_mm: 80,
+      printer_type: "receipt",
+    };
+    usePrinterStore.setState({
+      agent: localAgent,
+      printers: [{
+        print_config_uuid: "shared-tcp-1",
+        printer_name: "print1",
+        connect_type: "tcp",
+        interface_value: remoteJob.interface_value,
+        paper_width_mm: 80,
+        is_active: true,
+        role_codes: ["kitchen"],
+        cate_uuid_fk: ["category-1"],
+        is_shared: true,
+        agent_online: false,
+        agent_id: remoteJob.agent_id,
+        agent_name: remoteJob.agent_name,
+        device_code: remoteJob.device_code,
+      }],
+    });
+    resolvePrinterDeviceContextMock.mockResolvedValue({
+      agent_id: remoteJob.agent_id,
+      agent_name: remoteJob.agent_name,
+      device_code: remoteJob.device_code,
+    });
+    buildTestJobMock.mockResolvedValue({
+      data: { job: remoteJob, printer: {} },
+    } as BuildTestJobResponse);
+    dispatchPrintJobMock.mockResolvedValue();
+
+    await usePrinterStore.getState().test({
+      login_uuid_fk: "login-1",
+      print_config_uuid: "shared-tcp-1",
+      lang: "la",
+    });
+
+    expect(dispatchPrintJobMock).toHaveBeenCalledWith(
+      {
+        ...remoteJob,
+        agent_id: localAgent.agent_id,
+        agent_name: localAgent.agent_name,
+        agent_url: localAgent.agent_url,
+        device_code: localAgent.device_code,
+      },
+      localAgent,
+    );
+  });
+
   it("loads pending jobs with local printer identity", async () => {
     const jobs = [{ print_job_uuid: "job-1", print_items: [] }];
     resolvePrinterDeviceContextMock.mockResolvedValue({

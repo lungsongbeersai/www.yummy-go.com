@@ -171,6 +171,12 @@ describe("printer health", () => {
   it("keeps test prints available on disabled but reachable printers", () => {
     expect(printerReachable({ ...printer(true), is_active: false })).toBe(true);
     expect(printerReachable({ ...printer(false), is_shared: true, agent_online: false })).toBe(false);
+    expect(printerReachable({
+      ...printer(false),
+      connect_type: "tcp",
+      is_shared: true,
+      agent_online: false,
+    })).toBe(true);
     expect(printerReachable({ ...printer(true), is_local_device: false })).toBe(false);
   });
 
