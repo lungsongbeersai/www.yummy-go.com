@@ -20,6 +20,7 @@ import type {
   SummaryCards,
 } from "./daily-sales-report-types";
 import {
+  billGroupPaymentLabel,
   firstOptionalNumber,
   firstNumber,
   readValue,
@@ -310,7 +311,7 @@ function billDetailSection(
         cell(bill.invoiceNumber),
         dateCell(bill.saleDate),
         cell(bill.tableName),
-        cell(bill.paymentType),
+        cell(billGroupPaymentLabel(bill.source, t)),
         ...blankCells(7),
         ...(hasStatus ? [cell(bill.status)] : []),
       ],

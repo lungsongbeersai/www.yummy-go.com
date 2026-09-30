@@ -18,14 +18,23 @@ import { SortableReportTableHead } from "../report-sort-table-head";
 import type { ReportColumnOption } from "../shared/report-column-visibility";
 import { ReportIndeterminateCheckbox } from "../shared/report-row-selection";
 import { useLocalTableSort } from "../shared/report-sort-utils";
+import {
+  NO_COLUMN_PINNING,
+  STICKY_TABLE_CLASS,
+  useStickyTable,
+  type ReportColumnPinning,
+} from "../shared/report-sticky-table";
+import { ReportColumnPinningProvider, ReportRowPinToggle, ReportRowPinningProvider } from "@/features/report/shared/report-column-head";
 import type {
   ReportColumn,
   ReportTab,
   SummaryCards,
 } from "./daily-sales-report-types";
 import {
+  billPaymentMethodLabel,
   firstNumber,
   formatDate,
+  formatSaleDate,
   isCancelledRow,
   isPaymentAttentionRow,
   readValue,
@@ -207,6 +216,7 @@ export function SummaryReportTable({
   columns,
   isColumnVisible,
   pageStart,
+  pinning,
   rows,
   selectedRecordIds,
   summaryCards,
@@ -218,6 +228,7 @@ export function SummaryReportTable({
   columns: ReportColumn[];
   isColumnVisible: (id: string) => boolean;
   pageStart: number;
+  pinning: ReportColumnPinning;
   reportTotal: ApiEntity;
   rows: ApiEntity[];
   selectedRecordIds: Set<string>;
@@ -260,9 +271,13 @@ export function SummaryReportTable({
     selectedRecordIds.has(id),
   );
 
+  // ล็อกคอลัมน์ได้เฉพาะมุมมองบิล (คอลัมน์รู้จักล่วงหน้า) — มุมมองอื่นหัวตารางมาจาก API
+  const stickyRef = useStickyTable(activeColumns ? pinning : NO_COLUMN_PINNING);
+
   return (
     // container ของ Table เป็นตัวสกรอลเอง — หัวตาราง sticky ด้านบน, แถวรวม sticky ด้านล่าง
-    <Table containerClassName="min-h-0 flex-1 overflow-auto">
+    <Table containerClassName={cn("min-h-0 flex-1 overflow-auto", STICKY_TABLE_CLASS)} containerRef={stickyRef}>
+        <ReportColumnPinningProvider pinning={activeColumns ? pinning : NO_COLUMN_PINNING}>
         <TableHeader className="sticky top-0 z-30 bg-muted">
           <TableRow>
             <TableHead>
@@ -284,6 +299,7 @@ export function SummaryReportTable({
                     sort={sort}
                     sortKey={column.sortableKey}
                     className={cn(column.minWidth, column.align === "right" && "text-right")}
+                    columnId={column.key}
                     onSort={toggleSort}
                   >
                     {column.label}
@@ -312,11 +328,17 @@ export function SummaryReportTable({
                 )}
           </TableRow>
         </TableHeader>
+        </ReportColumnPinningProvider>
 
+        <ReportRowPinningProvider>
         <TableBody>
           {sortedRows.map((row, index) => {
             const recordId = reportRecordId(row);
             const selected = selectedRecordIds.has(recordId);
+            const rowLabel = textValue(
+              readValue(row, ["invoice_number", "invoice_no", "invoice", "order_invoice"]),
+              String(pageStart + index),
+            );
 
             return (
               <TableRow
@@ -330,21 +352,16 @@ export function SummaryReportTable({
                 )}
               >
                 <TableCell>
-                  <Checkbox
-                    aria-label={t("common.selectRow", {
-                      name: textValue(
-                        readValue(row, [
-                          "invoice_number",
-                          "invoice_no",
-                          "invoice",
-                          "order_invoice",
-                        ]),
-                        String(pageStart + index),
-                      ),
-                    })}
-                    checked={selected}
-                    onCheckedChange={(checked) => onToggleRow(row, checked as boolean)}
-                  />
+                  <div className="flex items-center gap-1">
+                    <Checkbox
+                      aria-label={t("common.selectRow", {
+                        name: rowLabel,
+                      })}
+                      checked={selected}
+                      onCheckedChange={(checked) => onToggleRow(row, checked as boolean)}
+                    />
+                    <ReportRowPinToggle isDefault={index === 0} label={rowLabel} rowId={recordId} />
+                  </div>
                 </TableCell>
 
                 <TableCell className="tabular-nums text-muted-foreground">
@@ -357,7 +374,7 @@ export function SummaryReportTable({
                         key={column.key}
                         className={summaryCellClass(row, column)}
                       >
-                        {renderSummaryCell(row, column)}
+                        {renderSummaryCell(row, column, t)}
                       </TableCell>
                     ))
                   : columns.map((column) => (
@@ -381,6 +398,7 @@ export function SummaryReportTable({
             />
           ) : null}
         </TableBody>
+        </ReportRowPinningProvider>
     </Table>
   );
 }
@@ -412,10 +430,10 @@ function summaryCellClass(row: ApiEntity, column: SummaryColumn) {
   );
 }
 
-function renderSummaryCell(row: ApiEntity, column: SummaryColumn) {
+function renderSummaryCell(row: ApiEntity, column: SummaryColumn, t: (key: string) => string) {
   switch (column.key) {
     case "date":
-      return formatDate(readValue(row, ["order_date", "date", "sale_date"]));
+      return formatSaleDate(readValue(row, ["order_date", "date", "sale_date"]));
     case "invoice":
       return textValue(
         readValue(row, [
@@ -428,14 +446,7 @@ function renderSummaryCell(row: ApiEntity, column: SummaryColumn) {
     case "tableName":
       return textValue(readValue(row, ["table_name", "tableName"]), "-");
     case "paymentMethod":
-      return textValue(
-        readValue(row, [
-          "payment_method_name",
-          "payment_method",
-          "payment_type",
-        ]),
-        "-",
-      );
+      return billPaymentMethodLabel(row, t);
     case "quantity":
       return firstNumber(
         readValue(row, ["total_qty", "qty_total"]),

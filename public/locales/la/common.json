@@ -59,9 +59,9 @@
       "AMT": "ຈຳນວນເງິນ (₭)"
     },
     "vat": {
-      "1": "ບໍ່ຄິດ VAT",
-      "2": "ລວມ VAT ໃນລາຄາ",
-      "3": "ບວກ VAT ເພີ່ມ"
+      "1": "ບໍ່ຄິດ ອກມ",
+      "2": "ລວມ ອກມ ໃນລາຄາ",
+      "3": "ບວກ ອກມ ເພີ່ມ"
     },
     "itemStatus": {
       "0": "ໃນກະຕ່າ",
@@ -82,9 +82,9 @@
       "order_subtotal": "ຍອດລວມຍ່ອຍ",
       "order_service_rate": "ອັດຕາຄ່າບໍລິການ",
       "order_service_amount": "ຄ່າບໍລິການ",
-      "order_vat_status": "ປະເພດ VAT",
-      "order_vat_rate": "ອັດຕາ VAT",
-      "order_vat_amount": "ຈຳນວນເງິນ VAT",
+      "order_vat_status": "ປະເພດ ອກມ",
+      "order_vat_rate": "ອັດຕາ ອກມ",
+      "order_vat_amount": "ຈຳນວນເງິນ ອກມ",
       "order_grand_total": "ຍອດສຸດທິບິນ",
       "order_paid_total": "ຍອດຊຳລະແລ້ວ",
       "order_balance": "ຍອດຄ້າງຊຳລະ",
@@ -367,7 +367,7 @@
     "highestRevenueProduct": "ສິນຄ້າລາຍຮັບສູງສຸດ",
     "insights": "ຂໍ້ມູນສໍາຄັນ",
     "lang": "ພາສາ",
-    "ledger": "ຍອດລວມ, ສ່ວນຫຼຸດ, ຄ່າບໍລິການ ແລະ VAT",
+    "ledger": "ຍອດລວມ, ສ່ວນຫຼຸດ, ຄ່າບໍລິການ ແລະ ອກມ",
     "lightTheme": "ໂໝດສະຫວ່າງ",
     "mainChannel": "ຊ່ອງທາງຫຼັກ",
     "mixed": "ຈ່າຍປະສົມ",
@@ -422,7 +422,7 @@
     "transfer": "ເງິນໂອນ",
     "unallocatedMixedPayment": "ຍອດປະສົມທີ່ຍັງແຍກບໍ່ໄດ້",
     "unpaidRate": "ອັດຕາຄ້າງຊໍາລະ",
-    "vat": "VAT",
+    "vat": "ອກມ",
     "waiting": "ລໍຖ້າ",
     "warnings": "ແຈ້ງເຕືອນ",
     "watchProduct": "ສິນຄ້າທີ່ຄວນຕິດຕາມ",
@@ -561,8 +561,8 @@
     "unite_name": "ຊື່",
     "unite_name_eng": "ຊື່ EN",
     "unite_name_la": "ຊື່ LA",
-    "vat_name": "VAT %",
-    "vat_status": "VAT",
+    "vat_name": "ອກມ %",
+    "vat_status": "ອກມ",
     "zone_name": "ຊື່",
     "zone_name_eng": "ຊື່ EN",
     "zone_name_la": "ຊື່ LA",
@@ -630,7 +630,7 @@
     "transfer_account": "ບັນຊີຮັບໂອນ",
     "unit": "ຫົວໜ່ວຍ",
     "user": "ຜູ້ໃຊ້",
-    "vat_summary": "ສະຫຼຸບ VAT",
+    "vat_summary": "ສະຫຼຸບ ອກມ",
     "zone": "ໂຊນ"
   },
   "notFound": {
@@ -824,7 +824,7 @@
     "orderServiceAmount": "ຄ່າບໍລິການບິນ",
     "orderSubtotal": "ຍອດກ່ອນລວມບິນ",
     "orderTotal": "ຍອດບິນ",
-    "orderVatAmount": "VAT ບິນ",
+    "orderVatAmount": "ອກມ ບິນ",
     "price": "ລາຄາ",
     "priceDetails": "ລາຍລະອຽດລາຄາ",
     "promoBuy": "ໂປຣໂມຊັນຂາຍ",
@@ -951,7 +951,7 @@
     "tastes": "ລົດຊາດ",
     "totalsObject": "ຂໍ້ມູນ totals",
     "unitPrice": "ລາຄາຕໍ່ໜ່ວຍ",
-    "vat": "VAT",
+    "vat": "ອກມ",
     "yes": "ແມ່ນ",
     "failedProducts": "ໂຫຼດເມນູບໍ່ສຳເລັດ",
     "failedTables": "ໂຫຼດໂຕະບໍ່ສຳເລັດ",
@@ -1066,7 +1066,7 @@
     "invoicePrintDiscount": "ສ່ວນຫຼຸດ",
     "invoicePrintAmountDueByCurrency": "ຍອດຕ້ອງຊຳລະຕາມສະກຸນເງິນ",
     "invoicePrintCurrentExchangeRate": "ອັດຕາແລກປ່ຽນປັດຈຸບັນ",
-    "invoicePrintVatWithPercent": "VAT ({{percent}}%)",
+    "invoicePrintVatWithPercent": "ອກມ ({{percent}}%)",
     "invoicePrintAmountToPay": "ມູນຄ່າຕ້ອງຊຳລະ",
     "invoicePrintThankYou": "( ຂອບໃຈລູກຄ້າທຸກທ່ານທີ່ອຸດໜູນ )",
     "invoicePrintSent": "ສົ່ງໃບຮຽກເກັບເງິນໄປເຄື່ອງພິມແລ້ວ",
@@ -2050,11 +2050,11 @@
     "billsPerPageValue": "{{count}} ບິນ/ໜ້າ",
     "branchRequired": "ບັນຊີນີ້ບໍ່ມີຂໍ້ມູນສາຂາ.",
     "vat": {
-      "title": "ລາຍງານ VAT",
-      "description": "ບິນທີ່ມີ VAT ສຳລັບສາຂາ ແລະ ຊ່ວງວັນທີທີ່ເລືອກ.",
+      "title": "ລາຍງານ ອກມ",
+      "description": "ບິນທີ່ມີ ອກມ ສຳລັບສາຂາ ແລະ ຊ່ວງວັນທີທີ່ເລືອກ.",
       "searchPlaceholder": "ຄົ້ນຫາເລກບິນ ຫຼື ລູກຄ້າ",
       "invalidDateRange": "ເລືອກຊ່ວງວັນທີໃຫ້ຖືກຕ້ອງ.",
-      "empty": "ບໍ່ພົບບິນທີ່ມີ VAT",
+      "empty": "ບໍ່ພົບບິນທີ່ມີ ອກມ",
       "emptyDescription": "ລອງປ່ຽນຊ່ວງວັນທີ ຫຼື ໂຕກອງ.",
       "columns": {
         "saleDate": "ວັນທີຂາຍ",
@@ -2063,8 +2063,8 @@
         "discount": "ສ່ວນຫຼຸດ",
         "netSale": "Net Sale",
         "serviceCharge": "Service Charge",
-        "vatRate": "ອັດຕາ VAT",
-        "vat": "VAT",
+        "vatRate": "ອັດຕາ ອກມ",
+        "vat": "ອກມ",
         "grandTotal": "Grand Total",
         "billCount": "ຈຳນວນບິນ"
       }
@@ -2091,7 +2091,7 @@
         "discountBill": "ສ່ວນຫຼຸດທ້າຍບິນ",
         "netSale": "ຍອດຂາຍສຸດທິ",
         "serviceCharge": "ຄ່າບໍລິການ",
-        "vat": "VAT",
+        "vat": "ອກມ",
         "grandTotal": "ຍອດລວມທັງໝົດ",
         "rank": "ລຳດັບ"
       }
@@ -2111,7 +2111,7 @@
         "discount": "ສ່ວນຫຼຸດ",
         "netSale": "Net Sale",
         "serviceCharge": "Service",
-        "vat": "VAT",
+        "vat": "ອກມ",
         "grandTotal": "Grand Total",
         "rank": "ລຳດັບ"
       }
@@ -2137,7 +2137,7 @@
         "rank": "ລຳດັບ",
         "salePrice": "ລາຄາຂາຍ",
         "subtotal": "ຍອດກ່ອນຫຼຸດ",
-        "vat": "VAT"
+        "vat": "ອກມ"
       },
       "description": "ຈັດອັນດັບສິນຄ້າຕາມຈຳນວນທີ່ຂາຍ ຫຼື ຍອດຂາຍສຸດທ້າຍຕາມສາຂາ ແລະ ຊ່ວງວັນທີ.",
       "export": {
@@ -2202,7 +2202,7 @@
         "transferAmount": "ຍອດເງິນໂອນ",
         "total": "ລວມເປັນເງິນ",
         "grandTotal": "ຍອດຂາຍສຸດທິ",
-        "vat": "VAT"
+        "vat": "ອກມ"
       },
       "description": "ກວດເບິ່ງຍອດຂາຍແຍກຕາມວິທີຊຳລະ ສຳລັບສາຂາ ແລະ ຊ່ວງວັນທີທີ່ເລືອກ.",
       "export": {
@@ -2217,7 +2217,7 @@
         "bills": "ບິນ & ລາຍການ",
         "discount": "ສ່ວນຫຼຸດ",
         "payment": "ການຊຳລະ",
-        "tax": "ຄ່າບໍລິການ & VAT"
+        "tax": "ຄ່າບໍລິການ & ອກມ"
       },
       "loadFailed": "ໂຫຼດລາຍງານວິທີຊຳລະບໍ່ສຳເລັດ",
       "loading": "ກຳລັງໂຫຼດລາຍງານວິທີຊຳລະ",
@@ -2233,6 +2233,11 @@
     },
     "categorySales": {
       "productsCount": "{{count}} ສິນຄ້າ",
+      "collapseGroup": "ພັບ {{name}}",
+      "expandGroup": "ຂະຫຍາຍ {{name}}",
+      "collapseAllGroups": "ພັບທຸກກຸ່ມ",
+      "expandAllGroups": "ຂະຫຍາຍທຸກກຸ່ມ",
+      "shareOfGroup": "{{value}}% ຂອງກຸ່ມ",
       "adjustFilters": "ປັບຊ່ວງວັນທີ, ສາຂາ ຫຼື ວິທີຊຳລະ.",
       "cards": {
         "categories": "ໝວດໝູ່",
@@ -2257,7 +2262,7 @@
         "serviceCharge": "ຄ່າບໍລິການ",
         "toppingTotal": "ທ້ອບປິ້ງ",
         "total": "ຍອດລວມ",
-        "vat": "VAT"
+        "vat": "ອກມ"
       },
       "description": "ກວດເບິ່ງຍອດຂາຍແຍກຕາມໝວດໝູ່ສິນຄ້າ ສໍາລັບສາຂາ, ຊ່ວງວັນທີ ແລະ ວິທີຊຳລະທີ່ເລືອກ.",
       "export": {
@@ -2303,7 +2308,7 @@
       "totalAmount": "ຍອດຂາຍສຸດທິ",
       "totalQty": "ຈຳນວນລວມ",
       "transfer": "ເງິນໂອນ",
-      "vat": "VAT"
+      "vat": "ອກມ"
     },
     "clearSelection": "ລ້າງການເລືອກ",
     "collapseBill": "ພັບບິນ",
@@ -2401,6 +2406,12 @@
     "columnsMenu": "ຖັນ",
     "toggleColumns": "ສະແດງຖັນ",
     "resetColumns": "ຄືນຄ່າຖັນ",
+    "pinColumnsTooNarrow": "ຈໍແຄບເກີນ",
+    "pinColumn": "ລ໋ອກຖັນ",
+    "unpinColumn": "ປົດລ໋ອກຖັນ",
+    "pinRow": "ລ໋ອກແຖວ",
+    "unpinRow": "ປົດລ໋ອກແຖວ",
+    "pinRowsFull": "ລ໋ອກແຖວເຕັມແລ້ວ — ປົດລ໋ອກແຖວອື່ນກ່ອນ",
     "metricsMenu": "ຕົວຊີ້ວັດ",
     "toggleMetrics": "ສະແດງຕົວຊີ້ວັດ",
     "salesReportByBill": "ລາຍງານຂາຍຕາມບິນ",
@@ -2430,7 +2441,7 @@
       "sumDiscount": "ສ່ວນຫຼຸດລວມ",
       "toppingTotal": "ລາຄາທ້ອບປິ້ງ",
       "totalQuantity": "ຈໍານວນລວມ",
-      "vatAmount": "ຍອດ VAT"
+      "vatAmount": "ຍອດ ອກມ"
     },
     "columns": {
       "amount": "ລາຄາລວມທ້ອບປິ້ງ",
@@ -2469,7 +2480,7 @@
       "tableName": "ໂຕະ",
       "toppingTotal": "ລາຄາທ້ອບປິ້ງ",
       "transferReceived": "ຮັບເງິນໂອນ",
-      "vat": "VAT"
+      "vat": "ອກມ"
     },
     "filters": {
       "currentFilters": "ຕົວກອງ",
@@ -2605,7 +2616,7 @@
     "total": "ລວມ",
     "toppings": "ທັອບປິ້ງ",
     "transferReceived": "ຮັບເງິນໂອນ",
-    "vat": "VAT"
+    "vat": "ອກມ"
   },
   "salesList": {
     "billDetail": "ລາຍລະອຽດບິນ",
@@ -2693,7 +2704,7 @@
       "serviceCharge": "ຄ່າບໍລິການ",
       "total": "ລວມ",
       "transfer": "ເງິນໂອນ",
-      "vat": "VAT"
+      "vat": "ອກມ"
     },
     "table": "ໂຕະ",
     "title": "ລາຍການຂາຍ",
@@ -2701,13 +2712,13 @@
     "total": "ລວມ",
     "toppings": "ທັອບປິ້ງ",
     "transferReceived": "ຮັບເງິນໂອນ",
-    "vat": "VAT",
+    "vat": "ອກມ",
     "beforeDiscount": "ຍອດກ່ອນຫຼຸດ",
     "afterDiscount": "ຍອດຫຼັງຫຼຸດ",
-    "vatIncluded": "VAT ລວມໃນຍອດສຸດທິແລ້ວ",
-    "vatExcluded": "VAT ບວກເພີ່ມ",
-    "vatExempt": "ບໍ່ຄິດ VAT",
-    "vatUnspecified": "VAT (ບິນບໍ່ໄດ້ລະບຸປະເພດ)"
+    "vatIncluded": "ອກມ ລວມໃນຍອດສຸດທິແລ້ວ",
+    "vatExcluded": "ອກມ ບວກເພີ່ມ",
+    "vatExempt": "ບໍ່ຄິດ ອກມ",
+    "vatUnspecified": "ອກມ (ບິນບໍ່ໄດ້ລະບຸປະເພດ)"
   },
   "cancelHistory": {
     "presets": {
@@ -2765,7 +2776,7 @@
       "status": "ສະຖານະ",
       "subtotal": "ຍອດກ່ອນລວມ",
       "table": "ໂຕະ",
-      "vat": "VAT"
+      "vat": "ອກມ"
     }
   },
   "deposit": {
@@ -3139,7 +3150,7 @@
       "accountQr": "QR ບັນຊີ",
       "accountQrHint": "ອັບໂຫຼດຮູບ QR ທີ່ໃຫ້ລູກຄ້າສະແກນເມື່ອເລືອກບັນຊີນີ້ໃນ POSAll.",
       "accountQrSupport": "ສະໜັບສະໜູນໄຟລ໌: JPG, PNG, WebP (ສູງສຸດ 10MB)",
-      "branchHint": "ຈັດການຂໍ້ມູນສາຂາ, ການຕິດຕໍ່, VAT, ຄ່າບໍລິການ ແລະ ບັນຊີຮັບໂອນ.",
+      "branchHint": "ຈັດການຂໍ້ມູນສາຂາ, ການຕິດຕໍ່, ອກມ, ຄ່າບໍລິການ ແລະ ບັນຊີຮັບໂອນ.",
       "branchDetails": "ລາຍລະອຽດສາຂາ",
       "branchInfo": "ຂໍ້ມູນສາຂາ",
       "branchList": "ລາຍການສາຂາ",
@@ -3208,7 +3219,7 @@
       "tableStatus": "ການໃຊ້ໂຕະ",
       "tableStatusHint": "ເລືອກວ່າຮ້ານນີ້ໃຊ້ໂຕະສຳລັບການສັ່ງອາຫານຫຼືບໍ່.",
       "taxBilling": "ອມພ ແລະ ຄ່າບໍລິການ",
-      "taxBillingHint": "ກໍານົດ VAT ແລະ ກົດຄ່າບໍລິການສໍາລັບສາຂານີ້.",
+      "taxBillingHint": "ກໍານົດ ອກມ ແລະ ກົດຄ່າບໍລິການສໍາລັບສາຂານີ້.",
       "transferAccountSaved": "ບັນທຶກບັນຊີຮັບໂອນແລ້ວ",
       "transferAccounts": "ບັນຊີຮັບໂອນ",
       "transferAccountsHint": "ຈັດການບັນຊີຮັບໂອນທີ່ພະນັກງານສາມາດເລືອກໃນ POSAll.",
@@ -3219,13 +3230,13 @@
       "uploadImage": "ອັບໂຫຼດຮູບ",
       "uploadAccountQr": "ອັບໂຫຼດ QR ບັນຊີ",
       "vertical": "ແນວຕັ້ງ",
-      "vat": "VAT",
-      "vatPercent": "VAT %",
+      "vat": "ອກມ",
+      "vatPercent": "ອກມ %",
       "zoom": "ຂະຫຍາຍ",
-      "vatType": "ປະເພດ VAT",
-      "vatExempt": "ບໍ່ຄິດ VAT",
-      "vatIncluded": "ລວມ VAT ໃນລາຄາ",
-      "vatExcluded": "ບວກ VAT ເພີ່ມ"
+      "vatType": "ປະເພດ ອກມ",
+      "vatExempt": "ບໍ່ຄິດ ອກມ",
+      "vatIncluded": "ລວມ ອກມ ໃນລາຄາ",
+      "vatExcluded": "ບວກ ອກມ ເພີ່ມ"
     },
     "modules": {
       "account": {

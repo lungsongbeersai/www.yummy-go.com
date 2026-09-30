@@ -1,6 +1,12 @@
 "use client";
 
-import { useEffect, useMemo, useState, type CSSProperties } from "react";
+import {
+  useEffect,
+  useMemo,
+  useState,
+  type CSSProperties,
+  type ReactNode,
+} from "react";
 import { useResetOnChange } from "@/hooks/use-reset-on-change";
 import Image from "next/image";
 import {
@@ -129,55 +135,135 @@ interface PaymentSummaryStripItem {
 }
 
 function TransferAccountField({
+  children,
+  className,
   failed,
+  labelClassName,
   loading,
   options,
+  trailing,
   value,
   onValueChange,
 }: {
+  children?: ReactNode;
+  className?: string;
   failed: boolean;
+  labelClassName?: string;
   loading: boolean;
   options: Array<{ label: string; value: string }>;
+  trailing?: ReactNode;
   value: string;
   onValueChange: (value: string) => void;
 }) {
   const { t } = useTranslation();
 
   return (
-    <Field className="gap-1.5">
-      <FieldLabel htmlFor="payment-transfer-account">
+    <Field className={cn("gap-1.5", className)}>
+      <FieldLabel htmlFor="payment-transfer-account" className={labelClassName}>
         {t("pos.transferAccount")}
       </FieldLabel>
-      <Select
-        disabled={loading || !options.length}
-        value={value}
-        onValueChange={onValueChange}
-      >
-        <SelectTrigger id="payment-transfer-account" className="w-full">
-          <SelectValue
-            placeholder={
-              loading
-                ? t("pos.transferAccountsLoading")
-                : t("pos.selectTransferAccount")
-            }
-          />
-        </SelectTrigger>
-        <SelectContent>
-          <SelectGroup>
-            {options.map((option) => (
-              <SelectItem key={option.value} value={option.value}>
-                {option.label}
-              </SelectItem>
-            ))}
-          </SelectGroup>
-        </SelectContent>
-      </Select>
+      <div className="flex min-w-0 items-center gap-1.5">
+        <Select
+          disabled={loading || !options.length}
+          value={value}
+          onValueChange={onValueChange}
+        >
+          <SelectTrigger
+            id="payment-transfer-account"
+            className="h-11 w-full min-w-0 px-2 text-xs font-semibold md:px-3 md:text-sm"
+          >
+            <SelectValue
+              placeholder={
+                loading
+                  ? t("pos.transferAccountsLoading")
+                  : t("pos.selectTransferAccount")
+              }
+            />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectGroup>
+              {options.map((option) => (
+                <SelectItem key={option.value} value={option.value}>
+                  {option.label}
+                </SelectItem>
+              ))}
+            </SelectGroup>
+          </SelectContent>
+        </Select>
+        {trailing}
+      </div>
       {!loading && (!options.length || failed) ? (
-        <FieldDescription className="font-semibold text-destructive">
+        <FieldDescription className="text-xs font-semibold text-destructive">
           {t("pos.transferAccountsUnavailable")}
         </FieldDescription>
       ) : null}
+      {children}
     </Field>
+  );
+}
+
+/** QR ของบัญชีที่เลือกสำหรับโหมด เงินสด + โอน: จอเล็กเป็นปุ่มย่อ (แตะเพื่อขยาย) ให้ประหยัดความสูง
+    จอ md+ แสดงในคอลัมน์ซ้ายเลยเพราะมีที่ว่าง — ไม่ไปกินพื้นที่คอลัมน์กลาง ให้ numpad อยู่ตำแหน่งเดิม */
+function SplitTransferQr({
+  qrUrl,
+  variant,
+}: {
+  qrUrl: string;
+  variant: "thumbnail" | "inline";
+}) {
+  const { t } = useTranslation();
+
+  if (variant === "inline") {
+    return (
+      <div className="hidden items-center gap-3 rounded-md border border-border bg-muted/30 p-2 md:flex">
+        <Image
+          alt={t("pos.accountQr")}
+          className="size-20 shrink-0 rounded-md bg-background object-contain p-1 lg:size-24"
+          height={96}
+          src={qrUrl}
+          unoptimized
+          width={96}
+        />
+        <p className="text-xs text-muted-foreground">
+          {t("pos.transferPaymentHint")}
+        </p>
+      </div>
+    );
+  }
+
+  return (
+    <Popover>
+      <PopoverTrigger asChild>
+        <Button
+          type="button"
+          variant="outline"
+          className="size-11 shrink-0 p-1 md:hidden"
+          aria-label={t("pos.accountQr")}
+        >
+          <Image
+            alt=""
+            className="size-full rounded-sm object-contain"
+            height={40}
+            src={qrUrl}
+            unoptimized
+            width={40}
+          />
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent align="end" className="grid w-64 gap-2 p-3">
+        <Image
+          alt={t("pos.accountQr")}
+          className="aspect-square w-full rounded-md bg-background object-contain p-2"
+          height={232}
+          src={qrUrl}
+          unoptimized
+          width={232}
+        />
+        <p className="text-center text-xs text-muted-foreground">
+          {t("pos.transferPaymentHint")}
+        </p>
+      </PopoverContent>
+    </Popover>
   );
 }
 
@@ -302,6 +388,7 @@ export function PaymentDialogContent({
     selectedCustomerOption,
     setCustomerSearch,
   } = customers;
+  const isCashTransfer = activeTab === "cash_transfer";
   const suppressSoftKeyboard = useSuppressSoftKeyboard();
   const dialogHeight = usePaymentDialogHeight(workflow.open);
   const dialogStyle = useMemo(
@@ -383,7 +470,7 @@ export function PaymentDialogContent({
               <div className="grid gap-1.5 md:min-h-0 md:grid-rows-[auto_minmax(0,1fr)] md:gap-3 lg:h-full">
                 {/* วิธีชำระเป็นรายการเต็มความกว้างคอลัมน์บนจอกว้าง (เดิมเป็นกล่อง 2x2 เล็ก ๆ ไม่เต็มคอลัมน์
                     เหลือพื้นที่ว่างข้าง ๆ) — มือถือยังเป็นแถวเดียว 4 ช่องเพื่อประหยัดความสูง */}
-                <TabsList className="grid h-auto w-full grid-cols-2 gap-1 rounded-lg bg-muted p-1 group-data-horizontal/tabs:h-auto sm:grid-cols-4 md:grid-cols-1 md:gap-1 md:p-1">
+                <TabsList className="grid h-auto w-full grid-cols-4 gap-1 rounded-lg bg-muted p-1 group-data-horizontal/tabs:h-auto md:grid-cols-1 md:gap-1 md:p-1">
                   {paymentTabs.map((tab) => {
                     const Icon = tab.icon;
                     return (
@@ -391,9 +478,9 @@ export function PaymentDialogContent({
                         key={tab.value}
                         value={tab.value}
                         aria-label={t(tab.labelKey)}
-                        className="h-11 min-w-0 gap-1.5 rounded-md px-2 font-semibold md:h-12 md:justify-start md:gap-2.5 md:px-3"
+                        className="h-11 min-w-0 gap-1.5 rounded-md px-1 text-xs font-semibold min-[430px]:px-2 min-[430px]:text-sm md:h-12 md:justify-start md:gap-2.5 md:px-3"
                       >
-                          <Icon aria-hidden="true" />
+                          <Icon aria-hidden="true" className="max-[429px]:hidden" />
                           <span className="truncate">
                             {t(tab.labelKey)}
                           </span>
@@ -402,7 +489,7 @@ export function PaymentDialogContent({
                   })}
                 </TabsList>
 
-                <div className="min-h-0 md:overflow-hidden">
+                <div className="min-h-0">
                   <FieldGroup className="grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)_2.75rem] items-end gap-1.5 sm:grid-cols-[minmax(0,1fr)_7rem_7rem_2.75rem] md:grid-cols-1 md:items-stretch md:gap-3">
                     <Field
                       className="col-span-2 min-w-0 gap-0 sm:col-span-1 md:gap-1.5"
@@ -613,6 +700,29 @@ export function PaymentDialogContent({
                         {customerCreateSaving ? <Spinner /> : <Plus />}
                       </Button>
                     </Field>
+                    {activeTab === "cash_transfer" ? (
+                      <TransferAccountField
+                        className="col-span-full min-w-0 gap-1 md:gap-1.5"
+                        failed={transferAccountsFailed}
+                        labelClassName="max-md:sr-only md:text-sm"
+                        loading={transferAccountsLoading}
+                        options={transferAccountOptions}
+                        trailing={
+                          accountQrUrl ? (
+                            <SplitTransferQr
+                              qrUrl={accountQrUrl}
+                              variant="thumbnail"
+                            />
+                          ) : null
+                        }
+                        value={selectedTransferAccountUuid}
+                        onValueChange={setSelectedTransferAccountUuid}
+                      >
+                        {accountQrUrl ? (
+                          <SplitTransferQr qrUrl={accountQrUrl} variant="inline" />
+                        ) : null}
+                      </TransferAccountField>
+                    ) : null}
                   </FieldGroup>
 
                 </div>
@@ -623,34 +733,18 @@ export function PaymentDialogContent({
               <div className="h-full min-h-0">
                 {activeTenderField ? (
                   <div className="grid h-full min-h-0 grid-rows-[auto_auto_minmax(196px,1fr)] gap-1.5 min-[430px]:gap-2 sm:grid-rows-[auto_auto_minmax(0,1fr)] sm:gap-3 lg:mx-auto lg:h-auto lg:max-w-xl lg:grid-rows-none lg:content-start">
-                    {activeTab === "cash_transfer" ? (
-                      <div className="rounded-lg border border-border bg-card p-2 min-[430px]:p-2.5 lg:p-4">
-                        <TransferAccountField
-                          failed={transferAccountsFailed}
-                          loading={transferAccountsLoading}
-                          options={transferAccountOptions}
-                          value={selectedTransferAccountUuid}
-                          onValueChange={setSelectedTransferAccountUuid}
-                        />
-                        {accountQrUrl ? (
-                          <div className="mt-2 flex items-center gap-3 rounded-md border border-border bg-muted/30 p-2">
-                            <Image
-                              alt={t("pos.accountQr")}
-                              className="size-16 shrink-0 rounded-md bg-background object-contain p-1"
-                              height={64}
-                              src={accountQrUrl}
-                              unoptimized
-                              width={64}
-                            />
-                            <p className="text-xs text-muted-foreground">
-                              {t("pos.transferPaymentHint")}
-                            </p>
-                          </div>
-                        ) : null}
-                      </div>
-                    ) : null}
+                    {/* คอลัมน์นี้ต้องมีลูกตรงกับ grid-rows 3 แถวเสมอ (ยอด / ปุ่มยอดด่วน / numpad) —
+                        อย่าเพิ่มกล่องตามโหมดชำระที่นี่ ไม่งั้น numpad ตกไปอยู่แถว implicit แล้วถูกดันลงล่าง
+                        ส่วนเลือกบัญชีโอนของ เงินสด + โอน อยู่คอลัมน์ซ้ายแทน */}
                     <div className="rounded-lg border border-border bg-card p-2 min-[430px]:p-2.5 lg:p-4">
-                      <Field className="gap-1 min-[430px]:gap-1.5">
+                      {/* มือถือโหมด เงินสด + โอน: แถวเงินสด/โอนด้านล่างแสดงยอดและช่องที่กำลังกรอกอยู่แล้ว
+                          จึงซ่อนช่องยอดใหญ่ด้วยสายตา (ยังอยู่ใน DOM/โฟกัสได้) ให้ numpad ไม่ถูกดันพ้นจอ */}
+                      <Field
+                        className={cn(
+                          "gap-1 min-[430px]:gap-1.5",
+                          isCashTransfer && "max-sm:sr-only",
+                        )}
+                      >
                         <FieldLabel htmlFor="payment-active-amount">
                           {activeTenderLabel} ({selectedCurrency.code})
                         </FieldLabel>
@@ -675,7 +769,7 @@ export function PaymentDialogContent({
                       </Field>
 
                       {activeTab === "cash_transfer" ? (
-                        <div className="mt-2 grid gap-2 sm:grid-cols-2">
+                        <div className="grid grid-cols-2 gap-1.5 sm:mt-2 sm:gap-2">
                           <TenderRow
                             active={activeSplitField === "cash"}
                             label={t("pos.cashAmount")}

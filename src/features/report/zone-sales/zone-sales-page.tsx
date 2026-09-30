@@ -204,6 +204,7 @@ function ZoneSalesReport() {
             <ReportResultArea framed fill={false} busy={loading} className="hidden md:flex">
               <ZoneSalesTable
                 isColumnVisible={columns.isVisible}
+                pinning={columns.pinning}
                 language={language}
                 rows={rows}
                 selectedRowIds={rowSelection.selectedRowIds}

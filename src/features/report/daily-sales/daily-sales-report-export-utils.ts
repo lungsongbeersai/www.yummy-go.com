@@ -11,7 +11,9 @@ import type {
 } from "./daily-sales-report-types";
 import {
   firstNumber,
+  billGroupPaymentLabel,
   formatDate,
+  formatSaleDate,
   readValue,
   reportImageColor,
   reportImageSrc,
@@ -133,7 +135,7 @@ export function exportBillRows(
       [t("report.columns.invoiceNumber")]: group.invoiceNumber,
       [t("report.columns.saleDate")]: group.saleDate,
       [t("report.columns.tableName")]: group.tableName,
-      [t("report.columns.paymentType")]: group.paymentType,
+      [t("report.columns.paymentType")]: billGroupPaymentLabel(group, t),
       [t("report.billItems")]: group.itemCount,
       [t("report.cards.netTotal")]: group.lineTotal,
     };
@@ -151,7 +153,7 @@ export function exportDateTotalRows(
   t: (key: string) => string,
 ) {
   return rows.map((row) => ({
-    [t("report.columns.saleDate")]: formatDate(
+    [t("report.columns.saleDate")]: formatSaleDate(
       readValue(row, ["date", "sale_date"]),
     ),
     [t("report.cards.billsCount")]: firstNumber(
@@ -185,7 +187,7 @@ export function dateTotalsFromGroups(groups: DailySalesBillGroup[]) {
   const byDate = new Map<string, ApiEntity>();
 
   groups.forEach((group) => {
-    const date = formatDate(group.saleDate);
+    const date = formatSaleDate(group.saleDate);
     const current = byDate.get(date) ?? {
       amount: 0,
       bills_count: 0,

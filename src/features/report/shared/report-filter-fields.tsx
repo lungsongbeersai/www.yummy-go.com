@@ -10,9 +10,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { PAGE_LIMIT_OPTIONS } from "@/lib/pagination";
 import type { PaymentMethodReportFilter } from "@/config/report-filters";
-import type { PageLimit } from "@/services/shared/types";
 import { ReportDateInput } from "./report-date-input";
 
 export interface ReportFieldOption {
@@ -198,37 +196,6 @@ export function ReportDateRangeFields({
         onChange={onDateToChange}
       />
     </>
-  );
-}
-
-export function ReportPageLimitField({
-  fieldClassName,
-  id,
-  triggerClassName,
-  value,
-  onValueChange,
-}: {
-  fieldClassName?: string;
-  id: string;
-  triggerClassName?: string;
-  value: PageLimit;
-  onValueChange: (value: PageLimit) => void;
-}) {
-  const { t } = useTranslation();
-
-  return (
-    <ReportSelectField
-      fieldClassName={fieldClassName}
-      id={id}
-      label={t("common.rowsPerPage")}
-      options={PAGE_LIMIT_OPTIONS.map((limit) => ({
-        label: limit === "All" ? t("common.all") : String(limit),
-        value: String(limit),
-      }))}
-      triggerClassName={triggerClassName}
-      value={String(value)}
-      onValueChange={(next) => onValueChange(next === "All" ? "All" : Number(next))}
-    />
   );
 }
 

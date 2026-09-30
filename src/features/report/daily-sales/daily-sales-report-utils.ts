@@ -24,7 +24,7 @@ import type {
   ReportTab,
   SummaryCards,
 } from "./daily-sales-report-types";
-import { formatReportDateTime } from "@/features/report/shared/report-date-format";
+import { formatReportDateTime, formatReportSaleDate } from "@/features/report/shared/report-date-format";
 
 export const reportImageKeys = [
   "prod_image",
@@ -67,6 +67,38 @@ export function paymentMethodLabel(
   };
   const labelKey = labelKeyMap[paymentMethod];
   return labelKey === "all" ? t("common.all") : t(`report.paymentMethods.${labelKey}`);
+}
+
+// ช่อง "ประเภทการชำระ" ของบิล — บิลแยกจ่าย (เงินสด+โอน) API ส่ง payment_method = 0 กับชื่อว่าง
+// ตารางจึงขึ้นเลข "0" (แบบเดียวกับ billPaymentLabel ของรายการขาย): ชื่อที่เป็นตัวเลขล้วนหรือว่าง
+// ให้อ่านจากยอดที่รับจริงแทน
+export function billPaymentMethodLabel(row: ApiEntity, t: (key: string) => string) {
+  const name = textValue(readValue(row, ["payment_method_name", "payment_type_name"]), "").trim();
+  if (name && name !== "-" && !/^\d+$/.test(name)) return name;
+
+  const cash = firstNumber(readValue(row, ["paid_cash", "receive_cash"]));
+  const transfer = firstNumber(readValue(row, ["paid_transfer", "receive_transfer"]));
+  if (cash > 0 && transfer > 0) return t("report.paymentMethods.mixed");
+
+  const code = /^\d+$/.test(name)
+    ? name
+    : textValue(readValue(row, ["payment_method_code", "payment_method", "payment_type"]), "");
+  if (code === "1" || code === "2" || code === "4") return paymentMethodLabel(t, code);
+  if (cash > 0) return t("report.paymentMethods.cash");
+  if (transfer > 0) return t("report.paymentMethods.transfer");
+  return "-";
+}
+
+/** billPaymentMethodLabel for a bill of the detail view (its payment name comes pre-read). */
+export function billGroupPaymentLabel(group: DailySalesBillGroup, t: (key: string) => string) {
+  return billPaymentMethodLabel(
+    {
+      payment_method_name: group.paymentType,
+      paid_cash: group.receiveCashAmount,
+      paid_transfer: group.receiveTransferAmount,
+    },
+    t,
+  );
 }
 
 export { branchOptionFromRow, branchOptionLabel, selectedBranchLabel } from "../shared/report-branch-options";
@@ -181,6 +213,11 @@ export function detailPaginationBasis(
 // 28/09/2026 for a business date, 28/09/2026 13:16:54 for a timestamp (see report-date-format).
 export function formatDate(value: unknown) {
   return formatReportDateTime(textValue(value, ""));
+}
+
+// A sale date column: the business date without the made-up 00:00:00 (see report-date-format).
+export function formatSaleDate(value: unknown) {
+  return formatReportSaleDate(textValue(value, ""));
 }
 
 export function isTruthy(value: unknown) {

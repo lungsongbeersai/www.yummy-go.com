@@ -24,7 +24,8 @@ import {
 import { renderPrintCell } from "./daily-sales-report-tables";
 import {
   firstNumber,
-  formatDate,
+  billGroupPaymentLabel,
+  formatSaleDate,
   isCancelledRow,
   rowKey,
   summaryCardValue,
@@ -151,9 +152,9 @@ function DetailPrintTable({
             >
               <td className="is-center">{index + 1}</td>
               <td>{bill.invoiceNumber}</td>
-              <td>{formatDate(bill.saleDate)}</td>
+              <td>{formatSaleDate(bill.saleDate)}</td>
               <td>{bill.tableName}</td>
-              <td>{bill.paymentType}</td>
+              <td>{billGroupPaymentLabel(bill.source, t)}</td>
               {Array.from({ length: 6 }, (_, cellIndex) => (
                 <td key={cellIndex} className="is-right" />
               ))}

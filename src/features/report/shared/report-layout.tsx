@@ -147,18 +147,20 @@ export function ReportSummaryToggle({
   const { t } = useTranslation();
   const label = visible ? t("report.hideSummary") : t("report.showSummary");
 
+  // ไอคอนตาอย่างเดียวเดาไม่ออกว่าเปิด/ปิดอะไร — มีข้อความ "สรุป" ตั้งแต่ sm ขึ้นไป แบบเดียวกับปุ่ม
+  // คอลัมน์/ส่งออกข้างกัน (จอแคบเหลือไอคอน + title/aria-label)
   return (
     <Button
       type="button"
       variant="outline"
-      size="icon"
       title={label}
       aria-controls={controlsId}
       aria-expanded={visible}
       aria-label={label}
       onClick={onToggle}
     >
-      {visible ? <EyeOff /> : <Eye />}
+      {visible ? <EyeOff data-icon="inline-start" /> : <Eye data-icon="inline-start" />}
+      <span className="hidden sm:inline">{t("report.summary")}</span>
     </Button>
   );
 }
@@ -231,7 +233,7 @@ export function ReportToolbar({
         <div className="flex items-center gap-2">
           <span className="text-xs text-muted-foreground">{selectedLabel}</span>
           {onClearSelection ? (
-            <Button type="button" variant="ghost" onClick={onClearSelection}>
+            <Button type="button" variant="ghost" className="text-destructive hover:bg-destructive/10 hover:text-destructive" onClick={onClearSelection}>
               {t("report.clearSelection")}
             </Button>
           ) : null}

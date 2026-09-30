@@ -146,6 +146,7 @@ export function BestSellingProductsReportPage({ initialPagination }: { initialPa
               <BestSellingProductsTable
                 groups={report.groups}
                 isColumnVisible={columns.isVisible}
+                pinning={columns.pinning}
                 selectedRowIds={report.rowSelection.selectedRowIds}
                 sortBy={report.appliedFilters.sortBy}
                 summary={report.summary}
@@ -165,6 +166,7 @@ export function BestSellingProductsReportPage({ initialPagination }: { initialPa
             <ReportPaginationBar>
               <AppPagination
                 page={report.page}
+                pageSize={{ value: report.appliedFilters.limit, onChange: report.changePageLimit }}
                 rangeLabel={report.paginationRangeLabel}
                 totalPages={report.totalPages}
                 onPageChange={report.setPage}

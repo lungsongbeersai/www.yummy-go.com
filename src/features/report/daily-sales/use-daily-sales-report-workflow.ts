@@ -353,6 +353,15 @@ export function useDailySalesReportWorkflow(
     if (closeMobile) setMobileFilterOpen(false);
   }
 
+  // จำนวนแถวต่อหน้าจากแถบแบ่งหน้า — มีผลทันทีไม่รอกดค้นหา ใส่ทั้ง draft/applied (ไม่งั้นค้นหาครั้งถัดไป
+  // ดึงค่าเก่าจาก draft กลับมา) แต่แตะแค่ limit ไม่ทับตัวกรองอื่นที่ผู้ใช้แก้ค้างไว้ใน draft
+  function changePageLimit(limit: ReportFilters["limit"]) {
+    setDraftFilters((current) => ({ ...current, limit }));
+    setAppliedFilters((current) => ({ ...current, limit }));
+    setBillPage(1);
+    setDetailPage(1);
+  }
+
   function applyFilters() {
     const nextFilters = normalizeBranchFilters(draftFilters);
     applyNextFilters(nextFilters);
@@ -871,6 +880,7 @@ export function useDailySalesReportWorkflow(
     totalPages,
     applyTableHeaderFilters,
     applyFilters,
+    changePageLimit,
     applyMobileFilters,
     exportPdf,
   };

@@ -60,6 +60,8 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { cn } from "@/lib/utils";
+import { ReportColumnPinningProvider, ReportRowPinToggle, ReportRowPinningProvider } from "@/features/report/shared/report-column-head";
+import { STICKY_TABLE_CLASS, useStickyTable, type ReportColumnPinning } from "@/features/report/shared/report-sticky-table";
 import {
   isBestSellingProductsSortBy,
   type BestSellingProductsSortBy,
@@ -72,7 +74,6 @@ import { SortableReportTableHead } from "../report-sort-table-head";
 import {
   ReportBranchField,
   ReportDateRangeFields,
-  ReportPageLimitField,
   ReportSelectField,
 } from "../shared/report-filter-fields";
 import type { ReportColumnOption } from "../shared/report-column-visibility";
@@ -298,12 +299,6 @@ export function BestSellingFilterFields({
         value={draftFilters.groupUuid}
         onValueChange={(value) => patch({ groupUuid: value })}
       />
-      <ReportPageLimitField
-        fieldClassName="lg:col-span-4 xl:col-span-1"
-        id={`${idPrefix}-limit`}
-        value={draftFilters.limit}
-        onValueChange={(value) => patch({ limit: value })}
-      />
     </>
   );
 }
@@ -359,6 +354,7 @@ type ProductMetric = ReturnType<typeof bestSellingProductMetricConfigs>[number];
 /** ตัวเลือกของเมนู "คอลัมน์" — อันดับและชื่อสินค้าเป็นแกนของรายงาน ซ่อนไม่ได้ */
 export function bestSellingColumnOptions(t: (key: string) => string): ReportColumnOption[] {
   return [
+    { hideable: false, id: "product", label: t("report.bestSelling.columns.product") },
     { id: "productCode", label: t("report.bestSelling.columns.productCode") },
     { id: "category", label: t("report.bestSelling.columns.category") },
     ...bestSellingProductMetricConfigs(t).map((metric) => ({ id: metric.key, label: metric.label })),
@@ -395,6 +391,7 @@ const RANK_BADGE_CLASS = [
 export function BestSellingProductsTable({
   groups,
   isColumnVisible,
+  pinning,
   selectedRowIds,
   sortBy,
   summary,
@@ -403,6 +400,7 @@ export function BestSellingProductsTable({
 }: {
   groups: BestSellingProductGroup[];
   isColumnVisible: (id: string) => boolean;
+  pinning: ReportColumnPinning;
   selectedRowIds: Set<string>;
   sortBy: BestSellingProductsSortBy;
   summary: Record<string, unknown>;
@@ -448,10 +446,12 @@ export function BestSellingProductsTable({
   const visibleIds = useMemo(() => visibleRows.map(bestSellingProductRowId), [visibleRows]);
   const { allVisibleSelected, someVisibleSelected } = selectionStateForVisibleIds(visibleIds, selectedRowIds);
   const productCount = firstNumber(summaryValue(summary, ["product_count", "products_count"]));
+  const stickyRef = useStickyTable(pinning);
 
   return (
     // container ของ Table เป็นตัวสกรอลเอง — หัวตาราง sticky ด้านบน, แถวรวม sticky ด้านล่าง
-    <Table containerClassName="min-h-0 flex-1 overflow-auto">
+    <Table containerClassName={cn("min-h-0 flex-1 overflow-auto", STICKY_TABLE_CLASS)} containerRef={stickyRef}>
+      <ReportColumnPinningProvider pinning={pinning}>
       <TableHeader className="sticky top-0 z-30 bg-muted">
         <TableRow>
           <TableHead>
@@ -465,16 +465,16 @@ export function BestSellingProductsTable({
           <SortableReportTableHead sort={sort} sortKey="rank" onSort={toggleSort}>
             {t("report.bestSelling.columns.rank")}
           </SortableReportTableHead>
-          <SortableReportTableHead sort={sort} sortKey="productName" className="min-w-60" onSort={toggleSort}>
+          <SortableReportTableHead sort={sort} sortKey="productName" className="min-w-60" columnId="product" onSort={toggleSort}>
             {t("report.bestSelling.columns.product")}
           </SortableReportTableHead>
           {showCode ? (
-            <SortableReportTableHead sort={sort} sortKey="productCode" onSort={toggleSort}>
+            <SortableReportTableHead sort={sort} sortKey="productCode" columnId="productCode" onSort={toggleSort}>
               {t("report.bestSelling.columns.productCode")}
             </SortableReportTableHead>
           ) : null}
           {showCategory ? (
-            <SortableReportTableHead sort={sort} sortKey="categoryName" onSort={toggleSort}>
+            <SortableReportTableHead sort={sort} sortKey="categoryName" columnId="category" onSort={toggleSort}>
               {t("report.bestSelling.columns.category")}
             </SortableReportTableHead>
           ) : null}
@@ -485,6 +485,7 @@ export function BestSellingProductsTable({
               sort={sort}
               sortKey={metric.field}
               className="text-right"
+              columnId={metric.key}
               onSort={toggleSort}
             >
               {metric.label}
@@ -492,7 +493,9 @@ export function BestSellingProductsTable({
           ))}
         </TableRow>
       </TableHeader>
+      </ReportColumnPinningProvider>
 
+      <ReportRowPinningProvider>
       <TableBody>
         {sortedGroupRows.map(({ group, rows: groupRows }) => {
           const groupIds = groupRows.map(bestSellingProductRowId);
@@ -530,11 +533,14 @@ export function BestSellingProductsTable({
                 return (
                   <TableRow key={item.id} data-state={selected ? "selected" : undefined}>
                     <TableCell>
-                      <Checkbox
-                        aria-label={t("common.selectRow", { name: item.productName })}
-                        checked={selected}
-                        onCheckedChange={(checked) => onToggleRow(item, checked as boolean)}
-                      />
+                      <div className="flex items-center gap-1">
+                        <Checkbox
+                          aria-label={t("common.selectRow", { name: item.productName })}
+                          checked={selected}
+                          onCheckedChange={(checked) => onToggleRow(item, checked as boolean)}
+                        />
+                        <ReportRowPinToggle isDefault={bestSellingProductRowId(item) === visibleIds[0]} label={item.productName} rowId={bestSellingProductRowId(item)} />
+                      </div>
                     </TableCell>
                     <TableCell>
                       <RankBadge highlight={Boolean(shareField)} rank={index + 1} />
@@ -590,6 +596,7 @@ export function BestSellingProductsTable({
           ))}
         </TableRow>
       </TableBody>
+      </ReportRowPinningProvider>
     </Table>
   );
 }

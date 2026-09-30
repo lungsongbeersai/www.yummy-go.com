@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useRef, useState } from "react";
-import { Eye, EyeOff, RefreshCcw, SlidersHorizontal } from "lucide-react";
+import { RefreshCcw, SlidersHorizontal } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { AppPagination } from "@/components/common/app-pagination";
 import { FilterHeaderToolbar } from "@/components/common/filter-header-toolbar";
@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import type { UrlPaginationState } from "@/lib/url-pagination";
 import { ReportColumnsMenu, useReportColumnVisibility } from "../shared/report-column-visibility";
 import { ReportError } from "../shared/report-error";
+import { ReportSummaryToggle } from "../shared/report-layout";
 import {
   DailySalesSummaryCards,
   DailySalesTableCard,
@@ -45,7 +46,6 @@ export function DailySalesReportPage({
   const canApplyFilters = Boolean(report.draftFilters.branchUuid || report.defaultBranchUuid);
   const dateRangeLabel = `${formatReportDateRange(report.appliedFilters.dateFrom, report.appliedFilters.dateTo)}`;
   const controlsDisabled = report.loading || Boolean(report.exporting);
-  const summaryToggleLabel = summaryVisible ? t("report.hideSummary") : t("report.showSummary");
   const isDetail = report.appliedFilters.typePage === "detail";
   // เลือกคอลัมน์แยกกันต่อมุมมอง (ตามบิล/รายละเอียด) เพราะชุดคอลัมน์ต่างกัน — จำไว้ต่อเครื่อง
   const billColumnOptions = useMemo(() => summaryColumnOptions(t), [t]);
@@ -65,18 +65,11 @@ export function DailySalesReportPage({
     </Button>
   );
   const summaryToggleButton = (
-    <Button
-      type="button"
-      variant="outline"
-      size="icon"
-      title={summaryToggleLabel}
-      aria-controls={SUMMARY_CARDS_ID}
-      aria-expanded={summaryVisible}
-      aria-label={summaryToggleLabel}
-      onClick={() => setSummaryVisible((visible) => !visible)}
-    >
-      {summaryVisible ? <EyeOff /> : <Eye />}
-    </Button>
+    <ReportSummaryToggle
+      controlsId={SUMMARY_CARDS_ID}
+      visible={summaryVisible}
+      onToggle={() => setSummaryVisible((visible) => !visible)}
+    />
   );
 
   return (
@@ -86,8 +79,9 @@ export function DailySalesReportPage({
       <div className="flex h-full min-h-0 min-w-0 flex-col gap-4 overflow-y-auto p-4 lg:overflow-hidden">
         <h1 className="sr-only">{t("report.dailySalesTitle")}</h1>
 
-        {/* จอเล็ก: ปุ่มช่วงวันที่เปิด modal ตัวกรอง + แถว badge บอกตัวกรองที่ใช้อยู่ */}
-        <div className="flex flex-col gap-2 lg:hidden">
+        {/* จอเล็ก: ปุ่มช่วงวันที่เปิด modal ตัวกรอง + badge บอกตัวกรองที่ใช้อยู่ในแถบเดียวกัน
+            (แยกเป็นแถวของตัวเองแล้วกินความสูงอีกชั้นก่อนถึงข้อมูล ทั้งที่เป็นเรื่องเดียวกับปุ่มวันที่) */}
+        <div className="lg:hidden">
           <FilterHeaderToolbar
             dateRange={{
               ariaLabel: `${t("report.filters.openFilters")}: ${dateRangeLabel}`,
@@ -95,6 +89,13 @@ export function DailySalesReportPage({
               label: dateRangeLabel,
               onClick: report.openMobileFilters,
             }}
+            extraChips={
+              <AppliedFilterBadges
+                branchLabel={report.activeBranchLabel}
+                filters={report.appliedFilters}
+                locationOptions={report.locationOptions}
+              />
+            }
             filterControl={
               <Button
                 type="button"
@@ -109,12 +110,6 @@ export function DailySalesReportPage({
             }
             refreshControl={refreshButton}
           />
-          <AppliedFilterBadges
-            branchLabel={report.activeBranchLabel}
-            detailPaginationBasis={report.detailPageBasis}
-            filters={report.appliedFilters}
-            locationOptions={report.locationOptions}
-          />
         </div>
 
         {/* จอ lg ขึ้นไป: ตัวกรองอยู่บนหน้าเลย ไม่ต้องเปิด modal เพื่อเปลี่ยนค่าเดียว */}
@@ -124,7 +119,6 @@ export function DailySalesReportPage({
           branchLocked={!report.canSelectBranch}
           branchOptions={report.branchOptions}
           canApply={canApplyFilters}
-          detailPaginationBasis={report.detailPageBasis}
           draftFilters={report.draftFilters}
           loading={report.loading}
           locationOptions={report.locationOptions}
@@ -137,7 +131,6 @@ export function DailySalesReportPage({
           branchLocked={!report.canSelectBranch}
           branchOptions={report.branchOptions}
           canApply={canApplyFilters}
-          detailPaginationBasis={report.detailPageBasis}
           draftFilters={report.draftFilters}
           loading={report.loading}
           locationOptions={report.locationOptions}
@@ -190,6 +183,16 @@ export function DailySalesReportPage({
             <div className="pb-[max(var(--pos-system-bottom-safe-area,0px),var(--app-shell-bottom-nav-height,0px))]">
               <AppPagination
                 page={report.page}
+                pageSize={{
+                  // มุมมองละเอียดแบ่งหน้าตามบิลหรือตามรายการ (ขึ้นกับ API) — ให้ป้ายบอกหน่วยให้ถูก
+                  label: isDetail
+                    ? report.detailPageBasis === "bills"
+                      ? t("report.billsPerPage")
+                      : t("report.linesPerPage")
+                    : undefined,
+                  onChange: report.changePageLimit,
+                  value: report.appliedFilters.limit,
+                }}
                 rangeLabel={report.paginationRangeLabel}
                 totalPages={report.totalPages}
                 onPageChange={report.setPage}
@@ -206,6 +209,7 @@ export function DailySalesReportPage({
               isColumnVisible={detailColumns.isVisible}
               itemColumns={report.detailItemColumns}
               pageStart={report.pageStart}
+              pinning={detailColumns.pinning}
               reportTotal={report.reportTotal}
               selectedRecordIds={report.selectedRecordIds}
               summaryCards={report.summaryCards}
@@ -217,6 +221,7 @@ export function DailySalesReportPage({
             <SummaryReportTable
               columns={report.columns}
               isColumnVisible={billColumns.isVisible}
+              pinning={billColumns.pinning}
               pageStart={report.pageStart}
               reportTotal={report.reportTotal}
               rows={report.rows}

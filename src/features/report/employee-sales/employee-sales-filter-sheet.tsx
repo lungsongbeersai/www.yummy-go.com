@@ -6,7 +6,6 @@ import { Field, FieldLabel } from "@/components/ui/field";
 import {
   ReportBranchField,
   ReportDateRangeFields,
-  ReportPageLimitField,
   ReportSelectField,
   type ReportFieldOption,
 } from "@/features/report/shared/report-filter-fields";
@@ -101,11 +100,6 @@ function EmployeeSalesFilterFields({
         options={reportOrderOptions(t)}
         value={draft.orderBy}
         onValueChange={orderBy => onDraftChange(previous => ({ ...previous, orderBy: orderBy as "ASC" | "DESC" }))}
-      />
-      <ReportPageLimitField
-        id={`${idPrefix}-limit`}
-        value={draft.limit}
-        onValueChange={limit => onDraftChange(previous => ({ ...previous, limit }))}
       />
     </>
   );

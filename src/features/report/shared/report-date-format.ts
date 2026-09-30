@@ -51,6 +51,15 @@ export function formatReportDateTime(value: unknown, fallback = "-") {
   return parts ? `${parts.date} ${parts.time}` : raw;
 }
 
+const MIDNIGHT = " 00:00:00";
+
+/** A sale date column: the API sends the business date as that day's midnight
+ * ("2026-09-29 00:00:00"), which is a date, not a time — so the "00:00:00" is dropped. */
+export function formatReportSaleDate(value: unknown, fallback = "-") {
+  const label = formatReportDateTime(value, fallback);
+  return label.endsWith(MIDNIGHT) ? label.slice(0, -MIDNIGHT.length) : label;
+}
+
 /** "01/09/2026 - 30/09/2026", or a single date when the range is one day. */
 export function formatReportDateRange(from: unknown, to: unknown) {
   const start = formatReportDate(from, "");

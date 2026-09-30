@@ -16,6 +16,7 @@ import {
   selectedDetailBillGroups,
 } from "./daily-sales-report-export-utils";
 import {
+  billPaymentMethodLabel,
   billSummaryMetrics,
   billPaymentMethodParam,
   detailPaginationBasis,
@@ -512,5 +513,16 @@ describe("daily sales report export helpers", () => {
       { Metric: "dashboard.branch", Value: "Main branch" },
       { Metric: "report.reportDate", Value: "01/07/2026 - 13/07/2026" },
     ]);
+  });
+
+  it("labels a split cash + transfer bill instead of showing the API's 0", () => {
+    const t = (key: string) => key;
+    expect(billPaymentMethodLabel({ payment_method: 2, payment_method_name: "Transfer" }, t)).toBe("Transfer");
+    expect(
+      billPaymentMethodLabel({ paid_cash: 150000, paid_transfer: 339000, payment_method: 0, payment_method_name: "" }, t),
+    ).toBe("report.paymentMethods.mixed");
+    expect(billPaymentMethodLabel({ payment_method: 4, payment_method_name: "" }, t)).toBe("report.paymentMethods.debt");
+    expect(billPaymentMethodLabel({ paid_cash: 1000, payment_method_name: "0" }, t)).toBe("report.paymentMethods.cash");
+    expect(billPaymentMethodLabel({ payment_method: 0 }, t)).toBe("-");
   });
 });
