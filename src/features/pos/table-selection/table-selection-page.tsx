@@ -130,13 +130,14 @@ export function TableSelectionPage() {
             (ไม่มี NativeTopBar/AppHeader ด้านบนให้บนหน้า immersive แบบนี้) ต้องกันพื้นที่
             status bar เองตอนรันบน Capacitor จอกว้าง/แนวนอน — env() เป็น 0 อยู่แล้วบนจอที่ไม่มี
             notch/status bar (เว็บเดสก์ท็อป) จึงไม่ต้องเช็ค platform เพิ่ม ปุ่ม/นาฬิกาที่ centered
-            ด้วย items-center/top-1/2 ยังอยู่กึ่งกลางของกล่องใหม่ที่สูงขึ้นให้เองอัตโนมัติ */}
-        <header className="relative flex min-h-18 shrink-0 items-center justify-between overflow-hidden px-3 pt-[env(safe-area-inset-top,0px)] text-primary-foreground shadow-sm sm:min-h-20 sm:px-4">
+            ด้วย items-center/top-1/2 ยังอยู่กึ่งกลางของกล่องใหม่ที่สูงขึ้นให้เองอัตโนมัติ
+            (Swan 1 ใช้ grid สามช่องแทน absolute ผ่าน CSS เฉพาะเครื่อง) */}
+        <header data-pos-table-header="true" className="relative flex min-h-18 shrink-0 items-center justify-between overflow-hidden px-3 pt-[env(safe-area-inset-top,0px)] text-primary-foreground shadow-sm sm:min-h-20 sm:px-4">
           <Button aria-label={t("actions.back")} className={headerIconButtonClass} size="icon" type="button" variant="ghost" onClick={() => router.replace("/")}>
             <ChevronLeft />
           </Button>
           <TableClock />
-          <div className="relative flex min-w-0 items-center gap-1.5">
+          <div data-pos-table-header-actions="true" className="relative flex min-w-0 items-center gap-1.5">
             <NotificationMenu triggerClassName={cn(headerIconButtonClass, "hidden min-[430px]:inline-flex")} triggerVariant="ghost" />
             <LanguageSwitch className={cn(headerIconButtonClass, "hidden min-[500px]:inline-flex")} compact size="icon" variant="ghost" />
             <ThemeToggle className={headerIconButtonClass} size="icon" variant="ghost" />

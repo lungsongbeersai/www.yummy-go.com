@@ -1502,6 +1502,12 @@ html.swan1-legacy-colors .app-shell[data-platform="capacitor"][data-desktop-pos-
   padding-bottom: 64px;
 }
 
+/* The table screen already reserves Android's lower system strip inside its
+   legend. Reserving it again on the app shell leaves a blank band below it. */
+html.swan1-legacy-colors .app-shell[data-platform="capacitor"][data-desktop-pos-layout="true"]:not([data-desktop-pos-order-layout="true"]) {
+  padding-bottom: 0;
+}
+
 /* The order screen has its own cart footer safe-area. Keep the action row close
    to (but above) Swan 1's Android navigation bar without double spacing it. */
 html.swan1-legacy-colors .app-shell[data-platform="capacitor"][data-desktop-pos-order-layout="true"] {
@@ -1563,13 +1569,32 @@ html.swan1-legacy-colors .app-shell a[href="#app-main-content"]:focus {
   transform: translateY(0);
 }
 
-/* The desktop POS branch uses Tailwind's individual translate/ring properties,
-   which Swan 1's WebView 101 ignores. Keep its clock centered and its table
-   cards visibly separated without changing the shared desktop UI. */
-html.swan1-legacy-colors [data-pos-table-clock] {
-  transform: translate(-50%, -50%);
+/* The old WebView's absolute-positioned clock lands off the visual midpoint.
+   Equal outer grid tracks keep the clock centered regardless of right actions. */
+html.swan1-legacy-colors [data-pos-table-header] {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  align-items: center;
 }
 
+html.swan1-legacy-colors [data-pos-table-header] > button:first-child {
+  justify-self: start;
+}
+
+html.swan1-legacy-colors [data-pos-table-clock] {
+  position: static;
+  left: auto;
+  top: auto;
+  translate: none !important;
+  transform: none;
+  justify-self: center;
+}
+
+html.swan1-legacy-colors [data-pos-table-header-actions] {
+  justify-self: end;
+}
+
+/* WebView 101 ignores Tailwind's individual translate/ring properties. */
 html.swan1-legacy-colors [data-pos-table-search-icon] {
   transform: translateY(-50%);
 }
@@ -1604,7 +1629,8 @@ html.swan1-legacy-colors .app-shell[data-desktop-home-layout="true"][data-home-s
 
 html.swan1-legacy-colors .app-shell[data-desktop-home-layout="true"] .swan1-home-sidebar {
   top: 0;
-  height: calc(100vh - 64px);
+  /* Swan 1's WebView viewport already stops above the Android navigation bar. */
+  height: 100vh;
   padding-top: 32px;
 }
 
