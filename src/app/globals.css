@@ -1487,6 +1487,21 @@ html.theme-transition-active[data-theme-transition-direction="ltr"]::view-transi
   --app-shell-header-height: 4rem;
 }
 
+/* Swan 1's WebView 101 cannot parse dvh or the individual translate property.
+   Keep fixed screens bounded so their inner scroll areas work, and keep the
+   keyboard skip link offscreen until focused without changing newer devices. */
+html.swan1-legacy-colors .app-shell[data-platform="capacitor"][data-fixed-screen="true"] {
+  height: 100vh;
+}
+
+html.swan1-legacy-colors .app-shell a[href="#app-main-content"] {
+  transform: translateY(-6rem);
+}
+
+html.swan1-legacy-colors .app-shell a[href="#app-main-content"]:focus {
+  transform: translateY(0);
+}
+
 .app-shell-body {
   min-height: calc(100dvh - var(--app-shell-header-height));
 }
