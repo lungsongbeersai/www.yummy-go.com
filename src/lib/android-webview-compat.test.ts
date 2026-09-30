@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { getAndroidWebViewCompatInfo } from "./android-webview-compat";
+import { getAndroidWebViewCompatInfo, isSwan1NativeWebView } from "./android-webview-compat";
 
 const desktopChromeUa =
   "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36";
@@ -11,9 +11,32 @@ const modernAndroidWebViewUa =
   "Mozilla/5.0 (Linux; Android 14; Tablet Build/UQ1A.240205.004; wv) AppleWebKit/537.36 (KHTML, like Gecko) Version/4.0 Chrome/126.0.6478.188 Mobile Safari/537.36";
 const oldAndroidWebViewUa =
   "Mozilla/5.0 (Linux; Android 13; Device Build/TQ3A.230901.001; wv) AppleWebKit/537.36 (KHTML, like Gecko) Version/4.0 Chrome/95.0.4638.74 Mobile Safari/537.36";
+const swan1WebViewUa =
+  "Mozilla/5.0 (Linux; Android 11; Swan 1 Build/RQ3A.210705.001; wv) AppleWebKit/537.36 (KHTML, like Gecko) Version/4.0 Chrome/101.0.4951.61 Safari/537.36 YummyGoCapacitorAndroid";
 
 const supportsAllRendering = () => true;
 const missingBackdropSupport = (property: string) => property !== "backdrop-filter" && property !== "-webkit-backdrop-filter";
+
+describe("isSwan1NativeWebView", () => {
+  it("matches the native Swan 1 WebView user agent", () => {
+    expect(isSwan1NativeWebView({
+      isNativePlatform: true,
+      platform: "android",
+      userAgent: swan1WebViewUa,
+    })).toBe(true);
+  });
+
+  it("does not change web, iPad, or other Android devices", () => {
+    expect(isSwan1NativeWebView({ isNativePlatform: false, platform: "web", userAgent: swan1WebViewUa })).toBe(false);
+    expect(isSwan1NativeWebView({ isNativePlatform: true, platform: "ios", userAgent: swan1WebViewUa })).toBe(false);
+    expect(isSwan1NativeWebView({ isNativePlatform: true, platform: "android", userAgent: android11WebViewUa })).toBe(false);
+    expect(isSwan1NativeWebView({
+      isNativePlatform: true,
+      platform: "android",
+      userAgent: swan1WebViewUa.replace("Swan 1 Build", "Swan 2 Build"),
+    })).toBe(false);
+  });
+});
 
 describe("getAndroidWebViewCompatInfo", () => {
   it("does not enable fallback for desktop browsers", () => {

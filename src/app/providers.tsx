@@ -9,7 +9,9 @@ import {
   ANDROID_WEBVIEW_COMPAT_CLASS,
   ANDROID_WEBVIEW_COMPAT_STORAGE_KEY,
   CAPACITOR_ANDROID_CLASS,
+  SWAN1_LEGACY_COLORS_CLASS,
   getAndroidWebViewCompatInfo,
+  isSwan1NativeWebView,
 } from "@/lib/android-webview-compat";
 import {
   CAPACITOR_IOS_CLASS,
@@ -84,13 +86,15 @@ function cssSupports(property: string, value: string) {
 function applyCapacitorPlatformClasses() {
   const isNativePlatform = Capacitor.isNativePlatform();
   const platform = Capacitor.getPlatform();
+  const userAgent = window.navigator.userAgent;
   const info = getAndroidWebViewCompatInfo({
     isNativePlatform,
     platform,
-    userAgent: window.navigator.userAgent,
+    userAgent,
     cssSupports,
     storageValue: readAndroidWebViewCompatOverride(),
   });
+  const isSwan1 = isSwan1NativeWebView({ isNativePlatform, platform, userAgent });
   const targets = [document.documentElement, document.body].filter(Boolean);
 
   targets.forEach((target) => {
@@ -98,6 +102,7 @@ function applyCapacitorPlatformClasses() {
     target.classList.toggle(CAPACITOR_IOS_CLASS, isNativePlatform && platform === "ios");
     target.classList.toggle(CAPACITOR_ANDROID_CLASS, info.isAndroidNative);
     target.classList.toggle(ANDROID_WEBVIEW_COMPAT_CLASS, info.needsCompat);
+    target.classList.toggle(SWAN1_LEGACY_COLORS_CLASS, isSwan1);
   });
   document.documentElement.dataset.androidWebviewCompat = info.needsCompat ? "on" : "off";
 
@@ -108,6 +113,7 @@ function applyCapacitorPlatformClasses() {
         CAPACITOR_IOS_CLASS,
         CAPACITOR_ANDROID_CLASS,
         ANDROID_WEBVIEW_COMPAT_CLASS,
+        SWAN1_LEGACY_COLORS_CLASS,
       );
     });
     delete document.documentElement.dataset.androidWebviewCompat;

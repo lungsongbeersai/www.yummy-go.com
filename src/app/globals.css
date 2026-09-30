@@ -226,6 +226,210 @@
   --sidebar-ring: #8b5cf6;
 }
 
+/* Only the native Swan 1 WebView receives sRGB theme tokens. */
+html.swan1-legacy-colors {
+  --card: #fff;
+  --card-foreground: #090b0c;
+  --popover: #fff;
+  --popover-foreground: #090b0c;
+  --muted: #f1f3f3;
+  --muted-foreground: #67787c;
+  --accent: #f1f3f3;
+  --accent-foreground: #161b1d;
+  --primary: #007956;
+  --primary-foreground: #ecfdf5;
+  --secondary: #f4f4f5;
+  --secondary-foreground: #18181b;
+  --destructive: #e40014;
+  --destructive-foreground: #fff;
+  --border: #e3e7e8;
+  --input: #e3e7e8;
+  --ring: #9ca8ab;
+  --sidebar: #fafcfc;
+  --sidebar-foreground: #141a17;
+  --sidebar-primary: #007956;
+  --sidebar-primary-foreground: #ecfdf5;
+  --sidebar-accent: #c7f0dc;
+  --sidebar-accent-foreground: #002719;
+  --sidebar-border: #d8e0dc;
+  --sidebar-ring: #007956;
+  --background: #fff;
+  --foreground: #090b0c;
+  --chart-1: #7bf1a8;
+  --chart-2: #00c758;
+  --chart-3: #00a544;
+  --chart-4: #008138;
+  --chart-5: #016630;
+  --color-green-50: #f0fdf4;
+  --color-green-100: #dcfce7;
+  --color-green-200: #bbf7d0;
+  --color-green-300: #86efac;
+  --color-green-400: #4ade80;
+  --color-green-500: #22c55e;
+  --color-green-600: #16a34a;
+  --color-green-700: #15803d;
+  --color-green-800: #166534;
+  --color-green-900: #14532d;
+  --color-green-950: #052e16;
+  --color-teal-50: #f0fdfa;
+  --color-teal-100: #ccfbf1;
+  --color-teal-200: #99f6e4;
+  --color-teal-300: #5eead4;
+  --color-teal-400: #2dd4bf;
+  --color-teal-500: #14b8a6;
+  --color-teal-600: #0d9488;
+  --color-teal-700: #0f766e;
+  --color-teal-800: #115e59;
+  --color-teal-900: #134e4a;
+  --color-teal-950: #042f2e;
+  --color-lime-50: #f7fee7;
+  --color-lime-100: #ecfccb;
+  --color-lime-200: #d9f99d;
+  --color-lime-300: #bef264;
+  --color-lime-400: #a3e635;
+  --color-lime-500: #84cc16;
+  --color-lime-600: #65a30d;
+  --color-lime-700: #4d7c0f;
+  --color-lime-800: #3f6212;
+  --color-lime-900: #365314;
+  --color-lime-950: #1a2e05;
+}
+
+html.swan1-legacy-colors.dark {
+  --background: #090b0c;
+  --foreground: #f9fbfb;
+  --card: #161b1d;
+  --card-foreground: #f9fbfb;
+  --popover: #161b1d;
+  --popover-foreground: #f9fbfb;
+  --muted: #22292b;
+  --muted-foreground: #9ca8ab;
+  --accent: #22292b;
+  --accent-foreground: #f9fbfb;
+  --primary: #005f46;
+  --primary-foreground: #ecfdf5;
+  --secondary: #27272a;
+  --secondary-foreground: #fafafa;
+  --destructive: #ff6568;
+  --destructive-foreground: #fff;
+  --border: #ffffff1a;
+  --input: #ffffff26;
+  --ring: #67787c;
+  --sidebar: #161b1d;
+  --sidebar-foreground: #f9fbfb;
+  --sidebar-primary: #00bb7f;
+  --sidebar-primary-foreground: #002c22;
+  --sidebar-accent: #003d2a;
+  --sidebar-accent-foreground: #f3fbf7;
+  --sidebar-border: #ffffff1a;
+  --sidebar-ring: #00bb7f;
+  --chart-1: #7bf1a8;
+  --chart-2: #00c758;
+  --chart-3: #00a544;
+  --chart-4: #008138;
+  --chart-5: #016630;
+}
+
+html.swan1-legacy-colors[data-theme-color="emerald"] {
+  --primary: #007956;
+  --primary-foreground: #ecfdf5;
+  --sidebar-primary: #007956;
+  --sidebar-primary-foreground: #ecfdf5;
+  --sidebar-accent: #c7f0dc;
+  --sidebar-accent-foreground: #002719;
+  --sidebar-ring: #007956;
+}
+
+html.swan1-legacy-colors.dark[data-theme-color="emerald"] {
+  --primary: #005f46;
+  --primary-foreground: #ecfdf5;
+  --sidebar-primary: #00bb7f;
+  --sidebar-primary-foreground: #002c22;
+  --sidebar-accent: #003d2a;
+  --sidebar-accent-foreground: #f3fbf7;
+  --sidebar-ring: #00bb7f;
+}
+
+html.swan1-legacy-colors[data-theme-color="blue"] {
+  --primary: #1d4ed8;
+  --primary-foreground: #fafafa;
+  --sidebar-primary: #1d4ed8;
+  --sidebar-primary-foreground: #fafafa;
+  --sidebar-accent: #dbeafe;
+  --sidebar-accent-foreground: #1e40af;
+  --sidebar-ring: #1d4ed8;
+}
+
+html.swan1-legacy-colors.dark[data-theme-color="blue"] {
+  --primary: #1e40af;
+  --primary-foreground: #fafafa;
+  --sidebar-primary: #3b82f6;
+  --sidebar-primary-foreground: #172554;
+  --sidebar-accent: #1e3a8a;
+  --sidebar-accent-foreground: #dbeafe;
+  --sidebar-ring: #3b82f6;
+}
+
+html.swan1-legacy-colors[data-theme-color="amber"] {
+  --primary: #b45309;
+  --primary-foreground: #fafafa;
+  --sidebar-primary: #b45309;
+  --sidebar-primary-foreground: #fafafa;
+  --sidebar-accent: #fef3c7;
+  --sidebar-accent-foreground: #92400e;
+  --sidebar-ring: #b45309;
+}
+
+html.swan1-legacy-colors.dark[data-theme-color="amber"] {
+  --primary: #92400e;
+  --primary-foreground: #fafafa;
+  --sidebar-primary: #f59e0b;
+  --sidebar-primary-foreground: #451a03;
+  --sidebar-accent: #78350f;
+  --sidebar-accent-foreground: #fef3c7;
+  --sidebar-ring: #f59e0b;
+}
+
+html.swan1-legacy-colors[data-theme-color="rose"] {
+  --primary: #be123c;
+  --primary-foreground: #fafafa;
+  --sidebar-primary: #be123c;
+  --sidebar-primary-foreground: #fafafa;
+  --sidebar-accent: #ffe4e6;
+  --sidebar-accent-foreground: #9f1239;
+  --sidebar-ring: #be123c;
+}
+
+html.swan1-legacy-colors.dark[data-theme-color="rose"] {
+  --primary: #9f1239;
+  --primary-foreground: #fafafa;
+  --sidebar-primary: #f43f5e;
+  --sidebar-primary-foreground: #4c0519;
+  --sidebar-accent: #881337;
+  --sidebar-accent-foreground: #ffe4e6;
+  --sidebar-ring: #f43f5e;
+}
+
+html.swan1-legacy-colors[data-theme-color="violet"] {
+  --primary: #6d28d9;
+  --primary-foreground: #fafafa;
+  --sidebar-primary: #6d28d9;
+  --sidebar-primary-foreground: #fafafa;
+  --sidebar-accent: #ede9fe;
+  --sidebar-accent-foreground: #5b21b6;
+  --sidebar-ring: #6d28d9;
+}
+
+html.swan1-legacy-colors.dark[data-theme-color="violet"] {
+  --primary: #5b21b6;
+  --primary-foreground: #fafafa;
+  --sidebar-primary: #8b5cf6;
+  --sidebar-primary-foreground: #2e1065;
+  --sidebar-accent: #4c1d95;
+  --sidebar-accent-foreground: #ede9fe;
+  --sidebar-ring: #8b5cf6;
+}
+
 /* ขนาดตัวอักษรที่ปรับจากเมนูตั้งค่าการแสดงผล — สเกล root font-size แล้วให้ Tailwind
    ที่อิง rem ทั้งระบบขยาย/หดตามไปด้วยโดยไม่ต้องแก้ class ทีละจุด
    4 ขั้น อิง 16px = root font-size เริ่มต้นของเบราว์เซอร์ (md ไม่ต้องมี rule เพราะคือ 100% เดิม) */

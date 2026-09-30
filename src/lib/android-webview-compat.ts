@@ -1,5 +1,6 @@
 export const CAPACITOR_ANDROID_CLASS = "capacitor-android";
 export const ANDROID_WEBVIEW_COMPAT_CLASS = "android-webview-compat";
+export const SWAN1_LEGACY_COLORS_CLASS = "swan1-legacy-colors";
 export const ANDROID_WEBVIEW_COMPAT_STORAGE_KEY = "yummy-go-rendering-compat";
 
 export type RenderingCompatOverride = "" | "off" | "on";
@@ -21,6 +22,14 @@ export interface AndroidWebViewCompatInfo {
   missingRenderingSupport: boolean;
   needsCompat: boolean;
   override: RenderingCompatOverride;
+}
+
+export function isSwan1NativeWebView(
+  input: Pick<AndroidWebViewCompatInput, "isNativePlatform" | "platform" | "userAgent">
+): boolean {
+  return input.isNativePlatform
+    && input.platform.trim().toLowerCase() === "android"
+    && /\(Linux;\s*Android\s+\d+;\s*Swan 1 Build\/[^;]+;\s*wv\)/i.test(input.userAgent);
 }
 
 const MIN_STABLE_WEBVIEW_MAJOR = 100;
