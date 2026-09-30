@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { getAndroidWebViewCompatInfo, isSwan1NativeWebView, usesSwan1DesktopPosLayout } from "./android-webview-compat";
+import { getAndroidWebViewCompatInfo, isSwan1NativeWebView, usesSwan1DesktopHomeLayout, usesSwan1DesktopPosLayout } from "./android-webview-compat";
 
 const desktopChromeUa =
   "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36";
@@ -53,6 +53,23 @@ describe("usesSwan1DesktopPosLayout", () => {
     expect(usesSwan1DesktopPosLayout({ ...swan, platform: "ios" }, "/posAll/tables")).toBe(false);
     expect(usesSwan1DesktopPosLayout({ ...swan, userAgent: android11WebViewUa }, "/posAll/tables")).toBe(false);
     expect(usesSwan1DesktopPosLayout({ ...swan, userAgent: swan1WebViewUa.replace("Swan 1 Build", "Swan 2 Build") }, "/posAll/order")).toBe(false);
+  });
+});
+
+describe("usesSwan1DesktopHomeLayout", () => {
+  const swan = { isNativePlatform: true, platform: "android", userAgent: swan1WebViewUa };
+
+  it("uses the desktop home chrome only on Swan 1's dashboard", () => {
+    expect(usesSwan1DesktopHomeLayout(swan, "/")).toBe(true);
+    expect(usesSwan1DesktopHomeLayout(swan, "/posAll/tables")).toBe(false);
+    expect(usesSwan1DesktopHomeLayout(swan, "/home")).toBe(false);
+  });
+
+  it("does not change other tablets or browsers", () => {
+    expect(usesSwan1DesktopHomeLayout({ ...swan, isNativePlatform: false }, "/")).toBe(false);
+    expect(usesSwan1DesktopHomeLayout({ ...swan, platform: "ios" }, "/")).toBe(false);
+    expect(usesSwan1DesktopHomeLayout({ ...swan, userAgent: android11WebViewUa }, "/")).toBe(false);
+    expect(usesSwan1DesktopHomeLayout({ ...swan, userAgent: swan1WebViewUa.replace("Swan 1 Build", "Swan 2 Build") }, "/")).toBe(false);
   });
 });
 

@@ -402,7 +402,7 @@ function RevenueHeroCard({
   value: string;
 }) {
   return (
-    <Card className="@container/hero bg-linear-to-br from-primary to-primary/80 text-primary-foreground ring-0 sm:col-span-2 lg:row-span-2">
+    <Card data-dashboard-revenue-card="true" className="@container/hero bg-linear-to-br from-primary to-primary/80 text-primary-foreground ring-0 sm:col-span-2 lg:row-span-2">
       <CardHeader>
         <CardTitle className="flex items-center gap-2 text-primary-foreground/85">
           <span aria-hidden="true" className="flex size-9 items-center justify-center rounded-lg bg-primary-foreground/15">

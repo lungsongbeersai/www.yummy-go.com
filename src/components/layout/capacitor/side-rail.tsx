@@ -2,8 +2,12 @@
 
 import { SidebarProvider } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/layout/shell-sidebar-menu";
+import { SidebarStoreHeader, SidebarUserMenu } from "@/components/layout/web/sidebar-identity";
 import type { MenuItem } from "@/config/menu";
+import { cn } from "@/lib/utils";
 import { useAppStore } from "@/stores/app-store";
+import { useAuthStore } from "@/stores/auth-store";
+import { useNavigationGuardStore } from "@/stores/navigation-guard-store";
 
 // เดิม rail นี้เป็นแค่ไอคอนคอลัมน์แคบ ๆ (ปลายทางจำกัดจำนวน + ปุ่ม "เพิ่มเติม") ตอนนี้เปลี่ยนมา
 // ใช้ AppSidebar ตัวเดียวกับเว็บเดสก์ท็อปตรง ๆ (เมนูเต็มรูปแบบ กลุ่มหด/กางได้ ไม่จำกัดจำนวน)
@@ -24,6 +28,7 @@ export function NativeSideRail({
   onRetry,
   openMenus,
   pathname,
+  desktopHomeLayout,
   toggleMenu,
 }: {
   error: string | null;
@@ -32,10 +37,14 @@ export function NativeSideRail({
   onRetry: () => void;
   openMenus: Set<string>;
   pathname: string;
+  desktopHomeLayout?: boolean;
   toggleMenu: (title: string) => void;
 }) {
   const collapsed = useAppStore((state) => state.collapsed);
   const setCollapsed = useAppStore((state) => state.setCollapsed);
+  const user = useAuthStore((state) => state.user);
+  const logout = useAuthStore((state) => state.logout);
+  const runGuardedNavigation = useNavigationGuardStore((state) => state.run);
 
   return (
     <SidebarProvider
@@ -44,11 +53,17 @@ export function NativeSideRail({
       className="hidden h-full min-h-0 w-auto shrink-0 md:flex"
     >
       {/* ลบ --pos-system-bottom-safe-area ออกจากความสูงทั้งก้อนด้วย ไม่ใช่แค่เผื่อ padding
-          ข้างในเนื้อหา — ไม่งั้นปุ่ม "ย่อเมนู" ใน SidebarFooter ที่อยู่ล่างสุดของ Sidebar (fixed
-          เต็มความสูงที่คำนวณไว้) จะไปโผล่ทับโซน home indicator/gesture bar ของระบบพอดี กดไม่ได้
-          หรือโดนบังบางส่วนตามที่รายงานมา */}
+          ข้างในเนื้อหา — ไม่งั้น footer ของ Sidebar (ปุ่มย่อเมนูหรือบัญชีบน Swan 1)
+          จะไปโผล่ทับโซน home indicator/gesture bar ของระบบพอดี กดไม่ได้ */}
       <AppSidebar
-        className="app-sidebar-panel top-(--app-shell-header-height) h-[calc(100dvh-var(--app-shell-header-height)-var(--pos-system-bottom-safe-area,0px))] border-r border-sidebar-border"
+        className={cn(
+          "app-sidebar-panel top-(--app-shell-header-height) h-[calc(100dvh-var(--app-shell-header-height)-var(--pos-system-bottom-safe-area,0px))] border-r border-sidebar-border",
+          desktopHomeLayout && "swan1-home-sidebar",
+        )}
+        header={desktopHomeLayout ? <SidebarStoreHeader user={user} /> : undefined}
+        footer={desktopHomeLayout ? (
+          <SidebarUserMenu user={user} logout={() => runGuardedNavigation(logout)} />
+        ) : undefined}
         error={error}
         loading={loading}
         menuItems={menuItems}

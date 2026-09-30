@@ -155,6 +155,7 @@ export function ProductOptionsOverlay({
           จัดกึ่งกลางด้วย top-1/2 อาจสูงล้นไปทับ status bar ด้านบน หรือ gesture bar ด้านล่างได้
           ลบ safe-area ทั้งสองด้านออกจาก max-height เพิ่ม — env() เป็น 0 อยู่แล้วบนจอที่ไม่มี inset */}
       <DialogContent
+        data-pos-product-options-dialog="true"
         showCloseButton={false}
         className="pos-soft-light-zone pos-dark-zone flex max-h-[calc(100dvh-2rem-env(safe-area-inset-top,0px)-env(safe-area-inset-bottom,0px))] flex-col gap-0 overflow-hidden border-border bg-background p-0 text-foreground motion-reduce:transition-none motion-reduce:data-[state=closed]:animate-none motion-reduce:data-[state=open]:animate-none sm:max-w-180"
       >

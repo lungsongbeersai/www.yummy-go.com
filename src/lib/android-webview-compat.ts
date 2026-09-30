@@ -40,6 +40,13 @@ export function usesSwan1DesktopPosLayout(
     && (pathname === "/posAll/tables" || pathname === "/posAll/order");
 }
 
+export function usesSwan1DesktopHomeLayout(
+  input: Pick<AndroidWebViewCompatInput, "isNativePlatform" | "platform" | "userAgent">,
+  pathname: string,
+): boolean {
+  return isSwan1NativeWebView(input) && pathname === "/";
+}
+
 const MIN_STABLE_WEBVIEW_MAJOR = 100;
 const MAX_COMPAT_ANDROID_MAJOR = 11;
 

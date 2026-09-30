@@ -13,12 +13,15 @@ import {
 import { useAndroidBackButton } from "@/components/layout/capacitor/use-android-back-button";
 import { useKeyboardVisible } from "@/components/layout/capacitor/use-keyboard-visible";
 import { NativeTopBar } from "@/components/layout/capacitor/top-bar";
+import { Swan1HomeTopBar } from "@/components/layout/capacitor/swan1-home-top-bar";
 import { NativeBottomNav } from "@/components/layout/capacitor/bottom-nav";
 import { NativeSideRail } from "@/components/layout/capacitor/side-rail";
 import { usePullToRefresh } from "@/components/layout/capacitor/use-pull-to-refresh";
 import { NativePullToRefreshIndicator } from "@/components/layout/capacitor/pull-to-refresh-indicator";
 import { useAuthStore } from "@/stores/auth-store";
 import { useSwan1DesktopPosLayout } from "@/hooks/use-swan1-desktop-pos-layout";
+import { useSwan1DesktopHomeLayout } from "@/hooks/use-swan1-desktop-home-layout";
+import { useAppStore } from "@/stores/app-store";
 
 export function NativeAppShell({ children }: { children: React.ReactNode }) {
   const { i18n, t } = useTranslation();
@@ -49,6 +52,8 @@ export function NativeAppShell({ children }: { children: React.ReactNode }) {
   );
   const keyboardVisible = useKeyboardVisible();
   const desktopPosLayout = useSwan1DesktopPosLayout();
+  const desktopHomeLayout = useSwan1DesktopHomeLayout();
+  const sidebarCollapsed = useAppStore((state) => state.collapsed);
   // ปิดบนหน้า fixedDataScreen (เช่น POS order/table) เพราะหน้าเหล่านี้มี scroll area
   // ของตัวเองแยกจาก document — ดึงที่ขอบบนสุดของหน้าจะไปชนกับท่าทางภายในจอนั้นแทน
   const { pullDistance, refreshing, threshold } = usePullToRefresh(!fixedDataScreen);
@@ -67,6 +72,9 @@ export function NativeAppShell({ children }: { children: React.ReactNode }) {
       data-keyboard-open={keyboardVisible ? "true" : "false"}
       data-platform="capacitor"
       data-desktop-pos-layout={desktopPosLayout ? "true" : undefined}
+      data-desktop-pos-order-layout={desktopPosLayout && pathname === "/posAll/order" ? "true" : undefined}
+      data-desktop-home-layout={desktopHomeLayout ? "true" : undefined}
+      data-home-sidebar-collapsed={desktopHomeLayout && sidebarCollapsed ? "true" : undefined}
     >
       <a
         href="#app-main-content"
@@ -75,9 +83,11 @@ export function NativeAppShell({ children }: { children: React.ReactNode }) {
         {t("app.skipToContent")}
       </a>
 
-      {/* Only Swan 1's POS screens render their own desktop-style header. The
-          native shell and Android back listener remain mounted underneath. */}
-      {!desktopPosLayout ? (
+      {/* Swan 1 uses its own desktop-style header on the dashboard and POS.
+          NativeAppShell stays mounted so Android hardware Back still works. */}
+      {desktopHomeLayout ? (
+        <Swan1HomeTopBar breadcrumbs={breadcrumbs} />
+      ) : !desktopPosLayout ? (
         <NativeTopBar
           breadcrumbs={breadcrumbs}
           model={model}
@@ -106,6 +116,7 @@ export function NativeAppShell({ children }: { children: React.ReactNode }) {
             onRetry={retrySidebarMenu}
             openMenus={openMenus}
             pathname={pathname}
+            desktopHomeLayout={desktopHomeLayout}
             toggleMenu={toggleMenu}
           />
         )}
@@ -139,7 +150,9 @@ export function NativeAppShell({ children }: { children: React.ReactNode }) {
             // เมื่อ bottom-nav-height เป็น 0
             fixedDataScreen
               ? "min-h-0 overflow-hidden"
-              : "overflow-visible pb-[max(var(--app-shell-bottom-nav-height,0px),var(--pos-system-bottom-safe-area,0px))] pt-3 px-3",
+              : desktopHomeLayout
+                ? "mx-auto w-full max-w-375 overflow-visible p-4 lg:p-6"
+                : "overflow-visible pb-[max(var(--app-shell-bottom-nav-height,0px),var(--pos-system-bottom-safe-area,0px))] pt-3 px-3",
           )}
         >
           {children}

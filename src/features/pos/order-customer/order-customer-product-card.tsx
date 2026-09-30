@@ -87,6 +87,7 @@ export const EmployeeProductCard = memo(function EmployeeProductCard({
 
   return (
     <Card
+      data-pos-product-card="true"
       className={cn(
         "group relative flex min-w-0 flex-col gap-0 overflow-hidden rounded-lg border-border/80 bg-card py-0 text-card-foreground shadow-sm [contain-intrinsic-size:320px] [content-visibility:auto]",
         !interactionDisabled &&

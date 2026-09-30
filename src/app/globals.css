@@ -1502,6 +1502,23 @@ html.swan1-legacy-colors .app-shell[data-platform="capacitor"][data-desktop-pos-
   padding-bottom: 64px;
 }
 
+/* The order screen has its own cart footer safe-area. Keep the action row close
+   to (but above) Swan 1's Android navigation bar without double spacing it. */
+html.swan1-legacy-colors .app-shell[data-platform="capacitor"][data-desktop-pos-order-layout="true"] {
+  padding-bottom: 40px;
+}
+
+html.swan1-legacy-colors .app-shell[data-desktop-pos-order-layout="true"] .pos-safe-bottom-padding {
+  padding-bottom: 8px;
+}
+
+/* WebView 101 ignores the dialog's individual translate utilities. Its portal
+   is outside the app shell, so use the exact product-dialog marker here. */
+html.swan1-legacy-colors [data-pos-product-options-dialog] {
+  max-height: calc(100vh - 144px);
+  transform: translate(-50%, -50%);
+}
+
 html.swan1-legacy-colors .app-shell a[href="#app-main-content"] {
   transform: translateY(-6rem);
 }
@@ -1527,6 +1544,42 @@ html.swan1-legacy-colors [data-pos-table-card] {
 
 html.swan1-legacy-colors [data-pos-table-card]:not(:focus-visible):not([aria-pressed="true"]) {
   box-shadow: 0 1px 3px rgba(15, 23, 42, 0.12);
+}
+
+/* WebView 101 does not paint Tailwind v4's ring-based card outline. */
+html.swan1-legacy-colors [data-pos-product-card] {
+  border: 1px solid var(--border);
+  background-color: var(--card);
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.12);
+}
+
+/* Keep the native Android back handler while giving Swan 1's dashboard the
+   desktop sidebar chrome, including the account control at its foot. */
+html.swan1-legacy-colors .app-shell[data-desktop-home-layout="true"] .swan1-home-top-bar {
+  height: 88px;
+  margin-left: 16rem;
+  border-bottom: 1px solid var(--border);
+  background: var(--background);
+}
+
+html.swan1-legacy-colors .app-shell[data-desktop-home-layout="true"][data-home-sidebar-collapsed="true"] .swan1-home-top-bar {
+  margin-left: 3rem;
+}
+
+html.swan1-legacy-colors .app-shell[data-desktop-home-layout="true"] .swan1-home-sidebar {
+  top: 0;
+  height: calc(100vh - 64px);
+  padding-top: 32px;
+}
+
+html.swan1-legacy-colors .app-shell[data-desktop-home-layout="true"] [data-slot="card"] {
+  border: 1px solid var(--border);
+}
+
+html.swan1-legacy-colors .app-shell[data-desktop-home-layout="true"] [data-dashboard-revenue-card] {
+  border-color: transparent;
+  background-color: var(--primary);
+  background-image: linear-gradient(135deg, rgba(255, 255, 255, 0), rgba(255, 255, 255, 0.22));
 }
 
 .app-shell-body {
