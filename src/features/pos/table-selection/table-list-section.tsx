@@ -228,7 +228,7 @@ export function TableListSection({
             />
           </div>
           <div className="relative min-w-0 w-full xl:w-[320px]">
-            <Search aria-hidden="true" className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+            <Search aria-hidden="true" data-pos-table-search-icon="true" className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
             <Input
               aria-label={t("actions.search")}
               className="h-9 rounded-full border-border bg-muted/35 pl-9 shadow-none"
@@ -519,6 +519,7 @@ const TableCard = memo(function TableCard({
     // เป็นโทนเดียวกันอยู่แล้ว (bg-blue-600/15 เป็นต้น) ด้วย
     <div className={cn("relative rounded-xl", hasRingPulse && cn("pos-status-ring-pulse", style.ring))}>
       <Card
+        data-pos-table-card="true"
         role="button"
         tabIndex={0}
         aria-pressed={selected}

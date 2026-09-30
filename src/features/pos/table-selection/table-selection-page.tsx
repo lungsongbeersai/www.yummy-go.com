@@ -101,11 +101,8 @@ export function TableSelectionPage() {
 
   if (skipTableSelection) return null;
 
-  // ทั้งเว็บและ AppShell บน Capacitor (จอกว้าง/แนวนอน) ซ่อน AppHeader ทั้งก้อนบนหน้า
-  // immersive แบบนี้ (ดู !immersiveScreen ใน app-shell.tsx) หน้านี้จึงไม่มี header ของ
-  // shell ให้เลย ต้องมี header สีเขียว + พื้นหลังลายของตัวเองไว้ — ต่างจากตอน NativeAppShell
-  // ทำงานจริง (nativeShellActive) ที่ NativeTopBar โชว์อยู่แล้วทุกหน้ารวมหน้านี้ด้วย
-  // (ตามที่ตกลงกันไว้) ใส่ซ้ำจะกลายเป็น header 2 ชั้น
+  // Desktop and Swan 1 render this page's own patterned header; other native
+  // devices retain NativeTopBar and must not receive a duplicate header.
   if (nativeShellActive) {
     return (
       <div className="flex h-full min-h-0 flex-col overflow-hidden">
@@ -163,7 +160,7 @@ function TableClock() {
   }, []);
 
   return (
-    <p className="absolute left-1/2 top-1/2 max-w-55 -translate-x-1/2 -translate-y-1/2 whitespace-nowrap text-xl font-black leading-none tracking-wide tabular-nums text-primary-foreground dark:text-white sm:text-3xl">
+    <p data-pos-table-clock="true" className="absolute left-1/2 top-1/2 max-w-55 -translate-x-1/2 -translate-y-1/2 whitespace-nowrap text-xl font-black leading-none tracking-wide tabular-nums text-primary-foreground dark:text-white sm:text-3xl">
       {formatClock(now)}
     </p>
   );

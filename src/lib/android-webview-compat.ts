@@ -32,6 +32,14 @@ export function isSwan1NativeWebView(
     && /\(Linux;\s*Android\s+\d+;\s*Swan 1 Build\/[^;]+;\s*wv\)/i.test(input.userAgent);
 }
 
+export function usesSwan1DesktopPosLayout(
+  input: Pick<AndroidWebViewCompatInput, "isNativePlatform" | "platform" | "userAgent">,
+  pathname: string,
+): boolean {
+  return isSwan1NativeWebView(input)
+    && (pathname === "/posAll/tables" || pathname === "/posAll/order");
+}
+
 const MIN_STABLE_WEBVIEW_MAJOR = 100;
 const MAX_COMPAT_ANDROID_MAJOR = 11;
 

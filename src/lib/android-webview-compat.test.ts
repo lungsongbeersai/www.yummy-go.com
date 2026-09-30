@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { getAndroidWebViewCompatInfo, isSwan1NativeWebView } from "./android-webview-compat";
+import { getAndroidWebViewCompatInfo, isSwan1NativeWebView, usesSwan1DesktopPosLayout } from "./android-webview-compat";
 
 const desktopChromeUa =
   "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36";
@@ -35,6 +35,24 @@ describe("isSwan1NativeWebView", () => {
       platform: "android",
       userAgent: swan1WebViewUa.replace("Swan 1 Build", "Swan 2 Build"),
     })).toBe(false);
+  });
+});
+
+describe("usesSwan1DesktopPosLayout", () => {
+  const swan = { isNativePlatform: true, platform: "android", userAgent: swan1WebViewUa };
+
+  it("uses the desktop POS layout only on Swan 1 table and order screens", () => {
+    expect(usesSwan1DesktopPosLayout(swan, "/posAll/tables")).toBe(true);
+    expect(usesSwan1DesktopPosLayout(swan, "/posAll/order")).toBe(true);
+    expect(usesSwan1DesktopPosLayout(swan, "/")).toBe(false);
+    expect(usesSwan1DesktopPosLayout(swan, "/settings/table")).toBe(false);
+  });
+
+  it("keeps other Android tablets, iPads, and browsers on their existing layouts", () => {
+    expect(usesSwan1DesktopPosLayout({ ...swan, isNativePlatform: false }, "/posAll/tables")).toBe(false);
+    expect(usesSwan1DesktopPosLayout({ ...swan, platform: "ios" }, "/posAll/tables")).toBe(false);
+    expect(usesSwan1DesktopPosLayout({ ...swan, userAgent: android11WebViewUa }, "/posAll/tables")).toBe(false);
+    expect(usesSwan1DesktopPosLayout({ ...swan, userAgent: swan1WebViewUa.replace("Swan 1 Build", "Swan 2 Build") }, "/posAll/order")).toBe(false);
   });
 });
 

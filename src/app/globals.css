@@ -1494,12 +1494,39 @@ html.swan1-legacy-colors .app-shell[data-platform="capacitor"][data-fixed-screen
   height: 100vh;
 }
 
+/* Swan 1 draws its WebView behind the Android status and navigation bars, but
+   WebView 101 reports no usable CSS safe-area inset. Reserve those two strips
+   only while its desktop POS layout is active so the header and cart stay tappable. */
+html.swan1-legacy-colors .app-shell[data-platform="capacitor"][data-desktop-pos-layout="true"] {
+  padding-top: 32px;
+  padding-bottom: 64px;
+}
+
 html.swan1-legacy-colors .app-shell a[href="#app-main-content"] {
   transform: translateY(-6rem);
 }
 
 html.swan1-legacy-colors .app-shell a[href="#app-main-content"]:focus {
   transform: translateY(0);
+}
+
+/* The desktop POS branch uses Tailwind's individual translate/ring properties,
+   which Swan 1's WebView 101 ignores. Keep its clock centered and its table
+   cards visibly separated without changing the shared desktop UI. */
+html.swan1-legacy-colors [data-pos-table-clock] {
+  transform: translate(-50%, -50%);
+}
+
+html.swan1-legacy-colors [data-pos-table-search-icon] {
+  transform: translateY(-50%);
+}
+
+html.swan1-legacy-colors [data-pos-table-card] {
+  border: 1px solid var(--border);
+}
+
+html.swan1-legacy-colors [data-pos-table-card]:not(:focus-visible):not([aria-pressed="true"]) {
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.12);
 }
 
 .app-shell-body {

@@ -18,6 +18,7 @@ import { NativeSideRail } from "@/components/layout/capacitor/side-rail";
 import { usePullToRefresh } from "@/components/layout/capacitor/use-pull-to-refresh";
 import { NativePullToRefreshIndicator } from "@/components/layout/capacitor/pull-to-refresh-indicator";
 import { useAuthStore } from "@/stores/auth-store";
+import { useSwan1DesktopPosLayout } from "@/hooks/use-swan1-desktop-pos-layout";
 
 export function NativeAppShell({ children }: { children: React.ReactNode }) {
   const { i18n, t } = useTranslation();
@@ -47,6 +48,7 @@ export function NativeAppShell({ children }: { children: React.ReactNode }) {
     [menuItems],
   );
   const keyboardVisible = useKeyboardVisible();
+  const desktopPosLayout = useSwan1DesktopPosLayout();
   // ปิดบนหน้า fixedDataScreen (เช่น POS order/table) เพราะหน้าเหล่านี้มี scroll area
   // ของตัวเองแยกจาก document — ดึงที่ขอบบนสุดของหน้าจะไปชนกับท่าทางภายในจอนั้นแทน
   const { pullDistance, refreshing, threshold } = usePullToRefresh(!fixedDataScreen);
@@ -64,6 +66,7 @@ export function NativeAppShell({ children }: { children: React.ReactNode }) {
       data-fixed-screen={fixedDataScreen ? "true" : "false"}
       data-keyboard-open={keyboardVisible ? "true" : "false"}
       data-platform="capacitor"
+      data-desktop-pos-layout={desktopPosLayout ? "true" : undefined}
     >
       <a
         href="#app-main-content"
@@ -72,13 +75,15 @@ export function NativeAppShell({ children }: { children: React.ReactNode }) {
         {t("app.skipToContent")}
       </a>
 
-      {/* ทุกหน้ารวม /posAll/order, /posAll/tables ต้องเห็น header/bottom nav ของ native shell เสมอ
-          ตามที่ตกลงไว้ — แม้หน้าเหล่านี้จะมี header ของตัวเอง (back button/FAB) อยู่แล้วก็ตาม */}
-      <NativeTopBar
-        breadcrumbs={breadcrumbs}
-        model={model}
-        pathname={pathname}
-      />
+      {/* Only Swan 1's POS screens render their own desktop-style header. The
+          native shell and Android back listener remain mounted underneath. */}
+      {!desktopPosLayout ? (
+        <NativeTopBar
+          breadcrumbs={breadcrumbs}
+          model={model}
+          pathname={pathname}
+        />
+      ) : null}
 
       <NativePullToRefreshIndicator
         pullDistance={pullDistance}
@@ -93,7 +98,7 @@ export function NativeAppShell({ children }: { children: React.ReactNode }) {
         {/* หน้าเลือกโต๊ะ (/posAll/tables) ซ่อน rail — ผังโต๊ะต้องใช้ความกว้างเต็มจอ และมีปุ่ม
             Back ในหัวข้อแทนแล้ว (ดู BACK_FALLBACK_PATHS ใน native-navigation-model.ts)
             ไม่ต้องพึ่งการนำทางผ่าน rail */}
-        {pathname === "/posAll/tables" ? null : (
+        {desktopPosLayout || pathname === "/posAll/tables" ? null : (
           <NativeSideRail
             error={menuError}
             loading={menuLoading}
@@ -141,13 +146,15 @@ export function NativeAppShell({ children }: { children: React.ReactNode }) {
         </main>
       </div>
 
-      <NativeBottomNav
-        error={menuError}
-        loading={menuLoading}
-        model={model}
-        onRetry={retrySidebarMenu}
-        pathname={pathname}
-      />
+      {!desktopPosLayout ? (
+        <NativeBottomNav
+          error={menuError}
+          loading={menuLoading}
+          model={model}
+          onRetry={retrySidebarMenu}
+          pathname={pathname}
+        />
+      ) : null}
     </div>
   );
 }

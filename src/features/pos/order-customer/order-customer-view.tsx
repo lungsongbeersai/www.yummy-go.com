@@ -17,6 +17,7 @@ import { ThemeToggle } from "@/components/layout/theme-toggle";
 import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
 import { Spinner } from "@/components/ui/spinner";
 import { useIsNativeShellActive } from "@/hooks/use-native-shell-active";
+import { useIsCapacitorNativeApp } from "@/hooks/use-capacitor-native-app";
 import { cn } from "@/lib/utils";
 import { optionalString } from "@/lib/values";
 import { useNativeHeaderStore } from "@/stores/native-header-store";
@@ -131,6 +132,7 @@ export function OrderCustomerView({
   } = workflow;
 
   const nativeShellActive = useIsNativeShellActive();
+  const isNativeApp = useIsCapacitorNativeApp();
   const setHeaderRefreshAction = useNativeHeaderStore((state) => state.setRefreshAction);
   const setHeaderTitle = useNativeHeaderStore((state) => state.setTitle);
   const setHeaderBackAction = useNativeHeaderStore((state) => state.setBackAction);
@@ -163,12 +165,13 @@ export function OrderCustomerView({
 
   // ปุ่ม Back ของ NativeTopBar ปกติแค่ router.back() เฉย ๆ ซึ่งจะข้าม dialog เตือน
   // draft ที่ยังไม่ยืนยัน (บนเว็บปุ่มย้อนกลับในหน้านี้เรียก openTablesPage ตรง ๆ อยู่แล้ว)
-  // ลงทะเบียน override ผ่าน store กลางแบบเดียวกับปุ่มรีเฟรชด้านบน
+  // Android hardware Back ยังต้องใช้ override นี้แม้ Swan 1 ซ่อน NativeTopBar
+  // เพื่อแสดง desktop POS layout; gate ด้วย native app ไม่ใช่ visual shell
   useEffect(() => {
-    if (!nativeShellActive) return;
+    if (!isNativeApp) return;
     setHeaderBackAction(() => void openTablesPageRef.current());
     return () => setHeaderBackAction(null);
-  }, [nativeShellActive, setHeaderBackAction]);
+  }, [isNativeApp, setHeaderBackAction]);
 
   // โชว์ชื่อโต๊ะ (เช่น "T01") ใน top bar แทนหัวข้อ static "ອໍເດີລູກຄ້າ" ของ route —
   // ผู้ใช้ต้องดูออกไวว่ากำลังสั่งให้โต๊ะไหนอยู่ ไม่ใช่แค่ชื่อหน้าเฉย ๆ
