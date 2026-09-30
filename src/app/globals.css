@@ -1629,8 +1629,10 @@ html.swan1-legacy-colors .app-shell[data-desktop-home-layout="true"][data-home-s
 
 html.swan1-legacy-colors .app-shell[data-desktop-home-layout="true"] .swan1-home-sidebar {
   top: 0;
-  /* Swan 1's WebView viewport already stops above the Android navigation bar. */
-  height: 100vh;
+  /* WebView 101 counts Android's 64px navigation strip in 100vh. Anchor the
+     fixed panel above that strip so the account footer stays visible. */
+  bottom: 64px;
+  height: auto;
   padding-top: 32px;
 }
 
