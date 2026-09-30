@@ -5,14 +5,15 @@ import * as React from "react"
 // A modal here is closed with its own buttons only. A click on the backdrop doesn't dismiss it; the
 // dialog shakes instead, to say "use the buttons". Web Animations API rather than a CSS keyframe:
 // the dialog's own open/close classes already own the CSS `animation` property, and this needs no
-// new global CSS. It animates `transform`, which the centring (the `translate` property) doesn't use.
+// new global CSS. Most browsers center with `translate`, leaving `transform` free for shaking.
+// Swan 1's older WebView needs a transform-based centering fallback, so it uses the ring flash.
 const SHAKE_ID = "dialog-shake"
 const SHAKE_KEYFRAMES: Keyframe[] = [0, -10, 10, -8, 8, -4, 4, 0].map((x) => ({
   transform: `translateX(${x}px)`,
 }))
 // Reduced motion: no movement, a short ring flash on the dialog edge instead.
 const FLASH_KEYFRAMES: Keyframe[] = [
-  { boxShadow: "0 0 0 3px color-mix(in oklch, var(--ring) 70%, transparent)" },
+  { boxShadow: "0 0 0 3px var(--ring)" },
   { boxShadow: "0 0 0 3px transparent" },
 ]
 
@@ -21,7 +22,9 @@ export function shakeDialog(element: HTMLElement | null) {
   element.getAnimations().forEach((animation) => {
     if (animation.id === SHAKE_ID) animation.cancel()
   })
-  const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches
+  const reduceMotion =
+    window.matchMedia("(prefers-reduced-motion: reduce)").matches ||
+    document.documentElement.classList.contains("swan1-legacy-colors")
   const animation = element.animate(reduceMotion ? FLASH_KEYFRAMES : SHAKE_KEYFRAMES, {
     duration: reduceMotion ? 600 : 400,
     easing: "ease-in-out",

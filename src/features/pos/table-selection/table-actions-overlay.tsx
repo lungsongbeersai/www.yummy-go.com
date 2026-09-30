@@ -328,7 +328,7 @@ export function TableActionsOverlay({
         </Sheet>
       ) : (
         <Dialog open={open} onOpenChange={updateOpen}>
-          <DialogContent className="top-6 flex max-h-[min(820px,calc(100dvh-3rem))] translate-y-0 flex-col gap-0 overflow-hidden p-0 duration-200 sm:max-w-[960px]">
+          <DialogContent data-pos-table-actions-dialog="true" className="top-6 flex max-h-[min(820px,calc(100dvh-3rem))] translate-y-0 flex-col gap-0 overflow-hidden p-0 duration-200 sm:max-w-[960px]">
             <DialogHeader className="shrink-0 border-b border-border px-5 py-4 pr-16 text-left">
               <div className="flex min-w-0 items-center gap-2">
                 <DialogTitle className="truncate text-xl font-bold">{t("pos.tableActions")}</DialogTitle>

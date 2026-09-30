@@ -573,6 +573,7 @@ export function CartDiscountDialog({
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent
+        data-pos-cart-discount-dialog="true"
         aria-busy={pending}
         className="flex max-h-[calc(100dvh-1rem)] max-w-[calc(100%-1rem)] flex-col gap-0 overflow-hidden p-0 motion-reduce:animate-none motion-reduce:transition-none sm:max-w-120"
         onKeyDown={handleKeyDown}

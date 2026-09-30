@@ -1512,11 +1512,47 @@ html.swan1-legacy-colors .app-shell[data-desktop-pos-order-layout="true"] .pos-s
   padding-bottom: 8px;
 }
 
-/* WebView 101 ignores the dialog's individual translate utilities. Its portal
-   is outside the app shell, so use the exact product-dialog marker here. */
-html.swan1-legacy-colors [data-pos-product-options-dialog] {
-  max-height: calc(100vh - 144px);
+/* WebView 101 ignores Tailwind's individual translate property. Radix portals
+   live outside the app shell, so center all Swan 1 dialogs from the html scope.
+   Reset individual translate as well in case this model later gets a newer WebView. */
+html.swan1-legacy-colors [data-slot="dialog-content"],
+html.swan1-legacy-colors [data-slot="alert-dialog-content"] {
+  top: 50% !important;
+  left: 50% !important;
+  translate: none !important;
   transform: translate(-50%, -50%);
+}
+
+html.swan1-legacy-colors [data-pos-product-options-dialog],
+html.swan1-legacy-colors [data-pos-cart-discount-dialog],
+html.swan1-legacy-colors [data-pos-payment-confirm-dialog],
+html.swan1-legacy-colors [data-pos-table-actions-dialog] {
+  max-height: calc(100vh - 144px);
+}
+
+/* The payment dialog's dvh height fallback fills the entire old WebView.
+   Leave room for both Android system bars while its inner panels keep scrolling. */
+html.swan1-legacy-colors [data-pos-payment-dialog] {
+  height: calc(100vh - 144px);
+  max-height: calc(100vh - 144px);
+}
+
+/* Only the final payment action is green. Other choices remain neutral when
+   tapped; the selected payment method uses a border instead of a green fill. */
+html.swan1-legacy-colors [data-pos-payment-dialog] button {
+  -webkit-tap-highlight-color: transparent;
+}
+
+html.swan1-legacy-colors [data-pos-payment-methods] [data-slot="tabs-trigger"] {
+  border-color: var(--border);
+  background-color: var(--card);
+  color: var(--foreground);
+}
+
+html.swan1-legacy-colors [data-pos-payment-methods] [data-slot="tabs-trigger"][data-state="active"],
+html.swan1-legacy-colors [data-pos-payment-methods] [data-slot="tabs-trigger"][aria-selected="true"] {
+  border-color: var(--ring);
+  background-color: var(--muted);
 }
 
 html.swan1-legacy-colors .app-shell a[href="#app-main-content"] {

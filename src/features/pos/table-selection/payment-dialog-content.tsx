@@ -321,6 +321,7 @@ export function PaymentDialogContent({
         }
       >
         <DialogContent
+          data-pos-payment-dialog="true"
           aria-busy={processing}
           showCloseButton={false}
           className="!left-0 !top-0 grid h-[var(--pos-payment-dialog-height)] max-h-[var(--pos-payment-dialog-height)] w-full max-w-[100vw] !translate-x-0 !translate-y-0 grid-rows-[auto_minmax(0,1fr)] gap-0 overflow-hidden rounded-none border-0 bg-background p-0 duration-200 sm:!left-[50%] sm:!top-[50%] sm:h-[calc(100dvh-1rem)] sm:max-h-[calc(100dvh-1rem)] sm:max-w-[calc(100vw-1rem)] sm:!translate-x-[-50%] sm:!translate-y-[-50%] sm:rounded-lg sm:border xl:max-w-7xl"
@@ -383,7 +384,7 @@ export function PaymentDialogContent({
               <div className="grid gap-1.5 md:min-h-0 md:grid-rows-[auto_minmax(0,1fr)] md:gap-3 lg:h-full">
                 {/* วิธีชำระเป็นรายการเต็มความกว้างคอลัมน์บนจอกว้าง (เดิมเป็นกล่อง 2x2 เล็ก ๆ ไม่เต็มคอลัมน์
                     เหลือพื้นที่ว่างข้าง ๆ) — มือถือยังเป็นแถวเดียว 4 ช่องเพื่อประหยัดความสูง */}
-                <TabsList className="grid h-auto w-full grid-cols-2 gap-1 rounded-lg bg-muted p-1 group-data-horizontal/tabs:h-auto sm:grid-cols-4 md:grid-cols-1 md:gap-1 md:p-1">
+                <TabsList data-pos-payment-methods="true" className="grid h-auto w-full grid-cols-2 gap-1 rounded-lg bg-muted p-1 group-data-horizontal/tabs:h-auto sm:grid-cols-4 md:grid-cols-1 md:gap-1 md:p-1">
                   {paymentTabs.map((tab) => {
                     const Icon = tab.icon;
                     return (
@@ -1003,7 +1004,7 @@ export function PaymentDialogContent({
         open={confirmOpen}
         onOpenChange={(nextOpen) => !processing && setConfirmOpen(nextOpen)}
       >
-        <AlertDialogContent className="max-h-[calc(100dvh-2rem)] w-[calc(100%-2rem)] max-w-lg gap-0 overflow-y-auto rounded-2xl p-0 shadow-2xl sm:max-w-xl">
+        <AlertDialogContent data-pos-payment-confirm-dialog="true" className="max-h-[calc(100dvh-2rem)] w-[calc(100%-2rem)] max-w-lg gap-0 overflow-y-auto rounded-2xl p-0 shadow-2xl sm:max-w-xl">
           <AlertDialogHeader className="w-full !place-items-center gap-2 border-b border-border bg-muted/25 px-5 py-6 !text-center sm:!place-items-center sm:px-8 sm:py-7 sm:!text-center">
             <div className="mb-1 flex size-12 items-center justify-center justify-self-center rounded-full bg-primary/10 text-primary sm:size-14">
               <ReceiptText className="size-6 sm:size-7" aria-hidden="true" />
