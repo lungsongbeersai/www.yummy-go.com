@@ -795,6 +795,18 @@ async function executePrintJobs(
       ? 0
       : failedBeforePrintTotal;
     if (failedBeforePrintTotal > 0) {
+      // Document jobs with no printable route still have a durable queue item.
+      // Close that item with the backend-provided failure ACK so repeated
+      // invoice/payment/QR attempts cannot leave pending jobs behind. Kitchen
+      // keeps its existing backend-owned confirmation semantics unchanged.
+      if (!options.kitchenSemantics && options.ack && globalAckFailed) {
+        try {
+          await ackPrintJob(ackPayloadWithLogin(globalAckFailed, loginUuid));
+        } catch (error) {
+          console.error("[printer] failed-before-print ACK failed", error);
+        }
+      }
+
       input.onProgress?.({
         total: failedCount,
         completed: failedCount,

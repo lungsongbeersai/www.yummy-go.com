@@ -1525,7 +1525,8 @@ describe("printer service dispatch", () => {
 
   it("falls back before calling the print agent when invoice batch payloads are empty", async () => {
     const progressPhases: string[] = [];
-    apiMocks.apiRequest.mockImplementation(async (method, url) => {
+    const ackPayloads: AckPayload[] = [];
+    apiMocks.apiRequest.mockImplementation(async (method, url, options) => {
       if (method === "get" && url === "/api/v1/printer/jobs/pending") {
         return {
           print_batch_payloads: [],
@@ -1545,6 +1546,10 @@ describe("printer service dispatch", () => {
             ]
           }
         };
+      }
+      if (method === "post" && url === "/api/v1/printer/jobs/ack") {
+        ackPayloads.push((options as { data: AckPayload }).data);
+        return {};
       }
       throw new Error(`Unexpected request ${method} ${url}`);
     });
@@ -1570,11 +1575,19 @@ describe("printer service dispatch", () => {
     expect(progressPhases).toEqual(["fetching", "done"]);
     expect(axiosMocks.get).not.toHaveBeenCalled();
     expect(axiosMocks.post).not.toHaveBeenCalled();
-    expect(apiMocks.apiRequest).not.toHaveBeenCalledWith(
-      "post",
-      "/api/v1/printer/jobs/ack",
-      expect.anything()
-    );
+    expect(ackPayloads).toEqual([
+      {
+        login_uuid_fk: "login-1",
+        print_job_uuid: "invoice-job-1",
+        results: [
+          {
+            print_job_item_uuid: "receipt-1",
+            status: "failed",
+            reason: "no active printer config for role_code receipt"
+          }
+        ]
+      }
+    ]);
   });
 
   it("reports success when another shared worker already printed the requested document job", async () => {
