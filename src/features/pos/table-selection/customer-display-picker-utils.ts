@@ -1,5 +1,5 @@
 export const CUSTOMER_DISPLAY_TARGET_STORAGE_KEY = "yummy-go:customer-display-target";
-export type CustomerDisplayPickerMode = "browser-fallback" | "browser-window-management" | "electron";
+export type CustomerDisplayPickerMode = "browser-fallback" | "browser-window-management" | "electron" | "native-android";
 export const BROWSER_CUSTOMER_DISPLAY_TARGET_STORAGE_KEY = "yummy-go:customer-display-browser-target";
 
 export type BrowserCustomerDisplayScreenLike = {

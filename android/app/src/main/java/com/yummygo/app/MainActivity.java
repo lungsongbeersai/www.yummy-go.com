@@ -29,6 +29,7 @@ public class MainActivity extends BridgeActivity {
     // ต้อง register ก่อน super.onCreate ตามข้อกำหนดของ Capacitor
     AppCompatDelegate.setDefaultNightMode(AppCompatDelegate.MODE_NIGHT_NO);
     registerPlugin(NativeThemePlugin.class);
+    registerPlugin(SwanCustomerDisplayPlugin.class);
     super.onCreate(savedInstanceState);
 
     hardenWebViewRendering();

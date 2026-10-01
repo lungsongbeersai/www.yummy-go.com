@@ -202,6 +202,9 @@ describe("customer display picker helpers", () => {
       customerDisplayPickerViewState({ loading: false, mode: "electron", secondaryCount: 0, totalCount: 1 })
     ).toBe("no-secondary");
     expect(
+      customerDisplayPickerViewState({ loading: false, mode: "native-android", secondaryCount: 1, totalCount: 2 })
+    ).toBe("single-secondary");
+    expect(
       customerDisplayPickerViewState({
         loading: false,
         mode: "browser-window-management",

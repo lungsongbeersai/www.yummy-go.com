@@ -6,7 +6,8 @@ import {
   publishCustomerDisplayPayload,
   type CustomerDisplayPayload,
 } from "@/features/customer-display/shared/customer-display-sync";
-import { openWindowOutsideNativeApp } from "@/lib/capacitor-platform";
+import { isCapacitorAndroidApp, openWindowOutsideNativeApp } from "@/lib/capacitor-platform";
+import { SwanCustomerDisplay, swanStatusToDisplayInfo } from "@/lib/swan-customer-display-bridge";
 import { useToastStore } from "@/stores/toast-store";
 import type { CustomerDisplayPickerMode } from "../customer-display-picker-dialog";
 import {
@@ -42,6 +43,7 @@ export function useCustomerDisplayWorkflow(
   const [browserScreenDetails, setBrowserScreenDetails] =
     useState<ScreenDetails | null>(null);
   const browserWindowRef = useRef<Window | null>(null);
+  const nativeOpenedRef = useRef(false);
   const [browserActive, setBrowserActive] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
@@ -54,9 +56,17 @@ export function useCustomerDisplayWorkflow(
   >(null);
 
   const canCloseCustomerDisplay =
-    mode === "electron"
+    mode === "electron" || mode === "native-android"
       ? Boolean(activeCustomerDisplay(displayInfo))
       : browserActive;
+
+  useEffect(() => () => {
+    if (nativeOpenedRef.current) {
+      void SwanCustomerDisplay.close().catch(() => {
+        // Leaving POS must not leave a previous restaurant's totals on the rear screen.
+      });
+    }
+  }, []);
 
   const syncBrowserActive = useCallback(() => {
     const active = browserCustomerDisplayWindowIsActive(
@@ -132,7 +142,26 @@ export function useCustomerDisplayWorkflow(
   }, [browserActive, open, syncBrowserActive]);
 
   useEffect(() => {
-    if (!currentPayload) return;
+    if (!currentPayload) {
+      if (mode === "native-android" && nativeOpenedRef.current) {
+        nativeOpenedRef.current = false;
+        void SwanCustomerDisplay.close()
+          .then((status) => setDisplayInfo(swanStatusToDisplayInfo(status)))
+          .catch(() => {
+            // No cart data may remain visible when the selected sale is cleared.
+          });
+      }
+      return;
+    }
+
+    if (mode === "native-android") {
+      if (nativeOpenedRef.current) {
+        void SwanCustomerDisplay.update({ payload: currentPayload }).catch(() => {
+          // A detached HDMI display must not interrupt cashier cart updates.
+        });
+      }
+      return;
+    }
 
     try {
       publishCustomerDisplayPayload(currentPayload, {
@@ -142,7 +171,7 @@ export function useCustomerDisplayWorkflow(
     } catch {
       // Realtime sync should never interrupt POS cart workflows.
     }
-  }, [currentPayload]);
+  }, [currentPayload, mode]);
 
   function openBrowserDisplay(
     payload: CustomerDisplayPayload,
@@ -200,6 +229,29 @@ export function useCustomerDisplayWorkflow(
 
   async function refreshDisplays(preferCurrent = true) {
     if (!window.electronAPI) {
+      if (isCapacitorAndroidApp()) {
+        setMode("native-android");
+        setLoading(true);
+        setError(null);
+        try {
+          const status = await SwanCustomerDisplay.getStatus();
+          if (status.supported) {
+            const info = swanStatusToDisplayInfo(status);
+            setMode("native-android");
+            setDisplayInfo(info);
+            setBrowserDisplayInfo(null);
+            setBrowserScreenDetails(null);
+            setSelectedBrowserScreenKey(null);
+            setSelectedDisplayId(info.displays.find((display) => !display.isPrimary)?.id ?? null);
+            nativeOpenedRef.current = Boolean(status.active);
+            setError(null);
+            setLoading(false);
+            return info;
+          }
+        } catch {
+          // Older APKs and non-Swan Android devices keep their existing browser path.
+        }
+      }
       return refreshBrowserDisplays(preferCurrent);
     }
 
@@ -244,12 +296,6 @@ export function useCustomerDisplayWorkflow(
     syncBrowserActive();
     setOpen(true);
 
-    if (!window.electronAPI) {
-      await refreshBrowserDisplays(false);
-      return;
-    }
-
-    setMode("electron");
     await refreshDisplays(false);
   }
 
@@ -312,12 +358,20 @@ export function useCustomerDisplayWorkflow(
   }
 
   async function openSelectedElectronDisplay() {
-    if (!currentPayload || selectedDisplayId === null || !window.electronAPI)
-      return;
+    if (!currentPayload || selectedDisplayId === null) return;
 
     setOpening(true);
     setError(null);
     try {
+      if (mode === "native-android") {
+        const status = await SwanCustomerDisplay.open({ displayId: selectedDisplayId, payload: currentPayload });
+        nativeOpenedRef.current = Boolean(status.active);
+        setDisplayInfo(swanStatusToDisplayInfo(status));
+        setOpen(false);
+        showToast({ title: t("pos.displayOpened"), tone: "success" });
+        return;
+      }
+      if (!window.electronAPI) return;
       const result = await window.electronAPI.openDisplay(selectedDisplayId);
       const displayId = result.displayId ?? selectedDisplayId;
       window.localStorage.setItem(
@@ -348,6 +402,22 @@ export function useCustomerDisplayWorkflow(
   async function closeCustomerDisplayScreen() {
     setOpening(true);
     setError(null);
+
+    if (mode === "native-android") {
+      try {
+        const status = await SwanCustomerDisplay.close();
+        nativeOpenedRef.current = false;
+        setDisplayInfo(swanStatusToDisplayInfo(status));
+        showToast({ title: t("pos.displayClosed"), tone: "success" });
+      } catch (displayError) {
+        const message = displayError instanceof Error ? displayError.message : "";
+        setError(message);
+        showToast({ title: t("pos.displayCloseFailed"), description: message, tone: "error" });
+      } finally {
+        setOpening(false);
+      }
+      return;
+    }
 
     if (browserCustomerDisplayWindowIsActive(browserWindowRef.current)) {
       try {

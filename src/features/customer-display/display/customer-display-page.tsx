@@ -10,6 +10,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { money } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { WINDOW_OPEN_FONT_CLASS_NAME } from "@/lib/window-open-fonts";
+import { SWAN_CUSTOMER_DISPLAY_PAYLOAD_EVENT, SWAN_CUSTOMER_DISPLAY_USER_AGENT } from "@/features/customer-display/shared/native-customer-display";
 import type { CustomerDisplayPayload } from "../shared/customer-display-sync";
 import { CUSTOMER_DISPLAY_CHANNEL, CUSTOMER_DISPLAY_STORAGE_KEY } from "../shared/customer-display-sync";
 
@@ -25,6 +26,18 @@ export function CustomerDisplayPage() {
   useEffect(() => {
     function acceptPayload(data: unknown) {
       if (data && typeof data === "object") setPayload(data as CustomerDisplayPayload);
+    }
+
+    // The Swan's second WebView gets data only from its owning POS session. Never
+    // replay shared WebView storage from a previously signed-in restaurant.
+    if (navigator.userAgent.includes(SWAN_CUSTOMER_DISPLAY_USER_AGENT)) {
+      const nativeWindow = window as Window & { __yummyGoNativeCustomerDisplayPayload?: CustomerDisplayPayload };
+      acceptPayload(nativeWindow.__yummyGoNativeCustomerDisplayPayload);
+      const handleNativePayload = (event: Event) => {
+        acceptPayload((event as CustomEvent<CustomerDisplayPayload>).detail);
+      };
+      window.addEventListener(SWAN_CUSTOMER_DISPLAY_PAYLOAD_EVENT, handleNativePayload);
+      return () => window.removeEventListener(SWAN_CUSTOMER_DISPLAY_PAYLOAD_EVENT, handleNativePayload);
     }
 
     window.electronAPI?.signalReady();

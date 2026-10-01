@@ -101,14 +101,14 @@ export function CustomerDisplayPickerDialog({
   onSelectedDisplayChange: (displayId: number) => void;
 }) {
   const { t } = useTranslation();
-  const isElectronMode = mode === "electron";
+  const isDisplayMode = mode === "electron" || mode === "native-android";
   const closeDisabled = opening || !canCloseCustomerDisplay;
 
   const activeDisplay = activeCustomerDisplay(displayInfo);
   const electronCandidates = electronSecondaryDisplays(displayInfo);
   const browserCandidates = browserSecondaryScreens(browserDisplayInfo);
-  const totalCount = isElectronMode ? (displayInfo?.displays.length ?? 0) : (browserDisplayInfo?.screens.length ?? 0);
-  const secondaryCount = isElectronMode ? electronCandidates.length : browserCandidates.length;
+  const totalCount = isDisplayMode ? (displayInfo?.displays.length ?? 0) : (browserDisplayInfo?.screens.length ?? 0);
+  const secondaryCount = isDisplayMode ? electronCandidates.length : browserCandidates.length;
   const viewState = customerDisplayPickerViewState({ loading, mode, secondaryCount, totalCount });
 
   const singleElectronMeta = electronCandidates[0]
@@ -127,7 +127,7 @@ export function CustomerDisplayPickerDialog({
     : "";
 
   const primaryButtonDisabled =
-    loading || opening || (isElectronMode ? selectedDisplayId === null : selectedBrowserScreenKey === null);
+    loading || opening || (isDisplayMode ? selectedDisplayId === null : selectedBrowserScreenKey === null);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -173,8 +173,8 @@ export function CustomerDisplayPickerDialog({
               </Alert>
             ) : viewState === "single-secondary" ? (
               <SingleSecondaryScreenCard
-                isActive={isElectronMode && electronCandidates[0]?.id === activeDisplay?.id}
-                meta={isElectronMode ? singleElectronMeta : singleBrowserMeta}
+                isActive={isDisplayMode && electronCandidates[0]?.id === activeDisplay?.id}
+                meta={isDisplayMode ? singleElectronMeta : singleBrowserMeta}
               />
             ) : (
               <>
@@ -182,7 +182,7 @@ export function CustomerDisplayPickerDialog({
                   <span>{t("pos.customerDisplayDetectedScreens", { count: secondaryCount })}</span>
                 </div>
 
-                {isElectronMode ? (
+                {isDisplayMode ? (
                   <RadioGroup
                     className="grid gap-2 sm:grid-cols-2"
                     value={selectedDisplayId === null ? "" : String(selectedDisplayId)}
@@ -340,7 +340,7 @@ export function CustomerDisplayPickerDialog({
                 type="button"
                 variant={viewState === "no-secondary" || viewState === "no-screens" ? "outline" : "default"}
                 disabled={primaryButtonDisabled}
-                onClick={isElectronMode ? onOpenSelectedDisplay : onOpenSelectedBrowserDisplay}
+                onClick={isDisplayMode ? onOpenSelectedDisplay : onOpenSelectedBrowserDisplay}
               >
                 {opening ? <Spinner data-icon="inline-start" /> : <Monitor data-icon="inline-start" />}
                 {viewState === "no-secondary" ? t("pos.customerDisplayOpenSameScreen") : t("pos.customerDisplayOpenOnScreen")}
