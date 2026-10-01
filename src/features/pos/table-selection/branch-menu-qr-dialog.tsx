@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import Image from "next/image";
 import QRCode from "qrcode";
 import { Copy, Download, ExternalLink, Minus, Plus, Printer, QrCode as QrCodeIcon } from "lucide-react";
@@ -23,7 +23,7 @@ import { useAuthStore } from "@/stores/auth-store";
 import { usePosStore } from "@/stores/pos-store";
 import { usePrinterStore } from "@/stores/printer-store";
 import { useToastStore } from "@/stores/toast-store";
-import { resolveTableQrPrinterContext, tableQrPrintOutcome } from "./table-qr-printing";
+import { resolveTableQrPrinterContext, tableQrPrintAttemptResponse, tableQrPrintOutcome } from "./table-qr-printing";
 
 const MIN_PRINT_COPIES = 1;
 const MAX_PRINT_COPIES = 20;
@@ -58,6 +58,32 @@ export function BranchMenuQrDialog({
   const canDownload = Boolean(qrDataUrl);
   const canPrint = Boolean(pendingJobUuid || qrDataUrl);
 
+  const requestQrWithPrinterContext = useCallback(async () => {
+    if (!loginUuid) throw new Error("login_uuid_fk is required");
+
+    const printerContext = await resolveTableQrPrinterContext({
+      loginUuid,
+      resolveDeviceContext,
+      resolveDeviceIdentity,
+    });
+
+    return createBranchMenuQr({
+      lang: language,
+      login_uuid_fk: loginUuid,
+      device_code: printerContext?.device_code,
+      agent_id: printerContext?.agent_id,
+      print_mode: printerContext?.print_mode,
+      print: printCopies,
+    });
+  }, [
+    createBranchMenuQr,
+    language,
+    loginUuid,
+    printCopies,
+    resolveDeviceContext,
+    resolveDeviceIdentity,
+  ]);
+
   // เปิด dialog = ล้างผลเดิม แล้วค่อยขอ token ใหม่ (ไม่มี qr_ver ให้ revoke จึง
   // ไม่จำเป็นต้อง regenerate ทุกครั้ง แต่ขอซ้ำเพื่อความสด/ง่ายต่อการดีบัก)
   useResetOnChange(open, () => {
@@ -76,29 +102,9 @@ export function BranchMenuQrDialog({
       return;
     }
 
-    const activeLoginUuid = loginUuid;
     let ignore = false;
 
-    async function createQrWithPrinterContext() {
-      // เหตุผลเดียวกับ TableQrDialog — backend ต้องรู้ device/agent ของผู้กดพิมพ์
-      // ก่อนสร้างคิว มิฉะนั้นจะคืน browser fallback แม้มี Auto Print อยู่จริง
-      const printerContext = await resolveTableQrPrinterContext({
-        loginUuid: activeLoginUuid,
-        resolveDeviceContext,
-        resolveDeviceIdentity,
-      });
-
-      return createBranchMenuQr({
-        lang: language,
-        login_uuid_fk: activeLoginUuid,
-        device_code: printerContext?.device_code,
-        agent_id: printerContext?.agent_id,
-        print_mode: printerContext?.print_mode,
-        print: printCopies,
-      });
-    }
-
-    createQrWithPrinterContext()
+    requestQrWithPrinterContext()
       .then((result) => {
         if (ignore) return;
         setResponse(result);
@@ -119,13 +125,9 @@ export function BranchMenuQrDialog({
       ignore = true;
     };
   }, [
-    createBranchMenuQr,
-    language,
     loginUuid,
     open,
-    printCopies,
-    resolveDeviceContext,
-    resolveDeviceIdentity,
+    requestQrWithPrinterContext,
     showToast,
     t,
   ]);
@@ -181,27 +183,34 @@ export function BranchMenuQrDialog({
 
   // QR ต้องพิมพ์ผ่าน queue/role ที่ backend resolve ไว้เท่านั้น เพื่อไม่ให้ browser
   // หรือ Android system print ข้ามค่าการตั้งค่า printer ของสาขา
-  async function printQr() {
+  async function printQr(refreshQueue = false) {
     if (!canPrint || printing) return;
 
     setPrinting(true);
     try {
-      if (!pendingJobUuid) {
+      const printResponse = await tableQrPrintAttemptResponse({
+        refreshQueue,
+        requestQueue: requestQrWithPrinterContext,
+        response,
+      });
+      if (refreshQueue) setResponse(printResponse);
+
+      if (!branchMenuQrPendingJobUuid(printResponse)) {
         showToast({
           title: t("pos.printQr"),
           description: t("pos.systemPrinterUnavailable"),
           tone: "error",
           action: {
             label: t("actions.tryAgain"),
-            onClick: () => void printQr(),
+            onClick: () => void printQr(true),
           },
         });
         return;
       }
 
       const printResult = await executeInvoice({
-        print_job: response?.print_job ?? undefined,
-        pending_query: response?.pending_query,
+        print_job: printResponse?.print_job ?? undefined,
+        pending_query: printResponse?.pending_query,
         login_uuid_fk: loginUuid,
       });
 
@@ -222,7 +231,7 @@ export function BranchMenuQrDialog({
           tone: "error",
           action: {
             label: t("actions.tryAgain"),
-            onClick: () => void printQr(),
+            onClick: () => void printQr(true),
           },
         });
         return;
@@ -236,7 +245,7 @@ export function BranchMenuQrDialog({
         tone: "error",
         action: {
           label: t("actions.tryAgain"),
-          onClick: () => void printQr(),
+          onClick: () => void printQr(true),
         },
       });
     } finally {

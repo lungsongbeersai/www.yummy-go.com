@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useResetOnChange, useResetOnDeps } from "@/hooks/use-reset-on-change";
 import Image from "next/image";
 import QRCode from "qrcode";
@@ -21,7 +21,7 @@ import { useAuthStore } from "@/stores/auth-store";
 import { usePosStore } from "@/stores/pos-store";
 import { usePrinterStore } from "@/stores/printer-store";
 import { useToastStore } from "@/stores/toast-store";
-import { resolveTableQrPrinterContext, tableQrPendingJobUuid, tableQrPrintOutcome } from "./table-qr-printing";
+import { resolveTableQrPrinterContext, tableQrPendingJobUuid, tableQrPrintAttemptResponse, tableQrPrintOutcome } from "./table-qr-printing";
 import { optionalString } from "./utils";
 
 const localQrTargetUrl = "http://localhost:3001/posAll/tables";
@@ -56,6 +56,34 @@ export function TableQrDialog({
   const canDownload = Boolean(previewUrl || targetUrl);
   const canPrint = Boolean(pendingJobUuid || previewUrl || targetUrl);
 
+  const requestQrWithPrinterContext = useCallback(async () => {
+    if (!loginUuid) throw new Error("login_uuid_fk is required");
+
+    // Resolve the route again for an explicit retry. A failed-before-print QR
+    // job is terminal, while its Shared owner may have connected afterwards.
+    const printerContext = await resolveTableQrPrinterContext({
+      loginUuid,
+      resolveDeviceContext,
+      resolveDeviceIdentity,
+    });
+
+    return createTableQr({
+      table_uuid: table.table_uuid,
+      lang: language,
+      login_uuid_fk: loginUuid,
+      device_code: printerContext?.device_code,
+      agent_id: printerContext?.agent_id,
+      print_mode: printerContext?.print_mode,
+    });
+  }, [
+    createTableQr,
+    language,
+    loginUuid,
+    resolveDeviceContext,
+    resolveDeviceIdentity,
+    table.table_uuid,
+  ]);
+
   // เปิด dialog = ล้างผลเดิม และตั้ง pending เฉพาะกรณีที่จะยิงคำขอจริง
   useResetOnChange(open, () => {
     if (!open) return;
@@ -72,29 +100,9 @@ export function TableQrDialog({
       return;
     }
 
-    const activeLoginUuid = loginUuid;
     let ignore = false;
 
-    async function createQrWithPrinterContext() {
-      // QR ใช้ role q-001 และ Backend ต้องรู้ device/agent ของผู้กดพิมพ์ก่อน
-      // สร้าง queue มิฉะนั้นจะคืน browser fallback แม้มี Auto Print อยู่จริง
-      const printerContext = await resolveTableQrPrinterContext({
-        loginUuid: activeLoginUuid,
-        resolveDeviceContext,
-        resolveDeviceIdentity,
-      });
-
-      return createTableQr({
-        table_uuid: table.table_uuid,
-        lang: language,
-        login_uuid_fk: activeLoginUuid,
-        device_code: printerContext?.device_code,
-        agent_id: printerContext?.agent_id,
-        print_mode: printerContext?.print_mode,
-      });
-    }
-
-    createQrWithPrinterContext()
+    requestQrWithPrinterContext()
       .then((result) => {
         if (ignore) return;
         setResponse(result);
@@ -116,14 +124,10 @@ export function TableQrDialog({
       ignore = true;
     };
   }, [
-    createTableQr,
-    language,
     loginUuid,
     open,
-    resolveDeviceContext,
-    resolveDeviceIdentity,
+    requestQrWithPrinterContext,
     showToast,
-    table.table_uuid,
     t,
   ]);
 
@@ -182,27 +186,34 @@ export function TableQrDialog({
     }
   }
 
-  async function printQr() {
+  async function printQr(refreshQueue = false) {
     if (!canPrint || printing) return;
 
     setPrinting(true);
     try {
-      if (!pendingJobUuid) {
+      const printResponse = await tableQrPrintAttemptResponse({
+        refreshQueue,
+        requestQueue: requestQrWithPrinterContext,
+        response,
+      });
+      if (refreshQueue) setResponse(printResponse);
+
+      if (!tableQrPendingJobUuid(printResponse)) {
         showToast({
           title: t("pos.printQr"),
           description: t("pos.systemPrinterUnavailable"),
           tone: "error",
           action: {
             label: t("actions.tryAgain"),
-            onClick: () => void printQr(),
+            onClick: () => void printQr(true),
           },
         });
         return;
       }
 
       const printResult = await executeInvoice({
-        print_job: response?.print_job ?? undefined,
-        pending_query: response?.pending_query ?? undefined,
+        print_job: printResponse?.print_job ?? undefined,
+        pending_query: printResponse?.pending_query ?? undefined,
         login_uuid_fk: loginUuid,
       });
 
@@ -223,7 +234,7 @@ export function TableQrDialog({
           tone: "error",
           action: {
             label: t("actions.tryAgain"),
-            onClick: () => void printQr(),
+            onClick: () => void printQr(true),
           },
         });
         return;
@@ -237,7 +248,7 @@ export function TableQrDialog({
         tone: "error",
         action: {
           label: t("actions.tryAgain"),
-          onClick: () => void printQr(),
+          onClick: () => void printQr(true),
         },
       });
     } finally {

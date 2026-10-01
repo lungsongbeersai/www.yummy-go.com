@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 import {
   buildQrPrintDocument,
   resolveTableQrPrinterContext,
+  tableQrPrintAttemptResponse,
   tableQrPrintOutcome,
 } from "./table-qr-printing";
 
@@ -70,6 +71,25 @@ describe("table QR printing", () => {
     expect(tableQrPrintOutcome({ successCount: 0, failedCount: 0, pending: true })).toBe("pending");
     expect(tableQrPrintOutcome({ successCount: 0, failedCount: 0 })).toBe("error");
     expect(tableQrPrintOutcome({ successCount: 1, failedCount: 0 })).toBe("success");
+  });
+
+  it("creates a fresh QR queue only when retrying a terminal print attempt", async () => {
+    const requestQueue = vi.fn().mockResolvedValue({ print_job_uuid: "job-new" });
+    const previous = { print_job_uuid: "job-failed" };
+
+    await expect(tableQrPrintAttemptResponse({
+      refreshQueue: false,
+      requestQueue,
+      response: previous,
+    })).resolves.toBe(previous);
+    expect(requestQueue).not.toHaveBeenCalled();
+
+    await expect(tableQrPrintAttemptResponse({
+      refreshQueue: true,
+      requestQueue,
+      response: previous,
+    })).resolves.toEqual({ print_job_uuid: "job-new" });
+    expect(requestQueue).toHaveBeenCalledTimes(1);
   });
 
   it("builds the same escaped receipt document for browser and Android printing", () => {
