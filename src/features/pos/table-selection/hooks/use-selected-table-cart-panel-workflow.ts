@@ -29,6 +29,7 @@ import type {
   ConfirmItemStage,
   DiscountDraft,
 } from "../types";
+import { kitchenConfirmPrintOutcome } from "../kitchen-confirm-print-outcome";
 import {
   billDiscountButtonValue,
   buildCustomerDisplayPayload,
@@ -725,12 +726,14 @@ export function useSelectedTableCartPanelWorkflow({
     errorMessage?: string;
     pending?: boolean;
   }) {
-    const printIncomplete =
-      result.failedCount > 0 ||
-      result.pending === true ||
-      (result.total > 0 && result.successCount < result.total);
+    const outcome = kitchenConfirmPrintOutcome(result);
 
-    if (printIncomplete) {
+    if (outcome === "queued") {
+      showToast({ title: t("orderQueue.kitchenPrintQueued"), tone: "info" });
+      return;
+    }
+
+    if (outcome === "incomplete") {
       const printProgress = result.total > 0
         ? t("pos.confirmAllPrintProgress", {
             success: result.successCount,
