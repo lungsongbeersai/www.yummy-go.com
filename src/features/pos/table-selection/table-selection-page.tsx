@@ -76,6 +76,15 @@ export function TableSelectionPage() {
     void load();
   }, [load, skipTableSelection]);
 
+  // Table cards navigate programmatically, so Next cannot auto-prefetch them like a
+  // visible <Link>. Warm the shared order route once table data is ready; search params
+  // are read client-side, so one prefetch covers every table on the screen.
+  useEffect(() => {
+    if (!skipTableSelection && zones.length > 0) {
+      router.prefetch("/posAll/order");
+    }
+  }, [router, skipTableSelection, zones.length]);
+
   // ปุ่มรีเฟรชย้ายเข้า NativeTopBar (capacitor/top-bar.tsx) แทนแถวโซนในตัวหน้า —
   // ลงทะเบียน action ผ่าน store กลางเพราะ top bar เรนเดอร์อยู่คนละต้นไม้กับหน้านี้
   // (ดู native-header-store.ts) ต้องเคลียร์ตอน unmount ไม่งั้นปุ่มจะค้างอยู่ในหน้าอื่น

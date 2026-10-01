@@ -6,6 +6,7 @@ import android.os.Build;
 import android.os.Bundle;
 import android.view.View;
 import android.view.Window;
+import android.view.WindowManager;
 import android.webkit.WebSettings;
 import android.webkit.WebView;
 
@@ -37,6 +38,11 @@ public class MainActivity extends BridgeActivity {
     hardenWebViewRendering();
 
     Window window = getWindow();
+
+    // This is a cashier terminal: while Yummy Go is in the foreground the display must
+    // stay ready for the next tap. FLAG_KEEP_SCREEN_ON is scoped to this Activity, so
+    // Android can sleep normally as soon as the cashier leaves the app.
+    window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
 
     // ให้ WebView วาดเต็มจอจริง (ยื่นไปใต้แถบระบบ) — เว็บแอปจัด safe area เองผ่าน CSS
     WindowCompat.setDecorFitsSystemWindows(window, false);
@@ -89,6 +95,12 @@ public class MainActivity extends BridgeActivity {
     }
 
     webView.setLayerType(View.LAYER_TYPE_HARDWARE, null);
+
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+      // POS screens are large and image-heavy. Keep the renderer at foreground priority
+      // while visible instead of letting low-memory pressure repeatedly evict/recreate it.
+      webView.setRendererPriorityPolicy(WebView.RENDERER_PRIORITY_IMPORTANT, true);
+    }
 
     WebSettings settings = webView.getSettings();
     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {

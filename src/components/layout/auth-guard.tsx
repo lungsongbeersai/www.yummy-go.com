@@ -16,10 +16,6 @@ export function unauthenticatedEntryPath(pathname: string, nativeApp: boolean) {
   return `${entryPath}?redirect=${encodeURIComponent(pathname)}`;
 }
 
-// เครื่องที่ session ค้างไว้แล้ว hydrate เร็วมาก (<100ms) จน NativeLoadingScreen ไม่ทันโชว์ให้เห็นเลย —
-// บังคับโชว์ splash แบรนด์อย่างน้อยเท่านี้เสมอตอนเปิดแอป (ตาม pattern ของแอป reference ที่ล็อกเวลาไว้คงที่)
-const MIN_NATIVE_SPLASH_MS = 1200;
-
 export function AuthGuard({ children }: { children: React.ReactNode }) {
   const { t } = useTranslation();
   const router = useRouter();
@@ -29,13 +25,7 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
   const token = useAuthStore((state) => state.token);
   const validateSession = useAuthStore((state) => state.validateSession);
   const isNativeApp = useIsCapacitorNativeApp();
-  const [minSplashElapsed, setMinSplashElapsed] = useState(false);
   const [validatedToken, setValidatedToken] = useState<string | null>(null);
-
-  useEffect(() => {
-    const timer = setTimeout(() => setMinSplashElapsed(true), MIN_NATIVE_SPLASH_MS);
-    return () => clearTimeout(timer);
-  }, []);
 
   useEffect(() => {
     if (!hydrated) return;
@@ -75,7 +65,6 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
       if (document.visibilityState === "visible") checkSession();
     };
 
-    checkSession();
     window.addEventListener("focus", checkSession);
     document.addEventListener("visibilitychange", checkVisibleSession);
     const interval = window.setInterval(checkSession, 30_000);
@@ -85,13 +74,11 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
       window.removeEventListener("focus", checkSession);
       document.removeEventListener("visibilitychange", checkVisibleSession);
     };
-  }, [hydrated, isLoggedIn, pathname, token, validateSession, validatedToken]);
-
-  const showNativeSplash = isNativeApp && !minSplashElapsed;
+  }, [hydrated, isLoggedIn, token, validateSession, validatedToken]);
 
   const validatingSession = hydrated && isLoggedIn && Boolean(token) && validatedToken !== token;
 
-  if (!hydrated || !isLoggedIn || validatingSession || showNativeSplash) {
+  if (!hydrated || !isLoggedIn || validatingSession) {
     if (isNativeApp) return <NativeLoadingScreen />;
     // Signed out and about to be redirected to the public entry page: no app chrome.
     if (hydrated && !isLoggedIn) return <LoadingState label={t("common.processing")} />;

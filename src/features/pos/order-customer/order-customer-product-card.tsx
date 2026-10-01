@@ -170,8 +170,9 @@ export const EmployeeProductCard = memo(function EmployeeProductCard({
         disabled={interactionDisabled}
         onClick={() => onAction(entry)}
         onFocus={() => onPrefetch(entry)}
-        onPointerDown={() => onPrefetch(entry)}
-        onPointerEnter={() => onPrefetch(entry)}
+        onPointerEnter={(event) => {
+          if (event.pointerType === "mouse") onPrefetch(entry);
+        }}
       />
     </Card>
   );

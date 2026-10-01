@@ -300,7 +300,7 @@ function ZoneToggleItem({
   return (
     <ToggleGroupItem
       className={cn(
-        "h-8 gap-1 rounded-full border border-transparent px-3 text-sm font-medium shadow-sm transition motion-safe:active:scale-95 data-[state=on]:bg-primary data-[state=on]:text-primary-foreground data-[state=on]:shadow-primary/20",
+        "h-11 gap-1 rounded-full border border-transparent px-3 text-sm font-medium shadow-sm transition motion-safe:active:scale-95 data-[state=on]:bg-primary data-[state=on]:text-primary-foreground data-[state=on]:shadow-primary/20 sm:h-8",
         !active && "border-border bg-card text-muted-foreground hover:border-primary/30 hover:bg-primary/5 hover:text-foreground",
         // ใช้ ring กะพริบแทนพื้นหลังกะพริบ — พื้นหลังกะพริบชนสี text-destructive จนคอนทราสต์ไม่ผ่าน WCAG AA
         hasAlert && "pos-chip-alert-ring"
@@ -336,7 +336,7 @@ function StatusToggleItem({
   return (
     <ToggleGroupItem
       className={cn(
-        "h-8 gap-1 rounded-full border border-transparent px-3 text-sm font-medium shadow-sm transition motion-safe:active:scale-95 data-[state=on]:bg-primary data-[state=on]:text-primary-foreground data-[state=on]:shadow-primary/20",
+        "h-11 gap-1 rounded-full border border-transparent px-3 text-sm font-medium shadow-sm transition motion-safe:active:scale-95 data-[state=on]:bg-primary data-[state=on]:text-primary-foreground data-[state=on]:shadow-primary/20 sm:h-8",
         !active && "border-border bg-card text-muted-foreground hover:border-primary/30 hover:bg-primary/5 hover:text-foreground"
       )}
       value={value}
@@ -517,7 +517,7 @@ const TableCard = memo(function TableCard({
     // ทำให้ box-shadow ปกติที่ล้นออกนอกกรอบโดนตัดจนมองไม่เห็นถ้าใส่ตรง Card เลย wrapper
     // นี้ไม่มี overflow ครอบเลยเรืองแสงออกมาได้เต็มที่ ไม่ไปกลืนกับพื้นการ์ดที่ทาสีทับ
     // เป็นโทนเดียวกันอยู่แล้ว (bg-blue-600/15 เป็นต้น) ด้วย
-    <div className={cn("relative rounded-xl", hasRingPulse && cn("pos-status-ring-pulse", style.ring))}>
+    <div className={cn("relative rounded-xl [contain-intrinsic-size:180px] [content-visibility:auto]", hasRingPulse && cn("pos-status-ring-pulse", style.ring))}>
       <Card
         data-pos-table-card="true"
         role="button"

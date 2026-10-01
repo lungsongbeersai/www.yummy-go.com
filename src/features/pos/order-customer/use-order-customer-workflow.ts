@@ -24,6 +24,7 @@ import { usePrinterStore } from "@/stores/printer-store";
 import { useToastStore } from "@/stores/toast-store";
 import {
   buildStaffOrderInput,
+  canDirectAddFromList,
   changeToppingQty,
   counterOrderTable,
   firstAvailableDetail,
@@ -275,7 +276,7 @@ export function useOrderCustomerWorkflow({
       return await loadTables({
         branch_uuid_fk: branchUuid,
         lang: language,
-      });
+      }, { maxAgeMs: 10_000 });
     } catch (error) {
       showToast({
         title: t("pos.failedTables"),
@@ -367,8 +368,15 @@ export function useOrderCustomerWorkflow({
         }),
       );
 
+      let refreshCartRequest: Promise<unknown> | null = null;
+      // create_order is the authoritative mutation. Do not hold the product grid
+      // behind a second network round-trip; refresh the server-owned cart in the
+      // background and surface a refresh failure separately from the successful sale.
       if (initialTableUuid) {
-        await loadCartStore({ table_uuid: initialTableUuid, lang: language });
+        refreshCartRequest = loadCartStore(
+          { table_uuid: initialTableUuid, lang: language },
+          { background: true },
+        );
       } else {
         // ร้านไม่มีโต๊ะ: บิลแรกที่สร้างได้ order_uuid มาเป็นตัวยึด — เก็บลง
         // pos-store (persist ลง localStorage) เพื่อให้รีเฟรชหน้า/ปิดแท็บ/กลับมาใหม่
@@ -379,14 +387,28 @@ export function useOrderCustomerWorkflow({
           setCounterOrderUuid(nextOrderUuid);
         }
         if (nextOrderUuid && branchUuid) {
-          await loadCartStore({
-            branch_uuid_fk: branchUuid,
-            order_uuid: nextOrderUuid,
-            lang: language,
-          });
+          refreshCartRequest = loadCartStore(
+            {
+              branch_uuid_fk: branchUuid,
+              order_uuid: nextOrderUuid,
+              lang: language,
+            },
+            { background: true },
+          );
         }
       }
-      setNewOrderFocusKey((key) => key + 1);
+
+      if (refreshCartRequest) {
+        void refreshCartRequest
+          .then(() => setNewOrderFocusKey((key) => key + 1))
+          .catch((error: unknown) => {
+            showToast({
+              title: t("pos.cartUpdateFailed"),
+              description: error instanceof Error ? error.message : "",
+              tone: "error",
+            });
+          });
+      }
       showToast({ title: t("pos.orderCreated"), tone: "success" });
     },
     [
@@ -428,6 +450,7 @@ export function useOrderCustomerWorkflow({
   const prefetchProduct = useCallback(
     async (entry: ProductCardEntry) => {
       if (getProductBlockedState(entry.product, activeSort)) return;
+      if (canDirectAddFromList(entry.product, activeSort)) return;
       try {
         await prefetchProductItem({
           lang: language,
@@ -448,22 +471,27 @@ export function useOrderCustomerWorkflow({
       setLoadingProductUuid(entry.product.prodUuid);
       try {
         let item: ProdItem | null = null;
-        try {
-          item = await loadProductItem({
-            lang: language,
-            prodUuid: entry.product.prodUuid,
-          });
-        } catch (error) {
-          if (classifyBackendError(error).classification !== "NETWORK_TRANSPORT") {
-            throw error;
+        // The catalog only exposes proDetailUuid for a single normal detail with no
+        // choices. create_order still revalidates that UUID, price and stock in the
+        // transaction; every ambiguous product keeps the full detail request.
+        if (!canDirectAddFromList(entry.product, activeSort)) {
+          try {
+            item = await loadProductItem({
+              lang: language,
+              prodUuid: entry.product.prodUuid,
+            });
+          } catch (error) {
+            if (classifyBackendError(error).classification !== "NETWORK_TRANSPORT") {
+              throw error;
+            }
+            // Product option details are server-owned in online-only mode. Explain
+            // the connection requirement instead of surfacing a generic error.
+            showToast({
+              title: t("pos.productOptionsNeedConnection"),
+              tone: "error",
+            });
+            return;
           }
-          // Product option details are server-owned in online-only mode. Explain
-          // the connection requirement instead of surfacing a generic error.
-          showToast({
-            title: t("pos.productOptionsNeedConnection"),
-            tone: "error",
-          });
-          return;
         }
         const productItem = normalizeProdItem(item, entry.product);
         const mode = getProductModalMode(activeSort, productItem);

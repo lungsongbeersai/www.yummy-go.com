@@ -65,6 +65,7 @@ import { errorMessage } from "@/stores/store-utils";
 
 const inFlightTableFetches = new Map<string, Promise<PosZone[]>>();
 let lastLoadedTableScopeKey = "";
+let lastLoadedTableAt = 0;
 let posTableFetchVersion = 0;
 
 const PRODUCT_ITEM_CACHE_TTL_MS = 30_000;
@@ -218,7 +219,10 @@ interface PosState {
   endKitchenConfirmation: () => void;
   updateTableCustomerOrderState: (tableUuid: string, customerOrderState: boolean) => void;
   updateTableStatus: (tableUuid: string, tableStatus: number) => void;
-  loadTables: (params: FetchPosParams) => Promise<PosZone[]>;
+  loadTables: (
+    params: FetchPosParams,
+    options?: { maxAgeMs?: number },
+  ) => Promise<PosZone[]>;
   refreshTables: (params: FetchPosParams) => Promise<PosZone[]>;
   loadProductCategories: (params: FetchCateProductsParams) => Promise<FetchCateProductsResponse>;
   loadMenu: (params: {
@@ -342,10 +346,21 @@ export const usePosStore = create<PosState>((set, get) => ({
             : updateZonesTableStatus(state.zoneOptions, tableUuid, tableStatus),
       };
     }),
-  loadTables: async (params) => {
+  loadTables: async (params, options) => {
     const isCurrentSession = createSessionGuard();
-    const requestVersion = ++posTableFetchVersion;
     const scopeKey = tableScopeKey(params);
+    const currentZones = get().zones;
+    const maxAgeMs = Math.max(0, options?.maxAgeMs ?? 0);
+    if (
+      maxAgeMs > 0 &&
+      lastLoadedTableScopeKey === scopeKey &&
+      currentZones.length > 0 &&
+      Date.now() - lastLoadedTableAt < maxAgeMs
+    ) {
+      return currentZones;
+    }
+
+    const requestVersion = ++posTableFetchVersion;
     const canKeepCurrentTables =
       lastLoadedTableScopeKey === scopeKey && get().zones.length > 0;
     set({ loading: !canKeepCurrentTables, error: null });
@@ -353,6 +368,7 @@ export const usePosStore = create<PosState>((set, get) => ({
       const zones = await fetchTables(params);
       if (isCurrentSession() && requestVersion === posTableFetchVersion) {
         lastLoadedTableScopeKey = scopeKey;
+        lastLoadedTableAt = Date.now();
         set({
           zones,
           ...(!params.zone_uuid ? { zoneOptions: zones } : {}),
@@ -375,6 +391,7 @@ export const usePosStore = create<PosState>((set, get) => ({
       const zones = await fetchTables(params);
       if (isCurrentSession() && requestVersion === posTableFetchVersion) {
         lastLoadedTableScopeKey = scopeKey;
+        lastLoadedTableAt = Date.now();
         set({
           zones,
           ...(!params.zone_uuid ? { zoneOptions: zones } : {}),
@@ -453,6 +470,28 @@ export const usePosStore = create<PosState>((set, get) => ({
       const searchQuery = nextQuery.trim();
       let menuBySort = emptyPosMenuBySort();
       if (nextCateUuid || searchQuery) {
+        const publishMenuGroup = (
+          statusSortFk: ProductSortStatusType,
+          categories: CateWithProducts[],
+        ) => {
+          if (!isCurrentMenuLifecycle()) return;
+          set((state) => ({
+            // Publish each independent group as soon as it arrives. The previous
+            // implementation kept the full grid behind a skeleton until the slowest
+            // of NORMAL/SET/PROMOTION finished, even when the active group was ready.
+            menuBySort: {
+              ...state.menuBySort,
+              [statusSortFk]: categories,
+            },
+            selectedCateUuid: nextCateUuid,
+            submittedSearch: nextQuery,
+            loadingMenu:
+              state.activeSort === statusSortFk &&
+              countPosMenuProducts(categories) > 0
+                ? false
+                : state.loadingMenu,
+          }));
+        };
         const request = (statusSortFk: ProductSortStatusType) =>
           get().loadProductCategories({
             branchUuidFk: branchUuid,
@@ -460,7 +499,16 @@ export const usePosStore = create<PosState>((set, get) => ({
             lang: language,
             search: searchQuery,
             statusSortFk
+          }).then((result) => {
+            publishMenuGroup(statusSortFk, result.categories ?? []);
+            return result;
           });
+        if (normalCatalog && !searchQuery) {
+          publishMenuGroup(
+            ProductSortStatus.NORMAL,
+            normalCatalog.categories ?? [],
+          );
+        }
         // The category-discovery request is already the NORMAL menu for the
         // selected category. Reuse it on initial loads instead of issuing the
         // same expensive catalog query twice.
@@ -747,6 +795,7 @@ export const usePosStore = create<PosState>((set, get) => ({
     posMenuLifecycleVersion += 1;
     posTableFetchVersion += 1;
     lastLoadedTableScopeKey = "";
+    lastLoadedTableAt = 0;
     inFlightTableFetches.clear();
     clearProductItemCache();
     set({

@@ -1623,6 +1623,25 @@ html.swan1-legacy-colors [data-pos-product-card] {
   box-shadow: 0 1px 3px rgba(15, 23, 42, 0.12);
 }
 
+/* Swan 1 drives the POS at 1920x1080 on an RK3566 (its factory image ships an
+   especially old WebView). Long transition lists and continuously pulsing shadows
+   compete with taps on the renderer thread, so the terminal gets an intentionally
+   immediate, static UI. Loading spinners stay animated to preserve async feedback. */
+html.swan1-legacy-colors .app-shell[data-desktop-pos-layout="true"] *:not([data-slot="spinner"]),
+html.swan1-legacy-colors .app-shell[data-desktop-pos-layout="true"] *::before,
+html.swan1-legacy-colors .app-shell[data-desktop-pos-layout="true"] *::after {
+  animation: none !important;
+  transition-duration: 0.01ms !important;
+  transition-delay: 0ms !important;
+  scroll-behavior: auto !important;
+}
+
+html.swan1-legacy-colors .app-shell[data-desktop-pos-layout="true"] .pos-table-card-alert,
+html.swan1-legacy-colors .app-shell[data-desktop-pos-layout="true"] .pos-status-ring-pulse,
+html.swan1-legacy-colors .app-shell[data-desktop-pos-layout="true"] .pos-chip-alert-ring {
+  will-change: auto;
+}
+
 /* Keep the native Android back handler while giving Swan 1's dashboard the
    desktop sidebar chrome, including the account control at its foot. */
 html.swan1-legacy-colors .app-shell[data-desktop-home-layout="true"] .swan1-home-top-bar {

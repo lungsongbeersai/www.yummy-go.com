@@ -79,6 +79,26 @@ function category(cateUuid: string): CateWithProducts {
   };
 }
 
+function categoryWithProduct(cateUuid: string): CateWithProducts {
+  return {
+    cateUuid,
+    cateName: cateUuid,
+    products: [{
+      canAdd: true,
+      countOptionAll: 1,
+      countOptionEnabled: 1,
+      countToppingEnabled: 0,
+      hasOptions: false,
+      optionsMsg: "",
+      prodImage: "",
+      prodName: "Product",
+      prodStatusImge: 1,
+      prodUuid: "product-1",
+      statusSortFk: ProductSortStatus.NORMAL,
+    }],
+  };
+}
+
 describe("POS store session follow-up requests", () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -513,6 +533,23 @@ describe("POS store menu and table browse state", () => {
     expect(usePosStore.getState().zones).toEqual([zone("fresh-zone")]);
   });
 
+  it("reuses a fresh table snapshot when navigation supplies a max age", async () => {
+    const params = { branch_uuid_fk: "branch-1", zone_uuid: "", lang: "en" };
+    getPosTablesMock.mockResolvedValueOnce({
+      status: "success",
+      message: "ok",
+      data: [zone("cached-zone")],
+    });
+
+    await usePosStore.getState().loadTables(params);
+    const zones = await usePosStore.getState().loadTables(params, {
+      maxAgeMs: 10_000,
+    });
+
+    expect(zones).toEqual([zone("cached-zone")]);
+    expect(getPosTablesMock).toHaveBeenCalledOnce();
+  });
+
   it("drops full-zone results returned after a session reset", async () => {
     const response = deferred<Awaited<ReturnType<typeof getPosTables>>>();
     getPosTablesMock.mockReturnValueOnce(response.promise);
@@ -575,6 +612,49 @@ describe("POS store menu and table browse state", () => {
       statusSortFk: ProductSortStatus.NORMAL
     });
     expect(fetchCateProductsMock).toHaveBeenCalledTimes(3);
+  });
+
+  it("publishes the active normal menu before slower sorted groups finish", async () => {
+    const catalog = [categoryWithProduct("category-1")];
+    const setResponse = deferred<Awaited<ReturnType<typeof fetchCateProducts>>>();
+    const promotionResponse = deferred<Awaited<ReturnType<typeof fetchCateProducts>>>();
+    fetchCateProductsMock
+      .mockResolvedValueOnce({
+        status: "success",
+        message: "ok",
+        categories: catalog,
+        defaultCateUuid: "category-1",
+        selectedCateUuid: "category-1",
+      })
+      .mockReturnValueOnce(setResponse.promise)
+      .mockReturnValueOnce(promotionResponse.promise);
+
+    const load = usePosStore.getState().loadMenu({
+      branchUuid: "branch-1",
+      language: "en",
+      refreshCategories: true,
+    });
+
+    await vi.waitFor(() => {
+      expect(usePosStore.getState()).toMatchObject({
+        loadingMenu: false,
+        menuBySort: {
+          [ProductSortStatus.NORMAL]: catalog,
+        },
+      });
+    });
+
+    setResponse.resolve({
+      status: "success",
+      message: "ok",
+      categories: [category("set")],
+    });
+    promotionResponse.resolve({
+      status: "success",
+      message: "ok",
+      categories: [category("promotion")],
+    });
+    await load;
   });
 
   it("delegates menu requests through the store action and clears loading on rejection", async () => {
