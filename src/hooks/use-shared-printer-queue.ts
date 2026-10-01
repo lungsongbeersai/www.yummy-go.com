@@ -2,13 +2,16 @@
 
 import { useEffect, useRef } from "react";
 import { subscribePrintJobs, type PrintJobQueuedPayload } from "@/lib/socket";
+import { isCapacitorMobileApp } from "@/lib/capacitor-platform";
 import {
   executeInvoicePrintJobs,
   executeKitchenPrintJobs,
   executeReportPrintJobs,
   getPendingPrintJobs,
+  isBrowserPrinterAgentId,
   resolvePrinterDeviceIdentity,
   type AgentInfo,
+  type CheckPrinterAgentConnectionResult,
   type PendingPrintJobRef,
 } from "@/services/printer";
 import { useAuthStore } from "@/stores/auth-store";
@@ -51,6 +54,17 @@ export function sharedPrintExecutionKind(
   return "kitchen";
 }
 
+export function isSharedPrinterOwnerReady(
+  result: CheckPrinterAgentConnectionResult,
+  nativeMobile = false,
+): result is Extract<CheckPrinterAgentConnectionResult, { ok: true }> {
+  // A cached desktop identity is useful for routing configuration, but it is
+  // not proof that the Local Agent can currently receive a print job.
+  return result.ok &&
+    result.connected !== false &&
+    (nativeMobile || !isBrowserPrinterAgentId(result.agent.agent_id));
+}
+
 export function useSharedPrinterQueue() {
   const user = useAuthStore((state) => state.user);
   const runningRef = useRef(false);
@@ -72,7 +86,7 @@ export function useSharedPrinterQueue() {
       }
 
       const result = await resolvePrinterDeviceIdentity();
-      if (!result.ok) return null;
+      if (!isSharedPrinterOwnerReady(result, isCapacitorMobileApp())) return null;
       identityRef.current = { agent: result.agent, checkedAt: Date.now() };
       return result.agent;
     }
@@ -90,6 +104,7 @@ export function useSharedPrinterQueue() {
             device_code: textValue(ref.device_code) || textValue(agent.device_code),
             agent_id: textValue(ref.agent_id) || textValue(agent.agent_id),
             print_mode: textValue(ref.print_mode) || undefined,
+            agent_ready: true,
           },
         };
         const executionKind = sharedPrintExecutionKind(ref);
@@ -132,6 +147,7 @@ export function useSharedPrinterQueue() {
           login_uuid_fk: loginUuid,
           device_code: textValue(agent.device_code),
           agent_id: textValue(agent.agent_id),
+          agent_ready: true,
         });
 
         for (const ref of (pending.pendingJobRefs ?? []).filter((item) => isSharedPrintJobForLocalOwner(item, agent))) {

@@ -886,6 +886,7 @@ export interface ConfirmToKitchenPendingQuery {
   agent_id?: string;
   print_mode?: string;
   remote_shared_print?: boolean;
+  agent_ready?: boolean;
 }
 
 export interface ConfirmToKitchenAckTemplate extends ApiEntity {}

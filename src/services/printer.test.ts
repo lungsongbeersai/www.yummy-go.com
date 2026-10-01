@@ -1959,6 +1959,64 @@ describe("printer service dispatch", () => {
     ]);
   });
 
+  it("marks Local Agent discovery failure as NOT_SENT before printer bytes start", async () => {
+    const ackPayloads: AckPayload[] = [];
+    const job = windowsPrintJob({
+      job_id: "agent-offline-document",
+      print_job_item_uuid: "agent-offline-item",
+    });
+    axiosMocks.get.mockRejectedValue(new Error("Network Error"));
+    apiMocks.apiRequest.mockImplementation(async (method, url, options) => {
+      if (method === "get" && url === "/api/v1/printer/jobs/pending") {
+        return {
+          print_batch_payloads: [{
+            cut_mode: "per_ticket",
+            print_config_uuid: job.print_config_uuid,
+            print_job_item_uuids: ["agent-offline-item"],
+            jobs: [job],
+          }],
+          ack_failed_payload: {
+            print_job_uuid: "agent-offline-document-job",
+            results: [{ print_job_item_uuid: "agent-offline-item", status: "failed" }],
+          },
+        };
+      }
+      if (method === "post" && url === "/api/v1/printer/jobs/ack") {
+        ackPayloads.push(options?.data as AckPayload);
+        return {};
+      }
+      throw new Error(`Unexpected request ${method} ${url}`);
+    });
+
+    await expect(executeInvoicePrintJobs({
+      pending_query: {
+        print_job_uuid: "agent-offline-document-job",
+        login_uuid_fk: "login-1",
+        device_code: "device-1",
+        agent_id: "agent-1",
+        print_mode: "windows_agent",
+      },
+    })).resolves.toEqual({
+      successCount: 0,
+      failedCount: 1,
+      total: 1,
+      errorMessage: "Network Error",
+    });
+
+    expect(axiosMocks.post).not.toHaveBeenCalled();
+    expect(ackPayloads).toEqual([{
+      print_job_uuid: "agent-offline-document-job",
+      login_uuid_fk: "login-1",
+      results: [{
+        print_job_item_uuid: "agent-offline-item",
+        status: "failed",
+        reason: "Network Error",
+        delivery_state: "not_sent",
+        print_config_uuid: "51a34c43-f256-4074-84eb-44c9d7668a47",
+      }],
+    }]);
+  });
+
   it("splits local kitchen batches by agent URL", async () => {
     const ackPayloads: unknown[] = [];
     const firstJob = windowsPrintJob({ agent_url: "http://10.0.0.20:7777", job_id: "job-agent-a" });
@@ -2400,6 +2458,29 @@ describe("printer pending jobs", () => {
         remote_shared_print: true,
       },
     ]);
+  });
+
+  it("advertises owner readiness only after the Local Agent was verified", async () => {
+    apiMocks.apiRequest.mockResolvedValue({ data: [] });
+
+    await getPendingPrintJobs({
+      print_job_uuid: "",
+      login_uuid_fk: "login-1",
+      device_code: "INCLUDE",
+      agent_id: "include-f8e4f9",
+      agent_ready: true,
+    });
+
+    expect(apiMocks.apiRequest).toHaveBeenCalledWith("get", "/api/v1/printer/jobs/pending", {
+      params: {
+        print_job_uuid: "",
+        login_uuid_fk: "login-1",
+        device_code: "INCLUDE",
+        agent_id: "include-f8e4f9",
+        print_mode: undefined,
+        agent_ready: true,
+      },
+    });
   });
 
   it("preserves an explicitly empty print_batch_payloads response with failed metadata", async () => {

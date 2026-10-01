@@ -140,6 +140,7 @@ export async function getPendingPrintJobs(params: PendingPrintJobsParams): Promi
       ...(params.relay_device_code
         ? { relay_device_code: params.relay_device_code }
         : {}),
+      ...(params.agent_ready === true ? { agent_ready: true } : {}),
     }
   });
   const hasBatchPayloads = Array.isArray(result.print_batch_payloads);
@@ -906,7 +907,18 @@ async function executePrintJobs(
       // One pending response can contain several physical USB/TCP printers.
       // They all go through the same local Agent, so resolve its identity once
       // while still allowing different printers to run concurrently.
-      localAgentPromise ??= getLocalAgentInfo();
+      localAgentPromise ??= getLocalAgentInfo().catch((error: unknown) => {
+        // Agent discovery happens before any bytes can reach USB/TCP. Mark the
+        // transport failure explicitly so the Backend can safely keep normal
+        // retry/fallback behavior instead of treating it as possibly printed.
+        if (error && typeof error === "object") {
+          (error as { delivery_state?: string }).delivery_state = "not_sent";
+          throw error;
+        }
+        const wrapped = new ServiceError(getPrinterErrorMessage(error), 503);
+        (wrapped as ServiceError & { delivery_state?: string }).delivery_state = "not_sent";
+        throw wrapped;
+      });
       return localAgentPromise;
     };
 
@@ -1051,7 +1063,7 @@ async function executePrintJobs(
               batch,
               deliveredJobs,
             );
-            if (options.idempotent && deliveryState === "unknown" && mobileBatch) {
+            if (options.idempotent && deliveryState === "unknown") {
               storeDelivery(ledgerKey, { deliveryState, errorMessage });
             }
             return {

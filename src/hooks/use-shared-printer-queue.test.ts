@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  isSharedPrinterOwnerReady,
   isSharedPrintJobForLocalOwner,
   sharedPrintExecutionKind,
 } from "@/hooks/use-shared-printer-queue";
@@ -11,6 +12,26 @@ const windowsOwner = {
 };
 
 describe("shared printer owner queue", () => {
+  it("does not advertise a cached desktop owner when its Local Agent is offline", () => {
+    expect(isSharedPrinterOwnerReady({
+      ok: true,
+      agent: windowsOwner,
+      connected: false,
+      error: "Network Error",
+    })).toBe(false);
+
+    expect(isSharedPrinterOwnerReady({ ok: true, agent: windowsOwner })).toBe(true);
+    expect(isSharedPrinterOwnerReady({ ok: false, error: "Network Error" })).toBe(false);
+    expect(isSharedPrinterOwnerReady({
+      ok: true,
+      agent: { ...windowsOwner, agent_id: "desktop" },
+    })).toBe(false);
+    expect(isSharedPrinterOwnerReady({
+      ok: true,
+      agent: { ...windowsOwner, agent_id: "mobile" },
+    }, true)).toBe(true);
+  });
+
   it("accepts a remote job only on its target owner", () => {
     expect(
       isSharedPrintJobForLocalOwner(
