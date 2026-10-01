@@ -92,6 +92,18 @@ export function CartSummaryDock({
   // ปุ่มรอง (…/สร้างออเดอร์พนักงาน) ขาวเกือบทึบตั้งใจให้ตัดกับพื้นรูปสีเขียว — โหมดมืดไม่มีรูปนั้น
   // (dark:bg-none) dock วางบนพื้นมืดเรียบ ๆ ปุ่มขาวเลยกลายเป็นก้อนสว่างแสบตา ใช้ผิว card แทน
   const secondaryButtonClass = "bg-primary-foreground/95 text-primary shadow-sm hover:bg-primary-foreground/90 dark:border dark:border-border dark:bg-card dark:text-foreground dark:hover:bg-accent";
+  const moreButtonClass = primaryIsConfirm
+    ? secondaryButtonClass
+    : neutral
+      ? "border-border bg-muted text-muted-foreground hover:bg-accent"
+      : "border-primary-foreground/70 bg-primary/25 text-primary-foreground hover:bg-primary/40 dark:border-primary-foreground/60 dark:bg-card dark:text-foreground dark:hover:bg-accent";
+  const primaryButtonClass = primaryIsConfirm
+    ? primaryDisabled
+      ? "bg-white text-primary hover:bg-white/90 disabled:hover:bg-white dark:border dark:border-border dark:bg-card dark:text-muted-foreground dark:disabled:hover:bg-card"
+      : "bg-primary text-primary-foreground hover:bg-primary/90 disabled:hover:bg-primary"
+    : primaryDisabled
+      ? "border-border bg-muted text-muted-foreground disabled:hover:bg-muted"
+      : "border-primary bg-primary-foreground text-primary hover:bg-primary-foreground/90";
 
   return (
     <div
@@ -205,7 +217,7 @@ export function CartSummaryDock({
             <Button
               type="button"
               aria-label={t("nav.manage")}
-              className={cn("min-w-0 rounded-lg px-2", secondaryButtonClass, disabledButtonClass, compact ? "h-11" : "h-13")}
+              className={cn("min-w-0 rounded-lg border px-2", moreButtonClass, disabledButtonClass, compact ? "h-11" : "h-13")}
               disabled={actionsDisabled}
             >
               <MoreHorizontal data-icon="inline-start" />
@@ -268,9 +280,7 @@ export function CartSummaryDock({
           className={cn(
             "relative min-w-0 overflow-hidden rounded-lg px-3 shadow-sm",
             compact ? "h-11" : "h-13",
-            primaryDisabled
-              ? "bg-white text-primary hover:bg-white/90 disabled:hover:bg-white dark:border dark:border-border dark:bg-card dark:text-muted-foreground dark:disabled:hover:bg-card"
-              : "bg-primary text-primary-foreground hover:bg-primary/90 disabled:hover:bg-primary",
+            primaryButtonClass,
             "disabled:cursor-not-allowed disabled:opacity-65",
             primaryBadgeCount > 0 && "pr-8",
             showConfirmCue &&
@@ -297,7 +307,9 @@ export function CartSummaryDock({
                 "absolute right-1.5 top-1.5 z-10 min-w-6 justify-center rounded-full px-1.5 py-0.5 text-2xs font-black shadow-sm",
                 primaryDisabled
                   ? "border-primary/30 bg-primary text-primary-foreground"
-                  : "border-primary-foreground/30 bg-primary-foreground text-primary"
+                  : primaryIsConfirm
+                    ? "border-primary-foreground/30 bg-primary-foreground text-primary"
+                    : "border-primary bg-primary text-primary-foreground"
               )}
             >
               {primaryBadgeCount}

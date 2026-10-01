@@ -18,10 +18,12 @@ import androidx.webkit.WebViewFeature;
 import com.getcapacitor.BridgeActivity;
 
 public class MainActivity extends BridgeActivity {
-  // ตรงกับ --background จริงของเว็บแอป (globals.css): oklch(1 0 0) โหมดสว่าง,
-  // oklch(0.148 0.004 228.8) โหมดมืด — ให้แถบระบบกลืนกับพื้นหลังแอปทั้งสองธีม
+  // สี status bar ตรงกับ --background ของเว็บแอป (globals.css) ทั้งสองธีม;
+  // navigation bar ของ Swan 1 ใช้สีเทาแยกต่างหากเพื่อให้เห็นขอบชัดเจน
   private static final int STATUS_BAR_COLOR_LIGHT = Color.WHITE;
   private static final int STATUS_BAR_COLOR_DARK = Color.parseColor("#0F131A");
+  private static final int SWAN_NAVIGATION_BAR_COLOR_LIGHT = Color.parseColor("#D1D5DB");
+  private static final int SWAN_NAVIGATION_BAR_COLOR_DARK = Color.parseColor("#343A40");
 
   @Override
   public void onCreate(Bundle savedInstanceState) {
@@ -43,8 +45,9 @@ public class MainActivity extends BridgeActivity {
     // NativeTheme.setDarkMode ทับด้วยค่าจริงจาก app-store ทันทีที่ hydrate เสร็จ
     applyBarColors(false);
 
-    // Android 15+ เพิกเฉยต่อ setStatusBarColor/setNavigationBarColor โดยสิ้นเชิง (บังคับ
-    // edge-to-edge) — เดิม pad root view กันไม่ให้ WebView ยื่นไปใต้แถบระบบ ทำให้ช่องว่างตรงนั้น
+    // Android 15+ บังคับ edge-to-edge: status bar ไม่ใช้ setStatusBarColor แล้ว ส่วน navigation bar
+    // ยังใช้ setNavigationBarColor ได้เฉพาะโหมดสามปุ่ม (gesture mode โปร่งใส) — เดิม pad root view
+    // กันไม่ให้ WebView ยื่นไปใต้แถบระบบ ทำให้ช่องว่างตรงนั้น
     // โชว์ native background (เขียว) ไม่มีทางเซตสีให้ตรงธีมแอปได้เลย ตอนนี้ปล่อยให้ WebView ยื่นเต็มจอ
     // จริง แล้วให้ฝั่งเว็บกันเนื้อหาเองด้วย env(safe-area-inset-*) (มีอยู่แล้วใน globals.css /
     // native-top-bar, bottom-nav — ต้องมี viewport-fit=cover ด้วย ซึ่งเว็บแอปตั้งไว้แล้ว) วิธีนี้พื้นหลัง
@@ -55,16 +58,22 @@ public class MainActivity extends BridgeActivity {
   public void applyBarColors(boolean isDark) {
     Window window = getWindow();
     int barColor = isDark ? STATUS_BAR_COLOR_DARK : STATUS_BAR_COLOR_LIGHT;
+    int navigationBarColor = barColor;
+    if ("Swan 1".equals(Build.MODEL) && "rk3566_rgo".equals(Build.DEVICE)) {
+      // The Swan's three-button bar is visible on every route. Keep it distinct
+      // from the WebView surface without changing the system bars on other devices.
+      navigationBarColor = isDark ? SWAN_NAVIGATION_BAR_COLOR_DARK : SWAN_NAVIGATION_BAR_COLOR_LIGHT;
+    }
 
-    // Android 15+ (API 35+) บังคับ edge-to-edge และเพิกเฉยต่อ setStatusBarColor/setNavigationBarColor
-    // โดยสิ้นเชิง (ดูของจริงใน @capacitor/status-bar's StatusBar.java: shouldSetStatusBarColor()
-    // คืน false เสมอตั้งแต่ API 36) — พื้นที่แถบระบบที่โปร่งใสจะโชว์ "window background" แทน ซึ่งเดิม
+    // Android 15+ (API 35+) บังคับ edge-to-edge และเพิกเฉยต่อ setStatusBarColor
+    // (ดู @capacitor/status-bar's StatusBar.java: shouldSetStatusBarColor() คืน false ตั้งแต่ API 36)
+    // — พื้นที่แถบระบบที่โปร่งใสจะโชว์ "window background" แทน ซึ่งเดิม
     // ค้างเป็นสีเขียวของ splash theme (AndroidManifest ผูก MainActivity ไว้กับ
     // AppTheme.NoActionBarLaunch ตลอดอายุแอป ไม่เคยสลับ) ตั้ง background ตรงนี้แทนจึงเห็นผลจริงทุกเวอร์ชัน
     window.setBackgroundDrawable(new ColorDrawable(barColor));
 
     window.setStatusBarColor(barColor);
-    window.setNavigationBarColor(barColor);
+    window.setNavigationBarColor(navigationBarColor);
 
     WindowInsetsControllerCompat controller =
       new WindowInsetsControllerCompat(window, window.getDecorView());
