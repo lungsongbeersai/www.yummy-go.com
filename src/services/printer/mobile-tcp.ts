@@ -271,7 +271,9 @@ function addCompletionQueries(base64: string) {
     const cleanBase64 = normalizeBase64(base64);
     const bytes = base64ToBytes(cleanBase64);
     const parts: Uint8Array[] = [];
+    const acknowledgementEnds: number[] = [];
     let acknowledgementTotal = 0;
+    let byteLength = 0;
 
     for (let offset = 0; offset < bytes.length;) {
         const commandLength = escposCommandLength(bytes, offset);
@@ -284,23 +286,33 @@ function addCompletionQueries(base64: string) {
             return {
                 base64: bytesToBase64(fallback),
                 acknowledgementTotal: 1,
+                acknowledgementGroups: [bytesToBase64(fallback)],
             };
         }
 
-        parts.push(bytes.subarray(offset, offset + commandLength));
+        const command = bytes.subarray(offset, offset + commandLength);
+        parts.push(command);
+        byteLength += command.length;
         if (bytes[offset] === 0x1d && bytes[offset + 1] === 0x56) {
             parts.push(ESC_POS_PAPER_STATUS_COMMAND);
+            byteLength += ESC_POS_PAPER_STATUS_COMMAND.length;
             acknowledgementTotal += 1;
+            acknowledgementEnds.push(byteLength);
         }
         offset += commandLength;
     }
 
     if (acknowledgementTotal === 0) {
         parts.push(ESC_POS_PAPER_STATUS_COMMAND);
+        byteLength += ESC_POS_PAPER_STATUS_COMMAND.length;
         acknowledgementTotal = 1;
+        acknowledgementEnds.push(byteLength);
+    } else {
+        // Keep any renderer epilogue after the final cut in the same final
+        // delivery group so the byte stream stays exactly as generated.
+        acknowledgementEnds[acknowledgementEnds.length - 1] = byteLength;
     }
 
-    const byteLength = parts.reduce((sum, part) => sum + part.length, 0);
     const result = new Uint8Array(byteLength);
     let cursor = 0;
     for (const part of parts) {
@@ -308,9 +320,17 @@ function addCompletionQueries(base64: string) {
         cursor += part.length;
     }
 
+    let groupStart = 0;
+    const acknowledgementGroups = acknowledgementEnds.map((groupEnd) => {
+        const group = bytesToBase64(result.subarray(groupStart, groupEnd));
+        groupStart = groupEnd;
+        return group;
+    });
+
     return {
         base64: bytesToBase64(result),
         acknowledgementTotal,
+        acknowledgementGroups,
     };
 }
 
@@ -532,54 +552,51 @@ async function sendEscposOnConnectedClient({
 }) {
     const cleanBase64 = normalizeBase64(escposBase64);
     const completionPlan = addCompletionQueries(cleanBase64);
-    const segments = splitEscposBase64ForTransport(completionPlan.base64);
     const analysis = analyzeEscposPayload(cleanBase64);
     const sendProfile = mobileTcpSendProfile();
+    const deliveryGroups = completionPlan.acknowledgementGroups.map((group) =>
+        splitEscposBase64ForTransport(group)
+    );
+    const segmentTotal = deliveryGroups.reduce(
+        (total, segments) => total + segments.length,
+        0,
+    );
 
     mobileTcpDebug("[mobile-tcp] transport plan", {
-        segments: segments.length,
+        segments: segmentTotal,
         byteEstimate: analysis.byteLength,
         cutCommands: analysis.cutCommands,
         profile: sendProfile.profile,
     });
 
-    for (let segmentIndex = 0; segmentIndex < segments.length; segmentIndex++) {
-        const segment = segments[segmentIndex];
-        mobileTcpDebug("[mobile-tcp] send segment", {
-            segment: segmentIndex + 1,
-            segments: segments.length,
-            byteEstimate: Math.floor((segment.length * 3) / 4),
-        });
+    let sentSegments = 0;
+    for (let groupIndex = 0; groupIndex < deliveryGroups.length; groupIndex++) {
+        const segments = deliveryGroups[groupIndex];
+        for (const segment of segments) {
+            sentSegments += 1;
+            mobileTcpDebug("[mobile-tcp] send segment", {
+                segment: sentSegments,
+                segments: segmentTotal,
+                ticket: groupIndex + 1,
+                tickets: completionPlan.acknowledgementTotal,
+                byteEstimate: Math.floor((segment.length * 3) / 4),
+            });
 
-        // Each send resolves only after the patched native plugin has written
-        // and flushed this complete segment. Awaiting it preserves every byte
-        // in order without timer gaps or overlapping native writes.
-        await sendBase64InChunks({
-            TcpSocket,
-            client,
-            base64: segment,
-            ...sendProfile,
-        });
-    }
+            // Await the native flush for every complete renderer segment. No
+            // timer gap or overlapping write is used to control the order.
+            await sendBase64InChunks({
+                TcpSocket,
+                client,
+                base64: segment,
+                ...sendProfile,
+            });
+        }
 
-    // Every GS r 1 sits directly after a cut in the same ordered byte stream.
-    // Read only after all writes have completed: the iOS socket plugin returns
-    // an empty result when read starts before the first status query is sent.
-    // TCP retains the ordered replies, so this keeps paper continuous while
-    // still acknowledging every completed ticket in cut order.
-    mobileTcpDebug("[mobile-tcp] document flushed; confirming completion", {
-        cutCommands: analysis.cutCommands,
-        rasterBands: analysis.rasterBands,
-        rasterRows: analysis.rasterRows,
-        segments: segments.length,
-    });
-    for (
-        let completed = 1;
-        completed <= completionPlan.acknowledgementTotal;
-        completed += 1
-    ) {
+        // The GS r 1 query is the final command in this delivery group. Wait
+        // for the printer response before releasing the next ticket so a slow
+        // printer cannot lose the tail of a large mobile batch.
         await readMobilePrinterPaperStatus({ TcpSocket, client });
-        onTicketDelivered?.(completed, completionPlan.acknowledgementTotal);
+        onTicketDelivered?.(groupIndex + 1, completionPlan.acknowledgementTotal);
     }
 }
 

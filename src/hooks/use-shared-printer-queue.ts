@@ -160,7 +160,11 @@ export function useSharedPrinterQueue() {
       });
     }
 
-    const unsubscribe = subscribePrintJobs(branchUuid, handleQueued);
+    const unsubscribe = subscribePrintJobs(
+      branchUuid,
+      handleQueued,
+      () => void poll(),
+    );
     const interval = window.setInterval(() => void poll(), POLL_INTERVAL_MS);
     document.addEventListener("visibilitychange", handleVisibilityChange);
     void poll();

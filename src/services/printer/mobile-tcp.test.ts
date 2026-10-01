@@ -210,7 +210,7 @@ describe("mobile TCP printer queue", () => {
     expect(TcpSocket.read).toHaveBeenCalledTimes(1);
   });
 
-  it("queues every ticket continuously and reports printer replies in cut order", async () => {
+  it("waits for each printer reply before sending the next ticket", async () => {
     const statusCommand = Buffer.from([0x1d, 0x72, 0x01]);
     const cut = Buffer.from([0x1d, 0x56, 0x01]);
     const raster = (seed: number) => Buffer.concat([
@@ -257,8 +257,36 @@ describe("mobile TCP printer queue", () => {
       statusCommand,
     ]));
     expect(TcpSocket.read).toHaveBeenCalledTimes(2);
-    expect(transportEvents).toEqual(["send", "read", "read"]);
+    expect(transportEvents).toEqual(["send", "read", "send", "read"]);
     expect(progress).toEqual([1, 2]);
+  });
+
+  it("does not send the next ticket when the printer rejects the current one", async () => {
+    const statusCommand = Buffer.from([0x1d, 0x72, 0x01]);
+    const cut = Buffer.from([0x1d, 0x56, 0x01]);
+    const firstTicket = Buffer.concat([Buffer.from([0x1b, 0x40]), cut]);
+    const secondTicket = Buffer.concat([Buffer.from([0x1b, 0x40]), cut]);
+    const sent: Buffer[] = [];
+    const TcpSocket = {
+      connect: vi.fn(),
+      disconnect: vi.fn(),
+      read: vi.fn().mockResolvedValue({ result: "DA==" }),
+      send: vi.fn(async ({ data }: { data: string }) => {
+        sent.push(Buffer.from(data, "base64"));
+      }),
+    };
+
+    await expect(
+      __mobileTcpInternals.sendEscposOnConnectedClient({
+        TcpSocket,
+        client: "paper-out-client",
+        escposBase64: Buffer.concat([firstTicket, secondTicket]).toString("base64"),
+      }),
+    ).rejects.toThrow("paper out");
+
+    expect(Buffer.concat(sent)).toEqual(Buffer.concat([firstTicket, statusCommand]));
+    expect(TcpSocket.send).toHaveBeenCalledTimes(1);
+    expect(TcpSocket.read).toHaveBeenCalledTimes(1);
   });
 
   it("splits long renderer payloads only between complete raster commands", () => {

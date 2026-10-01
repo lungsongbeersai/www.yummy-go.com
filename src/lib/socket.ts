@@ -145,12 +145,18 @@ export function subscribeTableAlerts(branchUuid: string, handler: TableAlertHand
   };
 }
 
-export function subscribePrintJobs(branchUuid: string, handler: PrintJobQueuedHandler) {
+export function subscribePrintJobs(
+  branchUuid: string,
+  handler: PrintJobQueuedHandler,
+  onConnect?: () => void,
+) {
   if (typeof window === "undefined" || !branchUuid) return () => {};
   const active = getSocket(branchUuid);
   active.on(socketEvents.printJobQueued, handler);
+  if (onConnect) active.on("connect", onConnect);
   return () => {
     active.off(socketEvents.printJobQueued, handler);
+    if (onConnect) active.off("connect", onConnect);
   };
 }
 
