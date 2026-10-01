@@ -799,6 +799,65 @@ describe("printer service dispatch", () => {
     expect(axiosMocks.post).not.toHaveBeenCalled();
   });
 
+  it("stops waiting for a remote SHARED owner when its ACK remains pending", async () => {
+    vi.useFakeTimers();
+    try {
+      axiosMocks.get.mockResolvedValue({
+        data: {
+          agent_id: "requester-agent",
+          agent_name: "Requester",
+          device_code: "REQUESTER-PC",
+        },
+      });
+      let statusPolls = 0;
+      apiMocks.apiRequest.mockImplementation(async (method, url) => {
+        if (method !== "get" || url !== "/api/v1/printer/jobs/pending") {
+          throw new Error(`Unexpected request ${method} ${url}`);
+        }
+        statusPolls += 1;
+        return {
+          print_batch_payloads: [],
+          print_summary: {
+            requested_job_found: true,
+            requested_job_status: "pending",
+            requested_job_total: 1,
+            requested_job_success_total: 0,
+            requested_job_failed_total: 0,
+          },
+        };
+      });
+
+      const execution = executeKitchenPrintJobs({
+        print_job: {
+          print_job_uuid: "shared-job-without-owner-ack",
+          requested_total: 1,
+          remote_shared_print: true,
+        },
+        pending_query: {
+          print_job_uuid: "shared-job-without-owner-ack",
+          login_uuid_fk: "login-1",
+          device_code: "OWNER-PC",
+          agent_id: "owner-agent",
+          print_mode: "windows_agent",
+          remote_shared_print: true,
+        },
+      });
+
+      await vi.advanceTimersByTimeAsync(10_000);
+      await expect(execution).resolves.toEqual({
+        successCount: 0,
+        failedCount: 0,
+        total: 1,
+        pending: true,
+      });
+
+      expect(statusPolls).toBe(20);
+      expect(axiosMocks.post).not.toHaveBeenCalled();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it("prints native mobile wifi invoice batches directly over TCP", async () => {
     capacitorMocks.isNativePlatform.mockReturnValue(true);
     apiMocks.apiRequest.mockImplementation(async (method, url) => {

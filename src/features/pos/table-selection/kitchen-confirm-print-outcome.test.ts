@@ -7,7 +7,7 @@ describe("kitchenConfirmPrintOutcome", () => {
       kitchenConfirmPrintOutcome({
         successCount: 0,
         failedCount: 0,
-        total: 0,
+        total: 1,
         pending: true,
       }),
     ).toBe("queued");

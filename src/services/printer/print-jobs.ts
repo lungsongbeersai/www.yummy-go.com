@@ -46,6 +46,7 @@ const documentExecutions = new Map<string, Promise<KitchenPrintResult>>();
 const deliveryLedgerMemory = new Map<string, StoredDelivery>();
 const DELIVERY_LEDGER_PREFIX = "yummy_kitchen_printer_delivery:";
 const REMOTE_SHARED_STATUS_POLL_INTERVAL_MS = 500;
+const REMOTE_SHARED_STATUS_MAX_POLLS = 20;
 
 interface StoredDelivery {
   deliveryState: Exclude<PrinterDeliveryState, "not_sent">;
@@ -624,7 +625,11 @@ async function waitForRemoteSharedPrintCompletion({
   }
 
   const requester = requesterIdentity.agent;
-  while (true) {
+  for (
+    let pollIndex = 0;
+    pollIndex < REMOTE_SHARED_STATUS_MAX_POLLS;
+    pollIndex += 1
+  ) {
     const pendingResult = await getPendingPrintJobs({
       print_job_uuid: jobUuid,
       login_uuid_fk: loginUuid,
@@ -666,8 +671,28 @@ async function waitForRemoteSharedPrintCompletion({
       failedCount,
       phase: "printing",
     });
+
+    // SHARED delivery is owned by another device. Its ACK is useful when it
+    // arrives promptly, but it must never keep the requester's blocking POS
+    // dialog open indefinitely. The durable Backend queue remains authoritative
+    // after this bounded observation window and prevents duplicate printing.
+    if (pollIndex === REMOTE_SHARED_STATUS_MAX_POLLS - 1) {
+      return {
+        successCount,
+        failedCount,
+        total,
+        pending: true,
+      };
+    }
     await waitForRemoteSharedStatusPoll();
   }
+
+  return {
+    successCount: 0,
+    failedCount: 0,
+    total: 0,
+    pending: true,
+  };
 }
 
 async function printKitchenBatchJob(

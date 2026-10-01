@@ -16,8 +16,7 @@ export function kitchenConfirmPrintOutcome(
 ): KitchenConfirmPrintOutcome {
   if (
     result.failedCount > 0 ||
-    Boolean(result.errorMessage) ||
-    (result.total > 0 && result.successCount < result.total)
+    Boolean(result.errorMessage)
   ) {
     return "incomplete";
   }
@@ -25,6 +24,10 @@ export function kitchenConfirmPrintOutcome(
   // A remote SHARED owner prints asynchronously and ACKs through Backend.
   // Pending with no missing/failed result means accepted by that queue, not failed.
   if (result.pending) return "queued";
+
+  if (result.total > 0 && result.successCount < result.total) {
+    return "incomplete";
+  }
 
   return "success";
 }
