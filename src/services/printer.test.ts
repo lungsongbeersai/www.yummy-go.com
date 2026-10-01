@@ -699,8 +699,24 @@ describe("printer service dispatch", () => {
     expect(ackAttempts).toBe(2);
   });
 
-  it("leaves a remote SHARED job pending when the requester has no local Agent", async () => {
-    axiosMocks.get.mockRejectedValue(new Error("agent offline"));
+  it("waits for a remote SHARED owner ACK without fetching or printing its payload", async () => {
+    axiosMocks.get.mockResolvedValue({
+      data: {
+        agent_id: "requester-agent",
+        agent_name: "Requester",
+        device_code: "REQUESTER-PC",
+      },
+    });
+    apiMocks.apiRequest.mockResolvedValue({
+      print_batch_payloads: [],
+      print_summary: {
+        requested_job_found: true,
+        requested_job_status: "success",
+        requested_job_total: 1,
+        requested_job_success_total: 1,
+        requested_job_failed_total: 0,
+      },
+    });
 
     await expect(
       executeKitchenPrintJobs({
@@ -718,14 +734,49 @@ describe("printer service dispatch", () => {
           remote_shared_print: true,
         },
       })
-    ).resolves.toEqual({ successCount: 0, failedCount: 0, total: 0, pending: true });
+    ).resolves.toEqual({ successCount: 1, failedCount: 0, total: 1 });
 
-    expect(apiMocks.apiRequest).not.toHaveBeenCalled();
-    expect(axiosMocks.get).not.toHaveBeenCalled();
+    expect(apiMocks.apiRequest).toHaveBeenCalledWith(
+      "get",
+      "/api/v1/printer/jobs/pending",
+      {
+        params: expect.objectContaining({
+          print_job_uuid: "shared-job-1",
+          login_uuid_fk: "login-1",
+          device_code: "REQUESTER-PC",
+          agent_id: "requester-agent",
+        }),
+      },
+    );
     expect(axiosMocks.post).not.toHaveBeenCalled();
   });
 
-  it("leaves a remote SHARED kitchen job for the owner Backend queue consumer", async () => {
+  it("keeps a remote SHARED job pending until the owner reports success", async () => {
+    axiosMocks.get.mockResolvedValue({
+      data: {
+        agent_id: "requester-agent",
+        agent_name: "Requester",
+        device_code: "REQUESTER-PC",
+      },
+    });
+    let statusPolls = 0;
+    apiMocks.apiRequest.mockImplementation(async (method, url) => {
+      if (method !== "get" || url !== "/api/v1/printer/jobs/pending") {
+        throw new Error(`Unexpected request ${method} ${url}`);
+      }
+      statusPolls += 1;
+      return {
+        print_batch_payloads: [],
+        print_summary: {
+          requested_job_found: true,
+          requested_job_status: statusPolls === 1 ? "pending" : "success",
+          requested_job_total: 1,
+          requested_job_success_total: statusPolls === 1 ? 0 : 1,
+          requested_job_failed_total: 0,
+        },
+      };
+    });
+
     await expect(
       executeKitchenPrintJobs({
         print_job: {
@@ -742,10 +793,9 @@ describe("printer service dispatch", () => {
           remote_shared_print: true,
         },
       })
-    ).resolves.toEqual({ successCount: 0, failedCount: 0, total: 0, pending: true });
+    ).resolves.toEqual({ successCount: 1, failedCount: 0, total: 1 });
 
-    expect(apiMocks.apiRequest).not.toHaveBeenCalled();
-    expect(axiosMocks.get).not.toHaveBeenCalled();
+    expect(statusPolls).toBe(2);
     expect(axiosMocks.post).not.toHaveBeenCalled();
   });
 
@@ -1097,8 +1147,18 @@ describe("printer service dispatch", () => {
     }]);
   });
 
-  it("leaves a shared Windows Agent TCP batch for its owner when requested by native mobile", async () => {
+  it("waits for the shared Windows Agent owner ACK when requested by native mobile", async () => {
     capacitorMocks.isNativePlatform.mockReturnValue(true);
+    apiMocks.apiRequest.mockResolvedValue({
+      print_batch_payloads: [],
+      print_summary: {
+        requested_job_found: true,
+        requested_job_status: "success",
+        requested_job_total: 1,
+        requested_job_success_total: 1,
+        requested_job_failed_total: 0,
+      },
+    });
 
     await expect(
       executeKitchenPrintJobs({
@@ -1111,9 +1171,18 @@ describe("printer service dispatch", () => {
           remote_shared_print: true
         }
       })
-    ).resolves.toEqual({ successCount: 0, failedCount: 0, total: 0, pending: true });
+    ).resolves.toEqual({ successCount: 1, failedCount: 0, total: 1 });
 
-    expect(apiMocks.apiRequest).not.toHaveBeenCalled();
+    expect(apiMocks.apiRequest).toHaveBeenCalledWith(
+      "get",
+      "/api/v1/printer/jobs/pending",
+      expect.objectContaining({
+        params: expect.objectContaining({
+          print_job_uuid: "job-1",
+          login_uuid_fk: "login-1",
+        }),
+      }),
+    );
     expect(mobileTcpMocks.printMobileEscposOverTcp).not.toHaveBeenCalled();
     expect(axiosMocks.post).not.toHaveBeenCalled();
   });

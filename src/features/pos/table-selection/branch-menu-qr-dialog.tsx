@@ -13,9 +13,6 @@ import { Field, FieldLabel } from "@/components/ui/field";
 import { InputGroup, InputGroupAddon, InputGroupButton, InputGroupInput } from "@/components/ui/input-group";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Spinner } from "@/components/ui/spinner";
-import { fullscreenPrintWindowFeatures, maximizePrintWindow } from "@/services/printer/invoice-print-window";
-import { canUseAndroidSystemPrint, printHtmlWithAndroidSystemPrint } from "@/lib/android-system-print";
-import { canUseSystemPrintFallback } from "@/lib/system-print-capability";
 import { useIsCapacitorNativeApp } from "@/hooks/use-capacitor-native-app";
 import { useResetOnChange, useResetOnDeps } from "@/hooks/use-reset-on-change";
 import { openWindowOutsideNativeApp } from "@/lib/capacitor-platform";
@@ -26,7 +23,7 @@ import { useAuthStore } from "@/stores/auth-store";
 import { usePosStore } from "@/stores/pos-store";
 import { usePrinterStore } from "@/stores/printer-store";
 import { useToastStore } from "@/stores/toast-store";
-import { buildQrPrintDocument, resolveTableQrPrinterContext, tableQrPrintOutcome } from "./table-qr-printing";
+import { resolveTableQrPrinterContext, tableQrPrintOutcome } from "./table-qr-printing";
 
 const MIN_PRINT_COPIES = 1;
 const MAX_PRINT_COPIES = 20;
@@ -58,11 +55,8 @@ export function BranchMenuQrDialog({
   const [printCopies, setPrintCopies] = useState(MIN_PRINT_COPIES);
   const targetUrl = response?.qr_url ?? null;
   const pendingJobUuid = branchMenuQrPendingJobUuid(response);
-  const canOpenBrowserWindow = !nativeApp;
-  const canOpenAndroidPrint = nativeApp && canUseAndroidSystemPrint();
-  const canUsePrintFallback = canOpenBrowserWindow || canOpenAndroidPrint;
   const canDownload = Boolean(qrDataUrl);
-  const canPrint = Boolean(pendingJobUuid || (qrDataUrl && canUsePrintFallback));
+  const canPrint = Boolean(pendingJobUuid || qrDataUrl);
 
   // เปิด dialog = ล้างผลเดิม แล้วค่อยขอ token ใหม่ (ไม่มี qr_ver ให้ revoke จึง
   // ไม่จำเป็นต้อง regenerate ทุกครั้ง แต่ขอซ้ำเพื่อความสด/ง่ายต่อการดีบัก)
@@ -185,21 +179,56 @@ export function BranchMenuQrDialog({
     }
   }
 
-  async function openFallbackPrint() {
-    if (!canOpenAndroidPrint) return openFallbackPrintWindow();
-    if (!qrDataUrl) return false;
+  // QR ต้องพิมพ์ผ่าน queue/role ที่ backend resolve ไว้เท่านั้น เพื่อไม่ให้ browser
+  // หรือ Android system print ข้ามค่าการตั้งค่า printer ของสาขา
+  async function printQr() {
+    if (!canPrint || printing) return;
 
-    const title = response?.branch_name || t("pos.createBranchMenuQr");
+    setPrinting(true);
     try {
-      return await printHtmlWithAndroidSystemPrint({
-        html: buildQrPrintDocument({
-          autoPrint: false,
-          imageUrl: qrDataUrl,
-          layout: "page",
-          title,
-        }),
-        jobName: `${title} QR`,
+      if (!pendingJobUuid) {
+        showToast({
+          title: t("pos.printQr"),
+          description: t("pos.systemPrinterUnavailable"),
+          tone: "error",
+          action: {
+            label: t("actions.tryAgain"),
+            onClick: () => void printQr(),
+          },
+        });
+        return;
+      }
+
+      const printResult = await executeInvoice({
+        print_job: response?.print_job ?? undefined,
+        pending_query: response?.pending_query,
+        login_uuid_fk: loginUuid,
       });
+
+      const printOutcome = tableQrPrintOutcome(printResult);
+      if (printOutcome === "pending") {
+        showToast({
+          title: t("pos.printQr"),
+          description: t("orderQueue.kitchenPrintQueued"),
+          tone: "info",
+        });
+        return;
+      }
+
+      if (printOutcome === "error") {
+        showToast({
+          title: t("pos.printQr"),
+          description: printResult.errorMessage || t("pos.systemPrinterUnavailable"),
+          tone: "error",
+          action: {
+            label: t("actions.tryAgain"),
+            onClick: () => void printQr(),
+          },
+        });
+        return;
+      }
+
+      showToast({ title: t("common.printSuccess"), tone: "success" });
     } catch (error) {
       showToast({
         title: t("pos.printQr"),
@@ -210,95 +239,6 @@ export function BranchMenuQrDialog({
           onClick: () => void printQr(),
         },
       });
-      return false;
-    }
-  }
-
-  async function openFallbackPrintWindow() {
-    if (!qrDataUrl) return false;
-    if (!canUseSystemPrintFallback()) {
-      showToast({
-        title: t("pos.printQr"),
-        description: t("pos.systemPrinterUnavailable"),
-        tone: "error",
-        action: {
-          label: t("actions.tryAgain"),
-          onClick: () => void printQr(),
-        },
-      });
-      return false;
-    }
-    const printWindow = openWindowOutsideNativeApp("", "_blank", fullscreenPrintWindowFeatures());
-    if (!printWindow) {
-      showToast({
-        title: t("pos.printQr"),
-        description: t("pos.invoicePrintPopupBlocked"),
-        tone: "error",
-        action: {
-          label: t("actions.tryAgain"),
-          onClick: () => void printQr(),
-        },
-      });
-      return false;
-    }
-    maximizePrintWindow(printWindow);
-
-    printWindow.document.write(buildQrPrintDocument({
-      autoPrint: true,
-      imageUrl: qrDataUrl,
-      layout: "page",
-      title: response?.branch_name || t("pos.createBranchMenuQr"),
-    }));
-    printWindow.document.close();
-    return true;
-  }
-
-  // เหมือน TableQrDialog.printQr() ทุกอย่าง — มี pendingJobUuid = ยิงเข้าคิวเครื่องพิมพ์
-  // จริงผ่าน executeInvoice, ไม่มี (หรือคิวล้มเหลว) = fallback เป็นหน้าต่างพิมพ์จาก browser
-  async function printQr() {
-    if (!canPrint || printing) return;
-
-    setPrinting(true);
-    try {
-      if (pendingJobUuid) {
-        try {
-          const printResult = await executeInvoice({
-            print_job: response?.print_job ?? undefined,
-            pending_query: response?.pending_query,
-            login_uuid_fk: loginUuid,
-          });
-
-          const printOutcome = tableQrPrintOutcome(printResult);
-          if (printOutcome === "pending") {
-            showToast({
-              title: t("pos.printQr"),
-              description: t("orderQueue.kitchenPrintQueued"),
-              tone: "info",
-            });
-            return;
-          }
-
-          if (printOutcome === "fallback") {
-            const opened = await openFallbackPrint();
-            if (opened) showToast({ title: t("pos.printQr"), tone: "info" });
-            return;
-          }
-
-          showToast({ title: t("common.printSuccess"), tone: "success" });
-        } catch (error) {
-          const opened = await openFallbackPrint();
-          if (opened) {
-            showToast({
-              title: t("pos.printQr"),
-              description: error instanceof Error ? error.message : "",
-              tone: "info",
-            });
-          }
-        }
-        return;
-      }
-
-      await openFallbackPrint();
     } finally {
       setPrinting(false);
     }

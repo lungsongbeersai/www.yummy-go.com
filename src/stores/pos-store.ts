@@ -744,7 +744,18 @@ export const usePosStore = create<PosState>((set, get) => ({
     if (isCurrentSession()) set({ tableQr });
     return tableQr;
   },
-  createBranchMenuQr: (params) => posService.createBranchMenuQR(params),
+  createBranchMenuQr: async (params) => {
+    const isCurrentSession = createSessionGuard();
+    const printer = await resolvePosPrinterContext(params);
+    assertCurrentSession(isCurrentSession);
+
+    return posService.createBranchMenuQR({
+      ...params,
+      device_code: printer.device_code,
+      agent_id: printer.agent_id,
+      print_mode: printer.print_mode,
+    });
+  },
   printInvoice: async (params) => {
     const isCurrentSession = createSessionGuard();
     const printer = await resolvePosPrinterContext(params);

@@ -195,7 +195,7 @@ export interface SavePrinterInput extends ApiEntity {
 export type SavePrinterResponse = ApiDataResponse<Printer>;
 export interface MigrateMobilePrinterDeviceInput {
   login_uuid_fk: string;
-  from_device_code: string;
+  from_device_code?: string;
   to_device_code: string;
 }
 export interface MigrateMobilePrinterDeviceResult extends ApiEntity {

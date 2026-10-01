@@ -48,9 +48,27 @@ describe("table QR printing", () => {
     });
   });
 
+  it("never replaces the mobile requester with a Shared owner context", async () => {
+    await expect(resolveTableQrPrinterContext({
+      loginUuid: "login-1",
+      resolveDeviceIdentity: vi.fn().mockResolvedValue({
+        agent_id: "mobile",
+        device_code: "android-native-1",
+      }),
+      resolveDeviceContext: vi.fn().mockResolvedValue({
+        agent_id: "shared-agent",
+        device_code: "SHARED-OWNER",
+        print_mode: "windows_agent",
+      }),
+    })).resolves.toEqual({
+      agent_id: "mobile",
+      device_code: "android-native-1",
+    });
+  });
+
   it("does not report an empty or pending QR result as printed", () => {
     expect(tableQrPrintOutcome({ successCount: 0, failedCount: 0, pending: true })).toBe("pending");
-    expect(tableQrPrintOutcome({ successCount: 0, failedCount: 0 })).toBe("fallback");
+    expect(tableQrPrintOutcome({ successCount: 0, failedCount: 0 })).toBe("error");
     expect(tableQrPrintOutcome({ successCount: 1, failedCount: 0 })).toBe("success");
   });
 

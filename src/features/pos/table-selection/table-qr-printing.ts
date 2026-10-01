@@ -33,14 +33,22 @@ export async function resolveTableQrPrinterContext({
   const deviceCode = String(identity?.device_code ?? "").trim();
   if (!identity || !deviceCode) return null;
 
-  return resolveDeviceContext({
+  const context = await resolveDeviceContext({
     login_uuid_fk: loginUuid,
     device_code: deviceCode,
     agent_id: identity.agent_id,
-  }).catch(() => ({
+  }).catch(() => null);
+  const contextMatchesRequester =
+    String(context?.device_code ?? "").trim() === deviceCode &&
+    (!context?.agent_id || context.agent_id === identity.agent_id);
+
+  return {
     device_code: deviceCode,
     agent_id: identity.agent_id,
-  }));
+    ...(contextMatchesRequester && context?.print_mode
+      ? { print_mode: context.print_mode }
+      : {}),
+  };
 }
 
 export function tableQrPrintOutcome(result: {
@@ -50,7 +58,7 @@ export function tableQrPrintOutcome(result: {
 }) {
   if (result.pending) return "pending" as const;
   if (result.successCount > 0 && result.failedCount === 0) return "success" as const;
-  return "fallback" as const;
+  return "error" as const;
 }
 
 // Both QR dialogs read the queued job the same way: a print_job_uuid means Backend

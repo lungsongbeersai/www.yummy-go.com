@@ -12,6 +12,40 @@ function textValue(value: unknown) {
   return String(value ?? "").trim();
 }
 
+const nativeMigrationAttempts = new Map<string, Promise<void>>();
+
+async function ensureNativeMobilePrinterMigration({
+  deviceCode,
+  loginUuid,
+  previousDeviceCode,
+}: {
+  deviceCode: string;
+  loginUuid: string;
+  previousDeviceCode: string;
+}) {
+  const migrationKey = `${loginUuid}:${deviceCode}:${previousDeviceCode}`;
+  const existing = nativeMigrationAttempts.get(migrationKey);
+  if (existing) return existing;
+
+  const migration = migrateMobilePrinterDevice({
+    login_uuid_fk: loginUuid,
+    ...(previousDeviceCode && previousDeviceCode !== deviceCode
+      ? { from_device_code: previousDeviceCode }
+      : {}),
+    to_device_code: deviceCode,
+  }).then(() => {
+    rememberNativePrinterDeviceCode(deviceCode);
+  });
+
+  nativeMigrationAttempts.set(migrationKey, migration);
+  try {
+    await migration;
+  } catch (error) {
+    nativeMigrationAttempts.delete(migrationKey);
+    throw error;
+  }
+}
+
 // ตัว resolve ตัวตนเครื่องพิมพ์/agent ที่ใช้ร่วมกันทุก action ฝั่ง POS ที่ยิงคำสั่งพิมพ์
 // (confirm to kitchen, send to kitchen, ...) — แยกจาก pos-store.ts เพื่อให้ store อื่น
 // (เช่น pos-order-queue-store) เรียกใช้ซ้ำได้โดยไม่ต้อง import pos-store.ts ทั้งไฟล์
@@ -36,13 +70,12 @@ export async function resolvePosPrinterContext(
   }
 
   const previousDeviceCode = textValue(identity.previous_device_code);
-  if (native && previousDeviceCode && previousDeviceCode !== deviceCode) {
-    await migrateMobilePrinterDevice({
-      login_uuid_fk: input.login_uuid_fk,
-      from_device_code: previousDeviceCode,
-      to_device_code: deviceCode,
+  if (native) {
+    await ensureNativeMobilePrinterMigration({
+      deviceCode,
+      loginUuid: input.login_uuid_fk,
+      previousDeviceCode,
     });
-    rememberNativePrinterDeviceCode(deviceCode);
   }
 
   const suppliedIdentityMatches =

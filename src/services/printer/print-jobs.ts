@@ -16,7 +16,8 @@ import {
   isBrowserDevicePrintJob,
   printBatchWithLocalAgent,
   printJobAgentBase,
-  resolvePrinterDeviceContext
+  resolvePrinterDeviceContext,
+  resolvePrinterDeviceIdentity
 } from "@/services/printer/agent-transport";
 import { renderMobileEscpos } from "@/services/printer/config-api";
 import { printMobileEscposOverTcp } from "@/services/printer/mobile-tcp";
@@ -44,6 +45,7 @@ const kitchenExecutions = new Map<string, Promise<KitchenPrintResult>>();
 const documentExecutions = new Map<string, Promise<KitchenPrintResult>>();
 const deliveryLedgerMemory = new Map<string, StoredDelivery>();
 const DELIVERY_LEDGER_PREFIX = "yummy_kitchen_printer_delivery:";
+const REMOTE_SHARED_STATUS_POLL_INTERVAL_MS = 500;
 
 interface StoredDelivery {
   deliveryState: Exclude<PrinterDeliveryState, "not_sent">;
@@ -541,6 +543,133 @@ function pendingUncertainItemTotal(result: PendingPrintJobsResult) {
   return result.printSummary.has_uncertain_delivery === true ? 1 : 0;
 }
 
+function waitForRemoteSharedStatusPoll() {
+  return new Promise<void>((resolve) => {
+    globalThis.setTimeout(resolve, REMOTE_SHARED_STATUS_POLL_INTERVAL_MS);
+  });
+}
+
+function requestedPrintJobResult(
+  result: PendingPrintJobsResult,
+): KitchenPrintResult | null {
+  const requestedStatus = textValue(
+    result.printSummary.requested_job_status,
+  ).toLowerCase();
+  const requestedTotal = Math.max(
+    0,
+    Number(result.printSummary.requested_job_total ?? 0),
+  );
+  const requestedSuccessTotal = Math.max(
+    0,
+    Number(result.printSummary.requested_job_success_total ?? 0),
+  );
+  const requestedFailedTotal = Math.max(
+    0,
+    Number(result.printSummary.requested_job_failed_total ?? 0),
+  );
+
+  if (requestedStatus === "success") {
+    const successCount = Math.max(1, requestedSuccessTotal, requestedTotal);
+    return {
+      successCount,
+      failedCount: 0,
+      total: successCount,
+    };
+  }
+
+  const terminalPartialFailure =
+    requestedStatus === "partial" &&
+    requestedTotal > 0 &&
+    requestedSuccessTotal + requestedFailedTotal >= requestedTotal;
+  if (requestedStatus === "failed" || terminalPartialFailure) {
+    const failedCount = Math.max(
+      1,
+      requestedFailedTotal,
+      requestedTotal - requestedSuccessTotal,
+    );
+    return {
+      successCount: requestedSuccessTotal,
+      failedCount,
+      total: Math.max(requestedTotal, requestedSuccessTotal + failedCount),
+    };
+  }
+
+  return null;
+}
+
+async function waitForRemoteSharedPrintCompletion({
+  input,
+  jobUuid,
+  loginUuid,
+}: {
+  input: ExecuteKitchenPrintInput;
+  jobUuid: string;
+  loginUuid: string;
+}): Promise<KitchenPrintResult> {
+  input.onProgress?.({
+    total: 0,
+    completed: 0,
+    successCount: 0,
+    failedCount: 0,
+    phase: "fetching",
+  });
+
+  // Resolve the requester itself. The pending query stored on a remote Shared
+  // job intentionally points at the owner, so reusing it here could expose the
+  // owner's payload to the requester. This loop only observes the stable job
+  // summary; the owner remains the sole consumer that fetches, prints and ACKs.
+  const requesterIdentity = await resolvePrinterDeviceIdentity();
+  if (!requesterIdentity.ok) {
+    throw new ServiceError(requesterIdentity.error, 503);
+  }
+
+  const requester = requesterIdentity.agent;
+  while (true) {
+    const pendingResult = await getPendingPrintJobs({
+      print_job_uuid: jobUuid,
+      login_uuid_fk: loginUuid,
+      device_code: textValue(requester.device_code),
+      agent_id: textValue(requester.agent_id),
+    });
+    const terminalResult = requestedPrintJobResult(pendingResult);
+    if (terminalResult) {
+      input.onProgress?.({
+        total: terminalResult.total,
+        completed: terminalResult.total,
+        successCount: terminalResult.successCount,
+        failedCount: terminalResult.failedCount,
+        phase: "done",
+      });
+      return terminalResult;
+    }
+
+    if (pendingResult.printSummary.requested_job_found === false) {
+      throw new ServiceError("Shared print job was not found", 404);
+    }
+
+    const total = Math.max(
+      1,
+      Number(pendingResult.printSummary.requested_job_total ?? 0),
+    );
+    const successCount = Math.max(
+      0,
+      Number(pendingResult.printSummary.requested_job_success_total ?? 0),
+    );
+    const failedCount = Math.max(
+      0,
+      Number(pendingResult.printSummary.requested_job_failed_total ?? 0),
+    );
+    input.onProgress?.({
+      total,
+      completed: Math.min(total, successCount + failedCount),
+      successCount,
+      failedCount,
+      phase: "printing",
+    });
+    await waitForRemoteSharedStatusPoll();
+  }
+}
+
 async function printKitchenBatchJob(
   batch: PrintOpsBatchPayload,
   localAgent: AgentInfo,
@@ -579,14 +708,7 @@ async function executePrintJobs(
     pendingRemoteShared: input.pending_query?.remote_shared_print,
     queuedRemoteShared: input.print_job?.remote_shared_print,
   })) {
-    // The Backend queue targets the SHARED owner. The requester must not fetch
-    // or relay the same job; the owner's queue consumer will claim and ACK it.
-    return {
-      successCount: 0,
-      failedCount: 0,
-      total: 0,
-      pending: true,
-    };
+    return waitForRemoteSharedPrintCompletion({ input, jobUuid, loginUuid });
   }
 
   input.onProgress?.({
@@ -666,71 +788,38 @@ async function executePrintJobs(
       };
     }
 
-    const requestedStatus = textValue(
-      pendingResult.printSummary.requested_job_status,
-    ).toLowerCase();
-    const requestedTotal = Math.max(
-      0,
-      Number(pendingResult.printSummary.requested_job_total ?? 0),
-    );
-    const requestedSuccessTotal = Math.max(
-      0,
-      Number(pendingResult.printSummary.requested_job_success_total ?? 0),
-    );
-    const requestedFailedTotal = Math.max(
-      0,
-      Number(pendingResult.printSummary.requested_job_failed_total ?? 0),
-    );
-
     // Another shared-owner browser may win the socket race and ACK this exact
     // job before the requester fetches it. Empty pending payloads then mean
     // "already printed", not "failed". The stable print_job_uuid keeps this
     // result tied to the current print round.
-    if (requestedStatus === "success") {
-      const successCount = Math.max(
-        1,
-        requestedSuccessTotal,
-        requestedTotal,
-      );
+    const requestedResult = requestedPrintJobResult(pendingResult);
+    if (requestedResult) {
       input.onProgress?.({
-        total: successCount,
-        completed: successCount,
-        successCount,
-        failedCount: 0,
+        total: requestedResult.total,
+        completed: requestedResult.total,
+        successCount: requestedResult.successCount,
+        failedCount: requestedResult.failedCount,
         phase: "done",
       });
-      return {
-        successCount,
-        failedCount: 0,
-        total: successCount,
-      };
+      return requestedResult;
     }
 
-    const terminalPartialFailure =
-      requestedStatus === "partial" &&
-      requestedTotal > 0 &&
-      requestedSuccessTotal + requestedFailedTotal >= requestedTotal;
-    if (requestedStatus === "failed" || terminalPartialFailure) {
-      const terminalFailedCount = Math.max(
-        1,
-        requestedFailedTotal,
-        requestedTotal - requestedSuccessTotal,
-      );
-      input.onProgress?.({
-        total: Math.max(requestedTotal, terminalFailedCount),
-        completed: Math.max(requestedTotal, terminalFailedCount),
-        successCount: requestedSuccessTotal,
-        failedCount: terminalFailedCount,
-        phase: "done",
-      });
-      return {
-        successCount: requestedSuccessTotal,
-        failedCount: terminalFailedCount,
-        total: Math.max(requestedTotal, terminalFailedCount),
-      };
-    }
-
+    const requestedStatus = textValue(
+      pendingResult.printSummary.requested_job_status,
+    ).toLowerCase();
     if (requestedStatus === "pending" || requestedStatus === "partial") {
+      const requestedTotal = Math.max(
+        0,
+        Number(pendingResult.printSummary.requested_job_total ?? 0),
+      );
+      const requestedSuccessTotal = Math.max(
+        0,
+        Number(pendingResult.printSummary.requested_job_success_total ?? 0),
+      );
+      const requestedFailedTotal = Math.max(
+        0,
+        Number(pendingResult.printSummary.requested_job_failed_total ?? 0),
+      );
       const total = Math.max(1, requestedTotal);
       input.onProgress?.({
         total,

@@ -10,7 +10,7 @@ import {
 } from "react";
 import { useResetOnChange, useResetOnDeps } from "@/hooks/use-reset-on-change";
 import { useTranslation } from "react-i18next";
-import { canUseWindowOpen } from "@/lib/capacitor-platform";
+import { canUseWindowOpen, isCapacitorMobileApp } from "@/lib/capacitor-platform";
 import { money } from "@/lib/format";
 import {
   createMutationUuid,
@@ -39,20 +39,15 @@ import { useReferenceStore } from "@/stores/reference-store";
 import { useToastStore } from "@/stores/toast-store";
 import { usePaymentCustomers } from "./use-payment-customers";
 import type { PaymentDialogProps } from "../payment-dialog-types";
-import { queuedDocumentPrintRoute } from "../queued-document-print";
+import { queuedDocumentPrintOutcome } from "../queued-document-print";
 import {
   cartOrdersBelongToTable,
   cartOrderInvoice,
 } from "../utils";
 import {
   openLocalInvoicePrintWindow,
-  renderInvoiceSystemPrintHtml,
   type InvoicePrintData,
 } from "@/services/printer/invoice-print-window";
-import {
-  canUseAndroidSystemPrint,
-  printHtmlWithAndroidSystemPrint,
-} from "@/lib/android-system-print";
 import { canUseSystemPrintFallback } from "@/lib/system-print-capability";
 import {
   activeAmountField,
@@ -72,7 +67,6 @@ import {
   paymentCurrencyAmounts,
   paymentIsExactSettlement,
   paymentNote,
-  paymentReceiptInvoice,
   paymentTabs,
   paymentValidation,
   preferredTransferAccountUuid,
@@ -85,7 +79,6 @@ import {
   tenderLabel,
   transferAccountOptionLabel,
   transferAccountValidation,
-  withReceiptPrintLabels,
   type PaymentTab,
   type SplitTenderField,
   type TenderField,
@@ -687,22 +680,17 @@ export function usePaymentDialogWorkflow({
   }
 
   async function printReceipt(response: PaymentResponse | SplitBillResponse) {
-    const receiptPrintData = buildPaymentReceiptPrintData(response);
     const pendingJobUuid =
       response.pending_query?.print_job_uuid ??
       (typeof response.print_job?.print_job_uuid === "string"
         ? response.print_job.print_job_uuid
         : "");
     if (!pendingJobUuid) {
-      if (receiptPrintData && canUseAndroidSystemPrint()) {
-        await openAndroidSystemPrintFallback({
-          data: receiptPrintData,
-          description: t("pos.invoicePrintMissingJob"),
-          failureTitle: t("pos.receiptPrintFailed"),
-          notifySuccess: false,
-          retry: () => void printReceipt(response),
-        });
-      }
+      showQueuedPrintError(
+        t("pos.receiptPrintFailed"),
+        t("pos.invoicePrintMissingJob"),
+        () => void printReceipt(response),
+      );
       return;
     }
 
@@ -710,30 +698,7 @@ export function usePaymentDialogWorkflow({
       response,
       user?.uuid,
       t("pos.receiptPrintFailed"),
-      receiptPrintData ?? undefined,
     );
-  }
-
-  function buildPaymentReceiptPrintData(
-    response: PaymentResponse | SplitBillResponse,
-  ) {
-    if (!user) return null;
-
-    const translate = (key: string, options?: Record<string, unknown>) =>
-      String(t(key, options));
-    const data = buildInvoicePrintData({
-      exchangeRates: currencyOptions,
-      invoice: paymentReceiptInvoice(response, invoice),
-      orders,
-      qrUrl: requiresTransferAccount ? accountQrUrl : null,
-      selectedCustomer: customers.selectedCustomerOption,
-      summary,
-      table,
-      translate,
-      user,
-    });
-
-    return withReceiptPrintLabels(data, translate);
   }
 
   async function handlePrintInvoice() {
@@ -825,7 +790,6 @@ export function usePaymentDialogWorkflow({
         response,
         user.uuid,
         t("pos.invoicePrintFailed"),
-        invoicePrintData,
       );
     } catch (error) {
       await showInvoicePrintFallback(
@@ -841,14 +805,12 @@ export function usePaymentDialogWorkflow({
     response: PaymentResponse | SplitBillResponse,
     loginUuid: string | undefined,
     failureTitle: string,
-    systemPrintData?: InvoicePrintData,
   ) {
     const retry = () =>
       void executeQueuedInvoice(
         response,
         loginUuid,
         failureTitle,
-        systemPrintData,
       );
     setInvoicePrinting(true);
 
@@ -858,10 +820,7 @@ export function usePaymentDialogWorkflow({
         pending_query: response.pending_query,
         login_uuid_fk: loginUuid,
       });
-      const outcome = queuedDocumentPrintRoute(
-        printResult,
-        Boolean(systemPrintData) && canUseAndroidSystemPrint(),
-      );
+      const outcome = queuedDocumentPrintOutcome(printResult);
 
       if (outcome === "pending") {
         showToast({
@@ -876,34 +835,12 @@ export function usePaymentDialogWorkflow({
         return;
       }
 
-      if (outcome === "system-print" && systemPrintData) {
-        await openAndroidSystemPrintFallback({
-          data: systemPrintData,
-          description: printResult.errorMessage ?? "",
-          failureTitle,
-          notifySuccess: false,
-          retry,
-        });
-        return;
-      }
-
       showQueuedPrintError(
         failureTitle,
         printResult.errorMessage,
         retry,
       );
     } catch (error) {
-      if (systemPrintData && canUseAndroidSystemPrint()) {
-        await openAndroidSystemPrintFallback({
-          data: systemPrintData,
-          description: error instanceof Error ? error.message : "",
-          failureTitle,
-          notifySuccess: false,
-          retry,
-        });
-        return;
-      }
-
       showQueuedPrintError(
         failureTitle,
         error instanceof Error ? error.message : "",
@@ -936,14 +873,12 @@ export function usePaymentDialogWorkflow({
     data: InvoicePrintData,
     description: string,
   ) {
-    if (canUseAndroidSystemPrint()) {
-      await openAndroidSystemPrintFallback({
-        data,
-        description,
-        failureTitle: t("pos.invoicePrintFailed"),
-        notifySuccess: true,
-        retry: () => void showInvoicePrintFallback(data, description),
-      });
+    if (isCapacitorMobileApp()) {
+      showQueuedPrintError(
+        t("pos.invoicePrintFailed"),
+        description || t("pos.invoicePrintMissingJob"),
+        () => void handlePrintInvoice(),
+      );
       return;
     }
 
@@ -980,51 +915,6 @@ export function usePaymentDialogWorkflow({
       description: t("pos.invoicePrintPopupBlocked"),
       tone: "error",
     });
-  }
-
-  async function openAndroidSystemPrintFallback({
-    data,
-    description,
-    failureTitle,
-    notifySuccess,
-    retry,
-  }: {
-    data: InvoicePrintData;
-    description: string;
-    failureTitle: string;
-    notifySuccess: boolean;
-    retry: () => void;
-  }) {
-    try {
-      await printHtmlWithAndroidSystemPrint({
-        html: renderInvoiceSystemPrintHtml(data),
-        jobName: data.invoice
-          ? `${data.title} ${data.invoice}`
-          : data.title,
-      });
-      if (notifySuccess) {
-        showToast({
-          title: t("pos.invoicePrintFallback"),
-          description,
-          tone: "info",
-        });
-      }
-      return true;
-    } catch (error) {
-      showToast({
-        title: failureTitle,
-        description: [
-          description,
-          error instanceof Error ? error.message : "",
-        ].filter(Boolean).join(" "),
-        tone: "error",
-        action: {
-          label: t("actions.tryAgain"),
-          onClick: retry,
-        },
-      });
-      return false;
-    }
   }
 
   return {

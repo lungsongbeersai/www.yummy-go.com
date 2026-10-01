@@ -13,9 +13,6 @@ import { Field, FieldLabel } from "@/components/ui/field";
 import { InputGroup, InputGroupAddon, InputGroupButton, InputGroupInput } from "@/components/ui/input-group";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Spinner } from "@/components/ui/spinner";
-import { fullscreenPrintWindowFeatures, maximizePrintWindow } from "@/services/printer/invoice-print-window";
-import { canUseAndroidSystemPrint, printHtmlWithAndroidSystemPrint } from "@/lib/android-system-print";
-import { canUseSystemPrintFallback } from "@/lib/system-print-capability";
 import { useIsCapacitorNativeApp } from "@/hooks/use-capacitor-native-app";
 import { openWindowOutsideNativeApp } from "@/lib/capacitor-platform";
 import type { CreateTableQRResponse, PosTable } from "@/services/pos";
@@ -24,12 +21,7 @@ import { useAuthStore } from "@/stores/auth-store";
 import { usePosStore } from "@/stores/pos-store";
 import { usePrinterStore } from "@/stores/printer-store";
 import { useToastStore } from "@/stores/toast-store";
-import {
-  buildQrPrintDocument,
-  resolveTableQrPrinterContext,
-  tableQrPendingJobUuid,
-  tableQrPrintOutcome,
-} from "./table-qr-printing";
+import { resolveTableQrPrinterContext, tableQrPendingJobUuid, tableQrPrintOutcome } from "./table-qr-printing";
 import { optionalString } from "./utils";
 
 const localQrTargetUrl = "http://localhost:3001/posAll/tables";
@@ -61,12 +53,8 @@ export function TableQrDialog({
   const qrImageUrl = useMemo(() => tableQrImageUrl(response), [response]);
   const previewUrl = qrImageUrl || qrDataUrl;
   const pendingJobUuid = useMemo(() => tableQrPendingJobUuid(response), [response]);
-  const canOpenBrowserWindow = !nativeApp;
-  const canOpenAndroidPrint = nativeApp && canUseAndroidSystemPrint();
-  const canUsePrintFallback = canOpenBrowserWindow || canOpenAndroidPrint;
-  const canUseFrontendQrFallback = Boolean(targetUrl && !pendingJobUuid && canUsePrintFallback);
-  const canDownload = Boolean(previewUrl || canUseFrontendQrFallback);
-  const canPrint = Boolean(pendingJobUuid || (canUsePrintFallback && (previewUrl || canUseFrontendQrFallback)));
+  const canDownload = Boolean(previewUrl || targetUrl);
+  const canPrint = Boolean(pendingJobUuid || previewUrl || targetUrl);
 
   // เปิด dialog = ล้างผลเดิม และตั้ง pending เฉพาะกรณีที่จะยิงคำขอจริง
   useResetOnChange(open, () => {
@@ -199,79 +187,7 @@ export function TableQrDialog({
 
     setPrinting(true);
     try {
-      if (pendingJobUuid) {
-        try {
-          const printResult = await executeInvoice({
-            print_job: response?.print_job ?? undefined,
-            pending_query: response?.pending_query ?? undefined,
-            login_uuid_fk: loginUuid,
-          });
-
-          const printOutcome = tableQrPrintOutcome(printResult);
-          if (printOutcome === "pending") {
-            showToast({
-              title: t("pos.printQr"),
-              description: t("orderQueue.kitchenPrintQueued"),
-              tone: "info",
-            });
-            return;
-          }
-
-          if (printOutcome === "fallback") {
-            const imageUrl = await fallbackPrintImageUrl();
-            if (imageUrl) {
-              const opened = await openFallbackPrint(imageUrl);
-              if (opened) {
-                showToast({
-                  title: t("pos.printQr"),
-                  tone: "info",
-                });
-              }
-            } else {
-              showToast({
-                title: t("pos.printQr"),
-                description: t("pos.systemPrinterUnavailable"),
-                tone: "error",
-                action: {
-                  label: t("actions.tryAgain"),
-                  onClick: () => void printQr(),
-                },
-              });
-            }
-            return;
-          }
-
-          showToast({ title: t("common.printSuccess"), tone: "success" });
-        } catch (error) {
-          const imageUrl = await fallbackPrintImageUrl();
-          if (imageUrl) {
-            const opened = await openFallbackPrint(imageUrl);
-            if (opened) {
-              showToast({
-                title: t("pos.printQr"),
-                description: error instanceof Error ? error.message : "",
-                tone: "info",
-              });
-            }
-          } else {
-            showToast({
-              title: t("pos.printQr"),
-              description: error instanceof Error ? error.message : t("pos.systemPrinterUnavailable"),
-              tone: "error",
-              action: {
-                label: t("actions.tryAgain"),
-                onClick: () => void printQr(),
-              },
-            });
-          }
-        }
-        return;
-      }
-
-      const imageUrl = await fallbackPrintImageUrl();
-      if (imageUrl) {
-        await openFallbackPrint(imageUrl);
-      } else {
+      if (!pendingJobUuid) {
         showToast({
           title: t("pos.printQr"),
           description: t("pos.systemPrinterUnavailable"),
@@ -281,25 +197,39 @@ export function TableQrDialog({
             onClick: () => void printQr(),
           },
         });
+        return;
       }
-    } finally {
-      setPrinting(false);
-    }
-  }
 
-  async function openFallbackPrint(imageUrl: string) {
-    if (!canOpenAndroidPrint) return openFallbackPrintWindow(imageUrl);
-
-    try {
-      return await printHtmlWithAndroidSystemPrint({
-        html: buildQrPrintDocument({
-          autoPrint: false,
-          imageUrl,
-          layout: "receipt",
-          title: table.table_name,
-        }),
-        jobName: `${table.table_name} QR`,
+      const printResult = await executeInvoice({
+        print_job: response?.print_job ?? undefined,
+        pending_query: response?.pending_query ?? undefined,
+        login_uuid_fk: loginUuid,
       });
+
+      const printOutcome = tableQrPrintOutcome(printResult);
+      if (printOutcome === "pending") {
+        showToast({
+          title: t("pos.printQr"),
+          description: t("orderQueue.kitchenPrintQueued"),
+          tone: "info",
+        });
+        return;
+      }
+
+      if (printOutcome === "error") {
+        showToast({
+          title: t("pos.printQr"),
+          description: printResult.errorMessage || t("pos.systemPrinterUnavailable"),
+          tone: "error",
+          action: {
+            label: t("actions.tryAgain"),
+            onClick: () => void printQr(),
+          },
+        });
+        return;
+      }
+
+      showToast({ title: t("common.printSuccess"), tone: "success" });
     } catch (error) {
       showToast({
         title: t("pos.printQr"),
@@ -310,7 +240,8 @@ export function TableQrDialog({
           onClick: () => void printQr(),
         },
       });
-      return false;
+    } finally {
+      setPrinting(false);
     }
   }
 
@@ -327,43 +258,6 @@ export function TableQrDialog({
     }
   }
 
-  async function openFallbackPrintWindow(imageUrl = previewUrl) {
-    if (!imageUrl) return false;
-    if (!canUseSystemPrintFallback()) {
-      showToast({
-        title: t("pos.printQr"),
-        description: t("pos.systemPrinterUnavailable"),
-        tone: "error",
-        action: {
-          label: t("actions.tryAgain"),
-          onClick: () => void printQr(),
-        },
-      });
-      return false;
-    }
-    const printWindow = openWindowOutsideNativeApp("", "_blank", fullscreenPrintWindowFeatures());
-    if (!printWindow) {
-      showToast({
-        title: t("pos.printQr"),
-        description: t("pos.invoicePrintPopupBlocked"),
-        tone: "error",
-        action: {
-          label: t("actions.tryAgain"),
-          onClick: () => void printQr(),
-        },
-      });
-      return false;
-    }
-    maximizePrintWindow(printWindow);
-    printWindow.document.write(buildQrPrintDocument({
-      autoPrint: true,
-      imageUrl,
-      layout: "receipt",
-      title: table.table_name,
-    }));
-    printWindow.document.close();
-    return true;
-  }
 
   return (
     <>
