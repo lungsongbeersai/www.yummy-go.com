@@ -18,6 +18,7 @@ import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
 import { Spinner } from "@/components/ui/spinner";
 import { useIsNativeShellActive } from "@/hooks/use-native-shell-active";
 import { useIsCapacitorNativeApp } from "@/hooks/use-capacitor-native-app";
+import { useLandscapeTablet } from "@/hooks/use-landscape-tablet";
 import { cn } from "@/lib/utils";
 import { optionalString } from "@/lib/values";
 import { useNativeHeaderStore } from "@/stores/native-header-store";
@@ -53,11 +54,13 @@ import type { OrderCustomerWorkflow } from "./use-order-customer-workflow";
 // เกือบดำ มองแทบไม่เห็นขอบ/พื้นปุ่ม จึงต้องมี dark: ทับด้วย token การ์ดปกติของแอป
 // Capacitor (neutral) ใช้ token การ์ดแบบเดียวกันนี้ตรง ๆ เสมอ ไม่ผูกกับ dark: เพราะพื้นหลัง
 // เป็น bg-background ธรรมดา (ไม่มีรูป) ทั้งสองโหมดอยู่แล้ว — ดู nativeShellActive ด้านล่าง
-function headerIconButtonClass(neutral: boolean) {
+function headerIconButtonClass(neutral: boolean, onPrimary = false) {
   return cn(
     "size-11 shrink-0 rounded-full border shadow-sm",
-    neutral
-      ? "border-border bg-card text-foreground hover:bg-accent hover:text-foreground"
+    onPrimary
+      ? "border-primary-foreground/35 bg-primary-foreground/10 text-primary-foreground hover:bg-primary-foreground/20 hover:text-primary-foreground"
+      : neutral
+      ? "border-primary/20 bg-card text-primary-text hover:bg-primary/10 hover:text-primary-text"
       : "border-white/25 bg-white/15 text-white hover:bg-white/25 hover:text-white dark:border-border dark:bg-card dark:text-foreground dark:hover:bg-accent dark:hover:text-foreground"
   );
 }
@@ -133,35 +136,22 @@ export function OrderCustomerView({
 
   const nativeShellActive = useIsNativeShellActive();
   const isNativeApp = useIsCapacitorNativeApp();
-  const setHeaderRefreshAction = useNativeHeaderStore((state) => state.setRefreshAction);
+  const landscapeTablet = useLandscapeTablet();
+  const horizontalNativeOrderLayout = nativeShellActive && landscapeTablet;
+  const portraitNativeOrderLayout = nativeShellActive && !landscapeTablet;
+  const compactNativeProductGrid = horizontalNativeOrderLayout
+    ? "gap-2 md:grid-cols-[repeat(auto-fill,minmax(148px,1fr))]"
+    : undefined;
   const setHeaderTitle = useNativeHeaderStore((state) => state.setTitle);
-  const setHeaderBackAction = useNativeHeaderStore((state) => state.setBackAction);
-  // refreshAll ไม่ได้ห่อ useCallback ในตัว workflow เอง (ได้ reference ใหม่ทุก render) —
-  // เก็บ latest ไว้ใน ref แทนใส่ใน deps ตรง ๆ กัน effect ลงทะเบียนด้านล่างยิงซ้ำทุก render
-  // โดยไม่จำเป็น — อัปเดต ref ผ่าน effect เปล่า (ไม่ใช่ระหว่าง render ตรง ๆ) ตามกฎ
-  // react-hooks/refs
-  const refreshAllRef = useRef(refreshAll);
-  useEffect(() => {
-    refreshAllRef.current = refreshAll;
-  });
+  const setHeaderBackAction = useNativeHeaderStore(
+    (state) => state.setBackAction
+  );
   // openTablesPage เดียวกับปุ่มย้อนกลับบนเว็บ (มีขั้นตอนเตือนก่อนทิ้ง draft ที่ยังไม่
   // ยืนยันของตัวเอง ดู use-draft-cleanup.ts) เก็บ ref ด้วยเหตุผลเดียวกับ refreshAllRef
   const openTablesPageRef = useRef(openTablesPage);
   useEffect(() => {
     openTablesPageRef.current = openTablesPage;
   });
-
-  // ปุ่มรีเฟรช/ภาษา/ธีมเดิมอยู่ในเมนู "..." ของแถวค้นหา ซึ่งซ้ำกับสิ่งที่ NativeTopBar
-  // มีให้อยู่แล้วบน Capacitor (ตามที่ตกลงไว้) — ลงทะเบียนปุ่มรีเฟรชเข้า top bar แทน
-  // ผ่าน store กลาง (เหมือนที่ทำไว้กับหน้า table-selection)
-  useEffect(() => {
-    if (!nativeShellActive) return;
-    setHeaderRefreshAction({
-      loading: loadingTables || loadingMenu,
-      onClick: () => void refreshAllRef.current(),
-    });
-    return () => setHeaderRefreshAction(null);
-  }, [nativeShellActive, loadingTables, loadingMenu, setHeaderRefreshAction]);
 
   // ปุ่ม Back ของ NativeTopBar ปกติแค่ router.back() เฉย ๆ ซึ่งจะข้าม dialog เตือน
   // draft ที่ยังไม่ยืนยัน (บนเว็บปุ่มย้อนกลับในหน้านี้เรียก openTablesPage ตรง ๆ อยู่แล้ว)
@@ -203,11 +193,8 @@ export function OrderCustomerView({
       className={cn(
         "relative h-full min-h-0 overflow-hidden text-foreground",
         nativeShellActive
-          // Capacitor ใช้พื้นหลังปกติของแอป (ขาว/การ์ดตามธีม) ไม่ใช่สี primary อีกต่อไป —
-          // header/sort-tabs/search ผ่าน prop neutral ให้ใช้ text/สีแบบเดียวกับ dark: token
-          // เดิมตรง ๆ (อ่านออกชัวร์บนพื้นขาวอยู่แล้ว) แทนสีขาวที่ออกแบบไว้สำหรับพื้นเข้ม/รูปภาพ
           ? "bg-background"
-          : "bg-[url('/posAll/background_wide.webp')] bg-cover bg-top dark:bg-none dark:bg-background",
+          : "bg-[url('/posAll/background_wide.webp')] bg-cover bg-top dark:bg-none dark:bg-background"
       )}
     >
       {!nativeShellActive ? (
@@ -217,17 +204,27 @@ export function OrderCustomerView({
           className="pointer-events-none absolute inset-0 bg-primary/45 dark:hidden"
         />
       ) : null}
-      <div className="relative grid h-full min-h-0 grid-rows-[auto_minmax(0,1fr)] overflow-hidden lg:grid-cols-[154px_minmax(0,1fr)_clamp(320px,20vw,360px)]">
+      <div
+        className={cn(
+          "relative grid h-full min-h-0 grid-rows-[auto_minmax(0,1fr)] overflow-hidden",
+          nativeShellActive
+            ? "lg:grid-cols-[minmax(0,1fr)_clamp(320px,20vw,360px)]"
+            : "lg:grid-cols-[154px_minmax(0,1fr)_clamp(320px,20vw,360px)]"
+        )}
+      >
         <header
           className={cn(
-            "relative shrink-0 overflow-hidden border-b px-3 sm:px-3.5 lg:col-span-2",
+            "relative shrink-0 overflow-hidden border-b px-3 sm:px-3.5",
+            !nativeShellActive && "lg:col-span-2",
             nativeShellActive
-              ? "border-border py-1 text-foreground"
-              // ตอน nativeShellActive=false นี่คือ header บนสุดของหน้าจริง ๆ (ไม่มี NativeTopBar
-              // ให้ด้านบนแล้ว — AppShell ก็ซ่อน header ตัวเองบน immersive screen เหมือนกัน) ต้อง
-              // กันพื้นที่ status bar เองด้วย pt เพิ่มจาก env(safe-area-inset-top) ไม่งั้น
-              // sort-tabs/search แถวบนโดน status bar ทับตอนรันบน Capacitor จอกว้าง/แนวนอน
-              : "border-white/15 bg-transparent py-2 pt-[calc(0.5rem+env(safe-area-inset-top,0px))] text-white shadow-[0_1px_0_rgb(255_255_255/0.08)] lg:py-1.5 lg:pt-[calc(0.375rem+env(safe-area-inset-top,0px))]"
+              ? horizontalNativeOrderLayout
+                ? "border-primary/20 bg-background pb-1 pt-0 text-foreground shadow-sm dark:border-border dark:bg-card"
+                : "border-border bg-card py-1 text-foreground shadow-xs"
+              : // ตอน nativeShellActive=false นี่คือ header บนสุดของหน้าจริง ๆ (ไม่มี NativeTopBar
+                // ให้ด้านบนแล้ว — AppShell ก็ซ่อน header ตัวเองบน immersive screen เหมือนกัน) ต้อง
+                // กันพื้นที่ status bar เองด้วย pt เพิ่มจาก env(safe-area-inset-top) ไม่งั้น
+                // sort-tabs/search แถวบนโดน status bar ทับตอนรันบน Capacitor จอกว้าง/แนวนอน
+                "border-white/15 bg-transparent py-2 pt-[calc(0.5rem+env(safe-area-inset-top,0px))] text-white shadow-[0_1px_0_rgb(255_255_255/0.08)] lg:py-1.5 lg:pt-[calc(0.375rem+env(safe-area-inset-top,0px))]"
           )}
         >
           {!nativeShellActive ? (
@@ -236,158 +233,253 @@ export function OrderCustomerView({
               className="pointer-events-none absolute inset-0 bg-black/10"
             />
           ) : null}
-          <div
-            className={cn(
-              "relative flex min-w-0 flex-col lg:hidden",
-              nativeShellActive ? "gap-1.5" : "gap-2"
-            )}
-          >
-            <EmployeeSortTabs
-              activeSort={activeSort}
-              neutral={nativeShellActive}
-              onSortChange={(status) => setActiveSort(status)}
-            />
-            {/* ปุ่มย้อนกลับ + เมนู "..." (ภาษา/ธีม/รีเฟรช) ซ้ำกับ NativeTopBar บน
-                Capacitor เท่านั้น — ฝั่งเว็บยังไม่มี header ของ shell ให้หน้านี้ (immersive
-                screen) จึงต้องเก็บไว้เหมือนเดิม (ปุ่มรีเฟรชย้ายไปลงทะเบียนเข้า top bar
-                แทนแล้วด้านบน) */}
-            <div className="flex min-w-0 items-center gap-2">
+          {horizontalNativeOrderLayout ? (
+            <div className="relative flex min-w-0 flex-col gap-1.5">
+              <h1 className="sr-only">
+                {selectedTable?.table_name
+                  ? `${t("pos.table")} ${selectedTable.table_name}`
+                  : t("nav.order")}
+              </h1>
+
+              <div
+                data-pos-order-command-row="true"
+                className="-mx-3 flex min-w-0 items-center gap-2 bg-primary px-3 pb-1 pt-[calc(0.25rem+env(safe-area-inset-top,0px))] text-primary-foreground sm:-mx-3.5 sm:px-3.5"
+              >
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  aria-label={t("actions.back")}
+                  className={headerIconButtonClass(true, true)}
+                  onClick={() => void openTablesPage()}
+                >
+                  <ArrowLeft data-icon="inline-start" />
+                </Button>
+
+                <div className="grid min-w-0 flex-1 grid-cols-[minmax(12rem,17rem)_minmax(0,1fr)] gap-2">
+                  <EmployeeSortTabs
+                    activeSort={activeSort}
+                    className="w-full"
+                    neutral
+                    onPrimary
+                    onSortChange={(status) => setActiveSort(status)}
+                  />
+                  <EmployeeSearchForm
+                    className="w-full"
+                    loading={loadingMenu}
+                    neutral
+                    onPrimary
+                    search={search}
+                    showSearchLabel
+                    onSearchChange={setSearch}
+                    onSearchSubmit={() => void submitSearch()}
+                  />
+                </div>
+
+                <EmployeeMobileHeaderActions
+                  loading={loadingTables || loadingMenu}
+                  neutral
+                  onPrimary
+                  onRefresh={() => void refreshAll()}
+                />
+              </div>
+
+              <EmployeeCategoryRail
+                categories={categories}
+                neutral
+                selectedCateUuid={selectedCateUuid}
+                wide
+                onSelectCategory={(cateUuid) => void selectCategory(cateUuid)}
+              />
+            </div>
+          ) : null}
+          {!horizontalNativeOrderLayout ? (
+            <div
+              className={cn(
+                "relative flex min-w-0 flex-col",
+                nativeShellActive ? "gap-1.5" : "gap-2 lg:hidden"
+              )}
+            >
+              {/* Native แนวตั้งย้าย sort tabs ขึ้นไปแทนชุด action ด้านขวาของ NativeTopBar
+                  เพื่อคืนความสูงให้สินค้า ส่วนเว็บยังไม่มี shell header จึงเก็บแถวนี้ไว้ */}
+              {!portraitNativeOrderLayout ? (
+                <EmployeeSortTabs
+                  activeSort={activeSort}
+                  neutral={nativeShellActive}
+                  onSortChange={(status) => setActiveSort(status)}
+                />
+              ) : null}
+              {/* ปุ่มย้อนกลับ + เมนู "..." ซ้ำกับ NativeTopBar บน Capacitor เท่านั้น —
+                  ฝั่งเว็บยังไม่มี header ของ shell ให้หน้านี้ จึงต้องเก็บไว้เหมือนเดิม */}
+              <div className="flex min-w-0 items-center gap-2">
+                {!nativeShellActive ? (
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    aria-label={t("actions.back")}
+                    className="size-11 shrink-0 rounded-full bg-white/15 text-white shadow-sm hover:bg-white/25 hover:text-white dark:bg-card dark:text-foreground dark:hover:bg-accent dark:hover:text-foreground"
+                    onClick={() => void openTablesPage()}
+                  >
+                    <ArrowLeft data-icon="inline-start" />
+                  </Button>
+                ) : null}
+
+                <EmployeeSearchForm
+                  className="flex-1"
+                  loading={loadingMenu}
+                  neutral={nativeShellActive}
+                  search={search}
+                  onSearchChange={setSearch}
+                  onSearchSubmit={() => void submitSearch()}
+                />
+
+                {!nativeShellActive ? (
+                  <EmployeeMobileHeaderActions
+                    loading={loadingTables || loadingMenu}
+                    onRefresh={() => void refreshAll()}
+                  />
+                ) : null}
+              </div>
+
+              <EmployeeCategoryRail
+                categories={categories}
+                neutral={nativeShellActive}
+                selectedCateUuid={selectedCateUuid}
+                wide={nativeShellActive}
+                onSelectCategory={(cateUuid) => void selectCategory(cateUuid)}
+              />
+            </div>
+          ) : null}
+
+          {!horizontalNativeOrderLayout && !nativeShellActive ? (
+            <div className="relative hidden min-w-0 items-center gap-2 lg:flex lg:h-11">
+              {/* Capacitor's NativeTopBar already carries back / refresh / notif —
+                on native, only the sort tabs + search belong in this row. */}
               {!nativeShellActive ? (
                 <Button
                   type="button"
                   variant="ghost"
                   size="icon"
                   aria-label={t("actions.back")}
-                  className="size-11 shrink-0 rounded-full bg-white/15 text-white shadow-sm hover:bg-white/25 hover:text-white dark:bg-card dark:text-foreground dark:hover:bg-accent dark:hover:text-foreground"
+                  className={headerIconButtonClass(nativeShellActive)}
                   onClick={() => void openTablesPage()}
                 >
                   <ArrowLeft data-icon="inline-start" />
                 </Button>
               ) : null}
 
-              <EmployeeSearchForm
-                className="flex-1"
-                loading={loadingMenu}
-                neutral={nativeShellActive}
-                search={search}
-                onSearchChange={setSearch}
-                onSearchSubmit={() => void submitSearch()}
-              />
+              <div className="grid min-w-0 flex-1 grid-cols-[17rem_minmax(14rem,1fr)] gap-2">
+                <EmployeeSortTabs
+                  activeSort={activeSort}
+                  className="w-full"
+                  neutral={nativeShellActive}
+                  onSortChange={(status) => setActiveSort(status)}
+                />
+                <EmployeeSearchForm
+                  className={cn("w-full", !nativeShellActive && "lg:max-w-xl")}
+                  loading={loadingMenu}
+                  neutral={nativeShellActive}
+                  search={search}
+                  showSearchLabel
+                  onSearchChange={setSearch}
+                  onSearchSubmit={() => void submitSearch()}
+                />
+              </div>
 
               {!nativeShellActive ? (
-                <EmployeeMobileHeaderActions
-                  loading={loadingTables || loadingMenu}
-                  onRefresh={() => void refreshAll()}
-                />
-              ) : null}
-            </div>
-
-            <EmployeeCategoryRail
-              categories={categories}
-              neutral={nativeShellActive}
-              selectedCateUuid={selectedCateUuid}
-              onSelectCategory={(cateUuid) => void selectCategory(cateUuid)}
-            />
-          </div>
-
-          <div className="relative hidden min-w-0 items-center gap-2 lg:flex lg:h-11">
-            {/* Capacitor's NativeTopBar already carries back / refresh / notif —
-                on native, only the sort tabs + search belong in this row. */}
-            {!nativeShellActive ? (
-              <Button
-                type="button"
-                variant="ghost"
-                size="icon"
-                aria-label={t("actions.back")}
-                className={headerIconButtonClass(nativeShellActive)}
-                onClick={() => void openTablesPage()}
-              >
-                <ArrowLeft data-icon="inline-start" />
-              </Button>
-            ) : null}
-
-            <div className="grid min-w-0 flex-1 grid-cols-[17rem_minmax(14rem,1fr)] gap-2">
-              <EmployeeSortTabs
-                activeSort={activeSort}
-                className="w-full"
-                neutral={nativeShellActive}
-                onSortChange={(status) => setActiveSort(status)}
-              />
-              <EmployeeSearchForm
-                className="w-full lg:max-w-xl"
-                loading={loadingMenu}
-                neutral={nativeShellActive}
-                search={search}
-                showSearchLabel
-                onSearchChange={setSearch}
-                onSearchSubmit={() => void submitSearch()}
-              />
-            </div>
-
-            {!nativeShellActive ? (
-              <div className="ml-auto flex shrink-0 items-center gap-2">
-                {/* lg–xl (ประมาณ iPad landscape) แถวนี้ไม่พอที่ใส่ปุ่มภาษา/ธีม/รีเฟรช
+                <div className="ml-auto flex shrink-0 items-center gap-2">
+                  {/* lg–xl (ประมาณ iPad landscape) แถวนี้ไม่พอที่ใส่ปุ่มภาษา/ธีม/รีเฟรช
                     แยก 3 ปุ่มพร้อมกับ sort tabs + search ที่กว้างคงที่ — คำนวณแล้ว
                     ล้นแน่นอนที่ 1024px (เห็นเป็นแถวปุ่มบีบ/ตกบรรทัดในภาพจริงบน iPad)
                     จึงยุบเป็นเมนู "..." เดียวกับแถวมือถือจนกว่าจะถึง xl (1280px) ที่มี
                     ที่ว่างพอ */}
-                <div className="hidden items-center gap-2 xl:flex">
-                  <LanguageSwitch
-                    className={headerIconButtonClass(nativeShellActive)}
-                    compact
-                    size="icon"
-                    variant="ghost"
-                  />
-                  <ThemeToggle
-                    className={headerIconButtonClass(nativeShellActive)}
-                    size="icon"
-                    variant="ghost"
-                  />
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="icon"
-                    aria-label={t("actions.refresh")}
-                    className={headerIconButtonClass(nativeShellActive)}
-                    disabled={loadingTables || loadingMenu}
-                    onClick={() => void refreshAll()}
-                  >
-                    {loadingTables || loadingMenu ? <Spinner /> : <RefreshCcw />}
-                  </Button>
+                  <div className="hidden items-center gap-2 xl:flex">
+                    <LanguageSwitch
+                      className={headerIconButtonClass(nativeShellActive)}
+                      compact
+                      size="icon"
+                      variant="ghost"
+                    />
+                    <ThemeToggle
+                      className={headerIconButtonClass(nativeShellActive)}
+                      size="icon"
+                      variant="ghost"
+                    />
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      aria-label={t("actions.refresh")}
+                      className={headerIconButtonClass(nativeShellActive)}
+                      disabled={loadingTables || loadingMenu}
+                      onClick={() => void refreshAll()}
+                    >
+                      {loadingTables || loadingMenu ? (
+                        <Spinner />
+                      ) : (
+                        <RefreshCcw />
+                      )}
+                    </Button>
+                  </div>
+                  <div className="xl:hidden">
+                    <EmployeeMobileHeaderActions
+                      loading={loadingTables || loadingMenu}
+                      neutral={nativeShellActive}
+                      onRefresh={() => void refreshAll()}
+                    />
+                  </div>
                 </div>
-                <div className="xl:hidden">
-                  <EmployeeMobileHeaderActions
-                    loading={loadingTables || loadingMenu}
-                    neutral={nativeShellActive}
-                    onRefresh={() => void refreshAll()}
-                  />
-                </div>
-              </div>
-            ) : null}
-          </div>
+              ) : null}
+            </div>
+          ) : null}
         </header>
 
-        <div className="grid min-h-0 overflow-hidden md:grid-cols-[154px_minmax(0,1fr)] lg:col-span-2">
-          <EmployeeCategorySidebar
-            categories={categories}
-            loading={loadingMenu && !categories.length}
-            neutral={nativeShellActive}
-            selectedCateUuid={selectedCateUuid}
-            onSelectCategory={(cateUuid) => void selectCategory(cateUuid)}
-          />
+        <div
+          className={cn(
+            "min-h-0 overflow-hidden",
+            nativeShellActive
+              ? "flex"
+              : "grid md:grid-cols-[154px_minmax(0,1fr)] lg:col-span-2"
+          )}
+        >
+          {!nativeShellActive ? (
+            <EmployeeCategorySidebar
+              categories={categories}
+              loading={loadingMenu && !categories.length}
+              neutral={nativeShellActive}
+              selectedCateUuid={selectedCateUuid}
+              onSelectCategory={(cateUuid) => void selectCategory(cateUuid)}
+            />
+          ) : null}
 
           <section
             aria-busy={loadingMenu}
-            className="relative flex min-h-0 min-w-0 flex-col overflow-hidden"
+            className="relative flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden"
           >
-            <div className="pos-soft-light-zone pos-dark-zone min-h-0 flex-1 overflow-y-auto bg-background p-3 text-foreground sm:p-3.5 lg:p-4">
+            <div
+              className={cn(
+                "pos-soft-light-zone pos-dark-zone min-h-0 flex-1 overflow-y-auto p-3 text-foreground sm:p-3.5 lg:p-4 dark:bg-background",
+                horizontalNativeOrderLayout ? "bg-primary/5" : "bg-muted/70"
+              )}
+            >
               {loadingMenu ? (
-                <ProductGridSkeleton />
+                <ProductGridSkeleton
+                  className={compactNativeProductGrid}
+                  compact={horizontalNativeOrderLayout}
+                  nativeMobile={isNativeApp}
+                />
               ) : activeProducts.length ? (
                 // lg: (แนวนอน/แท็บเล็ต — ไม่มีปุ่มตะกร้าลอย/แถบล่างมาบัง) ต้องกันแถบ gesture ของ
                 // ระบบเองด้วย safe-area-inset-bottom โดยเฉพาะตอนรันบน Capacitor ผ่าน AppShell
                 // ที่ไม่มี bottom nav มาช่วยกันให้แล้วเหมือน NativeAppShell
-                <div className={cn(PRODUCT_GRID_CLASS, "pb-24 lg:pb-[calc(1rem+var(--pos-system-bottom-safe-area))]")}>
+                <div
+                  className={cn(
+                    PRODUCT_GRID_CLASS,
+                    compactNativeProductGrid,
+                    "pb-24 lg:pb-[calc(1rem+var(--pos-system-bottom-safe-area))]"
+                  )}
+                >
                   {activeProducts.map((entry, index) => (
                     <EmployeeProductCard
                       key={`${entry.cateUuid}-${entry.product.prodUuid}-${
@@ -395,10 +487,12 @@ export function OrderCustomerView({
                         activeSort
                       }`}
                       activeSort={activeSort}
+                      compact={horizontalNativeOrderLayout}
                       disabled={Boolean(loadingProductUuid) || saving}
                       entry={entry}
                       imagePreload={preloadImageIndexes.has(index)}
                       loading={loadingProductUuid === entry.product.prodUuid}
+                      nativeMobile={isNativeApp}
                       onAction={openOrAddProduct}
                       onPrefetch={prefetchProduct}
                     />
@@ -431,7 +525,12 @@ export function OrderCustomerView({
           </section>
         </div>
 
-        <aside className="relative col-start-3 row-span-2 row-start-1 hidden min-h-0 overflow-hidden bg-transparent lg:block">
+        <aside
+          className={cn(
+            "relative row-span-2 row-start-1 hidden min-h-0 overflow-hidden bg-transparent lg:block",
+            nativeShellActive ? "col-start-2" : "col-start-3"
+          )}
+        >
           <div className="relative h-full min-h-0">
             <SelectedTableCartPanel
               allZones={zones}
@@ -453,12 +552,24 @@ export function OrderCustomerView({
       <Button
         type="button"
         aria-label={t("pos.currentCart")}
-        className="pos-safe-bottom-offset fixed right-4 z-40 h-12 max-w-[calc(100vw-2rem)] rounded-md border border-primary/20 bg-primary px-4 text-sm font-black text-primary-foreground shadow-[0_16px_34px_-20px_rgb(15_23_42/0.9)] hover:bg-primary/90 active:scale-[0.98] lg:hidden"
+        className={cn(
+          "pos-safe-bottom-offset fixed right-4 z-40 h-12 max-w-[calc(100vw-2rem)] rounded-md border px-4 text-sm font-black shadow-[0_16px_34px_-20px_rgb(15_23_42/0.9)] active:scale-[0.98] lg:hidden",
+          portraitNativeOrderLayout
+            ? "border-foreground/15 bg-foreground text-background hover:bg-foreground/90 hover:text-background"
+            : "border-primary/20 bg-primary text-primary-foreground hover:bg-primary/90"
+        )}
         onClick={() => void openCartSheet()}
       >
         <ShoppingCart data-icon="inline-start" />
         <span className="min-w-0 truncate">{t("pos.currentCart")}</span>
-        <Badge className="min-w-6 shrink-0 justify-center rounded-full border-primary-foreground/30 bg-primary-foreground px-1.5 py-0 text-primary">
+        <Badge
+          className={cn(
+            "min-w-6 shrink-0 justify-center rounded-full px-1.5 py-0",
+            portraitNativeOrderLayout
+              ? "border-background/30 bg-background text-foreground"
+              : "border-primary-foreground/30 bg-primary-foreground text-primary"
+          )}
+        >
           {cartCount}
         </Badge>
       </Button>
@@ -514,7 +625,11 @@ export function OrderCustomerView({
             : ""
         }
         isMobile={isMobile}
-        media={selectedProduct ? <ProductOptionsMedia product={selectedProduct} /> : null}
+        media={
+          selectedProduct ? (
+            <ProductOptionsMedia product={selectedProduct} />
+          ) : null
+        }
         open={productSheetOpen}
         subtitle={
           selectedProduct && selectedDetail ? (

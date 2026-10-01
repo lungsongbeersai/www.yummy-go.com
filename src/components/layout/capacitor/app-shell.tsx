@@ -21,7 +21,12 @@ import { NativePullToRefreshIndicator } from "@/components/layout/capacitor/pull
 import { useAuthStore } from "@/stores/auth-store";
 import { useSwan1DesktopPosLayout } from "@/hooks/use-swan1-desktop-pos-layout";
 import { useSwan1DesktopHomeLayout } from "@/hooks/use-swan1-desktop-home-layout";
+import { useLandscapeTablet } from "@/hooks/use-landscape-tablet";
 import { useAppStore } from "@/stores/app-store";
+import {
+  shouldShowNativeSideRail,
+  shouldShowNativeTopBar,
+} from "@/components/layout/shell-menu-helpers";
 
 export function NativeAppShell({ children }: { children: React.ReactNode }) {
   const { i18n, t } = useTranslation();
@@ -47,16 +52,26 @@ export function NativeAppShell({ children }: { children: React.ReactNode }) {
   // (แถบล่างมือถือ ปลายทางจำกัดจำนวน) เท่านั้น — NativeSideRail (แท็บเล็ต/แนวนอน) เปลี่ยนไปใช้
   // AppSidebar ตัวเดียวกับเว็บที่โชว์ menuItems เต็มต้นไม้แล้ว ไม่ต้องมี count จำกัดแบบ rail อีก
   const model = useMemo(
-    () => buildNativeNavigationModel(menuItems, NATIVE_DIRECT_DESTINATION_COUNT),
-    [menuItems],
+    () =>
+      buildNativeNavigationModel(menuItems, NATIVE_DIRECT_DESTINATION_COUNT),
+    [menuItems]
   );
   const keyboardVisible = useKeyboardVisible();
   const desktopPosLayout = useSwan1DesktopPosLayout();
   const desktopHomeLayout = useSwan1DesktopHomeLayout();
+  const landscapeTablet = useLandscapeTablet();
   const sidebarCollapsed = useAppStore((state) => state.collapsed);
+  const showSideRail = shouldShowNativeSideRail(pathname, desktopPosLayout);
+  const showTopBar = shouldShowNativeTopBar(
+    pathname,
+    desktopPosLayout,
+    landscapeTablet
+  );
   // ปิดบนหน้า fixedDataScreen (เช่น POS order/table) เพราะหน้าเหล่านี้มี scroll area
   // ของตัวเองแยกจาก document — ดึงที่ขอบบนสุดของหน้าจะไปชนกับท่าทางภายในจอนั้นแทน
-  const { pullDistance, refreshing, threshold } = usePullToRefresh(!fixedDataScreen);
+  const { pullDistance, refreshing, threshold } = usePullToRefresh(
+    !fixedDataScreen
+  );
 
   useAndroidBackButton({ model, pathname });
 
@@ -66,15 +81,19 @@ export function NativeAppShell({ children }: { children: React.ReactNode }) {
     <div
       className={cn(
         "app-shell flex min-h-0 w-full flex-col text-foreground",
-        fixedDataScreen ? "h-dvh overflow-hidden" : "min-h-dvh",
+        fixedDataScreen ? "h-dvh overflow-hidden" : "min-h-dvh"
       )}
       data-fixed-screen={fixedDataScreen ? "true" : "false"}
       data-keyboard-open={keyboardVisible ? "true" : "false"}
       data-platform="capacitor"
       data-desktop-pos-layout={desktopPosLayout ? "true" : undefined}
-      data-desktop-pos-order-layout={desktopPosLayout && pathname === "/posAll/order" ? "true" : undefined}
+      data-desktop-pos-order-layout={
+        desktopPosLayout && pathname === "/posAll/order" ? "true" : undefined
+      }
       data-desktop-home-layout={desktopHomeLayout ? "true" : undefined}
-      data-home-sidebar-collapsed={desktopHomeLayout && sidebarCollapsed ? "true" : undefined}
+      data-home-sidebar-collapsed={
+        desktopHomeLayout && sidebarCollapsed ? "true" : undefined
+      }
     >
       <a
         href="#app-main-content"
@@ -87,7 +106,7 @@ export function NativeAppShell({ children }: { children: React.ReactNode }) {
           NativeAppShell stays mounted so Android hardware Back still works. */}
       {desktopHomeLayout ? (
         <Swan1HomeTopBar breadcrumbs={breadcrumbs} />
-      ) : !desktopPosLayout ? (
+      ) : showTopBar ? (
         <NativeTopBar
           breadcrumbs={breadcrumbs}
           model={model}
@@ -105,10 +124,9 @@ export function NativeAppShell({ children }: { children: React.ReactNode }) {
           flex-1 row occupying the space below the top bar (side rail + content side by
           side), matching how the web shell's .app-shell-body wraps sidebar + main together */}
       <div className="app-shell-body flex min-h-0 w-full flex-1">
-        {/* หน้าเลือกโต๊ะ (/posAll/tables) ซ่อน rail — ผังโต๊ะต้องใช้ความกว้างเต็มจอ และมีปุ่ม
-            Back ในหัวข้อแทนแล้ว (ดู BACK_FALLBACK_PATHS ใน native-navigation-model.ts)
-            ไม่ต้องพึ่งการนำทางผ่าน rail */}
-        {desktopPosLayout || pathname === "/posAll/tables" ? null : (
+        {/* หน้า Table และ Order เป็น workspace เต็มจอของตัวเอง จึงซ่อน rail ทั้งแนวตั้งและ
+            แนวนอนเพื่อคืนพื้นที่ให้เนื้อหาหลัก; หน้าทั่วไปยังใช้ rail ตามเดิม */}
+        {showSideRail ? (
           <NativeSideRail
             error={menuError}
             loading={menuLoading}
@@ -119,7 +137,7 @@ export function NativeAppShell({ children }: { children: React.ReactNode }) {
             desktopHomeLayout={desktopHomeLayout}
             toggleMenu={toggleMenu}
           />
-        )}
+        ) : null}
         <main
           id="app-main-content"
           tabIndex={-1}
@@ -151,8 +169,8 @@ export function NativeAppShell({ children }: { children: React.ReactNode }) {
             fixedDataScreen
               ? "min-h-0 overflow-hidden"
               : desktopHomeLayout
-                ? "mx-auto w-full max-w-375 overflow-visible p-4 lg:p-6"
-                : "overflow-visible pb-[max(var(--app-shell-bottom-nav-height,0px),var(--pos-system-bottom-safe-area,0px))] pt-3 px-3",
+              ? "mx-auto w-full max-w-375 overflow-visible p-4 lg:p-6"
+              : "overflow-visible pb-[max(var(--app-shell-bottom-nav-height,0px),var(--pos-system-bottom-safe-area,0px))] pt-3 px-3"
           )}
         >
           {children}

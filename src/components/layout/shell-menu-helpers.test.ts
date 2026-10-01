@@ -10,6 +10,8 @@ import {
   menuGrantsPath,
   menuItemLabel,
   routeIsActive,
+  shouldShowNativeSideRail,
+  shouldShowNativeTopBar,
   userInitials,
 } from "./shell-menu-helpers";
 
@@ -92,6 +94,35 @@ describe("isImmersiveScreen", () => {
   });
 });
 
+describe("shouldShowNativeSideRail", () => {
+  it("hides the global rail on both POS workspaces in every orientation", () => {
+    expect(shouldShowNativeSideRail("/posAll/tables", false)).toBe(false);
+    expect(shouldShowNativeSideRail("/posAll/order", false)).toBe(false);
+  });
+
+  it("shows the rail on regular native pages and hides it for the Swan desktop layout", () => {
+    expect(shouldShowNativeSideRail("/products", false)).toBe(true);
+    expect(shouldShowNativeSideRail("/products", true)).toBe(false);
+  });
+});
+
+describe("shouldShowNativeTopBar", () => {
+  it("lets the landscape tablet order toolbar replace the native top bar", () => {
+    expect(shouldShowNativeTopBar("/posAll/order", false, true)).toBe(false);
+    expect(shouldShowNativeTopBar("/posAll/order", false, false)).toBe(true);
+  });
+
+  it("keeps the native top bar on the table screen and regular pages", () => {
+    expect(shouldShowNativeTopBar("/posAll/tables", false, true)).toBe(true);
+    expect(shouldShowNativeTopBar("/products", false, true)).toBe(true);
+  });
+
+  it("keeps the existing Swan desktop POS behavior", () => {
+    expect(shouldShowNativeTopBar("/posAll/order", true, true)).toBe(false);
+    expect(shouldShowNativeTopBar("/products", true, false)).toBe(false);
+  });
+});
+
 describe("isFixedDataScreen", () => {
   it("covers listed paths, prefixes, and immersive screens", () => {
     expect(isFixedDataScreen("/products")).toBe(true);
@@ -112,7 +143,11 @@ describe("firstNavigablePath", () => {
 
   it("skips a disabled leaf and falls through to the next item", () => {
     const menu: MenuItem[] = [
-      { path: "/report/monthly-sales", title: "monthly_sales_report", disabled: true },
+      {
+        path: "/report/monthly-sales",
+        title: "monthly_sales_report",
+        disabled: true,
+      },
       { path: "/posAll/tables", title: "open_table_sale" },
     ];
     expect(firstNavigablePath(menu)).toBe("/posAll/tables");
@@ -129,7 +164,9 @@ describe("firstNavigablePath", () => {
   });
 
   it("returns undefined when nothing is navigable", () => {
-    expect(firstNavigablePath([{ title: "sales", children: [] }])).toBeUndefined();
+    expect(
+      firstNavigablePath([{ title: "sales", children: [] }])
+    ).toBeUndefined();
   });
 });
 
@@ -154,13 +191,26 @@ describe("menuGrantsPath", () => {
 
 describe("isPublicAppPath", () => {
   it("matches the public routes outside the protected group", () => {
-    for (const path of ["/home", "/login", "/policy", "/customer-display", "/posAll", "/login/extra"]) {
+    for (const path of [
+      "/home",
+      "/login",
+      "/policy",
+      "/customer-display",
+      "/posAll",
+      "/login/extra",
+    ]) {
       expect(isPublicAppPath(path)).toBe(true);
     }
   });
 
   it("treats protected routes, including /posAll children, as app-shell routes", () => {
-    for (const path of ["/", "/products", "/posAll/tables", "/posAll/order", "/homework"]) {
+    for (const path of [
+      "/",
+      "/products",
+      "/posAll/tables",
+      "/posAll/order",
+      "/homework",
+    ]) {
       expect(isPublicAppPath(path)).toBe(false);
     }
   });

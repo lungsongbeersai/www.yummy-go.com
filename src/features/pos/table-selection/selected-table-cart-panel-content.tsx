@@ -6,8 +6,18 @@ import { useTranslation } from "react-i18next";
 import { ConfirmDialog } from "@/components/common/confirm-dialog";
 import { PrintLoadingDialog } from "@/components/common/print-loading-dialog";
 import { Badge } from "@/components/ui/badge";
-import { Card, CardContent, CardFooter, CardHeader } from "@/components/ui/card";
-import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
+import {
+  Card,
+  CardContent,
+  CardFooter,
+  CardHeader,
+} from "@/components/ui/card";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Spinner } from "@/components/ui/spinner";
 import { Tabs, TabsContent, TabsList } from "@/components/ui/tabs";
@@ -40,7 +50,7 @@ const PaymentDialog = dynamic<PaymentDialogProps>(
   {
     ssr: false,
     loading: () => <PaymentDialogLoadingFallback />,
-  },
+  }
 );
 
 function PaymentDialogLoadingFallback() {
@@ -48,9 +58,15 @@ function PaymentDialogLoadingFallback() {
 
   return (
     <Dialog open>
-      <DialogContent showCloseButton={false} className="w-full max-w-[320px] text-center" aria-busy="true">
+      <DialogContent
+        showCloseButton={false}
+        className="w-full max-w-[320px] text-center"
+        aria-busy="true"
+      >
         <DialogTitle className="sr-only">{t("common.loading")}</DialogTitle>
-        <DialogDescription className="sr-only">{t("pos.paymentDialogLoadingDescription")}</DialogDescription>
+        <DialogDescription className="sr-only">
+          {t("pos.paymentDialogLoadingDescription")}
+        </DialogDescription>
         <div className="flex flex-col items-center gap-3">
           <div className="grid size-11 place-items-center rounded-lg bg-primary/10 text-primary">
             <Spinner className="text-primary" />
@@ -83,17 +99,13 @@ export function SelectedTableCartPanelContent({
   const selectedTable = workflow.selectedTable;
   const customerDisplay = workflow.customerDisplay;
   const nativeShellActive = useIsNativeShellActive();
-  // header/footer นี้ออกแบบเป็นตัวอักษรขาวสำหรับวางทับรูปพื้นหลังเข้ม (background_wide.webp) —
-  // ใช้ได้เฉพาะตอนพื้นหลังนั้นยังอยู่จริงเท่านั้น: variant="sheet" (มือถือ/แท็บเล็ตแนวตั้งความกว้าง
-  // ต่ำกว่า lg) ยังคง data-pos-pattern ไว้ทุกแพลตฟอร์มรวม Capacitor (ดู order-customer-view.tsx
-  // SheetContent) รูปพื้นหลังเลยยังอยู่ ตัวอักษรขาวยังถูกต้อง — แต่ variant="side" (แผงค้างขวา,
-  // ความกว้าง >= lg เช่น iPad แนวนอน) container ห่อชั้นนอกตัด data-pos-pattern ออกทั้งรูปและ
-  // primary tint ทิ้งไว้แค่ bg-background เรียบ ๆ ตอน native shell ทำงานจริง (ดู order-customer-view.tsx
-  // nativeShellActive ? "bg-background" : ...) ตัวอักษรขาวเดิมเลยกลายเป็นขาวบนขาว มองไม่เห็น —
-  // ใช้ useIsNativeShellActive ไม่ใช่ isCapacitorNativeApp ตรงๆ เพราะ Capacitor จอกว้าง/แนวนอน
-  // ตอนนี้ใช้ AppShell (มีพื้นหลังรูปเหมือนเว็บ) แทน NativeAppShell แล้ว (ดู protected-shell.tsx)
+  // Native landscape ใช้ side panel ค้างขวา: คืนพื้นเขียวลายใบไม้เฉพาะหัว/ท้ายตาม cart sheet
+  // แนวตั้ง แต่ให้ CardContent ทึบสีขาวคั่นกลาง จึงคงธีมขาว–เขียวและไม่รบกวนการอ่านรายการ
+  // ใช้ useIsNativeShellActive แทนเช็ก Capacitor ตรง ๆ เพื่อให้ scope ตรงกับ shell ที่แสดงจริง
   const neutral = nativeShellActive && variant === "side";
-  const isNoTableStore = useAuthStore((state) => state.user?.store_table_status === 2);
+  const isNoTableStore = useAuthStore(
+    (state) => state.user?.store_table_status === 2
+  );
   // ร้านไม่มีโต๊ะ: create_order สร้างรายการด้วยสถานะยืนยันแล้วเสมอ (ไม่ผ่าน
   // สถานะ "ใหม่/รอยืนยัน") จึงไม่มี tab ให้แยก — รวมเป็นลิสต์เดียว
   const counterCartItems = isNoTableStore
@@ -104,21 +116,31 @@ export function SelectedTableCartPanelContent({
   // จึงโชว์ skeleton เฉพาะตอนโหลดครั้งแรกที่ยังไม่มีรายการอะไรให้เห็นเลย
   const hasCartItems = isNoTableStore
     ? counterCartItems.length > 0
-    : workflow.newOrderDisplayItems.length > 0 || workflow.historyItems.length > 0;
+    : workflow.newOrderDisplayItems.length > 0 ||
+      workflow.historyItems.length > 0;
   const cancellingItem = Boolean(
-    workflow.actingItemUuid &&
-      workflow.itemActionTarget?.action === "cancel",
+    workflow.actingItemUuid && workflow.itemActionTarget?.action === "cancel"
   );
 
   return (
     <Card
+      data-pos-pattern={neutral ? "true" : undefined}
       className={cn(
         "relative flex h-full min-h-0 flex-col overflow-hidden border-0 bg-transparent text-white shadow-none",
         variant === "side"
           ? "rounded-none border-l border-primary/15"
           : "rounded-t-2xl",
+        neutral &&
+          "border-primary/30 bg-primary bg-[url('/posAll/background_wide.webp')] bg-cover bg-top pb-0 text-primary-foreground dark:border-border dark:bg-none dark:bg-background dark:text-foreground"
       )}
     >
+      {neutral ? (
+        <div
+          aria-hidden="true"
+          data-pos-pattern-overlay="true"
+          className="pointer-events-none absolute inset-0 bg-primary/30 dark:hidden"
+        />
+      ) : null}
       <Tabs
         value={workflow.activeTab}
         onValueChange={workflow.handleTabChange}
@@ -126,17 +148,16 @@ export function SelectedTableCartPanelContent({
         // mishandles a display:contents flex item, so the middle list never got a
         // bounded height and the header/footer scrolled with it instead of
         // staying pinned. `gap-0` keeps the previous spacing.
-        className="flex min-h-0 flex-1 flex-col gap-0"
+        className="relative z-10 flex min-h-0 flex-1 flex-col gap-0"
       >
         <CardHeader
+          data-pos-cart-sheet-header={variant === "sheet" ? "true" : undefined}
           className={cn(
             "relative block shrink-0 overflow-hidden border-b",
             neutral
-              ? "border-border bg-card text-foreground"
+              ? "border-white/15 bg-primary/25 text-primary-foreground dark:border-border dark:bg-card dark:text-foreground"
               : "border-white/10 text-white dark:bg-black/25",
-            variant === "side"
-              ? "px-3 pb-2 pt-2.5"
-              : "px-4 pb-2.5 pt-3 pr-12",
+            variant === "side" ? "px-3 pb-2 pt-2.5" : "px-4 pb-2.5 pt-3 pr-12"
           )}
         >
           {/* min-h กันความสูงลดฮวบตอนไม่มีเลขบิล (ไม่งั้นจะเตี้ยกว่า header หลักฝั่งซ้าย
@@ -146,7 +167,9 @@ export function SelectedTableCartPanelContent({
               <p
                 className={cn(
                   "flex min-w-0 items-center gap-2 truncate text-base font-black leading-5",
-                  neutral ? "text-foreground" : "text-white",
+                  neutral
+                    ? "text-primary-foreground dark:text-foreground"
+                    : "text-white"
                 )}
               >
                 <ReceiptText className="size-5 shrink-0" />
@@ -156,15 +179,17 @@ export function SelectedTableCartPanelContent({
                       ? selectedTable.table_name
                       : `${t("nav.table")}: ${selectedTable.table_name}`
                     : isNoTableStore
-                      ? t("pos.counterCartEmpty")
-                      : t("pos.selectTableToContinue")}
+                    ? t("pos.counterCartEmpty")
+                    : t("pos.selectTableToContinue")}
                 </span>
               </p>
               {workflow.invoice ? (
                 <p
                   className={cn(
                     "truncate text-2xs font-bold leading-4",
-                    neutral ? "text-muted-foreground" : "text-white/75",
+                    neutral
+                      ? "text-primary-foreground/80 dark:text-muted-foreground"
+                      : "text-white/75"
                   )}
                 >
                   {t("pos.invoice")}: {workflow.invoice}
@@ -175,11 +200,9 @@ export function SelectedTableCartPanelContent({
               className={cn(
                 "shrink-0 rounded-full font-semibold tabular-nums shadow-none",
                 neutral
-                  ? "border-primary/20 bg-primary text-primary-foreground"
+                  ? "border-white/25 bg-white/15 text-primary-foreground dark:border-border dark:bg-muted dark:text-foreground"
                   : "border-white/20 bg-white/15 text-white",
-                variant === "side"
-                  ? "h-7 px-2.5 text-2xs"
-                  : "h-8 px-3 text-xs",
+                variant === "side" ? "h-7 px-2.5 text-2xs" : "h-8 px-3 text-xs"
               )}
             >
               {t("pos.itemCount", { count: workflow.visibleItemCount })}
@@ -196,20 +219,19 @@ export function SelectedTableCartPanelContent({
                 // overflow-hidden กัน focus ring/box-shadow ของ trigger แต่ละอันทะลุออกนอก
                 // มุมโค้ง rounded-xl ของแถบทั้งก้อน (trigger เองโค้งแค่ rounded-lg เล็กกว่า)
                 //
-                // neutral (Capacitor variant="side"): ไม่มีรูปพื้นหลังเข้มให้ตัดกันแล้ว ไม่ต้องพึ่ง
-                // zone-class บังคับ --foreground เข้ม เปลี่ยนไปใช้ bg-muted ทึบธรรมดาแทน bg-white/15
-                // โปร่งแสง (ซึ่งบนพื้นขาวของ Capacitor จะจางจนแทบไม่เห็นกรอบ pill)
+                // native side ใช้พื้นเขียวลายใบไม้ จึงใช้ track ขาวโปร่งและข้อความขาวเหมือน sheet
+                // โดยให้ active tab เป็น primary ทึบเพื่อเห็นสถานะชัดเจน
                 // gap-1 — TabsTrigger ฐานปัดมุมโค้งครบ 4 มุมทุกด้าน (rounded-lg) ไม่ใช่แค่มุมนอก
                 // เดิมไม่มี gap คั่นระหว่าง 2 เซลล์ grid เลย แท็บทั้งสองเลยชนกันสนิท ตรงรอยต่อ
                 // มุมโค้งของทั้งคู่หันเข้าหากันจึงเผยพื้นหลังแทร็ก (bg-muted) เป็นรอยบากรูปโบว์ไท
                 // เล็ก ๆ แทรกอยู่ตรงกลาง เห็นชัดเป็นพิเศษตอนแท็บ active ทึบสีเขียว — ดูเหมือนมีอะไร
                 // มาบัง/กัดขอบปุ่ม ใส่ gap คั่นแยกให้แต่ละแท็บเป็นก้อนอิสระ ตัดปัญหาที่ต้นตอ
                 neutral
-                  ? "grid w-full grid-cols-2 gap-1 overflow-hidden rounded-xl bg-muted p-1 text-foreground shadow-inner"
+                  ? "grid w-full grid-cols-2 gap-1 overflow-hidden rounded-xl border border-white/20 bg-white/15 p-1 text-primary-foreground shadow-inner backdrop-blur-sm dark:border-border dark:bg-muted dark:text-foreground"
                   : "pos-soft-light-zone pos-dark-zone grid w-full grid-cols-2 gap-1 overflow-hidden rounded-xl bg-white/15 p-1 text-white shadow-inner backdrop-blur-sm",
                 variant === "side"
-                  ? "mt-2 h-10 group-data-horizontal/tabs:h-10"
-                  : "mt-2.5 h-11 group-data-horizontal/tabs:h-11",
+                  ? "mt-2 h-14 group-data-horizontal/tabs:h-14"
+                  : "mt-2.5 h-11 group-data-horizontal/tabs:h-11"
               )}
             >
               <CartTabTrigger
@@ -238,7 +260,12 @@ export function SelectedTableCartPanelContent({
           {loading && !hasCartItems ? (
             <CartPanelLoading />
           ) : (
-            <div className="h-full min-h-0 overflow-y-auto overscroll-contain bg-muted/35 dark:bg-background">
+            <div
+              className={cn(
+                "h-full min-h-0 overflow-y-auto overscroll-contain dark:bg-background",
+                neutral ? "bg-background" : "bg-muted/35"
+              )}
+            >
               {isNoTableStore ? (
                 <CartTabItems
                   compact={variant === "side"}
@@ -322,9 +349,9 @@ export function SelectedTableCartPanelContent({
           className={cn(
             "pos-safe-bottom-padding block shrink-0 border-t",
             neutral
-              ? "border-border bg-card text-foreground"
+              ? "border-white/15 bg-primary/25 text-primary-foreground dark:border-border dark:bg-card dark:text-foreground"
               : "border-white/15 bg-transparent text-white dark:bg-black/25",
-            variant === "side" ? "px-2.5 pt-1.5" : "px-3 pt-2",
+            variant === "side" ? "px-2.5 pt-1.5" : "px-3 pt-2"
           )}
         >
           <CartSummaryDock
@@ -354,7 +381,9 @@ export function SelectedTableCartPanelContent({
                 ? workflow.openEmployeeOrderPage
                 : undefined
             }
-            onCreateTableQr={showTableFeatures ? workflow.openTableQr : undefined}
+            onCreateTableQr={
+              showTableFeatures ? workflow.openTableQr : undefined
+            }
             onCreateBranchMenuQr={workflow.openBranchMenuQr}
             onCreateDeposit={() => workflow.setDepositDialogOpen(true)}
             onCustomerDisplay={() =>
@@ -362,7 +391,9 @@ export function SelectedTableCartPanelContent({
             }
             onPayBill={workflow.openFullPayment}
             onPaySplitSelection={workflow.requestSelectedSplitPayment}
-            onTableActions={showTableFeatures ? workflow.openTableActions : undefined}
+            onTableActions={
+              showTableFeatures ? workflow.openTableActions : undefined
+            }
           />
         </CardFooter>
       </Tabs>
@@ -433,9 +464,7 @@ export function SelectedTableCartPanelContent({
           open
           orders={workflow.paymentContext.orders}
           paymentKind={workflow.paymentContext.kind}
-          splitBillItemUuids={
-            workflow.paymentContext.splitBillItemUuids ?? []
-          }
+          splitBillItemUuids={workflow.paymentContext.splitBillItemUuids ?? []}
           summary={workflow.paymentContext.summary}
           table={selectedTable}
           onCompleted={workflow.handlePaymentCompleted}
@@ -503,7 +532,7 @@ export function SelectedTableCartPanelContent({
         pending={Boolean(
           workflow.actingItemUuid &&
             workflow.noteTarget &&
-            cartItemActionUuid(workflow.noteTarget) === workflow.actingItemUuid,
+            cartItemActionUuid(workflow.noteTarget) === workflow.actingItemUuid
         )}
         onNoteChange={workflow.setNoteDraft}
         onOpenChange={(nextOpen) => {
@@ -530,7 +559,7 @@ export function SelectedTableCartPanelContent({
           workflow.actingItemUuid &&
             workflow.itemDiscountTarget &&
             cartItemActionUuid(workflow.itemDiscountTarget) ===
-              workflow.actingItemUuid,
+              workflow.actingItemUuid
         )}
         submitDisabled={workflow.itemDiscountValue === null}
         title={t("pos.itemDiscount")}

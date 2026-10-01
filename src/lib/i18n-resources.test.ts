@@ -7,9 +7,9 @@ describe("shared translation resources", () => {
     "keeps %s keys aligned between English and Lao",
     (namespace) => {
       expect(Object.keys(laCommon[namespace]).sort()).toEqual(
-        Object.keys(enCommon[namespace]).sort(),
+        Object.keys(enCommon[namespace]).sort()
       );
-    },
+    }
   );
 
   it("defines the login and language switch labels in both languages", () => {
@@ -25,8 +25,15 @@ describe("shared translation resources", () => {
 
   it("uses the requested Lao print loading message", () => {
     expect(laCommon.common.printingDescription).toBe(
-      "ກຳລັງດຳເນີນການພິມ...ກະລຸນາລໍຖ້າ",
+      "ກຳລັງດຳເນີນການພິມ...ກະລຸນາລໍຖ້າ"
     );
+  });
+
+  it("keeps native-mobile product copy separate from the desktop labels", () => {
+    expect(laCommon.pos.mobileOptionsAction).toBe("ຕົວເລືອກ");
+    expect(enCommon.pos.mobileOptionsAction).toBe("Options");
+    expect(laCommon.pos.chooseOptionsAction).toBe("ເລືອກລາຍການ");
+    expect(laCommon.pos.chooseToSeePrice).toBe("ເລືອກເພື່ອເບິ່ງລາຄາ");
   });
 
   it.each([
@@ -35,11 +42,14 @@ describe("shared translation resources", () => {
     "vatIncluded",
     "vatExcluded",
     "vatExempt",
-    "vatUnspecified"
-  ] as const)("defines sales bill amount copy for %s in both languages", (key) => {
-    expect(enCommon.salesList[key]).toBeTruthy();
-    expect(laCommon.salesList[key]).toBeTruthy();
-  });
+    "vatUnspecified",
+  ] as const)(
+    "defines sales bill amount copy for %s in both languages",
+    (key) => {
+      expect(enCommon.salesList[key]).toBeTruthy();
+      expect(laCommon.salesList[key]).toBeTruthy();
+    }
+  );
 
   it.each([
     "planDialogDescription",

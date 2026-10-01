@@ -1,35 +1,35 @@
-"use client"
+"use client";
 
-import * as React from "react"
-import { Dialog as DialogPrimitive } from "radix-ui"
+import * as React from "react";
+import { Dialog as DialogPrimitive } from "radix-ui";
 
-import { cn } from "@/lib/utils"
-import { Button } from "@/components/ui/button"
-import { shakeDialog, useMergedRef } from "@/components/ui/dialog-shake"
-import { XIcon } from "lucide-react"
+import { cn } from "@/lib/utils";
+import { Button } from "@/components/ui/button";
+import { shakeDialog, useMergedRef } from "@/components/ui/dialog-shake";
+import { XIcon } from "lucide-react";
 
 function Dialog({
   ...props
 }: React.ComponentProps<typeof DialogPrimitive.Root>) {
-  return <DialogPrimitive.Root data-slot="dialog" {...props} />
+  return <DialogPrimitive.Root data-slot="dialog" {...props} />;
 }
 
 function DialogTrigger({
   ...props
 }: React.ComponentProps<typeof DialogPrimitive.Trigger>) {
-  return <DialogPrimitive.Trigger data-slot="dialog-trigger" {...props} />
+  return <DialogPrimitive.Trigger data-slot="dialog-trigger" {...props} />;
 }
 
 function DialogPortal({
   ...props
 }: React.ComponentProps<typeof DialogPrimitive.Portal>) {
-  return <DialogPrimitive.Portal data-slot="dialog-portal" {...props} />
+  return <DialogPrimitive.Portal data-slot="dialog-portal" {...props} />;
 }
 
 function DialogClose({
   ...props
 }: React.ComponentProps<typeof DialogPrimitive.Close>) {
-  return <DialogPrimitive.Close data-slot="dialog-close" {...props} />
+  return <DialogPrimitive.Close data-slot="dialog-close" {...props} />;
 }
 
 function DialogOverlay({
@@ -45,7 +45,7 @@ function DialogOverlay({
       )}
       {...props}
     />
-  )
+  );
 }
 
 function DialogContent({
@@ -58,11 +58,11 @@ function DialogContent({
   onPointerDownOutside,
   ...props
 }: React.ComponentProps<typeof DialogPrimitive.Content> & {
-  overlayClassName?: string
-  showCloseButton?: boolean
+  overlayClassName?: string;
+  showCloseButton?: boolean;
 }) {
-  const contentRef = React.useRef<HTMLDivElement>(null)
-  const mergedRef = useMergedRef(ref, contentRef)
+  const contentRef = React.useRef<HTMLDivElement>(null);
+  const mergedRef = useMergedRef(ref, contentRef);
 
   return (
     <DialogPortal>
@@ -78,13 +78,13 @@ function DialogContent({
         // Only the dialog's own buttons close it (see dialog-shake.ts). A caller that already
         // prevented the event handled the click itself, so it gets no shake either.
         onPointerDownOutside={(event) => {
-          onPointerDownOutside?.(event)
-          if (!event.defaultPrevented) shakeDialog(contentRef.current)
-          event.preventDefault()
+          onPointerDownOutside?.(event);
+          if (!event.defaultPrevented) shakeDialog(contentRef.current);
+          event.preventDefault();
         }}
         onInteractOutside={(event) => {
-          onInteractOutside?.(event)
-          event.preventDefault()
+          onInteractOutside?.(event);
+          event.preventDefault();
         }}
       >
         {children}
@@ -92,18 +92,17 @@ function DialogContent({
           <DialogPrimitive.Close data-slot="dialog-close" asChild>
             <Button
               variant="ghost"
-              className="absolute top-2 right-2"
+              className="ui-overlay-close-button absolute top-2 right-2"
               size="icon-sm"
             >
-              <XIcon
-              />
+              <XIcon />
               <span className="sr-only">Close</span>
             </Button>
           </DialogPrimitive.Close>
         )}
       </DialogPrimitive.Content>
     </DialogPortal>
-  )
+  );
 }
 
 function DialogHeader({ className, ...props }: React.ComponentProps<"div">) {
@@ -113,7 +112,7 @@ function DialogHeader({ className, ...props }: React.ComponentProps<"div">) {
       className={cn("flex flex-col gap-1", className)}
       {...props}
     />
-  )
+  );
 }
 
 function DialogFooter({
@@ -122,7 +121,7 @@ function DialogFooter({
   children,
   ...props
 }: React.ComponentProps<"div"> & {
-  showCloseButton?: boolean
+  showCloseButton?: boolean;
 }) {
   return (
     <div
@@ -140,7 +139,7 @@ function DialogFooter({
         </DialogPrimitive.Close>
       )}
     </div>
-  )
+  );
 }
 
 function DialogTitle({
@@ -153,7 +152,7 @@ function DialogTitle({
       className={cn("font-heading text-sm font-medium", className)}
       {...props}
     />
-  )
+  );
 }
 
 function DialogDescription({
@@ -169,7 +168,7 @@ function DialogDescription({
       )}
       {...props}
     />
-  )
+  );
 }
 
 export {
@@ -183,4 +182,4 @@ export {
   DialogPortal,
   DialogTitle,
   DialogTrigger,
-}
+};

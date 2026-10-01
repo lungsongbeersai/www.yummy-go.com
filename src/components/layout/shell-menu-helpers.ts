@@ -20,7 +20,7 @@ export function menuKey(title: string) {
 
 export function menuItemLabel(
   item: Pick<MenuItem, "label" | "title">,
-  t: (key: string) => string,
+  t: (key: string) => string
 ) {
   return item.label || t(menuKey(item.title));
 }
@@ -40,7 +40,10 @@ export function hasActiveRoute(item: MenuItem, pathname: string): boolean {
 
 // คืนเฉพาะ title ของกลุ่มที่มีลูก เพราะผู้ใช้ค่าเดียวคือ openMenus ของ sidebar ซึ่งอ่านสถานะ
 // กาง/หุบของกลุ่มเท่านั้น — leaf ไม่เคยถูกอ่าน ใส่เข้าไปได้แต่ทำให้ setOpenMenus ทำงานเปล่า ๆ ทุกครั้งที่เปลี่ยนหน้า
-export function activeMenuTitles(items: MenuItem[], pathname: string): string[] {
+export function activeMenuTitles(
+  items: MenuItem[],
+  pathname: string
+): string[] {
   return items.flatMap((item) => {
     if (!item.children?.length || !hasActiveRoute(item, pathname)) return [];
     return [item.title, ...activeMenuTitles(item.children, pathname)];
@@ -64,14 +67,45 @@ export function isImmersiveScreen(pathname: string) {
   return IMMERSIVE_SCREEN_PATHS.has(pathname);
 }
 
+export function shouldShowNativeSideRail(
+  pathname: string,
+  desktopPosLayout: boolean
+) {
+  if (
+    desktopPosLayout ||
+    pathname === "/posAll/tables" ||
+    pathname === "/posAll/order"
+  ) {
+    return false;
+  }
+  return true;
+}
+
+export function shouldShowNativeTopBar(
+  pathname: string,
+  desktopPosLayout: boolean,
+  landscapeTablet: boolean
+) {
+  return (
+    !desktopPosLayout && !(landscapeTablet && pathname === "/posAll/order")
+  );
+}
+
 // Routes under src/app/ (outside the (protected) group) that never render the app shell.
 // "/posAll" is only public as an exact path; /posAll/tables and /posAll/order are protected.
-const PUBLIC_APP_PATH_PREFIXES = ["/home", "/login", "/policy", "/customer-display"] as const;
+const PUBLIC_APP_PATH_PREFIXES = [
+  "/home",
+  "/login",
+  "/policy",
+  "/customer-display",
+] as const;
 
 export function isPublicAppPath(pathname: string) {
   return (
     pathname === "/posAll" ||
-    PUBLIC_APP_PATH_PREFIXES.some((prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`))
+    PUBLIC_APP_PATH_PREFIXES.some(
+      (prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`)
+    )
   );
 }
 
@@ -97,7 +131,9 @@ export function menuGrantsPath(items: MenuItem[], targetPath: string): boolean {
   return items.some(
     (item) =>
       item.path === targetPath ||
-      (item.children?.length ? menuGrantsPath(item.children, targetPath) : false),
+      (item.children?.length
+        ? menuGrantsPath(item.children, targetPath)
+        : false)
   );
 }
 

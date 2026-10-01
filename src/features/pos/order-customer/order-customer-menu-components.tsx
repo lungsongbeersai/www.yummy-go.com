@@ -1,7 +1,7 @@
 "use client";
 
 import dynamic from "next/dynamic";
-import { memo } from "react";
+import { memo, useEffect, useRef } from "react";
 import {
   Check,
   Moon,
@@ -11,6 +11,7 @@ import {
   Sun,
 } from "lucide-react";
 import { useTranslation } from "react-i18next";
+import { HorizontalScrollArrows } from "@/components/common/horizontal-scroll-arrows";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -46,11 +47,13 @@ export function EmployeeSortTabs({
   activeSort,
   className,
   neutral = false,
+  onPrimary = false,
   onSortChange,
 }: {
   activeSort: ProductSortStatus;
   className?: string;
   neutral?: boolean;
+  onPrimary?: boolean;
   onSortChange: (status: ProductSortStatus) => void;
 }) {
   const { t } = useTranslation();
@@ -59,7 +62,15 @@ export function EmployeeSortTabs({
     <div
       role="group"
       aria-label={t("pos.menu")}
-      className={cn("grid min-w-0 grid-cols-3 gap-2", className)}
+      className={cn(
+        "grid min-w-0 grid-cols-3 gap-1 overflow-hidden rounded-xl",
+        onPrimary
+          ? "border border-primary-foreground/25 bg-primary-foreground/15"
+          : neutral
+          ? "border border-primary/15 bg-primary/5"
+          : "border border-white/20 bg-white/15 dark:border-border dark:bg-muted",
+        className
+      )}
     >
       {SORT_TABS.map((tab) => {
         const active = tab.status === activeSort;
@@ -70,13 +81,18 @@ export function EmployeeSortTabs({
             aria-pressed={active}
             variant="ghost"
             className={cn(
-              // lg: อยู่แถวเดียวกับช่องค้นหา/ปุ่มไอคอน (h-11) — สูงเท่ากันให้แถวตรง
-              "h-11 justify-center rounded-full border px-2.5 text-xs font-bold shadow-sm lg:text-sm",
-              neutral
-                ? "border-border bg-card text-foreground hover:bg-accent hover:text-foreground"
-                : "border-white/20 bg-white/15 text-white hover:border-white/45 hover:bg-white/25 hover:text-white dark:border-border dark:bg-card dark:text-foreground dark:hover:bg-accent dark:hover:text-foreground",
+              "h-11 justify-center rounded-lg border-transparent px-2.5 text-xs font-bold shadow-none focus-visible:border-primary focus-visible:ring-primary lg:text-sm",
+              onPrimary
+                ? "bg-transparent text-primary-foreground/85 hover:bg-primary-foreground/15 hover:text-primary-foreground focus-visible:border-primary-foreground focus-visible:ring-primary-foreground"
+                : neutral
+                ? "bg-transparent text-foreground/75 hover:bg-primary/10 hover:text-foreground"
+                : "bg-transparent text-white/80 hover:bg-white/15 hover:text-white dark:text-muted-foreground dark:hover:bg-card dark:hover:text-foreground",
               active &&
-                "border-primary/20 bg-primary text-primary-foreground hover:bg-primary/90 hover:text-primary-foreground"
+                (onPrimary
+                  ? "border-primary-foreground/70 bg-primary-foreground text-primary shadow-sm hover:bg-primary-foreground/90 hover:text-primary"
+                  : neutral
+                  ? "border-primary bg-primary text-primary-foreground shadow-sm hover:bg-primary/90 hover:text-primary-foreground dark:border-primary dark:bg-primary dark:text-primary-foreground dark:hover:bg-primary/90"
+                  : "bg-primary text-primary-foreground shadow-xs hover:bg-primary/90 hover:text-primary-foreground dark:bg-primary dark:text-primary-foreground dark:hover:bg-primary/90")
             )}
             onClick={() => onSortChange(tab.status)}
           >
@@ -92,6 +108,7 @@ export function EmployeeSearchForm({
   className,
   loading,
   neutral = false,
+  onPrimary = false,
   onSearchChange,
   onSearchSubmit,
   search,
@@ -100,6 +117,7 @@ export function EmployeeSearchForm({
   className?: string;
   loading: boolean;
   neutral?: boolean;
+  onPrimary?: boolean;
   onSearchChange: (value: string) => void;
   onSearchSubmit: () => void;
   search: string;
@@ -121,15 +139,21 @@ export function EmployeeSearchForm({
           aria-hidden="true"
           className={cn(
             "pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2",
-            neutral ? "text-muted-foreground" : "text-white/70 dark:text-muted-foreground"
+            onPrimary
+              ? "text-primary-text"
+              : neutral
+              ? "text-muted-foreground"
+              : "text-white/70 dark:text-muted-foreground"
           )}
         />
         <Input
           aria-label={t("pos.searchMenu")}
           autoComplete="off"
           className={cn(
-            "h-11 rounded-full pl-9 font-semibold shadow-sm",
-            neutral
+            "h-11 rounded-xl pl-9 font-semibold shadow-xs",
+            onPrimary
+              ? "border-primary-foreground/50 bg-primary-foreground text-foreground placeholder:text-muted-foreground"
+              : neutral
               ? "border-border bg-card text-foreground placeholder:text-muted-foreground"
               : "border-white/25 bg-white/15 text-white placeholder:text-white/65 dark:border-border dark:bg-card dark:text-foreground dark:placeholder:text-muted-foreground"
           )}
@@ -143,7 +167,14 @@ export function EmployeeSearchForm({
       <Button
         type="submit"
         aria-label={t("actions.search")}
-        className="h-11 shrink-0 rounded-full bg-primary px-3 text-primary-foreground shadow-sm hover:bg-primary/90 sm:px-4"
+        className={cn(
+          "h-11 shrink-0 rounded-xl px-3 shadow-xs sm:px-4",
+          onPrimary
+            ? "border border-primary-foreground/40 bg-primary-foreground/15 text-primary-foreground hover:bg-primary-foreground/25 hover:text-primary-foreground"
+            : neutral
+            ? "border border-primary/20 bg-primary text-primary-foreground hover:bg-primary/90 hover:text-primary-foreground"
+            : "bg-primary text-primary-foreground hover:bg-primary/90"
+        )}
         disabled={loading}
       >
         {loading ? (
@@ -162,10 +193,12 @@ export function EmployeeSearchForm({
 export function EmployeeMobileHeaderActions({
   loading,
   neutral = false,
+  onPrimary = false,
   onRefresh,
 }: {
   loading: boolean;
   neutral?: boolean;
+  onPrimary?: boolean;
   onRefresh: () => void;
 }) {
   const { t } = useTranslation();
@@ -187,8 +220,10 @@ export function EmployeeMobileHeaderActions({
           aria-label={t("common.actions")}
           className={cn(
             "size-11 shrink-0 rounded-full border shadow-sm",
-            neutral
-              ? "border-border bg-card text-foreground hover:bg-accent hover:text-foreground"
+            onPrimary
+              ? "border-primary-foreground/35 bg-primary-foreground/10 text-primary-foreground hover:bg-primary-foreground/20 hover:text-primary-foreground"
+              : neutral
+              ? "border-primary/20 bg-card text-primary-text hover:bg-primary/10 hover:text-primary-text"
               : "border-white/25 bg-white/15 text-white hover:bg-white/25 hover:text-white dark:border-border dark:bg-card dark:text-foreground dark:hover:bg-accent dark:hover:text-foreground"
           )}
         >
@@ -252,6 +287,7 @@ export const EmployeeCategorySidebar = memo(function EmployeeCategorySidebar({
 
   return (
     <aside
+      aria-label={t("pos.menu")}
       className={cn(
         "relative hidden min-h-0 overflow-hidden bg-transparent p-1.5 md:flex",
         neutral ? "text-foreground" : "text-white dark:text-foreground"
@@ -269,12 +305,16 @@ export const EmployeeCategorySidebar = memo(function EmployeeCategorySidebar({
             ? Array.from({ length: 6 }).map((_, index) => (
                 <Skeleton
                   key={index}
-                  className={cn("h-[5.625rem] rounded-lg", neutral ? "bg-muted" : "bg-white/20")}
+                  className={cn(
+                    "h-[5.625rem] rounded-lg",
+                    neutral ? "bg-muted" : "bg-white/20"
+                  )}
                 />
               ))
             : categories.map((category) => {
                 const active = category.cateUuid === selectedCateUuid;
-                const categoryLabel = category.cateName?.trim() || t("pos.menu");
+                const categoryLabel =
+                  category.cateName?.trim() || t("pos.menu");
                 return (
                   <Tooltip key={category.cateUuid}>
                     <TooltipTrigger asChild>
@@ -285,10 +325,6 @@ export const EmployeeCategorySidebar = memo(function EmployeeCategorySidebar({
                         className={cn(
                           "h-auto min-h-[5.625rem] w-full shrink-0 flex-col gap-1 rounded-lg border px-2 py-2 shadow-sm",
                           neutral
-                            // bg-card ใช้ไม่ได้ผลตรงนี้ — --card เท่ากับ --background เป๊ะในโหมดสว่าง
-                            // (ทั้งคู่ oklch(1 0 0) ขาวล้วน) การ์ดที่ "ทึบ" ตามทฤษฎีเลยกลืนหายไปกับพื้น
-                            // หน้าเพจ Capacitor ที่ไม่มีรูปพื้นหลังให้ตัดกันแบบเว็บ เหลือแค่เส้นขอบจาง ๆ
-                            // เป็นตัวบอกว่ากดได้ ใช้ bg-muted แทน (ต่างจาก background จริงในทั้ง 2 โหมด)
                             ? "border-border bg-muted text-foreground/90 hover:border-primary/40 hover:bg-accent hover:text-foreground focus-visible:ring-ring/60"
                             : "border-white/20 bg-white/10 text-white/90 shadow-black/5 hover:border-white/45 hover:bg-white/20 hover:text-white focus-visible:ring-white/60 dark:border-border dark:bg-card dark:text-foreground/90 dark:shadow-black/20 dark:hover:border-primary/40 dark:hover:bg-accent dark:hover:text-foreground dark:focus-visible:ring-ring/60",
                           // dark: มี selector &:is(.dark *) ซึ่ง specificity สูงกว่า utility เฉย ๆ (ดู
@@ -296,7 +332,9 @@ export const EmployeeCategorySidebar = memo(function EmployeeCategorySidebar({
                           // dark:bg-card/dark:hover:bg-accent ด้านบนจะชนะ bg-primary เสมอในโหมดมืด ทำให้
                           // ปุ่มที่เลือกอยู่ไม่เปลี่ยนสีเลย
                           active &&
-                            "border-primary/20 bg-primary text-primary-foreground shadow-primary/20 hover:bg-primary/90 hover:text-primary-foreground dark:border-primary/20 dark:bg-primary dark:text-primary-foreground dark:hover:bg-primary/90 dark:hover:text-primary-foreground"
+                            (neutral
+                              ? "border-primary/40 bg-sidebar-accent text-sidebar-accent-foreground shadow-none hover:bg-sidebar-accent hover:text-sidebar-accent-foreground dark:bg-sidebar-accent dark:text-sidebar-accent-foreground dark:hover:bg-sidebar-accent dark:hover:text-sidebar-accent-foreground"
+                              : "border-primary/20 bg-primary text-primary-foreground shadow-primary/20 hover:bg-primary/90 hover:text-primary-foreground dark:border-primary/20 dark:bg-primary dark:text-primary-foreground dark:hover:bg-primary/90 dark:hover:text-primary-foreground")
                         )}
                         onClick={() => onSelectCategory(category.cateUuid)}
                       >
@@ -325,57 +363,117 @@ export const EmployeeCategoryRail = memo(function EmployeeCategoryRail({
   categories,
   neutral = false,
   selectedCateUuid,
+  wide = false,
   onSelectCategory,
 }: {
   categories: CateWithProducts[];
   neutral?: boolean;
   selectedCateUuid: string;
+  wide?: boolean;
   onSelectCategory: (cateUuid: string) => void;
 }) {
   const { t } = useTranslation();
+  const activeCategoryRef = useRef<HTMLButtonElement>(null);
+  const categoryRailRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!wide) return;
+    activeCategoryRef.current?.scrollIntoView({
+      behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches
+        ? "auto"
+        : "smooth",
+      block: "nearest",
+      inline: "nearest",
+    });
+  }, [selectedCateUuid, wide]);
 
   if (!categories.length) return null;
 
   return (
-    <div className="-mx-3 overflow-x-auto overflow-y-hidden px-3 pb-1 md:hidden">
+    <nav
+      aria-label={t("nav.category")}
+      className={cn(
+        "-mx-3",
+        wide
+          ? "relative min-w-0"
+          : "overflow-x-auto overflow-y-hidden px-3 pb-1 md:hidden"
+      )}
+    >
       <div
+        ref={wide ? categoryRailRef : undefined}
+        data-pos-category-rail={wide ? "true" : undefined}
         className={cn(
-          "w-max min-w-full overflow-hidden rounded-2xl border p-1.5 shadow-sm",
-          neutral
-            ? "border-border bg-card"
-            : "border-white/20 bg-white/15 shadow-xl shadow-black/20 dark:border-border dark:bg-card dark:shadow-black/40"
+          wide
+            ? "overflow-x-auto overflow-y-hidden px-3 pb-1 scroll-smooth scroll-px-3 touch-pan-x overscroll-x-contain [overflow-anchor:none] [scrollbar-width:thin]"
+            : "contents"
         )}
       >
-        <div className="flex gap-2">
-          {categories.map((category) => {
-            const active = category.cateUuid === selectedCateUuid;
-            const categoryLabel = category.cateName?.trim() || t("pos.menu");
-            return (
-              <Button
-                key={category.cateUuid}
-                type="button"
-                aria-pressed={active}
-                variant="ghost"
-                size="sm"
-                className={cn(
-                  "h-auto min-h-10 max-w-47.5 shrink-0 rounded-2xl border px-3 py-1.5 text-sm font-black",
-                  neutral
-                    ? "border-border bg-muted text-foreground hover:border-primary/40 hover:bg-accent hover:text-foreground"
-                    : "border-white/15 bg-black/20 text-white hover:border-white/45 hover:bg-white/10 hover:text-white dark:border-border dark:bg-card dark:text-foreground dark:hover:border-primary/40 dark:hover:bg-accent dark:hover:text-foreground",
-                  // เหตุผลเดียวกับ EmployeeCategorySidebar ด้านบน — dark: ต้องมี selector เฉพาะให้ active ด้วย
-                  active &&
-                    "border-primary/20 bg-primary text-primary-foreground hover:bg-primary/90 hover:text-primary-foreground dark:border-primary/20 dark:bg-primary dark:text-primary-foreground dark:hover:bg-primary/90 dark:hover:text-primary-foreground"
-                )}
-                onClick={() => onSelectCategory(category.cateUuid)}
-              >
-                <span className="min-w-0 flex-1 whitespace-normal break-words text-center leading-5">
-                  {categoryLabel}
-                </span>
-              </Button>
-            );
-          })}
+        <div
+          data-pos-category-frame={wide ? "plain" : "card"}
+          className={cn(
+            wide
+              ? "w-max min-w-full py-1"
+              : "w-max min-w-full overflow-hidden rounded-2xl border p-1.5 shadow-sm",
+            !wide &&
+              (neutral
+                ? "border-border bg-card"
+                : "border-white/20 bg-white/15 shadow-xl shadow-black/20 dark:border-border dark:bg-card dark:shadow-black/40")
+          )}
+        >
+          <div className="flex gap-2">
+            {categories.map((category) => {
+              const active = category.cateUuid === selectedCateUuid;
+              const categoryLabel = category.cateName?.trim() || t("pos.menu");
+              return (
+                <Button
+                  key={category.cateUuid}
+                  ref={active ? activeCategoryRef : undefined}
+                  type="button"
+                  aria-pressed={active}
+                  variant="ghost"
+                  size="sm"
+                  className={cn(
+                    "h-auto min-h-11 shrink-0 rounded-2xl border px-3 py-1.5 text-sm font-black",
+                    wide
+                      ? "h-11 w-max max-w-none whitespace-nowrap px-4"
+                      : "max-w-47.5",
+                    neutral
+                      ? wide
+                        ? "border-border bg-background text-foreground hover:border-primary/50 hover:bg-primary/5 hover:text-foreground"
+                        : "border-border bg-muted text-foreground hover:border-primary/40 hover:bg-accent hover:text-foreground"
+                      : "border-white/15 bg-black/20 text-white hover:border-white/45 hover:bg-white/10 hover:text-white dark:border-border dark:bg-card dark:text-foreground dark:hover:border-primary/40 dark:hover:bg-accent dark:hover:text-foreground",
+                    // เหตุผลเดียวกับ EmployeeCategorySidebar ด้านบน — dark: ต้องมี selector เฉพาะให้ active ด้วย
+                    active &&
+                      (neutral
+                        ? wide
+                          ? "border-primary bg-primary text-primary-foreground shadow-sm hover:bg-primary/90 hover:text-primary-foreground dark:border-primary dark:bg-primary dark:text-primary-foreground dark:hover:bg-primary/90"
+                          : "border-primary/40 bg-sidebar-accent text-sidebar-accent-foreground shadow-xs hover:bg-sidebar-accent hover:text-sidebar-accent-foreground dark:bg-sidebar-accent dark:text-sidebar-accent-foreground dark:hover:bg-sidebar-accent dark:hover:text-sidebar-accent-foreground"
+                        : "border-primary/20 bg-primary text-primary-foreground hover:bg-primary/90 hover:text-primary-foreground dark:border-primary/20 dark:bg-primary dark:text-primary-foreground dark:hover:bg-primary/90 dark:hover:text-primary-foreground")
+                  )}
+                  onClick={() => onSelectCategory(category.cateUuid)}
+                >
+                  <span
+                    className={cn(
+                      "min-w-0 flex-1 text-center leading-5",
+                      wide
+                        ? "shrink-0 whitespace-nowrap"
+                        : "whitespace-normal break-words"
+                    )}
+                  >
+                    {categoryLabel}
+                  </span>
+                </Button>
+              );
+            })}
+          </div>
         </div>
       </div>
-    </div>
+      {wide ? (
+        <HorizontalScrollArrows
+          className="size-11 border-primary bg-primary text-primary-foreground shadow-md hover:bg-primary/90 hover:text-primary-foreground disabled:pointer-events-none"
+          scrollRef={categoryRailRef}
+        />
+      ) : null}
+    </nav>
   );
 });

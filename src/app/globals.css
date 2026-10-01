@@ -538,7 +538,10 @@ html {
 
 @media (pointer: coarse) {
   :root {
-    --pos-system-bottom-safe-area: max(env(safe-area-inset-bottom, 0px), 2.25rem);
+    --pos-system-bottom-safe-area: max(
+      env(safe-area-inset-bottom, 0px),
+      2.25rem
+    );
   }
 }
 
@@ -769,8 +772,7 @@ html {
    Force the same sRGB 45% primary overlay on every Android device so the grand-total
    area cannot become pale near the bright lower edge of the background image. */
 .capacitor-android [data-slot="sheet-content"][data-pos-pattern] {
-  background-image:
-    linear-gradient(
+  background-image: linear-gradient(
       rgba(var(--legacy-primary-rgb), 0.45),
       rgba(var(--legacy-primary-rgb), 0.45)
     ),
@@ -1278,15 +1280,13 @@ html {
 
 .capacitor-android .login-light-zone [data-slot="input-group"]:focus-within {
   border-color: var(--primary) !important;
-  box-shadow:
-    0 0 0 4px rgba(16, 185, 129, 0.12),
+  box-shadow: 0 0 0 4px rgba(16, 185, 129, 0.12),
     0 1px 2px 0 rgba(15, 23, 42, 0.06) !important;
 }
 
 .capacitor-android .login-light-zone .login-input:focus {
   border-color: var(--primary) !important;
-  box-shadow:
-    0 0 0 4px rgba(16, 185, 129, 0.12),
+  box-shadow: 0 0 0 4px rgba(16, 185, 129, 0.12),
     0 1px 2px 0 rgba(15, 23, 42, 0.06) !important;
 }
 
@@ -1359,7 +1359,10 @@ html {
 .pos-safe-bottom-offset {
   /* fixed position เลยไม่กิน padding-bottom ของ main ที่กันความสูง native bottom nav ไว้แล้ว
      ต้องบวก --app-shell-bottom-nav-height เองตรงนี้ (เว็บไม่ประกาศตัวแปรนี้ ใช้ fallback 0px) */
-  bottom: calc(1rem + var(--pos-system-bottom-safe-area) + var(--app-shell-bottom-nav-height, 0px));
+  bottom: calc(
+    1rem + var(--pos-system-bottom-safe-area) +
+      var(--app-shell-bottom-nav-height, 0px)
+  );
 }
 
 .login-light-zone {
@@ -1412,11 +1415,7 @@ body {
   background-attachment: fixed;
   color: var(--foreground);
   overscroll-behavior: none;
-  font-family:
-    var(--font-noto-sans-lao),
-    "Aptos",
-    "Segoe UI",
-    sans-serif;
+  font-family: var(--font-noto-sans-lao), "Aptos", "Segoe UI", sans-serif;
 }
 
 /* iOS (iPhone/iPad, incl. the Capacitor WKWebView) renders text with subpixel
@@ -1470,11 +1469,15 @@ html.theme-transition-active::view-transition-old(root) {
   will-change: transform;
 }
 
-html.theme-transition-active[data-theme-transition-direction="rtl"]::view-transition-old(root) {
+html.theme-transition-active[data-theme-transition-direction="rtl"]::view-transition-old(
+    root
+  ) {
   animation-name: theme-reveal-old-to-left;
 }
 
-html.theme-transition-active[data-theme-transition-direction="ltr"]::view-transition-old(root) {
+html.theme-transition-active[data-theme-transition-direction="ltr"]::view-transition-old(
+    root
+  ) {
   animation-name: theme-reveal-old-to-right;
 }
 
@@ -1499,8 +1502,11 @@ html.theme-transition-active[data-theme-transition-direction="ltr"]::view-transi
 }
 
 .dark body {
-  background:
-    linear-gradient(135deg, hsl(var(--app)) 0%, color-mix(in oklch, var(--muted) 38%, transparent) 100%);
+  background: linear-gradient(
+    135deg,
+    hsl(var(--app)) 0%,
+    color-mix(in oklch, var(--muted) 38%, transparent) 100%
+  );
   background-attachment: fixed;
 }
 
@@ -1517,31 +1523,39 @@ html.theme-transition-active[data-theme-transition-direction="ltr"]::view-transi
 /* Swan 1's WebView 101 cannot parse dvh or the individual translate property.
    Keep fixed screens bounded so their inner scroll areas work, and keep the
    keyboard skip link offscreen until focused without changing newer devices. */
-html.swan1-legacy-colors .app-shell[data-platform="capacitor"][data-fixed-screen="true"] {
+html.swan1-legacy-colors
+  .app-shell[data-platform="capacitor"][data-fixed-screen="true"] {
   height: 100vh;
 }
 
 /* Swan 1 draws its WebView behind the Android status and navigation bars, but
    WebView 101 reports no usable CSS safe-area inset. Reserve those two strips
    only while its desktop POS layout is active so the header and cart stay tappable. */
-html.swan1-legacy-colors .app-shell[data-platform="capacitor"][data-desktop-pos-layout="true"] {
+html.swan1-legacy-colors
+  .app-shell[data-platform="capacitor"][data-desktop-pos-layout="true"] {
   padding-top: 32px;
   padding-bottom: 64px;
 }
 
 /* The table screen already reserves Android's lower system strip inside its
    legend. Reserving it again on the app shell leaves a blank band below it. */
-html.swan1-legacy-colors .app-shell[data-platform="capacitor"][data-desktop-pos-layout="true"]:not([data-desktop-pos-order-layout="true"]) {
+html.swan1-legacy-colors
+  .app-shell[data-platform="capacitor"][data-desktop-pos-layout="true"]:not(
+    [data-desktop-pos-order-layout="true"]
+  ) {
   padding-bottom: 0;
 }
 
 /* The order screen has its own cart footer safe-area. Keep the action row close
    to (but above) Swan 1's Android navigation bar without double spacing it. */
-html.swan1-legacy-colors .app-shell[data-platform="capacitor"][data-desktop-pos-order-layout="true"] {
+html.swan1-legacy-colors
+  .app-shell[data-platform="capacitor"][data-desktop-pos-order-layout="true"] {
   padding-bottom: 40px;
 }
 
-html.swan1-legacy-colors .app-shell[data-desktop-pos-order-layout="true"] .pos-safe-bottom-padding {
+html.swan1-legacy-colors
+  .app-shell[data-desktop-pos-order-layout="true"]
+  .pos-safe-bottom-padding {
   padding-bottom: 8px;
 }
 
@@ -1591,8 +1605,12 @@ html.swan1-legacy-colors [data-pos-payment-methods] [data-slot="tabs-trigger"] {
   color: var(--foreground);
 }
 
-html.swan1-legacy-colors [data-pos-payment-methods] [data-slot="tabs-trigger"][data-state="active"],
-html.swan1-legacy-colors [data-pos-payment-methods] [data-slot="tabs-trigger"][aria-selected="true"] {
+html.swan1-legacy-colors
+  [data-pos-payment-methods]
+  [data-slot="tabs-trigger"][data-state="active"],
+html.swan1-legacy-colors
+  [data-pos-payment-methods]
+  [data-slot="tabs-trigger"][aria-selected="true"] {
   border-color: var(--ring);
   background-color: var(--muted);
 }
@@ -1639,7 +1657,8 @@ html.swan1-legacy-colors [data-pos-table-card] {
   border: 1px solid var(--border);
 }
 
-html.swan1-legacy-colors [data-pos-table-card]:not(:focus-visible):not([aria-pressed="true"]) {
+html.swan1-legacy-colors
+  [data-pos-table-card]:not(:focus-visible):not([aria-pressed="true"]) {
   box-shadow: 0 1px 3px rgba(15, 23, 42, 0.12);
 }
 
@@ -1654,7 +1673,9 @@ html.swan1-legacy-colors [data-pos-product-card] {
    especially old WebView). Long transition lists and continuously pulsing shadows
    compete with taps on the renderer thread, so the terminal gets an intentionally
    immediate, static UI. Loading spinners stay animated to preserve async feedback. */
-html.swan1-legacy-colors .app-shell[data-desktop-pos-layout="true"] *:not([data-slot="spinner"]),
+html.swan1-legacy-colors
+  .app-shell[data-desktop-pos-layout="true"]
+  *:not([data-slot="spinner"]),
 html.swan1-legacy-colors .app-shell[data-desktop-pos-layout="true"] *::before,
 html.swan1-legacy-colors .app-shell[data-desktop-pos-layout="true"] *::after {
   animation: none !important;
@@ -1663,26 +1684,38 @@ html.swan1-legacy-colors .app-shell[data-desktop-pos-layout="true"] *::after {
   scroll-behavior: auto !important;
 }
 
-html.swan1-legacy-colors .app-shell[data-desktop-pos-layout="true"] .pos-table-card-alert,
-html.swan1-legacy-colors .app-shell[data-desktop-pos-layout="true"] .pos-status-ring-pulse,
-html.swan1-legacy-colors .app-shell[data-desktop-pos-layout="true"] .pos-chip-alert-ring {
+html.swan1-legacy-colors
+  .app-shell[data-desktop-pos-layout="true"]
+  .pos-table-card-alert,
+html.swan1-legacy-colors
+  .app-shell[data-desktop-pos-layout="true"]
+  .pos-status-ring-pulse,
+html.swan1-legacy-colors
+  .app-shell[data-desktop-pos-layout="true"]
+  .pos-chip-alert-ring {
   will-change: auto;
 }
 
 /* Keep the native Android back handler while giving Swan 1's dashboard the
    desktop sidebar chrome, including the account control at its foot. */
-html.swan1-legacy-colors .app-shell[data-desktop-home-layout="true"] .swan1-home-top-bar {
+html.swan1-legacy-colors
+  .app-shell[data-desktop-home-layout="true"]
+  .swan1-home-top-bar {
   height: 88px;
   margin-left: 16rem;
   border-bottom: 1px solid var(--border);
   background: var(--background);
 }
 
-html.swan1-legacy-colors .app-shell[data-desktop-home-layout="true"][data-home-sidebar-collapsed="true"] .swan1-home-top-bar {
+html.swan1-legacy-colors
+  .app-shell[data-desktop-home-layout="true"][data-home-sidebar-collapsed="true"]
+  .swan1-home-top-bar {
   margin-left: 3rem;
 }
 
-html.swan1-legacy-colors .app-shell[data-desktop-home-layout="true"] .swan1-home-sidebar {
+html.swan1-legacy-colors
+  .app-shell[data-desktop-home-layout="true"]
+  .swan1-home-sidebar {
   top: 0;
   /* Swan 1's fixed viewport extends into the Android navigation strip. The
      measured 28px offset places the account control just above that strip. */
@@ -1691,14 +1724,22 @@ html.swan1-legacy-colors .app-shell[data-desktop-home-layout="true"] .swan1-home
   padding-top: 32px;
 }
 
-html.swan1-legacy-colors .app-shell[data-desktop-home-layout="true"] [data-slot="card"] {
+html.swan1-legacy-colors
+  .app-shell[data-desktop-home-layout="true"]
+  [data-slot="card"] {
   border: 1px solid var(--border);
 }
 
-html.swan1-legacy-colors .app-shell[data-desktop-home-layout="true"] [data-dashboard-revenue-card] {
+html.swan1-legacy-colors
+  .app-shell[data-desktop-home-layout="true"]
+  [data-dashboard-revenue-card] {
   border-color: transparent;
   background-color: var(--primary);
-  background-image: linear-gradient(135deg, rgba(255, 255, 255, 0), rgba(255, 255, 255, 0.22));
+  background-image: linear-gradient(
+    135deg,
+    rgba(255, 255, 255, 0),
+    rgba(255, 255, 255, 0.22)
+  );
 }
 
 .app-shell-body {
@@ -1717,8 +1758,7 @@ html.swan1-legacy-colors .app-shell[data-desktop-home-layout="true"] [data-dashb
 
 .app-sidebar-panel {
   background: var(--sidebar);
-  box-shadow:
-    12px 0 30px -28px rgb(15 23 42 / 0.55),
+  box-shadow: 12px 0 30px -28px rgb(15 23 42 / 0.55),
     inset -1px 0 0 var(--sidebar-border);
   backdrop-filter: blur(12px);
   backface-visibility: hidden;
@@ -1726,12 +1766,14 @@ html.swan1-legacy-colors .app-shell[data-desktop-home-layout="true"] [data-dashb
 
 .app-sidebar-scroll {
   scrollbar-width: thin;
-  scrollbar-color: color-mix(in oklch, var(--muted-foreground) 45%, transparent) transparent;
+  scrollbar-color: color-mix(in oklch, var(--muted-foreground) 45%, transparent)
+    transparent;
 }
 
 .settings-table-scroll {
   scrollbar-width: thin;
-  scrollbar-color: color-mix(in oklch, var(--muted-foreground) 45%, transparent) transparent;
+  scrollbar-color: color-mix(in oklch, var(--muted-foreground) 45%, transparent)
+    transparent;
   overscroll-behavior: contain;
   -webkit-overflow-scrolling: touch;
   /* บนหน้าที่ไม่มี footer ตามหลัง (loading/ไม่มีข้อมูล) ตัวสกรอลนี้เป็น flex child ตัวสุดท้าย
@@ -1741,7 +1783,10 @@ html.swan1-legacy-colors .app-shell[data-desktop-home-layout="true"] [data-dashb
      side rail แทน bottom nav — ดู globals.css [data-platform=capacitor] @media(min-width:768px))
      เหลือแค่ --pos-system-bottom-safe-area (gesture bar ของระบบ) ที่ยังต้องกันไว้อยู่ดี —
      รวมไว้จุดเดียวตรงนี้แทนให้แต่ละหน้าที่มี scroll ของตัวเองไปเติม padding-bottom เองซ้ำๆ */
-  padding-bottom: max(var(--app-shell-bottom-nav-height, 0px), var(--pos-system-bottom-safe-area, 0px));
+  padding-bottom: max(
+    var(--app-shell-bottom-nav-height, 0px),
+    var(--pos-system-bottom-safe-area, 0px)
+  );
 }
 
 @media (max-width: 767px) {
@@ -1778,8 +1823,16 @@ html.swan1-legacy-colors .app-shell[data-desktop-home-layout="true"] [data-dashb
 }
 
 [data-sidebar="menu-button"][data-active="true"] .sidebar-submenu-cue {
-  background: color-mix(in oklch, var(--sidebar-primary-foreground) 18%, transparent);
-  border-color: color-mix(in oklch, var(--sidebar-primary-foreground) 35%, transparent);
+  background: color-mix(
+    in oklch,
+    var(--sidebar-primary-foreground) 18%,
+    transparent
+  );
+  border-color: color-mix(
+    in oklch,
+    var(--sidebar-primary-foreground) 35%,
+    transparent
+  );
   color: var(--sidebar-primary-foreground);
 }
 
@@ -1828,6 +1881,19 @@ html.swan1-legacy-colors .app-shell[data-desktop-home-layout="true"] [data-dashb
   background: var(--background);
   padding-top: env(safe-area-inset-top, 0px);
   border-bottom: 1px solid var(--border);
+}
+
+/* หน้าออเดอร์บน Native แนวตั้งใช้หัวแถบเขียวเดียวกับ workspace ของ POS
+   แยกด้วย data attribute เพื่อไม่เปลี่ยน top bar ของหน้าอื่นหรือ desktop shell */
+.capacitor-native .native-top-bar[data-pos-order-top-bar="true"] {
+  color: var(--primary-foreground);
+  background: var(--primary);
+  border-bottom-color: color-mix(
+    in oklch,
+    var(--primary-foreground) 22%,
+    transparent
+  );
+  box-shadow: 0 8px 24px -22px color-mix(in oklch, var(--primary) 70%, black);
 }
 
 @keyframes native-route-progress {
@@ -1883,11 +1949,7 @@ html.swan1-legacy-colors .app-shell[data-desktop-home-layout="true"] [data-dashb
   color: #111827;
   padding: 28px;
   pointer-events: none;
-  font-family:
-    var(--font-noto-sans-lao),
-    "Aptos",
-    "Segoe UI",
-    sans-serif;
+  font-family: var(--font-noto-sans-lao), "Aptos", "Segoe UI", sans-serif;
 }
 
 .report-print-official-header {
@@ -2132,11 +2194,7 @@ html.swan1-legacy-colors .app-shell[data-desktop-home-layout="true"] [data-dashb
   box-shadow: 0 24px 60px rgb(15 23 42 / 0.12);
   padding: clamp(22px, 4vw, 48px);
   color: #111827;
-  font-family:
-    var(--font-noto-sans-lao),
-    "Aptos",
-    "Segoe UI",
-    sans-serif;
+  font-family: var(--font-noto-sans-lao), "Aptos", "Segoe UI", sans-serif;
   font-variant-numeric: tabular-nums;
 }
 
@@ -2388,7 +2446,6 @@ html.swan1-legacy-colors .app-shell[data-desktop-home-layout="true"] [data-dashb
     size: A4 landscape;
     margin: 8mm;
   }
-
 }
 
 /* Skeleton loading surface. Both the base and the moving highlight are mixed from
@@ -2472,15 +2529,14 @@ html.swan1-legacy-colors .app-shell[data-desktop-home-layout="true"] [data-dashb
 @keyframes pos-table-card-alert-pulse {
   0%,
   100% {
-    box-shadow:
-      0 0 0 0 color-mix(in oklch, var(--destructive) 45%, transparent),
+    box-shadow: 0 0 0 0 color-mix(in oklch, var(--destructive) 45%, transparent),
       0 14px 32px -28px color-mix(in oklch, var(--primary) 65%, transparent);
     transform: translateY(0);
   }
 
   50% {
-    box-shadow:
-      0 0 0 5px color-mix(in oklch, var(--destructive) 20%, transparent),
+    box-shadow: 0 0 0 5px
+        color-mix(in oklch, var(--destructive) 20%, transparent),
       0 18px 42px -24px color-mix(in oklch, var(--primary) 85%, transparent);
     transform: translateY(-1px);
   }
@@ -2501,7 +2557,8 @@ html.swan1-legacy-colors .app-shell[data-desktop-home-layout="true"] [data-dashb
   }
 
   50% {
-    box-shadow: 0 0 0 6px color-mix(in oklch, var(--destructive) 15%, transparent);
+    box-shadow: 0 0 0 6px
+      color-mix(in oklch, var(--destructive) 15%, transparent);
   }
 }
 
@@ -2519,7 +2576,8 @@ html.swan1-legacy-colors .app-shell[data-desktop-home-layout="true"] [data-dashb
   }
 
   50% {
-    box-shadow: 0 0 0 6px color-mix(in oklch, var(--destructive) 18%, transparent);
+    box-shadow: 0 0 0 6px
+      color-mix(in oklch, var(--destructive) 18%, transparent);
   }
 }
 
@@ -2544,8 +2602,7 @@ html.swan1-legacy-colors .app-shell[data-desktop-home-layout="true"] [data-dashb
   }
 
   50% {
-    box-shadow:
-      0 0 0 2.5px rgb(var(--ring-rgb) / 95%),
+    box-shadow: 0 0 0 2.5px rgb(var(--ring-rgb) / 95%),
       0 0 0 10px rgb(var(--ring-rgb) / 28%);
   }
 }
@@ -2644,21 +2701,23 @@ html.swan1-legacy-colors .app-shell[data-desktop-home-layout="true"] [data-dashb
 
   .pos-table-card-alert {
     animation: none;
-    box-shadow:
-      0 0 0 2px color-mix(in oklch, var(--destructive) 45%, transparent),
+    box-shadow: 0 0 0 2px
+        color-mix(in oklch, var(--destructive) 45%, transparent),
       0 14px 32px -28px color-mix(in oklch, var(--primary) 65%, transparent);
     will-change: auto;
   }
 
   .notification-bell-alert {
     animation: none;
-    box-shadow: 0 0 0 2px color-mix(in oklch, var(--destructive) 50%, transparent);
+    box-shadow: 0 0 0 2px
+      color-mix(in oklch, var(--destructive) 50%, transparent);
     will-change: auto;
   }
 
   .pos-chip-alert-ring {
     animation: none;
-    box-shadow: 0 0 0 2px color-mix(in oklch, var(--destructive) 50%, transparent);
+    box-shadow: 0 0 0 2px
+      color-mix(in oklch, var(--destructive) 50%, transparent);
     will-change: auto;
   }
 
@@ -2689,7 +2748,11 @@ a[href]:not([aria-disabled="true"]),
 [role="button"]:not([aria-disabled="true"]) {
   cursor: pointer;
   touch-action: manipulation;
-  -webkit-tap-highlight-color: color-mix(in oklch, var(--primary) 12%, transparent);
+  -webkit-tap-highlight-color: color-mix(
+    in oklch,
+    var(--primary) 12%,
+    transparent
+  );
 }
 
 /* tap-highlight-color วาดเป็นสี่เหลี่ยมตามกรอบจริงของ element เสมอ ไม่มองตาม
@@ -2712,7 +2775,8 @@ button.scroll-arrow-button:not(:disabled):not([aria-disabled="true"]) {
   user-select: none;
 }
 
-.capacitor-native input:not([type="button"]):not([type="submit"]):not([type="reset"]),
+.capacitor-native
+  input:not([type="button"]):not([type="submit"]):not([type="reset"]),
 .capacitor-native textarea,
 .capacitor-native [contenteditable="true"] {
   -webkit-touch-callout: default;
@@ -2726,7 +2790,8 @@ button.scroll-arrow-button:not(:disabled):not([aria-disabled="true"]) {
    ตั้งแต่ต้น (บังคับ font-size จริง >= 16px เฉพาะ iOS native shell) แทนการปิด pinch-zoom
    ทั้งแอปด้วย maximum-scale=1/user-scalable=no ซึ่งขัดกับเกณฑ์ WCAG 1.4.4 (resize text)
    ที่ตั้งเป็นพื้นฐานของแอปนี้ไว้ (ดู docs/Design.md > Accessibility floor) */
-.capacitor-ios input:not([type="button"]):not([type="submit"]):not([type="reset"]),
+.capacitor-ios
+  input:not([type="button"]):not([type="submit"]):not([type="reset"]),
 .capacitor-ios textarea,
 .capacitor-ios select,
 .capacitor-ios [contenteditable="true"] {
@@ -2748,7 +2813,8 @@ textarea,
    hit-area แบบมองไม่เห็นอยู่แล้ว ถ้าปล่อยให้กฎนี้จับด้วยจะบังคับกล่อง/pill ให้ใหญ่ผิดสัดส่วน
    (เช่น Switch 28×16.6px กลายเป็นก้อนเกือบสี่เหลี่ยม 44×44px) — selection ปิดไปแล้วจาก
    กฎ root ด้านบน ไม่ต้องตั้งซ้ำที่นี่ */
-.capacitor-native button:not([role="checkbox"]):not([role="switch"]):not([role="radio"]),
+.capacitor-native
+  button:not([role="checkbox"]):not([role="switch"]):not([role="radio"]),
 .capacitor-native input[type="button"],
 .capacitor-native input[type="reset"],
 .capacitor-native input[type="submit"],
@@ -2758,10 +2824,42 @@ textarea,
   min-inline-size: 2.75rem;
 }
 
+/* Sheet/Dialog เดิมขยาย hit target บน Native แล้ว แต่หน้าปุ่มปิดยังเห็นเป็นไอคอนเล็กโปร่ง ๆ
+   ทำให้ไม่รู้ว่าพื้นที่กดอยู่ตรงไหน จึงทำเฉพาะปุ่มปิดมาตรฐานให้เป็นวงกลม 44px ที่เห็นชัด
+   class นี้ไม่มี style นอก .capacitor-native จึงไม่กระทบ Windows/macOS web shell */
+.capacitor-native .ui-overlay-close-button {
+  z-index: 20;
+  inline-size: 2.75rem;
+  block-size: 2.75rem;
+  border-color: color-mix(in oklch, var(--foreground) 16%, transparent);
+  border-radius: 9999px;
+  color: var(--foreground);
+  background: color-mix(in oklch, var(--background) 88%, var(--primary) 12%);
+  box-shadow: 0 8px 20px -14px rgb(15 23 42 / 80%);
+}
+
+.capacitor-native .ui-overlay-close-button:hover {
+  color: var(--foreground);
+  background: color-mix(in oklch, var(--background) 78%, var(--primary) 22%);
+}
+
+.capacitor-native .ui-overlay-close-button svg {
+  inline-size: 1.125rem;
+  block-size: 1.125rem;
+}
+
+/* เว้นพื้นที่ให้วงกลมปิดของ cart sheet ไม่ทับ badge จำนวนรายการ */
+.capacitor-native [data-pos-cart-sheet-header="true"] {
+  padding-inline-end: 4.5rem;
+}
+
 .capacitor-native button:not(:disabled):not([aria-disabled="true"]):active,
-.capacitor-native input[type="button"]:not(:disabled):not([aria-disabled="true"]):active,
-.capacitor-native input[type="reset"]:not(:disabled):not([aria-disabled="true"]):active,
-.capacitor-native input[type="submit"]:not(:disabled):not([aria-disabled="true"]):active,
+.capacitor-native
+  input[type="button"]:not(:disabled):not([aria-disabled="true"]):active,
+.capacitor-native
+  input[type="reset"]:not(:disabled):not([aria-disabled="true"]):active,
+.capacitor-native
+  input[type="submit"]:not(:disabled):not([aria-disabled="true"]):active,
 .capacitor-native [role="button"]:not([aria-disabled="true"]):active {
   opacity: 0.78;
   transition-duration: 0ms;
@@ -2784,7 +2882,9 @@ textarea,
 }
 
 .recharts-tooltip-wrapper {
-  filter: drop-shadow(0 10px 24px color-mix(in oklch, var(--foreground) 12%, transparent));
+  filter: drop-shadow(
+    0 10px 24px color-mix(in oklch, var(--foreground) 12%, transparent)
+  );
 }
 
 @layer base {

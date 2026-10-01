@@ -39,21 +39,26 @@ import {
   type ProductCardEntry,
   type ProductMedia,
 } from "./order-customer-utils";
+import { productCardCopy, productCardRadiusClass } from "./product-card-copy";
 
 export const EmployeeProductCard = memo(function EmployeeProductCard({
   activeSort,
+  compact = false,
   disabled,
   entry,
   imagePreload = false,
   loading,
+  nativeMobile = false,
   onAction,
   onPrefetch,
 }: {
   activeSort: ProductSortStatus;
+  compact?: boolean;
   entry: ProductCardEntry;
   disabled: boolean;
   imagePreload?: boolean;
   loading: boolean;
+  nativeMobile?: boolean;
   onAction: (entry: ProductCardEntry) => void;
   onPrefetch: (entry: ProductCardEntry) => void;
 }) {
@@ -64,9 +69,11 @@ export const EmployeeProductCard = memo(function EmployeeProductCard({
   const blockedState = getProductBlockedState(product, activeSort);
   const actionState = getProductActionState(product, activeSort);
   const actionLabel = productActionLabel(actionState, product, activeSort, t);
+  const copy = productCardCopy(nativeMobile);
+  const cardRadiusClass = productCardRadiusClass(nativeMobile);
   const cardActionLabel =
     actionState === "choose"
-      ? t("pos.chooseOptionsAction")
+      ? t(copy.chooseActionKey)
       : actionState === "view"
       ? t("pos.viewDetailsAction")
       : actionLabel;
@@ -88,27 +95,61 @@ export const EmployeeProductCard = memo(function EmployeeProductCard({
   return (
     <Card
       data-pos-product-card="true"
+      data-pos-product-compact={compact ? "true" : undefined}
+      data-pos-product-copy={nativeMobile ? "mobile" : "desktop"}
       className={cn(
-        "group relative flex min-w-0 flex-col gap-0 overflow-hidden rounded-lg border-border/80 bg-card py-0 text-card-foreground shadow-sm [contain-intrinsic-size:320px] [content-visibility:auto]",
+        "group relative flex min-w-0 flex-col gap-0 overflow-hidden border-border bg-card py-0 text-card-foreground shadow-sm [contain-intrinsic-size:320px] [content-visibility:auto]",
+        cardRadiusClass,
         !interactionDisabled &&
           "cursor-pointer transition-[transform,border-color,box-shadow] duration-200 motion-safe:hover:-translate-y-0.5 hover:border-primary/45 hover:shadow-md motion-reduce:transition-none",
-        interactionDisabled && "cursor-not-allowed",
+        interactionDisabled && "cursor-not-allowed"
       )}
     >
-      <div className={cn("relative overflow-hidden bg-muted", IMAGE_CROP_ASPECT_CLASS)}>
+      <div
+        className={cn(
+          "relative overflow-hidden bg-muted",
+          IMAGE_CROP_ASPECT_CLASS
+        )}
+      >
         <ProductMediaView
           alt={product.prodName}
           fallbackIcon="utensils"
           imageClassName={cn(
             !interactionDisabled &&
               "transition-transform duration-300 motion-safe:group-hover:scale-105 motion-reduce:transition-none",
-            blockedState && "grayscale",
+            blockedState && "grayscale"
           )}
           media={media}
           preload={imagePreload}
           sizes="(max-width: 767px) 50vw, (max-width: 1279px) 33vw, (max-width: 1535px) 25vw, 300px"
         />
         <ProductBadges activeSort={activeSort} product={product} />
+        {!blockedState ? (
+          <div
+            aria-hidden="true"
+            data-pos-product-action-overlay="true"
+            className={cn(
+              "pointer-events-none absolute bottom-2 right-2 z-10 flex h-8 max-w-[calc(100%-1rem)] items-center gap-1 rounded-full border border-background/80 bg-card/95 px-2.5 text-xs font-black text-foreground shadow-md transition-colors",
+              !interactionDisabled &&
+                "group-hover:border-primary/40 group-hover:bg-sidebar-accent group-hover:text-sidebar-accent-foreground",
+              interactionDisabled && "opacity-65"
+            )}
+          >
+            {loading ? (
+              <Spinner
+                aria-hidden="true"
+                aria-label={undefined}
+                className="size-4 shrink-0"
+              />
+            ) : (
+              <ActionIcon
+                aria-hidden="true"
+                className="size-4 shrink-0 text-primary-text"
+              />
+            )}
+            <span className="min-w-0 truncate">{cardActionLabel}</span>
+          </div>
+        ) : null}
         {blockedState ? (
           <div className="absolute inset-0 grid place-items-center bg-background/75 backdrop-blur-[1px]">
             <Badge className="gap-1 border-destructive/30 bg-destructive text-destructive-foreground shadow-sm">
@@ -119,40 +160,41 @@ export const EmployeeProductCard = memo(function EmployeeProductCard({
         ) : null}
       </div>
 
-      {/* ชื่อ/รายละเอียด/ราคาจับกลุ่มกันด้านบน ปุ่มอย่างเดียวที่ดันลงล่างสุด (mt-auto) ให้ปุ่มในแถว
-          เดียวกันตรงกัน — เดิมเว้นที่ 2 บรรทัดให้ชื่อเสมอ (min-h-10) + gap-2.5 ทุกชั้น + ราคาเป็นตัว mt-auto
-          เลยมีช่องว่างโหว่ใต้ชื่อ และการ์ดสูงเกินจำเป็น */}
-      <CardContent className="flex min-h-0 flex-1 flex-col gap-2 p-2.5">
+      {/* action ย้ายไปลอยบนรูปเพื่อคืนความสูงให้ grid; ปุ่มโปร่งใสที่ครอบทั้งการ์ดยังคงเป็น
+          interactive target เดียว จึงไม่เกิด nested button และพื้นที่กดไม่เล็กลง */}
+      <CardContent
+        className={cn(
+          "flex min-h-0 flex-1 flex-col",
+          compact ? "p-2" : "p-2.5"
+        )}
+      >
         <div className="flex min-w-0 flex-col gap-0.5">
-          <p className="lao-tone-text line-clamp-2 text-pretty text-sm font-bold leading-5 text-foreground sm:text-base sm:leading-6">
+          <p
+            className={cn(
+              "lao-tone-text line-clamp-2 text-pretty font-bold text-foreground",
+              compact
+                ? "text-sm leading-5"
+                : "text-sm leading-5 sm:text-base sm:leading-6"
+            )}
+          >
             {product.prodName}
           </p>
           {description ? (
-            <p className="line-clamp-1 text-xs font-medium leading-4 text-muted-foreground">
+            <p
+              className={cn(
+                "line-clamp-1 font-medium text-muted-foreground",
+                "text-xs leading-4"
+              )}
+            >
               {description}
             </p>
           ) : null}
-          <ProductCardPriceLabel blocked={unavailable} price={price} />
-        </div>
-
-        <div
-          aria-hidden="true"
-          className={cn(
-            "mt-auto flex h-10 w-full items-center justify-center gap-2 rounded-lg border px-2 text-xs font-bold sm:px-3 sm:text-sm",
-            (actionState === "add" ||
-              actionState === "choose" ||
-              actionState === "view") &&
-              "border-primary bg-primary text-primary-foreground shadow-sm",
-            actionState === "blocked" &&
-              "border-destructive/20 bg-destructive/10 text-destructive",
-          )}
-        >
-          {loading ? (
-            <Spinner aria-hidden="true" aria-label={undefined} />
-          ) : (
-            <ActionIcon aria-hidden="true" />
-          )}
-          <span className="min-w-0 truncate">{cardActionLabel}</span>
+          <ProductCardPriceLabel
+            blocked={unavailable}
+            compact={compact}
+            price={price}
+            showVariablePriceHint={copy.showVariablePriceHint}
+          />
         </div>
       </CardContent>
 
@@ -166,7 +208,10 @@ export const EmployeeProductCard = memo(function EmployeeProductCard({
         variant="ghost"
         aria-busy={loading}
         aria-label={accessibleActionLabel}
-        className="absolute inset-0 z-20 h-auto w-auto touch-manipulation rounded-lg bg-transparent p-0 shadow-none transition-transform duration-100 hover:bg-primary/5 active:scale-[0.98] active:bg-primary/15 motion-reduce:transition-none focus-visible:bg-primary/5 focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring disabled:pointer-events-auto disabled:cursor-not-allowed disabled:opacity-100"
+        className={cn(
+          "absolute inset-0 z-20 h-auto w-auto touch-manipulation bg-transparent p-0 shadow-none transition-transform duration-100 hover:bg-primary/5 active:scale-[0.98] active:bg-primary/15 motion-reduce:transition-none focus-visible:bg-primary/5 focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring disabled:pointer-events-auto disabled:cursor-not-allowed disabled:opacity-100",
+          cardRadiusClass
+        )}
         disabled={interactionDisabled}
         onClick={() => onAction(entry)}
         onFocus={() => onPrefetch(entry)}
@@ -180,16 +225,25 @@ export const EmployeeProductCard = memo(function EmployeeProductCard({
 
 function ProductCardPriceLabel({
   blocked,
+  compact,
   price,
+  showVariablePriceHint,
 }: {
   blocked: boolean;
+  compact: boolean;
   price: ReturnType<typeof productCardPrice>;
+  showVariablePriceHint: boolean;
 }) {
   const { t } = useTranslation();
 
-  if (price.kind === "variable" && !blocked) {
+  if (price.kind === "variable" && !blocked && showVariablePriceHint) {
     return (
-      <p className="truncate text-xs font-medium leading-6 text-muted-foreground">
+      <p
+        className={cn(
+          "truncate font-medium text-muted-foreground",
+          compact ? "text-xs leading-5" : "text-xs leading-6"
+        )}
+      >
         {t("pos.chooseToSeePrice")}
       </p>
     );
@@ -202,7 +256,7 @@ function ProductCardPriceLabel({
     <p
       className={cn(
         "flex min-w-0 items-baseline gap-1.5",
-        blocked && "text-muted-foreground",
+        blocked && "text-muted-foreground"
       )}
     >
       {price.kind === "starting" ? (
@@ -212,8 +266,9 @@ function ProductCardPriceLabel({
       ) : null}
       <span
         className={cn(
-          "min-w-0 truncate text-base font-black leading-6 text-primary-text tabular-nums sm:text-lg",
-          blocked && "text-muted-foreground",
+          "min-w-0 truncate font-black text-primary-text tabular-nums",
+          compact ? "text-base leading-5" : "text-base leading-6 sm:text-lg",
+          blocked && "text-muted-foreground"
         )}
       >
         {money(price.value)}
@@ -302,8 +357,7 @@ function ProductBadges({
   product: CateProductItem;
 }) {
   const { t } = useTranslation();
-  const productStatusSort =
-    optionalNumber(product.statusSortFk) ?? activeSort;
+  const productStatusSort = optionalNumber(product.statusSortFk) ?? activeSort;
   const showSet = productStatusSort === ProductSortStatus.SET;
   const showPromotion =
     productStatusSort === ProductSortStatus.PROMOTION || hasPromo(product);
@@ -369,29 +423,51 @@ function productCardDescription(
   return "";
 }
 
-export function ProductGridSkeleton() {
+export function ProductGridSkeleton({
+  className,
+  compact = false,
+  nativeMobile = false,
+}: {
+  className?: string;
+  compact?: boolean;
+  nativeMobile?: boolean;
+}) {
   const { t } = useTranslation();
 
   return (
     <div
       role="status"
       aria-label={t("pos.loadingProducts")}
-      className={PRODUCT_GRID_CLASS}
+      className={cn(PRODUCT_GRID_CLASS, className)}
     >
       {Array.from({ length: 10 }).map((_, index) => (
         <Card
           key={index}
           aria-hidden="true"
-          className="gap-0 overflow-hidden rounded-lg border-border bg-card py-0"
+          className={cn(
+            "gap-0 overflow-hidden border-border bg-card py-0 shadow-xs",
+            productCardRadiusClass(nativeMobile)
+          )}
         >
-          <Skeleton className={cn("w-full rounded-none bg-muted", IMAGE_CROP_ASPECT_CLASS)} />
-          <CardContent className="flex flex-col gap-2 p-2.5">
+          <div
+            className={cn(
+              "relative overflow-hidden bg-muted",
+              IMAGE_CROP_ASPECT_CLASS
+            )}
+          >
+            <Skeleton className="size-full rounded-none bg-muted" />
+            <Skeleton className="absolute bottom-2 right-2 h-8 w-20 rounded-full bg-card/90 shadow-sm" />
+          </div>
+          <CardContent
+            className={cn("flex flex-col", compact ? "p-2" : "p-2.5")}
+          >
             <div className="flex flex-col gap-1">
               <Skeleton className="h-5 w-5/6 bg-muted" />
               <Skeleton className="h-4 w-3/4 bg-muted" />
-              <Skeleton className="h-6 w-1/2 bg-muted" />
+              <Skeleton
+                className={cn(compact ? "h-5" : "h-6", "w-1/2 bg-muted")}
+              />
             </div>
-            <Skeleton className="h-10 w-full rounded-lg bg-muted" />
           </CardContent>
         </Card>
       ))}

@@ -2,13 +2,42 @@
 
 import type { CSSProperties, ReactNode } from "react";
 import Image from "next/image";
-import { Ban, BadgePercent, ChefHat, ClipboardCheck, Gift, Minus, MoreVertical, Pencil, Plus, Printer, ShoppingBag, StickyNote, Tag, Trash2, UserRound, Utensils } from "lucide-react";
+import {
+  Ban,
+  BadgePercent,
+  ChefHat,
+  ClipboardCheck,
+  Gift,
+  Minus,
+  MoreVertical,
+  Pencil,
+  Plus,
+  Printer,
+  ShoppingBag,
+  StickyNote,
+  Tag,
+  Trash2,
+  UserRound,
+  Utensils,
+} from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
-import { DropdownMenu, DropdownMenuContent, DropdownMenuGroup, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
-import { Empty, EmptyHeader, EmptyMedia, EmptyTitle } from "@/components/ui/empty";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuGroup,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import {
+  Empty,
+  EmptyHeader,
+  EmptyMedia,
+  EmptyTitle,
+} from "@/components/ui/empty";
 import { Label } from "@/components/ui/label";
 import { Spinner } from "@/components/ui/spinner";
 import { TabsTrigger } from "@/components/ui/tabs";
@@ -18,7 +47,31 @@ import { shouldUnoptimizeProductImage } from "@/lib/pos/product-media";
 import { cn } from "@/lib/utils";
 import type { CartItem } from "@/services/pos";
 import type { CartItemAction, CartTab } from "./types";
-import { cartItemActionUuid, cartItemBaseUnitPrice, cartItemDisplayName, cartItemMedia, cartItemName, cartItemQty, cartItemRemovalActions, cartItemStatus, cartItemTotal, cartItemUuid, cartToppingDisplay, formatPlainValue, formatPositiveMoneyValue, formatQuantityValue, formatRate, isCanceledCartItem, isDepositRedemptionItem, isServedCartItem, optionalBoolean, optionalNumber, optionalString, positiveNumber, type CartItemMedia } from "./utils";
+import {
+  cartItemActionUuid,
+  cartItemBaseUnitPrice,
+  cartItemDisplayName,
+  cartItemMedia,
+  cartItemName,
+  cartItemQty,
+  cartItemRemovalActions,
+  cartItemStatus,
+  cartItemTotal,
+  cartItemUuid,
+  cartToppingDisplay,
+  formatPlainValue,
+  formatPositiveMoneyValue,
+  formatQuantityValue,
+  formatRate,
+  isCanceledCartItem,
+  isDepositRedemptionItem,
+  isServedCartItem,
+  optionalBoolean,
+  optionalNumber,
+  optionalString,
+  positiveNumber,
+  type CartItemMedia,
+} from "./utils";
 
 export function CartTabTrigger({
   active,
@@ -27,7 +80,7 @@ export function CartTabTrigger({
   label,
   neutral = false,
   shortLabel,
-  value
+  value,
 }: {
   active: boolean;
   count: number;
@@ -47,14 +100,13 @@ export function CartTabTrigger({
       // ของเดิม — สอง syntax นี้ต่างกันเป็นคนละ utility ในสาย twMerge ทำให้ merge ไม่ชนกันจริง
       // ผลลัพธ์เลยเดายากว่าใครชนะ ใช้ variant เดียวกันเพื่อให้ค่านี้ override ฐานได้ชัวร์เสมอ
       //
-      // text-white/80 (inactive) ออกแบบไว้สำหรับ track โปร่งแสงบนรูปพื้นหลังเข้ม — บน Capacitor
-      // (neutral) track เปลี่ยนเป็น bg-muted ทึบสีอ่อนไปแล้ว (ดู selected-table-cart-panel-content.tsx)
-      // ตัวอักษรขาวจางเลยแทบมองไม่เห็นทั้งแท็บที่ยังไม่ active ต้องสลับเป็น text-muted-foreground แทน
+      // native side panel ใช้พื้นเขียวลายใบไม้เหมือน cart sheet จึงคงข้อความขาวไว้และใช้
+      // primary ทึบแยกแท็บ active; dark mode ตัดภาพออกและกลับไปใช้ผิว card ตาม token
       className={cn(
-        "h-full min-w-0 gap-1.5 rounded-lg px-2.5 text-sm font-black transition-colors data-active:bg-primary data-active:text-primary-foreground data-active:shadow-sm dark:data-active:bg-primary dark:data-active:text-primary-foreground disabled:cursor-not-allowed disabled:opacity-60",
+        "h-full min-w-0 gap-1.5 rounded-lg px-2.5 text-sm font-black transition-colors disabled:cursor-not-allowed disabled:opacity-60",
         neutral
-          ? "text-muted-foreground hover:text-foreground"
-          : "text-white/80 hover:text-white",
+          ? "text-primary-foreground/80 hover:bg-white/10 hover:text-primary-foreground data-active:bg-primary data-active:text-primary-foreground data-active:shadow-sm dark:text-muted-foreground dark:hover:bg-card dark:hover:text-foreground dark:data-active:bg-primary dark:data-active:text-primary-foreground"
+          : "text-white/80 hover:text-white data-active:bg-primary data-active:text-primary-foreground data-active:shadow-sm dark:data-active:bg-primary dark:data-active:text-primary-foreground"
       )}
     >
       <span className="min-w-0 truncate sm:hidden">{shortLabel ?? label}</span>
@@ -63,10 +115,12 @@ export function CartTabTrigger({
         className={cn(
           "h-6 shrink-0 rounded-full border-transparent px-2 text-xs font-black",
           active
-            ? "bg-primary-foreground/20 text-primary-foreground"
+            ? neutral
+              ? "bg-primary-foreground/20 text-primary-foreground dark:bg-primary-foreground/20 dark:text-primary-foreground"
+              : "bg-primary-foreground/20 text-primary-foreground"
             : neutral
-              ? "bg-background text-muted-foreground"
-              : "bg-white/15 text-white"
+            ? "bg-primary-foreground/15 text-primary-foreground/85 dark:bg-card dark:text-muted-foreground"
+            : "bg-white/15 text-white"
         )}
       >
         {count}
@@ -82,6 +136,7 @@ export function CartTabItems({
   canSplitItem,
   canConfirmKitchenItem,
   canMutateItem,
+  cardSurface = false,
   compact = false,
   editable = false,
   items,
@@ -98,7 +153,7 @@ export function CartTabItems({
   quantityOverrides,
   splitSelectionDisabled = false,
   splitSelectedItemUuids,
-  updatingItemUuid
+  updatingItemUuid,
 }: {
   actingItemUuid: string | null;
   actionDisabled: boolean;
@@ -106,6 +161,7 @@ export function CartTabItems({
   canSplitItem?: (item: CartItem) => boolean;
   canConfirmKitchenItem: (item: CartItem) => boolean;
   canMutateItem?: (item: CartItem) => boolean;
+  cardSurface?: boolean;
   compact?: boolean;
   editable?: boolean;
   items: CartItem[];
@@ -124,10 +180,17 @@ export function CartTabItems({
   splitSelectedItemUuids?: Map<string, number>;
   updatingItemUuid: string | null;
 }) {
-  if (!items.length) return <CartPanelEmpty />;
+  if (!items.length) return <CartPanelEmpty cardSurface={cardSurface} />;
 
   return (
-    <div className="flex min-h-full flex-col bg-background">
+    <div
+      data-cart-items="true"
+      data-cart-item-surface={cardSurface ? "card" : undefined}
+      className={cn(
+        "flex min-h-full flex-col",
+        cardSurface ? "gap-2 bg-transparent p-2" : "bg-background"
+      )}
+    >
       {items.map((item, index) => {
         const rowKey = String(
           item.withdrawal_uuid ??
@@ -135,13 +198,14 @@ export function CartTabItems({
             item.order_it_uuid ??
             item.prod_uuid ??
             item.product_uuid ??
-            index,
+            index
         );
 
         if (isDepositRedemptionItem(item)) {
           return (
             <DepositRedemptionItemRow
               key={rowKey}
+              cardSurface={cardSurface}
               compact={compact}
               item={item}
             />
@@ -165,9 +229,12 @@ export function CartTabItems({
             acting={itemUuid === actingItemUuid}
             canConfirmKitchen={canConfirmKitchenItem(item)}
             canItemDiscount={canItemDiscount}
+            cardSurface={cardSurface}
             compact={compact}
             quantityOverride={
-              quantityItemUuid ? quantityOverrides?.[quantityItemUuid] : undefined
+              quantityItemUuid
+                ? quantityOverrides?.[quantityItemUuid]
+                : undefined
             }
             splitEligible={splitEligible}
             splitSelectionDisabled={splitSelectionDisabled}
@@ -192,22 +259,27 @@ export function CartTabItems({
 }
 
 function DepositRedemptionItemRow({
+  cardSurface,
   compact,
   item,
 }: {
+  cardSurface: boolean;
   compact: boolean;
   item: CartItem;
 }) {
   const title = cartItemDisplayName(
     cartItemName(item),
-    optionalString(item.detail?.size_name),
+    optionalString(item.detail?.size_name)
   );
 
   return (
     <div
+      data-cart-item-surface={cardSurface ? "card" : undefined}
       className={cn(
-        "border-b border-border/80 bg-background last:border-b-0",
-        compact ? "px-2.5 py-2" : "px-2.5 py-2.5 sm:px-3",
+        cardSurface
+          ? "rounded-xl border border-border bg-card shadow-xs"
+          : "border-b border-border/80 bg-background last:border-b-0",
+        compact ? "px-2.5 py-2" : "px-2.5 py-2.5 sm:px-3"
       )}
     >
       <div
@@ -215,14 +287,18 @@ function DepositRedemptionItemRow({
           "grid min-w-0 items-center gap-2",
           compact
             ? "grid-cols-[40px_minmax(0,1fr)]"
-            : "grid-cols-[40px_minmax(0,1fr)] sm:grid-cols-[44px_minmax(0,1fr)]",
+            : "grid-cols-[40px_minmax(0,1fr)] sm:grid-cols-[44px_minmax(0,1fr)]"
         )}
       >
-        <CartProductMedia compact={compact} media={{ type: "empty" }} title={title} />
+        <CartProductMedia
+          compact={compact}
+          media={{ type: "empty" }}
+          title={title}
+        />
         <p
           className={cn(
             "min-w-0 wrap-break-word font-bold text-foreground",
-            compact ? "text-sm leading-4.5" : "text-sm leading-5 sm:text-base",
+            compact ? "text-sm leading-4.5" : "text-sm leading-5 sm:text-base"
           )}
         >
           {title}
@@ -232,16 +308,29 @@ function DepositRedemptionItemRow({
   );
 }
 
-function CartPanelEmpty() {
+function CartPanelEmpty({ cardSurface }: { cardSurface: boolean }) {
   const { t } = useTranslation();
 
   return (
-    <Empty className="min-h-60 flex-1 border-0 bg-background p-8">
+    <Empty
+      data-cart-empty-surface={cardSurface ? "card" : undefined}
+      className={cn(
+        "min-h-60 flex-1 p-8",
+        cardSurface
+          ? "m-2 rounded-xl border border-dashed border-border bg-card/70"
+          : "border-0 bg-background"
+      )}
+    >
       <EmptyHeader>
-        <EmptyMedia variant="icon" className="size-16 rounded-full bg-primary/10 text-primary-text">
+        <EmptyMedia
+          variant="icon"
+          className="size-16 rounded-full bg-primary/10 text-primary-text"
+        >
           <ShoppingBag />
         </EmptyMedia>
-        <EmptyTitle className="text-sm font-black text-muted-foreground">{t("pos.noOrder")}</EmptyTitle>
+        <EmptyTitle className="text-sm font-black text-muted-foreground">
+          {t("pos.noOrder")}
+        </EmptyTitle>
       </EmptyHeader>
     </Empty>
   );
@@ -252,6 +341,7 @@ function CartItemRow({
   actionDisabled,
   canConfirmKitchen,
   canItemDiscount,
+  cardSurface,
   compact,
   editable,
   item,
@@ -270,12 +360,13 @@ function CartItemRow({
   splitSelectionDisabled,
   splitSelected,
   splitSelectedQty,
-  updating
+  updating,
 }: {
   acting: boolean;
   actionDisabled: boolean;
   canConfirmKitchen: boolean;
   canItemDiscount: boolean;
+  cardSurface: boolean;
   compact: boolean;
   editable: boolean;
   item: CartItem;
@@ -307,7 +398,12 @@ function CartItemRow({
   const statusValue = cartItemStatus(item);
   const itemUuid = cartItemActionUuid(item);
   const affectsTotal = optionalBoolean(detail?.affects_total);
-  const orderQty = optionalNumber(detail?.order_it_qty, item.qty, item.quantity, item.item_qty);
+  const orderQty = optionalNumber(
+    detail?.order_it_qty,
+    item.qty,
+    item.quantity,
+    item.item_qty
+  );
   const promoSaleQty = positiveNumber(detail?.order_it_promo_sale_qty);
   const promoFreeQty = positiveNumber(detail?.order_it_promo_free_qty);
   const totalReceiveQty = optionalNumber(detail?.total_receive_qty);
@@ -325,10 +421,20 @@ function CartItemRow({
   const title = cartItemDisplayName(rawTitle, sizeName);
   const toppings = item.toppings ?? [];
   const tastes = item.tastes ?? [];
-  const hasPromo = promoSaleQty !== null || promoFreeQty !== null || freeQty !== null;
-  const hasDiscount = discountAmount !== null || discountValue !== null || Boolean(optionalString(detail?.order_it_discount_type));
-  const baseWithToppingTotal = baseLineTotal !== null || toppingLineTotal !== null ? (baseLineTotal ?? 0) + (toppingLineTotal ?? 0) : null;
-  const originalTotal = [grossTotal, baseWithToppingTotal, baseLineTotal].find((value) => value !== null && value > total) ?? null;
+  const hasPromo =
+    promoSaleQty !== null || promoFreeQty !== null || freeQty !== null;
+  const hasDiscount =
+    discountAmount !== null ||
+    discountValue !== null ||
+    Boolean(optionalString(detail?.order_it_discount_type));
+  const baseWithToppingTotal =
+    baseLineTotal !== null || toppingLineTotal !== null
+      ? (baseLineTotal ?? 0) + (toppingLineTotal ?? 0)
+      : null;
+  const originalTotal =
+    [grossTotal, baseWithToppingTotal, baseLineTotal].find(
+      (value) => value !== null && value > total
+    ) ?? null;
   const priceQty = orderQty ?? qty;
   const displayUnitPrice = cartItemBaseUnitPrice(item);
   const promoBuyQty = positiveNumber(saleQty, promoSaleQty);
@@ -342,24 +448,36 @@ function CartItemRow({
       : formatPositiveMoneyValue(discountAmount);
   const hasDetailContent = Boolean(
     displayUnitPrice !== null ||
-    originalTotal !== null ||
-    hasPromo ||
-    hasDiscount ||
-    affectsTotal === false ||
-    toppings.length ||
-    tastes.length ||
-    toppingLineTotal !== null ||
-    discountAmount !== null ||
-    creatorName ||
-    note
+      originalTotal !== null ||
+      hasPromo ||
+      hasDiscount ||
+      affectsTotal === false ||
+      toppings.length ||
+      tastes.length ||
+      toppingLineTotal !== null ||
+      discountAmount !== null ||
+      creatorName ||
+      note
   );
   const isCanceled = isCanceledCartItem(item);
   const { canCancel, canDelete } = cartItemRemovalActions(item, editable);
-  const canConfirmServed = !editable && statusValue !== 0 && statusValue !== 1 && !isCanceled && !isServedCartItem(item);
+  const canConfirmServed =
+    !editable &&
+    statusValue !== 0 &&
+    statusValue !== 1 &&
+    !isCanceled &&
+    !isServedCartItem(item);
   // ปริ้นครัวซ้ำได้เฉพาะรายการที่ยืนยันแล้ว (เดียวกับ bucket ของ canCancel/canConfirmServed)
   // — ยังไม่ยืนยัน (0/1) หรือถูกยกเลิก/เสิร์ฟแล้วไม่มีอะไรให้พิมพ์ซ้ำ
-  const canReprintKitchen = !editable && statusValue !== 0 && statusValue !== 1 && !isCanceled && !isServedCartItem(item);
-  const splitSelectable = Boolean(splitEligible && itemUuid && onToggleSplitItem);
+  const canReprintKitchen =
+    !editable &&
+    statusValue !== 0 &&
+    statusValue !== 1 &&
+    !isCanceled &&
+    !isServedCartItem(item);
+  const splitSelectable = Boolean(
+    splitEligible && itemUuid && onToggleSplitItem
+  );
   // รายการที่แยกบิลไม่ได้ (เช่น ยกเลิกแล้ว) ยังต้องกันช่อง checkbox ไว้ ไม่งั้นรูป/ชื่อสินค้า
   // เยื้องซ้ายไม่ตรงกับแถวอื่นในรายการเดียวกัน
   const reserveSplitColumn = Boolean(onToggleSplitItem);
@@ -373,6 +491,7 @@ function CartItemRow({
 
   return (
     <div
+      data-cart-item-surface={cardSurface ? "card" : undefined}
       role={splitEnabled ? "button" : undefined}
       tabIndex={splitEnabled ? 0 : undefined}
       onClick={splitEnabled ? toggleSplitSelection : undefined}
@@ -387,13 +506,27 @@ function CartItemRow({
           : undefined
       }
       className={cn(
-        "border-b border-border/80 bg-background transition-colors [contain-intrinsic-size:196px] [content-visibility:auto] last:border-b-0 hover:bg-muted/20",
+        "transition-colors [contain-intrinsic-size:196px] [content-visibility:auto]",
+        cardSurface
+          ? "rounded-xl border border-border bg-card shadow-xs"
+          : "border-b border-border/80 bg-background last:border-b-0 hover:bg-muted/20",
         compact ? "px-2.5 py-2" : "px-2.5 py-2.5 sm:px-3",
-        isWaitingConfirm && "border-l-4 border-l-warning bg-warning/10 hover:bg-warning/15",
-        isCanceled && "bg-destructive/5 hover:bg-destructive/10",
+        !isCanceled &&
+          isWaitingConfirm &&
+          (cardSurface
+            ? "border-l-4 border-l-warning bg-warning/10"
+            : "border-l-4 border-l-warning bg-warning/10 hover:bg-warning/15"),
+        isCanceled &&
+          (cardSurface
+            ? "border-l-4 border-l-destructive bg-destructive/5"
+            : "bg-destructive/5 hover:bg-destructive/10"),
         splitSelectable && !splitEnabled && "cursor-not-allowed opacity-60",
         splitEnabled && "cursor-pointer",
-        splitSelected && "border-l-4 border-l-primary bg-primary/5 hover:bg-primary/10"
+        cardSurface && splitEnabled && "hover:border-primary/40",
+        splitSelected &&
+          (cardSurface
+            ? "ring-2 ring-primary/30 ring-offset-1 ring-offset-muted"
+            : "border-l-4 border-l-primary bg-primary/5 hover:bg-primary/10")
       )}
     >
       <div
@@ -404,8 +537,8 @@ function CartItemRow({
               ? "grid-cols-[36px_40px_minmax(0,1fr)]"
               : "grid-cols-[40px_minmax(0,1fr)]"
             : reserveSplitColumn
-              ? "grid-cols-[40px_40px_minmax(0,1fr)] sm:grid-cols-[40px_44px_minmax(0,1fr)]"
-              : "grid-cols-[40px_minmax(0,1fr)] sm:grid-cols-[44px_minmax(0,1fr)]"
+            ? "grid-cols-[40px_40px_minmax(0,1fr)] sm:grid-cols-[40px_44px_minmax(0,1fr)]"
+            : "grid-cols-[40px_minmax(0,1fr)] sm:grid-cols-[44px_minmax(0,1fr)]"
         )}
       >
         {splitSelectable ? (
@@ -437,7 +570,7 @@ function CartItemRow({
                   "min-w-0 wrap-break-word font-bold text-foreground",
                   compact
                     ? "text-sm leading-4.5"
-                    : "text-sm leading-5 sm:text-base",
+                    : "text-sm leading-5 sm:text-base"
                 )}
               >
                 {title}
@@ -446,14 +579,12 @@ function CartItemRow({
                 <Badge
                   className={cn(
                     "rounded-md border-transparent font-semibold shadow-none",
-                    compact
-                      ? "h-5 px-1.5 text-2xs"
-                      : "h-6 px-2 text-2xs",
+                    compact ? "h-5 px-1.5 text-2xs" : "h-6 px-2 text-2xs",
                     isCanceled
                       ? "bg-destructive text-destructive-foreground"
                       : isWaitingConfirm
-                        ? "bg-warning/15 text-warning-text"
-                        : "bg-secondary text-secondary-foreground"
+                      ? "bg-warning/15 text-warning-text"
+                      : "bg-secondary text-secondary-foreground"
                   )}
                 >
                   {statusText ?? t("pos.cartStatusWaitingConfirm")}
@@ -462,9 +593,7 @@ function CartItemRow({
                 <Badge
                   className={cn(
                     "rounded-md font-semibold shadow-none",
-                    compact
-                      ? "h-5 px-1.5 text-2xs"
-                      : "h-6 px-2 text-2xs",
+                    compact ? "h-5 px-1.5 text-2xs" : "h-6 px-2 text-2xs",
                     isCanceled && "bg-destructive text-destructive-foreground"
                   )}
                 >
@@ -473,26 +602,26 @@ function CartItemRow({
               ) : null}
             </div>
             <div onClick={(event) => event.stopPropagation()}>
-            <CartItemActionMenu
-              canCancel={canCancel}
-              canDelete={canDelete}
-              canConfirmKitchen={statusValue === 1}
-              confirmKitchenDisabled={!canConfirmKitchen || actionDisabled}
-              canConfirmServed={canConfirmServed}
-              canItemDiscount={canItemDiscount}
-              canReprintKitchen={canReprintKitchen}
-              reprintKitchenDisabled={!canConfirmKitchen || actionDisabled}
-              disabled={actionDisabled}
-              itemUuid={itemUuid}
-              pending={acting}
-              onCancel={() => onOpenItemAction("cancel", item)}
-              onConfirmKitchen={() => onConfirmKitchen(item)}
-              onConfirmServed={() => onConfirmServed(item)}
-              onDelete={() => onOpenItemAction("delete", item)}
-              onEditNote={() => onEditNote(item)}
-              onItemDiscount={() => onItemDiscount(item)}
-              onReprintKitchen={() => onReprintKitchen(item)}
-            />
+              <CartItemActionMenu
+                canCancel={canCancel}
+                canDelete={canDelete}
+                canConfirmKitchen={statusValue === 1}
+                confirmKitchenDisabled={!canConfirmKitchen || actionDisabled}
+                canConfirmServed={canConfirmServed}
+                canItemDiscount={canItemDiscount}
+                canReprintKitchen={canReprintKitchen}
+                reprintKitchenDisabled={!canConfirmKitchen || actionDisabled}
+                disabled={actionDisabled}
+                itemUuid={itemUuid}
+                pending={acting}
+                onCancel={() => onOpenItemAction("cancel", item)}
+                onConfirmKitchen={() => onConfirmKitchen(item)}
+                onConfirmServed={() => onConfirmServed(item)}
+                onDelete={() => onOpenItemAction("delete", item)}
+                onEditNote={() => onEditNote(item)}
+                onItemDiscount={() => onItemDiscount(item)}
+                onReprintKitchen={() => onReprintKitchen(item)}
+              />
             </div>
           </div>
 
@@ -502,7 +631,13 @@ function CartItemRow({
                 <CartDetailRow
                   icon={<Tag />}
                   tone="price"
-                  right={originalTotal !== null ? <span className="line-through opacity-70">{money(originalTotal)}</span> : null}
+                  right={
+                    originalTotal !== null ? (
+                      <span className="line-through opacity-70">
+                        {money(originalTotal)}
+                      </span>
+                    ) : null
+                  }
                 >
                   <span className="tabular-nums">
                     {formatQuantityValue(priceQty)} x {money(displayUnitPrice)}
@@ -522,20 +657,31 @@ function CartItemRow({
                 <CartDetailRow
                   icon={<BadgePercent />}
                   tone="discount"
-                  right={discountAmount !== null ? `-${money(discountAmount)}` : null}
+                  right={
+                    discountAmount !== null ? `-${money(discountAmount)}` : null
+                  }
                 >
                   {discountLabel}
                 </CartDetailRow>
               ) : null}
 
-              {affectsTotal === false ? <CartDetailRow tone="muted">{t("pos.affectsTotal")}: {t("pos.no")}</CartDetailRow> : null}
+              {affectsTotal === false ? (
+                <CartDetailRow tone="muted">
+                  {t("pos.affectsTotal")}: {t("pos.no")}
+                </CartDetailRow>
+              ) : null}
               {creatorName ? (
                 <CartDetailRow icon={<UserRound />} tone="muted">
                   {t("pos.orderCreatedBy", { name: creatorName })}
                 </CartDetailRow>
               ) : null}
               {tastes.length ? <CartTastesList tastes={tastes} /> : null}
-              {toppings.length || toppingLineTotal !== null ? <CartToppingsList toppingTotal={toppingLineTotal} toppings={toppings} /> : null}
+              {toppings.length || toppingLineTotal !== null ? (
+                <CartToppingsList
+                  toppingTotal={toppingLineTotal}
+                  toppings={toppings}
+                />
+              ) : null}
               {note ? <CartNote text={note} /> : null}
             </div>
           ) : null}
@@ -543,14 +689,14 @@ function CartItemRow({
           <div
             className={cn(
               "flex min-w-0 items-center justify-between gap-2",
-              compact ? "mt-1.5" : "mt-2",
+              compact ? "mt-1.5" : "mt-2"
             )}
           >
             <p
               className={cn(
                 "min-w-0 truncate font-bold leading-5 text-foreground tabular-nums",
                 compact ? "text-sm" : "text-sm sm:text-base",
-                isCanceled && "text-destructive",
+                isCanceled && "text-destructive"
               )}
             >
               {money(total)}
@@ -590,14 +736,21 @@ function CartItemRow({
   );
 }
 
-type CartDetailTone = "muted" | "price" | "promo" | "discount" | "note" | "taste" | "topping";
+type CartDetailTone =
+  | "muted"
+  | "price"
+  | "promo"
+  | "discount"
+  | "note"
+  | "taste"
+  | "topping";
 
 function CartDetailRow({
   children,
   className,
   icon,
   right,
-  tone = "muted"
+  tone = "muted",
 }: {
   children: ReactNode;
   className?: string;
@@ -620,7 +773,11 @@ function CartDetailRow({
       )}
     >
       <span className="flex min-w-0 items-start gap-1.5">
-        {icon ? <span className="mt-0.5 flex size-3.5 shrink-0 items-center justify-center [&_svg]:size-3.5">{icon}</span> : null}
+        {icon ? (
+          <span className="mt-0.5 flex size-3.5 shrink-0 items-center justify-center [&_svg]:size-3.5">
+            {icon}
+          </span>
+        ) : null}
         <span className="min-w-0 wrap-break-word">{children}</span>
       </span>
       {right ? (
@@ -655,7 +812,7 @@ function CartItemActionMenu({
   onItemDiscount,
   onReprintKitchen,
   pending,
-  reprintKitchenDisabled
+  reprintKitchenDisabled,
 }: {
   canCancel: boolean;
   canConfirmKitchen: boolean;
@@ -690,13 +847,20 @@ function CartItemActionMenu({
           className="size-8 shrink-0 rounded-full bg-muted/40 text-muted-foreground hover:bg-muted"
           disabled={disabled || pending}
         >
-          {pending ? <Spinner data-icon="inline-start" /> : <MoreVertical data-icon="inline-start" />}
+          {pending ? (
+            <Spinner data-icon="inline-start" />
+          ) : (
+            <MoreVertical data-icon="inline-start" />
+          )}
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-44">
         <DropdownMenuGroup>
           {canConfirmKitchen ? (
-            <DropdownMenuItem disabled={confirmKitchenDisabled} onSelect={onConfirmKitchen}>
+            <DropdownMenuItem
+              disabled={confirmKitchenDisabled}
+              onSelect={onConfirmKitchen}
+            >
               <ChefHat />
               {t("pos.confirmToKitchen")}
             </DropdownMenuItem>
@@ -706,32 +870,49 @@ function CartItemActionMenu({
             {t("pos.editNote")}
           </DropdownMenuItem>
           {canItemDiscount ? (
-            <DropdownMenuItem disabled={actionDisabled} onSelect={onItemDiscount}>
+            <DropdownMenuItem
+              disabled={actionDisabled}
+              onSelect={onItemDiscount}
+            >
               <BadgePercent />
               {t("pos.itemDiscount")}
             </DropdownMenuItem>
           ) : null}
           {canConfirmServed ? (
-            <DropdownMenuItem disabled={actionDisabled} onSelect={onConfirmServed}>
+            <DropdownMenuItem
+              disabled={actionDisabled}
+              onSelect={onConfirmServed}
+            >
               <ClipboardCheck />
               {t("pos.confirmServed")}
             </DropdownMenuItem>
           ) : null}
           {canReprintKitchen ? (
-            <DropdownMenuItem disabled={reprintKitchenDisabled} onSelect={onReprintKitchen}>
+            <DropdownMenuItem
+              disabled={reprintKitchenDisabled}
+              onSelect={onReprintKitchen}
+            >
               <Printer />
               {t("pos.reprintKitchen")}
             </DropdownMenuItem>
           ) : null}
-          {(canDelete || canCancel) ? <DropdownMenuSeparator /> : null}
+          {canDelete || canCancel ? <DropdownMenuSeparator /> : null}
           {canDelete ? (
-            <DropdownMenuItem disabled={actionDisabled} variant="destructive" onSelect={onDelete}>
+            <DropdownMenuItem
+              disabled={actionDisabled}
+              variant="destructive"
+              onSelect={onDelete}
+            >
               <Trash2 />
               {t("pos.deleteItem")}
             </DropdownMenuItem>
           ) : null}
           {canCancel ? (
-            <DropdownMenuItem disabled={actionDisabled} variant="destructive" onSelect={onCancel}>
+            <DropdownMenuItem
+              disabled={actionDisabled}
+              variant="destructive"
+              onSelect={onCancel}
+            >
               <Ban />
               {t("pos.cancelItem")}
             </DropdownMenuItem>
@@ -745,7 +926,7 @@ function CartItemActionMenu({
 function CartPromoBlock({
   buyQty,
   freeQty,
-  receiveQty
+  receiveQty,
 }: {
   buyQty: number | null;
   freeQty: number | null;
@@ -754,14 +935,23 @@ function CartPromoBlock({
   const { t } = useTranslation();
   const buyFreeText = [
     buyQty !== null ? `${t("pos.buyShort")} ${buyQty}` : null,
-    freeQty !== null ? `${t("pos.freeShort")} ${freeQty}` : null
-  ].filter(Boolean).join(" + ");
+    freeQty !== null ? `${t("pos.freeShort")} ${freeQty}` : null,
+  ]
+    .filter(Boolean)
+    .join(" + ");
 
   if (!buyFreeText && receiveQty === null) return null;
 
   return (
     <CartDetailRow icon={<Gift />} tone="promo">
-      {[buyFreeText, receiveQty !== null ? `${t("pos.receiveShort")} ${formatQuantityValue(receiveQty)}` : null].filter(Boolean).join(" / ")}
+      {[
+        buyFreeText,
+        receiveQty !== null
+          ? `${t("pos.receiveShort")} ${formatQuantityValue(receiveQty)}`
+          : null,
+      ]
+        .filter(Boolean)
+        .join(" / ")}
     </CartDetailRow>
   );
 }
@@ -786,13 +976,16 @@ function CartProductMedia({
   media: CartItemMedia;
   title: string;
 }) {
-  const colorStyle = media.type === "color" ? ({ backgroundColor: media.color } satisfies CSSProperties) : undefined;
+  const colorStyle =
+    media.type === "color"
+      ? ({ backgroundColor: media.color } satisfies CSSProperties)
+      : undefined;
 
   return (
     <div
       className={cn(
         "relative shrink-0 overflow-hidden rounded-md border border-border bg-muted shadow-sm",
-        compact ? "size-10" : "size-10 sm:size-11",
+        compact ? "size-10" : "size-10 sm:size-11"
       )}
       style={colorStyle}
     >
@@ -808,8 +1001,14 @@ function CartProductMedia({
         />
       ) : media.type === "color" ? (
         <>
-          <span className="pointer-events-none absolute inset-0 rounded-[inherit] ring-1 ring-inset ring-black/10" aria-hidden="true" />
-          <span className="absolute inset-0 grid place-items-center" aria-hidden="true">
+          <span
+            className="pointer-events-none absolute inset-0 rounded-[inherit] ring-1 ring-inset ring-black/10"
+            aria-hidden="true"
+          />
+          <span
+            className="absolute inset-0 grid place-items-center"
+            aria-hidden="true"
+          >
             <span className="grid size-7 place-items-center rounded-full bg-black/25 text-white shadow-sm backdrop-blur-[1px]">
               <Utensils className="size-4" />
             </span>
@@ -826,7 +1025,7 @@ function CartProductMedia({
 
 function CartToppingsList({
   toppingTotal,
-  toppings
+  toppings,
 }: {
   toppingTotal: number | null;
   toppings: NonNullable<CartItem["toppings"]>;
@@ -836,7 +1035,11 @@ function CartToppingsList({
   return (
     <div className="grid gap-0.5">
       {toppingTotal !== null && !toppings.length ? (
-        <CartDetailRow className="pl-5" tone="topping" right={`+${money(toppingTotal)}`}>
+        <CartDetailRow
+          className="pl-5"
+          tone="topping"
+          right={`+${money(toppingTotal)}`}
+        >
           + {t("pos.toppingTotal")}
         </CartDetailRow>
       ) : null}
@@ -851,7 +1054,8 @@ function CartToppingsList({
             tone="topping"
             right={total !== null ? `+${money(total)}` : null}
           >
-            + {name}{qty !== null ? ` x${formatQuantityValue(qty)}` : ""}
+            + {name}
+            {qty !== null ? ` x${formatQuantityValue(qty)}` : ""}
           </CartDetailRow>
         );
       })}
@@ -859,15 +1063,20 @@ function CartToppingsList({
   );
 }
 
-function CartTastesList({ tastes }: { tastes: NonNullable<CartItem["tastes"]> }) {
+function CartTastesList({
+  tastes,
+}: {
+  tastes: NonNullable<CartItem["tastes"]>;
+}) {
   return (
     <div className="grid gap-0.5">
       {tastes.map((taste, index) => {
-        const name = optionalString(
-          taste.taste_name,
-          taste.taste_name_la,
-          taste.taste_name_eng,
-        ) ?? "-";
+        const name =
+          optionalString(
+            taste.taste_name,
+            taste.taste_name_la,
+            taste.taste_name_eng
+          ) ?? "-";
         return (
           <CartDetailRow key={`${name}-${index}`} className="pl-5" tone="taste">
             • {name}
@@ -902,7 +1111,7 @@ function SplitQuantityStepper({
       className={cn(
         // overflow-hidden — เหตุผลเดียวกับ CartQuantityStepper ด้านบน
         "flex shrink-0 items-center overflow-hidden rounded-full border border-primary/50 bg-primary/5 shadow-sm",
-        compact ? "h-9" : "h-11",
+        compact ? "h-9" : "h-11"
       )}
     >
       <Button
@@ -912,7 +1121,7 @@ function SplitQuantityStepper({
         variant="ghost"
         className={cn(
           "rounded-full bg-primary/10 text-primary-text hover:bg-primary/20",
-          compact ? "size-8" : "size-10",
+          compact ? "size-8" : "size-10"
         )}
         disabled={disabled || qty <= 1}
         onClick={onDecrease}
@@ -922,7 +1131,7 @@ function SplitQuantityStepper({
       <span
         className={cn(
           "min-w-7 text-center font-black text-primary-text tabular-nums",
-          compact ? "text-sm" : "text-sm sm:text-base",
+          compact ? "text-sm" : "text-sm sm:text-base"
         )}
       >
         {qty}
@@ -934,7 +1143,7 @@ function SplitQuantityStepper({
         variant="ghost"
         className={cn(
           "rounded-full bg-primary/10 text-primary-text hover:bg-primary/20",
-          compact ? "size-8" : "size-10",
+          compact ? "size-8" : "size-10"
         )}
         disabled={disabled || qty >= maxQty}
         onClick={onIncrease}
@@ -952,7 +1161,7 @@ function CartQuantityStepper({
   onOpenQuantityDialog,
   qty,
   qtyStep,
-  updating
+  updating,
 }: {
   compact: boolean;
   onDecrease: () => void;
@@ -974,7 +1183,7 @@ function CartQuantityStepper({
         // มองไม่เห็นปัญหานี้เลย พอเพิ่มพื้นหลังเข้าไปทำให้ปุ่มมีรูปทรงจริงที่มองเห็นได้ ปัญหาที่ซ่อนอยู่
         // เดิมเลยโผล่ออกมา (ขอบล่างแบนดูเหมือนโดนตัด)
         "flex shrink-0 items-center overflow-hidden rounded-full border border-border bg-background shadow-sm",
-        compact ? "h-9" : "h-11",
+        compact ? "h-9" : "h-11"
       )}
     >
       <Button
@@ -984,7 +1193,7 @@ function CartQuantityStepper({
         variant="ghost"
         className={cn(
           "rounded-full bg-muted/40 text-muted-foreground hover:bg-muted",
-          compact ? "size-8" : "size-10",
+          compact ? "size-8" : "size-10"
         )}
         disabled={locked || qty <= qtyStep}
         onClick={onDecrease}
@@ -998,7 +1207,7 @@ function CartQuantityStepper({
         variant="ghost"
         className={cn(
           "min-w-7 rounded-full bg-muted/40 px-1 text-center font-black text-foreground tabular-nums hover:bg-muted",
-          compact ? "h-8 text-sm" : "h-10 text-sm",
+          compact ? "h-8 text-sm" : "h-10 text-sm"
         )}
         disabled={locked}
         onClick={onOpenQuantityDialog}
@@ -1012,7 +1221,7 @@ function CartQuantityStepper({
         variant="ghost"
         className={cn(
           "rounded-full bg-muted/40 text-muted-foreground hover:bg-muted",
-          compact ? "size-8" : "size-10",
+          compact ? "size-8" : "size-10"
         )}
         disabled={locked}
         onClick={onIncrease}
@@ -1034,7 +1243,7 @@ function CartQuantityBadge({
     <Badge
       className={cn(
         "rounded-full border-border bg-muted font-black text-muted-foreground",
-        compact ? "h-8 px-2.5 text-xs" : "h-9 px-3 text-sm",
+        compact ? "h-8 px-2.5 text-xs" : "h-9 px-3 text-sm"
       )}
     >
       x{qty}
