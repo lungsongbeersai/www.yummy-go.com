@@ -26,6 +26,7 @@ import { reportLocationParams } from "@/features/report/shared/report-location";
 import { useReportLocationOptions } from "@/features/report/shared/use-report-location-options";
 import { money } from "@/lib/format";
 import { PAGE_LIMIT_OPTIONS, pageLimitSize, pageRange, pageTotalPages } from "@/lib/pagination";
+import type { PageLimit } from "@/services/shared/types";
 import { authStoreUuid, useAuthStore } from "@/stores/auth-store";
 import { useVatReportStore } from "@/stores/report-store";
 import type { VatReportRow } from "@/services/report";
@@ -58,7 +59,7 @@ function VatReport() {
     tableUuid: "all", zoneUuid: "all",
   }));
   const [applied, setApplied] = useState(draft);
-  const [selectedLimit] = useState(PAGE_LIMIT_OPTIONS[0]);
+  const [selectedLimit, setSelectedLimit] = useState<PageLimit>(PAGE_LIMIT_OPTIONS[0]);
   const [page, setPage] = useState(1);
   const [mobileFilterOpen, setMobileFilterOpen] = useState(false);
   // การ์ดสรุปซ่อนไว้ก่อน — ผู้ใช้กดปุ่ม "แสดงสรุป" เองเมื่ออยากดู
@@ -227,6 +228,7 @@ function VatReport() {
             <ReportResultArea framed busy={loading} className="hidden md:flex">
               <VatReportTable
                 isColumnVisible={columns.isVisible}
+                pinning={columns.pinning}
                 rows={pagedRows}
                 selectedRowIds={rowSelection.selectedRowIds}
                 summary={summary}
@@ -244,6 +246,14 @@ function VatReport() {
             <ReportPaginationBar>
               <AppPagination
                 page={page}
+                pageSize={{
+                  // แบ่งหน้าฝั่งเว็บ — เปลี่ยนแล้วแสดงผลทันทีไม่ต้องโหลดใหม่ กลับไปหน้า 1
+                  onChange: (limit) => {
+                    setSelectedLimit(limit);
+                    setPage(1);
+                  },
+                  value: selectedLimit,
+                }}
                 totalPages={totalPages}
                 rangeLabel={t("common.showingRange", { start: range.start, end: range.end, total: rows.length })}
                 onPageChange={setPage}

@@ -47,7 +47,6 @@ import type {
 import {
   ReportBranchField,
   ReportDateRangeFields,
-  ReportPageLimitField,
   ReportPaymentMethodField,
 } from "../shared/report-filter-fields";
 import type { ReportColumnOption } from "../shared/report-column-visibility";
@@ -350,12 +349,6 @@ export function PaymentMethodsFilterFields({
         options={methodOptions}
         value={draftFilters.paymentMethod}
         onValueChange={(value) => patch({ paymentMethod: value })}
-      />
-      <ReportPageLimitField
-        fieldClassName="lg:col-span-4 xl:col-span-1"
-        id={`${idPrefix}-limit`}
-        value={draftFilters.limit}
-        onValueChange={(value) => patch({ limit: value })}
       />
     </>
   );

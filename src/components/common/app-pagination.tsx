@@ -18,13 +18,25 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { PAGE_LIMIT_OPTIONS } from "@/lib/pagination";
 import { cn } from "@/lib/utils";
+import type { PageLimit } from "@/services/shared/types";
+
+type AppPaginationPageSize = {
+  /** ข้อความหน้าช่องเลือก — ค่าเริ่มต้น "แสดง" (common.rowsPerPage) */
+  label?: string;
+  onChange: (limit: PageLimit) => void;
+  options?: readonly PageLimit[];
+  value: PageLimit;
+};
 
 type AppPaginationProps = {
   className?: string;
   disabled?: boolean;
   onPageChange: (page: number) => void;
   page: number;
+  /** ช่องเลือกจำนวนแถวต่อหน้า — ไม่ส่ง = ไม่แสดง */
+  pageSize?: AppPaginationPageSize;
   rangeLabel?: string;
   totalPages: number;
 };
@@ -34,6 +46,7 @@ export function AppPagination({
   disabled = false,
   onPageChange,
   page,
+  pageSize,
   rangeLabel,
   totalPages,
 }: AppPaginationProps) {
@@ -59,9 +72,42 @@ export function AppPagination({
       )}
     >
       {rangeLabel ? (
-        <p className="min-w-0 flex-1 truncate text-xs font-medium tabular-nums text-muted-foreground max-sm:basis-full">
+        // ไม่บังคับ basis-full บนจอแคบ: ข้อความช่วงข้อมูล + ช่องเลือกหน้า + ก่อน/ถัดไปพอดีบรรทัดเดียว
+        // (บังคับแล้วช่องเลือกหน้าตกบรรทัดทั้งที่ยังมีที่ว่าง) — แคบจริงข้อความค่อย truncate / flex-wrap ค่อยตัด
+        <p className="min-w-0 flex-1 truncate text-xs font-medium tabular-nums text-muted-foreground">
           {rangeLabel}
         </p>
+      ) : null}
+
+      {/* จำนวนแถวต่อหน้าเป็นการตั้งค่าการแสดงผล ไม่ใช่ตัวกรอง จึงอยู่ที่แถบแบ่งหน้าและมีผลทันที
+          แสดงแม้มีหน้าเดียว — ไม่งั้นเลือก "ทั้งหมด" แล้วจะเปลี่ยนกลับไม่ได้ */}
+      {pageSize ? (
+        <div className="flex shrink-0 items-center gap-2">
+          <span className="shrink-0 text-xs font-medium text-muted-foreground">
+            {pageSize.label ?? t("common.rowsPerPage")}
+          </span>
+          <Select
+            value={String(pageSize.value)}
+            disabled={disabled}
+            onValueChange={(value) => pageSize.onChange(value === "All" ? "All" : Number(value))}
+          >
+            <SelectTrigger
+              aria-label={pageSize.label ?? t("common.rowsPerPage")}
+              className="h-8 w-20 tabular-nums text-foreground"
+            >
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent align="start">
+              <SelectGroup>
+                {(pageSize.options ?? PAGE_LIMIT_OPTIONS).map((limit) => (
+                  <SelectItem key={String(limit)} value={String(limit)}>
+                    {limit === "All" ? t("common.all") : limit}
+                  </SelectItem>
+                ))}
+              </SelectGroup>
+            </SelectContent>
+          </Select>
+        </div>
       ) : null}
 
       {/* มีหน้าเดียวก็ไม่ต้องมีปุ่มเลื่อนหน้า — เหลือไว้แค่ label บอกช่วงข้อมูล */}

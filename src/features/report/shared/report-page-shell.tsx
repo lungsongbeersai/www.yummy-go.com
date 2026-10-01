@@ -99,6 +99,7 @@ export function ReportPageShell({
       variant="outline"
       size="icon-sm"
       className="h-9 w-9 shrink-0"
+      title={summaryVisible ? t("report.hideSummary") : t("report.showSummary")}
       aria-controls={summaryCardsId}
       aria-expanded={summaryVisible}
       aria-label={summaryVisible ? t("report.hideSummary") : t("report.showSummary")}

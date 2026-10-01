@@ -35,9 +35,9 @@ Yummy Go — a restaurant POS. One Next.js codebase ships as a web app, an Elect
 2. **Route files under `src/app/` stay thin** — render one feature component, nothing else. A fat route file can't be unit-tested and duplicates logic feature-by-feature.
 3. **No Server Actions or ad-hoc `fetch` in components; all data access goes through `src/services/`.** The Next server must stay stateless — it's the exact artifact the Electron build launches via `utilityProcess`.
 4. **Components call store actions, never services directly.** Services carry no `loading`/`error` state; bypassing the store silently drops error handling from the UI.
-5. **`npm run build` must not drop `--webpack`.** Turbopack skips `@serwist/next`'s InjectManifest without erroring — the build "passes" but ships with no offline service worker.
+5. **Keep `--webpack` in `npm run build` until a `Decisions.md` entry records the switch.** Its original reason (Serwist's InjectManifest) left with the 2026-09-14 online-only cutover, but a Turbopack production build has never been verified against the Electron standalone staging (`electron:stage`) or the VPS deploy — swapping bundlers is a release-risk change, not a cleanup.
 6. **Runtime-sourced paths go through `internalRoute()`** (`src/lib/routes.ts`), never a raw `as Route` cast. The permission API still returns pre-P2.1 paths; skipping the alias table breaks menu highlighting and breadcrumbs.
-7. **`src/lib/offline-routes.ts` and the `OFFLINE_*_ROUTES` in `src/services/offline-sync.ts` change together.** They're two independent allowlists for the same feature; edit one without the other and offline sales fail on a route that looks allowed.
+7. **Online-only: never add a local fallback for sales, cart, kitchen, or payment.** A Backend or transport failure must reach the UI as an error, never as a local success. Offline sales were retired on 2026-09-14 after devices at the same table showed diverging totals; reintroducing any local queue needs a new `Decisions.md` entry and a new contract version.
 8. **No raw palette colors, arbitrary fonts, or new global CSS in feature code.** Every hard-coded value is a dark-mode bug and a token that has drifted out of `src/app/globals.css`.
 9. **Destructive actions require `AlertDialog` confirmation.** This is a cashier POS handling real money — a silent delete is a chargeback risk, not a UX nit.
 10. **Auth stays client-side (localStorage token + `AuthGuard`).** No `middleware.ts` (removed in Next 16) and no proxy unless it's Next 16's `proxy.ts`.
@@ -69,7 +69,7 @@ Distinguish the two cases. Taste, naming, and structural preference: comply. Cor
 | --- | --- |
 | touch any UI, component, or styling | `docs/Design.md` |
 | write or refactor application code | `docs/Rules.md` |
-| add a dependency, cross a store/service boundary, or touch routing, offline, auth, or a platform integration (Electron/Capacitor) | `docs/Architecture.md` |
+| add a dependency, cross a store/service boundary, or touch routing, auth, printing, realtime, or a platform integration (Electron/Capacitor) | `docs/Architecture.md` |
 | commit, branch, push, or check what CI does and doesn't cover | `docs/Workflow.md` |
 | write or fix a test | `docs/Testing.md` |
 | override a Non-negotiable above, or record a settled trade-off | `docs/Decisions.md` |

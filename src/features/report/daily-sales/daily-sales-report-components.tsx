@@ -229,7 +229,7 @@ function ReportTableActions({
               ? t("report.selectedBillsForPrint", { count: selectedDisplayCount })
               : t("report.selectedForExport", { count: selectedDisplayCount })}
           </span>
-          <Button type="button" variant="ghost" onClick={onClearSelection}>
+          <Button type="button" variant="ghost" className="text-destructive hover:bg-destructive/10 hover:text-destructive" onClick={onClearSelection}>
             {t("report.clearSelection")}
           </Button>
         </div>

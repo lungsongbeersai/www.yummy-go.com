@@ -142,7 +142,7 @@ export function ReportTableCard({
           type="button"
           size="xs"
           variant="ghost"
-          className="h-6 px-2 text-xs text-muted-foreground"
+          className="h-6 px-2 text-xs text-destructive hover:bg-destructive/10 hover:text-destructive"
           onClick={onClearSelection}
         >
           {t("report.clearSelection")}

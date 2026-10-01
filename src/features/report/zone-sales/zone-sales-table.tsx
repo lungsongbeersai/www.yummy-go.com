@@ -18,6 +18,8 @@ import { Progress } from "@/components/ui/progress";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import type { ReportColumnOption } from "@/features/report/shared/report-column-visibility";
 import { ReportIndeterminateCheckbox, selectionStateForVisibleIds } from "@/features/report/shared/report-row-selection";
+import { ReportColumnHead, ReportColumnPinningProvider, ReportRowPinToggle, ReportRowPinningProvider } from "@/features/report/shared/report-column-head";
+import { STICKY_TABLE_CLASS, useStickyTable, type ReportColumnPinning } from "@/features/report/shared/report-sticky-table";
 import { money } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import type { ZoneSalesRow, ZoneSalesSummary } from "@/services/report";
@@ -41,11 +43,14 @@ function zoneMetrics(t: (key: string) => string): ZoneMetric[] {
 
 /** ตัวเลือกของเมนู "คอลัมน์" — ชื่อโซนกับยอดรวมเป็นแกนของรายงาน ซ่อนไม่ได้ */
 export function zoneSalesColumnOptions(t: (key: string) => string): ReportColumnOption[] {
-  return zoneMetrics(t).map((metric) => ({
-    hideable: metric.key !== "grand_total",
-    id: metric.key,
-    label: metric.label,
-  }));
+  return [
+    { hideable: false, id: "zone", label: t("report.zoneSales.zone") },
+    ...zoneMetrics(t).map((metric) => ({
+      hideable: metric.key !== "grand_total",
+      id: metric.key,
+      label: metric.label,
+    })),
+  ];
 }
 
 function displayMetric(value: number, kind: ZoneMetric["kind"]) {
@@ -81,6 +86,7 @@ function ZoneShare({ share }: { share: number | null }) {
 export function ZoneSalesTable({
   isColumnVisible,
   language,
+  pinning,
   rows,
   selectedRowIds,
   summary,
@@ -89,6 +95,7 @@ export function ZoneSalesTable({
 }: {
   isColumnVisible: (id: string) => boolean;
   language: string;
+  pinning: ReportColumnPinning;
   rows: ZoneSalesRow[];
   selectedRowIds: Set<string>;
   summary: ZoneSalesSummary;
@@ -101,9 +108,11 @@ export function ZoneSalesTable({
     rows.map((row) => row.zone_uuid),
     selectedRowIds,
   );
+  const stickyRef = useStickyTable(pinning);
 
   return (
-    <Table containerClassName="min-h-0 flex-1 overflow-auto">
+    <Table containerClassName={cn("min-h-0 flex-1 overflow-auto", STICKY_TABLE_CLASS)} containerRef={stickyRef}>
+      <ReportColumnPinningProvider pinning={pinning}>
       <TableHeader className="sticky top-0 z-30 bg-muted">
         <TableRow>
           <TableHead>
@@ -114,14 +123,16 @@ export function ZoneSalesTable({
               onCheckedChange={(checked) => onToggleRows(rows, checked as boolean)}
             />
           </TableHead>
-          <TableHead className="min-w-56">{t("report.zoneSales.zone")}</TableHead>
+          <ReportColumnHead className="min-w-56" columnId="zone">{t("report.zoneSales.zone")}</ReportColumnHead>
           {metrics.map((metric) => (
-            <TableHead key={metric.key} className="text-right">
+            <ReportColumnHead key={metric.key} className="text-right" columnId={metric.key} align="right">
               {metric.label}
-            </TableHead>
+            </ReportColumnHead>
           ))}
         </TableRow>
       </TableHeader>
+      </ReportColumnPinningProvider>
+      <ReportRowPinningProvider>
       <TableBody>
         {rows.map((row) => {
           const selected = selectedRowIds.has(row.zone_uuid);
@@ -129,11 +140,14 @@ export function ZoneSalesTable({
           return (
             <TableRow key={row.zone_uuid} data-state={selected ? "selected" : undefined}>
               <TableCell>
-                <Checkbox
-                  aria-label={t("common.selectRow", { name: zoneOptionLabel(row, language) })}
-                  checked={selected}
-                  onCheckedChange={(checked) => onToggleRow(row, checked as boolean)}
-                />
+                <div className="flex items-center gap-1">
+                  <Checkbox
+                    aria-label={t("common.selectRow", { name: zoneOptionLabel(row, language) })}
+                    checked={selected}
+                    onCheckedChange={(checked) => onToggleRow(row, checked as boolean)}
+                  />
+                  <ReportRowPinToggle isDefault={row === rows[0]} label={zoneOptionLabel(row, language)} rowId={row.zone_uuid} />
+                </div>
               </TableCell>
               <TableCell>
                 <div className="flex flex-col gap-1.5">
@@ -175,6 +189,7 @@ export function ZoneSalesTable({
           ))}
         </TableRow>
       </TableBody>
+      </ReportRowPinningProvider>
     </Table>
   );
 }

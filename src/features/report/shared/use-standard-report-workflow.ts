@@ -130,6 +130,8 @@ export interface StandardReportWorkflowResult<
   totalPages: number;
   applyFilters: () => void;
   applyMobileFilters: () => void;
+  /** จำนวนแถวต่อหน้าจากแถบแบ่งหน้า — มีผลทันที (ไม่รอกดค้นหา) และกลับไปหน้า 1 */
+  changePageLimit: (limit: StandardReportFiltersBase["limit"]) => void;
   exportExcel: () => Promise<void>;
   exportPdf: () => Promise<void>;
   handleMobileFilterOpenChange: (open: boolean) => void;
@@ -255,6 +257,13 @@ export function useStandardReportWorkflow<
     changeLimit(nextFilters.limit);
   }
 
+  function changePageLimit(limit: Filters["limit"]) {
+    // ใส่ทั้ง draft และ applied — ไม่งั้นกดค้นหาครั้งถัดไปจะดึงค่าเก่าจาก draft กลับมา
+    setDraftFilters((current) => ({ ...current, limit }));
+    setAppliedFilters((current) => ({ ...current, limit }));
+    changeLimit(limit);
+  }
+
   function openMobileFilters() {
     setDraftFilters({ ...appliedFilters });
     setMobileFilterOpen(true);
@@ -322,6 +331,7 @@ export function useStandardReportWorkflow<
     totalPages: config.totalPages,
     applyFilters,
     applyMobileFilters,
+    changePageLimit,
     exportExcel: exportActions.exportExcel,
     exportPdf: exportActions.exportPdf,
     handleMobileFilterOpenChange,

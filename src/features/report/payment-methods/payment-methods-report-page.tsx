@@ -71,8 +71,8 @@ export function PaymentMethodsReportPage({ initialPagination }: { initialPaginat
           disabled={controlsDisabled}
           extraChips={
             <>
-              <Badge variant="secondary">{report.activeBranchLabel}</Badge>
-              <Badge variant="secondary">{report.activePaymentMethodLabel}</Badge>
+              <Badge variant="secondary" className="h-6 px-2.5 text-xs">{report.activeBranchLabel}</Badge>
+              <Badge variant="secondary" className="h-6 px-2.5 text-xs">{report.activePaymentMethodLabel}</Badge>
             </>
           }
           refreshButton={refreshButton}
@@ -167,6 +167,7 @@ export function PaymentMethodsReportPage({ initialPagination }: { initialPaginat
             <ReportPaginationBar>
               <AppPagination
                 page={report.page}
+                pageSize={{ value: report.appliedFilters.limit, onChange: report.changePageLimit }}
                 rangeLabel={report.paginationRangeLabel}
                 totalPages={report.totalPages}
                 onPageChange={report.setPage}

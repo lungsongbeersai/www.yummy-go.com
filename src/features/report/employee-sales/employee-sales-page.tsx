@@ -7,6 +7,7 @@ import { AppPagination } from "@/components/common/app-pagination";
 import { BlockingLoadingDialog } from "@/components/common/blocking-loading-dialog";
 import { EmptyState } from "@/components/common/empty-state";
 import { PAGE_LIMIT_OPTIONS, pageLimitSize, pageRange, pageTotalPages } from "@/lib/pagination";
+import type { PageLimit } from "@/services/shared/types";
 import { ReportColumnsMenu, useReportColumnVisibility } from "@/features/report/shared/report-column-visibility";
 import { ReportError } from "@/features/report/shared/report-error";
 import {
@@ -131,6 +132,14 @@ function EmployeeSalesReport() {
     setMobileFilterOpen(false);
   }
 
+  // จำนวนแถวต่อหน้าจากแถบแบ่งหน้า — แบ่งหน้าฝั่งเว็บ จึงมีผลทันทีไม่ต้องโหลดใหม่ แตะแค่ limit ใน draft
+  // (ไม่ทับตัวกรองอื่นที่แก้ค้างไว้) และกลับไปหน้า 1
+  function changePageLimit(limit: PageLimit) {
+    setDraft(previous => ({ ...previous, limit }));
+    setApplied(previous => ({ ...previous, limit }));
+    setPage(1);
+  }
+
   function refresh() {
     setSelectedId(null);
     setPage(1);
@@ -238,6 +247,7 @@ function EmployeeSalesReport() {
             <ReportResultArea framed busy={loading} className="hidden md:flex">
               <EmployeeSalesTable
                 isColumnVisible={columns.isVisible}
+                pinning={columns.pinning}
                 rows={pagedRows}
                 selectedRowIds={rowSelection.selectedRowIds}
                 summary={summary}
@@ -258,6 +268,7 @@ function EmployeeSalesReport() {
             <ReportPaginationBar>
               <AppPagination
                 page={page}
+                pageSize={{ value: applied.limit, onChange: changePageLimit }}
                 totalPages={totalPages}
                 rangeLabel={t("common.showingRange", { start: range.start, end: range.end, total: rows.length })}
                 onPageChange={setPage}

@@ -17,6 +17,8 @@ import { Progress } from "@/components/ui/progress";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import type { ReportColumnOption } from "@/features/report/shared/report-column-visibility";
 import { ReportIndeterminateCheckbox, selectionStateForVisibleIds } from "@/features/report/shared/report-row-selection";
+import { ReportColumnHead, ReportColumnPinningProvider, ReportRowPinToggle, ReportRowPinningProvider } from "@/features/report/shared/report-column-head";
+import { STICKY_TABLE_CLASS, useStickyTable, type ReportColumnPinning } from "@/features/report/shared/report-sticky-table";
 import { userInitials } from "@/features/settings/user/user-utils";
 import { money } from "@/lib/format";
 import { cn } from "@/lib/utils";
@@ -38,11 +40,14 @@ function customerMetrics(t: (key: string) => string): CustomerMetric[] {
 
 /** ตัวเลือกของเมนู "คอลัมน์" — ชื่อลูกค้ากับยอดรวมเป็นแกนของรายงาน ซ่อนไม่ได้ */
 export function customerSalesColumnOptions(t: (key: string) => string): ReportColumnOption[] {
-  return customerMetrics(t).map((metric) => ({
-    hideable: metric.key !== "grand_total",
-    id: metric.key,
-    label: metric.label,
-  }));
+  return [
+    { hideable: false, id: "customer", label: t("report.customerSales.customer") },
+    ...customerMetrics(t).map((metric) => ({
+      hideable: metric.key !== "grand_total",
+      id: metric.key,
+      label: metric.label,
+    })),
+  ];
 }
 
 function displayMetric(value: number, kind: CustomerMetric["kind"]) {
@@ -83,6 +88,7 @@ function activate(event: React.KeyboardEvent, action: () => void) {
 
 export function CustomerSalesTable({
   isColumnVisible,
+  pinning,
   rows,
   selectedRowIds,
   summary,
@@ -91,6 +97,7 @@ export function CustomerSalesTable({
   onToggleRows,
 }: {
   isColumnVisible: (id: string) => boolean;
+  pinning: ReportColumnPinning;
   rows: CustomerSalesRow[];
   selectedRowIds: Set<string>;
   summary: CustomerSalesReportSummary | null;
@@ -105,10 +112,12 @@ export function CustomerSalesTable({
     selectedRowIds,
   );
   const total = summary?.grand_total ?? 0;
+  const stickyRef = useStickyTable(pinning);
 
   return (
     // container ของ Table เป็นตัวสกรอลเอง — หัวตาราง sticky ด้านบน, แถวรวม sticky ด้านล่าง
-    <Table containerClassName="min-h-0 flex-1 overflow-auto">
+    <Table containerClassName={cn("min-h-0 flex-1 overflow-auto", STICKY_TABLE_CLASS)} containerRef={stickyRef}>
+      <ReportColumnPinningProvider pinning={pinning}>
       <TableHeader className="sticky top-0 z-30 bg-muted">
         <TableRow>
           <TableHead>
@@ -119,14 +128,16 @@ export function CustomerSalesTable({
               onCheckedChange={(checked) => onToggleRows(rows, checked as boolean)}
             />
           </TableHead>
-          <TableHead className="min-w-64">{t("report.customerSales.customer")}</TableHead>
+          <ReportColumnHead className="min-w-64" columnId="customer">{t("report.customerSales.customer")}</ReportColumnHead>
           {metrics.map((metric) => (
-            <TableHead key={metric.key} className="text-right">
+            <ReportColumnHead key={metric.key} className="text-right" columnId={metric.key} align="right">
               {metric.label}
-            </TableHead>
+            </ReportColumnHead>
           ))}
         </TableRow>
       </TableHeader>
+      </ReportColumnPinningProvider>
+      <ReportRowPinningProvider>
       <TableBody>
         {rows.map((row) => {
           const selected = selectedRowIds.has(row.customer_uuid);
@@ -143,11 +154,14 @@ export function CustomerSalesTable({
               onKeyDown={(event) => activate(event, () => onSelect(row.customer_uuid))}
             >
               <TableCell onClick={(event) => event.stopPropagation()}>
-                <Checkbox
-                  aria-label={t("common.selectRow", { name: customerName(row) })}
-                  checked={selected}
-                  onCheckedChange={(checked) => onToggleRow(row, checked as boolean)}
-                />
+                <div className="flex items-center gap-1">
+                  <Checkbox
+                    aria-label={t("common.selectRow", { name: customerName(row) })}
+                    checked={selected}
+                    onCheckedChange={(checked) => onToggleRow(row, checked as boolean)}
+                  />
+                  <ReportRowPinToggle isDefault={row === rows[0]} label={customerName(row)} rowId={row.customer_uuid} />
+                </div>
               </TableCell>
               <TableCell>
                 <div className="flex items-center gap-3">
@@ -204,6 +218,7 @@ export function CustomerSalesTable({
           </TableRow>
         ) : null}
       </TableBody>
+      </ReportRowPinningProvider>
     </Table>
   );
 }

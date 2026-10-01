@@ -18,11 +18,13 @@ import { money } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import type { ReportColumnOption } from "@/features/report/shared/report-column-visibility";
 import { ReportIndeterminateCheckbox, selectionStateForVisibleIds } from "@/features/report/shared/report-row-selection";
+import { ReportColumnHead, ReportColumnPinningProvider, ReportRowPinToggle, ReportRowPinningProvider } from "@/features/report/shared/report-column-head";
+import { STICKY_TABLE_CLASS, useStickyTable, type ReportColumnPinning } from "@/features/report/shared/report-sticky-table";
 import type { VatReportRow, VatReportSummary } from "@/services/report";
 import { formatReportDate } from "@/features/report/shared/report-date-format";
 
 type VatMoneyKey = "discount_amount" | "net_sale" | "service_charge" | "vat" | "grand_total";
-type VatColumnId = "saleDate" | "customer" | VatMoneyKey | "vatRate";
+type VatColumnId = "saleDate" | "invoice" | "customer" | VatMoneyKey | "vatRate";
 
 type VatMoneyColumn = { id: VatMoneyKey; label: string; tone: "default" | "discount" | "vat" };
 
@@ -40,12 +42,13 @@ function vatMoneyColumns(t: (key: string) => string): VatMoneyColumn[] {
 export function vatColumnOptions(t: (key: string) => string): ReportColumnOption[] {
   const options: Array<{ id: VatColumnId; label: string }> = [
     { id: "saleDate", label: t("report.vat.columns.saleDate") },
+    { id: "invoice", label: t("report.vat.columns.invoice") },
     { id: "customer", label: t("report.vat.columns.customer") },
     ...vatMoneyColumns(t).slice(0, 3),
     { id: "vatRate", label: t("report.vat.columns.vatRate") },
     ...vatMoneyColumns(t).slice(3),
   ];
-  return options.map((option) => ({ ...option, hideable: option.id !== "vat" }));
+  return options.map((option) => ({ ...option, hideable: option.id !== "vat" && option.id !== "invoice" }));
 }
 
 // สีตัวเลข: ส่วนลดที่มากกว่า 0 = แดง, ยอด VAT (หัวใจของรายงาน) = สีธีม, ค่า 0 = จาง
@@ -73,8 +76,10 @@ export function VatReportTable({
   summary,
   onToggleRow,
   onToggleRows,
+  pinning,
 }: {
   isColumnVisible: (id: string) => boolean;
+  pinning: ReportColumnPinning;
   rows: VatReportRow[];
   selectedRowIds: Set<string>;
   summary: VatReportSummary | null;
@@ -93,10 +98,12 @@ export function VatReportTable({
     rows.map((row) => row.order_uuid),
     selectedRowIds,
   );
+  const stickyRef = useStickyTable(pinning);
 
   return (
     // container ของ Table เป็นตัวสกรอลเอง — หัวตาราง sticky ด้านบน, แถวรวม sticky ด้านล่าง
-    <Table containerClassName="min-h-0 flex-1 overflow-auto">
+    <Table containerClassName={cn("min-h-0 flex-1 overflow-auto", STICKY_TABLE_CLASS)} containerRef={stickyRef}>
+      <ReportColumnPinningProvider pinning={pinning}>
       <TableHeader className="sticky top-0 z-30 bg-muted">
         <TableRow>
           <TableHead>
@@ -107,22 +114,28 @@ export function VatReportTable({
               onCheckedChange={(checked) => onToggleRows(rows, checked as boolean)}
             />
           </TableHead>
-          {showDate ? <TableHead>{t("report.vat.columns.saleDate")}</TableHead> : null}
-          <TableHead>{t("report.vat.columns.invoice")}</TableHead>
-          {showCustomer ? <TableHead>{t("report.vat.columns.customer")}</TableHead> : null}
+          {showDate ? <ReportColumnHead columnId="saleDate">{t("report.vat.columns.saleDate")}</ReportColumnHead> : null}
+          <ReportColumnHead columnId="invoice">{t("report.vat.columns.invoice")}</ReportColumnHead>
+          {showCustomer ? <ReportColumnHead columnId="customer">{t("report.vat.columns.customer")}</ReportColumnHead> : null}
           {beforeRate.map((column) => (
-            <TableHead key={column.id} className="text-right">
+            <ReportColumnHead key={column.id} className="text-right" columnId={column.id} align="right">
               {column.label}
-            </TableHead>
+            </ReportColumnHead>
           ))}
-          {showRate ? <TableHead className="text-right">{t("report.vat.columns.vatRate")}</TableHead> : null}
+          {showRate ? (
+            <ReportColumnHead className="text-right" columnId="vatRate" align="right">
+              {t("report.vat.columns.vatRate")}
+            </ReportColumnHead>
+          ) : null}
           {afterRate.map((column) => (
-            <TableHead key={column.id} className="text-right">
+            <ReportColumnHead key={column.id} className="text-right" columnId={column.id} align="right">
               {column.label}
-            </TableHead>
+            </ReportColumnHead>
           ))}
         </TableRow>
       </TableHeader>
+      </ReportColumnPinningProvider>
+      <ReportRowPinningProvider>
       <TableBody>
         {rows.map((row) => {
           const selected = selectedRowIds.has(row.order_uuid);
@@ -130,11 +143,14 @@ export function VatReportTable({
           return (
             <TableRow key={row.order_uuid} data-state={selected ? "selected" : undefined}>
               <TableCell>
-                <Checkbox
-                  aria-label={t("common.selectRow", { name: row.order_invoice })}
-                  checked={selected}
-                  onCheckedChange={(checked) => onToggleRow(row, checked as boolean)}
-                />
+                <div className="flex items-center gap-1">
+                  <Checkbox
+                    aria-label={t("common.selectRow", { name: row.order_invoice })}
+                    checked={selected}
+                    onCheckedChange={(checked) => onToggleRow(row, checked as boolean)}
+                  />
+                  <ReportRowPinToggle isDefault={row === rows[0]} label={row.order_invoice} rowId={row.order_uuid} />
+                </div>
               </TableCell>
               {showDate ? <TableCell className="tabular-nums">{formatReportDate(row.sale_date)}</TableCell> : null}
               <TableCell className="font-medium">{row.order_invoice}</TableCell>
@@ -194,6 +210,7 @@ export function VatReportTable({
           </TableRow>
         ) : null}
       </TableBody>
+      </ReportRowPinningProvider>
     </Table>
   );
 }

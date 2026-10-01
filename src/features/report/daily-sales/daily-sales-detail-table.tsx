@@ -20,9 +20,19 @@ import { cn } from "@/lib/utils";
 import type { ApiEntity } from "@/services/shared/types";
 import type { DailySalesBillGroup } from "@/stores/report-store";
 import { SortableReportTableHead } from "../report-sort-table-head";
+import {
+  ReportColumnPinningProvider,
+  ReportRowPinToggle,
+  ReportRowPinningProvider,
+} from "../shared/report-column-head";
 import type { ReportColumnOption } from "../shared/report-column-visibility";
 import { ReportIndeterminateCheckbox } from "../shared/report-row-selection";
 import { useLocalTableSort } from "../shared/report-sort-utils";
+import {
+  STICKY_TABLE_CLASS,
+  useStickyTable,
+  type ReportColumnPinning,
+} from "../shared/report-sticky-table";
 import {
   detailGroupDiscountTotal as groupDiscountTotal,
   detailGroupItemDiscountTotal as groupItemDiscountTotal,
@@ -36,7 +46,8 @@ import {
 import type { ReportColumn, SummaryCards } from "./daily-sales-report-types";
 import {
   firstNumber,
-  formatDate,
+  billGroupPaymentLabel,
+  formatSaleDate,
   hasDisplayValue,
   isCancelledRow,
   isPaymentAttentionRow,
@@ -207,16 +218,16 @@ function reportFooterNumericCell(
   }
 }
 
-function groupTextValue(group: DailySalesBillGroup, key: DetailTextColumnKey) {
+function groupTextValue(group: DailySalesBillGroup, key: DetailTextColumnKey, t: (key: string) => string) {
   switch (key) {
     case "invoiceNumber":
       return group.invoiceNumber;
     case "saleDate":
-      return formatDate(group.saleDate);
+      return formatSaleDate(group.saleDate);
     case "tableName":
       return group.tableName;
     case "paymentType":
-      return group.paymentType;
+      return billGroupPaymentLabel(group, t);
   }
 }
 
@@ -229,6 +240,7 @@ export function DetailBillTable({
   groups,
   isColumnVisible,
   pageStart,
+  pinning,
   reportTotal,
   selectedRecordIds,
   summaryCards,
@@ -241,6 +253,7 @@ export function DetailBillTable({
   isColumnVisible: (id: string) => boolean;
   itemColumns: ReportColumn[];
   pageStart: number;
+  pinning: ReportColumnPinning;
   reportTotal: ApiEntity;
   selectedRecordIds: Set<string>;
   summaryCards: SummaryCards;
@@ -307,10 +320,13 @@ export function DetailBillTable({
     showStatus,
     textSpan: textColumns.length,
   };
+  // ล็อกคอลัมน์/แถวแบบเดียวกับตารางรายงานอื่น — แถวที่ล็อกได้คือแถวหัวบิล (แถวรายการสินค้าเป็นลูกของบิล)
+  const stickyRef = useStickyTable(pinning);
 
   return (
     // container ของ Table เป็นตัวสกรอลเอง — หัวตาราง sticky ด้านบน, แถวรวม sticky ด้านล่าง
-    <Table containerClassName="min-h-0 flex-1 overflow-auto">
+    <Table containerClassName={cn("min-h-0 flex-1 overflow-auto", STICKY_TABLE_CLASS)} containerRef={stickyRef}>
+      <ReportColumnPinningProvider pinning={pinning}>
       <TableHeader className="sticky top-0 z-30 bg-muted">
         <TableRow>
           <TableHead>
@@ -330,6 +346,7 @@ export function DetailBillTable({
               sort={groupSort}
               sortKey={column.key}
               className={column.minWidth}
+              columnId={column.key}
               onSort={toggleGroupSort}
             >
               {column.label}
@@ -343,6 +360,7 @@ export function DetailBillTable({
               sort={groupSort}
               sortKey={column.key}
               className={cn(column.minWidth, "text-right")}
+              columnId={column.key}
               onSort={toggleGroupSort}
             >
               {column.label}
@@ -354,6 +372,7 @@ export function DetailBillTable({
               sort={groupSort}
               sortKey="status"
               className="min-w-[118px]"
+              columnId="status"
               onSort={toggleGroupSort}
             >
               {t("report.columns.status")}
@@ -361,7 +380,9 @@ export function DetailBillTable({
           ) : null}
         </TableRow>
       </TableHeader>
+      </ReportColumnPinningProvider>
 
+      <ReportRowPinningProvider>
       <TableBody>
         {sortedGroups.map((group, index) => {
           const expanded = !collapsedGroups.has(group.id);
@@ -394,15 +415,18 @@ export function DetailBillTable({
                 data-state={expanded ? "selected" : undefined}
               >
                 <TableCell>
-                  <ReportIndeterminateCheckbox
-                    aria-label={t("common.selectRow", {
-                      name: group.invoiceNumber,
-                    })}
-                    checked={groupSelected}
-                    disabled={group.items.length === 0}
-                    indeterminate={groupPartiallySelected}
-                    onCheckedChange={(checked) => onToggleRows(group.items, checked as boolean)}
-                  />
+                  <div className="flex items-center gap-1">
+                    <ReportIndeterminateCheckbox
+                      aria-label={t("common.selectRow", {
+                        name: group.invoiceNumber,
+                      })}
+                      checked={groupSelected}
+                      disabled={group.items.length === 0}
+                      indeterminate={groupPartiallySelected}
+                      onCheckedChange={(checked) => onToggleRows(group.items, checked as boolean)}
+                    />
+                    <ReportRowPinToggle isDefault={index === 0} label={group.invoiceNumber} rowId={group.id} />
+                  </div>
                 </TableCell>
 
                 <TableCell>
@@ -429,7 +453,7 @@ export function DetailBillTable({
 
                 {textColumns.map((column) => (
                   <TableCell key={column.key} className={column.key === "invoiceNumber" ? "font-medium" : undefined}>
-                    {groupTextValue(group, column.key)}
+                    {groupTextValue(group, column.key, t)}
                   </TableCell>
                 ))}
 
@@ -523,6 +547,7 @@ export function DetailBillTable({
           billCountLabel={t("report.cards.billsCount")}
         />
       </TableBody>
+      </ReportRowPinningProvider>
     </Table>
   );
 }

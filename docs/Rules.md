@@ -95,10 +95,11 @@ export const useCategoryStore = createCrudListStore<Category, SaveCategoryInput,
 ## Comments
 
 **Rule.** Comment the *why* — a business rule, a workaround, a constraint that isn't visible in the code itself. Never restate what the code already says.
-**Why.** This codebase already does this well (see `next.config.ts`, `offline-routes.ts`) — comments there explain non-obvious constraints (Windows path separators breaking the SW manifest, why Android can't do offline writes), not "loop over items."
-**Correct**
+**Why.** This codebase already does this well (see `next.config.ts`, `src/proxy.ts`) — comments there explain non-obvious constraints (why a phone on the LAN hangs on the dev server, why `www.` must redirect), not "loop over items."
+**Correct** (from `next.config.ts`)
 ```ts
-// InjectManifest (classic mode) uses webpack only — Turbopack silently skips the
-// plugin instead of erroring, so `build` must force --webpack or offline-sw.js never ships.
+// Next dev blocks /_next/static/chunks/*.js with 403 for any origin not listed (localhost is
+// always allowed), so a phone that opens the dev server by LAN IP loads the HTML and then
+// spins forever.
 ```
 **Wrong** `// loop through the categories and sum products`

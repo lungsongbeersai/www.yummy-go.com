@@ -141,6 +141,7 @@ export function CategorySalesReportPage({ initialPagination }: { initialPaginati
               <CategorySalesTable
                 groups={report.groups}
                 isColumnVisible={columns.isVisible}
+                pinning={columns.pinning}
                 labelOverrides={report.labelOverrides}
                 selectedRowIds={report.rowSelection.selectedRowIds}
                 summary={report.summary}
@@ -159,6 +160,7 @@ export function CategorySalesReportPage({ initialPagination }: { initialPaginati
             <ReportPaginationBar>
               <AppPagination
                 page={report.page}
+                pageSize={{ value: report.appliedFilters.limit, onChange: report.changePageLimit }}
                 rangeLabel={report.paginationRangeLabel}
                 totalPages={report.totalPages}
                 onPageChange={report.setPage}

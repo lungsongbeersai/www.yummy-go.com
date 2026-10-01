@@ -1,9 +1,13 @@
 "use client";
 
-import { Fragment, useCallback, useMemo, type ReactNode, type RefObject } from "react";
+import { Fragment, useCallback, useMemo, useState, type ReactNode, type RefObject } from "react";
 import {
   BadgePercent,
   Calculator,
+  ChevronDown,
+  ChevronRight,
+  ChevronsDownUp,
+  ChevronsUpDown,
   HandPlatter,
   Landmark,
   Package,
@@ -20,16 +24,9 @@ import {
 import { ReportFilterCard, ReportFilterSheet } from "../shared/report-filter-shell";
 import { ReportLocationFields } from "../shared/report-location-fields";
 import type { ReportLocationOptions } from "../shared/report-location";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
-import {
-  Item,
-  ItemActions,
-  ItemContent,
-  ItemDescription,
-  ItemFooter,
-  ItemGroup,
-  ItemTitle,
-} from "@/components/ui/item";
 import { Progress } from "@/components/ui/progress";
 import {
   Table,
@@ -40,17 +37,18 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { cn } from "@/lib/utils";
+import { ReportColumnPinToggle, ReportColumnPinningProvider, ReportRowPinToggle, ReportRowPinningProvider } from "@/features/report/shared/report-column-head";
+import { STICKY_TABLE_CLASS, useStickyTable, type ReportColumnPinning } from "@/features/report/shared/report-sticky-table";
 import type { PaymentMethodReportFilter } from "@/config/report-filters";
 import type { CategorySalesReportOrder } from "@/services/report";
 import type {
   CategorySalesGroup,
   CategorySalesRow,
 } from "@/stores/report-store";
-import { SortableReportTableHead } from "../report-sort-table-head";
+import { reportSortAria, SortableReportHeadButton, SortableReportTableHead } from "../report-sort-table-head";
 import {
   ReportBranchField,
   ReportDateRangeFields,
-  ReportPageLimitField,
   ReportPaymentMethodField,
   ReportSelectField,
 } from "../shared/report-filter-fields";
@@ -285,12 +283,6 @@ export function CategorySalesFilterFields({
         onValueChange={(value) => patch({ paymentMethod: value })}
       />
 
-      <ReportPageLimitField
-        id={`${idPrefix}-limit`}
-        value={draftFilters.limit}
-        onValueChange={(value) => patch({ limit: value })}
-      />
-
       <ReportSelectField
         id={`${idPrefix}-order-by`}
         label={t("report.filters.orderBy")}
@@ -342,11 +334,14 @@ export function categorySalesColumnOptions(
   t: (key: string) => string,
   labelOverrides?: CategoryLabelOverrides,
 ): ReportColumnOption[] {
-  return categoryMetricColumns(t, labelOverrides).map((column) => ({
-    hideable: column.id !== "grandTotal",
-    id: column.id,
-    label: column.label,
-  }));
+  return [
+    { hideable: false, id: "product", label: t("report.categorySales.columns.product") },
+    ...categoryMetricColumns(t, labelOverrides).map((column) => ({
+      hideable: column.id !== "grandTotal",
+      id: column.id,
+      label: column.label,
+    })),
+  ];
 }
 
 // สีตัวเลข: ส่วนลดที่มากกว่า 0 = แดง, ยอดสุทธิ = สีธีม, ค่า 0 = จาง
@@ -380,6 +375,7 @@ export function CategorySalesTable({
   groups,
   isColumnVisible,
   labelOverrides,
+  pinning,
   selectedRowIds,
   summary,
   onToggleRow,
@@ -388,6 +384,7 @@ export function CategorySalesTable({
   groups: CategorySalesGroup[];
   isColumnVisible: (id: string) => boolean;
   labelOverrides?: CategoryLabelOverrides;
+  pinning: ReportColumnPinning;
   selectedRowIds: Set<string>;
   summary: Record<string, unknown>;
   onToggleRow: (row: CategorySalesRow, selected: boolean) => void;
@@ -420,10 +417,30 @@ export function CategorySalesTable({
     selectedRowIds,
   );
   const productCount = metricNumber(summary.product_count);
+  const stickyRef = useStickyTable(pinning);
+
+  // กลุ่มที่พับไว้ — ค่าเริ่มต้นขยายทุกกลุ่ม พับเพื่อดูแค่ยอดรวมต่อกลุ่มเทียบกัน
+  const [collapsed, setCollapsed] = useState<Set<string>>(() => new Set());
+  const groupKey = (group: CategorySalesGroup) => group.groupUuid || group.groupName;
+  const allCollapsed = groups.length > 0 && groups.every((group) => collapsed.has(groupKey(group)));
+
+  function toggleGroup(key: string) {
+    setCollapsed((current) => {
+      const next = new Set(current);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
+      return next;
+    });
+  }
+
+  function toggleAllGroups() {
+    setCollapsed(allCollapsed ? new Set() : new Set(groups.map(groupKey)));
+  }
 
   return (
     // container ของ Table เป็นตัวสกรอลเอง — หัวตาราง sticky ด้านบน, แถวรวม sticky ด้านล่าง
-    <Table containerClassName="min-h-0 flex-1 overflow-auto">
+    <Table containerClassName={cn("min-h-0 flex-1 overflow-auto", STICKY_TABLE_CLASS)} containerRef={stickyRef}>
+      <ReportColumnPinningProvider pinning={pinning}>
       <TableHeader className="sticky top-0 z-30 bg-muted">
         <TableRow>
           <TableHead>
@@ -434,9 +451,25 @@ export function CategorySalesTable({
               onCheckedChange={(checked) => onToggleRows(visibleRows, checked as boolean)}
             />
           </TableHead>
-          <SortableReportTableHead sort={sort} sortKey="productName" className="min-w-60" onSort={toggleSort}>
-            {t("report.categorySales.columns.product")}
-          </SortableReportTableHead>
+          <TableHead className="group/col min-w-64" data-col="product" aria-sort={reportSortAria(sort, "productName")}>
+            <div className="flex items-center gap-1">
+              <ReportColumnPinToggle columnId="product" label={t("report.categorySales.columns.product")} />
+              {/* พับ/ขยายทุกกลุ่ม — อยู่ตำแหน่งเดียวกับลูกศรของแต่ละกลุ่มด้านล่าง */}
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon-sm"
+                aria-label={allCollapsed ? t("report.categorySales.expandAllGroups") : t("report.categorySales.collapseAllGroups")}
+                title={allCollapsed ? t("report.categorySales.expandAllGroups") : t("report.categorySales.collapseAllGroups")}
+                onClick={toggleAllGroups}
+              >
+                {allCollapsed ? <ChevronsUpDown /> : <ChevronsDownUp />}
+              </Button>
+              <SortableReportHeadButton sort={sort} sortKey="productName" onSort={toggleSort}>
+                {t("report.categorySales.columns.product")}
+              </SortableReportHeadButton>
+            </div>
+          </TableHead>
           {columns.map((column) => (
             <SortableReportTableHead
               key={column.id}
@@ -444,6 +477,7 @@ export function CategorySalesTable({
               sort={sort}
               sortKey={column.field}
               className="text-right"
+              columnId={column.id}
               onSort={toggleSort}
             >
               {column.label}
@@ -451,14 +485,21 @@ export function CategorySalesTable({
           ))}
         </TableRow>
       </TableHeader>
+      </ReportColumnPinningProvider>
 
+      <ReportRowPinningProvider>
       <TableBody>
         {sortedGroupRows.map(({ group, rows }) => {
           const selection = selectionStateForVisibleIds(rows.map(categorySalesRowId), selectedRowIds);
+          const key = groupKey(group);
+          const open = !collapsed.has(key);
 
           return (
-            <Fragment key={group.groupUuid || group.groupName}>
-              <TableRow className="bg-muted/50 hover:bg-muted/50">
+            <Fragment key={key}>
+              {/* หัวกลุ่ม = แถวสรุปของกลุ่มในตัว (แบบ pivot table): ชื่อกลุ่ม + ยอดรวมของกลุ่มในแต่ละคอลัมน์
+                  ตัวหนาบนพื้น muted มีเส้นบนคั่นกลุ่ม — แยกจากแถวสินค้า (ตัวปกติ พื้นขาว เยื้องเข้า) ได้ทันที
+                  แทนแถว "รวม" แยกท้ายกลุ่มแบบเดิมที่สีเขียวซ้ำกับแถวสรุปทั้งรายงาน */}
+              <TableRow className="border-t-2 border-t-border bg-muted hover:bg-muted">
                 <TableCell>
                   <ReportIndeterminateCheckbox
                     aria-label={t("common.selectRow", { name: group.groupName })}
@@ -467,63 +508,88 @@ export function CategorySalesTable({
                     onCheckedChange={(checked) => onToggleRows(group.rows, checked as boolean)}
                   />
                 </TableCell>
-                <TableCell colSpan={1 + columns.length}>
-                  <span className="font-medium">{group.groupName}</span>
-                  <span className="ml-2 text-muted-foreground">
-                    {t("report.categorySales.productsCount", { count: group.rows.length })}
-                  </span>
-                </TableCell>
-              </TableRow>
-
-              {rows.map((row) => {
-                const selected = selectedRowIds.has(categorySalesRowId(row));
-                const share = groupShare(row, group);
-
-                return (
-                  <TableRow
-                    key={`${row.groupUuid}-${row.cateUuid}-${row.productUuid}-${row.rank}`}
-                    data-state={selected ? "selected" : undefined}
-                  >
-                    <TableCell>
-                      <Checkbox
-                        aria-label={t("common.selectRow", { name: row.productName })}
-                        checked={selected}
-                        onCheckedChange={(checked) => onToggleRow(row, checked as boolean)}
+                <TableCell>
+                  <div className="flex min-w-0 items-center gap-1">
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon-sm"
+                      aria-expanded={open}
+                      aria-label={
+                        open
+                          ? t("report.categorySales.collapseGroup", { name: group.groupName })
+                          : t("report.categorySales.expandGroup", { name: group.groupName })
+                      }
+                      onClick={() => toggleGroup(key)}
+                    >
+                      <ChevronRight
+                        className={cn("transition-transform motion-reduce:transition-none", open && "rotate-90")}
                       />
-                    </TableCell>
-                    <TableCell className="whitespace-normal">
-                      <div className="flex flex-col gap-1.5">
-                        <span className="font-medium">{row.productName}</span>
-                        {row.cateName ? <span className="text-muted-foreground">{row.cateName}</span> : null}
-                        {share !== null ? (
-                          <span className="flex max-w-56 items-center gap-2">
-                            <Progress value={share} aria-hidden="true" />
-                            <span className="shrink-0 tabular-nums text-muted-foreground">{share.toFixed(1)}%</span>
-                          </span>
-                        ) : null}
-                      </div>
-                    </TableCell>
-                    {columns.map((column) => (
-                      <TableCell key={column.id} className={metricClass(row[column.field], column.tone)}>
-                        {displayMetric(row[column.field], column.kind)}
-                      </TableCell>
-                    ))}
-                  </TableRow>
-                );
-              })}
-
-              <TableRow className="bg-primary/5 hover:bg-primary/5">
-                <TableCell />
-                <TableCell className="font-medium text-primary-text">{t("common.total")}</TableCell>
+                    </Button>
+                    <span className="min-w-0 truncate text-sm font-semibold">{group.groupName}</span>
+                    <Badge variant="outline" className="h-5 shrink-0 bg-background px-1.5 tabular-nums">
+                      {t("report.categorySales.productsCount", { count: group.rows.length })}
+                    </Badge>
+                  </div>
+                </TableCell>
                 {columns.map((column) => {
                   const value = column.summaryValue(group.summary);
                   return (
-                    <TableCell key={column.id} className={cn(metricClass(value, column.tone), "font-medium")}>
+                    <TableCell key={column.id} className={cn(metricClass(value, column.tone), "font-semibold")}>
                       {displayMetric(value, column.kind)}
                     </TableCell>
                   );
                 })}
               </TableRow>
+
+              {open
+                ? rows.map((row) => {
+                    const selected = selectedRowIds.has(categorySalesRowId(row));
+                    const share = groupShare(row, group);
+
+                    return (
+                      <TableRow
+                        key={`${row.groupUuid}-${row.cateUuid}-${row.productUuid}-${row.rank}`}
+                        data-state={selected ? "selected" : undefined}
+                      >
+                        <TableCell>
+                          <div className="flex items-center gap-1">
+                            <Checkbox
+                              aria-label={t("common.selectRow", { name: row.productName })}
+                              checked={selected}
+                              onCheckedChange={(checked) => onToggleRow(row, checked as boolean)}
+                            />
+                            <ReportRowPinToggle isDefault={row === visibleRows[0]} label={row.productName} rowId={categorySalesRowId(row)} />
+                          </div>
+                        </TableCell>
+                        {/* เยื้องเท่าปุ่มลูกศรของหัวกลุ่ม — ชื่อสินค้าตรงกับชื่อกลุ่ม เห็นเป็นลูกของกลุ่ม
+                            บรรทัดรองรวมหมวด + สัดส่วนต่อกลุ่มไว้บรรทัดเดียว (เดิม 3 บรรทัด แถวสูงอ่านยาก) */}
+                        <TableCell className="whitespace-normal pl-9">
+                          <div className="flex min-w-0 flex-col gap-1">
+                            <span>{row.productName}</span>
+                            <span className="flex min-w-0 items-center gap-2 text-muted-foreground">
+                              {row.cateName ? <span className="truncate">{row.cateName}</span> : null}
+                              {share !== null ? (
+                                <span
+                                  className="flex shrink-0 items-center gap-1.5"
+                                  title={t("report.categorySales.shareOfGroup", { value: share.toFixed(1) })}
+                                >
+                                  <Progress value={share} aria-hidden="true" className="h-1 w-16" />
+                                  <span className="tabular-nums">{share.toFixed(1)}%</span>
+                                </span>
+                              ) : null}
+                            </span>
+                          </div>
+                        </TableCell>
+                        {columns.map((column) => (
+                          <TableCell key={column.id} className={metricClass(row[column.field], column.tone)}>
+                            {displayMetric(row[column.field], column.kind)}
+                          </TableCell>
+                        ))}
+                      </TableRow>
+                    );
+                  })
+                : null}
             </Fragment>
           );
         })}
@@ -554,6 +620,7 @@ export function CategorySalesTable({
           })}
         </TableRow>
       </TableBody>
+      </ReportRowPinningProvider>
     </Table>
   );
 }
@@ -570,79 +637,120 @@ export function CategorySalesMobileList({
   onToggleRows: (rows: CategorySalesRow[], selected: boolean) => void;
 }) {
   const { t } = useTranslation();
+  const [collapsed, setCollapsed] = useState<Set<string>>(() => new Set());
 
+  function toggleGroup(key: string) {
+    setCollapsed((current) => {
+      const next = new Set(current);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
+      return next;
+    });
+  }
+
+  // โครงเดียวกับตาราง: หัวกลุ่มเป็นแถบพื้น muted ตัวหนาพร้อมยอดรวมของกลุ่ม แตะเพื่อพับ/ขยาย
+  // สินค้าเป็นรายการแถวเตี้ยคั่นเส้น (เดิมเป็นการ์ดสูงต่อสินค้า กลุ่มเดียวยาวเกินจอ)
   return (
-    <ItemGroup>
+    <div className="flex flex-col gap-3">
       {groups.map((group) => {
+        const key = group.groupUuid || group.groupName;
+        const open = !collapsed.has(key);
         const selection = selectionStateForVisibleIds(group.rows.map(categorySalesRowId), selectedRowIds);
 
         return (
-          <Item key={group.groupUuid || group.groupName} variant="outline">
-            <ReportIndeterminateCheckbox
-              aria-label={t("common.selectRow", { name: group.groupName })}
-              checked={selection.allVisibleSelected}
-              indeterminate={!selection.allVisibleSelected && selection.someVisibleSelected}
-              onCheckedChange={(checked) => onToggleRows(group.rows, checked as boolean)}
-            />
-            <ItemContent>
-              <ItemTitle>{group.groupName}</ItemTitle>
-              <ItemDescription>
-                {t("report.categorySales.columns.qtyTotal")} {displayMetric(group.summary.total_qty, "number")}
-              </ItemDescription>
-            </ItemContent>
-            <ItemActions>
-              <span className="font-medium tabular-nums text-primary-text">
-                {displayMetric(group.summary.grand_total, "money")}
-              </span>
-            </ItemActions>
+          <section key={key} className="overflow-hidden rounded-lg border border-border bg-card text-sm">
+            <div className="flex items-center gap-3 bg-muted px-3 py-2.5">
+              <ReportIndeterminateCheckbox
+                aria-label={t("common.selectRow", { name: group.groupName })}
+                checked={selection.allVisibleSelected}
+                indeterminate={!selection.allVisibleSelected && selection.someVisibleSelected}
+                onCheckedChange={(checked) => onToggleRows(group.rows, checked as boolean)}
+              />
+              <button
+                type="button"
+                aria-expanded={open}
+                aria-label={
+                  open
+                    ? t("report.categorySales.collapseGroup", { name: group.groupName })
+                    : t("report.categorySales.expandGroup", { name: group.groupName })
+                }
+                className="flex min-h-11 min-w-0 flex-1 items-center gap-2 rounded-md text-left outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                onClick={() => toggleGroup(key)}
+              >
+                <span className="flex min-w-0 flex-1 flex-col gap-0.5">
+                  <span className="truncate text-base font-semibold">{group.groupName}</span>
+                  <span className="truncate text-xs text-muted-foreground">
+                    {t("report.categorySales.productsCount", { count: group.rows.length })}
+                    {" · "}
+                    {t("report.categorySales.columns.qtyTotal")} {displayMetric(group.summary.total_qty, "number")}
+                  </span>
+                </span>
+                <span className="shrink-0 font-semibold tabular-nums text-primary-text">
+                  {displayMetric(group.summary.grand_total, "money")}
+                </span>
+                <ChevronDown
+                  aria-hidden="true"
+                  className={cn(
+                    "size-4 shrink-0 text-muted-foreground transition-transform motion-reduce:transition-none",
+                    !open && "-rotate-90",
+                  )}
+                />
+              </button>
+            </div>
 
-            <ItemFooter>
-              <ItemGroup>
+            {open ? (
+              <ul className="divide-y divide-border">
                 {group.rows.map((row) => {
                   const share = groupShare(row, group);
                   const discount = metricNumber(row.discountTotal);
 
                   return (
-                    <Item
+                    <li
                       key={`${row.groupUuid}-${row.cateUuid}-${row.productUuid}-${row.rank}`}
-                      variant="muted"
-                      size="sm"
+                      className="flex items-start gap-3 px-3 py-2.5"
                     >
                       <Checkbox
+                        className="mt-0.5"
                         aria-label={t("common.selectRow", { name: row.productName })}
                         checked={selectedRowIds.has(categorySalesRowId(row))}
                         onCheckedChange={(checked) => onToggleRow(row, checked as boolean)}
                       />
-                      <ItemContent>
-                        <ItemTitle>{row.productName}</ItemTitle>
-                        <ItemDescription>
-                          {t("report.categorySales.columns.qtyTotal")} {displayMetric(row.totalQty, "number")}
+                      <div className="flex min-w-0 flex-1 flex-col gap-1">
+                        <div className="flex min-w-0 items-baseline gap-2">
+                          <span className="min-w-0 flex-1 truncate">{row.productName}</span>
+                          <span className="shrink-0 font-medium tabular-nums">
+                            {displayMetric(row.grandTotal, "money")}
+                          </span>
+                        </div>
+                        <div className="flex min-w-0 items-center gap-2 text-xs text-muted-foreground">
+                          <span className="shrink-0 tabular-nums">
+                            {t("report.categorySales.columns.qtyTotal")} {displayMetric(row.totalQty, "number")}
+                          </span>
                           {discount > 0 ? (
-                            <span className="text-destructive">
-                              {" · "}
+                            <span className="min-w-0 truncate text-destructive">
                               {t("report.categorySales.columns.discountTotal")} {displayMetric(discount, "money")}
                             </span>
                           ) : null}
-                        </ItemDescription>
-                      </ItemContent>
-                      <ItemActions>
-                        <span className="tabular-nums">{displayMetric(row.grandTotal, "money")}</span>
-                      </ItemActions>
-                      {share !== null ? (
-                        <ItemFooter>
-                          <Progress value={share} aria-hidden="true" />
-                          <span className="shrink-0 tabular-nums text-muted-foreground">{share.toFixed(1)}%</span>
-                        </ItemFooter>
-                      ) : null}
-                    </Item>
+                          {share !== null ? (
+                            <span
+                              className="ml-auto flex shrink-0 items-center gap-1.5"
+                              title={t("report.categorySales.shareOfGroup", { value: share.toFixed(1) })}
+                            >
+                              <Progress value={share} aria-hidden="true" className="h-1 w-12" />
+                              <span className="tabular-nums">{share.toFixed(1)}%</span>
+                            </span>
+                          ) : null}
+                        </div>
+                      </div>
+                    </li>
                   );
                 })}
-              </ItemGroup>
-            </ItemFooter>
-          </Item>
+              </ul>
+            ) : null}
+          </section>
         );
       })}
-    </ItemGroup>
+    </div>
   );
 }
 

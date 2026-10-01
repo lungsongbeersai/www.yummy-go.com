@@ -51,6 +51,7 @@ Import via the `@/` alias; do not reach across feature boundaries with `../`.
 - `/q/[token]` — stable public QR-code URL, redirects to `/posAll?t=:token`. No auth; uses `publicApiClient` and the `public-pos` service/store.
 - `/customer-display` — second-screen view, loaded by Electron in its own `BrowserWindow`.
 - `/login` — auth entry.
+- `src/proxy.ts` (Next 16's replacement for `middleware.ts`) — only 308-redirects `www.yummy-go.com` to the canonical `yummy-go.com` so auth tokens and storage live on one origin. It must not grow auth checks: auth stays client-side (`AuthGuard`).
 - Legacy pre-P2.1 paths (`/setting*`, `/product*`, `/printer*`, `/sale/order-customer`, `/sales/open-table-sale`) redirect via `redirects()` in `next.config.ts`. The permission API still returns these legacy paths at runtime — `src/lib/routes.ts` (`canonicalRoute`, `internalRoute`) is the single place that rewrites them to current paths for menu highlighting; it must stay in sync with `redirects()` by hand (verified last touched together: 2026-07-28 / 2026-08-31 — no automated check links them, see `Decisions.md`).
 
 ## Platform integrations
@@ -64,4 +65,4 @@ Import via the `@/` alias; do not reach across feature boundaries with `../`.
 
 ## Settled decisions this file assumes
 
-See `docs/Decisions.md` for the Online-only cutover and the LAN `allowedDevOrigins` entry in `next.config.ts`. The historical service-worker/offline decisions remain in that append-only log but are superseded by the 2026-09-14 Online-only decision.
+See `docs/Decisions.md` for the Online-only cutover (2026-09-14) and the POS All route/API namespace (2026-09-15). The historical service-worker/offline and hard-coded-LAN-IP entries remain in that append-only log but no longer describe the code: offline was retired on 2026-09-14, and `allowedDevOrigins` now reads `CAPACITOR_DEV_ORIGIN` from the environment instead of a hard-coded IP.

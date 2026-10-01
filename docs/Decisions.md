@@ -6,6 +6,36 @@ Entries below dated from git history are backfilled from existing code comments 
 
 ---
 
+## Report row pinning moves to its own pin toggle; first row and primary column pinned by default (supersedes the entry below)
+
+- **Date:** 2026-09-30.
+- **Context:** A review of the report tables found the checkbox-pins-row coupling (entry below) causing real bugs: un-ticking one row after "select all" suddenly froze 4–5 rows, rows past the 40% height budget silently didn't pin (reported by the owner as "why not lock?"), and pinning a row to compare it narrowed summary/export. The owner also wanted the first row and first column locked by default so the feature is discoverable — which, with the coupling, would have pre-selected the first row and made every default export contain one row.
+- **Decision:** Row pinning uses a separate pin toggle (`ReportRowPinToggle`, `[data-row-pin][aria-pressed]`) next to the selection checkbox; selection no longer affects pinning. Column pinning uses the same pin-icon toggle instead of a checkbox so the two controls are distinguishable. Defaults: the first row of each loaded data set is pinned until the user unpins a default row once (remembered device-wide in `localStorage`), and each report's primary column (first `hideable: false` option) is pinned until the user sets their own pins (an empty choice is stored as `"[]"` so it sticks). Pin toggles stay hidden until hover/focus (faint on touch screens) because the defaults already show the feature. A row that exceeds the 40% height budget stays pressed but faded, and pinning it shows a "locked rows are full" toast.
+- **Trade-off:** One extra small control per row. Default pins are opinionated — a user who never wants them must unpin once per device (rows) or once per report (columns).
+- **Approved by:** repository owner (2026-09-30, "fix all" on the review that proposed this).
+
+---
+
+## Report row selection checkbox also pins the row vertically (superseded above)
+
+- **Date:** 2026-09-30.
+- **Context:** Report tables got column pinning (header checkbox → column stays left on horizontal scroll). The owner asked for the vertical equivalent driven by the existing row-selection checkbox in the order column. That checkbox already filters the summary, Excel export and print to the selected rows (`use-*-report-workflow.ts` → `selectedRowIds`). The agent objected once: one control would carry two intents, so selecting rows for export also freezes them, "select all" would pin every row, and pinning a row to compare it silently narrows the export. A separate per-row pin toggle was offered and declined.
+- **Decision:** A selected row (`tr[data-state=selected]`) sticks under the table header while scrolling vertically (`src/features/report/shared/report-sticky-table.ts`). Two guards limit the damage: a fully checked "select all" pins nothing (indeterminate still pins), and pinned rows stop at 40% of the scroll area's height (`MAX_PINNED_ROW_SHARE`) — later selected rows scroll normally.
+- **Trade-off:** Selecting rows to export still freezes up to ~40% of the table, and a user pinning rows to compare will narrow summary/export to those rows. Revisit with a separate pin control if cashiers report exporting partial data by accident.
+- **Approved by:** repository owner (2026-09-30, in conversation, after the objection above).
+
+---
+
+## Non-negotiables 5 and 7 rewritten after the online-only cutover
+
+- **Date:** 2026-09-30.
+- **Context:** A docs audit found two Non-negotiables in `CLAUDE.md`/`AGENTS.md` describing code that no longer exists. #5 justified `--webpack` with `@serwist/next`'s InjectManifest, but Serwist is no longer a dependency. #7 required `src/lib/offline-routes.ts` and `src/services/offline-sync.ts` to change together, but both files were deleted in the 2026-09-14/09-24 offline removal.
+- **Decision:** #5 now keeps `--webpack` on a different basis: a Turbopack production build is unverified against Electron standalone staging and the VPS deploy, so switching needs its own entry here. #7 is replaced by the invariant the cutover actually established: no local fallback for sales, cart, kitchen, or payment.
+- **Trade-off:** `--webpack` stays even though its original reason is gone, which costs slower builds until someone verifies Turbopack end-to-end. Dropping it silently was rejected because a bundler swap touches all three ship targets at once.
+- **Approved by:** `TODO(owner): confirm` — proposed by the agent on 2026-09-30, pending owner review of the diff.
+
+---
+
 ## Remove the retired local-sales implementation; printing uses printer acknowledgements without pacing timers
 
 - **Date:** 2026-09-24.

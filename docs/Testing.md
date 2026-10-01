@@ -10,7 +10,7 @@ Config (`vitest.config.ts`): `environment: "node"`, `globals: true` (no `import 
 
 ## What must be tested
 
-Pure logic only: services, store `helpers.ts` files, validators, domain-logic files at a feature's root (e.g. `cart-domain.ts`), route/canonicalization helpers. 153 `.test.ts` files exist today, colocated next to the code they test (`foo.ts` → `foo.test.ts` in the same folder) — follow that layout, don't centralize tests in a `__tests__/` directory.
+Pure logic only: services, store `helpers.ts` files, validators, domain-logic files at a feature's root (e.g. `cart-domain.ts`), route/canonicalization helpers. Tests are colocated next to the code they test (`foo.ts` → `foo.test.ts` in the same folder) — follow that layout, don't centralize tests in a `__tests__/` directory.
 
 ## What must not be tested
 

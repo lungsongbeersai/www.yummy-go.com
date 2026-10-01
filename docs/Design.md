@@ -1,7 +1,5 @@
 # Design
 
-Supersedes the old `docs/design-system.md` (merged in here; that file has been removed).
-
 ## Sources of truth
 
 - `components.json` — shadcn CLI config. Style preset `radix-mira`, base color `mist`, icon library `lucide`, RSC on. `tailwind.config` is intentionally empty — Tailwind v4 is CSS-config only.
@@ -21,9 +19,7 @@ Feature code must not use raw palette colors (`bg-[#...]`, `text-emerald-500`, e
 
 ## Installed primitives (`src/components/ui/`)
 
-accordion, alert, alert-dialog, avatar, badge, breadcrumb, button, button-group, calendar, card, chart, checkbox, command, dialog, drawer, dropdown-menu, empty, field, input, input-group, item, label, pagination, popover, progress, radio-group, select, separator, sheet, sidebar, skeleton, slider, sonner, spinner, switch, table, tabs, textarea, toggle, toggle-group, tooltip.
-
-Check this list before hand-rolling anything — most UI needs are already here. Install more with:
+List the folder before hand-rolling anything — most UI needs are already there (including `alert-dialog`, `empty`, `field`, `skeleton`, `sonner`, `sidebar`, `chart`). The folder is the source of truth; a copied list here would drift. Install more with:
 
 ```bash
 npx shadcn@latest add <component>   # no args: list what's available
@@ -80,7 +76,7 @@ No custom breakpoints are defined anywhere in the repo (`components.json` has no
 Inspect the current and incoming preset before changing visual foundations:
 
 ```bash
-pnpm dlx shadcn@latest apply --preset <preset-code> --only theme,font
+npx shadcn@latest apply --preset <preset-code> --only theme,font
 ```
 
 A full `apply` (not `--only theme,font`) can overwrite local component customizations and change their APIs — treat it as an approved migration, not a visual tweak: diff review + a clean `npm run typecheck` required before acceptance.

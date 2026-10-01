@@ -2,13 +2,15 @@
 
 ## Branching
 
-Observed and current convention: numbered feature branches, `feature-N` (current: `feature-70`; recent history: `feature-62`, `feature-60`, `feature-23`...). The `ship-feature` skill drives the intended flow: commit on `feature-N` → merge into an integration `feature` branch → delete `feature-N` → cut the next `feature-N+1`. `git log` shows a real `merge feature into main` commit, confirming `feature` → `main` is a manual, separate step — not automatic.
+Numbered feature branches, `feature-N` — run `git branch -a` for the current number rather than trusting a number written here. The `ship-feature` skill drives the intended flow: commit on `feature-N` → merge into an integration `feature` branch → delete `feature-N` → cut the next `feature-N+1`. Merging into `main` is a manual, separate step — not automatic.
+
+`TODO(owner): confirm` — as of 2026-09-30 no `feature` branch exists locally or on `origin`; recent history instead merges `main` into `feature-N` directly (e.g. `Merge branch 'main' into feature-80`). Confirm which flow is current before running `ship-feature`.
 
 `TODO(owner): confirm` — no branch-protection rule or required review was found configured in this repo (no `.github` PR template, no CODEOWNERS). Treat direct pushes to `main` as possible today; that doesn't mean they're safe — see Verification below.
 
 ## Commits
 
-`TODO(owner): confirm` — no commit-message convention is enforced (no commitlint, no husky, no `.gitmessage`). Recent history is inconsistent ("deploy", "git push", "update offline to online"). Do not assume Conventional Commits or any other format is expected; if the user wants one adopted, record that decision in `Decisions.md` first rather than applying it unilaterally.
+`TODO(owner): confirm` — no commit-message convention is enforced (no commitlint, no husky, no `.gitmessage`). Recent history mixes Conventional Commits (`fix(pos): …`, `feat(product): …`) with free-form and date-only messages (`29/09/2026`). Do not assume Conventional Commits or any other format is expected; if the user wants one adopted, record that decision in `Decisions.md` first rather than applying it unilaterally.
 
 ## What must pass before you push
 

@@ -16,14 +16,12 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { PAGE_LIMIT_OPTIONS, isAllPageLimit } from "@/lib/pagination";
 import { reportOrderLabel, reportOrderOptions } from "../shared/report-sort-utils";
 import { ReportDateInput } from "../shared/report-date-input";
 import { ReportFilterCard, ReportFilterSheet } from "../shared/report-filter-shell";
 import { ReportLocationFields } from "../shared/report-location-fields";
 import type { ReportLocationOptions } from "../shared/report-location";
 import type {
-  DetailPaginationBasis,
   ReportBranchOption,
   ReportFilters,
 } from "./daily-sales-report-types";
@@ -33,11 +31,9 @@ import {
 } from "./daily-sales-report-utils";
 
 // เงื่อนไข "ไม่ใช่ค่าเริ่มต้น" ของฟิลด์รอง — ใช้ตัดสินว่าจะโชว์ badge บอกจำนวนตัวกรองที่ซ่อนอยู่ใน popover หรือไม่
-// (limit เทียบกับตัวเลือกแรกของ PAGE_LIMIT_OPTIONS เป็นค่าประมาณ ไม่ใช่ default ที่แท้จริงของทุกหน้า
-// แต่พอใช้เป็นสัญญาณคร่าวๆ ว่าผู้ใช้ปรับค่าจากที่ตั้งไว้แต่แรกหรือยัง)
+// (จำนวนแถวต่อหน้าย้ายไปแถบแบ่งหน้าแล้ว ไม่นับเป็นตัวกรอง)
 function secondaryFilterCount(filters: ReportFilters) {
   let count = 0;
-  if (String(filters.limit) !== String(PAGE_LIMIT_OPTIONS[0])) count += 1;
   if (filters.paymentMethod !== "All") count += 1;
   if (filters.orderBy !== "DESC") count += 1;
   if (filters.zoneUuid !== "all") count += 1;
@@ -50,7 +46,6 @@ type ReportFilterProps = {
   branchLocked: boolean;
   branchOptions: ReportBranchOption[];
   canApply: boolean;
-  detailPaginationBasis: DetailPaginationBasis;
   draftFilters: ReportFilters;
   loading: boolean;
   locationOptions: ReportLocationOptions & { loading: boolean };
@@ -69,7 +64,6 @@ export function DailySalesFilterBar({
   branchLocked,
   branchOptions,
   canApply,
-  detailPaginationBasis,
   draftFilters,
   loading,
   locationOptions,
@@ -115,7 +109,6 @@ export function DailySalesFilterBar({
           <PopoverTitle>{t("report.filters.moreFilters")}</PopoverTitle>
           <div className="grid gap-3">
             <DailySalesSecondaryFields
-              detailPaginationBasis={detailPaginationBasis}
               draftFilters={draftFilters}
               idPrefix="report"
               locationOptions={locationOptions}
@@ -133,7 +126,6 @@ export function DailySalesFilterSheet({
   branchLocked,
   branchOptions,
   canApply,
-  detailPaginationBasis,
   draftFilters,
   loading,
   locationOptions,
@@ -166,7 +158,6 @@ export function DailySalesFilterSheet({
         onDraftChange={onDraftChange}
       />
       <DailySalesSecondaryFields
-        detailPaginationBasis={detailPaginationBasis}
         draftFilters={draftFilters}
         idPrefix="report-mobile"
         locationOptions={locationOptions}
@@ -181,23 +172,14 @@ export function DailySalesFilterSheet({
 // (ปุ่มวันที่/ปุ่มเปิดตัวกรอง) จึงเหลือไว้แค่ส่วนที่ให้ข้อมูลจริงคือแถว badge
 export function AppliedFilterBadges({
   branchLabel,
-  detailPaginationBasis,
   filters,
   locationOptions,
 }: {
   branchLabel: string;
-  detailPaginationBasis: DetailPaginationBasis;
   filters: ReportFilters;
   locationOptions: ReportLocationOptions;
 }) {
   const { t } = useTranslation();
-  const limitCount = isAllPageLimit(filters.limit) ? t("common.all") : filters.limit;
-  const limitLabel =
-    filters.typePage === "detail"
-      ? detailPaginationBasis === "bills"
-        ? t("report.billsPerPageValue", { count: limitCount })
-        : t("report.linesPerPageValue", { count: limitCount })
-      : t("report.rowsPerPageValue", { count: limitCount });
   const badges = [
     branchLabel,
     filters.zoneUuid === "all"
@@ -208,14 +190,19 @@ export function AppliedFilterBadges({
       : locationOptions.tableOptions.find((option) => option.value === filters.tableUuid)?.label,
     paymentMethodLabel(t, filters.paymentMethod),
     reportOrderLabel(t, filters.orderBy),
-    limitLabel,
     filters.search
   ].filter(Boolean);
 
   return (
-    <div className="flex flex-wrap gap-2">
+    // ขนาดตัวอักษรฐานของ Badge (10px) เล็กเกินจะอ่านข้างปุ่มวันที่ (h-9) — ใช้ขนาดเดียวกับข้อความในตาราง
+    // จอมือถือ: แถวเดียวใต้ปุ่มวันที่ เลื่อนซ้าย-ขวาได้ แทนการตกบรรทัดจนการ์ดตัวกรองสูง 3 ชั้น
+    // ขอบขวาจางลง (mask) บอกว่ายังมี badge ต่ออีก — data-filter-chips-row ให้แถบตัวกรองจัดปุ่มไอคอนไว้แถวบน
+    <div
+      data-filter-chips-row=""
+      className="flex min-w-0 items-center gap-1.5 max-sm:basis-full max-sm:overflow-x-auto max-sm:pr-4 max-sm:[mask-image:linear-gradient(to_right,black_calc(100%-1.5rem),transparent)] max-sm:[scrollbar-width:none] sm:flex-wrap"
+    >
       {badges.map((label) => (
-        <Badge key={label} variant="secondary">
+        <Badge key={label} variant="secondary" className="h-6 px-2.5 text-xs">
           {label}
         </Badge>
       ))}
@@ -325,13 +312,11 @@ function DailySalesPrimaryFields({
 
 // ฟิลด์ที่ใช้น้อยกว่า — desktop ซ่อนไว้ใน popover "ตัวกรองเพิ่มเติม", มือถือต่อท้ายฟิลด์หลักใน sheet เดิม
 function DailySalesSecondaryFields({
-  detailPaginationBasis,
   draftFilters,
   idPrefix,
   locationOptions,
   onDraftChange,
 }: {
-  detailPaginationBasis: DetailPaginationBasis;
   draftFilters: ReportFilters;
   idPrefix: string;
   locationOptions: ReportLocationOptions & { loading: boolean };
@@ -404,37 +389,6 @@ function DailySalesSecondaryFields({
               {reportOrderOptions(t).map((option) => (
                 <SelectItem key={option.value} value={option.value}>
                   {option.label}
-                </SelectItem>
-              ))}
-            </SelectGroup>
-          </SelectContent>
-        </Select>
-      </Field>
-      <Field>
-        <FieldLabel
-          htmlFor={`${idPrefix}-limit`}
-         
-        >
-          {draftFilters.typePage === "detail"
-            ? detailPaginationBasis === "bills"
-              ? t("report.billsPerPage")
-              : t("report.linesPerPage")
-            : t("common.rowsPerPage")}
-        </FieldLabel>
-        <Select
-          value={String(draftFilters.limit)}
-          onValueChange={(value) =>
-            patch({ limit: value === "All" ? "All" : Number(value) })
-          }
-        >
-          <SelectTrigger id={`${idPrefix}-limit`} className="w-full">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectGroup>
-              {PAGE_LIMIT_OPTIONS.map((limit) => (
-                <SelectItem key={String(limit)} value={String(limit)}>
-                  {limit === "All" ? t("common.all") : limit}
                 </SelectItem>
               ))}
             </SelectGroup>

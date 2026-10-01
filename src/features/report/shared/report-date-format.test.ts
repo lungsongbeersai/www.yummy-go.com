@@ -1,5 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { formatReportDate, formatReportDateRange, formatReportDateTime } from "@/features/report/shared/report-date-format";
+import {
+  formatReportDate,
+  formatReportDateRange,
+  formatReportDateTime,
+  formatReportSaleDate,
+} from "@/features/report/shared/report-date-format";
 
 describe("report date format", () => {
   it("shows a business date day-first without going through a time zone", () => {
@@ -15,6 +20,14 @@ describe("report date format", () => {
 
   it("keeps a bare business date free of a made-up time", () => {
     expect(formatReportDateTime("2026-09-28")).toBe("28/09/2026");
+  });
+
+  it("drops the midnight the API puts on a sale date, but keeps a real time", () => {
+    // 17:00 UTC is 00:00 in Vientiane: the business date at midnight.
+    expect(formatReportSaleDate("2026-09-28T17:00:00.000Z")).toBe("29/09/2026");
+    expect(formatReportSaleDate("2026-09-29")).toBe("29/09/2026");
+    expect(formatReportSaleDate("2026-09-28T06:16:54.000Z")).toBe("28/09/2026 13:16:54");
+    expect(formatReportSaleDate("")).toBe("-");
   });
 
   it("falls back for empty input and passes unparseable text through", () => {
