@@ -1227,6 +1227,7 @@ export interface PrintInvoiceRequest extends ApiEntity {
   order_uuid: string;
   operation_uuid: string;
   login_uuid_fk: string;
+  account_uuid_fk?: string;
   lang?: string;
   document_type?: "invoice";
   device_code?: string;

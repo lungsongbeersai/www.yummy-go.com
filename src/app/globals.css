@@ -226,8 +226,9 @@
   --sidebar-ring: #8b5cf6;
 }
 
-/* Only the native Swan 1 WebView receives sRGB theme tokens. */
-html.swan1-legacy-colors {
+/* Capacitor Android ทุกเครื่องใช้ sRGB ชุดเดียวกันเพื่อให้สีตรงกันทั้งมือถือทั่วไปและ
+   Swan 1 — WebView บางรุ่น parse OKLCH ได้แต่แสดงผล/ผสม opacity ต่างจาก Chrome desktop */
+html.capacitor-android {
   --card: #fff;
   --card-foreground: #090b0c;
   --popover: #fff;
@@ -295,7 +296,7 @@ html.swan1-legacy-colors {
   --color-lime-950: #1a2e05;
 }
 
-html.swan1-legacy-colors.dark {
+html.capacitor-android.dark {
   --background: #090b0c;
   --foreground: #f9fbfb;
   --card: #161b1d;
@@ -330,7 +331,7 @@ html.swan1-legacy-colors.dark {
   --chart-5: #016630;
 }
 
-html.swan1-legacy-colors[data-theme-color="emerald"] {
+html.capacitor-android[data-theme-color="emerald"] {
   --primary: #007956;
   --primary-foreground: #ecfdf5;
   --sidebar-primary: #007956;
@@ -340,7 +341,7 @@ html.swan1-legacy-colors[data-theme-color="emerald"] {
   --sidebar-ring: #007956;
 }
 
-html.swan1-legacy-colors.dark[data-theme-color="emerald"] {
+html.capacitor-android.dark[data-theme-color="emerald"] {
   --primary: #005f46;
   --primary-foreground: #ecfdf5;
   --sidebar-primary: #00bb7f;
@@ -350,7 +351,7 @@ html.swan1-legacy-colors.dark[data-theme-color="emerald"] {
   --sidebar-ring: #00bb7f;
 }
 
-html.swan1-legacy-colors[data-theme-color="blue"] {
+html.capacitor-android[data-theme-color="blue"] {
   --primary: #1d4ed8;
   --primary-foreground: #fafafa;
   --sidebar-primary: #1d4ed8;
@@ -360,7 +361,7 @@ html.swan1-legacy-colors[data-theme-color="blue"] {
   --sidebar-ring: #1d4ed8;
 }
 
-html.swan1-legacy-colors.dark[data-theme-color="blue"] {
+html.capacitor-android.dark[data-theme-color="blue"] {
   --primary: #1e40af;
   --primary-foreground: #fafafa;
   --sidebar-primary: #3b82f6;
@@ -370,7 +371,7 @@ html.swan1-legacy-colors.dark[data-theme-color="blue"] {
   --sidebar-ring: #3b82f6;
 }
 
-html.swan1-legacy-colors[data-theme-color="amber"] {
+html.capacitor-android[data-theme-color="amber"] {
   --primary: #b45309;
   --primary-foreground: #fafafa;
   --sidebar-primary: #b45309;
@@ -380,7 +381,7 @@ html.swan1-legacy-colors[data-theme-color="amber"] {
   --sidebar-ring: #b45309;
 }
 
-html.swan1-legacy-colors.dark[data-theme-color="amber"] {
+html.capacitor-android.dark[data-theme-color="amber"] {
   --primary: #92400e;
   --primary-foreground: #fafafa;
   --sidebar-primary: #f59e0b;
@@ -390,7 +391,7 @@ html.swan1-legacy-colors.dark[data-theme-color="amber"] {
   --sidebar-ring: #f59e0b;
 }
 
-html.swan1-legacy-colors[data-theme-color="rose"] {
+html.capacitor-android[data-theme-color="rose"] {
   --primary: #be123c;
   --primary-foreground: #fafafa;
   --sidebar-primary: #be123c;
@@ -400,7 +401,7 @@ html.swan1-legacy-colors[data-theme-color="rose"] {
   --sidebar-ring: #be123c;
 }
 
-html.swan1-legacy-colors.dark[data-theme-color="rose"] {
+html.capacitor-android.dark[data-theme-color="rose"] {
   --primary: #9f1239;
   --primary-foreground: #fafafa;
   --sidebar-primary: #f43f5e;
@@ -410,7 +411,7 @@ html.swan1-legacy-colors.dark[data-theme-color="rose"] {
   --sidebar-ring: #f43f5e;
 }
 
-html.swan1-legacy-colors[data-theme-color="violet"] {
+html.capacitor-android[data-theme-color="violet"] {
   --primary: #6d28d9;
   --primary-foreground: #fafafa;
   --sidebar-primary: #6d28d9;
@@ -420,7 +421,7 @@ html.swan1-legacy-colors[data-theme-color="violet"] {
   --sidebar-ring: #6d28d9;
 }
 
-html.swan1-legacy-colors.dark[data-theme-color="violet"] {
+html.capacitor-android.dark[data-theme-color="violet"] {
   --primary: #5b21b6;
   --primary-foreground: #fafafa;
   --sidebar-primary: #8b5cf6;
@@ -545,8 +546,8 @@ html {
   --pos-system-bottom-safe-area: max(env(safe-area-inset-bottom, 0px), 1.5rem);
 }
 
-.android-webview-compat {
-  /* Android 11 WebView on Swan 1/I22D01 does not reliably render Tailwind v4 OKLCH palette values. */
+.capacitor-android {
+  /* Use deterministic sRGB palette values across Android WebViews. */
   --color-white: #ffffff;
   --color-black: #000000;
 
@@ -752,14 +753,40 @@ html {
   background: var(--popover) !important;
 }
 
+/* Payment amount input and the active cash/transfer card must stay visibly gray.
+   A translucent muted fill blends to near-white on Swan 1's display/WebView. */
+.capacitor-android [data-pos-payment-amount-surface="true"] {
+  background-color: var(--muted) !important;
+}
+
 .android-webview-compat [data-pos-pattern] {
   background-image: url("/posAll/background_wide.webp") !important;
   background-position: top !important;
   background-size: cover !important;
 }
 
+/* Bottom cart sheet uses an OKLCH color-mix overlay in its Tailwind arbitrary value.
+   Force the same sRGB 45% primary overlay on every Android device so the grand-total
+   area cannot become pale near the bright lower edge of the background image. */
+.capacitor-android [data-slot="sheet-content"][data-pos-pattern] {
+  background-image:
+    linear-gradient(
+      rgba(var(--legacy-primary-rgb), 0.45),
+      rgba(var(--legacy-primary-rgb), 0.45)
+    ),
+    url("/posAll/background_wide.webp") !important;
+  background-position: top !important;
+  background-size: cover !important;
+}
+
 .dark.android-webview-compat [data-pos-pattern],
 .dark .android-webview-compat [data-pos-pattern] {
+  background-image: none !important;
+  background-color: var(--background) !important;
+}
+
+.dark.capacitor-android [data-slot="sheet-content"][data-pos-pattern],
+.dark .capacitor-android [data-slot="sheet-content"][data-pos-pattern] {
   background-image: none !important;
   background-color: var(--background) !important;
 }

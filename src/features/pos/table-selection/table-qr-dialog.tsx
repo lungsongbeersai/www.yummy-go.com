@@ -14,14 +14,10 @@ import { InputGroup, InputGroupAddon, InputGroupButton, InputGroupInput } from "
 import { Skeleton } from "@/components/ui/skeleton";
 import { Spinner } from "@/components/ui/spinner";
 import { fullscreenPrintWindowFeatures, maximizePrintWindow } from "@/services/printer/invoice-print-window";
+import { canUseAndroidSystemPrint, printHtmlWithAndroidSystemPrint } from "@/lib/android-system-print";
 import { canUseSystemPrintFallback } from "@/lib/system-print-capability";
 import { useIsCapacitorNativeApp } from "@/hooks/use-capacitor-native-app";
 import { openWindowOutsideNativeApp } from "@/lib/capacitor-platform";
-import {
-  WINDOW_OPEN_FONT_CLASS_NAME,
-  WINDOW_OPEN_FONT_STYLESHEET_LINK,
-  WINDOW_OPEN_PRINT_ON_LOAD_SCRIPT,
-} from "@/lib/window-open-fonts";
 import type { CreateTableQRResponse, PosTable } from "@/services/pos";
 import { useAppStore } from "@/stores/app-store";
 import { useAuthStore } from "@/stores/auth-store";
@@ -29,6 +25,7 @@ import { usePosStore } from "@/stores/pos-store";
 import { usePrinterStore } from "@/stores/printer-store";
 import { useToastStore } from "@/stores/toast-store";
 import {
+  buildQrPrintDocument,
   resolveTableQrPrinterContext,
   tableQrPendingJobUuid,
   tableQrPrintOutcome,
@@ -65,9 +62,11 @@ export function TableQrDialog({
   const previewUrl = qrImageUrl || qrDataUrl;
   const pendingJobUuid = useMemo(() => tableQrPendingJobUuid(response), [response]);
   const canOpenBrowserWindow = !nativeApp;
-  const canUseFrontendQrFallback = Boolean(targetUrl && !pendingJobUuid && canOpenBrowserWindow);
+  const canOpenAndroidPrint = nativeApp && canUseAndroidSystemPrint();
+  const canUsePrintFallback = canOpenBrowserWindow || canOpenAndroidPrint;
+  const canUseFrontendQrFallback = Boolean(targetUrl && !pendingJobUuid && canUsePrintFallback);
   const canDownload = Boolean(previewUrl || canUseFrontendQrFallback);
-  const canPrint = Boolean(pendingJobUuid || (canOpenBrowserWindow && (previewUrl || canUseFrontendQrFallback)));
+  const canPrint = Boolean(pendingJobUuid || (canUsePrintFallback && (previewUrl || canUseFrontendQrFallback)));
 
   // เปิด dialog = ล้างผลเดิม และตั้ง pending เฉพาะกรณีที่จะยิงคำขอจริง
   useResetOnChange(open, () => {
@@ -220,8 +219,8 @@ export function TableQrDialog({
 
           if (printOutcome === "fallback") {
             const imageUrl = await fallbackPrintImageUrl();
-            if (imageUrl && canOpenBrowserWindow) {
-              const opened = await openFallbackPrintWindow(imageUrl);
+            if (imageUrl) {
+              const opened = await openFallbackPrint(imageUrl);
               if (opened) {
                 showToast({
                   title: t("pos.printQr"),
@@ -231,7 +230,7 @@ export function TableQrDialog({
             } else {
               showToast({
                 title: t("pos.printQr"),
-                description: t("pos.invoicePrintPopupBlocked"),
+                description: t("pos.systemPrinterUnavailable"),
                 tone: "error",
                 action: {
                   label: t("actions.tryAgain"),
@@ -245,8 +244,8 @@ export function TableQrDialog({
           showToast({ title: t("common.printSuccess"), tone: "success" });
         } catch (error) {
           const imageUrl = await fallbackPrintImageUrl();
-          if (imageUrl && canOpenBrowserWindow) {
-            const opened = await openFallbackPrintWindow(imageUrl);
+          if (imageUrl) {
+            const opened = await openFallbackPrint(imageUrl);
             if (opened) {
               showToast({
                 title: t("pos.printQr"),
@@ -257,7 +256,7 @@ export function TableQrDialog({
           } else {
             showToast({
               title: t("pos.printQr"),
-              description: error instanceof Error ? error.message : t("pos.invoicePrintPopupBlocked"),
+              description: error instanceof Error ? error.message : t("pos.systemPrinterUnavailable"),
               tone: "error",
               action: {
                 label: t("actions.tryAgain"),
@@ -270,12 +269,12 @@ export function TableQrDialog({
       }
 
       const imageUrl = await fallbackPrintImageUrl();
-      if (imageUrl && canOpenBrowserWindow) {
-        await openFallbackPrintWindow(imageUrl);
+      if (imageUrl) {
+        await openFallbackPrint(imageUrl);
       } else {
         showToast({
           title: t("pos.printQr"),
-          description: t("pos.invoicePrintPopupBlocked"),
+          description: t("pos.systemPrinterUnavailable"),
           tone: "error",
           action: {
             label: t("actions.tryAgain"),
@@ -285,6 +284,33 @@ export function TableQrDialog({
       }
     } finally {
       setPrinting(false);
+    }
+  }
+
+  async function openFallbackPrint(imageUrl: string) {
+    if (!canOpenAndroidPrint) return openFallbackPrintWindow(imageUrl);
+
+    try {
+      return await printHtmlWithAndroidSystemPrint({
+        html: buildQrPrintDocument({
+          autoPrint: false,
+          imageUrl,
+          layout: "receipt",
+          title: table.table_name,
+        }),
+        jobName: `${table.table_name} QR`,
+      });
+    } catch (error) {
+      showToast({
+        title: t("pos.printQr"),
+        description: error instanceof Error ? error.message : t("pos.systemPrinterUnavailable"),
+        tone: "error",
+        action: {
+          label: t("actions.tryAgain"),
+          onClick: () => void printQr(),
+        },
+      });
+      return false;
     }
   }
 
@@ -329,35 +355,12 @@ export function TableQrDialog({
       return false;
     }
     maximizePrintWindow(printWindow);
-
-    const safeTableName = escapeHtml(table.table_name);
-    const safeImage = escapeAttribute(imageUrl);
-    printWindow.document.write(`<!doctype html>
-<html>
-  <head>
-    ${WINDOW_OPEN_FONT_STYLESHEET_LINK}
-    <title>${safeTableName} QR</title>
-    <style>
-      @page { size: 57mm 90mm; margin: 0; }
-      * { box-sizing: border-box; }
-      html, body { width: 57mm; min-height: 90mm; margin: 0; }
-      body { color: #111; text-align: center; }
-      .paper { width: 57mm; min-height: 90mm; padding: 4mm 3mm; }
-      .table { font-size: 14pt; font-weight: 800; line-height: 1.1; margin: 0 0 2mm; }
-      img { width: 46mm; height: 46mm; object-fit: contain; margin: 0 auto 2mm; }
-      @media print {
-        html, body, .paper { width: 57mm; min-height: 90mm; }
-      }
-    </style>
-  </head>
-  <body class="${WINDOW_OPEN_FONT_CLASS_NAME}">
-    <main class="paper">
-      <p class="table">${safeTableName}</p>
-      <img src="${safeImage}" alt="${safeTableName} QR" />
-    </main>
-    <script>${WINDOW_OPEN_PRINT_ON_LOAD_SCRIPT}</script>
-  </body>
-</html>`);
+    printWindow.document.write(buildQrPrintDocument({
+      autoPrint: true,
+      imageUrl,
+      layout: "receipt",
+      title: table.table_name,
+    }));
     printWindow.document.close();
     return true;
   }
@@ -496,25 +499,4 @@ function normalizePublicUrl(value: string) {
 
 function looksLikeImageUrl(value: string) {
   return value.startsWith("data:image/") || /\.(png|jpe?g|webp|gif|svg)(\?|#|$)/i.test(value);
-}
-
-function escapeHtml(value: string) {
-  return value.replace(/[&<>"']/g, (character) => {
-    switch (character) {
-      case "&":
-        return "&amp;";
-      case "<":
-        return "&lt;";
-      case ">":
-        return "&gt;";
-      case "\"":
-        return "&quot;";
-      default:
-        return "&#39;";
-    }
-  });
-}
-
-function escapeAttribute(value: string) {
-  return escapeHtml(value);
 }

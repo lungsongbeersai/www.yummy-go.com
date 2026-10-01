@@ -361,7 +361,7 @@ function dotClass(status: "free" | "busy" | "update") {
 // (100/200) ให้ได้โทนหม่น ๆ ออกเกรย์ตามที่อ้างอิงไว้ ตัวอักษรใช้เฉด 900 ให้ contrast
 // สูงกับพื้น จุดกลมมุมขวายังคงสีเข้มไว้ให้กวาดสายตาแยกสถานะได้ไว
 // `card` ไม่มี ring สีต่อสถานะแล้ว — ขอบใช้สีเทา/ดำกลาง ๆ ตัวเดียวร่วมกันทุกสถานะ
-// (ring-border ใน TableCard) ให้พื้นหลังเป็นตัวสื่อสถานะอย่างเดียว ไม่ให้ขอบแย่งซีน
+// (border-border ใน TableCard) ให้พื้นหลังเป็นตัวสื่อสถานะอย่างเดียว ไม่ให้ขอบแย่งซีน
 // ทุกคู่สีมี dark: กำกับเสมอ — ค่า raw ({color}-600/15 + text-{color}-900) ที่ไม่มี
 // dark: จะจางจนแยกไม่ออกบนพื้นเข้ม (bg blend เป็นเกือบดำ + ตัวอักษรก็เกือบดำ ⇒ กลืนกัน)
 // รอบแรกลอง dark:bg-{color}-500/20 แต่ 500 เป็นเฉดกลางที่ยังสดเกินไป ผสมแล้วกลายเป็น
@@ -524,7 +524,7 @@ const TableCard = memo(function TableCard({
         tabIndex={0}
         aria-pressed={selected}
         className={cn(
-          "cursor-pointer overflow-hidden rounded-xl bg-card p-0 shadow-sm outline-none ring-border transition motion-safe:active:scale-[0.97] hover:ring-primary/70 hover:shadow-md focus-visible:ring-2 focus-visible:ring-ring/30",
+          "cursor-pointer overflow-hidden rounded-xl border border-border bg-card p-0 shadow-sm outline-none ring-0 transition motion-safe:active:scale-[0.97] hover:border-primary/70 hover:shadow-md focus-visible:ring-2 focus-visible:ring-ring/30",
           style.card,
           // ring กะพริบซ้อนทับสีสถานะเดิม — บอกว่ามีออเดอร์ใหม่เข้ามาสด ๆ โดยไม่เปลี่ยนสีการ์ด
           hasOrderAlert && "pos-table-card-alert",

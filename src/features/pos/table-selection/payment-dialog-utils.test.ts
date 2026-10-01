@@ -6,7 +6,10 @@ import {
   WINDOW_OPEN_FONT_STYLESHEET_HREF,
 } from "@/lib/window-open-fonts";
 import type { AuthUser } from "@/stores/auth-store";
-import { renderLocalInvoiceHtml } from "@/services/printer/invoice-print-window";
+import {
+  renderInvoiceSystemPrintHtml,
+  renderLocalInvoiceHtml,
+} from "@/services/printer/invoice-print-window";
 import {
   amountInput,
   buildInvoicePrintData,
@@ -28,6 +31,7 @@ import {
   paymentCurrencyAmounts,
   paymentIsExactSettlement,
   paymentNote,
+  paymentReceiptInvoice,
   paymentValidation,
   preferredTransferAccountUuid,
   preserveFirstCustomerAutoSelect,
@@ -427,6 +431,8 @@ describe("payment dialog helpers", () => {
     expect(html).toContain("20,000 LAK");
     expect(html).toContain("28.99 THB");
     expect(html).toContain("0.87 USD");
+    expect(data.qrUrl).toBe("https://example.com/qr.png");
+    expect(html).toContain('class="branch-qr" src="https://example.com/qr.png"');
     expect(html).toContain(`href="${WINDOW_OPEN_FONT_STYLESHEET_HREF}"`);
     expect(html).toContain(`body class="${WINDOW_OPEN_FONT_CLASS_NAME}"`);
     expect(html).toContain("document.fonts?.ready");
@@ -465,5 +471,22 @@ describe("payment dialog helpers", () => {
     expect(receipt.title).toBe("pos.receiptPrintTitle");
     expect(receipt.labels.invoice).toBe("pos.receiptPrintNumber");
     expect(renderLocalInvoiceHtml(receipt, receipt.title)).toContain("pos.receiptPrintTitle");
+    expect(renderInvoiceSystemPrintHtml(receipt)).toContain("pos.receiptPrintTitle");
+    expect(renderInvoiceSystemPrintHtml(receipt)).not.toContain("window.print()");
+  });
+
+  it("uses the paid split invoice number for a system-print receipt", () => {
+    expect(paymentReceiptInvoice(
+      {
+        new_order_invoice: "SPLIT-2",
+        order_invoice: "SOURCE-1",
+      },
+      "CART-1",
+    )).toBe("SPLIT-2");
+    expect(paymentReceiptInvoice(
+      { order_invoice: "PAID-1" },
+      "CART-1",
+    )).toBe("PAID-1");
+    expect(paymentReceiptInvoice({}, "CART-1")).toBe("CART-1");
   });
 });

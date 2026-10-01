@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import {
+  buildQrPrintDocument,
   resolveTableQrPrinterContext,
   tableQrPrintOutcome,
 } from "./table-qr-printing";
@@ -51,5 +52,41 @@ describe("table QR printing", () => {
     expect(tableQrPrintOutcome({ successCount: 0, failedCount: 0, pending: true })).toBe("pending");
     expect(tableQrPrintOutcome({ successCount: 0, failedCount: 0 })).toBe("fallback");
     expect(tableQrPrintOutcome({ successCount: 1, failedCount: 0 })).toBe("success");
+  });
+
+  it("builds the same escaped receipt document for browser and Android printing", () => {
+    const browserDocument = buildQrPrintDocument({
+      autoPrint: true,
+      imageUrl: "data:image/svg+xml,<svg>&</svg>",
+      layout: "receipt",
+      title: "T<&\"'01",
+    });
+    const androidDocument = buildQrPrintDocument({
+      autoPrint: false,
+      imageUrl: "data:image/svg+xml,<svg>&</svg>",
+      layout: "receipt",
+      title: "T<&\"'01",
+    });
+
+    for (const document of [browserDocument, androidDocument]) {
+      expect(document).toContain("@page { size: 57mm 90mm; margin: 0; }");
+      expect(document).toContain("T&lt;&amp;&quot;&#39;01");
+      expect(document).toContain("data:image/svg+xml,&lt;svg&gt;&amp;&lt;/svg&gt;");
+    }
+    expect(browserDocument).toContain("window.print()");
+    expect(androidDocument).not.toContain("window.print()");
+  });
+
+  it("builds a full-page menu QR document", () => {
+    const document = buildQrPrintDocument({
+      autoPrint: false,
+      imageUrl: "data:image/png;base64,qr",
+      layout: "page",
+      title: "Main branch",
+    });
+
+    expect(document).toContain("body { color: #111; text-align: center; padding: 16mm; }");
+    expect(document).toContain("Main branch");
+    expect(document).not.toContain("@page { size: 57mm 90mm; margin: 0; }");
   });
 });

@@ -752,6 +752,7 @@ export function PaymentDialogContent({
                         <Input
                           ref={activeAmountInputRef}
                           id="payment-active-amount"
+                          data-pos-payment-amount-surface="true"
                           inputMode={
                             suppressSoftKeyboard
                               ? "none"
@@ -761,7 +762,7 @@ export function PaymentDialogContent({
                           }
                           readOnly={suppressSoftKeyboard}
                           value={activeInputDisplayValue}
-                          className="h-10 border-0 bg-muted/40 text-right text-lg font-bold tabular-nums shadow-none min-[430px]:h-12 min-[430px]:text-2xl sm:h-14 sm:text-3xl lg:h-16 xl:text-4xl"
+                          className="h-10 border-0 bg-muted text-right text-lg font-bold tabular-nums shadow-none min-[430px]:h-12 min-[430px]:text-2xl sm:h-14 sm:text-3xl lg:h-16 xl:text-4xl"
                           onChange={handleActiveAmountChange}
                         />
                         <FieldDescription className="hidden text-xs min-[430px]:block sm:text-sm">

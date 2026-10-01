@@ -242,7 +242,8 @@ export function maximizePrintWindow(printWindow: Window) {
 
 export function renderLocalInvoiceBatchHtml(
   dataList: InvoicePrintData[],
-  safeTitle: string
+  safeTitle: string,
+  autoPrint = true,
 ) {
   const first = dataList[0];
   const contentWidth = first.contentWidthMm;
@@ -292,13 +293,26 @@ export function renderLocalInvoiceBatchHtml(
   </head>
   <body class="${WINDOW_OPEN_FONT_CLASS_NAME}">
     ${receipts}
-    <script>${WINDOW_OPEN_PRINT_ON_LOAD_SCRIPT}</script>
+    ${autoPrint ? `<script>${WINDOW_OPEN_PRINT_ON_LOAD_SCRIPT}</script>` : ""}
   </body>
 </html>`;
 }
 
-export function renderLocalInvoiceHtml(data: InvoicePrintData, safeTitle: string) {
-  return renderLocalInvoiceBatchHtml([data], safeTitle);
+export function renderLocalInvoiceHtml(
+  data: InvoicePrintData,
+  safeTitle: string,
+  autoPrint = true,
+) {
+  return renderLocalInvoiceBatchHtml([data], safeTitle, autoPrint);
+}
+
+export function renderInvoiceSystemPrintHtml(data: InvoicePrintData) {
+  const safeTitle = escapeHtml(
+    data.invoice
+      ? `${data.labels.invoice}: ${data.invoice}`
+      : data.title,
+  );
+  return renderLocalInvoiceHtml(data, safeTitle, false);
 }
 
 function renderInvoiceReceiptBody(data: InvoicePrintData) {

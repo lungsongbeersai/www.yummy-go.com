@@ -70,10 +70,11 @@ export function TenderRow({
   return (
     <Button
       type="button"
-      variant={active ? "secondary" : "outline"}
+      variant="outline"
+      data-pos-payment-amount-surface={active ? "true" : undefined}
       className={cn(
         "h-auto min-h-12 w-full justify-between px-3 py-2 text-left sm:min-h-14",
-        active && "border-primary/70 ring-2 ring-primary/20",
+        active && "border-primary/70 bg-muted ring-2 ring-primary/20 hover:bg-muted",
       )}
       onClick={onSelect}
     >

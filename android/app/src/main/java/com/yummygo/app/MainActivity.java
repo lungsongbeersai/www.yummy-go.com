@@ -33,6 +33,7 @@ public class MainActivity extends BridgeActivity {
     AppCompatDelegate.setDefaultNightMode(AppCompatDelegate.MODE_NIGHT_NO);
     registerPlugin(NativeThemePlugin.class);
     registerPlugin(SwanCustomerDisplayPlugin.class);
+    registerPlugin(AndroidSystemPrintPlugin.class);
     super.onCreate(savedInstanceState);
 
     hardenWebViewRendering();

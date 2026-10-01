@@ -1,6 +1,7 @@
 // Tailwind v4 emits an opaque var() fallback for color-mix() opacity utilities.
-// Keep that global fallback unchanged; only Swan 1 receives the translucent one.
-const SWAN1_SELECTOR = ".swan1-legacy-colors";
+// Keep that global fallback unchanged; every native Android WebView receives a
+// deterministic rgba() version so normal phones and Swan 1 render alike.
+const CAPACITOR_ANDROID_SELECTOR = ".capacitor-android";
 const COLOR_TOKENS = new Set([
   "accent", "accent-foreground", "background", "border", "card",
   "card-foreground", "destructive", "destructive-foreground", "foreground",
@@ -93,7 +94,7 @@ module.exports = function legacyWebViewOpacity() {
             const fraction = Number(mix[2]) / 100;
             const legacyColor = `rgba(var(--legacy-${mix[1]}-rgb), calc(var(--legacy-${mix[1]}-alpha) * ${fraction}))`;
             fallbackRule.after({
-              selector: modernRule.selectors.map((selector) => `${SWAN1_SELECTOR} ${selector}`).join(", "),
+              selector: modernRule.selectors.map((selector) => `${CAPACITOR_ANDROID_SELECTOR} ${selector}`).join(", "),
               nodes: [{ prop: declaration.prop, value: legacyColor }],
             });
           });

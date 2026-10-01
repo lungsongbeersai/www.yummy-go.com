@@ -19,8 +19,10 @@ import {
 } from "@/config/pos-constants";
 import type {
   CartOrder,
+  PaymentResponse,
   PosTable,
   SplitBillItemQuantity,
+  SplitBillResponse,
 } from "@/services/pos";
 import type { AuthUser } from "@/stores/auth-store";
 import {
@@ -759,6 +761,19 @@ export function exchangeCurrencyOptions(exchanges: Exchange[]) {
 
 export function firstOrderUuid(orders: CartOrder[]) {
   return optionalString(...orders.map((order) => order.order_uuid)) ?? "";
+}
+
+export function paymentReceiptInvoice(
+  response: PaymentResponse | SplitBillResponse,
+  fallback: string | null,
+) {
+  return optionalString(
+    "new_order_invoice" in response
+      ? response.new_order_invoice
+      : undefined,
+    response.order_invoice,
+    fallback,
+  ) ?? null;
 }
 
 export function paymentNote(tab: PaymentTab, note: string) {

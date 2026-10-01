@@ -14,23 +14,19 @@ import { InputGroup, InputGroupAddon, InputGroupButton, InputGroupInput } from "
 import { Skeleton } from "@/components/ui/skeleton";
 import { Spinner } from "@/components/ui/spinner";
 import { fullscreenPrintWindowFeatures, maximizePrintWindow } from "@/services/printer/invoice-print-window";
+import { canUseAndroidSystemPrint, printHtmlWithAndroidSystemPrint } from "@/lib/android-system-print";
 import { canUseSystemPrintFallback } from "@/lib/system-print-capability";
 import { useIsCapacitorNativeApp } from "@/hooks/use-capacitor-native-app";
 import { useResetOnChange, useResetOnDeps } from "@/hooks/use-reset-on-change";
 import { openWindowOutsideNativeApp } from "@/lib/capacitor-platform";
 import { optionalString } from "@/lib/values";
-import {
-  WINDOW_OPEN_FONT_CLASS_NAME,
-  WINDOW_OPEN_FONT_STYLESHEET_LINK,
-  WINDOW_OPEN_PRINT_ON_LOAD_SCRIPT,
-} from "@/lib/window-open-fonts";
 import type { BranchMenuQRResponse } from "@/services/pos";
 import { useAppStore } from "@/stores/app-store";
 import { useAuthStore } from "@/stores/auth-store";
 import { usePosStore } from "@/stores/pos-store";
 import { usePrinterStore } from "@/stores/printer-store";
 import { useToastStore } from "@/stores/toast-store";
-import { resolveTableQrPrinterContext, tableQrPrintOutcome } from "./table-qr-printing";
+import { buildQrPrintDocument, resolveTableQrPrinterContext, tableQrPrintOutcome } from "./table-qr-printing";
 
 const MIN_PRINT_COPIES = 1;
 const MAX_PRINT_COPIES = 20;
@@ -63,8 +59,10 @@ export function BranchMenuQrDialog({
   const targetUrl = response?.qr_url ?? null;
   const pendingJobUuid = branchMenuQrPendingJobUuid(response);
   const canOpenBrowserWindow = !nativeApp;
+  const canOpenAndroidPrint = nativeApp && canUseAndroidSystemPrint();
+  const canUsePrintFallback = canOpenBrowserWindow || canOpenAndroidPrint;
   const canDownload = Boolean(qrDataUrl);
-  const canPrint = Boolean(pendingJobUuid || (qrDataUrl && canOpenBrowserWindow));
+  const canPrint = Boolean(pendingJobUuid || (qrDataUrl && canUsePrintFallback));
 
   // เปิด dialog = ล้างผลเดิม แล้วค่อยขอ token ใหม่ (ไม่มี qr_ver ให้ revoke จึง
   // ไม่จำเป็นต้อง regenerate ทุกครั้ง แต่ขอซ้ำเพื่อความสด/ง่ายต่อการดีบัก)
@@ -187,6 +185,35 @@ export function BranchMenuQrDialog({
     }
   }
 
+  async function openFallbackPrint() {
+    if (!canOpenAndroidPrint) return openFallbackPrintWindow();
+    if (!qrDataUrl) return false;
+
+    const title = response?.branch_name || t("pos.createBranchMenuQr");
+    try {
+      return await printHtmlWithAndroidSystemPrint({
+        html: buildQrPrintDocument({
+          autoPrint: false,
+          imageUrl: qrDataUrl,
+          layout: "page",
+          title,
+        }),
+        jobName: `${title} QR`,
+      });
+    } catch (error) {
+      showToast({
+        title: t("pos.printQr"),
+        description: error instanceof Error ? error.message : t("pos.systemPrinterUnavailable"),
+        tone: "error",
+        action: {
+          label: t("actions.tryAgain"),
+          onClick: () => void printQr(),
+        },
+      });
+      return false;
+    }
+  }
+
   async function openFallbackPrintWindow() {
     if (!qrDataUrl) return false;
     if (!canUseSystemPrintFallback()) {
@@ -216,27 +243,12 @@ export function BranchMenuQrDialog({
     }
     maximizePrintWindow(printWindow);
 
-    const safeTitle = escapeHtml(response?.branch_name || t("pos.createBranchMenuQr"));
-    const safeImage = escapeHtml(qrDataUrl);
-    printWindow.document.write(`<!doctype html>
-<html>
-  <head>
-    ${WINDOW_OPEN_FONT_STYLESHEET_LINK}
-    <title>${safeTitle} QR</title>
-    <style>
-      * { box-sizing: border-box; }
-      html, body { margin: 0; }
-      body { color: #111; text-align: center; padding: 16mm; }
-      .title { font-size: 18pt; font-weight: 800; margin: 0 0 8mm; }
-      img { width: 70mm; height: 70mm; object-fit: contain; margin: 0 auto; }
-    </style>
-  </head>
-  <body class="${WINDOW_OPEN_FONT_CLASS_NAME}">
-    <p class="title">${safeTitle}</p>
-    <img src="${safeImage}" alt="${safeTitle} QR" />
-    <script>${WINDOW_OPEN_PRINT_ON_LOAD_SCRIPT}</script>
-  </body>
-</html>`);
+    printWindow.document.write(buildQrPrintDocument({
+      autoPrint: true,
+      imageUrl: qrDataUrl,
+      layout: "page",
+      title: response?.branch_name || t("pos.createBranchMenuQr"),
+    }));
     printWindow.document.close();
     return true;
   }
@@ -267,50 +279,26 @@ export function BranchMenuQrDialog({
           }
 
           if (printOutcome === "fallback") {
-            if (canOpenBrowserWindow) {
-              const opened = await openFallbackPrintWindow();
-              if (opened) showToast({ title: t("pos.printQr"), tone: "info" });
-            } else {
-              showToast({
-                title: t("pos.printQr"),
-                description: t("pos.invoicePrintPopupBlocked"),
-                tone: "error",
-                action: {
-                  label: t("actions.tryAgain"),
-                  onClick: () => void printQr(),
-                },
-              });
-            }
+            const opened = await openFallbackPrint();
+            if (opened) showToast({ title: t("pos.printQr"), tone: "info" });
             return;
           }
 
           showToast({ title: t("common.printSuccess"), tone: "success" });
         } catch (error) {
-          if (canOpenBrowserWindow) {
-            const opened = await openFallbackPrintWindow();
-            if (opened) {
-              showToast({
-                title: t("pos.printQr"),
-                description: error instanceof Error ? error.message : "",
-                tone: "info",
-              });
-            }
-          } else {
+          const opened = await openFallbackPrint();
+          if (opened) {
             showToast({
               title: t("pos.printQr"),
-              description: error instanceof Error ? error.message : t("pos.invoicePrintPopupBlocked"),
-              tone: "error",
-              action: {
-                label: t("actions.tryAgain"),
-                onClick: () => void printQr(),
-              },
+              description: error instanceof Error ? error.message : "",
+              tone: "info",
             });
           }
         }
         return;
       }
 
-      if (canOpenBrowserWindow) await openFallbackPrintWindow();
+      await openFallbackPrint();
     } finally {
       setPrinting(false);
     }
@@ -431,21 +419,4 @@ function branchMenuQrPendingJobUuid(response: BranchMenuQRResponse | null) {
     optionalString(response?.print_job?.print_job_uuid) ??
     ""
   );
-}
-
-function escapeHtml(value: string) {
-  return value.replace(/[&<>"']/g, (character) => {
-    switch (character) {
-      case "&":
-        return "&amp;";
-      case "<":
-        return "&lt;";
-      case ">":
-        return "&gt;";
-      case "\"":
-        return "&quot;";
-      default:
-        return "&#39;";
-    }
-  });
 }
