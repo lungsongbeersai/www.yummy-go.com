@@ -20,6 +20,7 @@ import {
 } from "@/services/printer/agent-transport";
 import { renderMobileEscpos } from "@/services/printer/config-api";
 import { printMobileEscposOverTcp } from "@/services/printer/mobile-tcp";
+import { shouldDeferSharedPrintToOwner } from "@/services/printer/route-selection";
 import type {
   AckPayload,
   AckResponse,
@@ -574,33 +575,18 @@ async function executePrintJobs(
     };
   }
 
-  const remoteSharedPrint =
-    input.pending_query?.remote_shared_print === true ||
-    input.print_job?.remote_shared_print === true;
-  let remoteRelayAgent: AgentInfo | null = null;
-
-  if (remoteSharedPrint) {
-    // A desktop requester can hand the batch to its local Agent, which relays
-    // it to the printer-owning Agent. This avoids stranding the kitchen job
-    // until the owner web UI happens to be open and polling. Native mobile is
-    // different: it can render and send a SHARED TCP job to the printer itself.
-    const nativeMobile = Capacitor.isNativePlatform();
-    if (!nativeMobile) {
-      try {
-        remoteRelayAgent = await getLocalAgentInfo();
-      } catch {
-        // Without a requester-side Agent, preserve the owner polling fallback.
-      }
-    }
-
-    if (!nativeMobile && !remoteRelayAgent) {
-      return {
-        successCount: 0,
-        failedCount: 0,
-        total: 0,
-        pending: true,
-      };
-    }
+  if (shouldDeferSharedPrintToOwner({
+    pendingRemoteShared: input.pending_query?.remote_shared_print,
+    queuedRemoteShared: input.print_job?.remote_shared_print,
+  })) {
+    // The Backend queue targets the SHARED owner. The requester must not fetch
+    // or relay the same job; the owner's queue consumer will claim and ACK it.
+    return {
+      successCount: 0,
+      failedCount: 0,
+      total: 0,
+      pending: true,
+    };
   }
 
   input.onProgress?.({
@@ -627,12 +613,7 @@ async function executePrintJobs(
         })),
       };
 
-  const pendingResult = await getPendingPrintJobs({
-    ...pendingParams,
-    ...(remoteRelayAgent?.device_code
-      ? { relay_device_code: remoteRelayAgent.device_code }
-      : {}),
-  });
+  const pendingResult = await getPendingPrintJobs(pendingParams);
 
   const pending = pendingResult.jobs;
   const batchPayloads = pendingResult.batchPayloads;
@@ -794,9 +775,7 @@ async function executePrintJobs(
     let reportedFailedCount = 0;
     let hasPendingDelivery = false;
     let lastErrorMessage: string | undefined;
-    let localAgentPromise: Promise<AgentInfo> | null = remoteRelayAgent
-      ? Promise.resolve(remoteRelayAgent)
-      : null;
+    let localAgentPromise: Promise<AgentInfo> | null = null;
     const sharedLocalAgent = () => {
       // One pending response can contain several physical USB/TCP printers.
       // They all go through the same local Agent, so resolve its identity once

@@ -721,57 +721,11 @@ describe("printer service dispatch", () => {
     ).resolves.toEqual({ successCount: 0, failedCount: 0, total: 0, pending: true });
 
     expect(apiMocks.apiRequest).not.toHaveBeenCalled();
-    expect(axiosMocks.get).toHaveBeenCalledTimes(1);
+    expect(axiosMocks.get).not.toHaveBeenCalled();
     expect(axiosMocks.post).not.toHaveBeenCalled();
   });
 
-  it("relays a remote SHARED kitchen job immediately through the requester Agent", async () => {
-    const remoteJob = windowsPrintJob({
-      agent_id: "owner-agent",
-      device_code: "OWNER-PC",
-      job_id: "shared-set-ticket-1",
-      print_job_item_uuid: "item-1",
-    });
-
-    axiosMocks.get.mockResolvedValue({
-      data: {
-        agent_id: "requester-agent",
-        agent_name: "Requester",
-        device_code: "REQUESTER-MAC",
-      },
-    });
-    axiosMocks.post.mockResolvedValue({ data: { ok: true } });
-    apiMocks.apiRequest.mockImplementation(async (method, url, options) => {
-      if (method === "get" && url === "/api/v1/printer/jobs/pending") {
-        return {
-          print_batch_payloads: [{
-            cut_mode: "per_ticket",
-            agent_id: "owner-agent",
-            device_code: "OWNER-PC",
-            print_config_uuid: remoteJob.print_config_uuid,
-            print_job_item_uuids: ["item-1"],
-            jobs: [remoteJob],
-          }],
-          ack_success_payload: successAck,
-          ack_failed_payload: failedAck,
-        };
-      }
-      if (method === "post" && url === "/api/v1/printer/jobs/ack") {
-        expect(options?.data).toEqual({
-          ...successAck,
-          login_uuid_fk: "login-1",
-          results: [{
-            print_job_item_uuid: "item-1",
-            status: "success",
-            print_config_uuid: remoteJob.print_config_uuid,
-            delivery_state: "printed",
-          }],
-        });
-        return {};
-      }
-      throw new Error(`Unexpected request ${method} ${url}`);
-    });
-
+  it("leaves a remote SHARED kitchen job for the owner Backend queue consumer", async () => {
     await expect(
       executeKitchenPrintJobs({
         print_job: {
@@ -788,27 +742,11 @@ describe("printer service dispatch", () => {
           remote_shared_print: true,
         },
       })
-    ).resolves.toEqual({ successCount: 1, failedCount: 0, total: 1 });
+    ).resolves.toEqual({ successCount: 0, failedCount: 0, total: 0, pending: true });
 
-    expect(apiMocks.apiRequest).toHaveBeenCalledWith(
-      "get",
-      "/api/v1/printer/jobs/pending",
-      {
-        params: {
-          print_job_uuid: "shared-set-job-1",
-          login_uuid_fk: "login-1",
-          device_code: "OWNER-PC",
-          agent_id: "owner-agent",
-          print_mode: "windows_agent",
-          relay_device_code: "REQUESTER-MAC",
-        },
-      }
-    );
-    expect(axiosMocks.post).toHaveBeenCalledWith(
-      "http://127.0.0.1:7777/print-ops-batch-relay",
-      { cut_mode: "per_ticket", jobs: [remoteJob] },
-      expect.objectContaining({ timeout: 75000 })
-    );
+    expect(apiMocks.apiRequest).not.toHaveBeenCalled();
+    expect(axiosMocks.get).not.toHaveBeenCalled();
+    expect(axiosMocks.post).not.toHaveBeenCalled();
   });
 
   it("prints native mobile wifi invoice batches directly over TCP", async () => {
@@ -1159,46 +1097,8 @@ describe("printer service dispatch", () => {
     }]);
   });
 
-  it("prints a shared Windows Agent TCP batch directly from native mobile", async () => {
+  it("leaves a shared Windows Agent TCP batch for its owner when requested by native mobile", async () => {
     capacitorMocks.isNativePlatform.mockReturnValue(true);
-    const sharedJob = windowsPrintJob({
-      agent_id: "owner-agent",
-      device_code: "OWNER-PC",
-      agent_url: "http://192.168.1.10:7777",
-      interface_value: "tcp://192.168.1.20:9100"
-    });
-    const ackPayloads: AckPayload[] = [];
-
-    apiMocks.apiRequest.mockImplementation(async (method, url, options) => {
-      if (method === "get" && url === "/api/v1/printer/jobs/pending") {
-        return {
-          print_batch_payloads: [
-            {
-              cut_mode: "per_ticket",
-              agent_id: "owner-agent",
-              device_code: "OWNER-PC",
-              print_mode: "windows_agent",
-              print_client: "agent",
-              interface_value: "tcp://192.168.1.20:9100",
-              job_total: 1,
-              jobs: [sharedJob],
-              mobile_escpos: null
-            }
-          ],
-          ack_success_payload: successAck,
-          ack_failed_payload: failedAck
-        };
-      }
-      if (method === "post" && url === "/api/v1/printer/mobile/render-escpos") {
-        expect(options).toEqual({ data: sharedJob });
-        return { data: { escpos_base64: "SHARED-BASE64" } };
-      }
-      if (method === "post" && url === "/api/v1/printer/jobs/ack") {
-        ackPayloads.push(options?.data as AckPayload);
-        return {};
-      }
-      throw new Error(`Unexpected request ${method} ${url}`);
-    });
 
     await expect(
       executeKitchenPrintJobs({
@@ -1211,23 +1111,11 @@ describe("printer service dispatch", () => {
           remote_shared_print: true
         }
       })
-    ).resolves.toEqual({ successCount: 1, failedCount: 0, total: 1 });
+    ).resolves.toEqual({ successCount: 0, failedCount: 0, total: 0, pending: true });
 
-    expect(mobileTcpMocks.printMobileEscposOverTcp).toHaveBeenCalledWith({
-      interface_value: "tcp://192.168.1.20:9100",
-      escpos_base64: "SHARED-BASE64",
-      on_ticket_delivered: expect.any(Function),
-    });
+    expect(apiMocks.apiRequest).not.toHaveBeenCalled();
+    expect(mobileTcpMocks.printMobileEscposOverTcp).not.toHaveBeenCalled();
     expect(axiosMocks.post).not.toHaveBeenCalled();
-    expect(ackPayloads).toEqual([{
-      ...successAck,
-      login_uuid_fk: "login-1",
-      results: [{
-        print_job_item_uuid: "item-1",
-        status: "success",
-        delivery_state: "printed"
-      }]
-    }]);
   });
 
   it("ACKs each printer independently when the same item succeeds on A and fails on B", async () => {
