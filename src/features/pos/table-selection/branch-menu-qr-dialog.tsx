@@ -58,7 +58,7 @@ export function BranchMenuQrDialog({
   const canDownload = Boolean(qrDataUrl);
   const canPrint = Boolean(pendingJobUuid || qrDataUrl);
 
-  const requestQrWithPrinterContext = useCallback(async () => {
+  const requestQrWithPrinterContext = useCallback(async (copies: number) => {
     if (!loginUuid) throw new Error("login_uuid_fk is required");
 
     const printerContext = await resolveTableQrPrinterContext({
@@ -73,13 +73,12 @@ export function BranchMenuQrDialog({
       device_code: printerContext?.device_code,
       agent_id: printerContext?.agent_id,
       print_mode: printerContext?.print_mode,
-      print: printCopies,
+      print: copies,
     });
   }, [
     createBranchMenuQr,
     language,
     loginUuid,
-    printCopies,
     resolveDeviceContext,
     resolveDeviceIdentity,
   ]);
@@ -104,7 +103,8 @@ export function BranchMenuQrDialog({
 
     let ignore = false;
 
-    requestQrWithPrinterContext()
+    // เปิด modal มีหน้าที่สร้าง/แสดง QR เท่านั้น ห้ามสร้าง print job
+    requestQrWithPrinterContext(0)
       .then((result) => {
         if (ignore) return;
         setResponse(result);
@@ -183,17 +183,18 @@ export function BranchMenuQrDialog({
 
   // QR ต้องพิมพ์ผ่าน queue/role ที่ backend resolve ไว้เท่านั้น เพื่อไม่ให้ browser
   // หรือ Android system print ข้ามค่าการตั้งค่า printer ของสาขา
-  async function printQr(refreshQueue = false) {
+  async function printQr() {
     if (!canPrint || printing) return;
 
     setPrinting(true);
     try {
       const printResponse = await tableQrPrintAttemptResponse({
-        refreshQueue,
-        requestQueue: requestQrWithPrinterContext,
+        // ทุก click คือคำสั่งพิมพ์ใหม่ จึงค่อยสร้าง queue ตามจำนวนที่เลือก
+        refreshQueue: true,
+        requestQueue: () => requestQrWithPrinterContext(printCopies),
         response,
       });
-      if (refreshQueue) setResponse(printResponse);
+      setResponse(printResponse);
 
       if (!branchMenuQrPendingJobUuid(printResponse)) {
         showToast({
@@ -202,7 +203,7 @@ export function BranchMenuQrDialog({
           tone: "error",
           action: {
             label: t("actions.tryAgain"),
-            onClick: () => void printQr(true),
+            onClick: () => void printQr(),
           },
         });
         return;
@@ -231,7 +232,7 @@ export function BranchMenuQrDialog({
           tone: "error",
           action: {
             label: t("actions.tryAgain"),
-            onClick: () => void printQr(true),
+            onClick: () => void printQr(),
           },
         });
         return;
@@ -245,7 +246,7 @@ export function BranchMenuQrDialog({
         tone: "error",
         action: {
           label: t("actions.tryAgain"),
-          onClick: () => void printQr(true),
+          onClick: () => void printQr(),
         },
       });
     } finally {

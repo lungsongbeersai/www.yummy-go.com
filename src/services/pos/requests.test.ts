@@ -592,7 +592,8 @@ describe("pos requests", () => {
       lang: "la",
       device_code: "WINDOWS-001",
       agent_id: "WINDOWS-AGENT-001",
-      print_mode: "windows_agent"
+      print_mode: "windows_agent",
+      print: 0
     });
 
     expect(apiMocks.apiRequest).toHaveBeenCalledWith("get", "/api/v1/posAll/admin/create_table_qr", {
@@ -602,7 +603,8 @@ describe("pos requests", () => {
         login_uuid_fk: "login-1",
         device_code: "WINDOWS-001",
         agent_id: "WINDOWS-AGENT-001",
-        print_mode: "windows_agent"
+        print_mode: "windows_agent",
+        print: 0
       }
     });
   });

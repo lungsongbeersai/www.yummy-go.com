@@ -56,7 +56,7 @@ export function TableQrDialog({
   const canDownload = Boolean(previewUrl || targetUrl);
   const canPrint = Boolean(pendingJobUuid || previewUrl || targetUrl);
 
-  const requestQrWithPrinterContext = useCallback(async () => {
+  const requestQrWithPrinterContext = useCallback(async (print: 0 | 1) => {
     if (!loginUuid) throw new Error("login_uuid_fk is required");
 
     // Resolve the route again for an explicit retry. A failed-before-print QR
@@ -74,6 +74,7 @@ export function TableQrDialog({
       device_code: printerContext?.device_code,
       agent_id: printerContext?.agent_id,
       print_mode: printerContext?.print_mode,
+      print,
     });
   }, [
     createTableQr,
@@ -102,7 +103,8 @@ export function TableQrDialog({
 
     let ignore = false;
 
-    requestQrWithPrinterContext()
+    // เปิด modal มีหน้าที่สร้าง/แสดง QR เท่านั้น ห้ามสร้าง print job
+    requestQrWithPrinterContext(0)
       .then((result) => {
         if (ignore) return;
         setResponse(result);
@@ -186,17 +188,18 @@ export function TableQrDialog({
     }
   }
 
-  async function printQr(refreshQueue = false) {
+  async function printQr() {
     if (!canPrint || printing) return;
 
     setPrinting(true);
     try {
       const printResponse = await tableQrPrintAttemptResponse({
-        refreshQueue,
-        requestQueue: requestQrWithPrinterContext,
+        // ทุก click คือคำสั่งพิมพ์ใหม่ จึงค่อยสร้าง queue ณ จุดนี้เท่านั้น
+        refreshQueue: true,
+        requestQueue: () => requestQrWithPrinterContext(1),
         response,
       });
-      if (refreshQueue) setResponse(printResponse);
+      setResponse(printResponse);
 
       if (!tableQrPendingJobUuid(printResponse)) {
         showToast({
@@ -205,7 +208,7 @@ export function TableQrDialog({
           tone: "error",
           action: {
             label: t("actions.tryAgain"),
-            onClick: () => void printQr(true),
+            onClick: () => void printQr(),
           },
         });
         return;
@@ -234,7 +237,7 @@ export function TableQrDialog({
           tone: "error",
           action: {
             label: t("actions.tryAgain"),
-            onClick: () => void printQr(true),
+            onClick: () => void printQr(),
           },
         });
         return;
@@ -248,7 +251,7 @@ export function TableQrDialog({
         tone: "error",
         action: {
           label: t("actions.tryAgain"),
-          onClick: () => void printQr(true),
+          onClick: () => void printQr(),
         },
       });
     } finally {

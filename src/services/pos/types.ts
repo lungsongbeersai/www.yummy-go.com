@@ -636,6 +636,8 @@ export interface CreateTableQRRequest {
   device_code?: string;
   agent_id?: string;
   print_mode?: string;
+  // 0 = สร้าง/แสดง QR เท่านั้น, 1 = สร้างคิวพิมพ์จริง
+  print?: 0 | 1;
 }
 
 // endpoint admin/create_table_qr คืน shape เดียวกับ TableQRResponse (สร้าง/regenerate

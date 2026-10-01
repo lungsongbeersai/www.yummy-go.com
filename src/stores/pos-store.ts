@@ -264,7 +264,7 @@ interface PosState {
   updateNote: (input: UpdateOrderNoteInput) => ReturnType<typeof posService.updateOrderNote>;
   createPayment: (input: PaymentInput) => Promise<PaymentResponse>;
   splitBill: (input: SplitBillInput) => Promise<SplitBillResponse>;
-  // action นี้สั่งพิมพ์ QR ด้วย จึงบังคับ login_uuid_fk ที่ระดับ store (request type เป็น optional)
+  // รองรับ preview (print=0) และคิวพิมพ์จากปุ่ม (print=1) โดยใช้ login สำหรับ resolve route
   createTableQr: (params: CreateTableQRRequest & { login_uuid_fk: string }) => Promise<CreateTableQRResponse>;
   // QR เมนูอย่างเดียว (ระดับสาขา) — มีคิวเครื่องพิมพ์จริงแบบเดียวกับ createTableQr แล้ว
   // (P-72) จึงบังคับ login_uuid_fk ที่ระดับ store เหมือนกัน
@@ -624,7 +624,7 @@ export const usePosStore = create<PosState>((set, get) => ({
   joinTables: (input) => posService.joinTableMulti(input),
   loadTableQr: async (tableUuid) => {
     const isCurrentSession = createSessionGuard();
-    const tableQr = await posService.createTableQR({ table_uuid: tableUuid });
+    const tableQr = await posService.createTableQR({ table_uuid: tableUuid, print: 0 });
     if (isCurrentSession()) set({ tableQr });
     return tableQr;
   },

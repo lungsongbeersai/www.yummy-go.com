@@ -227,7 +227,8 @@ export const createTableQR = (params: CreateTableQRRequest) =>
       login_uuid_fk: params.login_uuid_fk,
       device_code: params.device_code,
       agent_id: params.agent_id,
-      print_mode: params.print_mode
+      print_mode: params.print_mode,
+      print: params.print
     }
   });
 
