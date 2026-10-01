@@ -2,11 +2,13 @@
 
 import { useMemo } from "react";
 import {
+  publicMenuKindToStatusSortFk,
   type PublicMenuByKind,
   PUBLIC_MENU_KIND,
 } from "@/stores/public-pos-store";
 import { PRODUCT_RENDER_CHUNK } from "../constants";
 import {
+  filterVisiblePublicMenuCategories,
   flattenStatusProducts,
   getRenderedMenuSections,
   hasMoreMenuToRender,
@@ -29,7 +31,14 @@ export function usePublicMenuBrowseModel({
   const promotionMenu = menuByKind[PUBLIC_MENU_KIND.PROMOTION];
   const setMenu = menuByKind[PUBLIC_MENU_KIND.SET];
   const normalMenu = menuByKind[PUBLIC_MENU_KIND.NORMAL];
-  const menuCategories = normalMenu.categories;
+  const menuCategories = useMemo(
+    () =>
+      filterVisiblePublicMenuCategories(
+        normalMenu.categories,
+        publicMenuKindToStatusSortFk(PUBLIC_MENU_KIND.NORMAL),
+      ),
+    [normalMenu.categories],
+  );
   const categoryTabs = normalMenu.categoryTabs;
   const selectedCateUuid = normalMenu.selectedCateUuid;
   const defaultCateUuid = normalMenu.defaultCateUuid;
@@ -44,13 +53,23 @@ export function usePublicMenuBrowseModel({
   const promotionProducts = useMemo(
     () =>
       flattenStatusProducts(
-        promotionMenu.categories,
+        filterVisiblePublicMenuCategories(
+          promotionMenu.categories,
+          publicMenuKindToStatusSortFk(PUBLIC_MENU_KIND.PROMOTION),
+        ),
         PUBLIC_MENU_KIND.PROMOTION,
       ),
     [promotionMenu.categories],
   );
   const setProducts = useMemo(
-    () => flattenStatusProducts(setMenu.categories, PUBLIC_MENU_KIND.SET),
+    () =>
+      flattenStatusProducts(
+        filterVisiblePublicMenuCategories(
+          setMenu.categories,
+          publicMenuKindToStatusSortFk(PUBLIC_MENU_KIND.SET),
+        ),
+        PUBLIC_MENU_KIND.SET,
+      ),
     [setMenu.categories],
   );
   const hasPromotionImage = promotionProducts.some(({ product }) =>

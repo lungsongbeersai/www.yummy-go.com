@@ -15,6 +15,7 @@ import {
 import type {
   CartOrder,
   CateProductItem,
+  CateWithProducts,
   ProdDetail,
   ProdItem,
   ProdTaste,
@@ -278,6 +279,27 @@ export function getProductBlockedState(
     product,
     publicProductStatusSort(product, activeStatusSortFk),
   );
+}
+
+export function filterVisiblePublicMenuCategories(
+  categories: CateWithProducts[],
+  activeStatusSortFk: number,
+) {
+  let changed = false;
+  const visibleCategories = categories.map((category) => {
+    const products = category.products;
+    if (!products?.length) return category;
+
+    const visibleProducts = products.filter(
+      (product) => !getProductBlockedState(product, activeStatusSortFk),
+    );
+    if (visibleProducts.length === products.length) return category;
+
+    changed = true;
+    return { ...category, products: visibleProducts };
+  });
+
+  return changed ? visibleCategories : categories;
 }
 
 export { isProductUnavailable };

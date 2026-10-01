@@ -26,6 +26,7 @@ import {
   getConfirmableOrderPayload,
   getDirectAddListPayload,
   formatMoney,
+  filterVisiblePublicMenuCategories,
   getProductActionState,
   getProductBlockedState,
   getProductModalMode,
@@ -350,6 +351,37 @@ describe("public POS product helpers", () => {
         normalStatus,
       ),
     ).toBe("blocked");
+  });
+
+  it("hides unavailable products from the customer scanned menu", () => {
+    const categories = [
+      category("drinks", [
+        product({ prodUuid: "available" }),
+        product({ prodUuid: "disabled", canAdd: false }),
+        product({ prodUuid: "manual", soldOutManual: true }),
+        product({ prodUuid: "stock", stockSoldOut: true }),
+      ]),
+    ];
+
+    expect(
+      filterVisiblePublicMenuCategories(categories, normalStatus)[0]?.products,
+    ).toEqual([expect.objectContaining({ prodUuid: "available" })]);
+
+    expect(
+      filterVisiblePublicMenuCategories(
+        [
+          category("promotion", [
+            product({
+              prodUuid: "expired",
+              promoExpired: true,
+              promoState: "NONE",
+              statusSortFk: normalStatus,
+            }),
+          ]),
+        ],
+        promotionStatus,
+      )[0]?.products,
+    ).toEqual([]);
   });
 
   it.each([
