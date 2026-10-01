@@ -1546,11 +1546,11 @@ html.swan1-legacy-colors
   padding-bottom: 0;
 }
 
-/* The order screen has its own cart footer safe-area. Keep the action row close
-   to (but above) Swan 1's Android navigation bar without double spacing it. */
+/* The order screen has its own cart footer safe-area. Reuse Swan 1's measured
+   28px navigation strip so the action row stays low without entering the bar. */
 html.swan1-legacy-colors
   .app-shell[data-platform="capacitor"][data-desktop-pos-order-layout="true"] {
-  padding-bottom: 40px;
+  padding-bottom: 28px;
 }
 
 html.swan1-legacy-colors
@@ -1883,9 +1883,10 @@ html.swan1-legacy-colors
   border-bottom: 1px solid var(--border);
 }
 
-/* หน้าออเดอร์บน Native แนวตั้งใช้หัวแถบเขียวเดียวกับ workspace ของ POS
+/* หน้าโต๊ะและหน้าออเดอร์บน Native แนวตั้งใช้หัวแถบเขียวเดียวกับ workspace ของ POS
    แยกด้วย data attribute เพื่อไม่เปลี่ยน top bar ของหน้าอื่นหรือ desktop shell */
-.capacitor-native .native-top-bar[data-pos-order-top-bar="true"] {
+.capacitor-native .native-top-bar[data-pos-order-top-bar="true"],
+.capacitor-native .native-top-bar[data-pos-table-top-bar="true"] {
   color: var(--primary-foreground);
   background: var(--primary);
   border-bottom-color: color-mix(
@@ -2846,6 +2847,33 @@ textarea,
 .capacitor-native .ui-overlay-close-button svg {
   inline-size: 1.125rem;
   block-size: 1.125rem;
+}
+
+/* Payment dialog ใช้ปุ่มปิด custom และจอมือถือบังคับ border-0 จึงไม่รับกฎ
+   ui-overlay-close-button ด้านบน คืนกรอบเขียวให้ modal และขยายเป้ากดเฉพาะ Native */
+.capacitor-native [data-pos-payment-dialog="true"] {
+  box-sizing: border-box;
+  border: 2px solid var(--primary) !important;
+}
+
+.capacitor-native [data-pos-payment-dialog-close="true"] {
+  inline-size: 3rem;
+  block-size: 3rem;
+  border: 2px solid var(--primary);
+  border-radius: 9999px;
+  color: var(--primary);
+  background: var(--background);
+  box-shadow: 0 4px 14px rgb(0 0 0 / 14%);
+}
+
+.capacitor-native [data-pos-payment-dialog-close="true"]:hover {
+  color: var(--primary);
+  background: color-mix(in oklch, var(--background) 88%, var(--primary) 12%);
+}
+
+.capacitor-native [data-pos-payment-dialog-close="true"] svg {
+  inline-size: 1.25rem;
+  block-size: 1.25rem;
 }
 
 /* เว้นพื้นที่ให้วงกลมปิดของ cart sheet ไม่ทับ badge จำนวนรายการ */

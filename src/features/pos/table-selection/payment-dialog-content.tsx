@@ -446,6 +446,7 @@ export function PaymentDialogContent({
                 <DialogClose asChild>
                   <Button
                     type="button"
+                    data-pos-payment-dialog-close="true"
                     variant="ghost"
                     size="icon"
                     aria-label={t("actions.close")}

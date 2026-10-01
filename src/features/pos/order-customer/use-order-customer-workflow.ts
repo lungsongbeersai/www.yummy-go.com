@@ -119,6 +119,7 @@ export function useOrderCustomerWorkflow({
   const [cartSheetOpen, setCartSheetOpen] = useState(false);
   const [draftExitWarningOpen, setDraftExitWarningOpen] = useState(false);
   const [draftExitCleanupPending, setDraftExitCleanupPending] = useState(false);
+  const productActionPendingRef = useRef(false);
   const backgroundCartRefreshRef = useRef<Promise<void> | null>(null);
   const pendingExitActionRef = useRef<(() => void) | null>(null);
   const allowNextUnloadRef = useRef(false);
@@ -470,8 +471,9 @@ export function useOrderCustomerWorkflow({
   const openOrAddProduct = useCallback(
     async (entry: ProductCardEntry) => {
       const blockedState = getProductBlockedState(entry.product, activeSort);
-      if (blockedState) return;
+      if (blockedState || productActionPendingRef.current) return;
 
+      productActionPendingRef.current = true;
       setLoadingProductUuid(entry.product.prodUuid);
       try {
         let item: ProdItem | null = null;
@@ -553,6 +555,7 @@ export function useOrderCustomerWorkflow({
           tone: "error",
         });
       } finally {
+        productActionPendingRef.current = false;
         setLoadingProductUuid("");
       }
     },

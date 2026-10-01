@@ -83,6 +83,8 @@ export function NativeTopBar({
   const title = titleOverride || menuItemLabel(current, t);
   const showBack = shouldShowBackButton(model, pathname);
   const isOrderTopBar = pathname === "/posAll/order";
+  const isTableTopBar = pathname === "/posAll/tables";
+  const isPosWorkspaceTopBar = isOrderTopBar || isTableTopBar;
   const isCounterOrder = user?.store_table_status === 2;
   const orderContextLabel = isCounterOrder ? t("nav.order") : t("pos.table");
 
@@ -105,6 +107,7 @@ export function NativeTopBar({
   return (
     <header
       data-pos-order-top-bar={isOrderTopBar ? "true" : undefined}
+      data-pos-table-top-bar={isTableTopBar ? "true" : undefined}
       className={cn(
         "native-top-bar sticky top-0 z-40 flex min-h-(--app-shell-header-height) w-full shrink-0 items-center px-2 sm:px-3",
         isOrderTopBar ? "gap-2" : "gap-1"
@@ -118,7 +121,7 @@ export function NativeTopBar({
           aria-label={t("actions.back")}
           className={cn(
             "size-12 shrink-0",
-            isOrderTopBar
+            isPosWorkspaceTopBar
               ? "rounded-full border-primary-foreground/35 bg-primary-foreground/15 text-primary-foreground shadow-sm hover:bg-primary-foreground/25 hover:text-primary-foreground focus-visible:border-primary-foreground/70 focus-visible:ring-primary-foreground/40"
               : "text-primary"
           )}

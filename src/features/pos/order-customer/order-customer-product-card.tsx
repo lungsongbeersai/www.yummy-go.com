@@ -44,7 +44,6 @@ import { productCardCopy, productCardRadiusClass } from "./product-card-copy";
 export const EmployeeProductCard = memo(function EmployeeProductCard({
   activeSort,
   compact = false,
-  disabled,
   entry,
   imagePreload = false,
   loading,
@@ -55,7 +54,6 @@ export const EmployeeProductCard = memo(function EmployeeProductCard({
   activeSort: ProductSortStatus;
   compact?: boolean;
   entry: ProductCardEntry;
-  disabled: boolean;
   imagePreload?: boolean;
   loading: boolean;
   nativeMobile?: boolean;
@@ -79,7 +77,7 @@ export const EmployeeProductCard = memo(function EmployeeProductCard({
       : actionLabel;
   const description = productCardDescription(product, activeSort, t);
   const unavailable = Boolean(blockedState);
-  const interactionDisabled = unavailable || disabled || loading;
+  const interactionDisabled = unavailable || loading;
   const ActionIcon =
     actionState === "blocked"
       ? Ban

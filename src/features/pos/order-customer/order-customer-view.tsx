@@ -139,6 +139,9 @@ export function OrderCustomerView({
   const landscapeTablet = useLandscapeTablet();
   const horizontalNativeOrderLayout = nativeShellActive && landscapeTablet;
   const portraitNativeOrderLayout = nativeShellActive && !landscapeTablet;
+  // Swan 1 ซ่อน native chrome เพื่อใช้ command row แบบ desktop บน WebView รุ่นเก่า
+  // แต่หมวดหมู่ยังต้องเป็น rail แนวนอนของ Native ไม่ย้อนกลับไปเป็น sidebar ซ้าย
+  const useNativeCategoryLayout = isNativeApp;
   const compactNativeProductGrid = horizontalNativeOrderLayout
     ? "gap-2 md:grid-cols-[repeat(auto-fill,minmax(148px,1fr))]"
     : undefined;
@@ -207,7 +210,7 @@ export function OrderCustomerView({
       <div
         className={cn(
           "relative grid h-full min-h-0 grid-rows-[auto_minmax(0,1fr)] overflow-hidden",
-          nativeShellActive
+          useNativeCategoryLayout
             ? "lg:grid-cols-[minmax(0,1fr)_clamp(320px,20vw,360px)]"
             : "lg:grid-cols-[154px_minmax(0,1fr)_clamp(320px,20vw,360px)]"
         )}
@@ -215,7 +218,7 @@ export function OrderCustomerView({
         <header
           className={cn(
             "relative shrink-0 overflow-hidden border-b px-3 sm:px-3.5",
-            !nativeShellActive && "lg:col-span-2",
+            !useNativeCategoryLayout && "lg:col-span-2",
             nativeShellActive
               ? horizontalNativeOrderLayout
                 ? "border-primary/20 bg-background pb-1 pt-0 text-foreground shadow-sm dark:border-border dark:bg-card"
@@ -344,9 +347,9 @@ export function OrderCustomerView({
 
               <EmployeeCategoryRail
                 categories={categories}
-                neutral={nativeShellActive}
+                neutral={useNativeCategoryLayout}
                 selectedCateUuid={selectedCateUuid}
-                wide={nativeShellActive}
+                wide={useNativeCategoryLayout}
                 onSelectCategory={(cateUuid) => void selectCategory(cateUuid)}
               />
             </div>
@@ -433,17 +436,29 @@ export function OrderCustomerView({
               ) : null}
             </div>
           ) : null}
+
+          {useNativeCategoryLayout && !nativeShellActive ? (
+            <div className="relative hidden min-w-0 lg:block">
+              <EmployeeCategoryRail
+                categories={categories}
+                neutral
+                selectedCateUuid={selectedCateUuid}
+                wide
+                onSelectCategory={(cateUuid) => void selectCategory(cateUuid)}
+              />
+            </div>
+          ) : null}
         </header>
 
         <div
           className={cn(
             "min-h-0 overflow-hidden",
-            nativeShellActive
+            useNativeCategoryLayout
               ? "flex"
               : "grid md:grid-cols-[154px_minmax(0,1fr)] lg:col-span-2"
           )}
         >
-          {!nativeShellActive ? (
+          {!useNativeCategoryLayout ? (
             <EmployeeCategorySidebar
               categories={categories}
               loading={loadingMenu && !categories.length}
@@ -488,7 +503,6 @@ export function OrderCustomerView({
                       }`}
                       activeSort={activeSort}
                       compact={horizontalNativeOrderLayout}
-                      disabled={Boolean(loadingProductUuid) || saving}
                       entry={entry}
                       imagePreload={preloadImageIndexes.has(index)}
                       loading={loadingProductUuid === entry.product.prodUuid}
@@ -528,7 +542,7 @@ export function OrderCustomerView({
         <aside
           className={cn(
             "relative row-span-2 row-start-1 hidden min-h-0 overflow-hidden bg-transparent lg:block",
-            nativeShellActive ? "col-start-2" : "col-start-3"
+            useNativeCategoryLayout ? "col-start-2" : "col-start-3"
           )}
         >
           <div className="relative h-full min-h-0">
