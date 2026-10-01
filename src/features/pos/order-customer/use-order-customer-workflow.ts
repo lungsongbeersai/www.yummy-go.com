@@ -33,6 +33,7 @@ import {
   getOrderSelectionIssue,
   getProductBlockedState,
   getProductModalMode,
+  isStaffPosProductVisible,
   isDetailAvailable,
   isDetailEnabled,
   isToppingAvailable,
@@ -183,7 +184,10 @@ export function useOrderCustomerWorkflow({
     userUuid: user?.uuid ?? "",
   });
   const activeProducts = useMemo(
-    () => flattenProducts(menuBySort[activeSort]),
+    () =>
+      flattenProducts(menuBySort[activeSort]).filter(({ product }) =>
+        isStaffPosProductVisible(product, activeSort),
+      ),
     [activeSort, menuBySort],
   );
   const cartCount = useMemo(

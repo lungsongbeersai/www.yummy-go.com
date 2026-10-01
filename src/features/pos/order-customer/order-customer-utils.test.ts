@@ -21,6 +21,7 @@ import {
   getProductBlockedState,
   getProductModalMode,
   groupedSetDetails,
+  isStaffPosProductVisible,
   MAX_ORDER_QTY,
   nextMenuCategoryUuid,
   normalizeProdItem,
@@ -266,6 +267,28 @@ describe("order customer helpers", () => {
         ProductSortStatus.SET,
       ),
     ).toBe(false);
+  });
+
+  it("hides unavailable products from the staff POS menu", () => {
+    expect(
+      isStaffPosProductVisible(product(), ProductSortStatus.NORMAL),
+    ).toBe(true);
+
+    for (const unavailable of [
+      product({ canAdd: false }),
+      product({ soldOutManual: true }),
+      product({ stockAvailable: false }),
+      product({ stockSoldOut: true }),
+      product({
+        promoExpired: true,
+        promoState: "ACTIVE",
+        statusSortFk: ProductSortStatus.PROMOTION,
+      }),
+    ]) {
+      expect(
+        isStaffPosProductVisible(unavailable, unavailable.statusSortFk ?? ProductSortStatus.NORMAL),
+      ).toBe(false);
+    }
   });
 
   it.each([
