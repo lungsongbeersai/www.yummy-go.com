@@ -33,13 +33,6 @@ export function getProductBlockedState(
   );
 }
 
-export function isStaffPosProductVisible(
-  product: CateProductItem,
-  activeSort: ProductSortStatus,
-) {
-  return !getProductBlockedState(product, activeSort);
-}
-
 export function hasPromo(product: CateProductItem) {
   const promoState = String(product.promoState ?? "")
     .trim()

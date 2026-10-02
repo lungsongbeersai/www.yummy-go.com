@@ -21,7 +21,6 @@ import {
   getProductBlockedState,
   getProductModalMode,
   groupedSetDetails,
-  isStaffPosProductVisible,
   MAX_ORDER_QTY,
   nextMenuCategoryUuid,
   normalizeProdItem,
@@ -269,11 +268,7 @@ describe("order customer helpers", () => {
     ).toBe(false);
   });
 
-  it("hides unavailable products from the staff POS menu", () => {
-    expect(
-      isStaffPosProductVisible(product(), ProductSortStatus.NORMAL),
-    ).toBe(true);
-
+  it("keeps unavailable staff menu entries blocked from direct ordering", () => {
     for (const unavailable of [
       product({ canAdd: false }),
       product({ soldOutManual: true }),
@@ -285,9 +280,9 @@ describe("order customer helpers", () => {
         statusSortFk: ProductSortStatus.PROMOTION,
       }),
     ]) {
-      expect(
-        isStaffPosProductVisible(unavailable, unavailable.statusSortFk ?? ProductSortStatus.NORMAL),
-      ).toBe(false);
+      const sort = unavailable.statusSortFk ?? ProductSortStatus.NORMAL;
+      expect(getProductBlockedState(unavailable, sort)).toBeTruthy();
+      expect(canDirectAddFromList(unavailable, sort)).toBe(false);
     }
   });
 
