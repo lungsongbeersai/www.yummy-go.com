@@ -16,7 +16,6 @@ import { useAuthStore } from "@/stores/auth-store";
 import { useNativeHeaderStore } from "@/stores/native-header-store";
 import { usePosStore } from "@/stores/pos-store";
 import { useToastStore } from "@/stores/toast-store";
-import { StaffWaiterPanel } from "@/features/waiter-requests/staff-waiter-panel";
 import { TableListSection } from "./table-list-section";
 import type { TableStatusFilter } from "./types";
 import { formatClock } from "./utils";
@@ -116,7 +115,6 @@ export function TableSelectionPage() {
   if (nativeShellActive) {
     return (
       <div className="flex h-full min-h-0 flex-col overflow-hidden">
-        <StaffWaiterPanel branch={branchUuid} />
         <TableListSection
           initialZoneUuid={initialZoneUuid}
           loading={loading}
@@ -149,7 +147,7 @@ export function TableSelectionPage() {
           </Button>
           <TableClock />
           <div data-pos-table-header-actions="true" className="relative flex min-w-0 items-center gap-1.5">
-            <NotificationMenu triggerClassName={cn(headerIconButtonClass, "hidden min-[430px]:inline-flex")} triggerVariant="ghost" />
+            <NotificationMenu triggerClassName={headerIconButtonClass} triggerVariant="ghost" />
             <LanguageSwitch className={cn(headerIconButtonClass, "hidden min-[500px]:inline-flex")} compact size="icon" variant="ghost" />
             <ThemeToggle className={headerIconButtonClass} size="icon" variant="ghost" />
             <Button aria-label={t("actions.refresh")} className={headerIconButtonClass} size="icon" type="button" variant="ghost" onClick={() => void load()}>
@@ -157,7 +155,6 @@ export function TableSelectionPage() {
             </Button>
           </div>
         </header>
-        <StaffWaiterPanel branch={branchUuid} />
         <TableListSection initialZoneUuid={initialZoneUuid} loading={loading} search={search} selectedTable={null} statusFilter={statusFilter} zoneOptions={zoneOptions} zones={zones} onSearchChange={setSearch} onSelectTable={selectTable} onStatusFilterChange={setStatusFilter} />
       </div>
     </div>

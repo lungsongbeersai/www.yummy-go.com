@@ -20,6 +20,9 @@ import {
 import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@/components/ui/empty";
 import { OrderAlertSoundDialog } from "@/components/layout/order-alert-sound-dialog";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { StaffWaiterPanel } from "@/features/waiter-requests/staff-waiter-panel";
+import { useWaiterRequestsStore } from "@/stores/waiter-requests-store";
+import { useAuthStore } from "@/stores/auth-store";
 import { useAppStore } from "@/stores/app-store";
 import { usePosStore } from "@/stores/pos-store";
 import { useNavigationGuardStore } from "@/stores/navigation-guard-store";
@@ -37,6 +40,13 @@ export function NotificationMenu({
 }: NotificationMenuProps = {}) {
   const { t } = useTranslation();
   const router = useRouter();
+  const branch = useAuthStore((state) => state.user?.branch_uuid ?? "");
+  const staffRequests = useWaiterRequestsStore((state) => state.staffRequests);
+  const staffKey = useWaiterRequestsStore((state) => state.staffKey);
+  const staffError = useWaiterRequestsStore((state) => state.staffError);
+  const waiterCount = staffKey === branch ? staffRequests.length : 0;
+  const [waiterOpen, setWaiterOpen] = useState(false);
+  const openWaiterOnCloseRef = useRef(false);
   const runGuardedNavigation = useNavigationGuardStore((state) => state.run);
   const zoneOptions = usePosStore((state) => state.zoneOptions);
   const orderAlertSound = useAppStore((state) => state.orderAlertSound);
@@ -50,8 +60,9 @@ export function NotificationMenu({
   // โต๊ะจริงเท่านั้น การเปิดดรอปดาวน์นี้ไม่ถือว่ารับทราบ
   const orderAlerts = useMemo(() => collectOrderAlerts(zoneOptions), [zoneOptions]);
 
-  const hasUnread = orderAlerts.length > 0;
-  const badgeText = orderAlerts.length > 9 ? "9+" : String(orderAlerts.length);
+  const pendingCount = orderAlerts.length + waiterCount;
+  const hasUnread = pendingCount > 0;
+  const badgeText = pendingCount > 9 ? "9+" : String(pendingCount);
 
   function openTableOrder(alert: OrderAlertEntry) {
     const params = new URLSearchParams({ table_uuid: alert.tableUuid, table_name: alert.tableName });
@@ -87,6 +98,12 @@ export function NotificationMenu({
           align="end"
           className="w-80 p-0 sm:w-88"
           onCloseAutoFocus={(event) => {
+            if (openWaiterOnCloseRef.current) {
+              openWaiterOnCloseRef.current = false;
+              event.preventDefault();
+              setWaiterOpen(true);
+              return;
+            }
             if (!openSoundDialogOnCloseRef.current) return;
             openSoundDialogOnCloseRef.current = false;
             event.preventDefault();
@@ -97,7 +114,7 @@ export function NotificationMenu({
             <div className="flex min-w-0 flex-col gap-0.5">
               <DropdownMenuLabel className="p-0 text-sm font-semibold">{t("notifications.title")}</DropdownMenuLabel>
               <p className="text-xs text-muted-foreground">
-                {hasUnread ? t("notifications.pendingCount", { count: orderAlerts.length }) : t("notifications.empty")}
+                {hasUnread ? t("notifications.pendingCount", { count: pendingCount }) : t("notifications.empty")}
               </p>
             </div>
             {hasUnread ? (
@@ -105,8 +122,18 @@ export function NotificationMenu({
             ) : null}
           </div>
           <DropdownMenuSeparator className="my-0" />
-          {hasUnread ? (
+          {hasUnread || staffError ? (
             <DropdownMenuGroup className="flex max-h-80 flex-col gap-1 overflow-y-auto p-1.5">
+              {waiterCount > 0 || staffError ? (
+                <DropdownMenuItem className="gap-3 px-2.5 py-3" onSelect={() => { openWaiterOnCloseRef.current = true; }}>
+                  <BellRing className="text-primary" aria-hidden />
+                  <span className="flex min-w-0 flex-1 flex-col">
+                    <span className="text-sm font-semibold">{t("waiter.title")} ({waiterCount})</span>
+                    {staffError ? <span className="text-xs text-destructive">{t("waiter.failed")}</span> : null}
+                  </span>
+                  <ChevronRight aria-hidden />
+                </DropdownMenuItem>
+              ) : null}
               {orderAlerts.map((alert) => (
                 <LiveOrderAlertRow key={alert.tableUuid} alert={alert} onSelect={() => openTableOrder(alert)} />
               ))}
@@ -145,6 +172,7 @@ export function NotificationMenu({
           </div>
         </DropdownMenuContent>
       </DropdownMenu>
+      <StaffWaiterPanel branch={branch} open={waiterOpen} onOpenChange={setWaiterOpen} />
       <OrderAlertSoundDialog open={soundDialogOpen} onOpenChange={setSoundDialogOpen} />
     </>
   );
