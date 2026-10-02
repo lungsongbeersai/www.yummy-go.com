@@ -30,9 +30,11 @@ export function HorizontalScrollArrows({
   scrollRef,
   className,
   onOverflowChange,
+  placement = "edges",
 }: {
   scrollRef: RefObject<HTMLDivElement | null>;
   className?: string;
+  placement?: "edges" | "end";
   /** ให้ parent เผื่อ padding กันปุ่มลูกศรทับ item แรก/สุดท้ายได้ เฉพาะตอนที่ลูกศรโชว์จริง */
   onOverflowChange?: (hasOverflow: boolean) => void;
 }) {
@@ -127,6 +129,7 @@ export function HorizontalScrollArrows({
     // เลย ปุ่มวงกลมนี้เลยเห็นเป็นกล่องเหลี่ยมตอนแตะ — ฟีดแบ็กตอนกดยังมีอยู่ครบจาก
     // hover:bg-primary/5 กับ active:translate-y-px ของ Button ฐาน
     "scroll-arrow-button absolute inset-y-0 z-10 my-auto size-9 rounded-full border border-border bg-card text-foreground shadow-md transition-[color,background-color,opacity] hover:border-primary/40 hover:bg-primary/5 disabled:opacity-0 motion-reduce:transition-none",
+    placement === "end" && "size-11 shadow-sm disabled:opacity-35",
     className,
   );
 
@@ -136,7 +139,7 @@ export function HorizontalScrollArrows({
         type="button"
         size="icon"
         variant="outline"
-        className={cn(buttonClassName, "left-0")}
+        className={cn(buttonClassName, placement === "end" ? "right-12" : "left-0")}
         aria-label={t("pos.scrollLeft")}
         disabled={!scrollState.canScrollLeft}
         onClick={() => scroll(-1)}

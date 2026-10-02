@@ -126,15 +126,12 @@ export function TableListSection({
       <div className="flex shrink-0 flex-col gap-1.5 border-b border-border bg-background px-0 py-1.5 shadow-sm sm:px-4 xl:px-5">
         <div className="flex items-center gap-2">
           <div className="relative min-w-0 flex-1">
-            {/* pl-8/pr-8 พอดีกับปุ่มลูกศร size-8 เป๊ะ (ไม่มี buffer เหลือ) เฉพาะตอนล้นจริง
-                (zoneRailOverflowing) — ให้ชิปแรกชิดขอบซ้ายที่สุดเท่าที่ยังไม่โดนปุ่มลูกศร
-                บังจนกดไม่ได้ ส่วน padding รอบนอกเอาออกหมด (px-0) บนจอเล็กตามที่แจ้งว่า
-                ไม่ต้องการเว้นระยะเลย */}
+            {/* Keep both arrows outside the scrolling viewport so chips never pass underneath. */}
             <div
               ref={zoneRailRef}
               className={cn(
                 "-mx-1 overflow-x-auto overflow-y-hidden px-1 py-1",
-                zoneRailOverflowing && "pl-8 pr-8"
+                zoneRailOverflowing && "mr-24"
               )}
             >
               <ToggleGroup
@@ -170,13 +167,13 @@ export function TableListSection({
               </ToggleGroup>
             </div>
             <HorizontalScrollArrows
-              className="size-8"
+              placement="end"
               scrollRef={zoneRailRef}
               onOverflowChange={setZoneRailOverflowing}
             />
           </div>
           {canAddZone || canAddTable ? (
-            <div className="flex shrink-0 gap-2">
+            <div className="hidden shrink-0 gap-2 sm:flex">
               {/* ซ่อนทั้งปุ่มบนจอเล็ก (ไม่ใช่แค่ label) — งานเพิ่มโซน/โต๊ะเป็นงานตั้งค่าที่ไม่ได้ทำ
                   บ่อยระหว่างขาย บนจอมือถือแถวนี้แน่นเกินไปแล้วจากแถบเลื่อนโซน */}
               {canAddZone ? (
@@ -204,7 +201,7 @@ export function TableListSection({
               ref={statusRailRef}
               className={cn(
                 "-mx-1 overflow-x-auto overflow-y-hidden px-1 py-1",
-                statusRailOverflowing && "pl-8 pr-8"
+                statusRailOverflowing && "mr-24"
               )}
             >
               <ToggleGroup
@@ -223,7 +220,7 @@ export function TableListSection({
               </ToggleGroup>
             </div>
             <HorizontalScrollArrows
-              className="size-8"
+              placement="end"
               scrollRef={statusRailRef}
               onOverflowChange={setStatusRailOverflowing}
             />
