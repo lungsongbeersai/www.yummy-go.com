@@ -2,13 +2,12 @@
 
 import { usePathname, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useRef } from "react";
-import { useTranslation } from "react-i18next";
 import { orderAlertSoundSrc } from "@/lib/pos/order-alert-sounds";
 import { collectOrderAlerts } from "@/lib/pos/order-alerts";
 import { isTableAlertForBranch, subscribeTableAlerts, type TableAlertPayload } from "@/lib/socket";
 import { useAppStore } from "@/stores/app-store";
 import { usePosStore } from "@/stores/pos-store";
-import { useToastStore } from "@/stores/toast-store";
+import { useOrderAlertPopupStore } from "@/stores/order-alert-popup-store";
 
 const audioUnlockEvents = ["click", "touchstart", "keydown"] as const;
 const newOrderAlertCooldownMs = 1200;
@@ -102,7 +101,6 @@ function useAlertSoundPlayer() {
 // store, play the sound, toast) so it fires regardless of route; the
 // page-local hook is left with only its own screen's refetch.
 export function usePosOrderAlertListener({ branchUuid, language }: UsePosOrderAlertListenerParams) {
-  const { t } = useTranslation();
   const playAlertSound = useAlertSoundPlayer();
   const lastAlertAtRef = useRef<Map<string, number>>(new Map());
 
@@ -135,6 +133,8 @@ export function usePosOrderAlertListener({ branchUuid, language }: UsePosOrderAl
 
   useEffect(() => {
     if (!branchUuid) return;
+    useOrderAlertPopupStore.getState().clear();
+    lastAlertAtRef.current.clear();
     const activeBranchUuid = branchUuid;
 
     function handleTableAlert(payload: TableAlertPayload) {
@@ -157,15 +157,18 @@ export function usePosOrderAlertListener({ branchUuid, language }: UsePosOrderAl
       const alert = collectOrderAlerts(usePosStore.getState().zoneOptions).find(
         (entry) => entry.tableUuid === payload.table_uuid
       );
-      useToastStore.getState().show({
-        title: t("notifications.newOrderToast.title"),
-        description: alert
-          ? t("notifications.newOrderToast.description", { table: alert.tableName, zone: alert.zoneName })
-          : undefined,
-        tone: "info"
+      useOrderAlertPopupStore.getState().show(alert ?? {
+        tableUuid: payload.table_uuid,
+        tableName: typeof payload.table_name === "string" ? payload.table_name : "",
+        zoneUuid: typeof payload.zone_uuid === "string" ? payload.zone_uuid : "",
+        zoneName: typeof payload.zone_name === "string" ? payload.zone_name : "",
       });
     }
 
-    return subscribeTableAlerts(activeBranchUuid, handleTableAlert);
-  }, [branchUuid, playAlertSound, t]);
+    const unsubscribe = subscribeTableAlerts(activeBranchUuid, handleTableAlert);
+    return () => {
+      unsubscribe();
+      useOrderAlertPopupStore.getState().clear();
+    };
+  }, [branchUuid, playAlertSound]);
 }

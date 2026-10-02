@@ -20,6 +20,7 @@ import {
 import { LANGUAGE_COOKIE, type Language } from "@/lib/language";
 import { syncNativeStatusBarTheme } from "@/lib/native-theme-bridge";
 import { useAppStore, type FontScale, type ThemeColor, type ThemeMode } from "@/stores/app-store";
+import { OrderAlertPopup } from "@/components/layout/order-alert-popup";
 import { Toaster } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { AppUpdateChecker } from "@/features/app-update/app-update-checker";
@@ -240,6 +241,7 @@ export function Providers({ children, initialLanguage }: ProvidersProps) {
         <OnlineOnlyCutoverRuntime />
         <AppUpdateChecker />
         <Toaster />
+        <OrderAlertPopup />
       </TooltipProvider>
     </I18nextProvider>
   );

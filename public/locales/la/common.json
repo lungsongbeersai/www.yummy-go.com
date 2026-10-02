@@ -644,6 +644,11 @@
       "title": "ອໍເດີໃໝ່",
       "item": "ໂຕະ {{table}} · {{zone}}"
     },
+    "newOrderPopup": {
+      "zone": "ໂຊນ",
+      "message": "ລູກຄ້າຢືນຢັນອໍເດີແລ້ວ",
+      "autoClose": "ປິດອັດຕະໂນມັດໃນ {{count}} ວິນາທີ"
+    },
     "newOrderToast": {
       "title": "ມີອໍເດີໃໝ່",
       "description": "ໂຕະ {{table}} ({{zone}}) ສັ່ງອາຫານໃໝ່."

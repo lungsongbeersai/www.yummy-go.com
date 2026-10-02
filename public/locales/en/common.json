@@ -643,6 +643,11 @@
       "title": "New order",
       "item": "Table {{table}} · {{zone}}"
     },
+    "newOrderPopup": {
+      "zone": "Zone",
+      "message": "Customer confirmed an order",
+      "autoClose": "Closes automatically in {{count}} seconds"
+    },
     "newOrderToast": {
       "title": "New order received",
       "description": "Table {{table}} in {{zone}} placed a new order."
