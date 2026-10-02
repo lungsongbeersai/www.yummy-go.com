@@ -465,8 +465,6 @@ const STATUS_LEGEND_ORDER: TableVisualStatus[] = [
   "awaitingPayment"
 ];
 
-// grid 2 คอลัมน์บนจอเล็ก แถวเรียงตรงกันอ่านง่ายกว่า flex-wrap เดิมที่ตัดบรรทัดมั่ว
-// ตามความยาวป้ายแต่ละอัน — จอกว้าง (sm+) พอมีที่ก็กลับไปเป็นแถวเดียวแบบเดิม
 // ไม่มี pos-status-ring-pulse ที่จุดกลม legend อีกต่อไป — จุดกะพริบมีความหมายเฉพาะบน
 // การ์ดโต๊ะจริงที่ต้องดึงสายตาว่า "ยังค้างอยู่" ส่วน legend แค่อธิบายว่าสีไหนคืออะไร
 // เฉย ๆ ไม่ใช่รายการที่ต้องรีบดู กะพริบตรงนี้เลยเป็นแค่ noise รบกวนสายตาเปล่า ๆ
@@ -477,11 +475,16 @@ function StatusLegend() {
     // pb เพิ่ม safe-area ล่าง (pattern เดียวกับ footer แบ่งหน้าใน settings-shell.tsx) — legend
     // นี้เป็น shrink-0 sibling อยู่นอก settings-table-scroll (ซึ่งกันแค่พื้นที่สกรอลด้านบนเอง)
     // เลยยังโดนแถบ gesture ของระบบบังตอนไม่มี bottom nav มาช่วยกันให้ (จอกว้าง/แนวนอน)
-    <div className="grid shrink-0 grid-cols-2 gap-x-3 gap-y-1.5 border-t border-border bg-background/95 px-4 py-2.5 pb-[calc(0.625rem+max(var(--pos-system-bottom-safe-area,0px),var(--app-shell-bottom-nav-height,0px)))] text-xs text-muted-foreground backdrop-blur-sm sm:flex sm:flex-wrap sm:items-center sm:gap-x-4 sm:gap-y-1.5 xl:px-5">
+    <div
+      role="region"
+      aria-label={t("pos.statusFilterAria")}
+      tabIndex={0}
+      className="flex min-w-0 shrink-0 items-center gap-4 overflow-x-auto overscroll-x-contain border-t border-border bg-background/95 px-4 py-2.5 pb-[calc(0.625rem+max(var(--pos-system-bottom-safe-area,0px),var(--app-shell-bottom-nav-height,0px)))] text-xs text-muted-foreground backdrop-blur-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring xl:px-5"
+    >
       {STATUS_LEGEND_ORDER.map((status) => (
-        <span key={status} className="flex min-w-0 items-center gap-1.5">
+        <span key={status} className="flex shrink-0 items-center gap-1.5 whitespace-nowrap">
           <span aria-hidden="true" className={cn("size-2.5 shrink-0 rounded-full", STATUS_STYLE[status].dot)} />
-          <span className="truncate">{t(STATUS_LABEL_KEY[status])}</span>
+          <span>{t(STATUS_LABEL_KEY[status])}</span>
         </span>
       ))}
     </div>
