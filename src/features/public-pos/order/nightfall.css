@@ -25,13 +25,13 @@
   /* การ์ดในดีไซน์เดิมเป็นขาวทึบ ไม่ใช่แผ่นโปร่งแบบ Nightfall */
   --yg-panel: #ffffff;
   --yg-panel2: rgb(236 253 245 / 0.55); /* emerald-50 */
-  /* พื้นการ์ดสินค้าในมุมมองการ์ด — เทาอมเขียวอ่อนบนพื้นขาว ไม่มีขอบ */
-  --yg-card: #f3f7f5;
+  /* White product cards use a visible neutral-green outline. */
+  --yg-card: #ffffff;
   /* เส้นคั่นแถวในมุมมองรายการ — --yg-line (emerald-100) จางเกินจนมองไม่เห็นบนพื้นขาว */
   --yg-divider: #e3e9e6;
   --yg-panel-hover: rgb(209 250 229 / 0.5); /* emerald-100 */
-  --yg-line: #d1fae5; /* emerald-100 */
-  --yg-line2: rgb(209 250 229 / 0.6);
+  --yg-line: #dce8e1; /* emerald-100 */
+  --yg-line2: #edf3ef;
 
   --yg-ink: #020617; /* slate-950 — 20.17:1 */
   --yg-muted: #5d6979; /* 5.58:1 */
@@ -66,7 +66,7 @@
   );
 }
 
-:where(.dark) [data-yg-menu] {
+:where(.dark) [data-yg-menu]:not([data-yg-theme="light"]) {
   /* Nightfall — ตรงตามไฟล์ดีไซน์ ยกเว้น --yg-faint ที่ระบุไว้ข้างล่าง */
   color-scheme: dark;
 
@@ -130,7 +130,7 @@
   --yg-glow1: transparent;
 }
 
-:where(.dark) [data-yg-menu][data-yg-accent="gold"] {
+:where(.dark) [data-yg-menu]:not([data-yg-theme="light"])[data-yg-accent="gold"] {
   --yg-accent: #e6b872;
   --yg-accent-strong: #f2ce93;
   --yg-accent-soft: rgb(230 184 114 / 0.13);
@@ -148,7 +148,7 @@
   --yg-glow1: transparent;
 }
 
-:where(.dark) [data-yg-menu][data-yg-accent="rose"] {
+:where(.dark) [data-yg-menu]:not([data-yg-theme="light"])[data-yg-accent="rose"] {
   --yg-accent: #e890a6;
   --yg-accent-strong: #f3b1c2;
   --yg-accent-soft: rgb(232 144 166 / 0.13);
@@ -190,7 +190,7 @@
   --font-yg-serif: var(--font-yg-serif-lao), var(--font-yg-serif-lat), Georgia,
     serif;
   --font-yg-display: var(--font-yg-serif-lat), Georgia, serif;
-  --font-yg-number: var(--font-noto-sans-lao), "Times New Roman", Times, serif;
+  --font-yg-number: var(--font-noto-sans-lao), var(--font-yg-sans-var), system-ui, sans-serif;
   --font-yg-sans: var(--font-noto-sans-lao), var(--font-yg-sans-var),
     system-ui, sans-serif;
   --font-yg-mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas,
@@ -285,7 +285,7 @@ html:has([data-yg-menu]) body {
   background: #ffffff;
 }
 
-html.dark:has([data-yg-menu]) body {
+html.dark:has([data-yg-menu]:not([data-yg-theme="light"])) body {
   background: #141110;
 }
 

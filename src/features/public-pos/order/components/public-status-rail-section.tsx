@@ -96,7 +96,7 @@ export const StatusRailSection = memo(function StatusRailSection({
   return (
     // เหตุผลเดียวกับ ProductCategorySection — content-visibility:auto ชนกับรูปสินค้าที่
     // โหลด async ทำให้บาง section ค้าง placeholder ว่างไว้ไม่ยอม paint เนื้อหาจริงตามจริง
-    <section>
+    <section className="border-b border-yg-divider pb-5">
       <PublicSectionHeading
         title={title}
         icon={<Sparkles className="size-4" aria-hidden="true" />}

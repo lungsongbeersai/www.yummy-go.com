@@ -24,7 +24,7 @@ export function PublicSectionHeading({
   return (
     <div
       className={cn(
-        "mb-2.5 flex min-w-0 items-end justify-between gap-3",
+        "mb-3 flex min-w-0 items-end justify-between gap-3",
         className,
       )}
     >
@@ -42,7 +42,7 @@ export function PublicSectionHeading({
           ) : null}
           <h2
             className={cn(
-              "lao-tone-text truncate font-yg-serif text-[clamp(20px,4.4vw,28px)] font-semibold leading-tight text-yg-ink",
+              "lao-tone-text truncate font-yg-sans text-[clamp(18px,4.4vw,24px)] font-semibold leading-tight text-yg-ink",
               eyebrow ? "mt-0.5" : "",
             )}
           >

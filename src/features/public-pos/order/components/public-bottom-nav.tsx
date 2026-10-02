@@ -33,7 +33,7 @@ export function BottomNav({
   return (
     <nav
       className={cn(
-        "fixed bottom-[max(clamp(14px,3vw,22px),env(safe-area-inset-bottom))] left-1/2 z-50 grid w-[min(92vw,420px)] -translate-x-1/2 gap-1 rounded-2xl border border-yg-line bg-yg-bg2/85 p-2 shadow-[0_20px_50px_-18px_rgb(0_0_0/0.45)] backdrop-blur-xl backdrop-saturate-150 dark:shadow-[0_20px_50px_-18px_rgb(0_0_0/0.85)]",
+        "fixed bottom-[max(clamp(14px,3vw,22px),env(safe-area-inset-bottom))] left-1/2 z-50 grid w-[min(92vw,420px)] -translate-x-1/2 gap-1 rounded-2xl border border-yg-divider bg-yg-bg2 p-2 shadow-lg",
         hideCart ? "grid-cols-3" : "grid-cols-4",
       )}
     >
@@ -102,8 +102,8 @@ function NavButton({
       size="icon-lg"
       ref={buttonRef}
       className={cn(
-        "relative h-13 w-full flex-col gap-1 rounded-lg px-1 text-[10.5px] font-bold leading-none duration-150 ease-out active:scale-90 active:duration-75 motion-reduce:transition-none",
-        active ? "text-yg-accent" : "text-yg-muted",
+        "relative h-13 w-full flex-col gap-1 rounded-lg px-1 text-[10.5px] font-medium leading-none duration-150 ease-out active:scale-90 active:duration-75 motion-reduce:transition-none",
+        active ? "bg-yg-accent-soft text-yg-accent-strong" : "text-yg-muted",
         // ดีไซน์ใช้ opacity .5 ของ Button เริ่มต้น ซึ่งรวมกับสี muted แล้วอ่านไม่ออก ยกเป็น .55
         // disabled ปิด pointer-events ไว้แล้วจาก Button พื้นฐาน :active จึงไม่มีวันติด
         disabled

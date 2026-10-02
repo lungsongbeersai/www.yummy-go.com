@@ -30,22 +30,10 @@ import {
 } from "../utils";
 import { ProductMedia } from "./public-product-media";
 
-// ตัด backdrop-blur-md ออก — การ์ดมีหลายสิบใบต่อหน้าจอ แต่ละใบเป็น backdrop-filter
-// region ของตัวเอง เปลืองแรง GPU ตอนเลื่อนหน้ามาก แลกกับเอฟเฟกต์กระจกฝ้าโหมดมืด
-// ที่บางลง (ยังมี border/shadow กำหนดขอบการ์ดชัดอยู่)
-//
-// alpha ต่ำกว่าเดิมมาก (0.45/0.8 -> 0.14/0.35) — การ์ดในกริดเมนูปกติเรียงชิดกันเป็นแถว
-// เงาที่เลยขอบล่างการ์ดถูกการ์ดแถวถัดไปทับบังไว้จึงไม่เห็น แต่การ์ดโปรโมชั่น/ชุด
-// เรียงแถวเดียวแนวนอน (StatusRailSection) ไม่มีอะไรมาบังเงาส่วนเกิน เงาเข้มเดิมเลย
-// ลอยเป็นก้อนดำแปลกๆ ใต้การ์ดบนพื้นหลังโล่งๆ ของหน้า
-// overflow-hidden ไม่อยู่ตรงนี้แล้วโดยตั้งใจ — ดูคอมเมนต์ที่ CARD_CLIP_CLASS ด้านล่าง
-// No border or shadow anywhere (owner's request); ring-0 undoes the shadcn Card frame.
+// White tiles have a visible outline; list rows retain their section dividers.
 const CARD_SURFACE_CLASS =
-  "h-full gap-0 py-0 shadow-none ring-0 transition-transform duration-150 ease-out motion-reduce:transition-none";
-// Card layouts (grid, rails): a soft filled card, the image inset in it. border-0 lives here, not
-// on the shared surface: on list rows it would cancel the list's divide-y hairlines.
-const CARD_TILE_CLASS = "rounded-2xl border-0 bg-yg-card p-2";
-// List layout: a plain row on the page; the list draws the dividers between rows.
+  "h-full gap-0 py-0 shadow-none ring-0 transition-[transform,border-color] duration-150 ease-out motion-reduce:transition-none";
+const CARD_TILE_CLASS = "rounded-2xl border border-yg-divider bg-yg-card p-2";
 const CARD_ROW_CLASS = "rounded-none bg-transparent";
 
 // Chrome มีบั๊กที่รู้จักกันดี: element ที่มีทั้ง overflow:hidden + border-radius + transition/transform
@@ -63,7 +51,7 @@ const MEDIA_FRAME_CLASS = "relative w-full overflow-hidden rounded-lg";
 // active:duration-75 ให้กดยุบเร็วกว่าคืนตัว (ปล่อยกลับใช้ duration ปกติจาก CARD_SURFACE_CLASS)
 // เลียนแบบ tap feedback ของแอปมือถือทั่วไป
 const CARD_INTERACTIVE_CLASS =
-  "hover:-translate-y-0.5 active:translate-y-0 active:scale-[0.97] active:duration-75 motion-reduce:transform-none";
+  "hover:border-yg-accent-line hover:-translate-y-0.5 active:translate-y-0 active:scale-[0.97] active:duration-75 motion-reduce:transform-none";
 
 // เมนูร้านที่มีสินค้าเยอะ การ์ดนอกจอต้อง skip layout/paint ไปเลยไม่งั้นเลื่อน/แตะช้าลง
 // เรื่อยๆ ตามจำนวนสินค้า — "auto 360px" ให้เบราว์เซอร์จำขนาดจริงหลัง render ครั้งแรก
@@ -199,7 +187,7 @@ export const ProductCard = memo(function ProductCard({
 
             <CardContent className="flex min-w-0 flex-1 gap-3 p-0">
               <div className="flex min-w-0 flex-1 flex-col gap-1.5">
-                <p className="lao-tone-text line-clamp-2 font-yg-serif text-base font-semibold leading-snug text-yg-ink">
+                <p className="lao-tone-text line-clamp-2 font-yg-sans text-base font-semibold leading-snug text-yg-ink">
                   {product.prodName}
                 </p>
 
@@ -297,8 +285,8 @@ export const ProductCard = memo(function ProductCard({
             ) : null}
           </div>
 
-          <CardContent className="@container flex flex-1 flex-col gap-1.5 px-1.5 pt-2.5 pb-1">
-            <p className="lao-tone-text line-clamp-2 min-h-10 font-yg-serif text-base font-semibold leading-snug text-yg-ink">
+          <CardContent className="@container flex flex-1 flex-col gap-1.5 px-1.5 pt-2.5 pb-2">
+            <p className="lao-tone-text line-clamp-2 min-h-10 font-yg-sans text-base font-semibold leading-snug text-yg-ink">
               {product.prodName}
             </p>
 
@@ -422,8 +410,8 @@ export const SetProductCard = memo(function SetProductCard({
             />
           </div>
 
-          <CardContent className="flex flex-col gap-1.5 px-1.5 pt-2.5 pb-1">
-            <p className="lao-tone-text truncate font-yg-serif text-sm font-semibold leading-snug text-yg-ink">
+          <CardContent className="flex flex-col gap-1.5 px-1.5 pt-2.5 pb-2">
+            <p className="lao-tone-text truncate font-yg-sans text-sm font-semibold leading-snug text-yg-ink">
               {product.prodName}
             </p>
 
@@ -441,7 +429,7 @@ export const SetProductCard = memo(function SetProductCard({
             {blocked ? (
               <span className="h-8" aria-hidden="true" />
             ) : (
-              <span className="flex h-8 items-center justify-center gap-1 rounded-lg border border-yg-accent-line bg-yg-accent-soft text-2xs font-extrabold text-yg-accent-strong">
+              <span className="flex h-8 items-center justify-center gap-1 rounded-lg border border-yg-accent-line bg-yg-accent-soft text-2xs font-medium text-yg-accent-strong">
                 {loading ? (
                   <Spinner />
                 ) : (
@@ -540,7 +528,7 @@ function ProductPromoBadge({
   return (
     <span
       className={cn(
-        "inline-flex max-w-full items-center gap-1 border border-yg-accent-line bg-yg-accent-soft font-extrabold tracking-wide text-yg-accent-strong",
+        "inline-flex max-w-full items-center gap-1 border border-yg-accent-line bg-yg-accent-soft font-medium tracking-wide text-yg-accent-strong",
         overlay
           ? "absolute left-2.5 top-2.5 h-6 max-w-[calc(100%-1.25rem)] rounded-md px-2 text-2xs backdrop-blur-md"
           : "h-5 rounded-sm px-1.5 text-2xs",
@@ -596,12 +584,12 @@ function ProductActionPill({
   return (
     <span
       className={cn(
-        "flex h-11 min-w-0 shrink-0 items-center justify-center gap-1.5 rounded-lg border text-xs font-extrabold leading-none transition-[filter,transform] duration-150 ease-out active:scale-90 active:duration-75 motion-reduce:transition-none motion-reduce:active:scale-100",
+        "flex h-11 min-w-0 shrink-0 items-center justify-center gap-1.5 rounded-lg border text-xs font-medium leading-none transition-[filter,transform] duration-150 ease-out active:scale-90 active:duration-75 motion-reduce:transition-none motion-reduce:active:scale-100",
         iconOnly || onImage ? "w-11 px-0" : "px-3.5",
         onImage ? "size-9" : "",
         compact ? "max-w-32" : "",
         isChoose
-          ? "border-yg-accent-line bg-yg-accent-soft text-yg-accent-strong"
+          ? "border-yg-accent-line bg-yg-panel text-yg-accent-strong"
           : "border-yg-accent bg-yg-accent text-yg-on-accent",
       )}
     >

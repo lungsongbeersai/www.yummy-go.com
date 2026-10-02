@@ -87,7 +87,7 @@ export function CartSheetContent({
             : "h-dvh max-h-none w-full max-w-120 rounded-none border-l sm:max-w-120"
         )}
       >
-        <SheetHeader className="border-b border-yg-line bg-yg-bg2/85 px-4 py-3.5 text-left backdrop-blur-xl">
+        <SheetHeader className="border-b border-yg-line bg-yg-bg2 px-4 py-4 text-left">
           <div className="flex items-start justify-between gap-3">
             <div className="min-w-0">
               <SheetTitle className="lao-tone-text truncate font-yg-sans text-lg font-semibold leading-snug text-yg-ink">
@@ -156,7 +156,7 @@ export function CartSheetContent({
         </div>
 
         {loading || allItems.length ? (
-          <SheetFooter className="border-t border-yg-line bg-yg-bg/45 p-3.5 pb-[calc(1rem+env(safe-area-inset-bottom))] backdrop-blur-md">
+          <SheetFooter className="border-t border-yg-line bg-yg-panel2 p-3.5 pb-[calc(1rem+env(safe-area-inset-bottom))]">
             {loading ? (
               <CartSheetFooterSkeleton />
             ) : (
@@ -216,7 +216,7 @@ export function CartSheetContent({
                 {confirmableItemQty > 0 ? (
                   <Button
                     type="button"
-                    className="h-13.5 w-full rounded-xl bg-yg-accent text-base font-extrabold text-yg-on-accent hover:bg-yg-accent hover:brightness-105 disabled:opacity-55 disabled:shadow-none"
+                    className="h-13.5 w-full rounded-xl bg-yg-accent text-base font-medium text-yg-on-accent hover:bg-yg-accent hover:brightness-105 disabled:opacity-55 disabled:shadow-none"
                     onClick={onConfirmKitchen}
                     disabled={!confirmableItems.length || saving || confirming}
                   >

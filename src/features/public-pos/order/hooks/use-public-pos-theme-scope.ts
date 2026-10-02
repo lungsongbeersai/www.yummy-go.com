@@ -3,18 +3,8 @@
 import { useEffect } from "react";
 import type { PublicPosAccent } from "../types";
 
-/** มิเรอร์สโคปธีม Nightfall ไปที่ <body>
- *
- *  Radix portal (sheet / dialog / tooltip) เรนเดอร์เป็นลูกของ document.body
- *  ซึ่งอยู่นอก <main> จึงไม่ได้รับทั้ง token --yg-* และตัวแปรฟอนต์ที่ผูกกับ shell
- *  วางสโคปไว้ที่ body ด้วย portal จึงสืบทอดได้ครบ
- *
- *  ต้องเป็น body ไม่ใช่ <html> เพราะคลาส .dark อยู่ที่ <html> เอง
- *  ตัวเลือก `:where(.dark) [data-yg-menu]` เป็น descendant combinator
- *  ถ้าไปวางที่ <html> มันจะไม่แมตช์ตัวเอง แล้ว portal จะได้ค่าโหมดสว่างทั้งที่หน้าเป็นโหมดมืด
- *
- *  <main> ยังถือ attribute ชุดเดียวกันไว้เอง เพื่อให้เนื้อหาหลักมีสไตล์ครบ
- *  ตั้งแต่เฟรมแรกโดยไม่ต้องรอ effect รอบนี้
+/** Mirror the menu's light theme and fonts onto body so Radix portals inherit
+ *  the same appearance as main, even when the cashier app uses dark mode.
  */
 export function usePublicPosThemeScope(
   fontClassName: string,
@@ -25,16 +15,18 @@ export function usePublicPosThemeScope(
     const fontClasses = fontClassName.split(" ").filter(Boolean);
 
     body.setAttribute("data-yg-menu", "");
+    // Portals share the customer menu's light theme without changing the POS theme.
+    body.setAttribute("data-yg-theme", "light");
     body.classList.add(...fontClasses);
 
     return () => {
       body.removeAttribute("data-yg-menu");
+      body.removeAttribute("data-yg-theme");
       body.classList.remove(...fontClasses);
     };
   }, [fontClassName]);
 
-  // แยก effect ของ accent ออกมา เพราะเปลี่ยนได้ตลอดจาก popover
-  // ถ้ารวมกับก้อนบน การสลับสีจะถอด/ใส่ attribute ทั้งชุดใหม่ทุกครั้ง
+  // Keep the accent scope independent from font class cleanup.
   useEffect(() => {
     document.body.setAttribute("data-yg-accent", accent);
     return () => {

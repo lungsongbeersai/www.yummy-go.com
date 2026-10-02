@@ -165,9 +165,9 @@ export function ProductBrowseContent({
           border-b: เส้นใต้แถบหมวดหมู่ ขีดขอบของแถบที่เลื่อนซ้าย-ขวาได้ และแยกแถบออกจากเมนูตอนติดด้านบน */}
       <div
         ref={categoryBarRef}
-        className="yg-rise yg-rise-1 sticky top-0 z-20 -mx-(--yg-gutter) border-b border-yg-divider bg-yg-bg px-(--yg-gutter) py-2"
+        className="yg-rise yg-rise-1 sticky top-0 z-20 -mx-(--yg-gutter) border-b border-yg-divider bg-yg-bg px-(--yg-gutter) py-3"
       >
-        <div className="mx-auto flex max-w-280 flex-col gap-2">
+        <div className="mx-auto flex max-w-280 flex-col gap-3">
           <div className="flex gap-2">
             <Button
               type="button"
@@ -176,7 +176,7 @@ export function ProductBrowseContent({
               aria-haspopup="dialog"
               aria-expanded={search.searchOpen}
               disabled={loadingMenu}
-              className="relative h-11 min-w-0 flex-1 justify-start rounded-xl border-yg-line bg-yg-panel pl-10 pr-4 text-sm font-medium shadow-none backdrop-blur-md hover:border-yg-accent-line hover:bg-yg-panel disabled:opacity-100"
+              className="relative h-11 min-w-0 flex-1 justify-start rounded-xl border-yg-line bg-yg-card pl-10 pr-4 text-sm font-normal shadow-none hover:border-yg-accent-line hover:bg-yg-panel disabled:opacity-100"
             >
               {loadingMenu ? (
                 <Loader2
@@ -200,7 +200,7 @@ export function ProductBrowseContent({
             </Button>
 
             <div
-              className="flex shrink-0 gap-0.5 rounded-xl border border-yg-line bg-yg-panel p-1 backdrop-blur-md"
+              className="flex shrink-0 gap-0.5 rounded-xl border border-yg-line bg-yg-panel p-1"
               role="group"
               aria-label={`${gridLayoutLabel} / ${listLayoutLabel}`}
             >
@@ -236,7 +236,7 @@ export function ProductBrowseContent({
                           ref={(element) => {
                             categoryTabRefs.current[category.cateUuid] = element;
                           }}
-                          className="h-11 flex-none gap-1.5 rounded-full border border-yg-line bg-yg-panel px-3 text-sm font-bold text-yg-muted shadow-none backdrop-blur-md duration-150 ease-out active:scale-[0.95] active:duration-75 motion-reduce:transition-none data-[state=active]:border-yg-accent data-[state=active]:bg-yg-accent data-[state=active]:text-yg-on-accent"
+                          className="h-11 flex-none gap-1.5 rounded-xl border border-yg-line bg-yg-panel px-3 text-sm font-medium text-yg-muted shadow-none duration-150 ease-out active:scale-[0.95] active:duration-75 motion-reduce:transition-none data-[state=active]:border-yg-accent data-[state=active]:bg-yg-accent data-[state=active]:text-yg-on-accent"
                         >
                           {jumpingCateUuid === category.cateUuid ? (
                             <Loader2 className="size-4 shrink-0 animate-spin" />
@@ -459,7 +459,7 @@ function LayoutModeButton({
       size="icon-sm"
       variant="ghost"
       className={cn(
-        "size-9 rounded-lg",
+        "size-11 rounded-lg",
         active
           ? "bg-yg-accent-soft text-yg-accent-strong hover:bg-yg-accent-soft"
           : "text-yg-faint hover:bg-yg-panel-hover hover:text-yg-ink",

@@ -145,7 +145,7 @@ export const ProductCategorySection = memo(function ProductCategorySection({
       // จอ — สอง mechanism ตรวจ "มองเห็นหรือยัง" ชนกัน ทำให้บาง section เว้นที่ว่างขนาด
       // ใหญ่ค้างไว้ (จอง contain-intrinsic-size แต่ยังไม่ยอม paint เนื้อหาจริง) ตัด
       // content-visibility ออก ปล่อยให้ IntersectionObserver ที่มีอยู่แล้วจัดการคนเดียวพอ
-      className="mt-7 scroll-mt-36 first:mt-0 sm:mt-8"
+      className="mt-6 scroll-mt-40 border-t border-yg-divider pt-5 first:mt-0 first:border-t-0 first:pt-0 sm:mt-8"
     >
       <PublicSectionHeading
         title={category.cateName}
