@@ -1,7 +1,10 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { BellRing, MapPin, Table2 } from "lucide-react";
+import { ArrowRight, BellRing, MapPin, Table2 } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { internalRoute } from "@/lib/routes";
+import { useNavigationGuardStore } from "@/stores/navigation-guard-store";
 import { useTranslation } from "react-i18next";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -12,6 +15,7 @@ const durationMs = 5000;
 
 export function OrderAlertPopup() {
   const { t } = useTranslation();
+  const router = useRouter();
   const alert = useOrderAlertPopupStore((state) => state.alerts[0]);
   const dismiss = useOrderAlertPopupStore((state) => state.dismiss);
   const [remainingMs, setRemainingMs] = useState(durationMs);
@@ -36,6 +40,19 @@ export function OrderAlertPopup() {
     setRemainingMs(durationMs);
   }
 
+  function openTable() {
+    if (!alert) return;
+    const params = new URLSearchParams({
+      table_uuid: alert.tableUuid,
+      table_name: alert.tableName,
+      zone_uuid: alert.zoneUuid,
+    });
+    close();
+    useNavigationGuardStore.getState().run(() => {
+      router.push(internalRoute(`/posAll/order?${params.toString()}`));
+    });
+  }
+
   return (
     <Dialog open={Boolean(alert)} onOpenChange={(open) => { if (!open) close(); }}>
       <DialogContent showCloseButton={false} overlayClassName="z-60 bg-foreground/40" className="z-61 max-h-[calc(100dvh-2rem)] gap-5 overflow-y-auto rounded-2xl border border-success/20 bg-background p-6 text-foreground shadow-xl sm:max-w-md">
@@ -52,7 +69,10 @@ export function OrderAlertPopup() {
           <Progress value={remainingMs / durationMs * 100} className="h-2 bg-muted [&_[data-slot=progress-indicator]]:bg-success" />
           <p className="text-center text-sm text-muted-foreground">{t("notifications.newOrderPopup.autoClose", { count: Math.ceil(remainingMs / 1000) })}</p>
         </div>
-        <Button autoFocus onClick={close} className="h-12 w-full rounded-lg bg-success text-base font-medium text-success-foreground hover:bg-success/90">{t("publicSuccess.close")}</Button>
+        <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+          <Button onClick={close} variant="outline" className="h-12 rounded-lg text-base font-medium">{t("publicSuccess.close")}</Button>
+          <Button autoFocus onClick={openTable} className="h-12 rounded-lg bg-success text-base font-medium text-success-foreground hover:bg-success/90">{t("notifications.newOrderPopup.openTable")}<ArrowRight aria-hidden="true" className="size-4" /></Button>
+        </div>
       </DialogContent>
     </Dialog>
   );

@@ -644,6 +644,7 @@
       "item": "Table {{table}} · {{zone}}"
     },
     "newOrderPopup": {
+      "openTable": "Open table",
       "zone": "Zone",
       "message": "Customer confirmed an order",
       "autoClose": "Closes automatically in {{count}} seconds"

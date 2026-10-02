@@ -645,6 +645,7 @@
       "item": "ໂຕະ {{table}} · {{zone}}"
     },
     "newOrderPopup": {
+      "openTable": "ເຂົ້າໄປທີ່ໂຕະ",
       "zone": "ໂຊນ",
       "message": "ລູກຄ້າຢືນຢັນອໍເດີແລ້ວ",
       "autoClose": "ປິດອັດຕະໂນມັດໃນ {{count}} ວິນາທີ"
