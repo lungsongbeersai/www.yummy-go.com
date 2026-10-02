@@ -127,9 +127,9 @@ export const EmployeeProductCard = memo(function EmployeeProductCard({
             aria-hidden="true"
             data-pos-product-action-overlay="true"
             className={cn(
-              "pointer-events-none absolute bottom-2 right-2 z-10 flex h-8 max-w-[calc(100%-1rem)] items-center gap-1 rounded-full border border-background/80 bg-card/95 px-2.5 text-xs font-black text-foreground shadow-md transition-colors",
+              "pointer-events-none absolute bottom-2 right-2 z-10 flex h-7 max-w-[calc(100%-1rem)] items-center gap-1 rounded-full border border-primary/25 bg-card px-2 text-[11px] font-lao font-normal leading-4 text-foreground shadow-sm transition-colors duration-150 motion-reduce:transition-none",
               !interactionDisabled &&
-                "group-hover:border-primary/40 group-hover:bg-sidebar-accent group-hover:text-sidebar-accent-foreground",
+                "group-hover:border-primary/60 group-hover:bg-sidebar-accent group-hover:text-sidebar-accent-foreground group-focus-within:border-primary/60 group-focus-within:bg-sidebar-accent group-focus-within:text-sidebar-accent-foreground",
               interactionDisabled && "opacity-65"
             )}
           >
@@ -137,12 +137,12 @@ export const EmployeeProductCard = memo(function EmployeeProductCard({
               <Spinner
                 aria-hidden="true"
                 aria-label={undefined}
-                className="size-4 shrink-0"
+                className="size-3.5 shrink-0"
               />
             ) : (
               <ActionIcon
                 aria-hidden="true"
-                className="size-4 shrink-0 text-primary-text"
+                className="size-3.5 shrink-0 text-primary-text"
               />
             )}
             <span className="min-w-0 truncate">{cardActionLabel}</span>
@@ -454,7 +454,7 @@ export function ProductGridSkeleton({
             )}
           >
             <Skeleton className="size-full rounded-none bg-muted" />
-            <Skeleton className="absolute bottom-2 right-2 h-8 w-20 rounded-full bg-card/90 shadow-sm" />
+            <Skeleton className="absolute bottom-2 right-2 h-7 w-20 rounded-full bg-card shadow-sm" />
           </div>
           <CardContent
             className={cn("flex flex-col", compact ? "p-2" : "p-2.5")}

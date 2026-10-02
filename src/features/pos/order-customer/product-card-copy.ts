@@ -1,6 +1,6 @@
 const DESKTOP_PRODUCT_CARD_COPY = {
   chooseActionKey: "pos.chooseOptionsAction",
-  showVariablePriceHint: true,
+  showVariablePriceHint: false,
 } as const;
 
 const NATIVE_MOBILE_PRODUCT_CARD_COPY = {

@@ -9,10 +9,10 @@ describe("product card platform copy", () => {
     });
   });
 
-  it("preserves the existing action and price hint on Windows and macOS web/desktop", () => {
+  it("preserves the existing action and removes the variable-price hint on web/desktop", () => {
     expect(productCardCopy(false)).toEqual({
       chooseActionKey: "pos.chooseOptionsAction",
-      showVariablePriceHint: true,
+      showVariablePriceHint: false,
     });
   });
 
