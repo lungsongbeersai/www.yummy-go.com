@@ -5,10 +5,12 @@ export function NativePullToRefreshIndicator({
   pullDistance,
   refreshing,
   threshold,
+  local = false,
 }: {
   pullDistance: number;
   refreshing: boolean;
   threshold: number;
+  local?: boolean;
 }) {
   if (pullDistance <= 0 && !refreshing) return null;
 
@@ -17,9 +19,9 @@ export function NativePullToRefreshIndicator({
   return (
     <div
       aria-hidden
-      className="pointer-events-none fixed inset-x-0 z-30 flex justify-center"
+      className={cn("pointer-events-none inset-x-0 z-30 flex justify-center", local ? "absolute" : "fixed")}
       style={{
-        top: "calc(var(--app-shell-header-height) + env(safe-area-inset-top, 0px) + 8px)",
+        top: local ? "8px" : "calc(var(--app-shell-header-height) + env(safe-area-inset-top, 0px) + 8px)",
         opacity: progress,
       }}
     >

@@ -124,6 +124,7 @@ export function TableSelectionPage() {
           zoneOptions={zoneOptions}
           zones={zones}
           onSearchChange={setSearch}
+          onRefresh={load}
           onSelectTable={selectTable}
           onStatusFilterChange={setStatusFilter}
         />
@@ -155,7 +156,7 @@ export function TableSelectionPage() {
             </Button>
           </div>
         </header>
-        <TableListSection initialZoneUuid={initialZoneUuid} loading={loading} search={search} selectedTable={null} statusFilter={statusFilter} zoneOptions={zoneOptions} zones={zones} onSearchChange={setSearch} onSelectTable={selectTable} onStatusFilterChange={setStatusFilter} />
+        <TableListSection initialZoneUuid={initialZoneUuid} loading={loading} search={search} selectedTable={null} statusFilter={statusFilter} zoneOptions={zoneOptions} zones={zones} onSearchChange={setSearch} onRefresh={load} onSelectTable={selectTable} onStatusFilterChange={setStatusFilter} />
       </div>
     </div>
   );

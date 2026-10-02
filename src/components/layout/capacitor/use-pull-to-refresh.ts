@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type RefObject } from "react";
 import { useIsCapacitorNativeApp } from "@/hooks/use-capacitor-native-app";
 
 const PULL_THRESHOLD = 72;
@@ -27,62 +27,111 @@ function canStartPull(target: EventTarget | null) {
   return true;
 }
 
-export function usePullToRefresh(enabled: boolean) {
+interface PullToRefreshOptions {
+  scrollRef?: RefObject<HTMLDivElement | null>;
+  onRefresh?: () => Promise<unknown>;
+  nativeOnly?: boolean;
+}
+
+export function usePullToRefresh(enabled: boolean, {
+  scrollRef,
+  onRefresh,
+  nativeOnly = true,
+}: PullToRefreshOptions = {}) {
   const [pullDistance, setPullDistance] = useState(0);
   const [refreshing, setRefreshing] = useState(false);
   const isNative = useIsCapacitorNativeApp();
-  const startY = useRef<number | null>(null);
-  const active = enabled && isNative;
+  const refreshActionRef = useRef(onRefresh);
+  const refreshingRef = useRef(false);
+  const active = enabled && (!nativeOnly || isNative);
+  useEffect(() => {
+    refreshActionRef.current = onRefresh;
+  }, [onRefresh]);
 
   // handler ผูกกับ `active` เท่านั้น ไม่ผูกกับ pullDistance/refreshing — กัน effect รีรันกลางท่าทาง
   // ที่จะทำให้ touch listener หลุดระหว่างผู้ใช้กำลังลากนิ้วอยู่
   useEffect(() => {
     if (!active) return;
+    const eventTarget = scrollRef?.current ?? window;
+    let start: { x: number; y: number } | null = null;
+    let distance = 0;
 
     function atTop() {
-      return (document.scrollingElement?.scrollTop ?? 0) <= 0;
+      return (scrollRef?.current?.scrollTop ?? document.scrollingElement?.scrollTop ?? 0) <= 0;
+    }
+
+    function cancelPull() {
+      start = null;
+      distance = 0;
+      setPullDistance(0);
     }
 
     function onTouchStart(e: TouchEvent) {
-      startY.current = canStartPull(e.target) ? e.touches[0].clientY : null;
+      if (refreshingRef.current) return;
+      cancelPull();
+      if (e.touches.length !== 1 || !atTop() || !canStartPull(e.target)) return;
+      start = { x: e.touches[0].clientX, y: e.touches[0].clientY };
     }
 
     function onTouchMove(e: TouchEvent) {
-      if (startY.current === null) return;
-      const delta = e.touches[0].clientY - startY.current;
-      if (delta <= 0 || !atTop()) {
-        startY.current = null;
+      if (!start) return;
+      if (e.touches.length !== 1) {
+        cancelPull();
+        return;
+      }
+      const delta = e.touches[0].clientY - start.y;
+      const horizontalDelta = Math.abs(e.touches[0].clientX - start.x);
+      if (horizontalDelta > Math.max(8, Math.abs(delta)) || delta < -8 || !atTop()) {
+        cancelPull();
+        return;
+      }
+      if (delta <= 8) {
+        distance = 0;
         setPullDistance(0);
         return;
       }
       // กัน WebView bounce-scroll ของเดิมระหว่างดึง ให้ตัวชี้วัดคุมท่าทางแทน
-      e.preventDefault();
-      setPullDistance(Math.min(delta * RESISTANCE, PULL_MAX));
+      if (e.cancelable) e.preventDefault();
+      distance = Math.min(delta * RESISTANCE, PULL_MAX);
+      setPullDistance(distance);
     }
 
     function onTouchEnd() {
-      setPullDistance((current) => {
-        if (startY.current !== null && current >= PULL_THRESHOLD) {
-          setRefreshing(true);
-          window.location.reload();
-          return current;
+      const shouldRefresh = start !== null && distance >= PULL_THRESHOLD && atTop();
+      start = null;
+      if (!shouldRefresh || refreshingRef.current) {
+        cancelPull();
+        return;
+      }
+      refreshingRef.current = true;
+      setRefreshing(true);
+      const refresh = refreshActionRef.current;
+      if (!refresh) {
+        window.location.reload();
+        return;
+      }
+      void (async () => {
+        try {
+          await refresh();
+        } finally {
+          refreshingRef.current = false;
+          setRefreshing(false);
+          cancelPull();
         }
-        return 0;
-      });
-      startY.current = null;
+      })();
     }
 
-    window.addEventListener("touchstart", onTouchStart, { passive: true });
-    window.addEventListener("touchmove", onTouchMove, { passive: false });
-    window.addEventListener("touchend", onTouchEnd, { passive: true });
-    window.addEventListener("touchcancel", onTouchEnd, { passive: true });
+    eventTarget.addEventListener("touchstart", onTouchStart as EventListener, { passive: true });
+    eventTarget.addEventListener("touchmove", onTouchMove as EventListener, { passive: false });
+    eventTarget.addEventListener("touchend", onTouchEnd, { passive: true });
+    eventTarget.addEventListener("touchcancel", cancelPull, { passive: true });
     return () => {
-      window.removeEventListener("touchstart", onTouchStart);
-      window.removeEventListener("touchmove", onTouchMove);
-      window.removeEventListener("touchend", onTouchEnd);
-      window.removeEventListener("touchcancel", onTouchEnd);
+      eventTarget.removeEventListener("touchstart", onTouchStart as EventListener);
+      eventTarget.removeEventListener("touchmove", onTouchMove as EventListener);
+      eventTarget.removeEventListener("touchend", onTouchEnd);
+      eventTarget.removeEventListener("touchcancel", cancelPull);
     };
-  }, [active]);
+  }, [active, scrollRef]);
 
   return { pullDistance, refreshing, threshold: PULL_THRESHOLD };
 }

@@ -6,6 +6,8 @@ import { Bell, Check, Clock, MapPinPlus, Plus, Search, UserRound } from "lucide-
 import { useTranslation } from "react-i18next";
 import { EmptyState } from "@/components/common/empty-state";
 import { HorizontalScrollArrows } from "@/components/common/horizontal-scroll-arrows";
+import { usePullToRefresh } from "@/components/layout/capacitor/use-pull-to-refresh";
+import { NativePullToRefreshIndicator } from "@/components/layout/capacitor/pull-to-refresh-indicator";
 import { LoadingState } from "@/components/common/loading-state";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -44,6 +46,7 @@ interface TableListSectionProps {
   zoneOptions: PosZone[];
   zones: PosZone[];
   onSearchChange: (value: string) => void;
+  onRefresh: () => Promise<unknown>;
   onSelectTable: (table: PosTable) => void;
   onStatusFilterChange: (value: TableStatusFilter) => void;
 }
@@ -52,6 +55,7 @@ export function TableListSection({
   initialZoneUuid = "",
   loading,
   onSearchChange,
+  onRefresh,
   onSelectTable,
   onStatusFilterChange,
   search,
@@ -72,6 +76,11 @@ export function TableListSection({
   const [selectedZoneUuid, setSelectedZoneUuid] = useState("");
   const initialZoneAppliedRef = useRef(false);
   const scrollContainerRef = useRef<HTMLDivElement | null>(null);
+  const { pullDistance, refreshing, threshold } = usePullToRefresh(true, {
+    scrollRef: scrollContainerRef,
+    onRefresh,
+    nativeOnly: false,
+  });
   const zoneSectionRefs = useRef(new Map<string, HTMLElement>());
   const zoneRailRef = useRef<HTMLDivElement | null>(null);
   const statusRailRef = useRef<HTMLDivElement | null>(null);
@@ -240,37 +249,40 @@ export function TableListSection({
       </div>
       {/* settings-table-scroll กันพื้นที่ safe-area ล่างให้แล้ว (ดู globals.css) — หน้านี้
           (immersive /posAll/tables) จัดการ scroll เอง ไม่มี padding-bottom จาก AppShell ให้ */}
-      <div ref={scrollContainerRef} className="settings-table-scroll min-h-0 flex-1 overflow-y-auto p-3 sm:p-4 xl:p-5">
-        {loading ? (
-          <LoadingState label={t("pos.loadingTables")} variant="posGrid" />
-        ) : hasVisibleTables ? (
-          <div className="flex min-w-0 flex-col gap-4">
-            {visibleZones.map((zone) => (
-              <section
-                key={zone.zone_uuid}
-                ref={(el) => {
-                  if (el) zoneSectionRefs.current.set(zone.zone_uuid, el);
-                  else zoneSectionRefs.current.delete(zone.zone_uuid);
-                }}
-                className="flex flex-col gap-3"
-              >
-                {filterOptions.length > 1 ? (
-                  <div className="flex flex-wrap items-center gap-2">
-                    <h2 className="text-sm font-semibold text-foreground">{zone.zone_name}</h2>
-                    <Badge className="bg-muted px-1.5 tabular-nums text-muted-foreground">{(zone.tables ?? []).length}</Badge>
+      <div className="relative flex min-h-0 flex-1 flex-col">
+        <NativePullToRefreshIndicator local pullDistance={pullDistance} refreshing={refreshing} threshold={threshold} />
+        <div ref={scrollContainerRef} className="settings-table-scroll min-h-0 flex-1 overflow-y-auto overscroll-y-contain p-3 sm:p-4 xl:p-5">
+          {loading ? (
+            <LoadingState label={t("pos.loadingTables")} variant="posGrid" />
+          ) : hasVisibleTables ? (
+            <div className="flex min-w-0 flex-col gap-4">
+              {visibleZones.map((zone) => (
+                <section
+                  key={zone.zone_uuid}
+                  ref={(el) => {
+                    if (el) zoneSectionRefs.current.set(zone.zone_uuid, el);
+                    else zoneSectionRefs.current.delete(zone.zone_uuid);
+                  }}
+                  className="flex flex-col gap-3"
+                >
+                  {filterOptions.length > 1 ? (
+                    <div className="flex flex-wrap items-center gap-2">
+                      <h2 className="text-sm font-semibold text-foreground">{zone.zone_name}</h2>
+                      <Badge className="bg-muted px-1.5 tabular-nums text-muted-foreground">{(zone.tables ?? []).length}</Badge>
+                    </div>
+                  ) : null}
+                  <div className="grid grid-cols-[repeat(auto-fill,minmax(min(150px,100%),1fr))] gap-2 sm:grid-cols-[repeat(auto-fill,minmax(min(164px,100%),1fr))] lg:grid-cols-[repeat(auto-fill,minmax(min(180px,100%),1fr))] xl:grid-cols-[repeat(auto-fill,minmax(min(200px,100%),1fr))]">
+                    {(zone.tables ?? []).map((table) => (
+                      <TableCard key={table.table_uuid} selected={selectedTable?.table_uuid === table.table_uuid} table={table} onOpen={onSelectTable} />
+                    ))}
                   </div>
-                ) : null}
-                <div className="grid grid-cols-[repeat(auto-fill,minmax(min(150px,100%),1fr))] gap-2 sm:grid-cols-[repeat(auto-fill,minmax(min(164px,100%),1fr))] lg:grid-cols-[repeat(auto-fill,minmax(min(180px,100%),1fr))] xl:grid-cols-[repeat(auto-fill,minmax(min(200px,100%),1fr))]">
-                  {(zone.tables ?? []).map((table) => (
-                    <TableCard key={table.table_uuid} selected={selectedTable?.table_uuid === table.table_uuid} table={table} onOpen={onSelectTable} />
-                  ))}
-                </div>
-              </section>
-            ))}
-          </div>
-        ) : (
-          <EmptyState title={t("common.noData")} description={t("empty.adjustSearch")} />
-        )}
+                </section>
+              ))}
+            </div>
+          ) : (
+            <EmptyState title={t("common.noData")} description={t("empty.adjustSearch")} />
+          )}
+        </div>
       </div>
       <StatusLegend />
     </div>
