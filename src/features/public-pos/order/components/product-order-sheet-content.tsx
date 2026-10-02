@@ -30,12 +30,13 @@ import {
 } from "@/components/ui/field";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import {
-  Sheet,
-  SheetClose,
-  SheetContent,
-  SheetDescription,
-  SheetTitle,
-} from "@/components/ui/sheet";
+  Drawer,
+  DrawerClose,
+  DrawerContent,
+  DrawerDescription,
+  DrawerTitle,
+  DrawerHandle,
+} from "@/components/ui/drawer";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Spinner } from "@/components/ui/spinner";
 import { Textarea } from "@/components/ui/textarea";
@@ -61,7 +62,7 @@ import { ProductMedia } from "./public-product-media";
 import { ProductQuantityDialog } from "./product-quantity-dialog";
 
 const PANEL_CLASS =
-  "flex flex-col gap-0 overflow-hidden border-yg-line bg-linear-to-b from-yg-bg2 to-yg-bg p-0 font-yg-sans text-yg-ink shadow-[0_40px_100px_-30px_rgb(0_0_0/0.55)] dark:shadow-[0_40px_100px_-30px_rgb(0_0_0/0.85)] motion-reduce:transition-none motion-reduce:data-[state=closed]:animate-none motion-reduce:data-[state=open]:animate-none";
+  "flex flex-col gap-0 overflow-hidden border-yg-line bg-yg-card p-0 font-yg-sans text-yg-ink shadow-lg motion-reduce:transition-none motion-reduce:data-[state=closed]:animate-none motion-reduce:data-[state=open]:animate-none";
 
 export function ProductOrderSheetContent({
   workflow,
@@ -111,14 +112,12 @@ export function ProductOrderSheetContent({
 
   if (isMobile) {
     return (
-      <Sheet open={open} onOpenChange={handleOpenChange}>
-        <SheetContent
-          side="bottom"
-          showCloseButton={false}
+      <Drawer open={open} onOpenChange={handleOpenChange} dismissible={!saving} handleOnly shouldScaleBackground={false} repositionInputs={false}>
+        <DrawerContent
           aria-busy={loading || saving}
           className={cn(
             PANEL_CLASS,
-            "h-[calc(100dvh-0.5rem)] max-h-none rounded-t-3xl data-[side=bottom]:h-[calc(100dvh-0.5rem)]",
+            "h-[92dvh] rounded-t-2xl border-t before:hidden [&>div:first-child]:hidden data-[vaul-drawer-direction=bottom]:max-h-[92dvh]",
           )}
           onEscapeKeyDown={(event) => {
             if (saving) event.preventDefault();
@@ -128,11 +127,12 @@ export function ProductOrderSheetContent({
           }}
           onCloseAutoFocus={onCloseAutoFocus}
         >
-          <SheetDescription className="sr-only">{description}</SheetDescription>
-          <SheetClose asChild>{closeButton}</SheetClose>
-          {body(SheetTitle)}
-        </SheetContent>
-      </Sheet>
+          <DrawerDescription className="sr-only">{description}</DrawerDescription>
+          <DrawerClose asChild>{closeButton}</DrawerClose>
+          <DrawerHandle aria-label={t("actions.close")} />
+          {body(DrawerTitle)}
+        </DrawerContent>
+      </Drawer>
     );
   }
 

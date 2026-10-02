@@ -34,7 +34,7 @@ interface UsePublicCartOrderActionsParams {
   loadingItem: boolean;
   playCartFlyAnimation: (
     product: CateProductItem | ProdItem,
-    sourceRect?: DOMRect | null,
+    sourceRect?: DOMRect | null
   ) => void;
   refreshCart: () => Promise<void>;
   saving: boolean;
@@ -110,6 +110,8 @@ export function usePublicCartOrderActions({
     viewOnly,
   });
   const {
+    confirmationSuccess,
+    setConfirmationSuccess,
     handleConfirmKitchen,
     handleDeleteItem,
     handleNoteDialogOpenChange,
@@ -152,6 +154,8 @@ export function usePublicCartOrderActions({
     handleSubmitQuantity,
     handleUpdateItemNote,
     handleDeleteItem,
+    confirmationSuccess,
+    setConfirmationSuccess,
     handleConfirmKitchen,
     handleUpdateItemQty,
     noteDraft,

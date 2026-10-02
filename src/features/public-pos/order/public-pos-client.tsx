@@ -6,6 +6,7 @@ import { AlertCircle } from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { PublicLoadFeedback } from "./components/public-load-feedback";
 import { ProductBrowse } from "@/features/public-pos/order/components/product-browse";
 import { PublicHeader } from "@/features/public-pos/order/components/public-header";
 import { PublicPosLoadingScreen } from "@/features/public-pos/order/components/public-pos-skeletons";
@@ -28,21 +29,17 @@ export function PublicPosClient({
   const {
     activeLanguage,
     canRetryScan,
-    cartQty,
     error,
     isPublicLoading,
     languageReady,
     qrDisabled,
-    statusLabel,
     table,
     retryScan,
   } = usePublicPosBootstrap({ token, queryLang, t });
   const errorTitle =
     table && !qrDisabled ? t("pos.productLoadFailed") : t("pos.qrScanFailed");
   const canOrder = Boolean(table && !qrDisabled && !isPublicLoading);
-  // QR เมนูอย่างเดียว (view_only) — เมนูโชว์ได้ (canOrder) แต่ปุ่มตะกร้าบน header ต้องปิด
-  // ด้วย ไม่งั้นเปิด CartSheet ได้ทั้งที่ BottomNav ซ่อนทางเข้าไปแล้ว
-  const canOpenCart = canOrder && !table?.view_only;
+
   usePublicPosThemeScope(fontClassName, accent);
 
   return (
@@ -53,32 +50,28 @@ export function PublicPosClient({
       className={cn(
         fontClassName,
         "yg-shell relative min-h-dvh font-yg-sans text-yg-ink antialiased",
-        "pb-[calc(7.5rem+env(safe-area-inset-bottom))]",
+        "pb-[calc(5.5rem+env(safe-area-inset-bottom))]",
       )}
     >
       <ShellAmbience />
 
-      <div className="relative mx-auto flex w-full max-w-280 flex-col gap-[clamp(20px,3.2vw,32px)] px-(--yg-gutter) pt-[clamp(16px,3.4vw,34px)]">
-        <PublicHeader
-          table={table}
-          statusLabel={statusLabel}
-          cartQty={cartQty}
-          canOpenCart={canOpenCart}
-          onOpenCart={() => setCartOpen(true)}
-        />
-
+      <div className="relative mx-auto flex w-full max-w-280 flex-col gap-0 px-(--yg-gutter) pt-0">
         <section
           className={cn(
             "flex w-full flex-col gap-3",
             !table || isPublicLoading
-              ? "mx-auto min-h-[calc(100dvh-220px)] max-w-2xl justify-center"
+              ? "mx-auto min-h-[calc(100dvh-220px)] max-w-2xl justify-start"
               : "",
           )}
         >
-          {isPublicLoading ? <PublicPosLoadingScreen /> : null}
+        {!canOrder ? (
+          <PublicHeader table={table} canSearch={false} onSearch={() => undefined} />
+        ) : null}
+
+          {isPublicLoading ? <><PublicLoadFeedback loading /><PublicPosLoadingScreen /></> : null}
 
           {/* QR ถูก revoke ไปแล้วมีจอของตัวเองข้างล่าง — ไม่ต้องโชว์ error ซ้อน */}
-          {languageReady && !isPublicLoading && error && !qrDisabled ? (
+          {languageReady && !isPublicLoading && error && !qrDisabled && !canOrder ? (
             <PublicPosAlert
               title={errorTitle}
               description={error}

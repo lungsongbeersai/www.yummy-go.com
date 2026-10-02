@@ -29,7 +29,12 @@ export function usePublicQrDialog({
   const handleShare = useCallback(() => {
     if (!targetUrl) return;
 
-    const title = `Yummy Go - ${table?.table_name ?? ""}`;
+    const title = [
+      table?.branch_name || t("pos.foodMenu"),
+      table?.view_only ? "" : table?.table_name,
+    ]
+      .filter(Boolean)
+      .join(" - ");
     const url = targetUrl;
 
     if (navigator.share) {
@@ -40,7 +45,14 @@ export function usePublicQrDialog({
     void navigator.clipboard.writeText(url).then(() => {
       toast({ title: t("dashboard.copied"), tone: "success" });
     });
-  }, [targetUrl, t, table?.table_name, toast]);
+  }, [
+    targetUrl,
+    t,
+    table?.branch_name,
+    table?.table_name,
+    table?.view_only,
+    toast,
+  ]);
 
   const handleDownload = useCallback(() => {
     if (!dataUrl) return;
@@ -68,7 +80,7 @@ export function usePublicQrDialog({
           errorCorrectionLevel: "M",
           margin: 1,
           width: 320,
-        }),
+        })
       )
       .then((nextDataUrl) => {
         if (!ignore) setDataUrl(nextDataUrl);

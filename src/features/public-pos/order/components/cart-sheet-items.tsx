@@ -126,7 +126,6 @@ export function CartGroup({
       {items.map((item, index) => (
         <CartItemCard
           key={getOrderItemUuid(item) || index}
-          groupTitle={title}
           item={item}
           lang={lang}
           saving={saving}
@@ -174,7 +173,6 @@ export function CartGroup({
 }
 
 function CartItemCard({
-  groupTitle,
   item,
   lang,
   onDeleteRequest,
@@ -184,7 +182,6 @@ function CartItemCard({
   saving,
   statusRule,
 }: {
-  groupTitle: string;
   item: CartItem;
   lang: string;
   onDeleteRequest: (target: { uuid: string; title: string }) => void;
@@ -212,14 +209,11 @@ function CartItemCard({
   const editableItem = isEditableCartItem(item, statusRule);
   const promotion = promotionQuantity(item.detail, qty);
   const discountAmount = numeric(item.detail?.order_it_discount_amount);
-  const showItemStatus =
-    status.label.trim().toLocaleLowerCase() !==
-    groupTitle.trim().toLocaleLowerCase();
 
   return (
     <div
       className={cn(
-        "rounded-2xl border border-yg-line bg-yg-panel p-3",
+        "rounded-lg border border-yg-line bg-yg-panel p-3",
         isCanceledCartItem(item) ? "border-destructive/20 bg-destructive/5" : ""
       )}
     >
@@ -247,21 +241,21 @@ function CartItemCard({
             </div>
           </div>
           <div className="mt-1 flex flex-wrap items-center gap-1.5">
-            {showItemStatus ? (
-              <Badge
-                className={cn(
-                  "h-5 gap-1 rounded-sm border px-1.5 py-0 text-2xs font-medium leading-4",
-                  status.className
-                )}
-              >
-                <StatusIcon aria-hidden="true" />
-                <span>{status.label}</span>
-              </Badge>
-            ) : null}
+            <Badge
+              className={cn(
+                "min-h-6 max-w-full gap-1.5 whitespace-normal rounded-md border px-2 py-0.5 text-xs font-medium leading-5",
+                status.className
+              )}
+            >
+              <StatusIcon className="size-3.5 shrink-0" aria-hidden="true" />
+              <span>
+                {editableItem ? t("pos.cartStatusWaiting") : status.label}
+              </span>
+            </Badge>
             {promotion.hasPromotion ? (
               <Badge className="h-5 rounded-sm border border-yg-accent-line bg-yg-accent-soft px-1.5 py-0 text-2xs font-bold text-yg-accent-strong">
-                {t("pos.buyShort")} {promotion.saleQty}{" "}
-                {t("pos.getShort")} {promotion.freeQty}
+                {t("pos.buyShort")} {promotion.saleQty} {t("pos.getShort")}{" "}
+                {promotion.freeQty}
                 {promotion.totalReceiveQty && promotion.totalReceiveQty > qty
                   ? ` / ${t("pos.cartPromoReceive", {
                       count: promotion.totalReceiveQty,
@@ -274,11 +268,16 @@ function CartItemCard({
             <div className="mt-1 flex flex-wrap gap-1">
               {item.tastes.map((taste, tasteIndex) => (
                 <Badge
-                  key={`${taste.taste_uuid_fk ?? taste.taste_name}-${tasteIndex}`}
+                  key={`${
+                    taste.taste_uuid_fk ?? taste.taste_name
+                  }-${tasteIndex}`}
                   variant="secondary"
                   className="h-auto rounded-sm px-1.5 py-0.5 text-2xs font-medium"
                 >
-                  {taste.taste_name || taste.taste_name_la || taste.taste_name_eng || "-"}
+                  {taste.taste_name ||
+                    taste.taste_name_la ||
+                    taste.taste_name_eng ||
+                    "-"}
                 </Badge>
               ))}
             </div>
@@ -296,7 +295,10 @@ function CartItemCard({
                     {topping.topping_name}
                     {toppingQty > 0 ? ` x${toppingQty}` : ""}
                     {numeric(topping.topping_line_total) > 0
-                      ? ` +${formatMoney(numeric(topping.topping_line_total), lang)}`
+                      ? ` +${formatMoney(
+                          numeric(topping.topping_line_total),
+                          lang
+                        )}`
                       : ""}
                   </Badge>
                 );
@@ -313,7 +315,7 @@ function CartItemCard({
               {t("pos.itemDiscount")}: -{formatMoney(discountAmount, lang)}
             </p>
           ) : null}
-          <div className="mt-2 flex items-center justify-between gap-3">
+          <div className="mt-2 flex flex-wrap items-center justify-between gap-2">
             {editableItem && uuid ? (
               <div className="flex items-center gap-1.5">
                 <Button
@@ -323,7 +325,9 @@ function CartItemCard({
                   aria-label={t("pos.decreaseQuantity")}
                   className="h-11 w-11 rounded-lg"
                   disabled={saving || qty <= promotion.qtyStep}
-                  onClick={() => onUpdateQty(uuid, "DECREASE", promotion.qtyStep)}
+                  onClick={() =>
+                    onUpdateQty(uuid, "DECREASE", promotion.qtyStep)
+                  }
                 >
                   <Minus aria-hidden="true" />
                 </Button>
@@ -345,7 +349,9 @@ function CartItemCard({
                   aria-label={t("pos.increaseQuantity")}
                   className="h-11 w-11 rounded-lg"
                   disabled={saving}
-                  onClick={() => onUpdateQty(uuid, "INCREASE", promotion.qtyStep)}
+                  onClick={() =>
+                    onUpdateQty(uuid, "INCREASE", promotion.qtyStep)
+                  }
                 >
                   <Plus aria-hidden="true" />
                 </Button>

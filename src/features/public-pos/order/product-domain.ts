@@ -284,6 +284,7 @@ export function getProductBlockedState(
 export function filterVisiblePublicMenuCategories(
   categories: CateWithProducts[],
   activeStatusSortFk: number,
+  loadedCateUuids: readonly string[] = [],
 ) {
   let changed = false;
   const visibleCategories = categories.map((category) => {
@@ -299,7 +300,13 @@ export function filterVisiblePublicMenuCategories(
     return { ...category, products: visibleProducts };
   });
 
-  return changed ? visibleCategories : categories;
+  const loaded = new Set(loadedCateUuids);
+  const nonEmptyCategories = visibleCategories.filter(
+    (category) => !loaded.has(category.cateUuid) || Boolean(category.products?.length),
+  );
+  return changed || nonEmptyCategories.length !== categories.length
+    ? nonEmptyCategories
+    : categories;
 }
 
 export { isProductUnavailable };

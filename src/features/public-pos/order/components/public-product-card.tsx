@@ -4,7 +4,7 @@ import { memo, useCallback, useRef } from "react";
 import { useTranslation } from "react-i18next";
 import {
   AlertCircle,
-  ChevronRight,
+  Eye,
   Plus,
   SlidersHorizontal,
   Sparkles,
@@ -16,6 +16,7 @@ import { cn } from "@/lib/utils";
 import type { CateProductItem } from "@/services/pos";
 import {
   PUBLIC_MENU_KIND,
+  usePublicPosStore,
   publicMenuKindToStatusSortFk,
   type PublicMenuKind,
 } from "@/stores/public-pos-store";
@@ -33,7 +34,7 @@ import { ProductMedia } from "./public-product-media";
 // White tiles have a visible outline; list rows retain their section dividers.
 const CARD_SURFACE_CLASS =
   "h-full gap-0 py-0 shadow-none ring-0 transition-[transform,border-color] duration-150 ease-out motion-reduce:transition-none";
-const CARD_TILE_CLASS = "rounded-2xl border border-yg-divider bg-yg-card p-2";
+const CARD_TILE_CLASS = "rounded-[8px] border border-yg-divider bg-yg-card p-2";
 const CARD_ROW_CLASS = "rounded-none bg-transparent";
 
 // Chrome มีบั๊กที่รู้จักกันดี: element ที่มีทั้ง overflow:hidden + border-radius + transition/transform
@@ -44,7 +45,7 @@ const CARD_ROW_CLASS = "rounded-none bg-transparent";
 const CARD_CLIP_CLASS = "h-full";
 
 // The image carries the rounded corners now that there is no card around it.
-const MEDIA_FRAME_CLASS = "relative w-full overflow-hidden rounded-lg";
+const MEDIA_FRAME_CLASS = "relative w-full overflow-hidden rounded-[8px]";
 
 // hover:-translate-y-1 ใช้ไม่ได้บนมือถือ (แตะไม่มี :hover) — active:scale ทำงาน
 // ทันทีที่นิ้วแตะจอไม่ว่าจะ hover มาก่อนหรือไม่ ให้ความรู้สึกกดแล้ว "ตอบสนองทันที"
@@ -95,7 +96,7 @@ export const ProductCard = memo(function ProductCard({
     product: CateProductItem,
     cateUuid: string,
     statusKind: PublicMenuKind,
-    sourceRect?: DOMRect | null,
+    sourceRect?: DOMRect | null
   ) => void;
   imagePreload?: boolean;
   variant?: "grid" | "rail" | "railGrid" | "list";
@@ -105,13 +106,13 @@ export const ProductCard = memo(function ProductCard({
   const price = publicProductCardPrice(product);
   const statusSortFk = publicMenuKindToStatusSortFk(statusKind);
   const blockedState = getProductBlockedState(product, statusSortFk);
-  const actionState = getProductActionState(product, statusSortFk);
+  const viewOnly = usePublicPosStore((state) => Boolean(state.scan?.view_only));
+  const productActionState = getProductActionState(product, statusSortFk);
+  const actionState =
+    viewOnly && productActionState !== "blocked" ? "view" : productActionState;
   const isBlocked = actionState === "blocked";
   const blockedLabel = productBlockedLabel(blockedState, product, t);
-  const optionCount = Math.max(
-    0,
-    Number(product.countOptionEnabled ?? 0) || 0,
-  );
+  const optionCount = Math.max(0, Number(product.countOptionEnabled ?? 0) || 0);
   const hasActualChoices =
     product.hasOptions === true ||
     optionCount > 1 ||
@@ -123,18 +124,28 @@ export const ProductCard = memo(function ProductCard({
     : "";
   const promoLabel =
     product.promoMsg || (hasPromo(product) ? t("pos.promotion") : "");
-  const actionLabel = getActionLabel({
-    actionState,
-    blockedLabel,
-    detailed: false,
-    t,
-  });
-  const detailedActionLabel = getActionLabel({
-    actionState,
-    blockedLabel,
-    detailed: true,
-    t,
-  });
+  const productSummary = product.promoMsg?.trim() || choiceMeta;
+  const showProductSummary =
+    Boolean(productSummary) &&
+    productSummary !== t("pos.promotion") &&
+    productSummary !== t("pos.menuPromotion");
+  const compactOptions = actionState === "choose";
+  const actionLabel = compactOptions
+    ? t("pos.mobileOptionsAction")
+    : getActionLabel({
+        actionState,
+        blockedLabel,
+        detailed: false,
+        t,
+      });
+  const detailedActionLabel = compactOptions
+    ? t("pos.mobileOptionsAction")
+    : getActionLabel({
+        actionState,
+        blockedLabel,
+        detailed: true,
+        t,
+      });
   const priceLabel = getAccessiblePriceLabel(price, lang, isBlocked, t);
   const accessibleLabel = [
     product.prodName,
@@ -145,16 +156,15 @@ export const ProductCard = memo(function ProductCard({
   ]
     .filter(Boolean)
     .join(", ");
-  // One-tap items (no options to pick) carry their "+" on the image, bottom-right, so the add
-  // action sits on the product itself. Items that open the sheet keep their pill in the body.
-  const addOnImage = actionState === "add";
+  // Available tile actions share the photo corner; the entire card remains the tap target.
+  const addOnImage = !isBlocked;
   const handleClick = useCallback(() => {
     if (isBlocked || loading) return;
     onProductClick(
       product,
       cateUuid,
       statusKind,
-      mediaRef.current?.getBoundingClientRect(),
+      mediaRef.current?.getBoundingClientRect()
     );
   }, [cateUuid, isBlocked, loading, onProductClick, product, statusKind]);
 
@@ -165,7 +175,7 @@ export const ProductCard = memo(function ProductCard({
           <Button
             type="button"
             variant="ghost"
-            className="flex min-h-28 w-full items-stretch gap-3 rounded-xl px-1.5 py-3 text-left hover:bg-yg-panel-hover active:scale-[0.99] active:duration-75 focus-visible:ring-inset aria-disabled:cursor-not-allowed aria-disabled:hover:bg-transparent disabled:opacity-100 motion-reduce:transform-none"
+            className="flex h-auto min-h-28 w-full items-stretch gap-2.5 rounded-none px-0 py-2 text-left hover:bg-yg-panel-hover active:scale-[0.99] active:duration-75 focus-visible:ring-inset aria-disabled:cursor-not-allowed aria-disabled:hover:bg-transparent disabled:opacity-100 motion-reduce:transform-none"
             onClick={handleClick}
             disabled={loading}
             aria-busy={loading || undefined}
@@ -174,7 +184,7 @@ export const ProductCard = memo(function ProductCard({
           >
             <div
               ref={mediaRef}
-              className="relative size-24 shrink-0 overflow-hidden rounded-xl bg-yg-card"
+              className="relative size-24 shrink-0 overflow-hidden rounded-[8px] bg-yg-card"
             >
               <ProductMedia
                 product={product}
@@ -185,35 +195,37 @@ export const ProductCard = memo(function ProductCard({
               />
             </div>
 
-            <CardContent className="flex min-w-0 flex-1 gap-3 p-0">
-              <div className="flex min-w-0 flex-1 flex-col gap-1.5">
-                <p className="lao-tone-text line-clamp-2 font-yg-sans text-base font-semibold leading-snug text-yg-ink">
+            <CardContent className="flex min-w-0 flex-1 flex-col justify-center gap-2 p-0">
+              <div className="flex min-w-0 flex-col gap-1">
+                <p className="lao-tone-text line-clamp-2 whitespace-normal font-yg-sans text-base font-semibold leading-6 text-yg-ink">
                   {product.prodName}
                 </p>
-
+                {!isBlocked && (promoLabel || choiceMeta) ? (
+                  <div className="flex min-w-0 flex-wrap items-center gap-1.5">
+                    {promoLabel ? (
+                      <ProductPromoBadge label={promoLabel} compact />
+                    ) : null}
+                    {choiceMeta ? (
+                      <ProductChoiceMeta label={choiceMeta} />
+                    ) : null}
+                  </div>
+                ) : null}
+              </div>
+              <div className="flex min-w-0 items-end justify-between gap-2 [&>span]:ml-auto">
                 <ProductPriceLabel
                   price={price}
                   lang={lang}
                   blocked={isBlocked}
                   compact
                 />
-
-                <div className="flex min-h-5 min-w-0 flex-wrap items-center gap-1.5">
-                  {!isBlocked && promoLabel ? (
-                    <ProductPromoBadge label={promoLabel} compact />
-                  ) : null}
-                  {choiceMeta && !isBlocked ? <ProductChoiceMeta label={choiceMeta} /> : null}
-                </div>
-              </div>
-
-              {/* Sold out shows its state here too, as muted text (see ProductActionPill). */}
-              <div className="flex shrink-0 items-end justify-end">
                 <ProductActionPill
                   actionState={actionState}
                   hasActualChoices={hasActualChoices}
                   label={actionLabel}
                   loading={loading}
                   compact
+                  filled={actionState === "add" || actionState === "choose"}
+                  subtle={actionState !== "add"}
                 />
               </div>
             </CardContent>
@@ -231,9 +243,9 @@ export const ProductCard = memo(function ProductCard({
         variant === "rail"
           ? "w-44 flex-none snap-start"
           : variant === "railGrid"
-            ? "w-44 flex-none snap-start sm:w-auto"
-            : "min-w-0",
-        isBlocked ? "" : CARD_INTERACTIVE_CLASS,
+          ? "w-44 flex-none snap-start sm:w-auto"
+          : "min-w-0",
+        isBlocked ? "" : CARD_INTERACTIVE_CLASS
       )}
     >
       {/* content-visibility:auto ก็ทำตัวเหมือน overflow:hidden ทางการ paint (contain: paint โดยนัย)
@@ -243,7 +255,7 @@ export const ProductCard = memo(function ProductCard({
       <div
         className={cn(
           CARD_CLIP_CLASS,
-          canLazyRenderCard(statusKind) ? CARD_LAZY_RENDER_CLASS : "",
+          canLazyRenderCard(statusKind) ? CARD_LAZY_RENDER_CLASS : ""
         )}
       >
         <Button
@@ -264,60 +276,59 @@ export const ProductCard = memo(function ProductCard({
               preload={imagePreload}
               overlay={
                 addOnImage ? (
-                  // Pinned to the picture's own bottom-right corner (not the frame's), so a
-                  // tall bottle photo still has the button on it. The whole card is the button:
-                  // this is a visual cue, not a nested button. The card-coloured ring keeps the
-                  // green square apart from whatever photo is behind it.
-                  <span className="absolute right-1.5 bottom-1.5 rounded-lg ring-2 ring-yg-card">
+                  // Keep the action in the same corner of every media frame.
+                  <span className="absolute right-2 bottom-2 rounded-full">
                     <ProductActionPill
                       actionState={actionState}
                       hasActualChoices={hasActualChoices}
                       label={actionLabel}
                       loading={loading}
                       onImage
+                      subtle={actionState === "choose"}
                     />
                   </span>
                 ) : null
               }
             />
-            {!isBlocked && promoLabel ? (
+            {!isBlocked &&
+            promoLabel &&
+            statusKind !== PUBLIC_MENU_KIND.PROMOTION ? (
               <ProductPromoBadge label={promoLabel} overlay />
             ) : null}
           </div>
 
-          <CardContent className="@container flex flex-1 flex-col gap-1.5 px-1.5 pt-2.5 pb-2">
-            <p className="lao-tone-text line-clamp-2 min-h-10 font-yg-sans text-base font-semibold leading-snug text-yg-ink">
+          <CardContent className="@container flex flex-1 flex-col gap-1 px-1 pt-2 pb-1">
+            <p className="lao-tone-text line-clamp-2 whitespace-normal font-yg-sans text-[15px] font-semibold leading-6 text-yg-ink">
               {product.prodName}
             </p>
 
-            {/* One fixed 44px row for every card type: price (or "choose to see price") on the
-                left, the pill on the right. Card types used to differ (price row, then a note +
-                pill row), and the grid stretches a row to its tallest card, so the one-row cards
-                stood half empty. Sold out: the state alone, the image already dims. */}
-            <div className="mt-auto flex h-11 min-w-0 items-center justify-between gap-2">
-              {isBlocked ? (
-                <ProductActionPill
-                  actionState={actionState}
-                  hasActualChoices={hasActualChoices}
-                  label={actionLabel}
-                  loading={loading}
-                />
-              ) : (
-                <>
-                  <div className="min-w-0 flex-1">
-                    <ProductPriceLabel price={price} lang={lang} blocked={false} />
-                  </div>
-                  {/* One-tap items have their "+" on the image instead. */}
-                  {addOnImage ? null : (
-                    <ProductActionPill
-                      actionState={actionState}
-                      hasActualChoices={hasActualChoices}
-                      label={actionLabel}
-                      loading={loading}
-                    />
-                  )}
-                </>
-              )}
+            {/* Price and action use separate rows so neither squeezes the other on phones. */}
+            {showProductSummary && !isBlocked ? (
+              <p className="lao-tone-text line-clamp-2 whitespace-normal text-xs font-normal text-yg-muted">
+                {productSummary}
+              </p>
+            ) : null}
+            <div className="mt-auto flex min-w-0 flex-col gap-1">
+              {price.kind !== "variable" ? (
+                <div className="flex min-h-5 min-w-0 items-center">
+                  <ProductPriceLabel
+                    price={price}
+                    lang={lang}
+                    blocked={isBlocked}
+                  />
+                </div>
+              ) : null}
+              {isBlocked || !addOnImage ? (
+                <span className={isBlocked ? "w-full" : "self-end"}>
+                  <ProductActionPill
+                    actionState={actionState}
+                    hasActualChoices={hasActualChoices}
+                    label={actionLabel}
+                    loading={loading}
+                    subtle={!isBlocked}
+                  />
+                </span>
+              ) : null}
             </div>
           </CardContent>
         </Button>
@@ -347,7 +358,7 @@ export const SetProductCard = memo(function SetProductCard({
     product: CateProductItem,
     cateUuid: string,
     statusKind: PublicMenuKind,
-    sourceRect?: DOMRect | null,
+    sourceRect?: DOMRect | null
   ) => void;
   imagePreload?: boolean;
   variant?: "rail" | "railGrid";
@@ -364,7 +375,11 @@ export const SetProductCard = memo(function SetProductCard({
   const viewLabel = t("pos.viewDetails");
   const accessibleLabel = [
     product.prodName,
-    blocked ? blockedLabel : priceValue !== null ? formatMoney(priceValue, lang) : "",
+    blocked
+      ? blockedLabel
+      : priceValue !== null
+      ? formatMoney(priceValue, lang)
+      : "",
     blocked ? "" : viewLabel,
   ]
     .filter(Boolean)
@@ -375,7 +390,7 @@ export const SetProductCard = memo(function SetProductCard({
       product,
       cateUuid,
       statusKind,
-      mediaRef.current?.getBoundingClientRect(),
+      mediaRef.current?.getBoundingClientRect()
     );
   }, [blocked, cateUuid, loading, onProductClick, product, statusKind]);
 
@@ -384,13 +399,20 @@ export const SetProductCard = memo(function SetProductCard({
       className={cn(
         CARD_SURFACE_CLASS,
         CARD_TILE_CLASS,
-        variant === "rail" ? "w-44 flex-none snap-start" : "w-44 flex-none snap-start sm:w-auto",
-        blocked ? "" : CARD_INTERACTIVE_CLASS,
+        variant === "rail"
+          ? "w-44 flex-none snap-start"
+          : "w-44 flex-none snap-start sm:w-auto",
+        blocked ? "" : CARD_INTERACTIVE_CLASS
       )}
     >
       {/* canLazyRenderCard(statusKind) เป็น false เสมอที่นี่ (statusKind ล็อกเป็น SET) —
           ดูเหตุผลที่ canLazyRenderCard ด้านบน */}
-      <div className={cn(CARD_CLIP_CLASS, canLazyRenderCard(statusKind) ? CARD_LAZY_RENDER_CLASS : "")}>
+      <div
+        className={cn(
+          CARD_CLIP_CLASS,
+          canLazyRenderCard(statusKind) ? CARD_LAZY_RENDER_CLASS : ""
+        )}
+      >
         <Button
           type="button"
           variant="ghost"
@@ -408,36 +430,31 @@ export const SetProductCard = memo(function SetProductCard({
               blockedLabel={blockedLabel}
               preload={imagePreload}
             />
+            {!blocked && (
+              <span className="absolute right-2 bottom-2 flex h-7 items-center justify-center gap-1.5 rounded-full border border-yg-accent-line bg-yg-panel px-2.5 text-[11px] font-normal text-yg-accent-strong shadow-sm">
+                {loading ? (
+                  <Spinner />
+                ) : (
+                  <Eye className="size-3.5 shrink-0" aria-hidden="true" />
+                )}
+                <span className="lao-tone-text">{viewLabel}</span>
+              </span>
+            )}
           </div>
 
-          <CardContent className="flex flex-col gap-1.5 px-1.5 pt-2.5 pb-2">
-            <p className="lao-tone-text truncate font-yg-sans text-sm font-semibold leading-snug text-yg-ink">
+          <CardContent className="flex flex-1 flex-col gap-1 px-1 pt-2 pb-1">
+            <p className="lao-tone-text line-clamp-2 whitespace-normal font-yg-sans text-[15px] font-semibold leading-6 text-yg-ink">
               {product.prodName}
             </p>
 
-            {/* จองพื้นที่ราคา/ปุ่มไว้เสมอ (ว่างเปล่าเมื่อไม่มีข้อมูล) ไม่งั้นการ์ดที่หมด
-                (ไม่มีราคา/ไม่มีปุ่ม) จะเตี้ยกว่าใบข้างๆ ในแถวเดียวกัน */}
             <p
               className={cn(
-                "min-h-5 font-yg-number text-sm font-semibold tabular-nums",
-                blocked ? "text-yg-muted" : "text-yg-accent-strong",
+                "min-h-5 font-yg-number text-base font-semibold tabular-nums",
+                blocked ? "text-yg-muted" : "text-yg-accent-strong"
               )}
             >
               {priceValue !== null ? formatMoney(priceValue, lang) : ""}
             </p>
-
-            {blocked ? (
-              <span className="h-8" aria-hidden="true" />
-            ) : (
-              <span className="flex h-8 items-center justify-center gap-1 rounded-lg border border-yg-accent-line bg-yg-accent-soft text-2xs font-medium text-yg-accent-strong">
-                {loading ? (
-                  <Spinner />
-                ) : (
-                  <ChevronRight className="size-3.5 shrink-0" aria-hidden="true" />
-                )}
-                <span className="lao-tone-text truncate">{viewLabel}</span>
-              </span>
-            )}
           </CardContent>
         </Button>
       </div>
@@ -458,31 +475,14 @@ function ProductPriceLabel({
 }) {
   const { t } = useTranslation();
 
-  if (price.kind === "variable") {
-    // Nothing to show for a sold-out item without a fixed price. No placeholder either: with no
-    // card frame there is no row height to keep, only a gap under the name.
-    if (blocked) return null;
-
-    return (
-      <p
-        className={cn(
-          "text-xs font-semibold leading-4 text-yg-muted",
-          // In the card's 44px row: two lines at most, and none on a card too narrow to hold
-          // it beside the "choose" pill (which says the same).
-          compact ? "min-h-5" : "line-clamp-2 text-2xs @max-[10rem]:hidden",
-        )}
-      >
-        {t("pos.chooseToSeePrice")}
-      </p>
-    );
-  }
+  if (price.kind === "variable") return null;
 
   return (
     <p
       className={cn(
         "flex min-w-0 gap-1",
         // Card: "from" stacked above the amount, so both fit the 44px row beside a pill.
-        compact ? "min-h-5 items-baseline" : "flex-col items-start gap-0.5",
+        compact ? "min-h-5 items-baseline" : "flex-col items-start gap-0.5"
       )}
     >
       {price.kind === "starting" ? (
@@ -494,11 +494,9 @@ function ProductPriceLabel({
         className={cn(
           // Body size (16px, 14px on narrow phones): the price reads, but the product name stays
           // the first thing the eye lands on.
-          "max-w-full font-yg-number text-base font-semibold leading-none tabular-nums",
-          compact
-            ? "truncate text-sm"
-            : "whitespace-nowrap max-[419px]:text-sm",
-          blocked ? "text-yg-muted" : "text-yg-accent-strong",
+          "max-w-full font-yg-number text-base font-semibold leading-5 tabular-nums",
+          compact ? "truncate text-base font-medium" : "whitespace-nowrap",
+          blocked ? "text-yg-muted" : "text-yg-accent-strong"
         )}
       >
         {formatMoney(price.value, lang)}
@@ -507,9 +505,20 @@ function ProductPriceLabel({
   );
 }
 
-function ProductChoiceMeta({ label, className }: { label: string; className?: string }) {
+function ProductChoiceMeta({
+  label,
+  className,
+}: {
+  label: string;
+  className?: string;
+}) {
   return (
-    <span className={cn("mt-0.5 flex min-w-0 items-center gap-1 text-2xs font-semibold text-yg-faint", className)}>
+    <span
+      className={cn(
+        "mt-0.5 flex min-w-0 items-center gap-1 text-2xs font-semibold text-yg-faint",
+        className
+      )}
+    >
       <SlidersHorizontal className="size-3 shrink-0" aria-hidden="true" />
       <span className="lao-tone-text truncate">{label}</span>
     </span>
@@ -532,7 +541,7 @@ function ProductPromoBadge({
         overlay
           ? "absolute left-2.5 top-2.5 h-6 max-w-[calc(100%-1.25rem)] rounded-md px-2 text-2xs backdrop-blur-md"
           : "h-5 rounded-sm px-1.5 text-2xs",
-        compact ? "text-2xs" : "",
+        compact ? "text-2xs" : ""
       )}
     >
       <Sparkles className="size-2.5 shrink-0" aria-hidden="true" />
@@ -548,6 +557,9 @@ function ProductActionPill({
   loading,
   compact = false,
   onImage = false,
+  fullWidth = false,
+  subtle = false,
+  filled = false,
 }: {
   actionState: ProductActionState;
   hasActualChoices: boolean;
@@ -556,6 +568,9 @@ function ProductActionPill({
   compact?: boolean;
   /** 36px on the product photo: the whole card is the tap target, so it needn't be 44px. */
   onImage?: boolean;
+  fullWidth?: boolean;
+  subtle?: boolean;
+  filled?: boolean;
 }) {
   const isAdd = actionState === "add";
   const isChoose = actionState === "choose" && hasActualChoices;
@@ -563,10 +578,10 @@ function ProductActionPill({
   const Icon = blocked
     ? AlertCircle
     : isAdd
-      ? Plus
-      : isChoose
-        ? SlidersHorizontal
-        : ChevronRight;
+    ? Plus
+    : isChoose
+    ? SlidersHorizontal
+    : Eye;
   // ปุ่ม "เพิ่ม" เป็นไอคอนล้วนทรงจัตุรัสตามดีไซน์ ที่เหลือมีข้อความกำกับ
   const iconOnly = isAdd && !loading;
 
@@ -584,19 +599,42 @@ function ProductActionPill({
   return (
     <span
       className={cn(
-        "flex h-11 min-w-0 shrink-0 items-center justify-center gap-1.5 rounded-lg border text-xs font-medium leading-none transition-[filter,transform] duration-150 ease-out active:scale-90 active:duration-75 motion-reduce:transition-none motion-reduce:active:scale-100",
-        iconOnly || onImage ? "w-11 px-0" : "px-3.5",
-        onImage ? "size-9" : "",
-        compact ? "max-w-32" : "",
-        isChoose
-          ? "border-yg-accent-line bg-yg-panel text-yg-accent-strong"
-          : "border-yg-accent bg-yg-accent text-yg-on-accent",
+        "flex h-11 min-w-0 shrink-0 items-center justify-center gap-1.5 rounded-lg border text-xs font-medium leading-none transition-[filter,transform] duration-150 ease-out motion-safe:group-active/button:scale-95 active:scale-90 active:duration-75 motion-reduce:transition-none motion-reduce:active:scale-100",
+        iconOnly ? "size-7 rounded-full px-0" : "px-3.5",
+        onImage
+          ? iconOnly
+            ? "size-7"
+            : "h-7 gap-1.5 rounded-full px-2.5 text-[11px] font-normal shadow-sm"
+          : "",
+        compact
+          ? iconOnly
+            ? "size-7 rounded-full px-0 shadow-sm"
+            : "h-9 max-w-32 rounded-full px-3 text-[11px] shadow-sm"
+          : "",
+        fullWidth ? "w-full h-9 px-2" : "",
+        subtle
+          ? "h-7 gap-1 rounded-lg border-yg-accent-line px-2 text-[11px] font-normal shadow-none"
+          : "",
+        onImage && subtle ? "h-6 gap-1 rounded-full px-1.5 text-[10px]" : "",
+        filled
+          ? "border-yg-accent bg-yg-accent text-yg-on-accent"
+          : "border-yg-accent-line bg-yg-panel text-yg-accent-strong"
       )}
     >
       {loading ? (
         <Spinner />
       ) : (
-        <Icon className="size-4 shrink-0" aria-hidden="true" />
+        <Icon
+          className={cn(
+            "shrink-0",
+            onImage && subtle
+              ? "size-3"
+              : subtle || isAdd
+              ? "size-3.5"
+              : "size-4"
+          )}
+          aria-hidden="true"
+        />
       )}
       {iconOnly ? null : (
         <span className="lao-tone-text truncate">{label}</span>
@@ -609,7 +647,7 @@ function getAccessiblePriceLabel(
   price: ReturnType<typeof publicProductCardPrice>,
   lang: string,
   blocked: boolean,
-  t: ReturnType<typeof useTranslation>["t"],
+  t: ReturnType<typeof useTranslation>["t"]
 ) {
   if (price.kind === "variable") {
     return blocked ? "" : t("pos.chooseToSeePrice");
@@ -633,7 +671,7 @@ function getActionLabel({
 }) {
   if (actionState === "blocked") return blockedLabel;
   if (actionState === "choose") {
-    return t(detailed ? "pos.chooseOptionsAction" : "pos.chooseOptions");
+    return t("pos.chooseOptionsAction");
   }
   if (actionState === "view") {
     return t(detailed ? "pos.viewDetailsAction" : "pos.viewDetails");

@@ -2,7 +2,9 @@
 
 import { useSyncExternalStore } from "react";
 import { useTranslation } from "react-i18next";
-import { Loader2, Search, Utensils } from "lucide-react";
+import { Loader2, Utensils } from "lucide-react";
+import type { PublicProductLayoutMode } from "../types";
+import { readPublicProductLayoutMode, subscribePublicProductLayoutMode } from "../utils";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   DEFAULT_PUBLIC_POS_HERO_VISIBLE,
@@ -14,19 +16,18 @@ import {
 } from "@/features/public-pos/order/public-pos-hero-visibility";
 
 // Same shape as the product cards: a soft filled card, no border.
-const SKELETON_CARD_CLASS = "overflow-hidden rounded-2xl bg-yg-card";
+const SKELETON_CARD_CLASS = "overflow-hidden rounded-lg border border-yg-divider bg-yg-card p-2";
 
-export function ProductsSkeleton() {
+export function ProductsSkeleton({ layoutMode = "grid" }: { layoutMode?: PublicProductLayoutMode }) {
   return (
-    <div className="grid gap-4">
+    <div className="grid gap-2.5">
       <div className="flex items-center gap-2.5">
-        <Skeleton className="size-9 rounded-lg" />
+        <Skeleton className="size-7 rounded-lg" />
         <div className="grid gap-1.5">
-          <Skeleton className="h-3 w-16" />
           <Skeleton className="h-6 w-36" />
         </div>
       </div>
-      <CategoryLoadingGrid />
+      <CategoryLoadingGrid layoutMode={layoutMode} />
     </div>
   );
 }
@@ -40,11 +41,10 @@ export function RailSkeleton() {
             key={index}
             className={`${SKELETON_CARD_CLASS} w-44 flex-none sm:w-auto`}
           >
-            <Skeleton className="aspect-4/3 w-full rounded-none" />
-            <div className="grid min-h-36 gap-2 p-3.5">
+            <Skeleton className="aspect-4/3 w-full rounded-lg" />
+            <div className="grid gap-2 px-1 pt-2 pb-1">
               <Skeleton className="h-5 w-4/5" />
               <Skeleton className="h-5 w-1/2" />
-              <Skeleton className="mt-auto h-11 w-full rounded-lg" />
             </div>
           </div>
         ))}
@@ -99,16 +99,28 @@ export function MenuEmptyState() {
   );
 }
 
-function CategoryLoadingGrid() {
+function CategoryLoadingGrid({ layoutMode }: { layoutMode: PublicProductLayoutMode }) {
+  if (layoutMode === "list") return (
+    <div className="divide-y divide-yg-line/60">
+      {Array.from({ length: 6 }).map((_, index) => (
+        <div key={index} className="flex min-h-28 gap-2.5 py-2">
+          <Skeleton className="size-24 shrink-0 rounded-lg" />
+          <div className="grid flex-1 content-center gap-2">
+            <Skeleton className="h-6 w-3/4" />
+            <Skeleton className="h-5 w-1/2" />
+          </div>
+        </div>
+      ))}
+    </div>
+  );
   return (
     <div className={PRODUCT_GRID_CLASS}>
       {Array.from({ length: 6 }).map((_, index) => (
         <div key={index} className={SKELETON_CARD_CLASS}>
-          <Skeleton className="aspect-4/3 w-full rounded-none" />
-          <div className="grid min-h-36 gap-2 p-3.5">
+          <Skeleton className="aspect-4/3 w-full rounded-lg" />
+          <div className="grid gap-2 px-1 pt-2 pb-1">
             <Skeleton className="h-5 w-4/5" />
             <Skeleton className="h-5 w-1/2" />
-            <Skeleton className="mt-auto h-11 w-full rounded-lg" />
           </div>
         </div>
       ))}
@@ -126,39 +138,26 @@ export function PublicPosLoadingScreen() {
     (): boolean => DEFAULT_PUBLIC_POS_HERO_VISIBLE,
   );
 
+  const layoutMode = useSyncExternalStore(subscribePublicProductLayoutMode, readPublicProductLayoutMode, (): PublicProductLayoutMode => "list");
+
   return (
     <section
       aria-busy="true"
       aria-live="polite"
       aria-label={t("pos.publicLoadingTitle")}
-      className="flex w-full flex-col gap-4"
+      className="flex w-full flex-col gap-3"
     >
       {/* โครงเดียวกับ hero จริง ไม่ให้เลย์เอาต์กระโดดตอนข้อมูลมาถึง */}
       {heroVisible ? (
         <Skeleton className="h-[clamp(310px,42vw,420px)] w-full rounded-3xl" />
       ) : null}
 
-      <div className="flex flex-col gap-2">
-        <div className="flex gap-2">
-          <div className="flex h-11 min-w-0 flex-1 items-center gap-2 rounded-xl border border-yg-line bg-yg-panel px-3.5">
-            <Search
-              className="size-4 shrink-0 text-yg-faint"
-              aria-hidden="true"
-            />
-            <Skeleton className="h-4 flex-1" />
-          </div>
-          <Skeleton className="h-11 w-22 rounded-xl" />
-        </div>
-        <div className="flex gap-2 overflow-hidden">
-          <Skeleton className="h-11 w-24 rounded-full" />
-          <Skeleton className="h-11 w-28 rounded-full" />
-          <Skeleton className="h-11 w-20 rounded-full" />
-          <Skeleton className="h-11 w-28 rounded-full" />
-        </div>
+      <div className="-mx-(--yg-gutter) flex h-10 gap-3 overflow-hidden border-b border-yg-divider px-(--yg-gutter)">
+        <Skeleton className="my-auto h-5 w-20 shrink-0" />
+        <Skeleton className="my-auto h-5 w-24 shrink-0" />
+        <Skeleton className="my-auto h-5 w-20 shrink-0" />
       </div>
-
-      <RailSkeleton />
-      <ProductsSkeleton />
+      <ProductsSkeleton layoutMode={layoutMode} />
     </section>
   );
 }

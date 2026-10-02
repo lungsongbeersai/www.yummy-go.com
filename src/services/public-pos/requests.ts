@@ -23,7 +23,7 @@ import type {
   CustomerUpdateOrderNoteInput,
   CustomerUpdateQtyInput,
   PublicStatusSortResponse,
-  QRScanResponse
+  QRScanResponse,
 } from "@/services/public-pos/types";
 import type {
   ConfirmToKitchenResponse,
@@ -31,11 +31,11 @@ import type {
   DeleteOrderItemResponse,
   FetchCartResponse,
   UpdateOrderNoteResponse,
-  UpdateQtyResponse
+  UpdateQtyResponse,
 } from "@/services/pos";
 
 function buildCustomerCatalogQuery(
-  params: CustomerFetchCateProductsParams,
+  params: CustomerFetchCateProductsParams
 ): Record<string, string | number | undefined> {
   const query: Record<string, string | number | undefined> = {
     t: requiredToken(params.token),
@@ -70,7 +70,7 @@ export async function scanTableQR(t: string, lang = "la") {
     const result = await publicApiRequest<BranchMenuQRScanResponse>(
       "get",
       "/api/v1/posAll/customer/menu_qrscan",
-      { params: { t: token, lang: toApiLanguage(lang) } },
+      { params: { t: token, lang: toApiLanguage(lang) } }
     );
     return {
       status: result.status,
@@ -81,29 +81,45 @@ export async function scanTableQR(t: string, lang = "la") {
       table_status: 0,
       qr_enabled: true,
       branch_uuid_fk: result.branch_uuid_fk,
+      branch_name: result.branch_name,
+      store_logo: result.store_logo,
       view_only: true,
     };
   }
 
-  return publicApiRequest<QRScanResponse>("get", "/api/v1/posAll/customer/qrscan", {
-    params: { t: token, lang: toApiLanguage(lang) }
-  });
+  return publicApiRequest<QRScanResponse>(
+    "get",
+    "/api/v1/posAll/customer/qrscan",
+    {
+      params: { t: token, lang: toApiLanguage(lang) },
+    }
+  );
 }
 
 export async function fetchCustomerStatusSorts(lang = "la") {
-  const result = await publicApiRequest<PublicStatusSortResponse>("get", "/api/v1/status/fetch_all", {
-    params: { lang: toApiLanguage(lang) }
-  });
+  const result = await publicApiRequest<PublicStatusSortResponse>(
+    "get",
+    "/api/v1/status/fetch_all",
+    {
+      params: { lang: toApiLanguage(lang) },
+    }
+  );
   return result.data ?? [];
 }
 
 export function fetchCustomerCart(params: CustomerFetchCartParams) {
-  return publicApiRequest<FetchCartResponse>("get", "/api/v1/posAll/customer/fetch_cart", {
-    params: { t: requiredToken(params.t), lang: toApiLanguage(params.lang) }
-  });
+  return publicApiRequest<FetchCartResponse>(
+    "get",
+    "/api/v1/posAll/customer/fetch_cart",
+    {
+      params: { t: requiredToken(params.t), lang: toApiLanguage(params.lang) },
+    }
+  );
 }
 
-export async function customerFetchCateProducts(params: CustomerFetchCateProductsParams) {
+export async function customerFetchCateProducts(
+  params: CustomerFetchCateProductsParams
+) {
   const endpoint = isBranchMenuQrToken(params.token)
     ? "/api/v1/posAll/customer/menu/fetch_cate_products"
     : "/api/v1/posAll/customer/fetch_cate_products";
@@ -113,7 +129,7 @@ export async function customerFetchCateProducts(params: CustomerFetchCateProduct
     endpoint,
     {
       params: buildCustomerCatalogQuery(params),
-    },
+    }
   );
   return normalizeFetchCateProductsResponse(response);
 }
@@ -129,16 +145,21 @@ export async function customerGetProdItem(params: CustomerGetProdItemParams) {
     `${path}?t=${encodeURIComponent(token)}`,
     {
       data: buildCustomerProductBody(params),
-    },
+    }
   );
   return mapApiProdItem(result.data);
 }
 
-export function customerCreateOrder(t: string, input: CustomerCreateOrderInput) {
+export function customerCreateOrder(
+  t: string,
+  input: CustomerCreateOrderInput
+) {
   requiredItems(input.items);
   return publicApiRequest<CreateOrderResponse>(
     "post",
-    `/api/v1/posAll/customer/create_order?t=${encodeURIComponent(requiredToken(t))}`,
+    `/api/v1/posAll/customer/create_order?t=${encodeURIComponent(
+      requiredToken(t)
+    )}`,
     { data: input }
   );
 }
@@ -146,26 +167,37 @@ export function customerCreateOrder(t: string, input: CustomerCreateOrderInput) 
 export function customerUpdateQty(params: CustomerUpdateQtyInput) {
   return publicApiRequest<UpdateQtyResponse>(
     "patch",
-    `/api/v1/posAll/customer/order_item/update_qty?t=${encodeURIComponent(requiredToken(params.t))}`,
+    `/api/v1/posAll/customer/order_item/update_qty?t=${encodeURIComponent(
+      requiredToken(params.t)
+    )}`,
     { data: params }
   );
 }
 
 export function customerDeleteOrderItem(params: CustomerDeleteOrderItemParams) {
-  return publicApiRequest<DeleteOrderItemResponse>("delete", "/api/v1/posAll/customer/delete_order_item", {
-    params: { t: requiredToken(params.t), order_it_uuid: params.order_it_uuid }
-  });
+  return publicApiRequest<DeleteOrderItemResponse>(
+    "delete",
+    "/api/v1/posAll/customer/delete_order_item",
+    {
+      params: {
+        t: requiredToken(params.t),
+        order_it_uuid: params.order_it_uuid,
+      },
+    }
+  );
 }
 
 export function customerUpdateOrderNote(params: CustomerUpdateOrderNoteInput) {
   return publicApiRequest<UpdateOrderNoteResponse>(
     "patch",
-    `/api/v1/posAll/customer/update_note?t=${encodeURIComponent(requiredToken(params.t))}`,
+    `/api/v1/posAll/customer/update_note?t=${encodeURIComponent(
+      requiredToken(params.t)
+    )}`,
     {
       data: {
         order_it_uuid: params.order_it_uuid,
-        order_it_note: params.order_it_note
-      }
+        order_it_note: params.order_it_note,
+      },
     }
   );
 }
@@ -173,7 +205,9 @@ export function customerUpdateOrderNote(params: CustomerUpdateOrderNoteInput) {
 export function customerConfirmKitchen(params: CustomerConfirmKitchenInput) {
   return publicApiRequest<ConfirmToKitchenResponse>(
     "patch",
-    `/api/v1/posAll/customer/confirm_to_kitchen?t=${encodeURIComponent(requiredToken(params.t))}`,
+    `/api/v1/posAll/customer/confirm_to_kitchen?t=${encodeURIComponent(
+      requiredToken(params.t)
+    )}`,
     { data: params }
   );
 }
@@ -185,8 +219,8 @@ export function customerEmitTableStatus(params: CustomerEmitTableStatusParams) {
       params: {
         t: params.t,
         branch_uuid_fk: params.branch_uuid_fk,
-        table_uuid: params.table_uuid
-      }
+        table_uuid: params.table_uuid,
+      },
     })
     .then((response) => response.data)
     .catch((error) => {

@@ -1,6 +1,8 @@
 "use client";
 
 import { usePublicBrowseWorkflow } from "../hooks/use-public-browse-workflow";
+import { PublicPullToRefresh } from "./public-pull-to-refresh";
+import { PublicHeader } from "./public-header";
 import { ProductBrowseContent } from "./product-browse-content";
 
 export function ProductBrowse({
@@ -21,5 +23,15 @@ export function ProductBrowse({
     token,
   });
 
-  return <ProductBrowseContent workflow={workflow} />;
+  return (
+    <>
+      <PublicPullToRefresh />
+      <PublicHeader
+        table={workflow.table}
+        canSearch={!workflow.loadingMenu}
+        onSearch={workflow.search.openSearchSheet}
+      />
+      <ProductBrowseContent workflow={workflow} />
+    </>
+  );
 }

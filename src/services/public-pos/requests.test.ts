@@ -13,11 +13,30 @@ import {
   customerFetchCateProducts,
   customerGetProdItem,
   customerUpdateOrderNote,
+  scanTableQR,
 } from "@/services/public-pos/requests";
 
 describe("public pos requests", () => {
   beforeEach(() => {
     apiMocks.publicApiRequest.mockReset();
+  });
+
+  it("preserves branch branding when adapting a view-only menu QR", async () => {
+    apiMocks.publicApiRequest.mockResolvedValue({
+      status: "success",
+      message: "OK",
+      lang: "la",
+      view_only: true,
+      branch_uuid_fk: "branch-1",
+      branch_name: "Shop branch",
+      store_logo: "https://images.test/store/logo.png",
+    });
+    expect(await scanTableQR("bq1.test-token")).toMatchObject({
+      branch_name: "Shop branch",
+      store_logo: "https://images.test/store/logo.png",
+      table_uuid: "",
+      view_only: true,
+    });
   });
 
   it("maps public camel-case catalog params to wire keys and returns the domain response", async () => {
@@ -66,7 +85,7 @@ describe("public pos requests", () => {
           lang: "la",
           search: "beer",
         },
-      },
+      }
     );
     expect(result.selectedCateUuid).toBe("cate-1");
     expect(result.categories[0]?.products[0]).toMatchObject({
@@ -116,7 +135,7 @@ describe("public pos requests", () => {
           search: "beer",
           status_sort_fk: 1,
         },
-      },
+      }
     );
     expect(result).toMatchObject({
       prodUuid: "prod-1",
@@ -148,7 +167,7 @@ describe("public pos requests", () => {
           order_it_uuid: "8e99dfb5-929d-4030-a85c-48ffbaa9a650",
           order_it_note: "Testing",
         },
-      },
+      }
     );
   });
 });

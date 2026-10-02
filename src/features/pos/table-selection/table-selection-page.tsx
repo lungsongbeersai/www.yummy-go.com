@@ -16,6 +16,7 @@ import { useAuthStore } from "@/stores/auth-store";
 import { useNativeHeaderStore } from "@/stores/native-header-store";
 import { usePosStore } from "@/stores/pos-store";
 import { useToastStore } from "@/stores/toast-store";
+import { StaffWaiterPanel } from "@/features/waiter-requests/staff-waiter-panel";
 import { TableListSection } from "./table-list-section";
 import type { TableStatusFilter } from "./types";
 import { formatClock } from "./utils";
@@ -115,6 +116,7 @@ export function TableSelectionPage() {
   if (nativeShellActive) {
     return (
       <div className="flex h-full min-h-0 flex-col overflow-hidden">
+        <StaffWaiterPanel branch={branchUuid} />
         <TableListSection
           initialZoneUuid={initialZoneUuid}
           loading={loading}
@@ -155,6 +157,7 @@ export function TableSelectionPage() {
             </Button>
           </div>
         </header>
+        <StaffWaiterPanel branch={branchUuid} />
         <TableListSection initialZoneUuid={initialZoneUuid} loading={loading} search={search} selectedTable={null} statusFilter={statusFilter} zoneOptions={zoneOptions} zones={zones} onSearchChange={setSearch} onSelectTable={selectTable} onStatusFilterChange={setStatusFilter} />
       </div>
     </div>

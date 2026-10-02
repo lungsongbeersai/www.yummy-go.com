@@ -36,15 +36,21 @@ export function usePublicMenuBrowseModel({
       filterVisiblePublicMenuCategories(
         normalMenu.categories,
         publicMenuKindToStatusSortFk(PUBLIC_MENU_KIND.NORMAL),
+        normalMenu.loadedCateUuids,
       ),
-    [normalMenu.categories],
+    [normalMenu.categories, normalMenu.loadedCateUuids],
   );
   const categoryTabs = normalMenu.categoryTabs;
   const selectedCateUuid = normalMenu.selectedCateUuid;
   const defaultCateUuid = normalMenu.defaultCateUuid;
   const loadedCateUuids = normalMenu.loadedCateUuids;
   const loadingCateUuids = normalMenu.loadingCateUuids;
-  const visibleCategoryTabs = categoryTabs;
+  const visibleCategoryTabs = useMemo(() => {
+    const visible = new Set(menuCategories
+      .filter((category) => category.products.length > 0)
+      .map((category) => category.cateUuid));
+    return categoryTabs.filter((category) => visible.has(category.cateUuid));
+  }, [categoryTabs, menuCategories]);
 
   const categoryOrderKey = useMemo(
     () => menuCategories.map((category) => category.cateUuid).join(":"),
@@ -90,7 +96,8 @@ export function usePublicMenuBrowseModel({
     [menuCategories],
   );
   const firstLoadedCateUuid =
-    selectedCateUuid || defaultCateUuid || menuCategories[0]?.cateUuid || "";
+    [selectedCateUuid, defaultCateUuid].find((uuid) => menuCategoryByUuid.has(uuid))
+    || menuCategories[0]?.cateUuid || "";
   const renderedMenuSections = useMemo(
     () =>
       getRenderedMenuSections({

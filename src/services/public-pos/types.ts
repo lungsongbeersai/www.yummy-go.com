@@ -6,7 +6,7 @@ import type {
   FetchCateProductsResponse,
   ProdItem,
   UpdateOrderNoteResponse,
-  UpdateQtyResponse
+  UpdateQtyResponse,
 } from "@/services/pos";
 
 export interface QRScanResponse {
@@ -18,6 +18,8 @@ export interface QRScanResponse {
   table_status: number;
   qr_enabled: boolean;
   branch_uuid_fk: string;
+  branch_name?: string;
+  store_logo?: string;
   login_uuid_fk?: string;
   // true เฉพาะ QR เมนูอย่างเดียว (ສ້າງ QR ເມນູອາຫານ) — ไม่มี table_uuid จริง
   // (เป็น "" เสมอ) ดูเมนูได้ สั่งไม่ได้ — ทุกจุดที่โชว์ปุ่มสั่ง/ตะกร้าต้องเช็คค่านี้ก่อน
@@ -45,6 +47,7 @@ export interface BranchMenuQRScanResponse {
   view_only: boolean;
   branch_uuid_fk: string;
   branch_name: string;
+  store_logo?: string;
 }
 
 export interface PublicStatusSort {
@@ -63,7 +66,10 @@ export interface PublicStatusSortResponse {
   data: PublicStatusSort[];
 }
 
-export interface CustomerFetchCartParams { t: string; lang?: string }
+export interface CustomerFetchCartParams {
+  t: string;
+  lang?: string;
+}
 
 export interface CustomerFetchCateProductsParams {
   token: string;
@@ -72,7 +78,8 @@ export interface CustomerFetchCateProductsParams {
   search?: string;
 }
 
-export interface CustomerGetProdItemParams extends CustomerFetchCateProductsParams {
+export interface CustomerGetProdItemParams
+  extends CustomerFetchCateProductsParams {
   prodUuid: string;
   statusSortFk?: number;
 }
@@ -84,7 +91,10 @@ export interface CustomerUpdateQtyInput {
   change_qty: number;
 }
 
-export interface CustomerDeleteOrderItemParams { t: string; order_it_uuid: string }
+export interface CustomerDeleteOrderItemParams {
+  t: string;
+  order_it_uuid: string;
+}
 
 export interface CustomerUpdateOrderNoteInput {
   t: string;

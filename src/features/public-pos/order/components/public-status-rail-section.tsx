@@ -50,6 +50,7 @@ export const StatusRailSection = memo(function StatusRailSection({
   cardKind?: "product" | "set";
 }) {
   const visibleProducts = products.slice(0, visibleCount);
+  const promotionSection = products.some(({ statusKind }) => statusKind === PUBLIC_MENU_KIND.PROMOTION);
   const useDesktopGrid = products.length <= 5;
   // การ์ดในแถวเดียวกันเรนเดอร์ขนาดเท่ากันหมด จึง "เสมอกัน" สำหรับ LCP — มาร์ค eager
   // ทุกใบในโควตานี้แทนที่จะเลือกแค่ใบแรก เพราะใบที่ชนะจริงไม่ใช่ใบแรกในลิสต์เสมอไป
@@ -96,7 +97,10 @@ export const StatusRailSection = memo(function StatusRailSection({
   return (
     // เหตุผลเดียวกับ ProductCategorySection — content-visibility:auto ชนกับรูปสินค้าที่
     // โหลด async ทำให้บาง section ค้าง placeholder ว่างไว้ไม่ยอม paint เนื้อหาจริงตามจริง
-    <section className="border-b border-yg-divider pb-5">
+    <section className={cn(
+      "border-b border-yg-divider pb-1",
+      promotionSection && "-mx-(--yg-gutter) bg-yg-bg px-(--yg-gutter) pt-3",
+    )}>
       <PublicSectionHeading
         title={title}
         icon={<Sparkles className="size-4" aria-hidden="true" />}
@@ -152,7 +156,7 @@ export const StatusRailSection = memo(function StatusRailSection({
                   type="button"
                   variant="outline"
                   className={cn(
-                    "grid h-auto w-14 flex-none snap-start place-items-center self-stretch rounded-2xl border-yg-line bg-yg-panel text-yg-accent-strong backdrop-blur-md hover:border-yg-accent-line hover:bg-yg-panel-hover hover:text-yg-accent-strong",
+                    "grid h-auto w-14 flex-none snap-start place-items-center self-stretch rounded-[8px] border-yg-line bg-yg-panel text-yg-accent-strong backdrop-blur-md hover:border-yg-accent-line hover:bg-yg-panel-hover hover:text-yg-accent-strong",
                     useDesktopGrid ? "sm:min-h-64 sm:w-full" : "",
                   )}
                   onClick={() =>

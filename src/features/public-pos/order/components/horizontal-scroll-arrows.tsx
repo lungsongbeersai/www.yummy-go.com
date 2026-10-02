@@ -29,7 +29,7 @@ export function HorizontalScrollArrows({
   className?: string;
   /** overlay: big round buttons over a product rail (mouse only). edge: a fade on each side
    *  that still has content, with a small arrow — the cue that a strip scrolls sideways. */
-  variant?: "edge" | "overlay";
+  variant?: "edge" | "fade" | "overlay";
 }) {
   const { t } = useTranslation();
   const [scrollState, setScrollState] =
@@ -92,7 +92,7 @@ export function HorizontalScrollArrows({
       behavior: prefersReducedMotion() ? "auto" : "smooth",
     });
   };
-  if (variant === "edge") {
+  if (variant === "edge" || variant === "fade") {
     return (
       <>
         <EdgeFade
@@ -100,12 +100,14 @@ export function HorizontalScrollArrows({
           visible={scrollState.canScrollLeft}
           label={t("pos.scrollLeft")}
           onClick={() => scroll(-1)}
+          showButton={variant === "edge"}
         />
         <EdgeFade
           side="right"
           visible={scrollState.canScrollRight}
           label={t("pos.scrollRight")}
           onClick={() => scroll(1)}
+          showButton={variant === "edge"}
         />
       </>
     );
@@ -153,24 +155,28 @@ function EdgeFade({
   side,
   visible,
   onClick,
+  showButton = true,
 }: {
   label: string;
   side: "left" | "right";
   visible: boolean;
   onClick: () => void;
+  showButton?: boolean;
 }) {
   const Icon = side === "left" ? ChevronLeft : ChevronRight;
   return (
     <div
+      aria-hidden={showButton ? undefined : true}
       className={cn(
-        "pointer-events-none absolute inset-y-0 z-10 flex w-14 items-center transition-opacity duration-150 motion-reduce:transition-none",
+        "pointer-events-none absolute inset-y-0 z-10 flex items-center transition-opacity duration-150 motion-reduce:transition-none",
+        showButton ? "w-14" : "w-5",
         side === "left"
           ? "left-0 justify-start bg-linear-to-r from-yg-bg via-yg-bg/85 to-transparent"
           : "right-0 justify-end bg-linear-to-l from-yg-bg via-yg-bg/85 to-transparent",
         visible ? "opacity-100" : "invisible opacity-0",
       )}
     >
-      <Button
+      {showButton ? <Button
         type="button"
         size="icon"
         variant="outline"
@@ -179,7 +185,7 @@ function EdgeFade({
         onClick={onClick}
       >
         <Icon className="size-4" aria-hidden="true" />
-      </Button>
+      </Button> : null}
     </div>
   );
 }

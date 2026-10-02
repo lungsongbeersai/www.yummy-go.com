@@ -69,6 +69,7 @@ export function usePublicMenuBrowse({
   toast,
   token,
 }: UsePublicMenuBrowseParams) {
+  const [menuLoadError, setMenuLoadError] = useState<string | null>(null);
   const [renderedCateUuids, setRenderedCateUuids] = useState<string[]>([]);
   const [jumpingCateUuid, setJumpingCateUuid] = useState("");
   const [pendingCategoryScroll, setPendingCategoryScroll] =
@@ -152,6 +153,46 @@ export function usePublicMenuBrowse({
       toast,
       token,
     });
+
+  const firstCategoryReady = loadedCateUuids.length > 0;
+
+  const retryMenu = useCallback(() => {
+    setError(null);
+    setMenuLoadError(null);
+    void loadMenuProducts({ token, lang, search: submittedSearch }).catch((error) => {
+      setMenuLoadError(error instanceof Error ? error.message : t("pos.productLoadFailed"));
+    });
+  }, [lang, loadMenuProducts, setError, submittedSearch, t, token]);
+
+  // The catalog includes unloaded categories without counts. Resolve them in the
+  // background before treating an empty product array as an empty category.
+  useEffect(() => {
+    if (!token || !normalMenu.categoryTabs.length || normalMenu.loading || !firstCategoryReady) return;
+    let cancelled = false;
+    const pending = normalMenu.categoryTabs.map((category) => category.cateUuid);
+    const resolveCategories = async () => {
+      while (!cancelled && pending.length) {
+        const cateUuid = pending.shift();
+        if (!cateUuid) continue;
+        const current = usePublicPosStore.getState().menuByKind[PUBLIC_MENU_KIND.NORMAL];
+        if (current.loadedCateUuids.includes(cateUuid) || current.loadingCateUuids.includes(cateUuid)) continue;
+        try {
+          await loadNormalCategoryProducts({ token, lang, search: submittedSearch, cateUuid });
+        } catch (error) {
+          if (!cancelled) setMenuLoadError(error instanceof Error ? error.message : t("pos.productLoadFailed"));
+          if (!cancelled) toast({
+            title: t("pos.productLoadFailed"),
+            description: error instanceof Error ? error.message : undefined,
+            tone: "error",
+          });
+          return;
+        }
+      }
+    };
+    // Let the first category paint before lower-priority catalog discovery.
+    const timer = window.setTimeout(() => { void resolveCategories(); }, 500);
+    return () => { cancelled = true; window.clearTimeout(timer); };
+  }, [lang, loadNormalCategoryProducts, normalMenu.categoryTabs, normalMenu.loading, firstCategoryReady, submittedSearch, t, toast, token]);
 
   const ensureCategoryRendered = useCallback(
     (cateUuid: string) => {
@@ -383,23 +424,8 @@ export function usePublicMenuBrowse({
     initialLoadKey.current = key;
     setStableActiveCateUuid("");
 
-    void loadMenuProducts({ token, lang, search: submittedSearch }).catch(
-      (error) => {
-        setError(
-          error instanceof Error ? error.message : t("pos.productLoadFailed"),
-        );
-      },
-    );
-  }, [
-    lang,
-    loadMenuProducts,
-    searchRun,
-    setError,
-    setStableActiveCateUuid,
-    submittedSearch,
-    t,
-    token,
-  ]);
+    retryMenu();
+  }, [lang, retryMenu, searchRun, setStableActiveCateUuid, submittedSearch, token]);
 
   useResetOnDeps([
     categoryOrderKey,
@@ -565,6 +591,7 @@ export function usePublicMenuBrowse({
     hasSetImage,
     jumpingCateUuid,
     menuCategories,
+    menuLoadError,
     normalMenu,
     promotionMenu,
     promotionProducts,
@@ -573,6 +600,7 @@ export function usePublicMenuBrowse({
     renderedMenuSections,
     revealMoreProductsForCategory,
     revealMoreRailProducts,
+    retryMenu,
     scrollJumpEdge,
     setMenu,
     setProducts,

@@ -2,7 +2,7 @@
 
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
-import { Check, Clock, MapPinPlus, Plus, Search, UserRound } from "lucide-react";
+import { Bell, Check, Clock, MapPinPlus, Plus, Search, UserRound } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { EmptyState } from "@/components/common/empty-state";
 import { HorizontalScrollArrows } from "@/components/common/horizontal-scroll-arrows";
@@ -14,6 +14,7 @@ import { Input } from "@/components/ui/input";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { menuGrantsPath } from "@/components/layout/shell-menu-helpers";
 import { useSidebarPermissionAccess } from "@/hooks/use-sidebar-permission-access";
+import { useWaiterRequestsStore } from "@/stores/waiter-requests-store";
 import { cn } from "@/lib/utils";
 import { zoneOrderAlertCount } from "@/lib/pos/order-alerts";
 import type { PosTable, PosZone } from "@/services/pos";
@@ -500,6 +501,9 @@ const TableCard = memo(function TableCard({
   onOpen: (table: PosTable) => void;
 }) {
   const { t } = useTranslation();
+  const waiterRequest = useWaiterRequestsStore(state =>
+    state.staffRequests.find(request => request.table_uuid === table.table_uuid && request.status < 2),
+  );
   const visualStatus = tableVisualStatus(table);
   const busy = tableStatus(table) === "busy";
   const seats = tableSeatCount(table);
@@ -563,6 +567,7 @@ const TableCard = memo(function TableCard({
             <span className="mt-1 text-xl font-bold leading-none tracking-normal text-foreground sm:text-2xl">
               {table.table_name}
             </span>
+            {waiterRequest ? <span className="mt-2 flex max-w-full items-center gap-1 rounded-md bg-primary px-2 py-1 text-xs text-primary-foreground" title={[...waiterRequest.items.map(item => `${t(`waiter.${item.kind}`)} ×${item.qty}`), waiterRequest.message].filter(Boolean).join(" · ")}><Bell className="size-3 shrink-0" />{t("waiter.title")}</span> : null}
             <span className={cn("mt-1.5 text-xs font-semibold sm:mt-2", style.text)}>
               {statusLabel}
             </span>

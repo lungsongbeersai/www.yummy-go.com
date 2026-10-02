@@ -1,11 +1,11 @@
 "use client";
 
-import { useRef, useSyncExternalStore, type ReactNode } from "react";
-import { Grid2X2, List, Loader2, Search } from "lucide-react";
+import dynamic from "next/dynamic";
 import { useTranslation } from "react-i18next";
-import { Button } from "@/components/ui/button";
+import { PublicSuccessDialog } from "@/components/common/public-success-dialog";
+import { useRef, useState, useSyncExternalStore } from "react";
+import { Loader2 } from "lucide-react";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { cn } from "@/lib/utils";
 import { PUBLIC_MENU_KIND } from "@/stores/public-pos-store";
 import {
   CATEGORY_TAIL_SPACER_HEIGHT,
@@ -19,11 +19,13 @@ import {
 } from "../public-pos-hero-visibility";
 import type { PublicProductLayoutMode } from "../types";
 import {
+  getConfirmableOrderPayload,
   readPublicProductLayoutMode,
   statusSectionLabel,
   subscribePublicProductLayoutMode,
   writePublicProductLayoutMode,
 } from "../utils";
+import { PublicLoadFeedback } from "./public-load-feedback";
 import { BottomNav } from "./public-bottom-nav";
 import { CartFlyAnimationLayer } from "./cart-fly-animation-layer";
 import { CartSheet } from "./cart-sheet";
@@ -31,19 +33,27 @@ import { PublicCategoryMenu } from "./public-category-menu";
 import { PublicMenuHero } from "./public-menu-hero";
 import { PublicQrDialog } from "./public-qr-dialog";
 import { PublicQrOrderScanDialog } from "./public-qr-order-scan-dialog";
-import { PublicViewOnlyOrderBanner } from "./public-view-only-order-banner";
-import {
-  MenuEmptyState,
-  ProductsSkeleton,
-} from "./public-pos-skeletons";
+import { MenuEmptyState, ProductsSkeleton } from "./public-pos-skeletons";
 import { PublicSearchSheet } from "./public-search-sheet";
 import {
   ProductCategorySection,
   StatusRailSection,
 } from "./public-menu-sections";
 import { ProductOrderSheet } from "./product-order-sheet";
-import { ScrollJumpControls } from "./scroll-jump-controls";
 import { HorizontalScrollArrows } from "./horizontal-scroll-arrows";
+
+const CustomerWaiterSheet = dynamic(
+  () =>
+    import("@/features/waiter-requests/customer-waiter-sheet").then(
+      (mod) => mod.CustomerWaiterSheet
+    ),
+  { ssr: false }
+);
+
+const PublicCategoryIcon = dynamic(
+  () => import("./public-category-icon").then((mod) => mod.PublicCategoryIcon),
+  { ssr: false }
+);
 
 export function ProductBrowseContent({
   workflow,
@@ -51,26 +61,31 @@ export function ProductBrowseContent({
   workflow: PublicBrowseWorkflow;
 }) {
   const { t } = useTranslation();
-  // server render ใช้ grid เสมอ ฝั่ง client sync จาก localStorage โดยไม่มี effect
+  // server render ใช้ list เสมอ ฝั่ง client sync จาก localStorage โดยไม่มี effect
   const productLayoutMode = useSyncExternalStore(
     subscribePublicProductLayoutMode,
     readPublicProductLayoutMode,
-    (): PublicProductLayoutMode => "grid",
+    (): PublicProductLayoutMode => "list"
   );
   // ปิดเป็นค่าเริ่มต้น สลับได้จาก Tweaks — แพตเทิร์นเดียวกับ productLayoutMode
   const heroVisible = useSyncExternalStore(
     subscribePublicPosHeroVisible,
     readPublicPosHeroVisible,
-    (): boolean => DEFAULT_PUBLIC_POS_HERO_VISIBLE,
+    (): boolean => DEFAULT_PUBLIC_POS_HERO_VISIBLE
   );
+  const [waiterOpen, setWaiterOpen] = useState(false);
+  const [waiterMounted, setWaiterMounted] = useState(false);
   const categoryRailRef = useRef<HTMLDivElement | null>(null);
   const viewOnlyScanButtonRef = useRef<HTMLButtonElement | null>(null);
   const pendingScanFocusRef = useRef(false);
   const {
+    token,
     cart,
     cartActions,
     cartFlyAnimations,
     cartHydrated,
+    cartLoadError,
+    retryCart,
     cartOpen,
     cartQty,
     cartStatusRule,
@@ -98,7 +113,6 @@ export function ProductBrowseContent({
     categoryTabRefs,
     collapsedCateUuids,
     ensureNormalCategoryProducts,
-    handleScrollJump,
     handleScrollToTop,
     handleTabChange,
     hasAnyProducts,
@@ -107,6 +121,8 @@ export function ProductBrowseContent({
     hasSetImage,
     jumpingCateUuid,
     menuCategories,
+    menuLoadError,
+    retryMenu,
     normalMenu,
     promotionMenu,
     promotionProducts,
@@ -115,14 +131,11 @@ export function ProductBrowseContent({
     renderedMenuSections,
     revealMoreProductsForCategory,
     revealMoreRailProducts,
-    scrollJumpEdge,
     setMenu,
     setProducts,
     toggleCategoryCollapsed,
     visibleCategoryTabs,
   } = browse;
-  const gridLayoutLabel = t("settings.icons.grid");
-  const listLayoutLabel = t("settings.icons.list");
 
   function handleProductLayoutModeChange(mode: PublicProductLayoutMode) {
     writePublicProductLayoutMode(mode);
@@ -148,13 +161,6 @@ export function ProductBrowseContent({
 
   return (
     <div className="flex flex-col gap-3">
-      {viewOnly ? (
-        <PublicViewOnlyOrderBanner
-          onScan={qrOrderScanner.openQrOrderScanner}
-          triggerRef={viewOnlyScanButtonRef}
-        />
-      ) : null}
-
       {heroVisible ? (
         <PublicMenuHero onSearch={search.openSearchSheet} />
       ) : null}
@@ -165,60 +171,9 @@ export function ProductBrowseContent({
           border-b: เส้นใต้แถบหมวดหมู่ ขีดขอบของแถบที่เลื่อนซ้าย-ขวาได้ และแยกแถบออกจากเมนูตอนติดด้านบน */}
       <div
         ref={categoryBarRef}
-        className="yg-rise yg-rise-1 sticky top-0 z-20 -mx-(--yg-gutter) border-b border-yg-divider bg-yg-bg px-(--yg-gutter) py-3"
+        className="sticky top-16 z-20 -mx-(--yg-gutter) border-b border-yg-divider bg-yg-bg px-(--yg-gutter) pt-0 pb-0"
       >
-        <div className="mx-auto flex max-w-280 flex-col gap-3">
-          <div className="flex gap-2">
-            <Button
-              type="button"
-              variant="outline"
-              onClick={search.openSearchSheet}
-              aria-haspopup="dialog"
-              aria-expanded={search.searchOpen}
-              disabled={loadingMenu}
-              className="relative h-11 min-w-0 flex-1 justify-start rounded-xl border-yg-line bg-yg-card pl-10 pr-4 text-sm font-normal shadow-none hover:border-yg-accent-line hover:bg-yg-panel disabled:opacity-100"
-            >
-              {loadingMenu ? (
-                <Loader2
-                  className="pointer-events-none absolute left-3.5 top-1/2 size-4 -translate-y-1/2 animate-spin text-yg-faint"
-                  aria-hidden="true"
-                />
-              ) : (
-                <Search
-                  className="pointer-events-none absolute left-3.5 top-1/2 size-4 -translate-y-1/2 text-yg-faint"
-                  aria-hidden="true"
-                />
-              )}
-              <span
-                className={cn(
-                  "truncate",
-                  search.searchText ? "text-yg-ink" : "text-yg-faint",
-                )}
-              >
-                {search.searchText || t("pos.searchMenu")}
-              </span>
-            </Button>
-
-            <div
-              className="flex shrink-0 gap-0.5 rounded-xl border border-yg-line bg-yg-panel p-1"
-              role="group"
-              aria-label={`${gridLayoutLabel} / ${listLayoutLabel}`}
-            >
-              <LayoutModeButton
-                active={productLayoutMode === "grid"}
-                label={gridLayoutLabel}
-                icon={<Grid2X2 />}
-                onClick={() => handleProductLayoutModeChange("grid")}
-              />
-              <LayoutModeButton
-                active={productLayoutMode === "list"}
-                label={listLayoutLabel}
-                icon={<List />}
-                onClick={() => handleProductLayoutModeChange("list")}
-              />
-            </div>
-          </div>
-
+        <div className="mx-auto flex max-w-280 flex-col gap-0">
           {visibleCategoryTabs.length ? (
             <Tabs
               value={activeValue}
@@ -227,20 +182,31 @@ export function ProductBrowseContent({
             >
               <div className="flex items-center gap-2">
                 <div className="relative min-w-0 flex-1">
-                  <div ref={categoryRailRef} className="yg-rail overflow-x-auto overflow-y-hidden">
-                    <TabsList className="h-11 w-max justify-start gap-1.5 bg-transparent p-0 group-data-horizontal/tabs:h-11">
+                  <div
+                    ref={categoryRailRef}
+                    className="yg-rail overflow-x-auto overflow-y-hidden"
+                  >
+                    <TabsList className="h-10 w-max justify-start gap-2 rounded-none bg-transparent p-0 group-data-horizontal/tabs:h-10">
                       {visibleCategoryTabs.map((category) => (
                         <TabsTrigger
                           key={category.cateUuid}
                           value={category.cateUuid}
                           ref={(element) => {
-                            categoryTabRefs.current[category.cateUuid] = element;
+                            categoryTabRefs.current[category.cateUuid] =
+                              element;
                           }}
-                          className="h-11 flex-none gap-1.5 rounded-xl border border-yg-line bg-yg-panel px-3 text-sm font-medium text-yg-muted shadow-none duration-150 ease-out active:scale-[0.95] active:duration-75 motion-reduce:transition-none data-[state=active]:border-yg-accent data-[state=active]:bg-yg-accent data-[state=active]:text-yg-on-accent"
+                          className="h-10 flex-none gap-1.5 rounded-none border-0 border-b-2 border-transparent bg-transparent px-2 text-sm font-medium text-yg-ink/75 shadow-none duration-150 motion-reduce:transition-none after:hidden data-[state=active]:border-yg-accent data-[state=active]:bg-transparent data-[state=active]:text-yg-accent-strong"
                         >
-                          {jumpingCateUuid === category.cateUuid ? (
-                            <Loader2 className="size-4 shrink-0 animate-spin" />
-                          ) : null}
+                          <span className="grid size-3.5 shrink-0 place-items-center">
+                            {jumpingCateUuid === category.cateUuid ? (
+                              <Loader2 className="size-3.5 shrink-0 animate-spin" />
+                            ) : (
+                              <PublicCategoryIcon
+                                icon={category.cateIcon}
+                                className="size-3.5"
+                              />
+                            )}
+                          </span>
 
                           <span className="lao-tone-text min-w-0 max-w-30 truncate sm:max-w-40">
                             {category.cateName}
@@ -249,13 +215,21 @@ export function ProductBrowseContent({
                       ))}
                     </TabsList>
                   </div>
-                  {/* Fades + arrows on the sides that still have categories: without them the
-                      strip gave no hint that it scrolls left and right. */}
-                  <HorizontalScrollArrows scrollRef={categoryRailRef} variant="edge" />
+                  {/* Fade only where more categories remain; keep the next chip visible for swiping. */}
+                  <HorizontalScrollArrows
+                    scrollRef={categoryRailRef}
+                    variant="fade"
+                  />
                 </div>
 
                 {/* อยู่นอกแถบเลื่อน — กดถึงได้เสมอไม่ต้องเลื่อนหา ใช้ตอนหมวดเยอะจนแถบ pill ไม่พอ */}
+                <span
+                  className="h-6 w-px shrink-0 bg-yg-divider"
+                  aria-hidden="true"
+                />
                 <PublicCategoryMenu
+                  layoutMode={productLayoutMode}
+                  onLayoutModeChange={handleProductLayoutModeChange}
                   categories={visibleCategoryTabs}
                   activeCateUuid={activeValue}
                   jumpingCateUuid={jumpingCateUuid}
@@ -279,7 +253,14 @@ export function ProductBrowseContent({
         onValueChange={search.handleSearchDraftChange}
       />
 
-      {normalMenu.loading && !hasAnyProducts ? <ProductsSkeleton /> : null}
+      <PublicLoadFeedback
+        loading={loadingMenu}
+        error={menuLoadError || normalMenu.error}
+        onRetry={retryMenu}
+      />
+      {loadingMenu && !hasAnyProducts ? (
+        <ProductsSkeleton layoutMode={productLayoutMode} />
+      ) : null}
 
       <StatusRailSection
         title={statusSectionLabel(PUBLIC_MENU_KIND.PROMOTION, lang)}
@@ -336,7 +317,7 @@ export function ProductBrowseContent({
                   categoryRefs.current[category.cateUuid] = element;
                 }}
               />
-            ),
+            )
           )}
 
           {hasMoreRenderedMenu ? (
@@ -355,16 +336,38 @@ export function ProductBrowseContent({
         <MenuEmptyState />
       ) : null}
 
-      <ScrollJumpControls edge={scrollJumpEdge} onScroll={handleScrollJump} />
-
       <BottomNav
         cartQty={cartQty}
+        needsConfirmation={Boolean(
+          getConfirmableOrderPayload(cart, cartStatusRule)
+        )}
         cartTargetRef={cartTargetRef}
         hideCart={table?.view_only}
+        onScan={qrOrderScanner.openQrOrderScanner}
+        scanTargetRef={viewOnlyScanButtonRef}
         onMenu={handleScrollToTop}
         onCart={() => onCartOpenChange(true)}
         onShare={qr.handleOpenQrDialog}
+        onCallStaff={
+          !viewOnly && table
+            ? () => {
+                setWaiterMounted(true);
+                setWaiterOpen(true);
+              }
+            : undefined
+        }
       />
+
+      {!viewOnly && table && waiterMounted ? (
+        <CustomerWaiterSheet
+          key={token}
+          open={waiterOpen}
+          onOpenChange={setWaiterOpen}
+          token={token}
+          branch={table.branch_uuid_fk}
+          table={table.table_uuid}
+        />
+      ) : null}
 
       <CartFlyAnimationLayer
         animations={cartFlyAnimations}
@@ -386,7 +389,9 @@ export function ProductBrowseContent({
         status={qrOrderScanner.qrOrderScannerStatus}
         videoRef={qrOrderScanner.qrOrderScannerVideoRef}
         onOpenChange={(next) =>
-          next ? qrOrderScanner.openQrOrderScanner() : qrOrderScanner.closeQrOrderScanner()
+          next
+            ? qrOrderScanner.openQrOrderScanner()
+            : qrOrderScanner.closeQrOrderScanner()
         }
       />
 
@@ -407,13 +412,20 @@ export function ProductBrowseContent({
             void cartActions.handleAddToCart(
               selectedProduct,
               payload,
-              sourceRect,
+              sourceRect
             );
         }}
       />
 
+      <PublicSuccessDialog
+        open={cartActions.confirmationSuccess}
+        onOpenChange={cartActions.setConfirmationSuccess}
+        message={t("publicSuccess.order")}
+      />
       <CartSheet
         open={cartOpen}
+        loadError={cartLoadError}
+        onRetryLoad={retryCart}
         onOpenChange={onCartOpenChange}
         cart={cart}
         statusRule={cartStatusRule}
@@ -439,36 +451,5 @@ export function ProductBrowseContent({
         quantityTarget={cartActions.quantityTarget}
       />
     </div>
-  );
-}
-
-function LayoutModeButton({
-  active,
-  label,
-  icon,
-  onClick,
-}: {
-  active: boolean;
-  label: string;
-  icon: ReactNode;
-  onClick: () => void;
-}) {
-  return (
-    <Button
-      type="button"
-      size="icon-sm"
-      variant="ghost"
-      className={cn(
-        "size-11 rounded-lg",
-        active
-          ? "bg-yg-accent-soft text-yg-accent-strong hover:bg-yg-accent-soft"
-          : "text-yg-faint hover:bg-yg-panel-hover hover:text-yg-ink",
-      )}
-      aria-label={label}
-      aria-pressed={active}
-      onClick={onClick}
-    >
-      {icon}
-    </Button>
   );
 }

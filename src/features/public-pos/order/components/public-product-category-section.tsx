@@ -145,7 +145,7 @@ export const ProductCategorySection = memo(function ProductCategorySection({
       // จอ — สอง mechanism ตรวจ "มองเห็นหรือยัง" ชนกัน ทำให้บาง section เว้นที่ว่างขนาด
       // ใหญ่ค้างไว้ (จอง contain-intrinsic-size แต่ยังไม่ยอม paint เนื้อหาจริง) ตัด
       // content-visibility ออก ปล่อยให้ IntersectionObserver ที่มีอยู่แล้วจัดการคนเดียวพอ
-      className="mt-6 scroll-mt-40 border-t border-yg-divider pt-5 first:mt-0 first:border-t-0 first:pt-0 sm:mt-8"
+      className="mt-3 scroll-mt-40 border-t border-yg-divider pt-3 first:mt-0 first:border-t-0 first:pt-0"
     >
       <PublicSectionHeading
         title={category.cateName}
@@ -177,7 +177,7 @@ export const ProductCategorySection = memo(function ProductCategorySection({
         <div
           className={
             // List rows sit on the page with a hairline between them instead of cards.
-            layoutMode === "list" ? "flex flex-col divide-y divide-yg-divider" : PRODUCT_GRID_CLASS
+            layoutMode === "list" ? "flex flex-col divide-y divide-yg-line/60" : PRODUCT_GRID_CLASS
           }
         >
           {products.map((product) => (
@@ -195,7 +195,7 @@ export const ProductCategorySection = memo(function ProductCategorySection({
           ))}
         </div>
       ) : (
-        <div className="rounded-xl border border-dashed border-yg-line bg-yg-panel2 p-4 text-center text-sm font-semibold text-yg-muted">
+        <div className="rounded-[8px] border border-dashed border-yg-line bg-yg-panel2 p-4 text-center text-sm font-semibold text-yg-muted">
           {t("pos.noProductsInCategory")}
         </div>
       )}

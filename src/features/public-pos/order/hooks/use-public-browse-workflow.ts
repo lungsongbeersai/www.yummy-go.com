@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useMemo, useRef } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useShallow } from "zustand/react/shallow";
 import { usePublicPosStore } from "@/stores/public-pos-store";
@@ -90,6 +90,7 @@ export function usePublicBrowseWorkflow({
     })),
   );
 
+  const [cartLoadError, setCartLoadError] = useState<string | null>(null);
   const cartTargetRef = useRef<HTMLButtonElement | null>(null);
   const { cartFlyAnimations, playCartFlyAnimation, handleCartFlyDone } =
     useCartFlyAnimation(cartTargetRef);
@@ -121,10 +122,26 @@ export function usePublicBrowseWorkflow({
     () =>
       backgroundCartRefreshRef.current!(
         `${token}:${lang}`,
-        () => loadCart({ t: token, lang }).then(() => undefined),
+        () => loadCart({ t: token, lang }).then(() => { setCartLoadError(null); }).catch((error: unknown) => {
+          setCartLoadError(error instanceof Error ? error.message : t("pos.publicLoadFailed"));
+          throw error;
+        }),
       ),
-    [loadCart, token, lang],
+    [loadCart, token, lang, t],
   );
+  useEffect(() => {
+    if (viewOnly || !token) return;
+    let cancelled = false;
+    void refreshCartInBackground().catch((error) => {
+      if (!cancelled) toast({
+        title: t("pos.orderFailed"),
+        description: error instanceof Error ? error.message : undefined,
+        tone: "error",
+      });
+    });
+    return () => { cancelled = true; };
+  }, [refreshCartInBackground, t, toast, token, viewOnly]);
+
   usePublicOrderRealtime({
     branchUuid: viewOnly ? undefined : table?.branch_uuid_fk,
     refresh: refreshCartInBackground,
@@ -139,6 +156,16 @@ export function usePublicBrowseWorkflow({
   });
   const qr = usePublicQrDialog({ table, t, toast });
   const qrOrderScanner = usePublicQrOrderScanner({ currentToken: token, t, toast });
+  const ensureCartWithFeedback = useCallback(async (params: Parameters<typeof ensureCartLoaded>[0]) => {
+    try {
+      const result = await ensureCartLoaded(params);
+      setCartLoadError(null);
+      return result;
+    } catch (error) {
+      setCartLoadError(error instanceof Error ? error.message : t("pos.publicLoadFailed"));
+      throw error;
+    }
+  }, [ensureCartLoaded, t]);
   const cartActions = usePublicCartOrderActions({
     cart,
     cartOpen,
@@ -147,7 +174,7 @@ export function usePublicBrowseWorkflow({
     confirmKitchen,
     createOrder,
     deleteItem,
-    ensureCartLoaded,
+    ensureCartLoaded: ensureCartWithFeedback,
     lang,
     loadProductItem,
     loadingItem,
@@ -165,6 +192,9 @@ export function usePublicBrowseWorkflow({
   });
 
   return {
+    token,
+    cartLoadError,
+    retryCart: () => { void refreshCartInBackground().catch(() => undefined); },
     cart,
     cartActions,
     cartFlyAnimations,

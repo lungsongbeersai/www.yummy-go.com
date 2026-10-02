@@ -313,11 +313,11 @@ describe("public POS product helpers", () => {
     });
   });
 
-  it("normalizes product layout modes with grid as the safe fallback", () => {
+  it("normalizes product layout modes with list as the default", () => {
     expect(normalizePublicProductLayoutMode("grid")).toBe("grid");
     expect(normalizePublicProductLayoutMode("list")).toBe("list");
-    expect(normalizePublicProductLayoutMode("table")).toBe("grid");
-    expect(normalizePublicProductLayoutMode(null)).toBe("grid");
+    expect(normalizePublicProductLayoutMode("table")).toBe("list");
+    expect(normalizePublicProductLayoutMode(null)).toBe("list");
   });
 
   it("normalizes accents with emerald as the safe fallback", () => {
@@ -382,6 +382,18 @@ describe("public POS product helpers", () => {
         promotionStatus,
       )[0]?.products,
     ).toEqual([]);
+  });
+
+  it("hides confirmed empty categories while retaining unloaded categories", () => {
+    const categories = [
+      category("empty", []),
+      category("unloaded", []),
+      category("available", [product({ prodUuid: "available" })]),
+      category("sold-out", [product({ prodUuid: "sold-out", canAdd: false })]),
+    ];
+    expect(filterVisiblePublicMenuCategories(
+      categories, normalStatus, ["empty", "available", "sold-out"],
+    ).map((item) => item.cateUuid)).toEqual(["unloaded", "available"]);
   });
 
   it.each([

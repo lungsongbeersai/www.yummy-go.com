@@ -218,3 +218,13 @@ export function disconnectSocket() {
   socket = null;
   joinedBranch = null;
 }
+
+// Dedicated waiter events never trigger order/cart recalculation.
+export function subscribeWaiterRequests(branchUuid: string, handler: BranchRealtimeHandler) {
+  if (typeof window === "undefined" || !branchUuid) return () => {};
+  const active = getSocket(branchUuid);
+  const reconnect = () => handler({ branch_uuid_fk: branchUuid });
+  active.on("waiter_request_changed", handler);
+  active.on("connect", reconnect);
+  return () => { active.off("waiter_request_changed", handler); active.off("connect", reconnect); };
+}

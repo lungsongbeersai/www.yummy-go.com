@@ -2,7 +2,7 @@
 
 import type { ReactNode, RefObject } from "react";
 import { useTranslation } from "react-i18next";
-import { Bell, Share2, ShoppingBag, Utensils } from "lucide-react";
+import { Bell, ScanLine, Share2, ShoppingBag, Utensils } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Tooltip,
@@ -12,13 +12,18 @@ import {
 import { cn } from "@/lib/utils";
 
 export function BottomNav({
+  needsConfirmation = false,
   cartQty,
   cartTargetRef,
   hideCart = false,
   onMenu,
   onCart,
   onShare,
+  onCallStaff,
+  onScan,
+  scanTargetRef,
 }: {
+  needsConfirmation?: boolean;
   cartQty: number;
   cartTargetRef: RefObject<HTMLButtonElement | null>;
   // true เฉพาะ QR เมนูอย่างเดียว (view_only) — ไม่มีตะกร้าให้เปิดจริง
@@ -26,6 +31,9 @@ export function BottomNav({
   onMenu: () => void;
   onCart: () => void;
   onShare: () => void;
+  onCallStaff?: () => void;
+  onScan?: () => void;
+  scanTargetRef?: RefObject<HTMLButtonElement | null>;
 }) {
   const { t } = useTranslation();
   const staffComingSoon = t("pos.comingSoon");
@@ -33,8 +41,8 @@ export function BottomNav({
   return (
     <nav
       className={cn(
-        "fixed bottom-[max(clamp(14px,3vw,22px),env(safe-area-inset-bottom))] left-1/2 z-50 grid w-[min(92vw,420px)] -translate-x-1/2 gap-1 rounded-2xl border border-yg-divider bg-yg-bg2 p-2 shadow-lg",
-        hideCart ? "grid-cols-3" : "grid-cols-4",
+        "fixed inset-x-0 bottom-0 z-40 grid gap-1 border-t border-yg-divider bg-yg-panel px-3 pt-2 pb-[max(8px,env(safe-area-inset-bottom))] shadow-none sm:inset-x-auto sm:bottom-2 sm:left-1/2 sm:w-105 sm:-translate-x-1/2 sm:rounded-lg sm:border sm:p-1",
+        hideCart ? "grid-cols-3" : "grid-cols-4"
       )}
     >
       <NavButton
@@ -44,13 +52,25 @@ export function BottomNav({
         onClick={onMenu}
         active
       />
-      {hideCart ? null : (
+      {hideCart ? (
+        <NavButton
+          icon={<ScanLine />}
+          label={t("pos.scanToOrderShort")}
+          ariaLabel={t("pos.viewOnlyOrderBannerCta")}
+          onClick={onScan}
+          buttonRef={scanTargetRef}
+        />
+      ) : (
         <NavButton
           icon={<ShoppingBag />}
-          label={t("pos.navCart")}
+          label={
+            needsConfirmation
+              ? `${t("pos.cartNeedsConfirm")} (${cartQty})`
+              : `${t("pos.navCart")} (${cartQty})`
+          }
           ariaLabel={t("pos.basket")}
           onClick={onCart}
-          badge={cartQty}
+          attention={needsConfirmation}
           buttonRef={cartTargetRef}
         />
       )}
@@ -60,13 +80,16 @@ export function BottomNav({
         ariaLabel={t("pos.qrCode")}
         onClick={onShare}
       />
-      <NavButton
-        icon={<Bell />}
-        label={t("pos.navStaff")}
-        ariaLabel={t("pos.callWaiter")}
-        description={staffComingSoon}
-        disabled
-      />
+      {!hideCart ? (
+        <NavButton
+          icon={<Bell />}
+          label={t("pos.navStaff")}
+          ariaLabel={t("pos.callWaiter")}
+          description={onCallStaff ? undefined : staffComingSoon}
+          disabled={!onCallStaff}
+          onClick={onCallStaff}
+        />
+      ) : null}
     </nav>
   );
 }
@@ -76,7 +99,7 @@ function NavButton({
   label,
   ariaLabel,
   active,
-  badge,
+  attention = false,
   buttonRef,
   description,
   disabled,
@@ -86,14 +109,15 @@ function NavButton({
   label: string;
   ariaLabel: string;
   active?: boolean;
-  badge?: number;
+  attention?: boolean;
   buttonRef?: RefObject<HTMLButtonElement | null>;
   description?: string;
   disabled?: boolean;
   onClick?: () => void;
 }) {
-  const accessibleLabel = description ? `${ariaLabel} - ${description}` : ariaLabel;
-  const badgeLabel = typeof badge === "number" && badge > 99 ? "99+" : String(badge ?? "");
+  const accessibleLabel = description
+    ? `${ariaLabel} - ${description}`
+    : ariaLabel;
 
   const button = (
     <Button
@@ -102,25 +126,29 @@ function NavButton({
       size="icon-lg"
       ref={buttonRef}
       className={cn(
-        "relative h-13 w-full flex-col gap-1 rounded-lg px-1 text-[10.5px] font-medium leading-none duration-150 ease-out active:scale-90 active:duration-75 motion-reduce:transition-none",
-        active ? "bg-yg-accent-soft text-yg-accent-strong" : "text-yg-muted",
+        "relative h-12 w-full flex-col gap-1 rounded-lg px-1 text-[10.5px] font-medium leading-none duration-150 ease-out active:scale-90 active:duration-75 motion-reduce:transition-none",
+        attention
+          ? "yg-cart-needs-confirm bg-yg-accent text-yg-on-accent"
+          : active
+          ? "bg-yg-accent-soft text-yg-accent-strong"
+          : "text-yg-muted",
         // ดีไซน์ใช้ opacity .5 ของ Button เริ่มต้น ซึ่งรวมกับสี muted แล้วอ่านไม่ออก ยกเป็น .55
         // disabled ปิด pointer-events ไว้แล้วจาก Button พื้นฐาน :active จึงไม่มีวันติด
         disabled
           ? "opacity-55 hover:bg-transparent hover:text-yg-muted"
-          : "hover:bg-yg-panel-hover hover:text-yg-ink",
+          : attention
+          ? "hover:text-yg-on-accent"
+          : "hover:bg-yg-panel-hover hover:text-yg-ink"
       )}
       aria-label={accessibleLabel}
       disabled={disabled}
       onClick={onClick}
     >
-      <span className="relative [&_svg]:size-4.5 [&_svg]:stroke-2" aria-hidden="true">
+      <span
+        className="relative [&_svg]:size-5 [&_svg]:stroke-2"
+        aria-hidden="true"
+      >
         {icon}
-        {badge && badge > 0 ? (
-          <span className="absolute -right-2 -top-1.5 grid h-4 min-w-4 place-items-center rounded-full border-2 border-yg-bg2 bg-yg-accent px-1 text-2xs font-extrabold leading-none text-yg-on-accent">
-            {badgeLabel}
-          </span>
-        ) : null}
       </span>
       <span className="lao-tone-text block max-w-full truncate text-center">
         {label}

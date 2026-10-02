@@ -51,32 +51,30 @@ export function ProductMedia({
       ? "96px"
       : variant === "sheet"
         ? "(min-width: 640px) 500px, 96vw"
-        : "(min-width: 1024px) 240px, (min-width: 640px) 30vw, 50vw";
+        : "(min-width: 1024px) 220px, (min-width: 640px) 30vw, calc((100vw - 40px) / 2)";
 
   if (imageUrl) {
-    // Tiles (everything but the sheet banner): the picture is fitted by its own shape, so its
-    // rounded corners are the picture's corners (see FittedTileImage). No plate behind it: a
-    // tinted box around a narrower picture read as a second, differently shaped frame.
-    if (variant !== "sheet") {
+    // Fit each photo without cropping inside a consistent neutral frame.
+    // Actions belong to the frame so portrait and landscape photos align.
+    if (variant !== "sheet" && variant !== "listThumb") {
       return (
-        <div className={cn("relative w-full overflow-hidden", mediaClass)}>
+        <div className={cn("relative w-full overflow-hidden bg-yg-panel2", mediaClass)}>
           <FittedTileImage
             alt={product.prodName}
             blocked={Boolean(blockedState)}
-            boxRatio={variant === "listThumb" ? 1 : IMAGE_CROP_ASPECT}
-            inset={variant === "listThumb"}
+            boxRatio={IMAGE_CROP_ASPECT}
+            inset={false}
             preload={preload}
             // card 18 − padding 8 and the 14px list thumbnail both give 10; the small sheet thumbnail 8.
             radiusClass={variant === "sheetThumb" ? "rounded-md" : "rounded-lg"}
             sizes={imageSizes}
             src={imageUrl}
-          >
-            {overlay}
-          </FittedTileImage>
+          />
+          {overlay}
           <ProductMediaStateOverlay
             blockedState={blockedState}
             label={blockedLabel}
-            compact={variant === "listThumb" || variant === "sheetThumb"}
+            compact={variant === "sheetThumb"}
           />
         </div>
       );
@@ -97,11 +95,11 @@ export function ProductMedia({
           // ให้รูปแรกที่อยู่เหนือ fold เริ่มโหลดทันทีที่ mount ไม่ต้องรอ intersection check ของ lazy
           loading={preload ? "eager" : "lazy"}
           fetchPriority={preload ? "high" : undefined}
-          quality={60}
+          quality={75}
           sizes={imageSizes}
-          className={cn("object-contain", blockedState ? "saturate-[0.55]" : "")}
+          className={cn(variant === "listThumb" ? "object-cover" : "object-contain", blockedState ? "saturate-[0.55]" : "")}
         />
-        <ProductMediaStateOverlay blockedState={blockedState} label={blockedLabel} />
+        <ProductMediaStateOverlay blockedState={blockedState} label={blockedLabel} compact={variant === "listThumb"} />
       </div>
     );
   }
@@ -114,9 +112,9 @@ export function ProductMedia({
           fillsParent ? "" : "border-b border-yg-line2",
           mediaClass,
         )}
-        style={{ backgroundColor: colorSwatch }}
+        style={{ backgroundColor: `color-mix(in srgb, ${colorSwatch} 12%, var(--yg-panel))` }}
       >
-        <span className="grid size-14 place-items-center rounded-full bg-black/20 text-white backdrop-blur-sm">
+        <span className="grid size-14 place-items-center rounded-lg border border-yg-accent-line bg-yg-panel text-yg-accent-strong">
           <Utensils
             className={cn("size-7", blockedState ? "opacity-75" : "")}
             aria-hidden="true"
@@ -126,7 +124,7 @@ export function ProductMedia({
         <ProductMediaStateOverlay
           blockedState={blockedState}
           label={blockedLabel}
-          compact={variant === "listThumb" || variant === "sheetThumb"}
+          compact={variant === "sheetThumb"}
         />
       </div>
     );
@@ -150,7 +148,7 @@ export function ProductMedia({
       <ProductMediaStateOverlay
         blockedState={blockedState}
         label={blockedLabel}
-        compact={variant === "listThumb" || variant === "sheetThumb"}
+        compact={variant === "sheetThumb"}
       />
     </div>
   );
@@ -236,7 +234,7 @@ function FittedTileImage({
           preload={preload || undefined}
           loading={preload ? "eager" : "lazy"}
           fetchPriority={preload ? "high" : undefined}
-          quality={60}
+          quality={75}
           sizes={sizes}
           onLoad={(event) => {
             const { naturalHeight, naturalWidth } = event.currentTarget;

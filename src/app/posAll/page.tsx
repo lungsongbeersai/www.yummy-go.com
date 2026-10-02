@@ -34,10 +34,19 @@ const manrope = localFont({
   variable: "--font-yg-sans-var"
 });
 
+const inter = localFont({
+  src: "../../design-system/font-files/inter-variable.woff2",
+  weight: "100 900",
+  display: "swap",
+  adjustFontFallback: false,
+  variable: "--font-yg-number-var"
+});
+
 const fontVariables = [
   cormorantGaramond.variable,
   notoSerifLao.variable,
-  manrope.variable
+  manrope.variable,
+  inter.variable
 ].join(" ");
 
 export default function PublicPosAllPage() {

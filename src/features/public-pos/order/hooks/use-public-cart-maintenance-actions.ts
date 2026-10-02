@@ -5,7 +5,11 @@ import { useCallback, useEffect, useState } from "react";
 import type { CartItem, CartOrder, ChangeType } from "@/services/pos";
 import { usePublicPosStore } from "@/stores/public-pos-store";
 import type { ToastInput } from "@/stores/toast-store";
-import { getCartItemQty, getConfirmableOrderPayload, getOrderItemUuid } from "../utils";
+import {
+  getCartItemQty,
+  getConfirmableOrderPayload,
+  getOrderItemUuid,
+} from "../utils";
 import { useCartQuantityClampWarning } from "./use-cart-quantity-clamp-warning";
 
 type PublicPosState = ReturnType<typeof usePublicPosStore.getState>;
@@ -39,10 +43,15 @@ export function usePublicCartMaintenanceActions({
   updateNote,
   updateQty,
 }: UsePublicCartMaintenanceActionsParams) {
+  const [confirmationSuccess, setConfirmationSuccess] = useState(false);
   const [noteTarget, setNoteTarget] = useState<CartItem | null>(null);
   const [noteDraft, setNoteDraft] = useState("");
   const [quantityTarget, setQuantityTarget] = useState<CartItem | null>(null);
-  const { clearPending, trackIncrease } = useCartQuantityClampWarning({ cart, t, toast });
+  const { clearPending, trackIncrease } = useCartQuantityClampWarning({
+    cart,
+    t,
+    toast,
+  });
 
   const handleUpdateItemQty = useCallback(
     async (orderItemUuid: string, changeType: ChangeType, changeQty = 1) => {
@@ -60,7 +69,8 @@ export function usePublicCartMaintenanceActions({
         // เช็คสต็อกได้แค่ตอนเพิ่มจำนวน — ลดจำนวนไม่มีทางชนเพดานสต็อก และถ้าเทียบด้วยจะพลาดโทษสต็อก
         // ผิดให้กรณีอื่น เช่นเครื่องอื่นแก้ไอเทมเดียวกันพร้อมกันจนได้ค่าน้อยกว่าที่เครื่องนี้ขอลด
         if (changeType === "INCREASE") {
-          const requestedQty = (currentItem ? getCartItemQty(currentItem) : 0) + changeQty;
+          const requestedQty =
+            (currentItem ? getCartItemQty(currentItem) : 0) + changeQty;
           trackIncrease(orderItemUuid, requestedQty);
         }
         return true;
@@ -74,7 +84,7 @@ export function usePublicCartMaintenanceActions({
         return false;
       }
     },
-    [cart, clearPending, t, toast, token, trackIncrease, updateQty],
+    [cart, clearPending, t, toast, token, trackIncrease, updateQty]
   );
 
   const handleOpenQuantityDialog = useCallback((item: CartItem) => {
@@ -102,11 +112,11 @@ export function usePublicCartMaintenanceActions({
       const success = await handleUpdateItemQty(
         orderItemUuid,
         delta > 0 ? "INCREASE" : "DECREASE",
-        Math.abs(delta),
+        Math.abs(delta)
       );
       if (success) setQuantityTarget(null);
     },
-    [handleUpdateItemQty, quantityTarget],
+    [handleUpdateItemQty, quantityTarget]
   );
 
   const handleDeleteItem = useCallback(
@@ -122,7 +132,7 @@ export function usePublicCartMaintenanceActions({
         });
       }
     },
-    [deleteItem, t, toast, token],
+    [deleteItem, t, toast, token]
   );
 
   const handleOpenNoteDialog = useCallback((item: CartItem) => {
@@ -178,7 +188,7 @@ export function usePublicCartMaintenanceActions({
         order_item_uuids: payload.orderItemUuids,
       });
 
-      toast({ title: t("pos.orderConfirmed"), tone: "success" });
+      setConfirmationSuccess(true);
     } catch (error) {
       toast({
         title: t("pos.orderConfirmFailed"),
@@ -201,6 +211,8 @@ export function usePublicCartMaintenanceActions({
   }, [cartOpen, refreshCart, t, toast]);
 
   return {
+    confirmationSuccess,
+    setConfirmationSuccess,
     handleConfirmKitchen,
     handleDeleteItem,
     handleNoteDialogOpenChange,

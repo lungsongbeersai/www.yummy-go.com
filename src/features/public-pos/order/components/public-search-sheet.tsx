@@ -59,9 +59,9 @@ export function PublicSearchSheet({
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent
         side="bottom"
-        className="yg-shell inset-0 flex h-dvh max-h-dvh w-screen max-w-none flex-col gap-0 overflow-hidden border-0 p-0 font-yg-sans text-yg-ink data-[side=bottom]:h-dvh"
+        className="yg-shell inset-0 flex h-dvh max-h-dvh w-screen max-w-none flex-col gap-0 overflow-hidden border-0 p-0 font-yg-sans text-yg-ink data-[side=bottom]:h-dvh pb-[env(safe-area-inset-bottom)] [&>[data-slot=sheet-close]]:rounded-lg [&>[data-slot=sheet-close]]:border [&>[data-slot=sheet-close]]:border-yg-divider [&>[data-slot=sheet-close]]:bg-yg-panel [&>[data-slot=sheet-close]]:text-yg-ink"
       >
-        <SheetHeader className="shrink-0 border-b border-yg-line bg-yg-bg2/85 px-4 py-4 text-left backdrop-blur-xl">
+        <SheetHeader className="shrink-0 border-b border-yg-line bg-yg-panel px-4 py-4 text-left">
           <div className="flex min-w-0 items-center gap-3 pr-10">
             <span className="grid size-11 shrink-0 place-items-center rounded-xl border border-yg-accent-line bg-yg-accent-soft text-yg-accent-strong">
               <Search className="size-5" />

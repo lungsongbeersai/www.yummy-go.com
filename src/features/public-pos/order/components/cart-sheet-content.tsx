@@ -28,6 +28,7 @@ import { useIsMobile } from "@/hooks/use-mobile";
 import { cn } from "@/lib/utils";
 import type { PublicCartSheetWorkflow } from "../hooks/use-public-cart-sheet-workflow";
 import { formatMoney } from "../utils";
+import { PublicLoadFeedback } from "./public-load-feedback";
 import { CartNoteDialog } from "./cart-note-dialog";
 import { CartQuantityDialog } from "./cart-quantity-dialog";
 import { CartGroup, CartTotalRow } from "./cart-sheet-items";
@@ -48,7 +49,8 @@ export function CartSheetContent({
     invoice,
     lang,
     loading,
-    onConfirmKitchen,
+    loadError,
+    onRetryLoad,    onConfirmKitchen,
     onDeleteItem,
     onNoteChange,
     onNoteOpen,
@@ -83,10 +85,11 @@ export function CartSheetContent({
         className={cn(
           "yg-shell overflow-hidden border-yg-line p-0 font-yg-sans text-yg-ink",
           isMobile
-            ? "mx-auto max-h-[92dvh] w-full max-w-xl rounded-t-3xl"
+            ? "mx-auto max-h-[92dvh] w-full max-w-xl rounded-t-2xl"
             : "h-dvh max-h-none w-full max-w-120 rounded-none border-l sm:max-w-120"
         )}
       >
+        <div className="px-4 pt-2"><PublicLoadFeedback loading={loading} error={loadError} onRetry={onRetryLoad} /></div>
         <SheetHeader className="border-b border-yg-line bg-yg-bg2 px-4 py-4 text-left">
           <div className="flex items-start justify-between gap-3">
             <div className="min-w-0">
@@ -106,7 +109,7 @@ export function CartSheetContent({
                   type="button"
                   variant="ghost"
                   size="icon"
-                  className="size-11 rounded-full text-yg-muted hover:bg-yg-panel-hover hover:text-yg-ink"
+                  className="size-11 rounded-lg border border-yg-divider bg-yg-panel text-yg-ink hover:bg-yg-panel-hover hover:text-yg-ink"
                   aria-label={t("actions.close")}
                   disabled={saving || confirming}
                 >
@@ -120,7 +123,7 @@ export function CartSheetContent({
         <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-3.5 py-3.5">
           {loading ? <CartSheetLoadingSkeleton /> : null}
 
-          {!loading && !allItems.length ? (
+          {!loading && !loadError && !allItems.length ? (
             <Empty className="min-h-56 border-none">
               <EmptyHeader>
                 <EmptyMedia variant="icon">
@@ -214,19 +217,28 @@ export function CartSheetContent({
                   </div>
                 </div>
                 {confirmableItemQty > 0 ? (
-                  <Button
-                    type="button"
-                    className="h-13.5 w-full rounded-xl bg-yg-accent text-base font-medium text-yg-on-accent hover:bg-yg-accent hover:brightness-105 disabled:opacity-55 disabled:shadow-none"
-                    onClick={onConfirmKitchen}
-                    disabled={!confirmableItems.length || saving || confirming}
-                  >
-                    {confirming ? (
-                      <Spinner />
-                    ) : (
-                      <Send data-icon="inline-start" aria-hidden="true" />
-                    )}
-                    {t("pos.confirmOrderItems", { count: confirmableItemQty })}
-                  </Button>
+                  <div className="grid gap-2">
+                    <p id="public-cart-confirm-hint" className="text-center text-xs text-yg-muted">
+                      {t("pos.confirmOrderHint")}
+                    </p>
+                    <Button
+                      type="button"
+                      aria-describedby="public-cart-confirm-hint"
+                      className={cn(
+                        "h-13.5 w-full rounded-xl bg-yg-accent text-base font-medium text-yg-on-accent hover:bg-yg-accent hover:brightness-105 disabled:opacity-55 disabled:shadow-none",
+                        confirmableItems.length > 0 && !saving && !confirming && "yg-cart-needs-confirm",
+                      )}
+                      onClick={onConfirmKitchen}
+                      disabled={!confirmableItems.length || saving || confirming}
+                    >
+                      {confirming ? (
+                        <Spinner />
+                      ) : (
+                        <Send data-icon="inline-start" aria-hidden="true" />
+                      )}
+                      {t("pos.confirmOrderItems", { count: confirmableItemQty })}
+                    </Button>
+                  </div>
                 ) : (
                   <Alert className="border-yg-accent-line bg-yg-accent-soft text-yg-accent-strong">
                     <CircleCheck aria-hidden="true" />

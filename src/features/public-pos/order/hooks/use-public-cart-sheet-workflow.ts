@@ -26,6 +26,8 @@ export interface CartSheetProps {
   statusRule: FetchCartStatusRule | null;
   lang: string;
   loading: boolean;
+  loadError?: string | null;
+  onRetryLoad?: () => void;
   saving: boolean;
   confirming: boolean;
   onUpdateQty: (
@@ -60,6 +62,8 @@ export function usePublicCartSheetWorkflow({
   statusRule,
   lang,
   loading,
+  loadError,
+  onRetryLoad,
   saving,
   confirming,
   onUpdateQty,
@@ -129,7 +133,7 @@ export function usePublicCartSheetWorkflow({
     () => [
       {
         key: "confirmable",
-        title: cartGroupTitle(confirmableItems, t("pos.newOrder")),
+        title: t("pos.cartStatusWaiting"),
         items: confirmableItems,
       },
       {
@@ -167,6 +171,8 @@ export function usePublicCartSheetWorkflow({
   );
 
   return {
+    loadError,
+    onRetryLoad,
     allItems,
     cart,
     confirming,

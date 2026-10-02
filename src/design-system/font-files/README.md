@@ -14,3 +14,5 @@ Source revision: `e44c4b011a820c2cbe2fd2cfa8052037d7edb571`
 
 All five families are distributed under the SIL Open Font License 1.1. The
 license text is stored beside this file as `OFL.txt`.
+
+Inter Variable 4.1 (`inter-variable.woff2`) is used for public ordering prices and numbers. Source: https://github.com/rsms/inter/tree/v4.1/docs/font-files. License: `inter-LICENSE.txt` (SIL Open Font License 1.1). Loaded locally by the `/posAll` route.

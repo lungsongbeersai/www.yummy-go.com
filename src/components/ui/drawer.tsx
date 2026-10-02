@@ -68,6 +68,10 @@ function DrawerContent({
   )
 }
 
+function DrawerHandle({ className, ...props }: React.ComponentProps<typeof DrawerPrimitive.Handle>) {
+  return <DrawerPrimitive.Handle data-slot="drawer-handle" className={cn("mx-auto my-3 h-1 w-10 shrink-0 rounded-full bg-muted-foreground/35", className)} {...props} />
+}
+
 function DrawerHeader({ className, ...props }: React.ComponentProps<"div">) {
   return (
     <div
@@ -128,6 +132,7 @@ export {
   DrawerClose,
   DrawerContent,
   DrawerHeader,
+  DrawerHandle,
   DrawerFooter,
   DrawerTitle,
   DrawerDescription,

@@ -4,18 +4,18 @@ import type { PublicProductLayoutMode } from "@/features/public-pos/order/types"
 export function normalizePublicProductLayoutMode(
   value: unknown,
 ): PublicProductLayoutMode {
-  return value === "list" ? "list" : "grid";
+  return value === "grid" ? "grid" : "list";
 }
 
 export function readPublicProductLayoutMode(): PublicProductLayoutMode {
-  if (typeof window === "undefined") return "grid";
+  if (typeof window === "undefined") return "list";
 
   try {
     return normalizePublicProductLayoutMode(
       window.localStorage.getItem(PUBLIC_PRODUCT_LAYOUT_STORAGE_KEY),
     );
   } catch {
-    return "grid";
+    return "list";
   }
 }
 

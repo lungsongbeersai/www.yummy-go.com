@@ -24,13 +24,13 @@ export function PublicSectionHeading({
   return (
     <div
       className={cn(
-        "mb-3 flex min-w-0 items-end justify-between gap-3",
+        "mb-2.5 flex min-w-0 items-end justify-between gap-3",
         className,
       )}
     >
       <div className="flex min-w-0 items-center gap-2.5">
         {icon ? (
-          <span className="grid size-9 shrink-0 place-items-center rounded-lg border border-yg-accent-line bg-yg-accent-soft text-yg-accent-strong">
+          <span className="grid size-7 shrink-0 place-items-center rounded-lg border border-yg-accent-line bg-yg-accent-soft text-yg-accent-strong">
             {icon}
           </span>
         ) : null}
@@ -42,7 +42,7 @@ export function PublicSectionHeading({
           ) : null}
           <h2
             className={cn(
-              "lao-tone-text truncate font-yg-sans text-[clamp(18px,4.4vw,24px)] font-semibold leading-tight text-yg-ink",
+              "lao-tone-text truncate font-yg-sans text-[clamp(17px,4.2vw,20px)] font-semibold leading-tight text-yg-ink",
               eyebrow ? "mt-0.5" : "",
             )}
           >

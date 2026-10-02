@@ -28,7 +28,7 @@
   /* White product cards use a visible neutral-green outline. */
   --yg-card: #ffffff;
   /* เส้นคั่นแถวในมุมมองรายการ — --yg-line (emerald-100) จางเกินจนมองไม่เห็นบนพื้นขาว */
-  --yg-divider: #e3e9e6;
+  --yg-divider: #cbd6cf;
   --yg-panel-hover: rgb(209 250 229 / 0.5); /* emerald-100 */
   --yg-line: #dce8e1; /* emerald-100 */
   --yg-line2: #edf3ef;
@@ -190,7 +190,7 @@
   --font-yg-serif: var(--font-yg-serif-lao), var(--font-yg-serif-lat), Georgia,
     serif;
   --font-yg-display: var(--font-yg-serif-lat), Georgia, serif;
-  --font-yg-number: var(--font-noto-sans-lao), var(--font-yg-sans-var), system-ui, sans-serif;
+  --font-yg-number: var(--font-yg-number-var), var(--font-noto-sans-lao), system-ui, sans-serif;
   --font-yg-sans: var(--font-noto-sans-lao), var(--font-yg-sans-var),
     system-ui, sans-serif;
   --font-yg-mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas,
@@ -306,5 +306,28 @@ html.dark:has([data-yg-menu]:not([data-yg-theme="light"])) body {
   .yg-orbit-reverse,
   .yg-drift {
     animation: none !important;
+  }
+}
+
+/* Slow green/red cue highlights pending confirmation with readable text. */
+@keyframes yg-cart-confirm-pulse {
+  0%, 85%, 100% {
+    background-color: var(--yg-accent-strong);
+    box-shadow: 0 0 0 0 transparent;
+  }
+  20%, 60% {
+    background-color: color-mix(in srgb, var(--destructive) 72%, var(--yg-ink));
+    box-shadow: 0 0 0 4px color-mix(in srgb, var(--destructive) 30%, transparent);
+  }
+  70% {
+    background-color: color-mix(in srgb, var(--destructive) 72%, var(--yg-ink));
+    box-shadow: 0 0 0 7px transparent;
+  }
+}
+.yg-cart-needs-confirm { animation: yg-cart-confirm-pulse 4s ease-in-out infinite; }
+@media (prefers-reduced-motion: reduce) {
+  .yg-cart-needs-confirm {
+    animation: none;
+    background-color: color-mix(in srgb, var(--destructive) 72%, var(--yg-ink));
   }
 }
