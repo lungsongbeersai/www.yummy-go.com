@@ -126,12 +126,12 @@ export function TableListSection({
       <div className="flex shrink-0 flex-col gap-1.5 border-b border-border bg-background px-0 py-1.5 shadow-sm sm:px-4 xl:px-5">
         <div className="flex items-center gap-2">
           <div className="relative min-w-0 flex-1">
-            {/* Keep both arrows outside the scrolling viewport so chips never pass underneath. */}
+            {/* Keep the arrow outside the scrolling viewport so chips never pass underneath. */}
             <div
               ref={zoneRailRef}
               className={cn(
                 "-mx-1 overflow-x-auto overflow-y-hidden px-1 py-1",
-                zoneRailOverflowing && "mr-24"
+                zoneRailOverflowing && "mr-12"
               )}
             >
               <ToggleGroup
@@ -167,7 +167,7 @@ export function TableListSection({
               </ToggleGroup>
             </div>
             <HorizontalScrollArrows
-              placement="end"
+              placement="single-end"
               scrollRef={zoneRailRef}
               onOverflowChange={setZoneRailOverflowing}
             />
@@ -201,7 +201,7 @@ export function TableListSection({
               ref={statusRailRef}
               className={cn(
                 "-mx-1 overflow-x-auto overflow-y-hidden px-1 py-1",
-                statusRailOverflowing && "mr-24"
+                statusRailOverflowing && "mr-12"
               )}
             >
               <ToggleGroup
@@ -220,7 +220,7 @@ export function TableListSection({
               </ToggleGroup>
             </div>
             <HorizontalScrollArrows
-              placement="end"
+              placement="single-end"
               scrollRef={statusRailRef}
               onOverflowChange={setStatusRailOverflowing}
             />
