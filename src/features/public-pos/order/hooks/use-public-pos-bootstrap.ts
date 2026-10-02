@@ -182,6 +182,22 @@ export function usePublicPosBootstrap({
     [pathname, router, searchParamsString, token],
   );
 
+  // Checkout can revoke a QR while its menu is already open. Rescan once
+  // for the read-only fallback without discarding the error's branch context.
+  const handledRevokedTokenRef = useRef("");
+  useEffect(() => {
+    if (!qrRevoked || !token || handledRevokedTokenRef.current === token) return;
+    if (!usePublicPosStore.getState().scan) return;
+    handledRevokedTokenRef.current = token;
+    void scanTable(token, activeLanguage).catch((error: unknown) => {
+      if (usePublicPosStore.getState().token !== token) return;
+      if (!redirectToFallbackViewOnlyMenu(error)) {
+        setError(error instanceof Error ? error.message : t("pos.qrScanFailed"));
+      }
+    });
+  }, [qrRevoked, token, activeLanguage, scanTable,
+    redirectToFallbackViewOnlyMenu, setError, t]);
+
   useEffect(() => {
     if (!hasToken) {
       reset();
