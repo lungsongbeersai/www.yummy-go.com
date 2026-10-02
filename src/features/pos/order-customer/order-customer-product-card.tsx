@@ -68,7 +68,7 @@ export const EmployeeProductCard = memo(function EmployeeProductCard({
   const actionState = getProductActionState(product, activeSort);
   const actionLabel = productActionLabel(actionState, product, activeSort, t);
   const copy = productCardCopy(nativeMobile);
-  const cardRadiusClass = productCardRadiusClass(nativeMobile);
+  const cardRadiusClass = productCardRadiusClass();
   const cardActionLabel =
     actionState === "choose"
       ? t(copy.chooseActionKey)
@@ -424,7 +424,6 @@ function productCardDescription(
 export function ProductGridSkeleton({
   className,
   compact = false,
-  nativeMobile = false,
 }: {
   className?: string;
   compact?: boolean;
@@ -444,7 +443,7 @@ export function ProductGridSkeleton({
           aria-hidden="true"
           className={cn(
             "gap-0 overflow-hidden border-border bg-card py-0 shadow-xs",
-            productCardRadiusClass(nativeMobile)
+            productCardRadiusClass()
           )}
         >
           <div

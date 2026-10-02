@@ -18,6 +18,6 @@ export function productCardCopy(nativeMobile: boolean) {
     : DESKTOP_PRODUCT_CARD_COPY;
 }
 
-export function productCardRadiusClass(nativeMobile: boolean) {
-  return nativeMobile ? "rounded-md" : "rounded-xl";
+export function productCardRadiusClass() {
+  return "rounded-md";
 }

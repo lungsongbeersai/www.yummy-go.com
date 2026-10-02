@@ -16,8 +16,7 @@ describe("product card platform copy", () => {
     });
   });
 
-  it("uses an 8px radius only on native mobile cards", () => {
-    expect(productCardRadiusClass(true)).toBe("rounded-md");
-    expect(productCardRadiusClass(false)).toBe("rounded-xl");
+  it("uses an 8px radius on all product cards", () => {
+    expect(productCardRadiusClass()).toBe("rounded-md");
   });
 });
