@@ -665,10 +665,14 @@
     },
     "title": "Notifications",
     "sound": {
-      "title": "New order sound",
-      "description": "Choose the sound that plays when a new order arrives. Saved on this device immediately.",
+      "title": "Notification sounds",
+      "description": "Choose a sound for each event",
       "preview": "Preview",
       "stop": "Stop",
+      "enabled": "Play sound",
+      "enabledOn": "Plays when an alert arrives",
+      "enabledOff": "Muted — alerts still show on screen",
+      "off": "Muted",
       "options": {
         "default": "Original",
         "notification": "Notification",
@@ -679,10 +683,14 @@
         "churchBell": "Church bell",
         "cashRegister": "Cash register",
         "phone": "Phone ring"
+      },
+      "kinds": {
+        "order": "New order",
+        "waiter": "Call staff"
       }
     },
-    "pendingCount": "{{count}} new order(s) awaiting confirmation",
-    "emptyDescription": "New orders from customers will appear here"
+    "emptyDescription": "New orders from customers will appear here",
+    "pendingSummary": "{{count}} item(s) need attention"
   },
   "orderQueue": {
     "title": "Order Queue",
@@ -1128,6 +1136,8 @@
     "publicMenu": "Public menu",
     "tweaksTitle": "Tweaks",
     "tweaksAccent": "Accent",
+    "switchToDark": "Switch to dark mode",
+    "switchToLight": "Switch to light mode",
     "themeLight": "Light",
     "themeDark": "Dark",
     "accent_emerald": "Emerald",
@@ -3438,12 +3448,16 @@
   },
   "waiter": {
     "title": "Call staff",
-    "description": "Select what you need, then write the quantities in the message",
+    "description": "Call staff to your table right away, or pick what you need first",
     "bowl": "Bowl",
     "spoon": "Spoon",
     "chopsticks": "Chopsticks",
     "staff": "Staff",
     "message": "Additional message",
+    "comeToTable": "Ask staff to come to the table",
+    "increase": "Add {{name}}",
+    "decrease": "Remove {{name}}",
+    "sendWithCount": "Send request ({{count}})",
     "send": "Send request",
     "sent": "Request sent. Staff will assist you shortly.",
     "failed": "Unable to connect. Please try again.",
@@ -3452,14 +3466,14 @@
     "status2": "Completed",
     "accept": "Accept",
     "complete": "Complete",
-    "messagePlaceholder": "For example: 2 bowls, 2 spoons",
+    "messagePlaceholder": "For example: extra ice, tissues",
     "sendTab": "Send request",
     "historyTab": "Call history",
     "emptyHistory": "No requests yet",
     "quickSelect": "What do you need?",
-    "quantityHint": "Add quantities or any additional details",
     "pullRefresh": "Pull to refresh",
-    "releaseRefresh": "Release to refresh"
+    "releaseRefresh": "Release to refresh",
+    "requestCount": "{{count}} request(s)"
   },
   "publicSuccess": {
     "title": "Notification",

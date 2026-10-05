@@ -666,10 +666,14 @@
     },
     "title": "ການແຈ້ງເຕືອນ",
     "sound": {
-      "title": "ສຽງແຈ້ງເຕືອນອໍເດີໃໝ່",
-      "description": "ເລືອກສຽງທີ່ຈະດັງເມື່ອມີອໍເດີໃໝ່ເຂົ້າມາ. ບັນທຶກໃນອຸປະກອນນີ້ທັນທີ.",
+      "title": "ສຽງແຈ້ງເຕືອນ",
+      "description": "ເລືອກສຽງສຳລັບແຕ່ລະເຫດການ",
       "preview": "ຟັງຕົວຢ່າງ",
       "stop": "ຢຸດ",
+      "enabled": "ເປີດສຽງແຈ້ງເຕືອນ",
+      "enabledOn": "ດັງເມື່ອມີແຈ້ງເຕືອນ",
+      "enabledOff": "ປິດສຽງ — ຍັງສະແດງແຈ້ງເຕືອນເທິງໜ້າຈໍ",
+      "off": "ປິດສຽງ",
       "options": {
         "default": "ສຽງເດີມ",
         "notification": "ແຈ້ງເຕືອນ",
@@ -680,10 +684,14 @@
         "churchBell": "ລະຄັງ",
         "cashRegister": "ເຄື່ອງເກັບເງິນ",
         "phone": "ໂທລະສັບ"
+      },
+      "kinds": {
+        "order": "ອໍເດີໃໝ່",
+        "waiter": "ເອີ້ນພະນັກງານ"
       }
     },
-    "pendingCount": "{{count}} ອໍເດີໃໝ່ລໍຖ້າຢືນຢັນ",
-    "emptyDescription": "ອໍເດີໃໝ່ຈາກລູກຄ້າຈະສະແດງຢູ່ນີ້"
+    "emptyDescription": "ອໍເດີໃໝ່ຈາກລູກຄ້າຈະສະແດງຢູ່ນີ້",
+    "pendingSummary": "{{count}} ລາຍການລໍຖ້າດຳເນີນການ"
   },
   "orderQueue": {
     "title": "ຄິວອໍເດີ",
@@ -1131,6 +1139,8 @@
     "publicMenu": "ເມນູສາທາລະນະ",
     "tweaksTitle": "ປັບແຕ່ງ",
     "tweaksAccent": "ສີຫຼັກ",
+    "switchToDark": "ປ່ຽນເປັນໂໝດມືດ",
+    "switchToLight": "ປ່ຽນເປັນໂໝດສະຫວ່າງ",
     "themeLight": "ສະຫວ່າງ",
     "themeDark": "ມືດ",
     "accent_emerald": "Emerald",
@@ -3441,12 +3451,16 @@
   },
   "waiter": {
     "title": "ເອີ້ນພະນັກງານ",
-    "description": "ເລືອກສິ່ງທີ່ຕ້ອງການ ແລ້ວຂຽນຈຳນວນໃນຂໍ້ຄວາມ",
+    "description": "ກົດເອີ້ນພະນັກງານມາທີ່ໂຕະໄດ້ເລີຍ ຫຼື ເລືອກສິ່ງທີ່ຕ້ອງການກ່ອນ",
     "bowl": "ຖ້ວຍ",
     "spoon": "ບ່ວງ",
     "chopsticks": "ໄມ້ຖູ່",
     "staff": "ພະນັກງານ",
     "message": "ຂໍ້ຄວາມເພີ່ມເຕີມ",
+    "comeToTable": "ໃຫ້ພະນັກງານມາທີ່ໂຕະ",
+    "increase": "ເພີ່ມ {{name}}",
+    "decrease": "ຫຼຸດ {{name}}",
+    "sendWithCount": "ສົ່ງຄຳຂໍ ({{count}})",
     "send": "ສົ່ງຄຳຂໍ",
     "sent": "ສົ່ງຄຳຂໍແລ້ວ ພະນັກງານຈະມາບໍລິການ",
     "failed": "ບໍ່ສາມາດຕິດຕໍ່ໄດ້ ກະລຸນາລອງໃໝ່",
@@ -3455,14 +3469,14 @@
     "status2": "ບໍລິການແລ້ວ",
     "accept": "ຮັບເລື່ອງ",
     "complete": "ບໍລິການແລ້ວ",
-    "messagePlaceholder": "ຕົວຢ່າງ: ຖ້ວຍ 2 ໃບ, ບ່ວງ 2 ຄັນ",
+    "messagePlaceholder": "ຕົວຢ່າງ: ຂໍນ້ຳກ້ອນເພີ່ມ, ຂໍທິດຊູ",
     "sendTab": "ສົ່ງຄຳຂໍ",
     "historyTab": "ປະຫວັດການເອີ້ນ",
     "emptyHistory": "ຍັງບໍ່ມີປະຫວັດການເອີ້ນ",
     "quickSelect": "ສິ່ງທີ່ຕ້ອງການ",
-    "quantityHint": "ຂຽນຈຳນວນ ຫຼື ລາຍລະອຽດເພີ່ມໄດ້",
     "pullRefresh": "ດຶງລົງເພື່ອໂຫຼດໃໝ່",
-    "releaseRefresh": "ປ່ອຍເພື່ອໂຫຼດໃໝ່"
+    "releaseRefresh": "ປ່ອຍເພື່ອໂຫຼດໃໝ່",
+    "requestCount": "{{count}} ຄຳຂໍ"
   },
   "publicSuccess": {
     "title": "ແຈ້ງເຕືອນ",

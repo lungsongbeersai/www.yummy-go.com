@@ -5,7 +5,16 @@
 @import "tw-animate-css";
 @import "shadcn/tailwind.css";
 
-@custom-variant dark (&:is(.dark *));
+/* dark: ตาม .dark ที่ <html> (ธีมแอป) ยกเว้นในหน้าเมนู QR ที่มีธีมของตัวเอง: data-yg-theme="light" ปิด dark:
+   แม้ <html> เป็น .dark, data-yg-theme="dark" เปิด dark: แม้ <html> สว่าง (ดู public-pos-theme.ts)
+   :where ใน :not ทำให้ specificity เท่าเดิม (0,1,0) — ไม่เปลี่ยนลำดับชนะของ dark: กับ variant อื่นทั้งแอป */
+/* ใช้รูปแบบ block + @slot — รูปแบบย่อบรรทัดเดียว (&...) ที่มี comma/เครื่องหมายคำพูดในตัวเลือก Tailwind ไม่ยอมใช้
+   (ได้ :is(.dark *) เดิมออกมาโดยไม่ error) */
+@custom-variant dark {
+  &:is(.dark *, [data-yg-theme="dark"] *):not(:where([data-yg-theme="light"] *)) {
+    @slot;
+  }
+}
 
 :root {
   --card: oklch(1 0 0);

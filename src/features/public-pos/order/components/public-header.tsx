@@ -2,10 +2,11 @@
 
 import { useTranslation } from "react-i18next";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
-import { Search, Store } from "lucide-react";
+import { Moon, Search, Store, Sun } from "lucide-react";
 import { LanguageSwitch } from "@/components/layout/language-switch";
 import { Button } from "@/components/ui/button";
 import type { QRScanResponse } from "@/services/public-pos";
+import { usePublicPosTheme, writePublicPosTheme } from "../public-pos-theme";
 
 const HEADER_BUTTON_CLASS =
   "size-10 rounded-lg border border-yg-on-accent/25 bg-yg-on-accent text-yg-accent-strong transition-[background-color,color] outline-none hover:bg-yg-on-accent/90 hover:text-yg-accent-strong focus-visible:ring-2 focus-visible:ring-yg-on-accent focus-visible:ring-offset-2 focus-visible:ring-offset-yg-accent motion-reduce:transition-none";
@@ -20,9 +21,12 @@ export function PublicHeader({
   onSearch: () => void;
 }) {
   const { t } = useTranslation();
+  const theme = usePublicPosTheme();
+  const nextTheme = theme === "dark" ? "light" : "dark";
+  const themeLabel = nextTheme === "dark" ? t("pos.switchToDark") : t("pos.switchToLight");
 
   return (
-    <header className="sticky top-0 z-30 -mx-(--yg-gutter) flex h-16 shrink-0 items-center justify-between gap-3 border-b border-yg-on-accent/15 bg-yg-accent-strong px-(--yg-gutter) py-2">
+    <header className="sticky top-0 z-30 -mx-(--yg-gutter) flex h-16 shrink-0 items-center justify-between gap-3 border-b border-yg-on-accent/15 px-(--yg-gutter) py-2 yg-header-banner">
       <div className="flex min-w-0 items-center gap-2.5">
         <Avatar
           key={table?.store_logo}
@@ -68,6 +72,19 @@ export function PublicHeader({
           className={`${HEADER_BUTTON_CLASS} relative disabled:opacity-55`}
         >
           <Search className="size-[18px]" />
+        </Button>
+
+        {/* ธีมของเมนูเอง ไม่ยุ่งกับธีมแอป POS — ไอคอนบอกโหมดที่จะเปลี่ยนไป (ดวงจันทร์ = ไปโหมดมืด) */}
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon"
+          aria-label={themeLabel}
+          title={themeLabel}
+          onClick={() => writePublicPosTheme(nextTheme)}
+          className={HEADER_BUTTON_CLASS}
+        >
+          {nextTheme === "dark" ? <Moon className="size-[18px]" /> : <Sun className="size-[18px]" />}
         </Button>
 
         <LanguageSwitch

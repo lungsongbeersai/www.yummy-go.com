@@ -8,6 +8,7 @@ import { Empty, EmptyHeader, EmptyTitle } from "@/components/ui/empty";
 import { Button } from "@/components/ui/button";
 import { useWaiterRequestsStore } from "@/stores/waiter-requests-store";
 import { useToastStore } from "@/stores/toast-store";
+import { useAlertSoundPlayer } from "@/hooks/use-alert-sound-player";
 import { useWaiterUpdates } from "./use-waiter-updates";
 interface StaffWaiterPanelProps {
   branch: string;
@@ -26,6 +27,7 @@ export function StaffWaiterPanel({ branch, open, onOpenChange }: StaffWaiterPane
   const error = useWaiterRequestsStore((s) => s.staffError);
   const loading = useWaiterRequestsStore((s) => s.staffLoading);
   const toast = useToastStore((s) => s.show);
+  const playAlertSound = useAlertSoundPlayer("waiter");
   const refresh = useCallback(() => {
     if (branch) void load(branch);
   }, [branch, load]);
@@ -40,28 +42,30 @@ export function StaffWaiterPanel({ branch, open, onOpenChange }: StaffWaiterPane
         return;
       const ids = new Set(state.staffRequests.map((r) => r.request_uuid));
       if (initialized) {
-        for (const row of state.staffRequests)
-          if (!known.has(row.request_uuid))
-            toast({
-              title: `${t("waiter.title")} · ${
-                row.table_name_la || row.table_name_eng || ""
-              }`,
-              description: [
-                ...row.items.map(
-                  (item) => `${t(`waiter.${item.kind}`)} ×${item.qty}`
-                ),
-                row.message,
-              ]
-                .filter(Boolean)
-                .join(" · ")
-                .slice(0, 120),
-              tone: "info",
-            });
+        const fresh = state.staffRequests.filter((r) => !known.has(r.request_uuid));
+        // ดังครั้งเดียวต่อรอบโหลด ไม่ใช่ต่อคำขอ — หลายโต๊ะเรียกพร้อมกันจะได้ไม่ซ้อนเสียงจนแตก
+        if (fresh.length) playAlertSound();
+        for (const row of fresh)
+          toast({
+            title: `${t("waiter.title")} · ${
+              row.table_name_la || row.table_name_eng || ""
+            }`,
+            description: [
+              ...row.items.map(
+                (item) => `${t(`waiter.${item.kind}`)} ×${item.qty}`
+              ),
+              row.message,
+            ]
+              .filter(Boolean)
+              .join(" · ")
+              .slice(0, 120),
+            tone: "info",
+          });
       }
       known = ids;
       initialized = true;
     });
-  }, [branch, t, toast]);
+  }, [branch, playAlertSound, t, toast]);
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent className="data-[side=right]:w-full data-[side=right]:sm:max-w-md" aria-describedby={undefined}>

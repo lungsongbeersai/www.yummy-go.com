@@ -17,6 +17,12 @@ export const ORDER_ALERT_SOUNDS = [
 export type OrderAlertSoundId = (typeof ORDER_ALERT_SOUNDS)[number]["id"];
 
 export const DEFAULT_ORDER_ALERT_SOUND: OrderAlertSoundId = "ding";
+// ค่าเริ่มต้นของ "เรียกพนักงาน" ตั้งให้ต่างจากออเดอร์ใหม่ — พนักงานแยกสองเหตุการณ์ได้จากเสียงโดยไม่ต้องดูจอ
+export const DEFAULT_WAITER_ALERT_SOUND: OrderAlertSoundId = "bell";
+
+// เหตุการณ์ที่มีเสียงแจ้งเตือนแยกกัน — ใช้เป็น key เลือกค่าใน app-store
+export type AlertSoundKind = "order" | "waiter";
+export const ALERT_SOUND_KINDS: readonly AlertSoundKind[] = ["order", "waiter"];
 
 export function isOrderAlertSoundId(value: unknown): value is OrderAlertSoundId {
   return ORDER_ALERT_SOUNDS.some((sound) => sound.id === value);

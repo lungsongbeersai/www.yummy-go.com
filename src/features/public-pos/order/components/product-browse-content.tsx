@@ -195,7 +195,7 @@ export function ProductBrowseContent({
                             categoryTabRefs.current[category.cateUuid] =
                               element;
                           }}
-                          className="h-10 flex-none gap-1.5 rounded-none border-0 border-b-2 border-transparent bg-transparent px-2 text-sm font-medium text-yg-ink/75 shadow-none duration-150 motion-reduce:transition-none after:hidden data-[state=active]:border-yg-accent data-[state=active]:bg-transparent data-[state=active]:text-yg-accent-strong"
+                          className="h-10 flex-none gap-1.5 rounded-none border-0 border-b-2 border-transparent bg-transparent px-2 text-sm font-medium text-yg-ink/75 shadow-none duration-150 motion-reduce:transition-none after:hidden hover:text-yg-ink dark:hover:text-yg-ink data-[state=active]:border-yg-accent data-[state=active]:bg-transparent data-[state=active]:text-yg-accent-strong data-[state=active]:hover:text-yg-accent-strong"
                         >
                           <span className="grid size-3.5 shrink-0 place-items-center">
                             {jumpingCateUuid === category.cateUuid ? (

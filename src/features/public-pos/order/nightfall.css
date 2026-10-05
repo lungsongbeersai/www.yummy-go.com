@@ -3,8 +3,8 @@
    ไฟล์ "Yummy Go Menu - Nightfall.dc.html"
 
    ทุก token อยู่ใต้ [data-yg-menu] จึงไม่รั่วไปหน้าอื่นของแอป
-   โหมดสว่าง/มืดเกาะ .dark ที่ <html> ซึ่ง theme-bootstrap script กับ app-store
-   ใส่ให้อยู่แล้ว ปุ่มสลับธีมเดิมจึงคุมหน้านี้ได้โดยไม่ต้องเดินสาย state ใหม่
+   โหมดสว่าง/มืดตาม data-yg-theme ของเมนูเอง (ปุ่มในหัวเมนู — public-pos-theme.ts)
+   ไม่ใช่ .dark ที่ <html> ซึ่งเป็นธีมของฝั่ง POS พนักงาน
 
    ค่าที่เบี่ยงจากไฟล์ต้นทางมีคอมเมนต์กำกับเหตุผลไว้ทุกจุด */
 
@@ -66,7 +66,10 @@
   );
 }
 
-:where(.dark) [data-yg-menu]:not([data-yg-theme="light"]) {
+/* มืดได้สองทาง: ตามธีมแอป (.dark ที่ <html>) เมื่อเมนูไม่ได้ล็อกสว่าง หรือเมนูเลือกมืดเอง (data-yg-theme="dark"
+   จากปุ่มในหัวเมนู — แยกจากธีม POS ดู public-pos-theme.ts) */
+:where(.dark) [data-yg-menu]:not([data-yg-theme="light"]),
+[data-yg-menu][data-yg-theme="dark"] {
   /* Nightfall — ตรงตามไฟล์ดีไซน์ ยกเว้น --yg-faint ที่ระบุไว้ข้างล่าง */
   color-scheme: dark;
 
@@ -130,7 +133,8 @@
   --yg-glow1: transparent;
 }
 
-:where(.dark) [data-yg-menu]:not([data-yg-theme="light"])[data-yg-accent="gold"] {
+:where(.dark) [data-yg-menu]:not([data-yg-theme="light"])[data-yg-accent="gold"],
+[data-yg-menu][data-yg-theme="dark"][data-yg-accent="gold"] {
   --yg-accent: #e6b872;
   --yg-accent-strong: #f2ce93;
   --yg-accent-soft: rgb(230 184 114 / 0.13);
@@ -148,13 +152,77 @@
   --yg-glow1: transparent;
 }
 
-:where(.dark) [data-yg-menu]:not([data-yg-theme="light"])[data-yg-accent="rose"] {
+:where(.dark) [data-yg-menu]:not([data-yg-theme="light"])[data-yg-accent="rose"],
+[data-yg-menu][data-yg-theme="dark"][data-yg-accent="rose"] {
   --yg-accent: #e890a6;
   --yg-accent-strong: #f3b1c2;
   --yg-accent-soft: rgb(232 144 166 / 0.13);
   --yg-accent-line: rgb(232 144 166 / 0.34);
   --yg-on-accent: #2a0c14;
   --yg-glow1: rgb(232 144 166 / 0.18);
+}
+
+/* ── token กลางของ shadcn ภายในเมนู ──────────────────────────────
+   เมนูมีธีมของตัวเอง (data-yg-theme) แต่ primitive ของ shadcn (Badge secondary, Button outline,
+   Tabs hover, Popover ฯลฯ) อ่าน --secondary/--foreground/--border ที่ globals.css ตั้งตาม .dark ที่ <html>
+   — เครื่องที่ POS เปิดโหมดมืดอยู่ (หรือมือถือลูกค้าที่ระบบเป็นมืด) จึงได้ badge ดำ/ตัวอักษรขาวบนเมนูสว่าง
+   ผูกกลับเข้าหา token ของเมนูตรงนี้ที่เดียว — ค่าที่เป็นพื้นใช้ค่าทึบ (yg-bg/bg2, color-mix) เพราะ
+   yg-panel ในโหมดมืดโปร่ง 4.5% วางบน overlay แล้วมองทะลุ */
+[data-yg-menu] {
+  --background: var(--yg-bg);
+  --foreground: var(--yg-ink);
+  --card: var(--yg-bg2);
+  --card-foreground: var(--yg-ink);
+  --popover: var(--yg-bg2);
+  --popover-foreground: var(--yg-ink);
+  --secondary: color-mix(in oklab, var(--yg-ink) 6%, var(--yg-bg2));
+  --secondary-foreground: var(--yg-ink);
+  --muted: color-mix(in oklab, var(--yg-ink) 6%, var(--yg-bg2));
+  --muted-foreground: var(--yg-muted);
+  --accent: color-mix(in oklab, var(--yg-ink) 8%, var(--yg-bg2));
+  --accent-foreground: var(--yg-ink);
+  --border: var(--yg-line);
+  --input: var(--yg-line);
+  --ring: var(--yg-accent);
+}
+
+/* ── แบนเนอร์แถบหัว ─────────────────────────────────────────────
+   รูปใบไม้เขียวเข้มรูปเดียวทุกธีม/ทุกสีร้าน — จึงล็อกคู่สีของแถบหัวไว้ที่ชุดสว่าง (ตัวอักษร/ปุ่มขาว ไอคอนเขียวเข้ม)
+   ไม่งั้นธีมมืดจะได้ --yg-on-accent เขียวเกือบดำ ทับบนรูปเข้มจนชื่อร้านอ่านไม่ออก
+   ชั้นดำโปร่ง 25% กันจุดใบไม้สว่างตรงชื่อร้าน; สีทึบท้ายสุดเป็นพื้นระหว่างรูปยังโหลดไม่เสร็จ
+   ใช้ background_wide.webp รูปเดียวกับพื้นหลังฝั่ง POS พนักงาน (หน้าโต๊ะ/ตะกร้า) — สองฝั่งเป็นชุดเดียวกัน
+   center top เหมือนฝั่ง POS (bg-top): แถบหัวสูง 64px จึงเห็นลายใบไม้มุมบนของรูป แทนที่จะเป็นพื้นเรียบกลางรูป */
+[data-yg-menu] .yg-header-banner {
+  --yg-accent-strong: #0b6046;
+  --yg-on-accent: #ffffff;
+  --yg-accent: #127c59;
+  /* isolation: ชั้น ::before z-index -1 อยู่ใต้เนื้อหาแถบหัวแต่ไม่หลุดไปอยู่ใต้หน้าเมนู */
+  isolation: isolate;
+  overflow: hidden;
+  background: #0b6046;
+}
+
+/* เบลอรูปบน pseudo-element — filter บนตัว header จะเบลอโลโก้/ชื่อร้าน/ปุ่มไปด้วย
+   inset ติดลบชดเชยขอบที่ blur ดึงสีพื้นเข้ามาจนขอบภาพซีด (overflow: hidden ตัดส่วนเกินทิ้ง) */
+[data-yg-menu] .yg-header-banner::before {
+  content: "";
+  position: absolute;
+  inset: -12px;
+  z-index: -1;
+  background:
+    linear-gradient(rgb(0 0 0 / 0.25), rgb(0 0 0 / 0.25)),
+    url("/posAll/background_wide.webp") center top / cover no-repeat;
+  /* filter: blur(1px); */
+  pointer-events: none;
+}
+
+/* โหมดมืดใช้รูปชุดเดียวกันเวอร์ชันมืด (background_wide_dark.jpg → webp 40KB) ให้แถบหัวกลืนกับพื้นหน้าเข้ม
+   เส้นใบไม้สีอ่อนมุมซ้ายบนวิ่งผ่านใต้ชื่อร้านพอดี — ไล่ดำ 55% ทางซ้ายจางหายกลางแถบ แทนชั้นดำเท่ากันทั้งแถบ
+   ฝั่งขวายังเห็นลายใบไม้ (ปุ่มเป็นพื้นขาวทึบ ไม่ต้องกัน) */
+[data-yg-menu][data-yg-theme="dark"] .yg-header-banner::before {
+  background:
+    linear-gradient(to right, rgb(0 0 0 / 0.55), rgb(0 0 0 / 0.1) 55%),
+    url("/posAll/background_wide_dark.webp") center top / cover no-repeat;
 }
 
 /* ── map เข้า Tailwind ────────────────────────────────────────────
@@ -285,7 +353,8 @@ html:has([data-yg-menu]) body {
   background: #ffffff;
 }
 
-html.dark:has([data-yg-menu]:not([data-yg-theme="light"])) body {
+html.dark:has([data-yg-menu]:not([data-yg-theme="light"])) body,
+html:has([data-yg-menu][data-yg-theme="dark"]) body {
   background: #141110;
 }
 

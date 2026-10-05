@@ -431,7 +431,7 @@ export const SetProductCard = memo(function SetProductCard({
               preload={imagePreload}
             />
             {!blocked && (
-              <span className="absolute right-2 bottom-2 flex h-7 items-center justify-center gap-1.5 rounded-full border border-yg-accent-line bg-yg-panel px-2.5 text-[11px] font-normal text-yg-accent-strong shadow-sm">
+              <span className="absolute right-2 bottom-2 flex h-7 items-center justify-center gap-1.5 rounded-full border border-yg-accent-line bg-yg-bg2 px-2.5 text-[11px] font-normal text-yg-accent-strong shadow-sm">
                 {loading ? (
                   <Spinner />
                 ) : (
@@ -539,7 +539,8 @@ function ProductPromoBadge({
       className={cn(
         "inline-flex max-w-full items-center gap-1 border border-yg-accent-line bg-yg-accent-soft font-medium tracking-wide text-yg-accent-strong",
         overlay
-          ? "absolute left-2.5 top-2.5 h-6 max-w-[calc(100%-1.25rem)] rounded-md px-2 text-2xs backdrop-blur-md"
+          ? // บนรูปใช้พื้นทึบเหมือนปุ่มบนรูป — accent-soft โปร่ง 13% อ่านไม่ออกเมื่อทับรูปสีจัด
+            "absolute left-2.5 top-2.5 h-6 max-w-[calc(100%-1.25rem)] rounded-md bg-yg-bg2 px-2 text-2xs shadow-sm"
           : "h-5 rounded-sm px-1.5 text-2xs",
         compact ? "text-2xs" : ""
       )}
@@ -618,7 +619,10 @@ function ProductActionPill({
         onImage && subtle ? "h-6 gap-1 rounded-full px-1.5 text-[10px]" : "",
         filled
           ? "border-yg-accent bg-yg-accent text-yg-on-accent"
-          : "border-yg-accent-line bg-yg-panel text-yg-accent-strong"
+          : "border-yg-accent-line bg-yg-panel text-yg-accent-strong",
+        // บนรูปต้องพื้นทึบ — yg-panel ในโหมดมืดโปร่ง 4.5% ตัวอักษรเขียวอ่อนไปทับรูปตรง ๆ
+        // อ่านไม่ออกบนรูปพื้นขาว/เขียว (เช่น เป๊ปซี่, ไฮเนเก้น)
+        onImage && !filled ? "bg-yg-bg2" : ""
       )}
     >
       {loading ? (

@@ -1,30 +1,37 @@
 "use client";
 
 import { useEffect } from "react";
+import type { PublicPosTheme } from "../public-pos-theme";
 import type { PublicPosAccent } from "../types";
 
-/** Mirror the menu's light theme and fonts onto body so Radix portals inherit
- *  the same appearance as main, even when the cashier app uses dark mode.
+/** Mirror the menu's own theme (light/dark, independent of the cashier app's theme) and fonts onto
+ *  body so Radix portals inherit the same appearance as main.
  */
 export function usePublicPosThemeScope(
   fontClassName: string,
   accent: PublicPosAccent,
+  theme: PublicPosTheme,
 ) {
   useEffect(() => {
     const { body } = document;
     const fontClasses = fontClassName.split(" ").filter(Boolean);
 
     body.setAttribute("data-yg-menu", "");
-    // Portals share the customer menu's light theme without changing the POS theme.
-    body.setAttribute("data-yg-theme", "light");
     body.classList.add(...fontClasses);
 
     return () => {
       body.removeAttribute("data-yg-menu");
-      body.removeAttribute("data-yg-theme");
       body.classList.remove(...fontClasses);
     };
   }, [fontClassName]);
+
+  // Portals share the customer menu's theme without changing the POS theme.
+  useEffect(() => {
+    document.body.setAttribute("data-yg-theme", theme);
+    return () => {
+      document.body.removeAttribute("data-yg-theme");
+    };
+  }, [theme]);
 
   // Keep the accent scope independent from font class cleanup.
   useEffect(() => {

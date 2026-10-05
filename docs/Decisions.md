@@ -6,6 +6,16 @@ Entries below dated from git history are backfilled from existing code comments 
 
 ---
 
+## QR menu gets its own light/dark toggle, independent of the POS theme
+
+- **Date:** 2026-10-05.
+- **Context:** Commit `630a234d` (2026-10-02) removed the QR menu's theme switch and forced light (`data-yg-theme="light"`) because the old switch reused the POS theme (`useAppStore().theme` → `.dark` on `<html>`), so toggling it on a shared device also flipped the cashier's POS. The owner asked for a dark-mode icon in the QR menu header again. Separately, shadcn primitives' `dark:` variant keyed only on `<html class="dark">`, so a device in dark mode rendered dark-mode primitive styles on the forced-light menu (the waiter drawer showed a transparent active tab and an invisible switch).
+- **Decision:** The QR menu stores its own theme (`yummy-go:public-pos-theme`, default light, `src/features/public-pos/order/public-pos-theme.ts`) and sets `data-yg-theme` on `<main>` and `<body>`; it never touches `<html class="dark">`. `nightfall.css` applies the Nightfall dark tokens for `[data-yg-menu][data-yg-theme="dark"]` too. The app-wide `@custom-variant dark` in `globals.css` now also matches inside `[data-yg-theme="dark"]` and is suppressed inside `[data-yg-theme="light"]`, with `:where` in the `:not()` so specificity stays (0,1,0) and the cascade elsewhere is unchanged.
+- **Trade-off:** One more piece of client state per device. Pages without `data-yg-theme` behave exactly as before.
+- **Approved by:** repository owner (2026-10-05, in conversation — "add icon darkmode in header").
+
+---
+
 ## Report row pinning moves to its own pin toggle; first row and primary column pinned by default (supersedes the entry below)
 
 - **Date:** 2026-09-30.

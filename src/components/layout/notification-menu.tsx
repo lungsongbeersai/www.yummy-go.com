@@ -3,7 +3,7 @@
 import { useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useTranslation } from "react-i18next";
-import { Bell, BellRing, ChevronRight, UtensilsCrossed, Volume2 } from "lucide-react";
+import { Bell, BellRing, ChevronRight, Settings2, UtensilsCrossed } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { collectOrderAlerts, type OrderAlertEntry } from "@/lib/pos/order-alerts";
 import { Badge } from "@/components/ui/badge";
@@ -44,12 +44,17 @@ export function NotificationMenu({
   const staffRequests = useWaiterRequestsStore((state) => state.staffRequests);
   const staffKey = useWaiterRequestsStore((state) => state.staffKey);
   const staffError = useWaiterRequestsStore((state) => state.staffError);
-  const waiterCount = staffKey === branch ? staffRequests.length : 0;
+  const waiterRows = staffKey === branch ? staffRequests : [];
+  const waiterCount = waiterRows.length;
+  // ชื่อโต๊ะที่เรียกอยู่ (ไม่ซ้ำ) — พนักงานรู้ทันทีว่าต้องไปโต๊ะไหนโดยไม่ต้องเปิดแผงรายการ
+  const waiterTables = [...new Set(waiterRows.map((row) => row.table_name_la || row.table_name_eng).filter(Boolean))];
   const [waiterOpen, setWaiterOpen] = useState(false);
   const openWaiterOnCloseRef = useRef(false);
   const runGuardedNavigation = useNavigationGuardStore((state) => state.run);
   const zoneOptions = usePosStore((state) => state.zoneOptions);
   const orderAlertSound = useAppStore((state) => state.orderAlertSound);
+  const waiterAlertSound = useAppStore((state) => state.waiterAlertSound);
+  const soundEnabled = useAppStore((state) => state.alertSoundEnabled);
   const [soundDialogOpen, setSoundDialogOpen] = useState(false);
   // เปิด dialog ตอนดรอปดาวน์ปิดเสร็จแล้ว (onCloseAutoFocus) ไม่ใช่ใน onSelect ตรง ๆ — ดรอปดาวน์
   // คืนโฟกัสให้ปุ่มกระดิ่งตอนปิด ซึ่งอยู่นอก dialog จน dialog ถือเป็น focus-outside แล้วปิดตัวเองทันที
@@ -114,7 +119,7 @@ export function NotificationMenu({
             <div className="flex min-w-0 flex-col gap-0.5">
               <DropdownMenuLabel className="p-0 text-sm font-semibold">{t("notifications.title")}</DropdownMenuLabel>
               <p className="text-xs text-muted-foreground">
-                {hasUnread ? t("notifications.pendingCount", { count: pendingCount }) : t("notifications.empty")}
+                {hasUnread ? t("notifications.pendingSummary", { count: pendingCount }) : t("notifications.empty")}
               </p>
             </div>
             {hasUnread ? (
@@ -125,13 +130,28 @@ export function NotificationMenu({
           {hasUnread || staffError ? (
             <DropdownMenuGroup className="flex max-h-80 flex-col gap-1 overflow-y-auto p-1.5">
               {waiterCount > 0 || staffError ? (
-                <DropdownMenuItem className="gap-3 px-2.5 py-3" onSelect={() => { openWaiterOnCloseRef.current = true; }}>
-                  <BellRing className="text-primary" aria-hidden />
-                  <span className="flex min-w-0 flex-1 flex-col">
-                    <span className="text-sm font-semibold">{t("waiter.title")} ({waiterCount})</span>
-                    {staffError ? <span className="text-xs text-destructive">{t("waiter.failed")}</span> : null}
+                <DropdownMenuItem className="gap-3 px-2.5 py-2" onSelect={() => { openWaiterOnCloseRef.current = true; }}>
+                  {/* ทรงเดียวกับแถวออเดอร์ (กล่องไอคอน + จุด) ให้กวาดตาอ่านเป็นรายการชุดเดียวกัน */}
+                  <span className="relative grid size-8 shrink-0 place-items-center rounded-md bg-primary/10 text-primary">
+                    <BellRing aria-hidden />
+                    {waiterCount > 0 ? (
+                      <span aria-hidden className="absolute -right-0.5 -top-0.5 size-2.5 rounded-full border-2 border-popover bg-destructive" />
+                    ) : null}
                   </span>
-                  <ChevronRight aria-hidden />
+                  <span className="flex min-w-0 flex-1 flex-col">
+                    <span className="truncate text-sm font-semibold">{t("waiter.title")}</span>
+                    {staffError ? (
+                      <span className="truncate text-xs text-destructive">{t("waiter.failed")}</span>
+                    ) : (
+                      <span className="truncate text-xs text-muted-foreground">
+                        {t("nav.table")} {waiterTables.join(", ")} · {t("waiter.requestCount", { count: waiterCount })}
+                      </span>
+                    )}
+                  </span>
+                  {waiterCount > 0 ? (
+                    <Badge variant="secondary" className="tabular-nums">{waiterCount}</Badge>
+                  ) : null}
+                  <ChevronRight aria-hidden className="text-muted-foreground" />
                 </DropdownMenuItem>
               ) : null}
               {orderAlerts.map((alert) => (
@@ -159,12 +179,16 @@ export function NotificationMenu({
               }}
             >
               <span className="grid size-8 shrink-0 place-items-center rounded-md bg-muted text-muted-foreground">
-                <Volume2 aria-hidden />
+                <Settings2 aria-hidden />
               </span>
               <span className="flex min-w-0 flex-1 flex-col">
                 <span className="truncate text-sm font-medium">{t("notifications.sound.title")}</span>
+                {/* สรุปเสียงที่ตั้งไว้ทั้งสองแบบ — เห็นค่าปัจจุบันโดยไม่ต้องเปิด dialog */}
                 <span className="truncate text-xs text-muted-foreground">
-                  {t(`notifications.sound.options.${orderAlertSound}`)}
+                  {t("notifications.sound.kinds.order")}:{" "}
+                  {soundEnabled.order ? t(`notifications.sound.options.${orderAlertSound}`) : t("notifications.sound.off")} ·{" "}
+                  {t("notifications.sound.kinds.waiter")}:{" "}
+                  {soundEnabled.waiter ? t(`notifications.sound.options.${waiterAlertSound}`) : t("notifications.sound.off")}
                 </span>
               </span>
               <ChevronRight aria-hidden className="text-muted-foreground" />

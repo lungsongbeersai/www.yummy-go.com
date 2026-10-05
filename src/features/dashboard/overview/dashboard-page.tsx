@@ -513,6 +513,7 @@ function DashboardPageContent() {
           <DashboardKpiGrid copy={copy} kpis={model.kpis} periodLabel={periodLabel} section={model.section} />
           <DashboardSalesGrid
             accountingRows={model.accountingRows}
+            channelRows={model.channelRows}
             copy={copy}
             paymentSummary={model.paymentSummary}
             paymentSummaryCards={model.paymentSummaryCards}
@@ -521,7 +522,6 @@ function DashboardPageContent() {
             trendRows={model.trendRows}
           />
           <DashboardProductsGrid
-            channelRows={model.channelRows}
             copy={copy}
             loading={loading}
             products={model.productRows}

@@ -39,9 +39,11 @@ export function BottomNav({
   const staffComingSoon = t("pos.comingSoon");
 
   return (
+    // พื้นทึบ bg-yg-bg — เดิม bg-yg-panel ซึ่งในโหมดมืด (Nightfall) โปร่ง 4.5% รูปเมนูที่เลื่อนผ่านใต้แถบโผล่ทะลุ
+    // จนอ่านป้ายไม่ออก (โหมดสว่าง panel = ขาวทึบอยู่แล้ว จึงไม่เคยเห็นปัญหา)
     <nav
       className={cn(
-        "fixed inset-x-0 bottom-0 z-40 grid gap-1 border-t border-yg-divider bg-yg-panel px-3 pt-2 pb-[max(8px,env(safe-area-inset-bottom))] shadow-none sm:inset-x-auto sm:bottom-2 sm:left-1/2 sm:w-105 sm:-translate-x-1/2 sm:rounded-lg sm:border sm:p-1",
+        "fixed inset-x-0 bottom-0 z-40 grid gap-1 border-t border-yg-divider bg-yg-bg px-3 pt-2 pb-[max(8px,env(safe-area-inset-bottom))] shadow-none sm:inset-x-auto sm:bottom-2 sm:left-1/2 sm:w-105 sm:-translate-x-1/2 sm:rounded-lg sm:border sm:p-1",
         hideCart ? "grid-cols-3" : "grid-cols-4"
       )}
     >

@@ -3,7 +3,14 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import { DEFAULT_LANGUAGE, type Language } from "@/lib/language";
-import { DEFAULT_ORDER_ALERT_SOUND, isOrderAlertSoundId, type OrderAlertSoundId } from "@/lib/pos/order-alert-sounds";
+import {
+  DEFAULT_ORDER_ALERT_SOUND,
+  ALERT_SOUND_KINDS,
+  DEFAULT_WAITER_ALERT_SOUND,
+  isOrderAlertSoundId,
+  type AlertSoundKind,
+  type OrderAlertSoundId
+} from "@/lib/pos/order-alert-sounds";
 
 export type ThemeMode = "light" | "dark";
 export type ThemeColor = "emerald" | "blue" | "amber" | "rose" | "violet";
@@ -30,6 +37,9 @@ interface AppState {
   fontScale: FontScale;
   language: Language;
   orderAlertSound: OrderAlertSoundId;
+  waiterAlertSound: OrderAlertSoundId;
+  // ปิดเสียงแยกตามเหตุการณ์ — ปิดแล้วยังมีป๊อปอัป/แจ้งเตือนบนจอเหมือนเดิม แค่ไม่ดัง
+  alertSoundEnabled: Record<AlertSoundKind, boolean>;
   sidebarOpen: boolean;
   collapsed: boolean;
   hydrated: boolean;
@@ -39,6 +49,8 @@ interface AppState {
   setFontScale: (fontScale: FontScale) => void;
   setLanguage: (language: Language) => void;
   setOrderAlertSound: (orderAlertSound: OrderAlertSoundId) => void;
+  setWaiterAlertSound: (waiterAlertSound: OrderAlertSoundId) => void;
+  setAlertSoundEnabled: (kind: AlertSoundKind, enabled: boolean) => void;
   setSidebarOpen: (open: boolean) => void;
   setCollapsed: (collapsed: boolean) => void;
   toggleCollapsed: () => void;
@@ -53,6 +65,8 @@ export const useAppStore = create<AppState>()(
       fontScale: "md",
       language: DEFAULT_LANGUAGE,
       orderAlertSound: DEFAULT_ORDER_ALERT_SOUND,
+      waiterAlertSound: DEFAULT_WAITER_ALERT_SOUND,
+      alertSoundEnabled: { order: true, waiter: true },
       sidebarOpen: false,
       collapsed: false,
       hydrated: false,
@@ -62,6 +76,9 @@ export const useAppStore = create<AppState>()(
       setFontScale: (fontScale) => set({ fontScale }),
       setLanguage: (language) => set({ language }),
       setOrderAlertSound: (orderAlertSound) => set({ orderAlertSound }),
+      setWaiterAlertSound: (waiterAlertSound) => set({ waiterAlertSound }),
+      setAlertSoundEnabled: (kind, enabled) =>
+        set({ alertSoundEnabled: { ...get().alertSoundEnabled, [kind]: enabled } }),
       setSidebarOpen: (sidebarOpen) => set({ sidebarOpen }),
       setCollapsed: (collapsed) => set({ collapsed }),
       toggleCollapsed: () => set({ collapsed: !get().collapsed }),
@@ -81,12 +98,15 @@ export const useAppStore = create<AppState>()(
         }
         return persistedState as AppState;
       },
-      partialize: ({ theme, themeColor, fontScale, language, orderAlertSound, collapsed }) => ({
+      // waiterAlertSound/alertSoundEnabled ไม่ต้อง migrate — ผู้ใช้เดิมไม่มีค่านี้ persist จะ merge ค่าเริ่มต้นให้เอง
+      partialize: ({ theme, themeColor, fontScale, language, orderAlertSound, waiterAlertSound, alertSoundEnabled, collapsed }) => ({
         theme,
         themeColor,
         fontScale,
         language,
         orderAlertSound,
+        waiterAlertSound,
+        alertSoundEnabled,
         collapsed
       }),
       skipHydration: true,
@@ -95,6 +115,11 @@ export const useAppStore = create<AppState>()(
         if (!THEME_COLORS.includes(state.themeColor)) state.setThemeColor("emerald");
         if (!FONT_SCALES.includes(state.fontScale)) state.setFontScale("md");
         if (!isOrderAlertSoundId(state.orderAlertSound)) state.setOrderAlertSound(DEFAULT_ORDER_ALERT_SOUND);
+        if (!isOrderAlertSoundId(state.waiterAlertSound)) state.setWaiterAlertSound(DEFAULT_WAITER_ALERT_SOUND);
+        // ค่าเสีย (แก้ localStorage เอง/เวอร์ชันเก่า) ถือว่าเปิดเสียง — ปลอดภัยกว่าเงียบโดยไม่รู้ตัว
+        for (const kind of ALERT_SOUND_KINDS) {
+          if (typeof state.alertSoundEnabled?.[kind] !== "boolean") state.setAlertSoundEnabled(kind, true);
+        }
         state.setHydrated(true);
       }
     }

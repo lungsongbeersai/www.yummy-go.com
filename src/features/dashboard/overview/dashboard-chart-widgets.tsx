@@ -18,8 +18,6 @@ import {
   BarChart,
   CartesianGrid,
   Cell,
-  Line,
-  LineChart,
   PolarAngleAxis,
   RadialBar,
   RadialBarChart,
@@ -55,6 +53,7 @@ import {
   ItemTitle,
 } from "@/components/ui/item";
 import { Progress } from "@/components/ui/progress";
+import { Separator } from "@/components/ui/separator";
 import {
   Select,
   SelectContent,
@@ -93,8 +92,9 @@ import {
   text,
 } from "@/features/dashboard/overview/dashboard-view-model";
 
-// Dataviz notes: the daily chart draws one line per payment method (cash, transfer, debt) on
-// a single money axis; the bill view is one series in the theme primary. Categories
+// Dataviz notes: the daily chart stacks one bar segment per payment method (cash, transfer,
+// debt) on a single money axis — the bar height reads as the day's total, the segments as the
+// split; the bill view is one series in the theme primary. Categories
 // (payment methods, channels) are coloured from --chart-cat-*, a
 // validated categorical palette; every bar also carries its text label and value, which
 // the palette needs because slots 3-5 are under 3:1 on a light card.
@@ -186,7 +186,7 @@ function ShareRow({
 
 type TrendMetric = "orders" | "revenue";
 
-// The three payment methods drawn as lines. Keys match the API's payment_lines keys and the
+// The three payment methods drawn as stacked bar segments. Keys match the API's payment_lines keys and the
 // daily rows' *_total fields (see TrendPoint); the slot is fixed per method, so a method
 // keeps its colour whatever the others do.
 const paymentLineKeys = ["cash", "transfer", "debt"] as const;
@@ -206,6 +206,7 @@ function paymentMethods(cards: PaymentSummaryCard[], copy: DashboardCopy) {
 }
 
 function SalesTrendCard({
+  channelRows,
   copy,
   paymentSummary,
   paymentSummaryCards,
@@ -213,6 +214,7 @@ function SalesTrendCard({
   peakRevenueDay,
   trendRows,
 }: {
+  channelRows: BreakdownRow[];
   copy: DashboardCopy;
   paymentSummary: PaymentSummary;
   paymentSummaryCards: PaymentSummaryCard[];
@@ -223,18 +225,18 @@ function SalesTrendCard({
   const [metric, setMetric] = useState<TrendMetric>("revenue");
   const isRevenue = metric === "revenue";
   const { methods, total } = paymentMethods(paymentSummaryCards, copy);
-  const lineConfig = Object.fromEntries(
+  const paymentConfig = Object.fromEntries(
     methods.map((method) => [method.key, { color: method.slot.color, label: method.label }]),
   ) satisfies ChartConfig;
   const orderConfig = { orders: { label: copy.orders, color: "var(--primary)" } } satisfies ChartConfig;
-  // Payment lines come from the payment chart source; the daily sales rows carry the same
+  // Payment segments come from the payment chart source; the daily sales rows carry the same
   // *_total fields and stand in when it is missing.
-  const lineData = (paymentTrendRows.length ? paymentTrendRows : trendRows).map((row) => ({
+  const paymentData = (paymentTrendRows.length ? paymentTrendRows : trendRows).map((row) => ({
     ...row,
     label: row.day || row.date,
   }));
   const orderData = trendRows.map((row) => ({ ...row, label: row.day || row.date }));
-  const data = isRevenue ? lineData : orderData;
+  const data = isRevenue ? paymentData : orderData;
   const formatOrders = (value: unknown) => `${formatNumber(value)} ${copy.orders}`;
   const averageRevenue = trendRows.length ? trendRows.reduce((sum, row) => sum + row.revenue, 0) / trendRows.length : 0;
   const averageOrders = orderData.length ? orderData.reduce((sum, row) => sum + row.orders, 0) / orderData.length : 0;
@@ -266,13 +268,13 @@ function SalesTrendCard({
         </CardAction>
       </CardHeader>
       <CardContent className="flex flex-1 flex-col gap-4">
-        {/* Period totals per payment method. They double as the legend of the three lines, so a
-            line is never identified by colour alone. */}
+        {/* Period totals per payment method. They double as the legend of the three bar segments,
+            so a segment is never identified by colour alone. */}
         <div className="grid gap-2 sm:grid-cols-3">
           {methods.map((method) => (
             <div key={method.key} className="flex min-w-0 flex-col gap-1 rounded-lg border p-3">
               <span className="flex min-w-0 items-center gap-2 text-muted-foreground">
-                <span aria-hidden="true" className={cn("h-0.5 w-3 shrink-0 rounded-full", method.slot.dot)} />
+                <span aria-hidden="true" className={cn("size-2.5 shrink-0 rounded-sm", method.slot.dot)} />
                 <span className="truncate">{method.label}</span>
                 <span className="ml-auto shrink-0 tabular-nums">{formatPercent(share(method.value, total))}</span>
               </span>
@@ -284,8 +286,8 @@ function SalesTrendCard({
         </div>
         {data.length ? (
           isRevenue ? (
-            <ChartContainer config={lineConfig} className="aspect-auto h-72 w-full">
-              <LineChart data={data} margin={{ left: 0, right: 8, top: 8 }}>
+            <ChartContainer config={paymentConfig} className="aspect-auto h-72 w-full">
+              <BarChart data={data} margin={{ left: 0, right: 0, top: 8 }}>
                 <CartesianGrid vertical={false} />
                 <XAxis dataKey="label" axisLine={false} tickLine={false} tickMargin={8} minTickGap={16} />
                 <YAxis
@@ -295,7 +297,7 @@ function SalesTrendCard({
                   tickFormatter={(value: number) => compactNumber.format(value)}
                 />
                 <ChartTooltip
-                  cursor={{ stroke: "var(--muted-foreground)", strokeDasharray: "4 4" }}
+                  cursor={{ fill: "var(--muted)" }}
                   content={
                     <ChartTooltipContent
                       formatter={(value, name) => {
@@ -311,18 +313,19 @@ function SalesTrendCard({
                     />
                   }
                 />
-                {methods.map((method) => (
-                  <Line
+                {/* Stacked: one bar per day, rounded only on the top segment so the stack reads as
+                    a single bar. */}
+                {methods.map((method, index) => (
+                  <Bar
                     key={method.key}
                     dataKey={method.key}
-                    type="monotone"
-                    stroke={`var(--color-${method.key})`}
-                    strokeWidth={2}
-                    dot={false}
-                    activeDot={{ r: 4, strokeWidth: 2, stroke: "var(--card)" }}
+                    stackId="payment"
+                    fill={`var(--color-${method.key})`}
+                    maxBarSize={36}
+                    radius={index === methods.length - 1 ? [6, 6, 0, 0] : 0}
                   />
                 ))}
-              </LineChart>
+              </BarChart>
             </ChartContainer>
           ) : (
             <ChartContainer config={orderConfig} className="aspect-auto h-72 w-full">
@@ -364,6 +367,27 @@ function SalesTrendCard({
         ) : (
           <EmptyPanel label={copy.noData} />
         )}
+        {/* Peak day and daily average sit right under the chart they summarise. */}
+        {data.length ? (
+          <div className="flex flex-wrap gap-x-6 gap-y-2 text-muted-foreground tabular-nums">
+            {peakRevenueDay ? (
+              <span className="flex items-center gap-2">
+                <Badge>
+                  <Trophy data-icon="inline-start" />
+                  {copy.peakDay}
+                </Badge>
+                {peakRevenueDay.date} · {formatKip(peakRevenueDay.revenue)} · {formatNumber(peakRevenueDay.orders)} {copy.orders}
+              </span>
+            ) : null}
+            {data.length > 1 ? (
+              <span className="flex items-center gap-2">
+                {/* The dashed swatch is the legend of the average line, drawn only on the bill chart. */}
+                {isRevenue ? null : <span aria-hidden="true" className="w-4 border-t border-dashed border-muted-foreground" />}
+                {copy.dailyAverage}: {isRevenue ? formatKip(averageRevenue) : formatOrders(averageOrders)}
+              </span>
+            ) : null}
+          </div>
+        ) : null}
         {splitWarning ? (
           <Alert>
             <AlertTriangle />
@@ -380,37 +404,19 @@ function SalesTrendCard({
             </AlertDescription>
           </Alert>
         ) : null}
+        <Separator />
+        <OrderChannels copy={copy} rows={channelRows} />
       </CardContent>
-      {data.length ? (
-        <CardFooter className="flex-wrap gap-x-6 gap-y-2 text-muted-foreground tabular-nums">
-          {peakRevenueDay ? (
-            <span className="flex items-center gap-2">
-              <Badge>
-                <Trophy data-icon="inline-start" />
-                {copy.peakDay}
-              </Badge>
-              {peakRevenueDay.date} · {formatKip(peakRevenueDay.revenue)} · {formatNumber(peakRevenueDay.orders)} {copy.orders}
-            </span>
-          ) : null}
-          {data.length > 1 ? (
-            <span className="flex items-center gap-2">
-              {/* The dashed swatch is the legend of the average line, drawn only on the bill chart. */}
-              {isRevenue ? null : <span aria-hidden="true" className="w-4 border-t border-dashed border-muted-foreground" />}
-              {copy.dailyAverage}: {isRevenue ? formatKip(averageRevenue) : formatOrders(averageOrders)}
-            </span>
-          ) : null}
-        </CardFooter>
-      ) : null}
     </Card>
   );
 }
 
 // One tooltip row: the formatter replaces the whole default row, so it brings back the
-// line swatch and the method's name next to the amount.
+// segment swatch and the method's name next to the amount.
 function PaymentTooltipRow({ dot, label, value }: { dot: string; label: string; value: string }) {
   return (
     <div className="flex w-full items-center gap-2">
-      <span aria-hidden="true" className={cn("h-0.5 w-3 shrink-0 rounded-full", dot)} />
+      <span aria-hidden="true" className={cn("size-2.5 shrink-0 rounded-sm", dot)} />
       <span className="text-muted-foreground">{label}</span>
       <span className="ml-auto font-medium text-foreground tabular-nums">{value}</span>
     </div>
@@ -419,6 +425,7 @@ function PaymentTooltipRow({ dot, label, value }: { dot: string; label: string; 
 
 export const DashboardSalesGrid = memo(function DashboardSalesGrid({
   accountingRows,
+  channelRows,
   copy,
   paymentSummary,
   paymentSummaryCards,
@@ -427,6 +434,7 @@ export const DashboardSalesGrid = memo(function DashboardSalesGrid({
   trendRows,
 }: {
   accountingRows: AccountingRow[];
+  channelRows: BreakdownRow[];
   copy: DashboardCopy;
   paymentSummary: PaymentSummary;
   paymentSummaryCards: PaymentSummaryCard[];
@@ -437,6 +445,7 @@ export const DashboardSalesGrid = memo(function DashboardSalesGrid({
   return (
     <div className="grid gap-4 lg:grid-cols-3">
       <SalesTrendCard
+        channelRows={channelRows}
         copy={copy}
         paymentSummary={paymentSummary}
         paymentSummaryCards={paymentSummaryCards}
@@ -641,20 +650,26 @@ function TableStatusCard({ copy, summary }: { copy: DashboardCopy; summary: Row 
   );
 }
 
-function ChannelsCard({ copy, rows }: { copy: DashboardCopy; rows: BreakdownRow[] }) {
+// Order channels sit inside the sales card, under the chart: where the period's revenue came
+// from reads together with how it moved, instead of in a separate card further down.
+function OrderChannels({ copy, rows }: { copy: DashboardCopy; rows: BreakdownRow[] }) {
   const total = rows.reduce((sum, row) => sum + row.value, 0);
 
   return (
-    <Card>
-      <CardHeader>
-        <IconTitle icon={Store}>{copy.orderChannels}</IconTitle>
-        <CardDescription className="tabular-nums">
+    <section aria-labelledby="dashboard-order-channels" className="flex flex-col gap-3">
+      <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
+        <h3 id="dashboard-order-channels" className="flex items-center gap-2 text-sm font-medium">
+          <Store aria-hidden="true" className="size-4 text-muted-foreground" />
+          {copy.orderChannels}
+        </h3>
+        <span className="text-muted-foreground tabular-nums">
           {formatNumber(rows.length)} {copy.channels} · {formatKip(total)}
-        </CardDescription>
-      </CardHeader>
-      <CardContent className="flex flex-col gap-4">
-        {rows.length ? (
-          rows
+        </span>
+      </div>
+      {rows.length ? (
+        // Two columns once the wide card has room — a single tall list would leave the right half empty.
+        <div className="grid gap-x-6 gap-y-4 md:grid-cols-2">
+          {rows
             .map((row, index) => ({ row, slot: categoricalSlot(index) }))
             .sort((left, right) => right.row.value - left.row.value)
             .map(({ row, slot }) => (
@@ -666,17 +681,16 @@ function ChannelsCard({ copy, rows }: { copy: DashboardCopy; rows: BreakdownRow[
                 percent={row.revenuePercent || row.percent || share(row.value, total)}
                 detail={`${formatNumber(row.count ?? 0)} ${copy.orders} · ${copy.orderShare} ${formatPercent(row.orderPercent)}`}
               />
-            ))
-        ) : (
-          <EmptyPanel label={copy.noData} />
-        )}
-      </CardContent>
-    </Card>
+            ))}
+        </div>
+      ) : (
+        <EmptyPanel label={copy.noData} />
+      )}
+    </section>
   );
 }
 
 export const DashboardProductsGrid = memo(function DashboardProductsGrid({
-  channelRows,
   copy,
   loading,
   onTopChange,
@@ -685,7 +699,6 @@ export const DashboardProductsGrid = memo(function DashboardProductsGrid({
   top,
   topOptions,
 }: {
-  channelRows: BreakdownRow[];
   copy: DashboardCopy;
   loading: boolean;
   onTopChange: (value: string) => void;
@@ -704,10 +717,7 @@ export const DashboardProductsGrid = memo(function DashboardProductsGrid({
         topOptions={topOptions}
         onTopChange={onTopChange}
       />
-      <div className="flex flex-col gap-4">
-        <TableStatusCard copy={copy} summary={tableSummary} />
-        <ChannelsCard copy={copy} rows={channelRows} />
-      </div>
+      <TableStatusCard copy={copy} summary={tableSummary} />
     </div>
   );
 });

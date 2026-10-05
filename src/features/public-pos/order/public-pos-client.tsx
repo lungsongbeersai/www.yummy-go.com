@@ -13,6 +13,7 @@ import { PublicPosLoadingScreen } from "@/features/public-pos/order/components/p
 import { usePublicPosBootstrap } from "@/features/public-pos/order/hooks/use-public-pos-bootstrap";
 import { usePublicPosThemeScope } from "@/features/public-pos/order/hooks/use-public-pos-theme-scope";
 import { DEFAULT_PUBLIC_POS_ACCENT } from "@/features/public-pos/order/constants";
+import { usePublicPosTheme } from "@/features/public-pos/order/public-pos-theme";
 
 export function PublicPosClient({
   token,
@@ -26,6 +27,7 @@ export function PublicPosClient({
   const { t } = useTranslation();
   const [cartOpen, setCartOpen] = useState(false);
   const accent = DEFAULT_PUBLIC_POS_ACCENT;
+  const theme = usePublicPosTheme();
   const {
     activeLanguage,
     canRetryScan,
@@ -40,12 +42,12 @@ export function PublicPosClient({
     table && !qrDisabled ? t("pos.productLoadFailed") : t("pos.qrScanFailed");
   const canOrder = Boolean(table && !qrDisabled && !isPublicLoading);
 
-  usePublicPosThemeScope(fontClassName, accent);
+  usePublicPosThemeScope(fontClassName, accent, theme);
 
   return (
     <main
       data-yg-menu=""
-      data-yg-theme="light"
+      data-yg-theme={theme}
       data-yg-accent={accent}
       className={cn(
         fontClassName,

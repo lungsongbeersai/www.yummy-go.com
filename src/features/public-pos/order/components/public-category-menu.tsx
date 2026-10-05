@@ -60,10 +60,12 @@ export function PublicCategoryMenu({
         </Button>
       </PopoverTrigger>
 
+      {/* พื้นทึบ bg-yg-bg2 — yg-card ในโหมดมืดโปร่ง 5.5% (ออกแบบไว้วางบนพื้นหน้า) เมนูลอยจึงเห็นรูปสินค้าทะลุ
+          เงาเข้มขึ้นในโหมดมืดให้แยกชั้นจากพื้นหลังที่สีใกล้กัน (ชุดเดียวกับ public-tweaks-popover) */}
       <PopoverContent
         align="end"
         sideOffset={10}
-        className="w-80 max-w-[calc(100vw-2rem)] rounded-[8px] border-yg-divider bg-yg-card p-2 font-yg-sans text-yg-ink shadow-lg"
+        className="w-80 max-w-[calc(100vw-2rem)] rounded-[8px] border-yg-divider bg-yg-bg2 p-2 font-yg-sans text-yg-ink shadow-[0_24px_60px_-20px_rgb(0_0_0/0.35)] dark:shadow-[0_24px_60px_-20px_rgb(0_0_0/0.8)]"
       >
         <div className="mb-2 grid grid-cols-2 gap-2 border-b border-yg-divider px-1 pt-1 pb-3" role="group" aria-label={`${t("pos.publicGridView")} / ${t("pos.publicListView")}`}>
           {(["grid", "list"] as const).map((mode) => (
@@ -72,7 +74,11 @@ export function PublicCategoryMenu({
               type="button"
               variant="ghost"
               aria-pressed={layoutMode === mode}
-              onClick={() => onLayoutModeChange(mode)}
+              // ปิดเมนูทันทีแบบเดียวกับตอนเลือกหมวด — ให้ลูกค้าเห็นผลของรูปแบบที่เลือกเลย ไม่ต้องกดปิดเอง
+              onClick={() => {
+                onLayoutModeChange(mode);
+                setOpen(false);
+              }}
               className={cn(
                 "h-10 justify-center gap-1.5 rounded-[8px] border px-3 text-xs font-medium",
                 layoutMode === mode

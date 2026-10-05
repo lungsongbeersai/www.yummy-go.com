@@ -72,6 +72,8 @@ function DialogContent({
         data-slot="dialog-content"
         className={cn(
           "fixed top-1/2 left-1/2 z-50 grid w-full max-w-[calc(100%-2rem)] -translate-x-1/2 -translate-y-1/2 gap-4 rounded-xl bg-popover p-4 text-xs/relaxed text-popover-foreground ring-1 ring-foreground/10 duration-100 outline-none sm:max-w-sm data-open:animate-in data-open:fade-in-0 data-open:zoom-in-95 data-closed:pointer-events-none data-closed:animate-out data-closed:fade-out-0 data-closed:zoom-out-95",
+          // เว้นที่ขวาของหัวข้อให้ปุ่มปิด 40px — หัวข้อยาวจะได้ตัดบรรทัดก่อนถึงปุ่ม ไม่ลอดใต้ปุ่ม
+          showCloseButton && "[&>[data-slot=dialog-header]]:pr-10",
           className
         )}
         {...props}
@@ -92,8 +94,9 @@ function DialogContent({
           <DialogPrimitive.Close data-slot="dialog-close" asChild>
             <Button
               variant="ghost"
-              className="ui-overlay-close-button absolute top-2 right-2"
-              size="icon-sm"
+              // 40px (เดิม icon-sm 24px / ไอคอน 12px กดยากบนจอสัมผัส) — Capacitor ขยายเป็น 44px ใน globals.css
+              className="ui-overlay-close-button absolute top-2 right-2 size-10 [&_svg:not([class*='size-'])]:size-5"
+              size="icon"
             >
               <XIcon />
               <span className="sr-only">Close</span>
