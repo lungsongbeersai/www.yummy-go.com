@@ -76,6 +76,7 @@ import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import { money } from "@/lib/format";
 import { cn } from "@/lib/utils";
+import { AccountFormDialog } from "@/features/settings/bank-account/bank-account-form-dialogs";
 import { CustomerFormDialog } from "@/features/settings/customer/customer-form-dialog";
 import type { OrderChannel } from "@/services/pos";
 import type { PaymentDialogWorkflow } from "./hooks/use-payment-dialog-workflow";
@@ -144,7 +145,13 @@ function TransferAccountField({
   trailing,
   value,
   onValueChange,
+  onAdd,
+  addLoading = false,
+  addDisabled = false,
 }: {
+  onAdd?: () => void;
+  addLoading?: boolean;
+  addDisabled?: boolean;
   children?: ReactNode;
   className?: string;
   failed: boolean;
@@ -159,9 +166,17 @@ function TransferAccountField({
 
   return (
     <Field className={cn("gap-1.5", className)}>
-      <FieldLabel htmlFor="payment-transfer-account" className={labelClassName}>
-        {t("pos.transferAccount")}
-      </FieldLabel>
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <FieldLabel htmlFor="payment-transfer-account" className={labelClassName}>
+          {t("pos.transferAccount")}
+        </FieldLabel>
+        {onAdd ? (
+          <Button type="button" variant="outline" size="xs" disabled={addDisabled || addLoading} onClick={onAdd}>
+            {addLoading ? <Spinner data-icon="inline-start" /> : <Plus data-icon="inline-start" />}
+            {t("pos.addTransferAccount")}
+          </Button>
+        ) : null}
+      </div>
       <div className="flex min-w-0 items-center gap-1.5">
         <Select
           disabled={loading || !options.length}
@@ -704,6 +719,9 @@ export function PaymentDialogContent({
                     </Field>
                     {activeTab === "cash_transfer" ? (
                       <TransferAccountField
+                        onAdd={workflow.canCreateAccount ? () => void workflow.openAccountCreate() : undefined}
+                        addLoading={workflow.accountCreateLoading}
+                        addDisabled={processing || transferAccountsLoading}
                         className="col-span-full min-w-0 gap-1 md:gap-1.5"
                         failed={transferAccountsFailed}
                         labelClassName="max-md:sr-only md:text-sm"
@@ -839,6 +857,9 @@ export function PaymentDialogContent({
                   <div className="grid min-h-0 place-items-center rounded-lg border border-border bg-card p-3 sm:p-4 lg:h-full">
                     <div className="grid w-full max-w-130 gap-3">
                       <TransferAccountField
+                        onAdd={workflow.canCreateAccount ? () => void workflow.openAccountCreate() : undefined}
+                        addLoading={workflow.accountCreateLoading}
+                        addDisabled={processing || transferAccountsLoading}
                         failed={transferAccountsFailed}
                         loading={transferAccountsLoading}
                         options={transferAccountOptions}
@@ -963,8 +984,8 @@ export function PaymentDialogContent({
                 <div className="grid grid-cols-[2.75rem_minmax(0,1fr)_minmax(0,1.25fr)] gap-1.5">
                   <Button
                     type="button"
-                    variant="secondary"
-                    className="size-11 min-w-0 px-0"
+                    variant="outline"
+                    className="size-11 min-w-0 border-warning/30 bg-warning/20 px-0 text-warning-text hover:bg-warning/30 hover:text-warning-text dark:bg-warning/20 dark:hover:bg-warning/30"
                     aria-label={t("pos.printInvoice")}
                     title={t("pos.printInvoice")}
                     disabled={!canPrintInvoice}
@@ -980,7 +1001,7 @@ export function PaymentDialogContent({
                     disabled={processing}
                     onClick={() => onOpenChange(false)}
                   >
-                    <span className="truncate">{t("actions.cancel")}</span>
+                    <span className="truncate">{t("pos.closePaymentWindow")}</span>
                   </Button>
                   <Button
                     type="button"
@@ -1043,7 +1064,7 @@ export function PaymentDialogContent({
                     <Button
                       type="button"
                       variant="outline"
-                      className="h-10 min-w-0 px-2 sm:h-12"
+                      className="h-10 min-w-0 border-warning/30 bg-warning/20 px-2 text-warning-text hover:bg-warning/30 hover:text-warning-text sm:h-12 dark:bg-warning/20 dark:hover:bg-warning/30"
                       disabled={!canPrintInvoice}
                       onClick={() => void handlePrintInvoice()}
                     >
@@ -1062,7 +1083,7 @@ export function PaymentDialogContent({
                         disabled={processing}
                         onClick={() => onOpenChange(false)}
                       >
-                        <span className="truncate">{t("actions.cancel")}</span>
+                        <span className="truncate">{t("pos.closePaymentWindow")}</span>
                       </Button>
                       <Button
                         type="button"
@@ -1087,6 +1108,19 @@ export function PaymentDialogContent({
           </Tabs>
         </DialogContent>
       </Dialog>
+
+      <AccountFormDialog
+        key={`payment-account:${workflow.accountCreateOpen}`}
+        banks={workflow.accountBanks}
+        branchUuid={workflow.accountBranchUuid}
+        editing={null}
+        open={workflow.accountCreateOpen}
+        saving={workflow.accountCreateSaving}
+        onOpenChange={(nextOpen) => {
+          if (!workflow.accountCreateSaving) workflow.setAccountCreateOpen(nextOpen);
+        }}
+        onSave={workflow.savePaymentAccount}
+      />
 
       <CustomerFormDialog
         editing={null}

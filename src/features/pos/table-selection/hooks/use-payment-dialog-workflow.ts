@@ -29,7 +29,8 @@ import type {
   SplitBillResponse,
 } from "@/services/pos";
 import type { Exchange } from "@/services/exchange";
-import type { BranchAccount } from "@/services/bank-account";
+import { canEditStoreBranch } from "@/lib/permissions";
+import type { Bank, SaveBranchAccountInput, BranchAccount } from "@/services/bank-account";
 import { useAppStore } from "@/stores/app-store";
 import { useAuthStore } from "@/stores/auth-store";
 import { useBankAccountStore } from "@/stores/bank-account-store";
@@ -105,6 +106,15 @@ export function usePaymentDialogWorkflow({
   const fetchPosTransferAccounts = useBankAccountStore(
     (state) => state.fetchPosTransferAccounts,
   );
+  const fetchBanks = useBankAccountStore((state) => state.fetchBanks);
+  const saveBranchAccount = useBankAccountStore((state) => state.saveBranchAccount);
+  const accountCreateRequestRef = useRef(0);
+  const [accountCreateOpen, setAccountCreateOpen] = useState(false);
+  const [accountCreateLoading, setAccountCreateLoading] = useState(false);
+  const [accountCreateSaving, setAccountCreateSaving] = useState(false);
+  const [accountBanks, setAccountBanks] = useState<Bank[]>([]);
+  const accountBranchUuid = user?.branch_uuid ?? "";
+  const canCreateAccount = canEditStoreBranch(user?.status) && Boolean(accountBranchUuid);
   const exchanges = (useReferenceStore((state) => state.options.exchangeRates) ?? EMPTY_EXCHANGES) as Exchange[];
   const loadExchangeRates = useReferenceStore((state) => state.loadExchangeRates);
   const exchangeRatesLoading = useReferenceStore((state) => state.loadingKeys.exchangeRates ?? false);
@@ -303,6 +313,61 @@ export function usePaymentDialogWorkflow({
           amount: money(selectedCurrency.rate),
           currency: selectedCurrency.code,
         });
+
+  useResetOnDeps([open, accountBranchUuid, user?.uuid], () => {
+    accountCreateRequestRef.current += 1;
+    setAccountCreateOpen(false);
+    setAccountCreateLoading(false);
+    setAccountCreateSaving(false);
+  });
+
+  async function openAccountCreate() {
+    if (!canCreateAccount || accountCreateLoading || processing) return;
+    const requestId = accountCreateRequestRef.current;
+    setAccountCreateLoading(true);
+    try {
+      const banks = await fetchBanks();
+      if (requestId !== accountCreateRequestRef.current) return;
+      setAccountBanks(banks);
+      setAccountCreateOpen(true);
+    } catch (error) {
+      if (requestId !== accountCreateRequestRef.current) return;
+      showToast({ title: t("settings.bankAccount.loadReferencesFailed"), description: error instanceof Error ? error.message : "", tone: "error" });
+    } finally {
+      if (requestId === accountCreateRequestRef.current) setAccountCreateLoading(false);
+    }
+  }
+
+  async function savePaymentAccount(input: SaveBranchAccountInput) {
+    if (!canCreateAccount || accountCreateSaving) return;
+    const requestId = accountCreateRequestRef.current;
+    setAccountCreateSaving(true);
+    try {
+      const created = await saveBranchAccount({ ...input, branch_uuid_fk: accountBranchUuid });
+      if (requestId !== accountCreateRequestRef.current) return;
+      setAccountCreateOpen(false);
+      showToast({ title: t("settings.storeBranch.transferAccountSaved"), tone: "success" });
+      setTransferAccountsLoading(true);
+      try {
+        const accounts = await fetchPosTransferAccounts();
+        if (requestId !== accountCreateRequestRef.current) return;
+        setTransferAccounts(accounts);
+        setTransferAccountsFailed(false);
+        setSelectedTransferAccountUuid(preferredTransferAccountUuid(accounts, created?.account_uuid || selectedTransferAccountUuid));
+      } catch (error) {
+        if (requestId !== accountCreateRequestRef.current) return;
+        setTransferAccountsFailed(true);
+        showToast({ title: t("pos.transferAccountsUnavailable"), description: error instanceof Error ? error.message : "", tone: "error" });
+      } finally {
+        if (requestId === accountCreateRequestRef.current) setTransferAccountsLoading(false);
+      }
+    } catch (error) {
+      if (requestId !== accountCreateRequestRef.current) return;
+      showToast({ title: t("settings.saveFailed"), description: error instanceof Error ? error.message : "", tone: "error" });
+    } finally {
+      if (requestId === accountCreateRequestRef.current) setAccountCreateSaving(false);
+    }
+  }
 
   // เปิด dialog ชำระเงิน = ตั้งค่าฟอร์มใหม่ทั้งชุดทันที (แยกจาก effect ที่โหลดอัตราแลกเปลี่ยน)
   useResetOnChange(open, () => {
@@ -918,6 +983,15 @@ export function usePaymentDialogWorkflow({
   }
 
   return {
+    accountBanks,
+    accountBranchUuid,
+    accountCreateLoading,
+    accountCreateOpen,
+    accountCreateSaving,
+    canCreateAccount,
+    openAccountCreate,
+    savePaymentAccount,
+    setAccountCreateOpen,
     activeAmountInputRef,
     activeInputDisplayValue,
     activeInputLak,

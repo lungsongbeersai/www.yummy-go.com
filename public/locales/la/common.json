@@ -771,6 +771,8 @@
     "loadError": "ໂຫຼດຄິວອໍເດີບໍ່ສຳເລັດ"
   },
   "pos": {
+    "closePaymentWindow": "ປິດໜ້າຕ່າງ",
+    "addTransferAccount": "ເພີ່ມບັນຊີທະນາຄານ",
     "menu": "ເມນູ",
     "menuNormal": "ທົ່ວໄປ",
     "menuPromotion": "ໂປຣໂມຊັນ",
