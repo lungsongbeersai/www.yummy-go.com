@@ -996,11 +996,12 @@ export function PaymentDialogContent({
                   </Button>
                   <Button
                     type="button"
-                    variant="outline"
-                    className="h-11 min-w-0 px-2"
+                    variant="destructive"
+                    className="h-11 min-w-0 border-destructive/20 px-2"
                     disabled={processing}
                     onClick={() => onOpenChange(false)}
                   >
+                    <X data-icon="inline-start" aria-hidden="true" />
                     <span className="truncate">{t("pos.closePaymentWindow")}</span>
                   </Button>
                   <Button
@@ -1014,7 +1015,7 @@ export function PaymentDialogContent({
                     ) : (
                       <ReceiptText data-icon="inline-start" />
                     )}
-                    <span className="truncate">{t("pos.confirmPayment")}</span>
+                    <span className="truncate">{t("pos.payNow")}</span>
                   </Button>
                 </div>
               </div>
@@ -1078,11 +1079,12 @@ export function PaymentDialogContent({
                     <div className="contents lg:grid lg:grid-cols-[minmax(0,1fr)_minmax(0,2fr)] lg:gap-2">
                       <Button
                         type="button"
-                        variant="outline"
-                        className="h-10 min-w-0 px-2 sm:h-12"
+                        variant="destructive"
+                        className="h-10 min-w-0 border-destructive/20 px-2 sm:h-12"
                         disabled={processing}
                         onClick={() => onOpenChange(false)}
                       >
+                        <X data-icon="inline-start" aria-hidden="true" />
                         <span className="truncate">{t("pos.closePaymentWindow")}</span>
                       </Button>
                       <Button
@@ -1097,7 +1099,7 @@ export function PaymentDialogContent({
                           <ReceiptText data-icon="inline-start" />
                         )}
                         <span className="truncate">
-                          {t("pos.confirmPayment")}
+                          {t("pos.payNow")}
                         </span>
                       </Button>
                     </div>

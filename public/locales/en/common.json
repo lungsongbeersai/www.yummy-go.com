@@ -772,6 +772,7 @@
     "loadError": "Failed to load the order queue"
   },
   "pos": {
+    "payNow": "Pay",
     "closePaymentWindow": "Close window",
     "addTransferAccount": "Add bank account",
     "menu": "Menu",

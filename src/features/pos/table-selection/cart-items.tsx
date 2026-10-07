@@ -493,11 +493,14 @@ function CartItemRow({
     <div
       data-cart-item-surface={cardSurface ? "card" : undefined}
       role={splitEnabled ? "button" : undefined}
+      aria-pressed={splitEnabled ? Boolean(splitSelected) : undefined}
       tabIndex={splitEnabled ? 0 : undefined}
       onClick={splitEnabled ? toggleSplitSelection : undefined}
       onKeyDown={
         splitEnabled
           ? (event) => {
+              // Nested checkboxes and action buttons handle their own keyboard events.
+              if (event.target !== event.currentTarget) return;
               if (event.key === "Enter" || event.key === " ") {
                 event.preventDefault();
                 toggleSplitSelection();
@@ -521,12 +524,12 @@ function CartItemRow({
             ? "border-l-4 border-l-destructive bg-destructive/5"
             : "bg-destructive/5 hover:bg-destructive/10"),
         splitSelectable && !splitEnabled && "cursor-not-allowed opacity-60",
-        splitEnabled && "cursor-pointer",
+        splitEnabled && "cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40",
         cardSurface && splitEnabled && "hover:border-primary/40",
         splitSelected &&
           (cardSurface
-            ? "ring-2 ring-primary/30 ring-offset-1 ring-offset-muted"
-            : "border-l-4 border-l-primary bg-primary/5 hover:bg-primary/10")
+            ? "border-primary/40 bg-primary/5 ring-1 ring-primary/20 hover:bg-primary/10"
+            : "bg-primary/5 ring-1 ring-inset ring-primary/20 hover:bg-primary/10")
       )}
     >
       <div
@@ -544,7 +547,7 @@ function CartItemRow({
         {splitSelectable ? (
           <Label
             className={cn(
-              "flex size-10 shrink-0 items-start justify-center pt-0.5",
+              "flex size-10 shrink-0 items-center justify-center rounded-lg",
               compact && "size-9",
               splitEnabled ? "cursor-pointer" : "cursor-not-allowed"
             )}
@@ -554,7 +557,7 @@ function CartItemRow({
               aria-label={t("common.selectRow", { name: title })}
               checked={Boolean(splitSelected)}
               disabled={!splitEnabled}
-              className="mt-0.5 size-5 rounded-md border-primary/50 bg-background shadow-sm"
+              className="size-5.5 after:-inset-y-3 rounded-md border-border bg-background shadow-none transition-colors hover:border-primary/60 focus-visible:ring-primary/30 data-[state=checked]:border-primary data-[state=checked]:bg-primary data-[state=checked]:text-primary-foreground dark:data-[state=checked]:bg-primary"
               onCheckedChange={toggleSplitSelection}
             />
           </Label>
