@@ -9,6 +9,9 @@ import {
   Landmark,
   Lightbulb,
   Store,
+  ShoppingBag,
+  Truck,
+  Utensils,
   Trophy,
   TrendingDown,
   type LucideIcon,
@@ -147,42 +150,6 @@ function EmptyPanel({ label }: { label: string }) {
   );
 }
 
-function ShareRow({
-  detail,
-  label,
-  percent,
-  slot,
-  value,
-}: {
-  detail?: string;
-  label: string;
-  percent: number;
-  slot?: { bar: string; dot: string };
-  value: string;
-}) {
-  return (
-    <div className="flex flex-col gap-1.5">
-      <div className="flex items-center justify-between gap-3">
-        <span className="flex min-w-0 items-center gap-2 font-semibold">
-          {slot ? <span aria-hidden="true" className={cn("size-2.5 shrink-0 rounded-full", slot.dot)} /> : null}
-          <span className="truncate">{label}</span>
-        </span>
-        <span className="shrink-0 font-semibold tabular-nums">{value}</span>
-      </div>
-      {/* Decorative: the percentage is always printed next to the bar. */}
-      <Progress
-        value={Math.min(100, Math.max(0, percent))}
-        aria-hidden="true"
-        className={cn("h-2", slot?.bar)}
-      />
-      <div className="flex justify-between gap-3 font-medium text-foreground/75 tabular-nums">
-        <span className="truncate">{detail}</span>
-        <span className="shrink-0">{formatPercent(percent)}</span>
-      </div>
-    </div>
-  );
-}
-
 type TrendMetric = "orders" | "revenue";
 
 // The three payment methods drawn as stacked bar segments. Keys match the API's payment_lines keys and the
@@ -283,7 +250,7 @@ function SalesTrendCard({
         </div>
         {data.length ? (
           isRevenue ? (
-            <ChartContainer config={paymentConfig} className="aspect-auto h-72 w-full">
+            <ChartContainer config={paymentConfig} className="aspect-auto h-72 min-h-72 w-full lg:flex-1">
               <BarChart data={data} margin={{ left: 0, right: 0, top: 8 }}>
                 <CartesianGrid vertical={false} />
                 <XAxis dataKey="label" axisLine={false} tickLine={false} tickMargin={8} minTickGap={16} />
@@ -325,7 +292,7 @@ function SalesTrendCard({
               </BarChart>
             </ChartContainer>
           ) : (
-            <ChartContainer config={orderConfig} className="aspect-auto h-72 w-full">
+            <ChartContainer config={orderConfig} className="aspect-auto h-72 min-h-72 w-full lg:flex-1">
               <BarChart data={data} margin={{ left: 0, right: 0, top: 8 }}>
                 <defs>
                   {/* var() only resolves in CSS, not in SVG presentation attributes. */}
@@ -438,7 +405,7 @@ export const DashboardSalesGrid = memo(function DashboardSalesGrid({
   trendRows: TrendPoint[];
 }) {
   return (
-    <div className="grid items-start gap-4 lg:grid-cols-3">
+    <div className="grid items-start gap-4 lg:grid-cols-3 lg:items-stretch">
       <SalesTrendCard
         copy={copy}
         paymentSummary={paymentSummary}
@@ -651,7 +618,7 @@ function OrderChannelsCard({ copy, rows }: { copy: DashboardCopy; rows: Breakdow
   const total = rows.reduce((sum, row) => sum + row.value, 0);
 
   return (
-    <Card aria-labelledby="dashboard-order-channels" className="shadow-sm ring-foreground/15">
+    <Card aria-labelledby="dashboard-order-channels" className="shadow-sm ring-foreground/15 lg:flex-1">
       <CardHeader className="border-b border-foreground/10 pb-3">
         <IconTitle icon={Store}>
           <span id="dashboard-order-channels">{copy.orderChannels}</span>
@@ -662,20 +629,48 @@ function OrderChannelsCard({ copy, rows }: { copy: DashboardCopy; rows: Breakdow
       </CardHeader>
       <CardContent>
         {rows.length ? (
-          <div className="grid gap-4">
-            {rows
-              .map((row, index) => ({ row, slot: categoricalSlot(index) }))
-              .sort((left, right) => right.row.value - left.row.value)
-              .map(({ row, slot }) => (
-                <ShareRow
+          <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
+            {rows.map((row, index) => {
+              const slot = categoricalSlot(index);
+              const channel = row.key.toUpperCase();
+              const Icon = channel === "DINE_IN" ? Utensils : channel === "TAKEAWAY" ? ShoppingBag : channel === "DELIVERY" ? Truck : Store;
+              const percent = share(row.value, total);
+              const hasOrders = (row.count ?? 0) > 0;
+              const hasActivity = hasOrders || row.value > 0;
+
+              return (
+                <div
                   key={row.key}
-                  label={row.label}
-                  slot={slot}
-                  value={formatKip(row.value)}
-                  percent={row.revenuePercent || row.percent || share(row.value, total)}
-                  detail={`${formatNumber(row.count ?? 0)} ${copy.orders} · ${copy.orderShare} ${formatPercent(row.orderPercent)}`}
-                />
-              ))}
+                  className={cn(
+                    "@container/channel flex min-w-0 flex-col gap-3 rounded-lg border border-t-2 p-2.5",
+                    hasActivity ? "bg-card" : "bg-muted/30"
+                  )}
+                  style={{ borderTopColor: slot.color }}
+                >
+                  <div className="flex min-h-20 flex-col items-start gap-2">
+                    <span className="flex size-7 items-center justify-center rounded-md bg-muted" style={{ color: slot.color }}>
+                      <Icon aria-hidden="true" className="size-4" />
+                    </span>
+                    <span className="text-xs leading-relaxed font-semibold text-foreground">{row.label}</span>
+                  </div>
+                  <div className="flex min-h-12 flex-col gap-1">
+                    <span className="text-2xs font-medium text-muted-foreground">{copy.revenue}</span>
+                    <span className="text-2xs font-bold text-foreground tabular-nums @[7rem]/channel:text-sm @[11rem]/channel:text-lg" title={formatKip(row.value)}>
+                      {formatKip(row.value)}
+                    </span>
+                  </div>
+                  <div className="mt-auto flex flex-col gap-2 border-t border-border pt-2">
+                    <span className="text-2xs font-medium text-foreground/80 tabular-nums">
+                      {hasActivity ? `${formatNumber(row.count ?? 0)} ${copy.orders}` : copy.noData}
+                    </span>
+                    <div className="flex flex-col gap-1 text-2xs tabular-nums">
+                      <span className="text-muted-foreground">{copy.revenueShare}</span>
+                      <span className="font-semibold text-foreground">{formatPercent(percent)}</span>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
           </div>
         ) : (
           <EmptyPanel label={copy.noData} />
