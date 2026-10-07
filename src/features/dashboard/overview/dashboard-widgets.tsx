@@ -85,7 +85,7 @@ export const DashboardHeader = memo(function DashboardHeader({
 
   return (
     <div className="flex flex-col gap-1">
-      <h1 className="text-2xl font-semibold">{text(section.section_name, copy.title)}</h1>
+      <h1 className="text-2xl font-bold tracking-tight">{text(section.section_name, copy.title)}</h1>
       {meta ? <p className="text-sm text-muted-foreground tabular-nums">{meta}</p> : null}
     </div>
   );
@@ -191,7 +191,7 @@ export const DashboardFilterBar = memo(function DashboardFilterBar({
   yearOptions,
 }: FilterBarProps) {
   return (
-    <Card size="sm">
+    <Card size="sm" className="shadow-sm ring-foreground/15">
       {/* Phones: a 2-column grid so paired fields (dates, year/month) share a row and the
           KPIs below stay close to the first screen. sm+: one wrapping toolbar row. */}
       <CardContent className="grid grid-cols-2 gap-3 sm:flex sm:flex-wrap sm:items-end">
@@ -317,29 +317,27 @@ export const DashboardFilterBar = memo(function DashboardFilterBar({
   );
 });
 
-// Accent per metric: a soft wash of the tone behind the card (fading to the card colour, so
-// values stay readable in text tokens) plus a stronger icon tile. Class names are listed in
-// full so Tailwind can see them.
+// Solid surfaces and accent rules keep KPI values crisp; icon tiles carry the metric colour.
 const kpiTones = {
   destructive: {
-    card: "bg-linear-to-br from-destructive/15 via-destructive/5 to-card",
-    icon: "bg-destructive/15 text-destructive",
+    card: "border-t-4 border-t-destructive bg-card",
+    icon: "bg-destructive text-destructive-foreground",
   },
   info: {
-    card: "bg-linear-to-br from-info/20 via-info/5 to-card",
-    icon: "bg-info/20 text-info-text",
+    card: "border-t-4 border-t-info bg-card",
+    icon: "bg-info text-info-foreground",
   },
   muted: {
-    card: "bg-linear-to-br from-muted via-muted/40 to-card",
-    icon: "bg-muted text-muted-foreground",
+    card: "border-t-4 border-t-muted-foreground bg-card",
+    icon: "bg-foreground text-background",
   },
   primary: {
-    card: "bg-linear-to-br from-primary/15 via-primary/5 to-card",
-    icon: "bg-primary/15 text-primary-text",
+    card: "border-t-4 border-t-primary bg-card",
+    icon: "bg-primary text-primary-foreground",
   },
   warning: {
-    card: "bg-linear-to-br from-warning/20 via-warning/5 to-card",
-    icon: "bg-warning/20 text-warning-text",
+    card: "border-t-4 border-t-warning bg-card",
+    icon: "bg-warning text-warning-foreground",
   },
 } as const;
 
@@ -359,20 +357,20 @@ function KpiCard({
   value: string;
 }) {
   return (
-    <Card className={cn("@container/kpi", kpiTones[tone].card)}>
+    <Card className={cn("@container/kpi pb-0 shadow-sm ring-foreground/15", kpiTones[tone].card)}>
       <CardHeader>
-        <CardDescription>{label}</CardDescription>
+        <CardDescription className="font-semibold text-foreground">{label}</CardDescription>
         <CardAction>
           <span aria-hidden="true" className={cn("flex size-9 items-center justify-center rounded-lg", kpiTones[tone].icon)}>
             <Icon className="size-4" />
           </span>
         </CardAction>
         {/* Size follows the card's own width: money values are long and the cards are narrow. */}
-        <CardTitle className="truncate text-xl font-semibold tabular-nums @[16rem]/kpi:text-2xl" title={value}>
+        <CardTitle className="truncate text-xl font-bold tracking-tight tabular-nums @[16rem]/kpi:text-2xl" title={value}>
           {value}
         </CardTitle>
       </CardHeader>
-      <CardFooter className="mt-auto flex-wrap justify-between gap-2 text-muted-foreground tabular-nums">
+      <CardFooter className="mt-auto flex-wrap justify-between gap-2 border-t border-foreground/10 bg-muted/30 pb-4 font-medium text-foreground/80 tabular-nums">
         <span className="truncate">{detail}</span>
         {badge ? <Badge variant="secondary">{badge}</Badge> : null}
       </CardFooter>
@@ -402,9 +400,9 @@ function RevenueHeroCard({
   value: string;
 }) {
   return (
-    <Card data-dashboard-revenue-card="true" className="@container/hero bg-linear-to-br from-primary to-primary/80 text-primary-foreground ring-0 sm:col-span-2 lg:row-span-2">
+    <Card data-dashboard-revenue-card="true" className="@container/hero bg-primary text-primary-foreground shadow-sm ring-primary/30 sm:col-span-2 lg:row-span-2">
       <CardHeader>
-        <CardTitle className="flex items-center gap-2 text-primary-foreground/85">
+        <CardTitle className="flex items-center gap-2 font-semibold text-primary-foreground">
           <span aria-hidden="true" className="flex size-9 items-center justify-center rounded-lg bg-primary-foreground/15">
             <TrendingUp className="size-4" />
           </span>
@@ -421,13 +419,13 @@ function RevenueHeroCard({
       </CardHeader>
       <CardContent className="flex flex-1 flex-col justify-end gap-5">
         <p
-          className="truncate text-3xl font-semibold tracking-tight tabular-nums @[24rem]/hero:text-4xl @[36rem]/hero:text-5xl"
+          className="truncate text-3xl font-bold tracking-tight tabular-nums @[24rem]/hero:text-4xl @[36rem]/hero:text-5xl"
           title={value}
         >
           {value}
         </p>
         <div className="flex flex-col gap-2">
-          <div className="flex items-center justify-between gap-3 text-primary-foreground/85">
+          <div className="flex items-center justify-between gap-3 font-medium text-primary-foreground">
             <span>{copy.collectionRate}</span>
             <span className="font-medium text-primary-foreground tabular-nums">{formatPercent(collectionRate)}</span>
           </div>
@@ -441,14 +439,14 @@ function RevenueHeroCard({
       </CardContent>
       <CardFooter className="grid grid-cols-2 gap-4 border-t border-primary-foreground/20">
         <div className="flex min-w-0 flex-col gap-1">
-          <span className="flex items-center gap-1.5 text-primary-foreground/85">
+          <span className="flex items-center gap-1.5 font-medium text-primary-foreground">
             <HandCoins aria-hidden="true" className="size-3.5" />
             {copy.paidTotal}
           </span>
           <span className="truncate text-base font-semibold tabular-nums">{formatKip(paid)}</span>
         </div>
         <div className="flex min-w-0 flex-col gap-1">
-          <span className="flex items-center gap-1.5 text-primary-foreground/85">
+          <span className="flex items-center gap-1.5 font-medium text-primary-foreground">
             <Wallet aria-hidden="true" className="size-3.5" />
             {copy.balance} · {formatPercent(unpaidRate)}
           </span>

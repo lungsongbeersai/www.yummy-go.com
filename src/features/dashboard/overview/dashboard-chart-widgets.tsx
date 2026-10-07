@@ -53,7 +53,6 @@ import {
   ItemTitle,
 } from "@/components/ui/item";
 import { Progress } from "@/components/ui/progress";
-import { Separator } from "@/components/ui/separator";
 import {
   Select,
   SelectContent,
@@ -128,8 +127,8 @@ function share(value: number, total: number) {
 // Every card title carries a small muted icon so sections can be told apart at a glance.
 function IconTitle({ children, icon: Icon }: { children: React.ReactNode; icon: LucideIcon }) {
   return (
-    <CardTitle className="flex items-center gap-2">
-      <Icon aria-hidden="true" className="size-4 text-muted-foreground" />
+    <CardTitle className="flex items-center gap-2 font-semibold text-foreground">
+      <Icon aria-hidden="true" className="size-4 text-primary" />
       {children}
     </CardTitle>
   );
@@ -164,11 +163,11 @@ function ShareRow({
   return (
     <div className="flex flex-col gap-1.5">
       <div className="flex items-center justify-between gap-3">
-        <span className="flex min-w-0 items-center gap-2 font-medium">
+        <span className="flex min-w-0 items-center gap-2 font-semibold">
           {slot ? <span aria-hidden="true" className={cn("size-2.5 shrink-0 rounded-full", slot.dot)} /> : null}
           <span className="truncate">{label}</span>
         </span>
-        <span className="shrink-0 tabular-nums">{value}</span>
+        <span className="shrink-0 font-semibold tabular-nums">{value}</span>
       </div>
       {/* Decorative: the percentage is always printed next to the bar. */}
       <Progress
@@ -176,7 +175,7 @@ function ShareRow({
         aria-hidden="true"
         className={cn("h-2", slot?.bar)}
       />
-      <div className="flex justify-between gap-3 text-muted-foreground tabular-nums">
+      <div className="flex justify-between gap-3 font-medium text-foreground/75 tabular-nums">
         <span className="truncate">{detail}</span>
         <span className="shrink-0">{formatPercent(percent)}</span>
       </div>
@@ -206,7 +205,6 @@ function paymentMethods(cards: PaymentSummaryCard[], copy: DashboardCopy) {
 }
 
 function SalesTrendCard({
-  channelRows,
   copy,
   paymentSummary,
   paymentSummaryCards,
@@ -214,7 +212,6 @@ function SalesTrendCard({
   peakRevenueDay,
   trendRows,
 }: {
-  channelRows: BreakdownRow[];
   copy: DashboardCopy;
   paymentSummary: PaymentSummary;
   paymentSummaryCards: PaymentSummaryCard[];
@@ -247,10 +244,10 @@ function SalesTrendCard({
     (paymentSummary.mixedTotal > 0 || paymentSummary.unallocatedMixedTotal > 0);
 
   return (
-    <Card className="lg:col-span-2">
-      <CardHeader>
+    <Card className="shadow-sm ring-foreground/15 lg:col-span-2">
+      <CardHeader className="border-b border-foreground/10 pb-3">
         <IconTitle icon={ChartColumn}>{copy.dailySales}</IconTitle>
-        <CardDescription>{copy.dailySalesSubtitle}</CardDescription>
+        <CardDescription className="font-medium text-foreground/75">{copy.dailySalesSubtitle}</CardDescription>
         <CardAction>
           <ToggleGroup
             type="single"
@@ -272,13 +269,13 @@ function SalesTrendCard({
             so a segment is never identified by colour alone. */}
         <div className="grid gap-2 sm:grid-cols-3">
           {methods.map((method) => (
-            <div key={method.key} className="flex min-w-0 flex-col gap-1 rounded-lg border p-3">
-              <span className="flex min-w-0 items-center gap-2 text-muted-foreground">
+            <div key={method.key} className="flex min-w-0 flex-col gap-1 rounded-lg border border-foreground/15 bg-muted/25 p-3">
+              <span className="flex min-w-0 items-center gap-2 font-medium text-foreground/80">
                 <span aria-hidden="true" className={cn("size-2.5 shrink-0 rounded-sm", method.slot.dot)} />
                 <span className="truncate">{method.label}</span>
                 <span className="ml-auto shrink-0 tabular-nums">{formatPercent(share(method.value, total))}</span>
               </span>
-              <span className="truncate text-sm font-semibold tabular-nums" title={formatKip(method.value)}>
+              <span className="truncate text-base font-bold tabular-nums" title={formatKip(method.value)}>
                 {formatKip(method.value)}
               </span>
             </div>
@@ -404,8 +401,6 @@ function SalesTrendCard({
             </AlertDescription>
           </Alert>
         ) : null}
-        <Separator />
-        <OrderChannels copy={copy} rows={channelRows} />
       </CardContent>
     </Card>
   );
@@ -443,9 +438,8 @@ export const DashboardSalesGrid = memo(function DashboardSalesGrid({
   trendRows: TrendPoint[];
 }) {
   return (
-    <div className="grid gap-4 lg:grid-cols-3">
+    <div className="grid items-start gap-4 lg:grid-cols-3">
       <SalesTrendCard
-        channelRows={channelRows}
         copy={copy}
         paymentSummary={paymentSummary}
         paymentSummaryCards={paymentSummaryCards}
@@ -453,7 +447,10 @@ export const DashboardSalesGrid = memo(function DashboardSalesGrid({
         peakRevenueDay={peakRevenueDay}
         trendRows={trendRows}
       />
-      <AccountingCard copy={copy} rows={accountingRows} />
+      <div className="flex min-w-0 flex-col gap-4">
+        <AccountingCard copy={copy} rows={accountingRows} />
+        <OrderChannelsCard copy={copy} rows={channelRows} />
+      </div>
     </div>
   );
 });
@@ -490,10 +487,10 @@ function TopProductsCard({
   const format = sort === "revenue" ? formatKip : formatNumber;
 
   return (
-    <Card className="lg:col-span-2">
-      <CardHeader>
+    <Card className="shadow-sm ring-foreground/15 lg:col-span-2">
+      <CardHeader className="border-b border-foreground/10 pb-3">
         <IconTitle icon={Trophy}>{copy.topProducts}</IconTitle>
-        <CardDescription>
+        <CardDescription className="font-medium text-foreground/75">
           {formatNumber(products.length)} {copy.products}
         </CardDescription>
         <CardAction className="flex items-center gap-2">
@@ -606,10 +603,10 @@ function TableStatusCard({ copy, summary }: { copy: DashboardCopy; summary: Row 
   ];
 
   return (
-    <Card>
-      <CardHeader>
+    <Card className="shadow-sm ring-foreground/15">
+      <CardHeader className="border-b border-foreground/10 pb-3">
         <IconTitle icon={Armchair}>{copy.tableStatus}</IconTitle>
-        <CardDescription>
+        <CardDescription className="font-medium text-foreground/75">
           {formatNumber(total)} {copy.tables}
         </CardDescription>
       </CardHeader>
@@ -650,43 +647,41 @@ function TableStatusCard({ copy, summary }: { copy: DashboardCopy; summary: Row 
   );
 }
 
-// Order channels sit inside the sales card, under the chart: where the period's revenue came
-// from reads together with how it moved, instead of in a separate card further down.
-function OrderChannels({ copy, rows }: { copy: DashboardCopy; rows: BreakdownRow[] }) {
+function OrderChannelsCard({ copy, rows }: { copy: DashboardCopy; rows: BreakdownRow[] }) {
   const total = rows.reduce((sum, row) => sum + row.value, 0);
 
   return (
-    <section aria-labelledby="dashboard-order-channels" className="flex flex-col gap-3">
-      <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
-        <h3 id="dashboard-order-channels" className="flex items-center gap-2 text-sm font-medium">
-          <Store aria-hidden="true" className="size-4 text-muted-foreground" />
-          {copy.orderChannels}
-        </h3>
-        <span className="text-muted-foreground tabular-nums">
+    <Card aria-labelledby="dashboard-order-channels" className="shadow-sm ring-foreground/15">
+      <CardHeader className="border-b border-foreground/10 pb-3">
+        <IconTitle icon={Store}>
+          <span id="dashboard-order-channels">{copy.orderChannels}</span>
+        </IconTitle>
+        <CardDescription className="font-medium text-foreground/75 tabular-nums">
           {formatNumber(rows.length)} {copy.channels} · {formatKip(total)}
-        </span>
-      </div>
-      {rows.length ? (
-        // Two columns once the wide card has room — a single tall list would leave the right half empty.
-        <div className="grid gap-x-6 gap-y-4 md:grid-cols-2">
-          {rows
-            .map((row, index) => ({ row, slot: categoricalSlot(index) }))
-            .sort((left, right) => right.row.value - left.row.value)
-            .map(({ row, slot }) => (
-              <ShareRow
-                key={row.key}
-                label={row.label}
-                slot={slot}
-                value={formatKip(row.value)}
-                percent={row.revenuePercent || row.percent || share(row.value, total)}
-                detail={`${formatNumber(row.count ?? 0)} ${copy.orders} · ${copy.orderShare} ${formatPercent(row.orderPercent)}`}
-              />
-            ))}
-        </div>
-      ) : (
-        <EmptyPanel label={copy.noData} />
-      )}
-    </section>
+        </CardDescription>
+      </CardHeader>
+      <CardContent>
+        {rows.length ? (
+          <div className="grid gap-4">
+            {rows
+              .map((row, index) => ({ row, slot: categoricalSlot(index) }))
+              .sort((left, right) => right.row.value - left.row.value)
+              .map(({ row, slot }) => (
+                <ShareRow
+                  key={row.key}
+                  label={row.label}
+                  slot={slot}
+                  value={formatKip(row.value)}
+                  percent={row.revenuePercent || row.percent || share(row.value, total)}
+                  detail={`${formatNumber(row.count ?? 0)} ${copy.orders} · ${copy.orderShare} ${formatPercent(row.orderPercent)}`}
+                />
+              ))}
+          </div>
+        ) : (
+          <EmptyPanel label={copy.noData} />
+        )}
+      </CardContent>
+    </Card>
   );
 }
 
@@ -726,10 +721,10 @@ function AccountingCard({ copy, rows }: { copy: DashboardCopy; rows: AccountingR
   const last = rows.length - 1;
 
   return (
-    <Card>
-      <CardHeader>
+    <Card className="shadow-sm ring-foreground/15">
+      <CardHeader className="border-b border-foreground/10 pb-3">
         <IconTitle icon={Landmark}>{copy.accounting}</IconTitle>
-        <CardDescription>{copy.ledger}</CardDescription>
+        <CardDescription className="font-medium text-foreground/75">{copy.ledger}</CardDescription>
       </CardHeader>
       <CardContent className="flex flex-col gap-1">
         {rows.length ? (
@@ -738,7 +733,7 @@ function AccountingCard({ copy, rows }: { copy: DashboardCopy; rows: AccountingR
             index === last && row.important ? (
               <div
                 key={row.key}
-                className="mt-2 flex items-baseline justify-between gap-3 rounded-lg bg-primary/10 px-3 py-2.5 text-base font-semibold text-primary-text"
+                className="mt-2 flex items-baseline justify-between gap-3 rounded-lg bg-primary px-3 py-3 text-base font-bold text-primary-foreground"
               >
                 <span className="min-w-0 truncate">{row.label}</span>
                 <span className="shrink-0 tabular-nums">{formatKip(row.value)}</span>
@@ -747,11 +742,11 @@ function AccountingCard({ copy, rows }: { copy: DashboardCopy; rows: AccountingR
               <div
                 key={row.key}
                 className={cn(
-                  "flex items-baseline justify-between gap-3 border-b border-dashed py-1.5 last:border-b-0",
+                  "flex items-baseline justify-between gap-3 border-b border-foreground/10 py-2 last:border-b-0",
                   row.important && "font-semibold",
                 )}
               >
-                <span className={cn("min-w-0 truncate", !row.important && "text-muted-foreground")}>{row.label}</span>
+                <span className={cn("min-w-0 truncate", !row.important && "text-foreground/80")}>{row.label}</span>
                 <span className={cn("shrink-0 tabular-nums", row.negative && "text-destructive")}>
                   {row.negative ? "− " : ""}
                   {formatKip(row.value)}
@@ -827,8 +822,8 @@ function HighlightsCard({
   ];
 
   return (
-    <Card>
-      <CardHeader>
+    <Card className="shadow-sm ring-foreground/15">
+      <CardHeader className="border-b border-foreground/10 pb-3">
         <IconTitle icon={Lightbulb}>{copy.insights}</IconTitle>
       </CardHeader>
       <CardContent>

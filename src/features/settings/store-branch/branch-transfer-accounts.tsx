@@ -310,8 +310,8 @@ export function BranchTransferAccounts({
               <div className="flex items-center gap-2">
                 <Badge variant={Number(account.account_status) === ACTIVE ? "default" : "secondary"}>
                   {Number(account.account_status) === ACTIVE
-                    ? t("settings.storeBranch.active")
-                    : t("settings.storeBranch.inactive")}
+                    ? t("common.active")
+                    : t("common.inactive")}
                 </Badge>
                 <Button
                   type="button"
@@ -406,10 +406,10 @@ export function BranchTransferAccounts({
             </SelectTrigger>
             <SelectContent>
               <SelectItem value={String(ACTIVE)}>
-                {t("settings.storeBranch.active")}
+                {t("common.active")}
               </SelectItem>
               <SelectItem value={String(INACTIVE)}>
-                {t("settings.storeBranch.inactive")}
+                {t("common.inactive")}
               </SelectItem>
             </SelectContent>
           </Select>
