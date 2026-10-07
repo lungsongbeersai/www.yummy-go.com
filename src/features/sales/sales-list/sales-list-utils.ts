@@ -109,14 +109,23 @@ const BILL_TIME_FORMAT = new Intl.DateTimeFormat("en-GB", {
   hour: "2-digit",
   hour12: false,
   minute: "2-digit",
-  month: "2-digit"
+  month: "2-digit",
+  timeZone: "Asia/Vientiane"
 });
+
+// Legacy timestamps without an offset are restaurant wall-clock values. Explicit
+// offsets from the API must be preserved, regardless of the device timezone.
+function parsePaidDate(raw: string) {
+  if (!raw) return null;
+  const localTimestamp = /^\d{4}-\d{2}-\d{2}[ T]\d{2}:\d{2}:\d{2}(?:\.\d+)?$/.test(raw);
+  return new Date(localTimestamp ? `${raw.replace(" ", "T")}+07:00` : raw);
+}
 
 // order_date จาก API เป็นวันธุรกิจล้วน (เวลา 00:00:00 ทุกบิล) — โชว์ตรงๆ ได้ "12:00:00 AM" เหมือนกันหมด
 // จึงใช้เวลาชำระจริง (last_paid_at) แทน ถ้าไม่มีค่อยถอยไปโชว์แค่วันที่ในรูป dd/MM/yyyy แบบช่องกรองวันที่
 export function billTimeLabel(bill: DailySaleItemsBillGroup) {
   const paidAt = textValue(readValue(bill.raw, ["last_paid_at", "paid_at"]), "");
-  const paidDate = paidAt ? new Date(paidAt) : null;
+  const paidDate = parsePaidDate(paidAt);
   if (paidDate && !Number.isNaN(paidDate.getTime())) {
     return { dateTime: paidDate.toISOString(), label: BILL_TIME_FORMAT.format(paidDate) };
   }
@@ -126,12 +135,12 @@ export function billTimeLabel(bill: DailySaleItemsBillGroup) {
   return { dateTime: bill.saleDate, label: formatSaleDate(bill.saleDate) };
 }
 
-const BILL_CLOCK_FORMAT = new Intl.DateTimeFormat("en-GB", { hour: "2-digit", hour12: false, minute: "2-digit" });
+const BILL_CLOCK_FORMAT = new Intl.DateTimeFormat("en-GB", { hour: "2-digit", hour12: false, minute: "2-digit", timeZone: "Asia/Vientiane" });
 
 // เวลาชำระ HH:mm สำหรับคอลัมน์เวลาในลิสต์ — วันที่อยู่ที่หัวกลุ่มแล้ว ไม่ต้องซ้ำทุกแถว
 export function billPaidClock(bill: DailySaleItemsBillGroup) {
   const paidAt = textValue(readValue(bill.raw, ["last_paid_at", "paid_at"]), "");
-  const paidDate = paidAt ? new Date(paidAt) : null;
+  const paidDate = parsePaidDate(paidAt);
   return paidDate && !Number.isNaN(paidDate.getTime()) ? BILL_CLOCK_FORMAT.format(paidDate) : "";
 }
 

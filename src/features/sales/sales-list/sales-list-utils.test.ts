@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import type { DailySaleItemsBillGroup } from "@/stores/report-store";
 import {
   billMetaText,
+  billPaidClock,
   billNeedsPaymentAttention,
   billPaymentLabel,
   billTimeLabel,
@@ -73,6 +74,24 @@ describe("sales list utils", () => {
   it("shows the paid time rather than the midnight business date", () => {
     expect(billTimeLabel(bill({ raw: { last_paid_at: "2026-09-23T19:13:50.949Z" } })).dateTime).toBe("2026-09-23T19:13:50.949Z");
     expect(billTimeLabel(bill({ saleDate: "2026-09-24 00:00:00" }))).toEqual({ dateTime: "2026-09-24", label: "24/09/2026" });
+  });
+
+  it.each([
+    "2026-10-02T10:56:00Z",
+    "2026-10-02T17:56:00+07:00",
+    "2026-10-02 17:56:00",
+  ])("shows payment %s in the restaurant timezone", (paidAt) => {
+    const sale = bill({ raw: { last_paid_at: paidAt } });
+    expect(billPaidClock(sale)).toBe("17:56");
+    expect(billTimeLabel(sale).label).toBe("02/10, 17:56");
+  });
+
+  it("shows the local payment date across UTC midnight and preserves the business date", () => {
+    const sale = bill({ saleDate: "2026-10-01 00:00:00", raw: { last_paid_at: "2026-10-01T19:13:00Z" } });
+    expect(billPaidClock(sale)).toBe("02:13");
+    expect(billTimeLabel(sale).label).toBe("02/10, 02:13");
+    expect(groupBillsByDate([sale])[0].label).toBe("01/10/2026");
+    expect(billPaidClock(bill({ raw: { last_paid_at: "invalid" } }))).toBe("");
   });
 
   it("explains the saved 40 percent item discount without changing the amounts", () => {
