@@ -1,8 +1,9 @@
 "use client";
 
 import { Dialog, DialogDescription, DialogTitle } from "@/components/ui/dialog";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Button } from "@/components/ui/button";
-import { Field, FieldDescription, FieldGroup, FieldLabel } from "@/components/ui/field";
+import { Field, FieldContent, FieldDescription, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Spinner } from "@/components/ui/spinner";
@@ -278,6 +279,23 @@ export function SubMenuDialog({
                 </Select>
                 <FieldDescription>{t("permissionMenu.subStatusHint")}</FieldDescription>
               </Field>
+              {!editing ? (
+                <Field orientation="horizontal" className="rounded-lg border p-3">
+                  <Checkbox
+                    aria-describedby="permission-sub-grant-hint"
+                    checked={form.grant_to_all_stores}
+                    disabled={saving}
+                    id="permission-sub-grant-all"
+                    onCheckedChange={(checked) => setForm({ ...form, grant_to_all_stores: checked === true })}
+                  />
+                  <FieldContent>
+                    <FieldLabel htmlFor="permission-sub-grant-all">{t("permissionMenu.grantToAllStores")}</FieldLabel>
+                    <FieldDescription id="permission-sub-grant-hint">
+                      {t(form.grant_to_all_stores ? "permissionMenu.grantToAllStoresHint" : "permissionMenu.grantManuallyHint")}
+                    </FieldDescription>
+                  </FieldContent>
+                </Field>
+              ) : null}
             </FieldGroup>
           </SettingsDialogBody>
           <SettingsDialogFooter>

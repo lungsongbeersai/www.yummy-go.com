@@ -56,6 +56,7 @@ export const MAIN_FORM_INITIAL = {
 };
 
 export const SUB_FORM_INITIAL = {
+  grant_to_all_stores: true,
   sub_id: "",
   sub_path: "",
   sub_status: "1",

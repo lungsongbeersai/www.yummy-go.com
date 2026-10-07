@@ -63,6 +63,7 @@ export interface CreateMainMenuInput {
 }
 
 export interface CreateSubMenuInput {
+  grant_to_all_stores?: boolean;
   menu_id: string;
   sub_id?: string;
   sub_path: string;
@@ -153,6 +154,7 @@ export function buildCreateMainMenuPayload(input: CreateMainMenuInput) {
 
 export function buildCreateSubMenuPayload(input: CreateSubMenuInput) {
   return {
+    grant_to_all_stores: !text(input.sub_id) && input.grant_to_all_stores === true,
     menu_id: requiredText(input.menu_id, "menu_id"),
     sub_id: text(input.sub_id),
     sub_path: requiredText(input.sub_path, "sub_path"),

@@ -1379,6 +1379,9 @@
     "unsavedChanges": "Unsaved changes"
   },
   "permissionMenu": {
+    "grantToAllStores": "Add permissions for all stores",
+    "grantToAllStoresHint": "Add this menu to roles that already have access to this menu group in each store. PLC-only menus remain limited to PLC.",
+    "grantManuallyHint": "Leave unchecked to assign this menu to each store in Manage Access Permissions.",
     "addMain": "Add main menu",
     "addSub": "Add submenu",
     "badgeHide": "Do not show badge",

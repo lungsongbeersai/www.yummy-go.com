@@ -117,6 +117,7 @@ describe("permission menu service helpers", () => {
         sub_title_la: "Sale report LA"
       })
     ).toEqual({
+      grant_to_all_stores: false,
       menu_id: "menu-1",
       sub_id: "",
       sub_path: "/report/sale",
@@ -133,6 +134,13 @@ describe("permission menu service helpers", () => {
         sub_title_la: "PLC report LA"
       }).sub_status
     ).toBe(2);
+  });
+
+  it("opts into grants only for new submenus and never when editing or moving", () => {
+    const input = { menu_id: "menu-1", sub_path: "/new", sub_title_eng: "New", sub_title_la: "New LA", grant_to_all_stores: true };
+    expect(buildCreateSubMenuPayload(input).grant_to_all_stores).toBe(true);
+    expect(buildCreateSubMenuPayload({ ...input, grant_to_all_stores: false }).grant_to_all_stores).toBe(false);
+    expect(buildCreateSubMenuPayload({ ...input, sub_id: "existing-sub" }).grant_to_all_stores).toBe(false);
   });
 
   it("keeps manually entered paths in create payloads", () => {

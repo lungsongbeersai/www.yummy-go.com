@@ -179,8 +179,16 @@ function normalizeMenu(menu: RawMenu): StorePermissionMenu {
 }
 
 function normalizeRoleTree(role: RawRoleTree): StorePermissionRoleTree {
+  const roleId = numberValue(role.role_id);
+  // Match sidebar visibility before selection/counting so PLC-only permissions
+  // cannot be included by Select All for a different role.
   const menus = Array.isArray(role.menus)
-    ? role.menus.map(normalizeMenu)
+    ? role.menus.map(normalizeMenu).map((menu) => ({
+        ...menu,
+        sub_detail: menu.sub_detail.filter((submenu) =>
+          submenu.sub_status === 1 || (roleId === 1 && submenu.sub_status === 2)
+        )
+      })).filter((menu) => menu.sub_detail.length > 0)
     : [];
 
   return {
@@ -189,7 +197,7 @@ function normalizeRoleTree(role: RawRoleTree): StorePermissionRoleTree {
         a.menu_sort - b.menu_sort ||
         a.menu_title.localeCompare(b.menu_title)
     ),
-    role_id: numberValue(role.role_id),
+    role_id: roleId,
     role_name: text(
       role.role_name ||
         role.roles_name ||

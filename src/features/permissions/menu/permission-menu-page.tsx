@@ -65,6 +65,7 @@ function mainFormFromMenu(menu: PermissionMainMenu): MainFormState {
 function subFormFromSubmenu(submenu: PermissionSubMenu): SubFormState {
   const fallbackTitle = submenu.sub_title || "";
   return {
+    grant_to_all_stores: false,
     sub_id: submenu.sub_id,
     sub_path: submenu.sub_path || "",
     sub_status: String(submenu.sub_status ?? 1),

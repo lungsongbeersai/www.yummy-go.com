@@ -58,6 +58,24 @@ describe("store permissions service helpers", () => {
     expect(checkedSubmenuIds(tree).sort()).toEqual([MANAGE_MENU_SUB_ID, "access-sub"].sort());
   });
 
+  it.each([1, 2, 3, 6])("filters PLC-only submenus for target role %s", (roleId) => {
+    const tree = normalizeStorePermissionTree({ roles: [{ role_id: roleId, menus: [
+      { menu_id: "settings", sub_detail: [
+        { sub_id: "public", checked: true, sub_status: 1 },
+        { sub_id: "plc", checked: true, sub_status: 2 },
+        { sub_id: "legacy", checked: false },
+      ] },
+      { menu_id: "plc-only-group", sub_detail: [{ sub_id: "plc-only", checked: true, sub_status: 2 }] },
+    ] }] });
+    expect(tree.roles[0].menus.map((menu) => menu.menu_id)).toEqual(
+      roleId === 1 ? ["settings", "plc-only-group"] : ["settings"]
+    );
+    expect(tree.roles[0].menus.find((menu) => menu.menu_id === "settings")?.sub_detail.map((submenu) => submenu.sub_id)).toEqual(
+      roleId === 1 ? ["public", "plc", "legacy"] : ["public", "legacy"]
+    );
+    expect(checkedSubmenuIds(tree).sort()).toEqual(roleId === 1 ? ["plc", "plc-only", "public"] : ["public"]);
+  });
+
   it("builds save payload with manage menu submenu id in sub_id_list", () => {
     expect(
       buildStorePermissionSavePayload({
