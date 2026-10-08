@@ -9,6 +9,7 @@ import {
   printerFormValues,
   requiresZoneMapping,
   shouldResolveCurrentPrinterIdentity,
+  sharingModeOf,
 } from "@/features/printer/form/printer-form-utils";
 
 describe("formatIpInput", () => {
@@ -227,5 +228,17 @@ describe("queue ticket preference", () => {
   it("selects printing for a new printer and restores the saved opt-out", () => {
     expect(printerFormValues(null).queueTicketEnabled).toBe(true);
     expect(printerFormValues({ print_config_uuid: "printer", printer_name: "Counter", connect_type: "tcp", interface_value: "tcp://192.168.1.20:9100", paper_width_mm: 80, is_active: true, role_codes: [], cate_uuid_fk: [], queue_ticket_enabled: false }).queueTicketEnabled).toBe(false);
+  });
+});
+
+describe("new printer sharing default", () => {
+  const printer = { print_config_uuid: "printer", printer_name: "Printer", connect_type: "tcp", interface_value: "tcp://192.168.1.20:9100", paper_width_mm: 80, is_active: true, role_codes: [], cate_uuid_fk: [] };
+  it("selects Shared in the new printer form", () => {
+    expect(printerFormValues(null).sharingMode).toBe("SHARED");
+  });
+  it("preserves dedicated settings and the legacy default when editing", () => {
+    expect(sharingModeOf(printer)).toBe("DEDICATED");
+    expect(sharingModeOf({ ...printer, sharing_mode: "DEDICATED" })).toBe("DEDICATED");
+    expect(sharingModeOf({ ...printer, sharing_mode: "SHARED" })).toBe("SHARED");
   });
 });
