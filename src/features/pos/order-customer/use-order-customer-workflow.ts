@@ -59,6 +59,7 @@ import {
 } from "./order-customer-utils";
 import { cartForTable, cartQuantityCount } from "../table-selection/utils";
 import { useDraftCleanup } from "./use-draft-cleanup";
+import { createCartRefreshQueue } from "./cart-refresh-queue";
 import { useOrderCustomerRealtime } from "./use-order-customer-realtime";
 
 export type OrderCustomerWorkflowInput = {
@@ -119,7 +120,11 @@ export function useOrderCustomerWorkflow({
   const [draftExitWarningOpen, setDraftExitWarningOpen] = useState(false);
   const [draftExitCleanupPending, setDraftExitCleanupPending] = useState(false);
   const productActionPendingRef = useRef(false);
-  const backgroundCartRefreshRef = useRef<Promise<void> | null>(null);
+  const backgroundCartRefreshRef = useRef(createCartRefreshQueue());
+  useEffect(() => {
+    const queue = backgroundCartRefreshRef.current;
+    return () => queue.cancel();
+  }, []);
   const pendingExitActionRef = useRef<(() => void) | null>(null);
   const allowNextUnloadRef = useRef(false);
   const requestGuardedNavigationRef = useRef<(action: () => void) => void>(
@@ -634,21 +639,12 @@ export function useOrderCustomerWorkflow({
     void loadCart();
   }, [loadCart]);
 
-  // Socket และ lifecycle อาจแจ้งพร้อมกันหลังแอปกลับ foreground จึงรวม background
-  // refresh ที่คาบเกี่ยวกันให้ใช้ request เดียว ส่วน foreground refresh หลัง mutation
-  // ยังคงยิงใหม่เสมอเพื่อไม่ให้ใช้ response เก่าก่อนเพิ่ม/แก้รายการอาหาร
+  // Preserve events arriving while a previous read is in flight. The follow-up
+  // read observes changes committed after that earlier read started.
   const refreshCartInBackground = useCallback(() => {
-    const activeRequest = backgroundCartRefreshRef.current;
-    if (activeRequest) return activeRequest;
-
-    const request = loadCart({ background: true }).finally(() => {
-      if (backgroundCartRefreshRef.current === request) {
-        backgroundCartRefreshRef.current = null;
-      }
-    });
-    backgroundCartRefreshRef.current = request;
-    return request;
-  }, [loadCart]);
+    const scope = [user?.uuid, branchUuid, initialTableUuid, counterOrderUuid, language].join(":");
+    return backgroundCartRefreshRef.current(scope, () => loadCart({ background: true }));
+  }, [branchUuid, counterOrderUuid, initialTableUuid, language, loadCart, user?.uuid]);
 
   // Web ใช้ visibilitychange; Capacitor ใช้ native appStateChange ซึ่ง map ไปยัง
   // lifecycle ของ iOS/Android โดยตรง เมื่อกลับ foreground ให้โหลด cart จาก server

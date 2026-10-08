@@ -771,6 +771,11 @@
     "loadError": "ໂຫຼດຄິວອໍເດີບໍ່ສຳເລັດ"
   },
   "pos": {
+    "queueTicketChoice": "ການພິມໃບຄິວ",
+    "printQueueTicket": "ພິມໃບຄິວ",
+    "skipQueueTicket": "ບໍ່ພິມໃບຄິວ",
+    "itemActionUnavailable": "ລາຍການນີ້ບໍ່ພ້ອມໃຫ້ດຳເນີນການ",
+    "itemActionReloaded": "ໂຫຼດບິນລ່າສຸດແລ້ວ. ກະລຸນາກວດສອບລາຍການກ່ອນລອງອີກຄັ້ງ.",
     "payNow": "ຊໍາລະເງິນ",
     "closePaymentWindow": "ປິດໜ້າຕ່າງ",
     "addTransferAccount": "ເພີ່ມບັນຊີທະນາຄານ",

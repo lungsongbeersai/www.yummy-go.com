@@ -769,6 +769,33 @@ describe("POS store cart requests", () => {
     usePosStore.getState().reset();
   });
 
+  it("cannot restore a cancelled item from a request started before cart invalidation", async () => {
+    const response = deferred<FetchCartResponse>();
+    fetchCartMock.mockReturnValueOnce(response.promise);
+    const store = usePosStore.getState();
+    const pending = store.loadCart({ table_uuid: "table-1" });
+    store.setCart(null);
+    response.resolve({ status: "success", message: "ok", orders: [{ order_uuid: "deleted-order" }] });
+    await pending;
+    expect(usePosStore.getState().cart).toBeNull();
+    expect(usePosStore.getState().loadingCart).toBe(false);
+  });
+
+  it("keeps an invalidated bill unavailable until a new server read completes", async () => {
+    const oldRead = deferred<FetchCartResponse>();
+    fetchCartMock.mockReturnValueOnce(oldRead.promise).mockResolvedValueOnce({ status: "success", message: "ok", orders: [] });
+    const store = usePosStore.getState();
+    const pending = store.loadCart({ table_uuid: "table-1" });
+    store.invalidateCart();
+    oldRead.resolve({ status: "success", message: "ok", orders: [{ order_uuid: "deleted-order" }] });
+    await pending;
+    expect(usePosStore.getState().cart).toBeNull();
+    expect(usePosStore.getState().loadingCart).toBe(true);
+    await store.loadCart({ table_uuid: "table-1" });
+    expect(usePosStore.getState().cart).toEqual([]);
+    expect(usePosStore.getState().loadingCart).toBe(false);
+  });
+
   it("keeps the result of the most recently issued loadCart call when an older request resolves later", async () => {
     const store = usePosStore.getState();
 

@@ -166,14 +166,17 @@ export function subscribePrintJobs(
 export function subscribeBranchTableRealtime(
   branchUuid: string,
   handler: BranchRealtimeHandler,
+  onConnect?: () => void,
 ) {
   if (typeof window === "undefined" || !branchUuid) return () => {};
   const active = getSocket(branchUuid);
   active.on(socketEvents.tableStatusChanged, handler);
   active.on(socketEvents.orderQueueChanged, handler);
+  if (onConnect) active.on("connect", onConnect);
   return () => {
     active.off(socketEvents.tableStatusChanged, handler);
     active.off(socketEvents.orderQueueChanged, handler);
+    if (onConnect) active.off("connect", onConnect);
   };
 }
 

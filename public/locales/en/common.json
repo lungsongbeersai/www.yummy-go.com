@@ -772,6 +772,11 @@
     "loadError": "Failed to load the order queue"
   },
   "pos": {
+    "queueTicketChoice": "Queue ticket printing",
+    "printQueueTicket": "Print queue ticket",
+    "skipQueueTicket": "Do not print queue ticket",
+    "itemActionUnavailable": "This item is no longer available for this action",
+    "itemActionReloaded": "The latest bill has been loaded. Please check the current items before trying again.",
     "payNow": "Pay",
     "closePaymentWindow": "Close window",
     "addTransferAccount": "Add bank account",

@@ -213,6 +213,7 @@ interface PosState {
   setActiveSort: (activeSort: ProductSortStatusType) => void;
   resetMenu: () => void;
   setCart: (cart: CartOrder | CartOrder[] | null) => void;
+  invalidateCart: () => void;
   setTable: (tableUuid: string, tableName?: string) => void;
   setCounterOrderUuid: (orderUuid: string) => void;
   beginKitchenConfirmation: () => void;
@@ -308,7 +309,15 @@ export const usePosStore = create<PosState>((set, get) => ({
     clearProductItemCache();
     set(initialPosMenuState());
   },
-  setCart: (cart) => set({ cart }),
+  invalidateCart: () => {
+    posCartFetchVersion += 1;
+    set({ cart: null, loadingCart: true });
+  },
+  setCart: (cart) => {
+    // Explicit replacements invalidate reads started before a committed mutation.
+    posCartFetchVersion += 1;
+    set({ cart, loadingCart: false });
+  },
   setTable: (tableUuid, tableName = "") => set({ tableUuid, tableName }),
   setCounterOrderUuid: (orderUuid) => set({ counterOrderUuid: orderUuid }),
   // confirmation ครอบคลุมทั้ง API + งานพิมพ์/refresh ใน workflow ไม่ใช่แค่ request
@@ -804,6 +813,7 @@ export const usePosStore = create<PosState>((set, get) => ({
   },
   setOrderHistory: (orders) => set({ orderHistory: posService.cartOrdersToHistory(orders) }),
   reset: () => {
+    posCartFetchVersion += 1;
     posMenuLifecycleVersion += 1;
     posTableFetchVersion += 1;
     lastLoadedTableScopeKey = "";

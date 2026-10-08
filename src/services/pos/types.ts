@@ -708,6 +708,7 @@ export interface UpdateOrderNoteInput {
 export interface UpdateOrderNoteResponse extends ApiEntity {}
 
 export interface PaymentInput extends ApiEntity {
+  print_queue_ticket?: boolean;
   payment_uuid?: string;
   order_uuid: string;
   table_uuid?: string;

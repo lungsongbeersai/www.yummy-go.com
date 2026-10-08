@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef } from "react";
+import { useLatestValue } from "@/hooks/use-latest-value";
 import {
   isBranchRealtimeEvent,
   subscribeBranchTableRealtime,
@@ -18,15 +19,16 @@ interface UseOrderCustomerRealtimeParams {
 // event ชุดเดียวกับหน้าเลือกโต๊ะ (table_status_changed + order_queue_changed)
 // coalesce เป็นการโหลด cart ใหม่ครั้งเดียวเหมือน use-table-alerts.ts
 export function useOrderCustomerRealtime({ branchUuid, refresh }: UseOrderCustomerRealtimeParams) {
+  const refreshRef = useLatestValue(refresh);
   const refreshTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const scheduleRefresh = useCallback(() => {
     if (refreshTimerRef.current) clearTimeout(refreshTimerRef.current);
     refreshTimerRef.current = setTimeout(() => {
       refreshTimerRef.current = null;
-      void refresh().catch(() => undefined);
+      void refreshRef.current().catch(() => undefined);
     }, 250);
-  }, [refresh]);
+  }, [refreshRef]);
 
   useEffect(
     () => () => {
@@ -44,6 +46,6 @@ export function useOrderCustomerRealtime({ branchUuid, refresh }: UseOrderCustom
       scheduleRefresh();
     }
 
-    return subscribeBranchTableRealtime(activeBranchUuid, handleBranchRealtime);
+    return subscribeBranchTableRealtime(activeBranchUuid, handleBranchRealtime, scheduleRefresh);
   }, [branchUuid, scheduleRefresh]);
 }

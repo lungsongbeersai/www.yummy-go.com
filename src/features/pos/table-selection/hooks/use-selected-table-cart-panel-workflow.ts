@@ -29,6 +29,8 @@ import type {
   ConfirmItemStage,
   DiscountDraft,
 } from "../types";
+import { finishCommittedCartItemAction } from "../committed-cart-item-action";
+import { CartItemActionUnavailableError, currentCartItemAction, isMissingCartItemError } from "../cart-item-action-state";
 import { kitchenConfirmPrintOutcome } from "../kitchen-confirm-print-outcome";
 import {
   billDiscountButtonValue,
@@ -195,6 +197,7 @@ export function useSelectedTableCartPanelWorkflow({
   // double-click ส่ง confirm_to_kitchen_batch ซ้ำก่อน React มีโอกาส render ปุ่ม disabled
   // และใช้ตัวเดียวกันทั้งยืนยันรวม/รายสินค้าเพื่อไม่ให้สอง flow วิ่งซ้อนกัน
   const kitchenConfirmationInFlightRef = useRef(false);
+  const itemActionInFlightRef = useRef(false);
   const [itemActionTarget, setItemActionTarget] =
     useState<CartItemActionTarget | null>(null);
   const [actingItemUuid, setActingItemUuid] = useState<string | null>(null);
@@ -1080,17 +1083,30 @@ export function useSelectedTableCartPanelWorkflow({
   }
 
   async function confirmItemAction(cancelQuantity?: number) {
-    if (!itemActionTarget || !actionTargetUuid || actingItemUuid) return;
+    if (!itemActionTarget || !actionTargetUuid || actingItemUuid || itemActionInFlightRef.current) return;
+    itemActionInFlightRef.current = true;
 
     setActingItemUuid(actionTargetUuid);
     try {
+      // Refresh before destructive actions; the dialog may have been opened
+      // before another terminal changed or removed this item's persisted row.
+      const expectedOrderUuid = firstCartOrderUuid(orders);
+      await onTableActionComplete();
+      const latestCart = primaryCartOrder(usePosStore.getState().cart);
+      const latestOrders = cartOrders(latestCart);
+      const currentItem = firstCartOrderUuid(latestOrders) === expectedOrderUuid
+        ? currentCartItemAction(visibleCartItems(latestCart), actionTargetUuid, itemActionTarget.action)
+        : null;
+      if (!currentItem) throw new CartItemActionUnavailableError();
+      setItemActionTarget({ action: itemActionTarget.action, item: currentItem });
+      const currentIsSet = Boolean(currentItem.set_instance_uuid);
       const successKey = itemActionTarget.action === "delete" ? "pos.itemActionSuccess" : "pos.itemCancelSuccess";
-      let cancelPrintResult: { successCount: number; failedCount: number; total: number; errorMessage?: string } | null = null;
+      let cancellation: Awaited<ReturnType<typeof cancelItem>> | undefined;
       if (itemActionTarget.action === "delete") {
         await deleteItem(actionTargetUuid);
       } else {
-        const availableQuantity = cartItemQty(itemActionTarget.item);
-        if (!actionTargetIsSet && (
+        const availableQuantity = cartItemQty(currentItem);
+        if (!currentIsSet && (
           !Number.isInteger(cancelQuantity) ||
           Number(cancelQuantity) < 1 ||
           Number(cancelQuantity) > availableQuantity
@@ -1099,17 +1115,34 @@ export function useSelectedTableCartPanelWorkflow({
             t("pos.cancelItemQuantityHelp", { max: availableQuantity }),
           );
         }
-        const response = await cancelItem({
+        cancellation = await cancelItem({
           order_it_uuid: actionTargetUuid,
-          ...(actionTargetIsSet
+          ...(currentIsSet
             ? {}
             : { order_it_qty: Number(cancelQuantity) }),
           login_uuid_fk: user?.uuid,
         });
-        cancelPrintResult = await executeCancelReceiptPrint(response, user?.uuid ?? "", activePrinterContext);
       }
-      await onTableActionComplete();
+      setItemActionTarget(null);
       showToast({ title: t(successKey), tone: "success" });
+      const committedCancellation = cancellation;
+      const outcome = await finishCommittedCartItemAction({
+        invalidate: () => {
+          const store = usePosStore.getState();
+          if (firstCartOrderUuid(cartOrders(primaryCartOrder(store.cart))) === expectedOrderUuid) store.invalidateCart();
+        },
+        refresh: onTableActionComplete,
+        print: committedCancellation
+          ? () => executeCancelReceiptPrint(committedCancellation, user?.uuid ?? "", activePrinterContext)
+          : undefined,
+      });
+      if (outcome.refreshError) {
+        showToast({ title: t("pos.cartUpdateFailed"), description: outcome.refreshError instanceof Error ? outcome.refreshError.message : "", tone: "error" });
+      }
+      if (outcome.printError) {
+        showToast({ title: t("report.printFailed"), description: outcome.printError instanceof Error ? outcome.printError.message : "", tone: "info" });
+      }
+      const cancelPrintResult = outcome.printResult;
       if (cancelPrintResult && cancelPrintResult.failedCount > 0) {
         showToast({
           title: t("report.printFailed"),
@@ -1122,14 +1155,24 @@ export function useSelectedTableCartPanelWorkflow({
           tone: "info",
         });
       }
-      setItemActionTarget(null);
     } catch (error) {
+      if (error instanceof CartItemActionUnavailableError || isMissingCartItemError(error)) {
+        setItemActionTarget(null);
+        try {
+          if (!(error instanceof CartItemActionUnavailableError)) await onTableActionComplete();
+          showToast({ title: t("pos.itemActionUnavailable"), description: t("pos.itemActionReloaded"), tone: "info" });
+        } catch (refreshError) {
+          showToast({ title: t("pos.itemActionFailed"), description: refreshError instanceof Error ? refreshError.message : "", tone: "error" });
+        }
+        return;
+      }
       showToast({
         title: t("pos.itemActionFailed"),
         description: error instanceof Error ? error.message : "",
         tone: "error",
       });
     } finally {
+      itemActionInFlightRef.current = false;
       setActingItemUuid(null);
     }
   }

@@ -149,6 +149,8 @@ export function usePaymentDialogWorkflow({
   const [transferAccountsFailed, setTransferAccountsFailed] = useState(false);
   const [selectedTransferAccountUuid, setSelectedTransferAccountUuid] =
     useState("");
+  const [printQueueTicket, setPrintQueueTicket] = useState(true);
+  const showQueueTicketOption = user?.store_table_status === 2 && paymentKind !== "split";
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [processing, setProcessing] = useState(false);
   const [invoicePrinting, setInvoicePrinting] = useState(false);
@@ -374,6 +376,7 @@ export function usePaymentDialogWorkflow({
     if (!open) return;
     const defaultAmount = defaultCurrencyInput(totalAmount, LAK_CURRENCY_OPTION);
     setActiveTab("cash");
+    setPrintQueueTicket(true);
     setActiveSplitField("cash");
     setCashInput(defaultAmount);
     setSplitCashInput("");
@@ -668,6 +671,7 @@ export function usePaymentDialogWorkflow({
       if (!splitNewOrderUuidRef.current) splitNewOrderUuidRef.current = createMutationUuid();
       if (!splitPaymentUuidRef.current) splitPaymentUuidRef.current = createMutationUuid();
       const paymentPayload = {
+        ...(showQueueTicketOption ? { print_queue_ticket: printQueueTicket } : {}),
         order_uuid: orderUuid,
         ...(hasRealTable ? { table_uuid: table.table_uuid } : {}),
         customer_uuid_fk: customers.customerUuid,
@@ -983,6 +987,9 @@ export function usePaymentDialogWorkflow({
   }
 
   return {
+    printQueueTicket,
+    setPrintQueueTicket,
+    showQueueTicketOption,
     accountBanks,
     accountBranchUuid,
     accountCreateLoading,
