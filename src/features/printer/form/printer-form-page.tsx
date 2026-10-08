@@ -292,7 +292,6 @@ export function PrinterFormPage() {
                 />
                 {form.showQueueTicketOption ? (
                   <RadioOptionList
-                    autoFocusFirst={!form.isEditing}
                     className="md:col-span-2"
                     legend={t("printer.queueTicketMode")}
                     description={t("printer.queueTicketModeHint")}
@@ -307,6 +306,7 @@ export function PrinterFormPage() {
                   />
                 ) : null}
                 <RadioOptionList
+                  autoFocusFirst={!form.isEditing}
                   className="md:col-span-2"
                   legend={t("printer.sharingMode")}
                   description={t("printer.sharingModeHint")}
