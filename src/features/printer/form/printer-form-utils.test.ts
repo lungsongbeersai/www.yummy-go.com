@@ -222,3 +222,10 @@ describe("shouldResolveCurrentPrinterIdentity", () => {
     ).toBe(true);
   });
 });
+
+describe("queue ticket preference", () => {
+  it("selects printing for a new printer and restores the saved opt-out", () => {
+    expect(printerFormValues(null).queueTicketEnabled).toBe(true);
+    expect(printerFormValues({ print_config_uuid: "printer", printer_name: "Counter", connect_type: "tcp", interface_value: "tcp://192.168.1.20:9100", paper_width_mm: 80, is_active: true, role_codes: [], cate_uuid_fk: [], queue_ticket_enabled: false }).queueTicketEnabled).toBe(false);
+  });
+});

@@ -3114,6 +3114,7 @@ describe("printer API payloads", () => {
       paper_width_mm: 80,
       kitchen_cut_mode: "none",
       cash_drawer_enabled: false,
+      queue_ticket_enabled: false,
       role_codes: ["kitchen"],
       mapping_type: "CATEGORY",
       sharing_mode: "DEDICATED",
@@ -3136,7 +3137,8 @@ describe("printer API payloads", () => {
           port: 9100,
           interface_value: "tcp://192.168.1.20:9100",
           kitchen_cut_mode: "none",
-          cash_drawer_enabled: false
+          cash_drawer_enabled: false,
+          queue_ticket_enabled: false
         })
       }
     );

@@ -142,6 +142,7 @@ export function mapPrinter(item: Record<string, unknown>): Printer {
     cash_drawer_enabled: item.cash_drawer_enabled === undefined
       ? true
       : Boolean(item.cash_drawer_enabled),
+    queue_ticket_enabled: item.queue_ticket_enabled !== false,
     buzzer_on_cut: Boolean(item.buzzer_on_cut),
     cut_feed_lines: item.cut_feed_lines === undefined || item.cut_feed_lines === null
       ? null

@@ -183,6 +183,7 @@ export function usePrinterForm() {
   const [cashDrawerEnabled, setCashDrawerEnabled] = useState(
     initialForm.cashDrawerEnabled,
   );
+  const [queueTicketEnabled, setQueueTicketEnabled] = useState(initialForm.queueTicketEnabled);
   const [buzzerOnCut, setBuzzerOnCut] = useState(initialForm.buzzerOnCut);
   const [cutFeedLines, setCutFeedLines] = useState(initialForm.cutFeedLines);
   const [selectedRoles, setSelectedRoles] = useState<string[]>(
@@ -309,6 +310,7 @@ export function usePrinterForm() {
     setPaperWidth(values.paperWidth);
     setKitchenCutMode(kitchenCutModeOf(editing));
     setCashDrawerEnabled(cashDrawerEnabledOf(editing));
+    setQueueTicketEnabled(values.queueTicketEnabled);
     setBuzzerOnCut(buzzerOnCutOf(editing));
     setCutFeedLines(cutFeedLinesOf(editing));
     setSelectedRoles(values.selectedRoles);
@@ -415,6 +417,7 @@ export function usePrinterForm() {
     paperWidth !== baseline.paperWidth ||
     kitchenCutMode !== baseline.kitchenCutMode ||
     cashDrawerEnabled !== baseline.cashDrawerEnabled ||
+    queueTicketEnabled !== baseline.queueTicketEnabled ||
     buzzerOnCut !== baseline.buzzerOnCut ||
     cutFeedLines !== baseline.cutFeedLines ||
     mappingType !== baseline.mappingType ||
@@ -585,6 +588,7 @@ export function usePrinterForm() {
         paper_width_mm: Number(paperWidth || 80),
         kitchen_cut_mode: kitchenCutMode,
         cash_drawer_enabled: cashDrawerEnabled,
+        queue_ticket_enabled: queueTicketEnabled,
         buzzer_on_cut: buzzerOnCut,
         cut_feed_lines: cutFeedLines.trim() ? Number(cutFeedLines) : null,
         role_codes: selectedRoles,
@@ -652,6 +656,9 @@ export function usePrinterForm() {
     setKitchenCutMode,
     cashDrawerEnabled,
     setCashDrawerEnabled,
+    queueTicketEnabled,
+    setQueueTicketEnabled,
+    showQueueTicketOption: user?.store_table_status === 2,
     buzzerOnCut,
     setBuzzerOnCut,
     cutFeedLines,

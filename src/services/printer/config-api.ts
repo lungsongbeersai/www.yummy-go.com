@@ -165,6 +165,7 @@ export async function savePrinter(input: SavePrinterInput) {
     paper_width_mm: input.paper_width_mm,
     kitchen_cut_mode: input.kitchen_cut_mode,
     cash_drawer_enabled: input.cash_drawer_enabled !== false,
+    ...(input.queue_ticket_enabled === undefined ? {} : { queue_ticket_enabled: input.queue_ticket_enabled }),
     buzzer_on_cut: input.buzzer_on_cut === true,
     // ส่ง null เสมอเมื่อไม่ได้ตั้งค่า (ไม่ใช่ omit key) เพื่อให้ backend แยกออกว่า "ผู้ใช้ตั้งใจล้างค่า
     // กลับไปใช้ค่ากลาง" กับ "ผู้ใช้ไม่ได้แตะฟิลด์นี้เลย" ได้ถูกต้องตอนแก้ไขเครื่องพิมพ์

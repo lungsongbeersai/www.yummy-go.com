@@ -1542,6 +1542,8 @@
     "tryDifferentIconSearch": "Try a different icon search."
   },
   "printer": {
+    "queueTicketMode": "Queue tickets",
+    "queueTicketModeHint": "For stores without tables: save whether this printer prints queue tickets. Receipts are still printed.",
     "setupMenu": "Setup & downloads",
     "setupMenuHint": "Install these on the computer that is connected to the printers.",
     "driverHint": "Driver for USB XPrinter models on Windows",

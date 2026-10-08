@@ -271,6 +271,7 @@ export function printerFormValues(printer: Printer | null) {
     paperWidth: String(printer?.paper_width_mm ?? 80),
     kitchenCutMode: kitchenCutModeOf(printer),
     cashDrawerEnabled: cashDrawerEnabledOf(printer),
+    queueTicketEnabled: printer?.queue_ticket_enabled !== false,
     buzzerOnCut: buzzerOnCutOf(printer),
     cutFeedLines: cutFeedLinesOf(printer),
     selectedRoles: printer?.role_codes ?? [],

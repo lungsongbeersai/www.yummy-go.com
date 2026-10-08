@@ -290,6 +290,22 @@ export function PrinterFormPage() {
                     { value: "none", label: t("printer.kitchenCutNone") },
                   ]}
                 />
+                {form.showQueueTicketOption ? (
+                  <RadioOptionList
+                    autoFocusFirst={!form.isEditing}
+                    className="md:col-span-2"
+                    legend={t("printer.queueTicketMode")}
+                    description={t("printer.queueTicketModeHint")}
+                    name="printer-queue-ticket"
+                    disabled={form.saving}
+                    value={form.queueTicketEnabled ? "enabled" : "disabled"}
+                    onValueChange={(value) => form.setQueueTicketEnabled(value === "enabled")}
+                    options={[
+                      { value: "enabled", label: t("pos.printQueueTicket") },
+                      { value: "disabled", label: t("pos.skipQueueTicket") },
+                    ]}
+                  />
+                ) : null}
                 <RadioOptionList
                   className="md:col-span-2"
                   legend={t("printer.sharingMode")}

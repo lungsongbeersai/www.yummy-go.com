@@ -1538,6 +1538,8 @@
     "tryDifferentIconSearch": "ລອງຄົ້ນຫາໄອຄອນດ້ວຍຄຳອື່ນ."
   },
   "printer": {
+    "queueTicketMode": "ການພິມໃບຄິວ",
+    "queueTicketModeHint": "ສຳລັບຮ້ານບໍ່ມີໂຕະ: ຕັ້ງວ່າເຄື່ອງພິມນີ້ຈະພິມໃບຄິວ ຫຼື ບໍ່ພິມ. ໃບຮັບເງິນຍັງພິມຕາມເດີມ.",
     "setupMenu": "ຕິດຕັ້ງ & ດາວໂຫຼດ",
     "setupMenuHint": "ຕິດຕັ້ງໃນຄອມພິວເຕີທີ່ຕໍ່ກັບເຄື່ອງພິມ.",
     "driverHint": "Driver ສຳລັບເຄື່ອງພິມ XPrinter ແບບ USB ໃນ Windows",

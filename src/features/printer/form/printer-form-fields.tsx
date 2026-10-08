@@ -154,6 +154,7 @@ export interface RadioOption {
 // เปล่าๆ เรียงเป็นแถวยาว ดูไม่เข้าชุดกับ checkbox list ที่เหลือในฟอร์มเดียวกัน จึงย้ายมาใช้สไตล์เดียวกัน
 // ใช้ FieldSet/FieldLegend แทน FieldLabel เดิม เพราะหัวข้อเป็นชื่อกลุ่ม ไม่ใช่ label ของ radio ตัวใดตัวหนึ่ง
 export function RadioOptionList({
+  autoFocusFirst = false,
   className,
   description,
   disabled,
@@ -163,6 +164,7 @@ export function RadioOptionList({
   value,
   onValueChange,
 }: {
+  autoFocusFirst?: boolean;
   className?: string;
   description: string;
   disabled?: boolean;
@@ -183,7 +185,7 @@ export function RadioOptionList({
         onValueChange={onValueChange}
         className="grid gap-2 sm:grid-cols-2"
       >
-        {options.map((option) => {
+        {options.map((option, index) => {
           const id = safeId(name, option.value);
           const active = value === option.value;
           return (
@@ -198,7 +200,7 @@ export function RadioOptionList({
                 if (!disabled) onValueChange(option.value);
               }}
             >
-              <RadioGroupItem id={id} value={option.value} disabled={disabled} />
+              <RadioGroupItem id={id} value={option.value} disabled={disabled} autoFocus={autoFocusFirst && index === 0} />
               <FieldLabel htmlFor={id}>{option.label}</FieldLabel>
             </Field>
           );

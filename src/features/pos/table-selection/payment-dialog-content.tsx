@@ -3,7 +3,6 @@
 import {
   useEffect,
   useMemo,
-  useRef,
   useState,
   type CSSProperties,
   type ReactNode,
@@ -72,7 +71,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Spinner } from "@/components/ui/spinner";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
@@ -332,7 +330,6 @@ export function PaymentDialogContent({
   workflow: PaymentDialogWorkflow;
 }) {
   const { t } = useTranslation();
-  const printQueueChoiceRef = useRef<HTMLButtonElement>(null);
   const {
     activeAmountInputRef,
     activeInputDisplayValue,
@@ -1139,12 +1136,7 @@ export function PaymentDialogContent({
         open={confirmOpen}
         onOpenChange={(nextOpen) => !processing && setConfirmOpen(nextOpen)}
       >
-        <AlertDialogContent onOpenAutoFocus={(event) => {
-          if (workflow.showQueueTicketOption) {
-            event.preventDefault();
-            printQueueChoiceRef.current?.focus();
-          }
-        }} data-pos-payment-confirm-dialog="true" className="max-h-[calc(100dvh-2rem)] w-[calc(100%-2rem)] max-w-lg gap-0 overflow-y-auto rounded-2xl p-0 shadow-2xl sm:max-w-xl">
+        <AlertDialogContent data-pos-payment-confirm-dialog="true" className="max-h-[calc(100dvh-2rem)] w-[calc(100%-2rem)] max-w-lg gap-0 overflow-y-auto rounded-2xl p-0 shadow-2xl sm:max-w-xl">
           <AlertDialogHeader className="w-full !place-items-center gap-2 border-b border-border bg-muted/25 px-5 py-6 !text-center sm:!place-items-center sm:px-8 sm:py-7 sm:!text-center">
             <div className="mb-1 flex size-12 items-center justify-center justify-self-center rounded-full bg-primary/10 text-primary sm:size-14">
               <ReceiptText className="size-6 sm:size-7" aria-hidden="true" />
@@ -1211,26 +1203,6 @@ export function PaymentDialogContent({
                 </dd>
               </div>
             </dl>
-
-            {workflow.showQueueTicketOption ? (
-              <RadioGroup
-                aria-label={t("pos.queueTicketChoice")}
-                className="mt-5 grid gap-3 sm:grid-cols-2"
-                disabled={processing}
-                value={workflow.printQueueTicket ? "print" : "skip"}
-                onValueChange={(value) => workflow.setPrintQueueTicket(value === "print")}
-              >
-                <FieldLabel htmlFor="payment-print-queue" className={cn("flex cursor-pointer items-center gap-3 rounded-xl border p-3", workflow.printQueueTicket && "border-primary bg-primary/5")}>
-                  <RadioGroupItem ref={printQueueChoiceRef} id="payment-print-queue" value="print" className="data-[state=checked]:border-primary data-[state=checked]:bg-primary" />
-                  <Printer aria-hidden="true" className="size-4 text-primary" />
-                  <span>{t("pos.printQueueTicket")}</span>
-                </FieldLabel>
-                <FieldLabel htmlFor="payment-skip-queue" className={cn("flex cursor-pointer items-center gap-3 rounded-xl border p-3", !workflow.printQueueTicket && "border-primary bg-primary/5")}>
-                  <RadioGroupItem id="payment-skip-queue" value="skip" className="data-[state=checked]:border-primary data-[state=checked]:bg-primary" />
-                  <span>{t("pos.skipQueueTicket")}</span>
-                </FieldLabel>
-              </RadioGroup>
-            ) : null}
 
             <AlertDialogFooter className="mt-5 grid grid-cols-2 gap-3 sm:grid sm:grid-cols-2 sm:justify-stretch">
               <AlertDialogCancel
