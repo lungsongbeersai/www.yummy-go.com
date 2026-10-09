@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { RefreshCw, Save } from "lucide-react";
+import { RefreshCw } from "lucide-react";
 import { BackButton } from "@/components/common/back-button";
 import {
   AlertDialog,
@@ -16,14 +16,6 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import {
-  Card,
-  CardAction,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
 import {
   Field,
   FieldDescription,
@@ -45,7 +37,7 @@ import { Spinner } from "@/components/ui/spinner";
 import type {
   SearchPrinterResult,
 } from "@/services/printer";
-import { CheckboxOptionList } from "./printer-form-fields";
+import { CheckboxOptionList, PrinterFormSection } from "./printer-form-fields";
 import {
   formatIpInput,
   toggleAllValues,
@@ -54,7 +46,8 @@ import {
   type MappingTypeSelection,
 } from "./printer-form-utils";
 import { usePrinterForm } from "./use-printer-form";
-import { PrinterOutputSettings } from "./printer-output-settings";
+import { PrinterAccessSettings, PrinterTicketHardwareSettings } from "./printer-output-settings";
+import { PrinterFormSummary } from "./printer-form-summary";
 
 export function PrinterFormPage() {
   const form = usePrinterForm();
@@ -86,356 +79,351 @@ export function PrinterFormPage() {
           </AlertDescription>
         </Alert>
       ) : null}
-      <Card>
-        <CardHeader>
-          <CardTitle>
-            {form.isEditing ? t("printer.edit") : t("printer.add")}
-          </CardTitle>
-          <CardDescription>{t("printer.formHint")}</CardDescription>
-          {form.isEditing ? (
-            <CardAction>
-              <Badge>{t("actions.edit")}</Badge>
-            </CardAction>
-          ) : null}
-        </CardHeader>
-        <CardContent>
-          <form onSubmit={form.submit} className="flex flex-col gap-4">
-            <FieldSet className="gap-4 rounded-lg border border-border bg-card p-4">
-              <div>
-                <FieldLegend className="mb-1 text-sm font-black">
-                  {t("printer.connection")}
-                </FieldLegend>
-                <FieldDescription>
-                  {t("printer.connectionHint")}
-                </FieldDescription>
-              </div>
-
-              <FieldGroup className="grid gap-4 md:grid-cols-2">
-                <Field>
-                  <FieldLabel htmlFor="printer-display-name">
-                    {t("fields.displayName")}
-                  </FieldLabel>
-                  <Input
-                    id="printer-display-name"
-                    name="printer_display_name"
-                    autoComplete="off"
-                    value={form.displayName}
-                    disabled={form.saving}
-                    required
-                    onChange={(event) => form.setDisplayName(event.target.value)}
-                  />
-                </Field>
-                <Field>
-                  <FieldLabel htmlFor="printer-connect-type">
-                    {t("fields.connectType")}
-                  </FieldLabel>
-                  <Select
-                    value={form.connectType}
-                    onValueChange={(value) =>
-                      form.setConnectType(value as ConnectType)
-                    }
-                  >
-                    <SelectTrigger id="printer-connect-type" className="w-full">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent position="popper">
-                      <SelectGroup>
-                        <SelectItem value="usb">
-                          {t("printer.usbPrinter")}
-                        </SelectItem>
-                        <SelectItem value="tcp">
-                          {t("printer.tcpPrinter")}
-                        </SelectItem>
-                      </SelectGroup>
-                    </SelectContent>
-                  </Select>
-                </Field>
-
-                {form.connectType === "usb" ? (
-                  <>
-                    <Field>
-                      <div className="flex items-center justify-between gap-2">
-                        <FieldLabel htmlFor="printer-usb-device">
-                          {t("printer.selectedPrinter")}
-                        </FieldLabel>
-                        <Button
-                          type="button"
-                          variant="outline"
-                          size="xs"
-                          disabled={form.searching || form.saving}
-                          onClick={() => void form.searchUsbDevices(true)}
-                        >
-                          {form.searching ? (
-                            <Spinner data-icon="inline-start" />
-                          ) : (
-                            <RefreshCw data-icon="inline-start" />
-                          )}
-                          {t("actions.refresh")}
-                        </Button>
-                      </div>
-                      <Select
-                        value={form.selectedDevice}
-                        disabled={!form.usbOptions.length || form.searching || form.saving}
-                        onValueChange={form.selectDevice}
-                      >
-                        <SelectTrigger
-                          id="printer-usb-device"
-                          className="w-full"
-                        >
-                          <SelectValue
-                            placeholder={
-                              form.searching
-                                ? t("printer.searchingUsb")
-                                : t("printer.selectUsbPrinter")
-                            }
-                          />
-                        </SelectTrigger>
-                        <SelectContent position="popper">
-                          <SelectGroup>
-                            {form.usbOptions.map((printer: SearchPrinterResult) => (
-                              <SelectItem
-                                key={printer.interface_value}
-                                value={printer.interface_value}
-                              >
-                                {printer.name}
-                              </SelectItem>
-                            ))}
-                          </SelectGroup>
-                        </SelectContent>
-                      </Select>
-                      <FieldDescription aria-live="polite">
-                        {form.usbSelectDescription}
-                      </FieldDescription>
-                    </Field>
-                    {/* <Field>
-                      <FieldLabel htmlFor="printer-interface-value">{t("fields.interfaceValue")}</FieldLabel>
-                      <Input
-                        id="printer-interface-value"
-                        value={interfaceValue}
-                        disabled={saving}
-                        placeholder={t("printer.interfacePlaceholder")}
-                        required
-                        onChange={(event) => setInterfaceValue(event.target.value)}
-                      />
-                    </Field> */}
-                  </>
-                ) : (
-                  <>
-                    <Field>
-                      <FieldLabel htmlFor="printer-ip">
-                        {t("fields.ip")}
-                      </FieldLabel>
-                      <Input
-                        id="printer-ip"
-                        name="printer_ip"
-                        autoComplete="off"
-                        value={form.ip}
-                        disabled={form.saving}
-                        placeholder="192.168.100.75"
-                        inputMode="decimal"
-                        required
-                        onChange={(event) =>
-                          form.setIp(formatIpInput(event.target.value, form.ip))
-                        }
-                      />
-                    </Field>
-                    <Field>
-                      <FieldLabel htmlFor="printer-port">
-                        {t("fields.port")}
-                      </FieldLabel>
-                      <Input
-                        id="printer-port"
-                        name="printer_port"
-                        autoComplete="off"
-                        value={form.port}
-                        disabled={form.saving}
-                        type="number"
-                        inputMode="numeric"
-                        required
-                        onChange={(event) => form.setPort(event.target.value)}
-                      />
-                    </Field>
-                  </>
-                )}
-
-                <Field>
-                  <FieldLabel htmlFor="printer-paper-width">
-                    {t("fields.paperWidth")}
-                  </FieldLabel>
-                  <Input
-                    id="printer-paper-width"
-                    name="printer_paper_width"
-                    autoComplete="off"
-                    value={form.paperWidth}
-                    disabled={form.saving}
-                    type="number"
-                    inputMode="numeric"
-                    required
-                    onChange={(event) => form.setPaperWidth(event.target.value)}
-                  />
-                </Field>
-                <PrinterOutputSettings
-                  accessMode={form.accessMode}
-                  onAccessModeChange={form.setAccessMode}
-                  connectType={form.connectType}
-                  saving={form.saving}
-                  internetSettings={form.internetSettings}
-                  loadingInternetSettings={form.loadingInternetSettings}
-                  kitchenCutMode={form.kitchenCutMode}
-                  onKitchenCutModeChange={form.setKitchenCutMode}
-                  showQueueTicketOption={form.showQueueTicketOption}
-                  queueTicketEnabled={form.queueTicketEnabled}
-                  onQueueTicketEnabledChange={form.setQueueTicketEnabled}
-                  cashDrawerEnabled={form.cashDrawerEnabled}
-                  onCashDrawerEnabledChange={form.setCashDrawerEnabled}
-                  buzzerOnCut={form.buzzerOnCut}
-                  onBuzzerOnCutChange={form.setBuzzerOnCut}
-                  cutFeedLines={form.cutFeedLines}
-                  onCutFeedLinesChange={form.setCutFeedLines}
-                />
-              </FieldGroup>
-            </FieldSet>
-
-            <CheckboxOptionList
-              legend={t("printer.roles")}
-              description={t("printer.rolesHint")}
-              emptyLabel={t("printer.noRoles")}
-              name="printer-role"
-              options={form.roleOptions}
-              required
-              selectAllLabel={t("common.selectAll")}
-              selected={form.selectedRoles}
-              onToggle={(value) =>
-                form.setSelectedRoles((current) => toggleValue(current, value))
-              }
-              onToggleAll={(checked) =>
-                form.setSelectedRoles((current) =>
-                  toggleAllValues(current, form.roleOptions, checked),
-                )
-              }
-            />
-
-            <FieldSet className="gap-4 rounded-lg border border-border bg-card p-4">
-              <div>
-                <FieldLegend className="mb-1 text-sm font-black">
-                  {t("printer.mappingType")}
-                </FieldLegend>
-                <FieldDescription>
-                  {form.zoneMappingRequired
-                    ? t("printer.mappingTypeZoneRequiredHint")
-                    : t("printer.mappingTypeHint")}
-                </FieldDescription>
-              </div>
-              <Field>
-                <Select
-                  value={form.mappingType}
-                  onValueChange={(value) =>
-                    form.setMappingType(value as MappingTypeSelection)
-                  }
-                >
-                  <SelectTrigger id="printer-mapping-type" className="w-full sm:w-64">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent position="popper">
-                    <SelectGroup>
-                      <SelectItem value="OFF">
-                        {t("printer.mappingTypeOff")}
-                      </SelectItem>
-                      <SelectItem value="ZONE">
-                        {t("printer.mappingTypeZone")}
-                      </SelectItem>
-                      <SelectItem value="CATEGORY">
-                        {t("printer.mappingTypeCategory")}
-                      </SelectItem>
-                    </SelectGroup>
-                  </SelectContent>
-                </Select>
-              </Field>
-            </FieldSet>
-
-            {form.mappingType === "ZONE" ? (
-              <CheckboxOptionList
-                legend={t("printer.zones")}
-                description={t("printer.zonesHint")}
-                emptyLabel={t("printer.noZones")}
-                name="printer-zone"
-                options={form.zoneOptions}
-                required
-                selectAllLabel={t("common.selectAll")}
-                selected={form.selectedZones}
-                onToggle={(value) =>
-                  form.setSelectedZones((current) => toggleValue(current, value))
-                }
-                onToggleAll={(checked) =>
-                  form.setSelectedZones((current) =>
-                    toggleAllValues(current, form.zoneOptions, checked),
-                  )
-                }
-              />
-            ) : null}
-
-            {/* backend บังคับ: ZONE ต้องเลือกหมวดหมู่คู่กับโซนด้วยเสมอ ไม่ใช่เลือกอย่างใดอย่างหนึ่ง —
-                hint จึงต้องเปลี่ยนไปตามโหมด ไม่งั้นผู้ใช้จะไม่เข้าใจว่าทำไมบังคับเลือก
-                "OFF" (ค่าเริ่มต้น) ไม่ผูกกับเมนูเลย จึงซ่อนไปทั้งช่อง ไม่ใช่แค่ปล่อยว่างได้ —
-                เครื่องพิมพ์ใบเรียกเก็บเงิน/ใบเสร็จ/รายงานไม่ต้องเห็น checkbox list ว่างๆ นี้เลย */}
-            {form.mappingType !== "OFF" ? (
-              <CheckboxOptionList
-                legend={t("printer.categories")}
-                description={
-                  form.mappingType === "ZONE"
-                    ? t("printer.categoriesHintZone")
-                    : t("printer.categoriesHint")
-                }
-                emptyLabel={t("printer.noCategories")}
-                name="printer-category"
-                options={form.categoryOptions}
-                required={form.mappingType === "ZONE"}
-                selectAllLabel={t("common.selectAll")}
-                selected={form.selectedCategories}
-                onToggle={(value) =>
-                  form.setSelectedCategories((current) => toggleValue(current, value))
-                }
-                onToggleAll={(checked) =>
-                  form.setSelectedCategories((current) =>
-                    toggleAllValues(current, form.categoryOptions, checked),
-                  )
-                }
-              />
-            ) : null}
-
-            <div className="flex flex-col items-end gap-2">
-              {/* สรุปเหตุผลที่ยังบันทึกไม่ได้ — ผู้ใช้ที่เลื่อนผ่าน badge สีแดงด้านบนไปแล้วจะได้รู้ว่าขาดอะไร
-                  โดยไม่ต้องเลื่อนกลับไปหาทีละช่อง */}
-              {!form.saving && form.validationMessage ? (
-                <p className="text-right text-sm text-destructive" aria-live="polite">
-                  {form.validationMessage}
-                </p>
-              ) : null}
-              <div className="flex flex-wrap items-center justify-end gap-2">
-                <Button
-                  type="button"
-                  variant="outline"
-                  disabled={form.saving}
-                  onClick={handleCancel}
-                >
-                  {t("actions.cancel")}
-                </Button>
-                {/* กดได้เสมอแม้ยังกรอกไม่ครบ — validationMessage ด้านบนบอกเหตุผลอยู่แล้วตลอดเวลา
-                    ปุ่ม submit ที่ถูก disable ล่วงหน้าทำให้ผู้ใช้งงว่าทำไมกดไม่ได้ (ดู submit() ที่ no-op
-                    เองถ้ายัง !canSubmit) */}
-                <Button disabled={form.saving || form.loading} type="submit">
-                  {form.saving ? (
-                    <Spinner data-icon="inline-start" />
-                  ) : (
-                    <Save data-icon="inline-start" />
-                  )}
-                  {form.saving ? t("common.processing") : t("actions.save")}
-                </Button>
-              </div>
+      <form onSubmit={form.submit} className="grid items-start gap-5 lg:grid-cols-[minmax(0,1fr)_20rem]">
+        <div className="flex min-w-0 flex-col gap-5">
+          <div className="flex flex-col gap-1">
+            <div className="flex flex-wrap items-center gap-2">
+              <h1 className="text-xl font-black">
+                {form.isEditing ? t("printer.edit") : t("printer.add")}
+              </h1>
+              {form.isEditing ? <Badge>{t("actions.edit")}</Badge> : null}
             </div>
-          </form>
-        </CardContent>
-      </Card>
+            <p className="text-sm text-muted-foreground">{t("printer.formHint")}</p>
+          </div>
+
+          <PrinterFormSection
+            step={1}
+            title={t("printer.stepDevice")}
+            description={t("printer.connectionHint")}
+          >
+            <FieldGroup className="grid gap-4 md:grid-cols-2">
+                  <Field>
+                    <FieldLabel htmlFor="printer-display-name">
+                      {t("fields.displayName")}
+                    </FieldLabel>
+                    <Input
+                      id="printer-display-name"
+                      name="printer_display_name"
+                      autoComplete="off"
+                      value={form.displayName}
+                      disabled={form.saving}
+                      required
+                      onChange={(event) => form.setDisplayName(event.target.value)}
+                    />
+                  </Field>
+                  <Field>
+                    <FieldLabel htmlFor="printer-connect-type">
+                      {t("fields.connectType")}
+                    </FieldLabel>
+                    <Select
+                      value={form.connectType}
+                      onValueChange={(value) =>
+                        form.setConnectType(value as ConnectType)
+                      }
+                    >
+                      <SelectTrigger id="printer-connect-type" className="w-full">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent position="popper">
+                        <SelectGroup>
+                          <SelectItem value="usb">
+                            {t("printer.usbPrinter")}
+                          </SelectItem>
+                          <SelectItem value="tcp">
+                            {t("printer.tcpPrinter")}
+                          </SelectItem>
+                        </SelectGroup>
+                      </SelectContent>
+                    </Select>
+                  </Field>
+
+                  {form.connectType === "usb" ? (
+                    <>
+                      <Field>
+                        <div className="flex items-center justify-between gap-2">
+                          <FieldLabel htmlFor="printer-usb-device">
+                            {t("printer.selectedPrinter")}
+                          </FieldLabel>
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="xs"
+                            disabled={form.searching || form.saving}
+                            onClick={() => void form.searchUsbDevices(true)}
+                          >
+                            {form.searching ? (
+                              <Spinner data-icon="inline-start" />
+                            ) : (
+                              <RefreshCw data-icon="inline-start" />
+                            )}
+                            {t("actions.refresh")}
+                          </Button>
+                        </div>
+                        <Select
+                          value={form.selectedDevice}
+                          disabled={!form.usbOptions.length || form.searching || form.saving}
+                          onValueChange={form.selectDevice}
+                        >
+                          <SelectTrigger
+                            id="printer-usb-device"
+                            className="w-full"
+                          >
+                            <SelectValue
+                              placeholder={
+                                form.searching
+                                  ? t("printer.searchingUsb")
+                                  : t("printer.selectUsbPrinter")
+                              }
+                            />
+                          </SelectTrigger>
+                          <SelectContent position="popper">
+                            <SelectGroup>
+                              {form.usbOptions.map((printer: SearchPrinterResult) => (
+                                <SelectItem
+                                  key={printer.interface_value}
+                                  value={printer.interface_value}
+                                >
+                                  {printer.name}
+                                </SelectItem>
+                              ))}
+                            </SelectGroup>
+                          </SelectContent>
+                        </Select>
+                        <FieldDescription aria-live="polite">
+                          {form.usbSelectDescription}
+                        </FieldDescription>
+                      </Field>
+                      {/* <Field>
+                        <FieldLabel htmlFor="printer-interface-value">{t("fields.interfaceValue")}</FieldLabel>
+                        <Input
+                          id="printer-interface-value"
+                          value={interfaceValue}
+                          disabled={saving}
+                          placeholder={t("printer.interfacePlaceholder")}
+                          required
+                          onChange={(event) => setInterfaceValue(event.target.value)}
+                        />
+                      </Field> */}
+                    </>
+                  ) : (
+                    <>
+                      <Field>
+                        <FieldLabel htmlFor="printer-ip">
+                          {t("fields.ip")}
+                        </FieldLabel>
+                        <Input
+                          id="printer-ip"
+                          name="printer_ip"
+                          autoComplete="off"
+                          value={form.ip}
+                          disabled={form.saving}
+                          placeholder="192.168.100.75"
+                          inputMode="decimal"
+                          required
+                          onChange={(event) =>
+                            form.setIp(formatIpInput(event.target.value, form.ip))
+                          }
+                        />
+                      </Field>
+                      <Field>
+                        <FieldLabel htmlFor="printer-port">
+                          {t("fields.port")}
+                        </FieldLabel>
+                        <Input
+                          id="printer-port"
+                          name="printer_port"
+                          autoComplete="off"
+                          value={form.port}
+                          disabled={form.saving}
+                          type="number"
+                          inputMode="numeric"
+                          required
+                          onChange={(event) => form.setPort(event.target.value)}
+                        />
+                      </Field>
+                    </>
+                  )}
+
+                  <Field>
+                    <FieldLabel htmlFor="printer-paper-width">
+                      {t("fields.paperWidth")}
+                    </FieldLabel>
+                    <Input
+                      id="printer-paper-width"
+                      name="printer_paper_width"
+                      autoComplete="off"
+                      value={form.paperWidth}
+                      disabled={form.saving}
+                      type="number"
+                      inputMode="numeric"
+                      required
+                      onChange={(event) => form.setPaperWidth(event.target.value)}
+                    />
+                  </Field>
+            </FieldGroup>
+          </PrinterFormSection>
+
+          <PrinterFormSection
+            step={2}
+            title={t("printer.stepAccess")}
+            description={t("printer.stepAccessHint")}
+          >
+            <PrinterAccessSettings
+              accessMode={form.accessMode}
+              onAccessModeChange={form.setAccessMode}
+              connectType={form.connectType}
+              saving={form.saving}
+              internetSettings={form.internetSettings}
+              loadingInternetSettings={form.loadingInternetSettings}
+            />
+          </PrinterFormSection>
+
+          <PrinterFormSection
+            step={3}
+            title={t("printer.stepRouting")}
+            description={t("printer.stepRoutingHint")}
+          >
+            <div className="flex flex-col gap-6">
+                <CheckboxOptionList
+                  className="rounded-none border-0 bg-transparent p-0"
+                  legend={t("printer.roles")}
+                  description={t("printer.rolesHint")}
+                  emptyLabel={t("printer.noRoles")}
+                  name="printer-role"
+                  options={form.roleOptions}
+                  required
+                  selectAllLabel={t("common.selectAll")}
+                  selected={form.selectedRoles}
+                  onToggle={(value) =>
+                    form.setSelectedRoles((current) => toggleValue(current, value))
+                  }
+                  onToggleAll={(checked) =>
+                    form.setSelectedRoles((current) =>
+                      toggleAllValues(current, form.roleOptions, checked),
+                    )
+                  }
+                />
+
+                <FieldSet className="gap-3">
+                  <div>
+                    <FieldLegend className="mb-1 text-sm font-black">
+                      {t("printer.mappingType")}
+                    </FieldLegend>
+                    <FieldDescription>
+                      {form.zoneMappingRequired
+                        ? t("printer.mappingTypeZoneRequiredHint")
+                        : t("printer.mappingTypeHint")}
+                    </FieldDescription>
+                  </div>
+                  <Field>
+                    <Select
+                      value={form.mappingType}
+                      onValueChange={(value) =>
+                        form.setMappingType(value as MappingTypeSelection)
+                      }
+                    >
+                      <SelectTrigger id="printer-mapping-type" className="w-full sm:w-64">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent position="popper">
+                        <SelectGroup>
+                          <SelectItem value="OFF">
+                            {t("printer.mappingTypeOff")}
+                          </SelectItem>
+                          <SelectItem value="ZONE">
+                            {t("printer.mappingTypeZone")}
+                          </SelectItem>
+                          <SelectItem value="CATEGORY">
+                            {t("printer.mappingTypeCategory")}
+                          </SelectItem>
+                        </SelectGroup>
+                      </SelectContent>
+                    </Select>
+                  </Field>
+                </FieldSet>
+
+                {form.mappingType === "ZONE" ? (
+                  <CheckboxOptionList
+                    className="rounded-none border-x-0 border-b-0 bg-transparent px-0 pt-5 pb-0"
+                    legend={t("printer.zones")}
+                    description={t("printer.zonesHint")}
+                    emptyLabel={t("printer.noZones")}
+                    name="printer-zone"
+                    options={form.zoneOptions}
+                    required
+                    selectAllLabel={t("common.selectAll")}
+                    selected={form.selectedZones}
+                    onToggle={(value) =>
+                      form.setSelectedZones((current) => toggleValue(current, value))
+                    }
+                    onToggleAll={(checked) =>
+                      form.setSelectedZones((current) =>
+                        toggleAllValues(current, form.zoneOptions, checked),
+                      )
+                    }
+                  />
+                ) : null}
+
+                {/* backend บังคับ: ZONE ต้องเลือกหมวดหมู่คู่กับโซนด้วยเสมอ ไม่ใช่เลือกอย่างใดอย่างหนึ่ง —
+                    hint จึงต้องเปลี่ยนไปตามโหมด ไม่งั้นผู้ใช้จะไม่เข้าใจว่าทำไมบังคับเลือก
+                    "OFF" (ค่าเริ่มต้น) ไม่ผูกกับเมนูเลย จึงซ่อนไปทั้งช่อง ไม่ใช่แค่ปล่อยว่างได้ —
+                    เครื่องพิมพ์ใบเรียกเก็บเงิน/ใบเสร็จ/รายงานไม่ต้องเห็น checkbox list ว่างๆ นี้เลย */}
+                {form.mappingType !== "OFF" ? (
+                  <CheckboxOptionList
+                    className="rounded-none border-x-0 border-b-0 bg-transparent px-0 pt-5 pb-0"
+                    legend={t("printer.categories")}
+                    description={
+                      form.mappingType === "ZONE"
+                        ? t("printer.categoriesHintZone")
+                        : t("printer.categoriesHint")
+                    }
+                    emptyLabel={t("printer.noCategories")}
+                    name="printer-category"
+                    options={form.categoryOptions}
+                    required={form.mappingType === "ZONE"}
+                    selectAllLabel={t("common.selectAll")}
+                    selected={form.selectedCategories}
+                    onToggle={(value) =>
+                      form.setSelectedCategories((current) => toggleValue(current, value))
+                    }
+                    onToggleAll={(checked) =>
+                      form.setSelectedCategories((current) =>
+                        toggleAllValues(current, form.categoryOptions, checked),
+                      )
+                    }
+                  />
+                ) : null}
+            </div>
+          </PrinterFormSection>
+
+          <PrinterFormSection
+            step={4}
+            title={t("printer.stepOutput")}
+            description={t("printer.stepOutputHint")}
+          >
+            <PrinterTicketHardwareSettings
+              saving={form.saving}
+              kitchenCutMode={form.kitchenCutMode}
+              onKitchenCutModeChange={form.setKitchenCutMode}
+              showQueueTicketOption={form.showQueueTicketOption}
+              queueTicketEnabled={form.queueTicketEnabled}
+              onQueueTicketEnabledChange={form.setQueueTicketEnabled}
+              cashDrawerEnabled={form.cashDrawerEnabled}
+              onCashDrawerEnabledChange={form.setCashDrawerEnabled}
+              buzzerOnCut={form.buzzerOnCut}
+              onBuzzerOnCutChange={form.setBuzzerOnCut}
+              cutFeedLines={form.cutFeedLines}
+              onCutFeedLinesChange={form.setCutFeedLines}
+            />
+          </PrinterFormSection>
+        </div>
+
+        {/* สรุป + ปุ่มบันทึกติดอยู่ด้านขวาบนจอใหญ่ ผู้ใช้เห็นค่าที่จะบันทึกและเหตุผลที่ยังบันทึกไม่ได้
+            ตลอดเวลาโดยไม่ต้องเลื่อนลงไปท้ายฟอร์ม; บนมือถือแสดงต่อท้ายฟอร์มตามปกติ */}
+        <aside className="min-w-0 lg:sticky lg:top-4">
+          <PrinterFormSummary form={form} onCancel={handleCancel} />
+        </aside>
+      </form>
 
       <AlertDialog open={confirmDiscardOpen} onOpenChange={setConfirmDiscardOpen}>
         <AlertDialogContent>

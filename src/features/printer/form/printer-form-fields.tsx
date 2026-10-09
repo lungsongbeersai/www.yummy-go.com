@@ -1,7 +1,16 @@
 "use client";
 
 import { useTranslation } from "react-i18next";
+import type * as React from "react";
 import { cn } from "@/lib/utils";
+import {
+  Card,
+  CardAction,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { Checkbox, type CheckboxProps } from "@/components/ui/checkbox";
 import {
   Field,
@@ -27,6 +36,7 @@ export function IndeterminateCheckbox({
 }
 
 export function CheckboxOptionList({
+  className,
   description,
   emptyLabel,
   legend,
@@ -38,6 +48,7 @@ export function CheckboxOptionList({
   onToggle,
   onToggleAll,
 }: {
+  className?: string;
   description: string;
   emptyLabel: string;
   legend: string;
@@ -60,7 +71,7 @@ export function CheckboxOptionList({
   const missingRequired = required && selectedCount === 0;
 
   return (
-    <FieldSet className="gap-4 rounded-lg border border-border bg-card p-4">
+    <FieldSet className={cn("gap-4 rounded-lg border border-border bg-card p-4", className)}>
       <div className="flex flex-wrap items-start justify-between gap-2">
         <div>
           <FieldLegend className="mb-1 text-sm font-black">
@@ -210,5 +221,41 @@ export function RadioOptionList({
         })}
       </RadioGroup>
     </FieldSet>
+  );
+}
+
+// การ์ดหนึ่งขั้นของฟอร์มเครื่องพิมพ์ — เลขลำดับช่วยให้ผู้ใช้รู้ว่ากรอกถึงไหนแล้ว แทนการ์ดยาวการ์ดเดียวแบบเดิม
+export function PrinterFormSection({
+  step,
+  title,
+  description,
+  action,
+  children,
+}: {
+  step: number;
+  title: string;
+  description?: string;
+  action?: React.ReactNode;
+  children: React.ReactNode;
+}) {
+  return (
+    <Card>
+      <CardHeader>
+        <div className="flex items-start gap-3">
+          <span
+            aria-hidden="true"
+            className="flex size-7 shrink-0 items-center justify-center rounded-full bg-primary text-sm font-black text-primary-foreground tabular-nums"
+          >
+            {step}
+          </span>
+          <div className="flex min-w-0 flex-col gap-1">
+            <CardTitle>{title}</CardTitle>
+            {description ? <CardDescription>{description}</CardDescription> : null}
+          </div>
+        </div>
+        {action ? <CardAction>{action}</CardAction> : null}
+      </CardHeader>
+      <CardContent>{children}</CardContent>
+    </Card>
   );
 }

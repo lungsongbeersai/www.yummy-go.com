@@ -1727,7 +1727,19 @@
       "connected": "Connected",
       "offline": "Offline",
       "unchecked": "Unchecked"
-    }
+    },
+    "stepDevice": "Printer and connection",
+    "stepAccess": "Who can use this printer",
+    "stepAccessHint": "Choose this device only, share on the shop Wi-Fi, or share over the internet so phones on their own mobile data can print.",
+    "stepRouting": "Roles and printed menu",
+    "stepRoutingHint": "Choose which tickets this printer prints and which food/drink categories it handles.",
+    "stepOutput": "Tickets and hardware",
+    "stepOutputHint": "Paper cut, cash drawer and buzzer. Keep the defaults if unsure.",
+    "accessUsbOnlyHint": "USB printers can only be used by this device. Switch to WiFi/LAN to share.",
+    "summaryTitle": "Summary",
+    "summaryNotSet": "Not set",
+    "summaryReady": "Ready to save",
+    "summaryReceiversOnline": "{{online}}/{{total}} online"
   },
   "product": {
     "addDetail": "Add detail",
