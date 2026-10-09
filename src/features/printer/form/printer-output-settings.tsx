@@ -30,7 +30,6 @@ interface PrinterOutputSettingsProps {
 export function PrinterOutputSettings(props: PrinterOutputSettingsProps) {
   const { t } = useTranslation();
   const canChooseInternet = props.internetSettings?.available === true && props.internetSettings.can_manage;
-  const showInternet = canChooseInternet || props.accessMode === "INTERNET";
   const modeHint = props.accessMode === "INTERNET" ? "printer.accessInternetHint" : props.accessMode === "LAN" ? "printer.accessLanHint" : "printer.accessDirectHint";
 
   return (
@@ -45,12 +44,12 @@ export function PrinterOutputSettings(props: PrinterOutputSettingsProps) {
               name="printer-access-mode"
               value={props.accessMode}
               disabled={props.saving || props.loadingInternetSettings || (props.accessMode === "INTERNET" && !canChooseInternet)}
-              optionsClassName={showInternet ? "sm:grid-cols-3" : undefined}
+              optionsClassName="sm:grid-cols-3"
               onValueChange={(value) => props.onAccessModeChange(value as PrinterAccessMode)}
               options={[
                 { value: "DIRECT", label: t("printer.accessDirect") },
                 { value: "LAN", label: t("printer.accessLan"), disabled: props.connectType !== "tcp" },
-                ...(showInternet ? [{ value: "INTERNET", label: t("printer.accessInternet"), disabled: !canChooseInternet || props.connectType !== "tcp" }] : []),
+                { value: "INTERNET", label: t("printer.accessInternet"), disabled: !canChooseInternet || props.connectType !== "tcp" },
               ]}
             />
             {props.accessMode === "INTERNET" ? (

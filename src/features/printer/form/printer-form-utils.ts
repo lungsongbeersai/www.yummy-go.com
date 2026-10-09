@@ -208,7 +208,7 @@ export function initialMappingSelection(printer: Printer | null): MappingTypeSel
 // เครื่องพิมพ์เก่าก่อน backend เพิ่ม sharing_mode จะไม่มีฟิลด์นี้มา — ถือว่าเป็น DEDICATED
 // (พฤติกรรมเดิมก่อนมีการแชร์เครื่องพิมพ์) ไม่ใช่ปล่อยว่าง
 export function sharingModeOf(printer: Printer | null): PrinterSharingMode {
-  if (printer === null) return "SHARED";
+  if (printer === null) return "DEDICATED";
   return printer.sharing_mode ?? "DEDICATED";
 }
 

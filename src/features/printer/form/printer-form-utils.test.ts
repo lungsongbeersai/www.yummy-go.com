@@ -232,10 +232,11 @@ describe("queue ticket preference", () => {
   });
 });
 
-describe("new printer sharing default", () => {
+describe("new printer access default", () => {
   const printer = { print_config_uuid: "printer", printer_name: "Printer", connect_type: "tcp", interface_value: "tcp://192.168.1.20:9100", paper_width_mm: 80, is_active: true, role_codes: [], cate_uuid_fk: [] };
-  it("selects Shared in the new printer form", () => {
-    expect(printerFormValues(null).sharingMode).toBe("SHARED");
+  it("starts new printers as device-only without changing existing configurations", () => {
+    expect(printerFormValues(null).sharingMode).toBe("DEDICATED");
+    expect(printerFormValues(null).accessMode).toBe("DIRECT");
   });
   it("preserves dedicated settings and the legacy default when editing", () => {
     expect(sharingModeOf(printer)).toBe("DEDICATED");
