@@ -148,6 +148,7 @@ export function CheckboxOptionList({
 export interface RadioOption {
   label: string;
   value: string;
+  disabled?: boolean;
 }
 
 // การ์ดเลือกแบบเดียวกับ CheckboxOptionList (optionRowClass) — เดิม radio ใช้แค่ circle + label
@@ -161,6 +162,7 @@ export function RadioOptionList({
   legend,
   name,
   options,
+  optionsClassName,
   value,
   onValueChange,
 }: {
@@ -171,6 +173,7 @@ export function RadioOptionList({
   legend: string;
   name: string;
   options: RadioOption[];
+  optionsClassName?: string;
   value: string;
   onValueChange: (value: string) => void;
 }) {
@@ -183,7 +186,7 @@ export function RadioOptionList({
       <RadioGroup
         value={value}
         onValueChange={onValueChange}
-        className="grid gap-2 sm:grid-cols-2"
+        className={cn("grid gap-2 sm:grid-cols-2", optionsClassName)}
       >
         {options.map((option, index) => {
           const id = safeId(name, option.value);
@@ -192,15 +195,15 @@ export function RadioOptionList({
             <Field
               key={option.value}
               orientation="horizontal"
-              className={optionRowClass(active)}
+              className={cn(optionRowClass(active), (disabled || option.disabled) && "cursor-not-allowed opacity-50")}
               onClick={(event) => {
                 // เหมือน CheckboxOptionList — กัน native input ที่ Radix ซ่อนไว้ยิง click ซ้ำเข้ามา
                 const target = event.target as HTMLElement;
                 if (target.closest('label, input, [role="radio"]')) return;
-                if (!disabled) onValueChange(option.value);
+                if (!disabled && !option.disabled) onValueChange(option.value);
               }}
             >
-              <RadioGroupItem id={id} value={option.value} disabled={disabled} autoFocus={autoFocusFirst && index === 0} />
+              <RadioGroupItem id={id} value={option.value} disabled={disabled || option.disabled} autoFocus={autoFocusFirst && index === 0} />
               <FieldLabel htmlFor={id}>{option.label}</FieldLabel>
             </Field>
           );
