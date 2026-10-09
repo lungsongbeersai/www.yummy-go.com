@@ -5,6 +5,7 @@ import type {
   PrinterKitchenCutMode,
   PrinterMappingType,
   PrinterSharingMode,
+  PrinterAccessMode,
   SearchPrinterResult,
 } from "@/services/printer";
 import type { Category } from "@/services/category";
@@ -211,6 +212,10 @@ export function sharingModeOf(printer: Printer | null): PrinterSharingMode {
   return printer.sharing_mode ?? "DEDICATED";
 }
 
+export function accessModeOf(printer: Printer | null): PrinterAccessMode {
+  return printer?.access_mode ?? (sharingModeOf(printer) === "SHARED" ? "LAN" : "DIRECT");
+}
+
 // เครื่องพิมพ์เก่าที่ยังไม่มีค่านี้ต้องคงพฤติกรรมเดิม คือ ตัดหลังทุกใบ
 // ค่า wire เดิม "none" ถูกเก็บไว้เพื่อไม่เปลี่ยน API/DB contract แต่หมายถึง
 // ใบเดียวรวมหลายรายการและตัดครั้งเดียวท้ายชุดที่ physical print boundary
@@ -278,6 +283,7 @@ export function printerFormValues(printer: Printer | null) {
     selectedRoles: printer?.role_codes ?? [],
     mappingType: initialMappingSelection(printer),
     sharingMode: sharingModeOf(printer),
+    accessMode: accessModeOf(printer),
     selectedCategories: categoryUuids(printer),
     selectedZones: zoneUuids(printer),
     selectedDevice:

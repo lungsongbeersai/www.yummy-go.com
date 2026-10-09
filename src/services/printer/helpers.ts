@@ -156,6 +156,7 @@ export function mapPrinter(item: Record<string, unknown>): Printer {
     categories: Array.isArray(item.categories) ? item.categories as PrinterCategory[] : [],
     cate_uuid_fk: stringArray(item.cate_uuid_fk),
     is_owner: optionalBoolean(item.is_owner),
+    access_mode: item.access_mode === "DIRECT" || item.access_mode === "LAN" || item.access_mode === "INTERNET" ? item.access_mode : undefined,
     is_shared: optionalBoolean(item.is_shared),
     agent_online: optionalBoolean(item.agent_online),
     owner_device_code: item.owner_device_code === undefined ? undefined : String(item.owner_device_code),

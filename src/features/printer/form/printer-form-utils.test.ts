@@ -10,6 +10,7 @@ import {
   requiresZoneMapping,
   shouldResolveCurrentPrinterIdentity,
   sharingModeOf,
+  accessModeOf,
 } from "@/features/printer/form/printer-form-utils";
 
 describe("formatIpInput", () => {
@@ -240,5 +241,11 @@ describe("new printer sharing default", () => {
     expect(sharingModeOf(printer)).toBe("DEDICATED");
     expect(sharingModeOf({ ...printer, sharing_mode: "DEDICATED" })).toBe("DEDICATED");
     expect(sharingModeOf({ ...printer, sharing_mode: "SHARED" })).toBe("SHARED");
+  });
+  it("restores the saved Internet choice independently of the legacy Shared flag", () => {
+    expect(accessModeOf(printer)).toBe("DIRECT");
+    expect(accessModeOf({ ...printer, sharing_mode: "SHARED" })).toBe("LAN");
+    expect(accessModeOf({ ...printer, sharing_mode: "SHARED", access_mode: "INTERNET" })).toBe("INTERNET");
+    expect(printerFormValues({ ...printer, sharing_mode: "SHARED", access_mode: "INTERNET" }).accessMode).toBe("INTERNET");
   });
 });

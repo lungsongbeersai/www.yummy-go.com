@@ -51,6 +51,13 @@ export interface PrintSummary extends ApiEntity {
   requested_job_total?: number;
   uncertain_item_total?: number;
 }
+export interface InternetPrintSettings {
+  available: boolean;
+  enabled: boolean;
+  can_manage: boolean;
+  receivers: Array<{ device_code: string; agent_name: string | null; online: boolean }>;
+}
+
 export interface PrinterCategory extends ApiEntity {
   cate_uuid: string;
   cate_name?: string;
@@ -68,6 +75,7 @@ export interface PrinterZone extends ApiEntity {
 // cate_uuid_fk (ไม่ใช่ฟิลด์เดียวกันใช้ซ้ำ — ทั้งสองฟิลด์แยกกันจริงบน wire)
 export type PrinterMappingType = "ZONE" | "CATEGORY";
 export type PrinterSharingMode = "SHARED" | "DEDICATED";
+export type PrinterAccessMode = "DIRECT" | "LAN" | "INTERNET";
 export type PrinterKitchenCutMode = "per_ticket" | "none";
 export type PrinterBatchCutMode = PrinterKitchenCutMode | "end";
 export type PrinterSource = "OWN" | "SHARED";
@@ -107,6 +115,7 @@ export interface Printer extends ApiEntity {
   // เครื่องพิมพ์ที่บันทึกไว้ก่อน backend เพิ่ม sharing_mode จะไม่มีฟิลด์นี้มา — ถือว่าเป็น
   // DEDICATED (พฤติกรรมเดิมก่อนมีการแชร์เครื่องพิมพ์) ดู sharingModeOf() ใน printer-form-utils.ts
   sharing_mode?: PrinterSharingMode;
+  access_mode?: PrinterAccessMode;
   // ตั้งโดย backend เมื่อเครื่องนี้ใช้ address เดียวกับ config SHARED ตัวอื่นในสาขา
   // งานจริงจะไปออกที่ตัวนั้น ตัวนี้จึงแสดงไว้เพื่อให้แก้ address หรือลบทิ้งได้
   endpoint_duplicate?: boolean;
@@ -182,6 +191,7 @@ export interface SavePrinterInput extends ApiEntity {
   // CATEGORY ที่เป็นการเลือกจริง savePrinter() ใน config-api.ts ต้องคง key นี้หายไปทั้งหมดบน wire
   mapping_type?: PrinterMappingType;
   sharing_mode: PrinterSharingMode;
+  access_mode?: PrinterAccessMode;
   // backend บังคับ: mapping_type = ZONE ต้องส่งทั้ง zone_uuid_fk และ cate_uuid_fk (เลือกหมวดหมู่
   // ด้วยเสมอ); mapping_type = CATEGORY ส่งแค่ cate_uuid_fk; ไม่มี mapping_type เลยไม่ส่งทั้งคู่ —
   // savePrinter() ใน config-api.ts เป็นจุดเดียวที่ตัดฟิลด์เหล่านี้ตาม mapping_type

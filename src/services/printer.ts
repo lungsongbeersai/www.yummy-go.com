@@ -17,6 +17,7 @@ export {
 } from "@/services/printer/browser-device";
 
 export type {
+  InternetPrintSettings,
   AckAppliedItem,
   AckPayload,
   AckResponse,
@@ -70,6 +71,7 @@ export type {
   PrinterRole,
   PrinterRolesResponse,
   PrinterSharingMode,
+  PrinterAccessMode,
   PrinterSource,
   PrinterZone,
   RegisterPrinterAgentInput,
@@ -84,6 +86,7 @@ export type {
 
 export {
   buildTestJob,
+  getInternetPrintSettings,
   deletePrinter,
   fetchPrinterCategoryRole,
   getAgentFiles,

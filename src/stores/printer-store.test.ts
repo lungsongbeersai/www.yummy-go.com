@@ -5,6 +5,7 @@ import {
   dispatchPrintJob,
   getPrinters,
   getPendingPrintJobs,
+  getInternetPrintSettings,
   registerPrinterAgent,
   resolvePrinterDeviceContext,
   resolvePrinterDeviceIdentity,
@@ -27,6 +28,7 @@ vi.mock("@/services/printer", () => ({
   getCategoryRoles: vi.fn(),
   getDefaultCategoryByRole: vi.fn(),
   getPendingPrintJobs: vi.fn(),
+  getInternetPrintSettings: vi.fn(),
   getPrinterOptions: vi.fn(),
   getPrinterRoles: vi.fn(),
   getPrinters: vi.fn(),
@@ -73,7 +75,31 @@ describe("printer store", () => {
       printers: [],
       saving: false,
       searching: false,
+      internetPrintSettings: null,
+      loadingInternetPrintSettings: false,
+      internetPrintSettingsError: null,
     });
+  });
+
+  it("keeps the last receiver status when loading fails", async () => {
+    const settings = { available: true, enabled: false, can_manage: true, receivers: [] };
+    vi.mocked(getInternetPrintSettings).mockResolvedValueOnce(settings);
+    await usePrinterStore.getState().loadInternetPrintSettings();
+    vi.mocked(getInternetPrintSettings).mockRejectedValueOnce(new Error("Connection failed"));
+    await expect(usePrinterStore.getState().loadInternetPrintSettings()).rejects.toThrow("Connection failed");
+    expect(usePrinterStore.getState().internetPrintSettings).toEqual(settings);
+    expect(usePrinterStore.getState().loadingInternetPrintSettings).toBe(false);
+  });
+
+  it("does not leak a late settings response into the next login session", async () => {
+    const pending = deferred<{ available: boolean; enabled: boolean; can_manage: boolean; receivers: [] }>();
+    vi.mocked(getInternetPrintSettings).mockReturnValue(pending.promise);
+    const request = usePrinterStore.getState().loadInternetPrintSettings();
+    resetSessionStores();
+    pending.resolve({ available: true, enabled: true, can_manage: true, receivers: [] });
+    await request;
+    expect(usePrinterStore.getState().internetPrintSettings).toBeNull();
+    expect(usePrinterStore.getState().loadingInternetPrintSettings).toBe(false);
   });
 
   it("keeps management printers visible when the desktop Agent is unavailable", async () => {

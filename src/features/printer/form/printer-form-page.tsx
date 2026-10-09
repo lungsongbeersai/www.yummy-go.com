@@ -43,11 +43,9 @@ import {
 } from "@/components/ui/select";
 import { Spinner } from "@/components/ui/spinner";
 import type {
-  PrinterKitchenCutMode,
-  PrinterSharingMode,
   SearchPrinterResult,
 } from "@/services/printer";
-import { CheckboxOptionList, RadioOptionList } from "./printer-form-fields";
+import { CheckboxOptionList } from "./printer-form-fields";
 import {
   formatIpInput,
   toggleAllValues,
@@ -56,6 +54,7 @@ import {
   type MappingTypeSelection,
 } from "./printer-form-utils";
 import { usePrinterForm } from "./use-printer-form";
+import { PrinterOutputSettings } from "./printer-output-settings";
 
 export function PrinterFormPage() {
   const form = usePrinterForm();
@@ -275,95 +274,25 @@ export function PrinterFormPage() {
                     onChange={(event) => form.setPaperWidth(event.target.value)}
                   />
                 </Field>
-                <RadioOptionList
-                  className="md:col-span-2"
-                  legend={t("printer.kitchenCutMode")}
-                  description={t("printer.kitchenCutModeHint")}
-                  name="printer-kitchen-cut"
-                  disabled={form.saving}
-                  value={form.kitchenCutMode}
-                  onValueChange={(value) =>
-                    form.setKitchenCutMode(value as PrinterKitchenCutMode)
-                  }
-                  options={[
-                    { value: "per_ticket", label: t("printer.kitchenCutPerTicket") },
-                    { value: "none", label: t("printer.kitchenCutNone") },
-                  ]}
+                <PrinterOutputSettings
+                  accessMode={form.accessMode}
+                  onAccessModeChange={form.setAccessMode}
+                  connectType={form.connectType}
+                  saving={form.saving}
+                  internetSettings={form.internetSettings}
+                  loadingInternetSettings={form.loadingInternetSettings}
+                  kitchenCutMode={form.kitchenCutMode}
+                  onKitchenCutModeChange={form.setKitchenCutMode}
+                  showQueueTicketOption={form.showQueueTicketOption}
+                  queueTicketEnabled={form.queueTicketEnabled}
+                  onQueueTicketEnabledChange={form.setQueueTicketEnabled}
+                  cashDrawerEnabled={form.cashDrawerEnabled}
+                  onCashDrawerEnabledChange={form.setCashDrawerEnabled}
+                  buzzerOnCut={form.buzzerOnCut}
+                  onBuzzerOnCutChange={form.setBuzzerOnCut}
+                  cutFeedLines={form.cutFeedLines}
+                  onCutFeedLinesChange={form.setCutFeedLines}
                 />
-                {form.showQueueTicketOption ? (
-                  <RadioOptionList
-                    className="md:col-span-2"
-                    legend={t("printer.queueTicketMode")}
-                    description={t("printer.queueTicketModeHint")}
-                    name="printer-queue-ticket"
-                    disabled={form.saving}
-                    value={form.queueTicketEnabled ? "enabled" : "disabled"}
-                    onValueChange={(value) => form.setQueueTicketEnabled(value === "enabled")}
-                    options={[
-                      { value: "enabled", label: t("pos.printQueueTicket") },
-                      { value: "disabled", label: t("pos.skipQueueTicket") },
-                    ]}
-                  />
-                ) : null}
-                <RadioOptionList
-                  autoFocusFirst={!form.isEditing}
-                  className="md:col-span-2"
-                  legend={t("printer.sharingMode")}
-                  description={t("printer.sharingModeHint")}
-                  name="printer-sharing-mode"
-                  disabled={form.saving}
-                  value={form.sharingMode}
-                  onValueChange={(value) =>
-                    form.setSharingMode(value as PrinterSharingMode)
-                  }
-                  options={[
-                    { value: "SHARED", label: t("printer.sharingModeShared") },
-                    { value: "DEDICATED", label: t("printer.sharingModeDedicated") },
-                  ]}
-                />
-                <RadioOptionList
-                  className="md:col-span-2"
-                  legend={t("printer.cashDrawerMode")}
-                  description={t("printer.cashDrawerModeHint")}
-                  name="printer-cash-drawer"
-                  disabled={form.saving}
-                  value={form.cashDrawerEnabled ? "enabled" : "disabled"}
-                  onValueChange={(value) => form.setCashDrawerEnabled(value === "enabled")}
-                  options={[
-                    { value: "enabled", label: t("printer.cashDrawerEnabled") },
-                    { value: "disabled", label: t("printer.cashDrawerDisabled") },
-                  ]}
-                />
-                <RadioOptionList
-                  className="md:col-span-2"
-                  legend={t("printer.buzzerOnCutMode")}
-                  description={t("printer.buzzerOnCutModeHint")}
-                  name="printer-buzzer-on-cut"
-                  disabled={form.saving}
-                  value={form.buzzerOnCut ? "enabled" : "disabled"}
-                  onValueChange={(value) => form.setBuzzerOnCut(value === "enabled")}
-                  options={[
-                    { value: "enabled", label: t("printer.buzzerOnCutEnabled") },
-                    { value: "disabled", label: t("printer.buzzerOnCutDisabled") },
-                  ]}
-                />
-                <Field>
-                  <FieldLabel htmlFor="printer-cut-feed-lines">
-                    {t("printer.cutFeedLines")}
-                  </FieldLabel>
-                  <Input
-                    id="printer-cut-feed-lines"
-                    name="printer_cut_feed_lines"
-                    autoComplete="off"
-                    placeholder={t("printer.cutFeedLinesPlaceholder")}
-                    value={form.cutFeedLines}
-                    disabled={form.saving}
-                    type="number"
-                    inputMode="numeric"
-                    min={1}
-                    onChange={(event) => form.setCutFeedLines(event.target.value)}
-                  />
-                </Field>
               </FieldGroup>
             </FieldSet>
 

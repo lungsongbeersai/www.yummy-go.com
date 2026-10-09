@@ -16,6 +16,7 @@ import {
 } from "@/services/printer/helpers";
 import type {
   AgentFilesResponse,
+  InternetPrintSettings,
   BuildTestJobRequest,
   BuildTestJobResponse,
   CategoryRole,
@@ -40,6 +41,13 @@ import type {
   SearchPrintersResponse
 } from "@/services/printer/types";
 import type { ApiDataResponse } from "@/services/shared/types";
+
+export async function getInternetPrintSettings() {
+  const result = await apiRequest<ApiDataResponse<InternetPrintSettings>>(
+    "get", "/api/v1/printer/internet-print/settings",
+  );
+  return result.data;
+}
 
 export async function searchPrinters(
   mode: "usb" | "network" = "usb",
@@ -184,6 +192,7 @@ export async function savePrinter(input: SavePrinterInput) {
     // input.mapping_type เป็น undefined ที่นี่แล้ว axios/JSON.stringify จะตัด key ที่ undefined ทิ้งเอง
     mapping_type: input.mapping_type,
     sharing_mode: input.sharing_mode,
+    access_mode: input.access_mode,
     ...(input.mapping_type === "ZONE"
       ? { zone_uuid_fk: input.zone_uuid_fk ?? [], cate_uuid_fk: input.cate_uuid_fk ?? [] }
       : input.mapping_type === "CATEGORY"

@@ -2,6 +2,8 @@
 
 import { create } from "zustand";
 import {
+  getInternetPrintSettings,
+  type InternetPrintSettings,
   ackPrintJob,
   buildTestJob,
   deletePrinter,
@@ -95,6 +97,10 @@ function localSharedTcpTestJob(
 }
 
 interface PrinterState {
+  internetPrintSettings: InternetPrintSettings | null;
+  loadingInternetPrintSettings: boolean;
+  internetPrintSettingsError: string | null;
+  loadInternetPrintSettings: () => Promise<InternetPrintSettings>;
   printers: Printer[];
   options: Printer[];
   agentFiles: AgentFile[];
@@ -146,6 +152,21 @@ interface PrinterState {
 }
 
 export const usePrinterStore = create<PrinterState>((set, get) => ({
+  internetPrintSettings: null,
+  loadingInternetPrintSettings: false,
+  internetPrintSettingsError: null,
+  loadInternetPrintSettings: async () => {
+    const isCurrentSession = createSessionGuard();
+    set({ loadingInternetPrintSettings: true, internetPrintSettingsError: null });
+    try {
+      const settings = await getInternetPrintSettings();
+      if (isCurrentSession()) set({ internetPrintSettings: settings, loadingInternetPrintSettings: false });
+      return settings;
+    } catch (error) {
+      if (isCurrentSession()) set({ loadingInternetPrintSettings: false, internetPrintSettingsError: errorMessage(error) });
+      throw error;
+    }
+  },
   printers: [],
   options: [],
   agentFiles: [],
@@ -680,6 +701,9 @@ export const usePrinterStore = create<PrinterState>((set, get) => ({
   submitReportPrint: (input) => printReport(input),
   reset: () =>
     set({
+      internetPrintSettings: null,
+      loadingInternetPrintSettings: false,
+          internetPrintSettingsError: null,
       printers: [],
       options: [],
       agentFiles: [],

@@ -23,7 +23,7 @@ import type {
   DefaultCategoryCategoryDetail,
   DefaultCategoryZoneDetail,
   PrinterKitchenCutMode,
-  PrinterSharingMode,
+  PrinterAccessMode,
 } from "@/services/printer";
 import type { Category } from "@/services/category";
 import type { Zone } from "@/services/zone";
@@ -70,6 +70,9 @@ export function usePrinterForm() {
   const loading = usePrinterStore((state) => state.loading);
   const searching = usePrinterStore((state) => state.searching);
   const saving = usePrinterStore((state) => state.saving);
+  const internetSettings = usePrinterStore((state) => state.internetPrintSettings);
+  const loadingInternetSettings = usePrinterStore((state) => state.loadingInternetPrintSettings);
+  const loadInternetSettings = usePrinterStore((state) => state.loadInternetPrintSettings);
   const loadPrintersForLocalAgent = usePrinterStore(
     (state) => state.loadPrintersForLocalAgent,
   );
@@ -192,9 +195,12 @@ export function usePrinterForm() {
   const [mappingType, setMappingType] = useState<MappingTypeSelection>(
     initialForm.mappingType,
   );
-  const [sharingMode, setSharingMode] = useState<PrinterSharingMode>(
-    initialForm.sharingMode,
+  const [accessMode, setAccessMode] = useState<PrinterAccessMode>(
+    initialForm.accessMode,
   );
+  useResetOnDeps([connectType], () => {
+    if (connectType === "usb") setAccessMode("DIRECT");
+  });
   const [selectedCategories, setSelectedCategories] = useState<string[]>(
     initialForm.selectedCategories,
   );
@@ -265,6 +271,7 @@ export function usePrinterForm() {
       await Promise.all([
         loadPrintersForLocalAgent({ login_uuid_fk: userUuid, lang: language }),
         loadRoles(language),
+        loadInternetSettings(),
         storeUuid ? loadCategories(language, storeUuid) : Promise.resolve([]),
         loadZones(language, branchUuid),
       ]);
@@ -283,6 +290,7 @@ export function usePrinterForm() {
     loadCategories,
     loadPrintersForLocalAgent,
     loadRoles,
+    loadInternetSettings,
     loadZones,
     showToast,
     storeUuid,
@@ -315,7 +323,7 @@ export function usePrinterForm() {
     setCutFeedLines(cutFeedLinesOf(editing));
     setSelectedRoles(values.selectedRoles);
     setMappingType(values.mappingType);
-    setSharingMode(values.sharingMode);
+    setAccessMode(values.accessMode);
     setSelectedCategories(values.selectedCategories);
     setSelectedZones(values.selectedZones);
     setSelectedDevice(values.selectedDevice);
@@ -421,7 +429,7 @@ export function usePrinterForm() {
     buzzerOnCut !== baseline.buzzerOnCut ||
     cutFeedLines !== baseline.cutFeedLines ||
     mappingType !== baseline.mappingType ||
-    sharingMode !== baseline.sharingMode ||
+    accessMode !== baseline.accessMode ||
     selectedDevice !== baseline.selectedDevice ||
     !arraysHaveSameValues(selectedRoles, baseline.selectedRoles) ||
     !arraysHaveSameValues(selectedCategories, baseline.selectedCategories) ||
@@ -596,7 +604,8 @@ export function usePrinterForm() {
         // backend บังคับ: ZONE ส่งทั้งโซนและหมวดหมู่ที่เลือกไว้, CATEGORY ส่งแค่หมวดหมู่
         // savePrinter() ใน config-api.ts เป็นจุดที่ตัด zone_uuid_fk/cate_uuid_fk ออกตาม mapping_type
         mapping_type: mappingType === "OFF" ? undefined : mappingType,
-        sharing_mode: sharingMode,
+        sharing_mode: accessMode === "DIRECT" ? "DEDICATED" : "SHARED",
+        access_mode: accessMode,
         zone_uuid_fk: selectedZones,
         cate_uuid_fk: selectedCategories,
         agent_url: nextAgentUrl,
@@ -636,8 +645,10 @@ export function usePrinterForm() {
     mappingType,
     setMappingType,
     zoneMappingRequired,
-    sharingMode,
-    setSharingMode,
+    accessMode,
+    setAccessMode,
+    internetSettings,
+    loadingInternetSettings,
     categoryOptions,
     zoneOptions,
     connectType,
