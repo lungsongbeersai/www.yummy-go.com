@@ -302,10 +302,11 @@ export function usePrinterForm() {
     void loadFormData();
   }, [loadFormData]);
 
-  // เติมฟอร์มใหม่เมื่อเรคคอร์ดที่แก้ไขเปลี่ยน (เช่น รายการเครื่องพิมพ์เพิ่งโหลดเสร็จ)
-  // ทำระหว่าง render เพื่อไม่ให้ผู้ใช้เห็นค่าเก่าแวบหนึ่งก่อน effect จะทำงาน
-  // (กรณี mount ถูกครอบคลุมโดย initialForm ด้านบนแล้ว)
-  useResetOnDeps([editing, isEditing], () => {
+  // Hydrate once per record, including a record that arrives after mount.
+  // Refreshing the list creates new objects; using `editing` as a reset key
+  // discarded the user's USB connection, name, roles, and mapping edits.
+  const formRecordKey = isEditing ? (editing?.print_config_uuid ?? null) : "";
+  useResetOnDeps([formRecordKey], () => {
     if (isEditing && !editing) return;
 
     const values = printerFormValues(editing);
@@ -540,7 +541,15 @@ export function usePrinterForm() {
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (!user?.uuid || !canSubmit) return;
+    if (!user?.uuid) return;
+    if (!canSubmit) {
+      showToast({
+        title: t("printer.saveFailed"),
+        description: validationMessage,
+        tone: "error",
+      });
+      return;
+    }
 
     try {
       const savedIdentityComplete = Boolean(

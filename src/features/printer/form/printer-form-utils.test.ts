@@ -250,3 +250,51 @@ describe("new printer access default", () => {
     expect(printerFormValues({ ...printer, sharing_mode: "SHARED", access_mode: "INTERNET" }).accessMode).toBe("INTERNET");
   });
 });
+
+
+describe("restoring printer mappings", () => {
+  const printer = {
+    print_config_uuid: "usb-printer",
+    printer_name: "Kitchen USB",
+    connect_type: "usb",
+    interface_value: "cups:Kitchen",
+    paper_width_mm: 80,
+    is_active: true,
+    role_codes: ["k-001"],
+    mapping_type: "ZONE" as const,
+    cate_uuid_fk: ["food"],
+    zone_uuid_fk: ["inside"],
+  };
+
+  it("restores a USB printer with its selected roles, categories, and zones", () => {
+    expect(printerFormValues(printer)).toMatchObject({
+      connectType: "usb",
+      interfaceValue: "cups:Kitchen",
+      selectedDevice: "cups:Kitchen",
+      ip: "",
+      selectedRoles: ["k-001"],
+      mappingType: "ZONE",
+      selectedCategories: ["food"],
+      selectedZones: ["inside"],
+    });
+  });
+
+  it("restores mappings from embedded details when UUID lists are empty", () => {
+    expect(printerFormValues({
+      ...printer,
+      cate_uuid_fk: [],
+      zone_uuid_fk: [],
+      categories: [{ cate_uuid: "food" }],
+      zones: [{ zone_uuid: "inside" }],
+    })).toMatchObject({ selectedCategories: ["food"], selectedZones: ["inside"] });
+  });
+
+  it("does not turn a legacy saved USB endpoint into a WiFi printer requiring an IP", () => {
+    for (const interfaceValue of ["cups:Kitchen", "win:Kitchen"]) {
+      expect(printerFormValues({ ...printer, connect_type: "", interface_value: interfaceValue }))
+        .toMatchObject({ connectType: "usb", selectedDevice: interfaceValue, ip: "" });
+    }
+    expect(printerFormValues({ ...printer, connect_type: "tcp", interface_value: "tcp://192.168.1.20:9100" }))
+      .toMatchObject({ connectType: "tcp", ip: "192.168.1.20" });
+  });
+});

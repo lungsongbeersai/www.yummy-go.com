@@ -245,7 +245,7 @@ export function cutFeedLinesOf(printer: Printer | null) {
 // (backend contract ใหม่) จึงอ่านได้ตรงๆ ไม่ต้องกรองตาม mapping_type อีกต่อไป
 export function categoryUuids(printer: Printer | null) {
   if (!printer) return [];
-  if (printer.cate_uuid_fk.length) return printer.cate_uuid_fk;
+  if (printer.cate_uuid_fk?.length) return printer.cate_uuid_fk;
   return (
     printer.categories?.map((category) => category.cate_uuid).filter(Boolean) ??
     []
@@ -254,7 +254,8 @@ export function categoryUuids(printer: Printer | null) {
 
 export function zoneUuids(printer: Printer | null) {
   if (!printer || mappingTypeOf(printer) !== "ZONE") return [];
-  return printer.zone_uuid_fk ?? [];
+  if (printer.zone_uuid_fk?.length) return printer.zone_uuid_fk;
+  return printer.zones?.map((zone) => zone.zone_uuid).filter(Boolean) ?? [];
 }
 
 // ค่าฟอร์มที่คำนวณจากเครื่องพิมพ์ที่กำลังแก้ไข (null = โหมดเพิ่มใหม่)
@@ -262,7 +263,8 @@ export function zoneUuids(printer: Printer | null) {
 export function printerFormValues(printer: Printer | null) {
   const parsed = parseInterfaceValue(printer?.interface_value ?? "");
   const connectType: ConnectType = printer
-    ? printer.connect_type === "usb"
+    ? printer.connect_type?.trim().toLowerCase() === "usb" ||
+      (!printer.connect_type?.trim() && /^(cups:|win:)/i.test(printer.interface_value))
       ? "usb"
       : "tcp"
     : "tcp";
