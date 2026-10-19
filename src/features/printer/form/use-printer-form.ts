@@ -32,6 +32,7 @@ import { usePrinterStore } from "@/stores/printer-store";
 import { useReferenceStore } from "@/stores/reference-store";
 import { useToastStore } from "@/stores/toast-store";
 import { useResetOnDeps } from "@/hooks/use-reset-on-change";
+import { usePrinterSelfTest } from "@/features/printer/use-printer-self-test";
 import {
   arraysHaveSameValues,
   assignedPrinterNamesByValue,
@@ -44,6 +45,7 @@ import {
   mappingTypeOf,
   mergeUsbPrinterOptions,
   printerFormValues,
+  printerSelfTestTarget,
   requiresZoneMapping,
   shouldResolveCurrentPrinterIdentity,
   textValue,
@@ -70,6 +72,7 @@ export function usePrinterForm() {
   const loading = usePrinterStore((state) => state.loading);
   const searching = usePrinterStore((state) => state.searching);
   const saving = usePrinterStore((state) => state.saving);
+  const { printing, pendingSelfTest, runSelfTest, completeSelfTest } = usePrinterSelfTest();
   const internetSettings = usePrinterStore((state) => state.internetPrintSettings);
   const loadingInternetSettings = usePrinterStore((state) => state.loadingInternetPrintSettings);
   const loadInternetSettings = usePrinterStore((state) => state.loadInternetPrintSettings);
@@ -413,6 +416,19 @@ export function usePrinterForm() {
     Boolean(agentName.trim()) &&
     Boolean(deviceCode.trim());
   const recordMissing = isEditing && formDataLoaded && !loading && !editing;
+  const selfTestTarget = printerSelfTestTarget({
+    connectType,
+    interfaceValue,
+    ip,
+    port,
+    availableUsbPrinters: found,
+  });
+  const canSelfTest = Boolean(selfTestTarget) && !pendingSelfTest && !recordMissing && !loading && !saving && !searching && !printing;
+
+  async function printSelfTest() {
+    if (!canSelfTest || !selfTestTarget) return;
+    await runSelfTest(selfTestTarget);
+  }
 
   // ใช้เตือนก่อนออกจากหน้าตอนกด "ยกเลิก" — ไม่รวม agent* / deviceCode เพราะฟิลด์เหล่านั้นถูกเติมเอง
   // จาก agent ที่ตรวจพบอัตโนมัติ (ดู fillAgent/useResetOnDeps ด้านบน) ไม่ใช่สิ่งที่ผู้ใช้แก้ไข
@@ -647,6 +663,11 @@ export function usePrinterForm() {
     isDirty,
     loading,
     saving,
+    printing,
+    canSelfTest,
+    printSelfTest,
+    pendingSelfTest,
+    completeSelfTest,
     searching,
     found,
     usbOptions,

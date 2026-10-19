@@ -38,6 +38,7 @@ import {
   type PrinterStatusFilter,
 } from "./printer-page-utils";
 import { usePrinterPage } from "./use-printer-page";
+import { PrinterSelfTestDialog } from "@/features/printer/printer-self-test-dialog";
 
 const AGENT_DOT: Record<string, string> = {
   connected: "bg-success",
@@ -59,16 +60,19 @@ export function PrinterPage() {
     zones: printer.zones,
     filteredRows: printer.filteredRows,
     language: printer.language,
-    printing: printer.printing,
+    printing: printer.printing || Boolean(printer.pendingSelfTest),
+    selfTestTargets: printer.selfTestTargets,
     roleItemsByPrinter: printer.roleItemsByPrinter,
     statusLabels: printer.statusLabels,
     testingUuid: printer.testingUuid,
     testingDrawerUuid: printer.testingDrawerUuid,
+    testingSelfTestUuid: printer.testingSelfTestUuid,
     togglingUuid: printer.togglingUuid,
     userUuid: printer.user?.uuid,
     onDelete: printer.setDeleteTarget,
     onTest: printer.testPrinter,
     onTestDrawer: printer.testDrawer,
+    onSelfTest: printer.testSelfTest,
     onToggle: printer.togglePrinter,
   };
 
@@ -342,6 +346,7 @@ export function PrinterPage() {
         }}
       />
       <PrintLoadingDialog open={Boolean(printer.testingUuid)} />
+      <PrinterSelfTestDialog pendingSelfTest={printer.pendingSelfTest} printing={printer.printing} onReady={printer.completeSelfTest} />
     </div>
   );
 }

@@ -11,6 +11,7 @@ import {
   Power,
   PowerOff,
   Printer as PrinterIcon,
+  FileSearch,
   Trash2,
   Usb,
   Wifi,
@@ -31,7 +32,7 @@ import { Spinner } from "@/components/ui/spinner";
 import { Switch } from "@/components/ui/switch";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import type { Category } from "@/services/category";
-import type { Printer } from "@/services/printer";
+import type { Printer, PrinterSelfTestInput } from "@/services/printer";
 import type { Zone } from "@/services/zone";
 import {
   BadgeList,
@@ -60,15 +61,18 @@ interface PrinterListCardsProps {
   filteredRows: PrinterTableRow[];
   language: string;
   printing: boolean;
+  selfTestTargets: Map<string, PrinterSelfTestInput>;
   roleItemsByPrinter: Map<string, Array<{ label: string; value: string }>>;
   statusLabels: { active: string; inactive: string };
   testingUuid: string;
   testingDrawerUuid: string;
+  testingSelfTestUuid: string;
   togglingUuid: string;
   userUuid?: string;
   onDelete: (row: Printer) => void;
   onTest: (row: Printer) => void;
   onTestDrawer: (row: Printer) => void;
+  onSelfTest: (row: Printer) => void;
   onToggle: (row: Printer) => void;
 }
 
@@ -91,16 +95,19 @@ function PrinterCard({
   zones,
   language,
   printing,
+  selfTestTargets,
   roleItemsByPrinter,
   row,
   statusLabels,
   testingUuid,
   testingDrawerUuid,
+  testingSelfTestUuid,
   togglingUuid,
   userUuid,
   onDelete,
   onTest,
   onTestDrawer,
+  onSelfTest,
   onToggle,
 }: Omit<PrinterListCardsProps, "filteredRows"> & { row: PrinterTableRow }) {
   const { t } = useTranslation();
@@ -115,6 +122,8 @@ function PrinterCard({
   const testDisabled =
     printing || Boolean(testingUuid) || Boolean(togglingUuid) || !userUuid || !row.print_config_uuid || !printerReachable(row);
   const drawerDisabled = testDisabled || Boolean(testingDrawerUuid);
+  const testingSelfTest = testingSelfTestUuid === row.print_config_uuid;
+  const selfTestDisabled = drawerDisabled || Boolean(testingSelfTestUuid) || !selfTestTargets.has(row.print_config_uuid);
   const zoneMapped = mappingTypeOf(row) === "ZONE";
   const targets = zoneMapped
     ? printerZones(row, zones).map((zone) => ({ label: zoneLabel(zone, language), value: zone.zone_uuid }))
@@ -242,7 +251,7 @@ function PrinterCard({
         ) : null}
       </div>
 
-      <footer className="mt-auto flex items-center gap-2 border-t border-border bg-muted/20 px-4 py-3">
+      <footer className="mt-auto flex flex-wrap items-center gap-2 border-t border-border bg-muted/20 px-4 py-3">
         {/* ทดสอบพิมพ์คือสิ่งที่ทำบ่อยที่สุดในหน้านี้ — เป็นปุ่มมีข้อความเต็ม ส่วนคำสั่งอื่นรวมในเมนู ⋮ */}
         <Button type="button" variant="outline" className="h-10 flex-1" disabled={testDisabled} onClick={() => void onTest(row)}>
           {testing ? <Spinner data-icon="inline-start" /> : <PrinterIcon data-icon="inline-start" />}
@@ -305,6 +314,17 @@ function PrinterCard({
             </DropdownMenuContent>
           </DropdownMenu>
         ) : null}
+        <Button
+          type="button"
+          variant="outline"
+          className="min-h-10 w-full"
+          disabled={selfTestDisabled}
+          title={selfTestTargets.has(row.print_config_uuid) ? t("printer.selfTestHint") : t("printer.selfTestLocalConnectionHint")}
+          onClick={() => void onSelfTest(row)}
+        >
+          {testingSelfTest ? <Spinner data-icon="inline-start" /> : <FileSearch data-icon="inline-start" />}
+          {t(testingSelfTest ? "printer.selfTestSending" : "printer.selfTestAction")}
+        </Button>
       </footer>
     </article>
   );

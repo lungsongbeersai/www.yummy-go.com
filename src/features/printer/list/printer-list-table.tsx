@@ -7,12 +7,13 @@ import {
   Power,
   PowerOff,
   Printer as PrinterIcon,
+  FileSearch,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Spinner } from "@/components/ui/spinner";
 import { DataTable } from "@/components/common/data-table";
 import type { Category } from "@/services/category";
-import type { Printer } from "@/services/printer";
+import type { Printer, PrinterSelfTestInput } from "@/services/printer";
 import type { Zone } from "@/services/zone";
 import {
   BadgeList,
@@ -40,15 +41,18 @@ interface PrinterListTableProps {
   filteredRows: PrinterTableRow[];
   language: string;
   printing: boolean;
+  selfTestTargets: Map<string, PrinterSelfTestInput>;
   roleItemsByPrinter: Map<string, Array<{ label: string; value: string }>>;
   statusLabels: { active: string; inactive: string };
   testingUuid: string;
   testingDrawerUuid: string;
+  testingSelfTestUuid: string;
   togglingUuid: string;
   userUuid?: string;
   onDelete: (row: Printer) => void;
   onTest: (row: Printer) => void;
   onTestDrawer: (row: Printer) => void;
+  onSelfTest: (row: Printer) => void;
   onToggle: (row: Printer) => void;
 }
 
@@ -58,15 +62,18 @@ export function PrinterListTable({
   filteredRows,
   language,
   printing,
+  selfTestTargets,
   roleItemsByPrinter,
   statusLabels,
   testingUuid,
   testingDrawerUuid,
+  testingSelfTestUuid,
   togglingUuid,
   userUuid,
   onDelete,
   onTest,
   onTestDrawer,
+  onSelfTest,
   onToggle,
 }: PrinterListTableProps) {
   const { t } = useTranslation();
@@ -248,6 +255,14 @@ export function PrinterListTable({
           },
         ]}
         actions={[
+          {
+            id: "self-test-printer",
+            label: (row) => t(testingSelfTestUuid === row.print_config_uuid ? "printer.selfTestSending" : "printer.selfTestAction"),
+            icon: (row) => testingSelfTestUuid === row.print_config_uuid ? <Spinner /> : <FileSearch />,
+            disabled: (row) => printing || Boolean(testingUuid) || Boolean(testingDrawerUuid) ||
+              Boolean(testingSelfTestUuid) || Boolean(togglingUuid) || !userUuid || !selfTestTargets.has(row.print_config_uuid),
+            onSelect: (row) => void onSelfTest(row),
+          },
           {
             id: "test-printer",
             label: (row) =>

@@ -9,6 +9,20 @@ export interface SearchPrinterResult extends ApiEntity {
   interface_value: string;
   platform: string;
 }
+export interface PrinterSelfTestInput {
+  connect_type: "tcp" | "usb";
+  interface_value: string;
+  expected_agent_id?: string;
+  expected_device_code?: string;
+}
+export interface PrinterSelfTestResult {
+  ok: true;
+  status: "command_sent";
+}
+export interface PrinterSelfTestCompletionResult {
+  ok: true;
+  status: "ready";
+}
 export interface AgentInfo extends ApiEntity {
   version?: string;
   agent_id: string;
@@ -220,6 +234,7 @@ export interface BuildTestJobRequest extends ApiEntity {
   print_config_uuid?: string;
   lang?: string;
   open_cash_drawer?: boolean;
+  cash_drawer_only?: boolean;
   text?: string;
   display_name?: string;
   printer_name?: string;
@@ -251,6 +266,8 @@ export interface PrintJob extends ApiEntity {
   print_mode?: string;
   cut_mode?: PrinterBatchCutMode;
   open_cash_drawer?: boolean;
+  cash_drawer_only?: boolean;
+  cut_after?: boolean;
   print_job_item_uuid?: string;
   requested_by?: string;
   interface_value: string;

@@ -7,11 +7,54 @@ import {
   kitchenCutModeOf,
   mergeUsbPrinterOptions,
   printerFormValues,
+  printerSelfTestTarget,
   requiresZoneMapping,
   shouldResolveCurrentPrinterIdentity,
   sharingModeOf,
   accessModeOf,
 } from "@/features/printer/form/printer-form-utils";
+
+describe("printerSelfTestTarget", () => {
+  const form = {
+    connectType: "tcp" as const,
+    ip: "192.168.100.75",
+    port: "9100",
+    interfaceValue: "tcp://192.168.100.20:9100",
+    availableUsbPrinters: [],
+  };
+
+  it("uses the current unsaved IP and port, without requiring roles or a name", () => {
+    expect(printerSelfTestTarget({ ...form, port: "9200" })).toEqual({
+      connect_type: "tcp",
+      interface_value: "tcp://192.168.100.75:9200",
+    });
+    expect(printerSelfTestTarget({ ...form, port: "" })?.interface_value).toBe(
+      "tcp://192.168.100.75:9100",
+    );
+  });
+
+  it.each(["", "192.168", "192.168.1.256", "192.168..1"])("requires a complete valid IP: %s", (ip) => {
+    expect(printerSelfTestTarget({ ...form, ip })).toBeNull();
+  });
+
+  it.each(["0", "65536", "9100.5", "invalid"])("rejects invalid ports: %s", (port) => {
+    expect(printerSelfTestTarget({ ...form, port })).toBeNull();
+  });
+
+  it("cannot send a saved USB queue to another computer with the same queue name", () => {
+    expect(printerSelfTestTarget({ ...form, connectType: "usb", interfaceValue: "cups:Receipt" })).toBeNull();
+  });
+
+  it("allows a USB printer discovered on this device even when its IP is unknown", () => {
+    expect(printerSelfTestTarget({
+      ...form,
+      connectType: "usb",
+      ip: "",
+      interfaceValue: "win:XP-80",
+      availableUsbPrinters: [{ name: "XP-80", interface_value: "win:XP-80", platform: "win32" }],
+    })).toEqual({ connect_type: "usb", interface_value: "win:XP-80" });
+  });
+});
 
 describe("formatIpInput", () => {
   it("auto-inserts a dot after every 3 digits while typing forward", () => {

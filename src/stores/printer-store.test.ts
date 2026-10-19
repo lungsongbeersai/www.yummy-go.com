@@ -3,6 +3,10 @@ import {
   buildTestJob,
   deletePrinter,
   dispatchPrintJob,
+  dispatchCashDrawer,
+  renderMobileEscpos,
+  printPrinterSelfTest,
+  completePrinterSelfTest,
   getPrinters,
   getPendingPrintJobs,
   getInternetPrintSettings,
@@ -11,7 +15,9 @@ import {
   resolvePrinterDeviceIdentity,
   searchPrinters,
   togglePrinterActive,
-  type BuildTestJobResponse
+  type BuildTestJobResponse,
+  type PrintJob,
+  type Printer,
 } from "@/services/printer";
 import { usePrinterStore } from "@/stores/printer-store";
 import { resetSessionStores } from "@/stores/session-store-registry";
@@ -21,6 +27,10 @@ vi.mock("@/services/printer", () => ({
   buildTestJob: vi.fn(),
   deletePrinter: vi.fn(),
   dispatchPrintJob: vi.fn(),
+  dispatchCashDrawer: vi.fn(),
+  renderMobileEscpos: vi.fn(),
+  printPrinterSelfTest: vi.fn(),
+  completePrinterSelfTest: vi.fn(),
   executeInvoicePrintJobs: vi.fn(),
   executeKitchenPrintJobs: vi.fn(),
   fetchPrinterCategoryRole: vi.fn(),
@@ -30,6 +40,10 @@ vi.mock("@/services/printer", () => ({
   getPendingPrintJobs: vi.fn(),
   getInternetPrintSettings: vi.fn(),
   getPrinterOptions: vi.fn(),
+  getPrinterErrorMessage: (error: unknown) => error instanceof Error ? error.message : "Unknown printer error",
+  getPrinterDeliveryState: (error: unknown) =>
+    error && typeof error === "object" && "delivery_state" in error && error.delivery_state === "not_sent"
+      ? "not_sent" : "unknown",
   getPrinterRoles: vi.fn(),
   getPrinters: vi.fn(),
   registerPrinterAgent: vi.fn(),
@@ -48,6 +62,7 @@ vi.mock("@/services/printer", () => ({
 const buildTestJobMock = vi.mocked(buildTestJob);
 const deletePrinterMock = vi.mocked(deletePrinter);
 const dispatchPrintJobMock = vi.mocked(dispatchPrintJob);
+const dispatchCashDrawerMock = vi.mocked(dispatchCashDrawer);
 const getPrintersMock = vi.mocked(getPrinters);
 const getPendingPrintJobsMock = vi.mocked(getPendingPrintJobs);
 const registerPrinterAgentMock = vi.mocked(registerPrinterAgent);
@@ -72,6 +87,7 @@ describe("printer store", () => {
       agent: null,
       error: null,
       printing: false,
+      pendingSelfTest: null,
       printers: [],
       saving: false,
       searching: false,
@@ -79,6 +95,128 @@ describe("printer store", () => {
       loadingInternetPrintSettings: false,
       internetPrintSettingsError: null,
     });
+  });
+
+  it("sends an unsaved self-test target and clears its busy state", async () => {
+    const command = deferred<{ ok: true; status: "command_sent" }>();
+    vi.mocked(printPrinterSelfTest).mockReturnValueOnce(command.promise);
+    const target = { connect_type: "tcp" as const, interface_value: "tcp://192.168.1.20:9100" };
+    const request = usePrinterStore.getState().selfTest(target);
+    expect(usePrinterStore.getState().printing).toBe(true);
+    expect(printPrinterSelfTest).toHaveBeenCalledWith(target);
+    await expect(usePrinterStore.getState().selfTest(target)).rejects.toThrow("already running");
+    command.resolve({ ok: true, status: "command_sent" });
+    await request;
+    expect(usePrinterStore.getState().printing).toBe(false);
+    expect(usePrinterStore.getState().pendingSelfTest).toEqual(target);
+    expect(buildTestJobMock).not.toHaveBeenCalled();
+  });
+
+  it("surfaces a self-test failure instead of reporting print success", async () => {
+    vi.mocked(printPrinterSelfTest).mockRejectedValueOnce(Object.assign(new Error("Printer agent update required"), { delivery_state: "not_sent" }));
+    await expect(usePrinterStore.getState().selfTest({
+      connect_type: "usb", interface_value: "cups:Receipt",
+    })).rejects.toThrow("Printer agent update required");
+    expect(usePrinterStore.getState()).toMatchObject({
+      printing: false, pendingSelfTest: null, error: "Printer agent update required",
+    });
+  });
+
+  it("retains maintenance after an uncertain send until the user confirms readiness", async () => {
+    const target = { connect_type: "tcp" as const, interface_value: "tcp://192.168.1.20:9100" };
+    vi.mocked(printPrinterSelfTest).mockRejectedValueOnce(new Error("Response lost"));
+    await expect(usePrinterStore.getState().selfTest(target)).rejects.toThrow("Response lost");
+    expect(usePrinterStore.getState().pendingSelfTest).toEqual(target);
+    vi.mocked(completePrinterSelfTest).mockRejectedValueOnce(new Error("Agent disconnected"));
+    await expect(usePrinterStore.getState().completeSelfTest()).rejects.toThrow("Agent disconnected");
+    expect(usePrinterStore.getState().pendingSelfTest).toEqual(target);
+    vi.mocked(completePrinterSelfTest).mockResolvedValueOnce({ ok: true, status: "ready" });
+    await usePrinterStore.getState().completeSelfTest();
+    expect(completePrinterSelfTest).toHaveBeenLastCalledWith(target);
+    expect(usePrinterStore.getState()).toMatchObject({ printing: false, pendingSelfTest: null });
+  });
+
+  it("recovers the readiness dialog when the Agent is already in self-test maintenance", async () => {
+    const target = { connect_type: "tcp" as const, interface_value: "tcp://192.168.1.20:9100" };
+    vi.mocked(printPrinterSelfTest).mockRejectedValueOnce(Object.assign(new Error("Self-test already in progress"), {
+      code: "PRINTER_SELF_TEST_IN_PROGRESS", delivery_state: "not_sent",
+    }));
+    await expect(usePrinterStore.getState().selfTest(target)).rejects.toThrow("already in progress");
+    expect(usePrinterStore.getState()).toMatchObject({ pendingSelfTest: target, printing: false });
+    vi.mocked(completePrinterSelfTest).mockResolvedValueOnce({ ok: true, status: "ready" });
+    await usePrinterStore.getState().completeSelfTest();
+    expect(usePrinterStore.getState().pendingSelfTest).toBeNull();
+  });
+
+  it("restores the pending printer after a page reload and forgets it after readiness", async () => {
+    const storage = new Map<string, string>();
+    vi.stubGlobal("window", {
+      localStorage: {
+        getItem: (key: string) => storage.get(key) ?? null,
+        setItem: (key: string, value: string) => storage.set(key, value),
+        removeItem: (key: string) => storage.delete(key),
+      },
+    });
+    try {
+      const target = {
+        connect_type: "usb" as const, interface_value: "cups:Receipt",
+        expected_agent_id: "local-agent", expected_device_code: "local-device",
+      };
+      vi.mocked(printPrinterSelfTest).mockResolvedValueOnce({ ok: true, status: "command_sent" });
+      await usePrinterStore.getState().selfTest(target);
+      usePrinterStore.setState({ pendingSelfTest: null });
+      usePrinterStore.getState().restoreSelfTest();
+      expect(usePrinterStore.getState().pendingSelfTest).toEqual(target);
+      vi.mocked(completePrinterSelfTest).mockResolvedValueOnce({ ok: true, status: "ready" });
+      await usePrinterStore.getState().completeSelfTest();
+      usePrinterStore.getState().restoreSelfTest();
+      expect(usePrinterStore.getState().pendingSelfTest).toBeNull();
+      expect(storage.size).toBe(0);
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+
+  it("keeps a late self-test response from clearing the next session's print state", async () => {
+    const command = deferred<{ ok: true; status: "command_sent" }>();
+    vi.mocked(printPrinterSelfTest).mockReturnValueOnce(command.promise);
+    const request = usePrinterStore.getState().selfTest({
+      connect_type: "tcp", interface_value: "tcp://192.168.1.20:9100",
+    });
+    resetSessionStores();
+    usePrinterStore.setState({ printing: true });
+    command.resolve({ ok: true, status: "command_sent" });
+    await request;
+    expect(usePrinterStore.getState().printing).toBe(true);
+  });
+
+  it("does not erase the next session's recovery data after a late readiness response", async () => {
+    const storage = new Map<string, string>();
+    vi.stubGlobal("window", {
+      localStorage: {
+        getItem: (key: string) => storage.get(key) ?? null,
+        setItem: (key: string, value: string) => storage.set(key, value),
+        removeItem: (key: string) => storage.delete(key),
+      },
+    });
+    try {
+      const first = { connect_type: "usb" as const, interface_value: "cups:Receipt" };
+      const next = { connect_type: "tcp" as const, interface_value: "tcp://192.168.1.30:9100" };
+      vi.mocked(printPrinterSelfTest).mockResolvedValueOnce({ ok: true, status: "command_sent" });
+      await usePrinterStore.getState().selfTest(first);
+      const ready = deferred<{ ok: true; status: "ready" }>();
+      vi.mocked(completePrinterSelfTest).mockReturnValueOnce(ready.promise);
+      const finishing = usePrinterStore.getState().completeSelfTest();
+      resetSessionStores();
+      storage.set("yummy_pending_printer_self_test", JSON.stringify(next));
+      usePrinterStore.setState({ pendingSelfTest: next, printing: true });
+      ready.resolve({ ok: true, status: "ready" });
+      await finishing;
+      expect(usePrinterStore.getState()).toMatchObject({ pendingSelfTest: next, printing: true });
+      expect([...storage.values()]).toEqual([JSON.stringify(next)]);
+    } finally {
+      vi.unstubAllGlobals();
+    }
   });
 
   it("keeps the last receiver status when loading fails", async () => {
@@ -393,6 +531,136 @@ describe("printer store", () => {
       },
       localAgent,
     );
+  });
+
+  function drawerFixture(overrides: Partial<Printer> = {}) {
+    const printer: Printer = {
+      print_config_uuid: "drawer-printer",
+      printer_name: "Receipt",
+      connect_type: "tcp",
+      interface_value: "tcp://192.168.1.20:9100",
+      paper_width_mm: 80,
+      is_active: true,
+      role_codes: ["receipt"],
+      cate_uuid_fk: [],
+      device_code: "saved-device",
+      agent_id: "saved-agent",
+      agent_name: "Saved Agent",
+      print_mode: "agent",
+      cash_drawer_enabled: true,
+      ...overrides,
+    };
+    const job: PrintJob = {
+      type: "cash_drawer",
+      cash_drawer_only: true,
+      open_cash_drawer: true,
+      cut_after: false,
+      ops: [],
+      interface_value: printer.interface_value,
+      print_config_uuid: printer.print_config_uuid,
+      agent_id: printer.agent_id,
+      device_code: printer.device_code,
+      lang: "la",
+      paper_width_mm: 80,
+      printer_type: "epson",
+    };
+    usePrinterStore.setState({ printers: [printer] });
+    resolvePrinterDeviceContextMock.mockResolvedValue({
+      agent_id: "current-agent", agent_name: "Current Agent", device_code: "current-device", print_mode: "local_agent",
+    });
+    buildTestJobMock.mockResolvedValue({ data: { job, printer: {}, cash_drawer_enabled: true } });
+    dispatchCashDrawerMock.mockResolvedValue();
+    return { printer, job, input: { login_uuid_fk: "login-1", print_config_uuid: printer.print_config_uuid, lang: "la" } };
+  }
+
+  it("builds a drawer-only command for the selected config and never dispatches a receipt", async () => {
+    const { input, job } = drawerFixture();
+    await expect(usePrinterStore.getState().testDrawer(input)).resolves.toEqual({ routingWarning: null, cashDrawerEnabled: true });
+    expect(buildTestJobMock).toHaveBeenCalledExactlyOnceWith({
+      ...input, cash_drawer_only: true, open_cash_drawer: true,
+      agent_id: "saved-agent", agent_name: "Saved Agent", device_code: "saved-device", print_mode: "agent",
+    });
+    expect(dispatchCashDrawerMock).toHaveBeenCalledExactlyOnceWith(job);
+    expect(dispatchPrintJobMock).not.toHaveBeenCalled();
+    expect(renderMobileEscpos).not.toHaveBeenCalled();
+    expect(usePrinterStore.getState()).toMatchObject({ printing: false, error: null });
+  });
+
+  it("skips a disabled drawer without building or sending any job", async () => {
+    const { input } = drawerFixture({ cash_drawer_enabled: false });
+    await expect(usePrinterStore.getState().testDrawer(input)).resolves.toEqual({ routingWarning: null, cashDrawerEnabled: false });
+    expect(buildTestJobMock).not.toHaveBeenCalled();
+    expect(resolvePrinterDeviceContextMock).not.toHaveBeenCalled();
+    expect(dispatchCashDrawerMock).not.toHaveBeenCalled();
+    expect(dispatchPrintJobMock).not.toHaveBeenCalled();
+  });
+
+  it("skips a drawer disabled in the current backend response", async () => {
+    const { input, job } = drawerFixture();
+    buildTestJobMock.mockResolvedValueOnce({ data: { job, printer: {}, cash_drawer_enabled: false } });
+    await expect(usePrinterStore.getState().testDrawer(input)).resolves.toEqual({ routingWarning: null, cashDrawerEnabled: false });
+    expect(dispatchCashDrawerMock).not.toHaveBeenCalled();
+    expect(dispatchPrintJobMock).not.toHaveBeenCalled();
+  });
+
+  it("uses the local Agent for an offline shared TCP drawer without changing the selected address", async () => {
+    const { input, job } = drawerFixture({ is_shared: true, agent_online: false });
+    const agent = { agent_id: "local-agent", agent_name: "Local", device_code: "local-device", agent_url: "http://192.168.1.5:7777" };
+    usePrinterStore.setState({ agent });
+    buildTestJobMock.mockResolvedValueOnce({ data: { job, printer: {}, routing_warning: "Duplicate address", cash_drawer_enabled: true } });
+    await expect(usePrinterStore.getState().testDrawer(input)).resolves.toEqual({ routingWarning: "Duplicate address", cashDrawerEnabled: true });
+    expect(dispatchCashDrawerMock).toHaveBeenCalledExactlyOnceWith({
+      ...job, agent_id: agent.agent_id, agent_name: agent.agent_name, device_code: agent.device_code, agent_url: agent.agent_url,
+    }, agent);
+    expect(dispatchPrintJobMock).not.toHaveBeenCalled();
+  });
+
+  it("keeps shared USB drawer ownership for relay instead of retargeting the command locally", async () => {
+    const { input, job } = drawerFixture({ is_shared: true, connect_type: "usb", interface_value: "win:Receipt" });
+    usePrinterStore.setState({ agent: { agent_id: "local-agent", agent_name: "Local", device_code: "local-device" } });
+    await usePrinterStore.getState().testDrawer(input);
+    expect(dispatchCashDrawerMock).toHaveBeenCalledExactlyOnceWith(job);
+  });
+
+  it("rejects a drawer response built for another config", async () => {
+    const { input, job } = drawerFixture();
+    buildTestJobMock.mockResolvedValueOnce({ data: { job: { ...job, print_config_uuid: "other-printer" }, printer: {} } });
+    await expect(usePrinterStore.getState().testDrawer(input)).rejects.toThrow("does not match the selected printer");
+    expect(dispatchCashDrawerMock).not.toHaveBeenCalled();
+    expect(dispatchPrintJobMock).not.toHaveBeenCalled();
+    expect(usePrinterStore.getState().printing).toBe(false);
+  });
+
+  it("blocks drawer testing during another command or unfinished self-test", async () => {
+    const { input } = drawerFixture();
+    usePrinterStore.setState({ printing: true });
+    await expect(usePrinterStore.getState().testDrawer(input)).rejects.toThrow("already running");
+    usePrinterStore.setState({ printing: false, pendingSelfTest: { connect_type: "usb", interface_value: "win:Receipt" } });
+    await expect(usePrinterStore.getState().testDrawer(input)).rejects.toThrow("Confirm the printer is ready");
+    expect(buildTestJobMock).not.toHaveBeenCalled();
+    expect(dispatchCashDrawerMock).not.toHaveBeenCalled();
+  });
+
+  it("does not send a drawer command built for the previous session", async () => {
+    const { input, job } = drawerFixture();
+    const result = deferred<BuildTestJobResponse>();
+    buildTestJobMock.mockReturnValueOnce(result.promise);
+    const request = usePrinterStore.getState().testDrawer(input);
+    await vi.waitFor(() => expect(buildTestJobMock).toHaveBeenCalledOnce());
+    resetSessionStores();
+    result.resolve({ data: { job, printer: {} } });
+    await request;
+    expect(dispatchCashDrawerMock).not.toHaveBeenCalled();
+    expect(dispatchPrintJobMock).not.toHaveBeenCalled();
+  });
+
+  it("clears the drawer busy state and surfaces the command error without printing fallback", async () => {
+    const { input } = drawerFixture();
+    dispatchCashDrawerMock.mockRejectedValueOnce(new Error("Agent disconnected"));
+    await expect(usePrinterStore.getState().testDrawer(input)).rejects.toThrow("[dispatchCashDrawer] Agent disconnected");
+    expect(usePrinterStore.getState()).toMatchObject({ printing: false, error: "[dispatchCashDrawer] Agent disconnected" });
+    expect(dispatchPrintJobMock).not.toHaveBeenCalled();
+    expect(renderMobileEscpos).not.toHaveBeenCalled();
   });
 
   it("loads pending jobs with local printer identity", async () => {

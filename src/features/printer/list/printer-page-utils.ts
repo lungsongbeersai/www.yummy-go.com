@@ -5,6 +5,8 @@ import type {
   PrinterMappingType,
   PrinterRole,
   PrinterZone,
+  AgentInfo,
+  PrinterSelfTestInput,
 } from "@/services/printer";
 import type { Zone } from "@/services/zone";
 
@@ -182,6 +184,29 @@ export function printerReachable(printer: Printer) {
     );
   }
   return printer.is_local_device !== false;
+}
+
+export function savedPrinterSelfTestTarget(printer: Printer, agent: AgentInfo | null): PrinterSelfTestInput | null {
+  if (!printerReachable(printer)) return null;
+  const interfaceValue = String(printer.interface_value || "").trim();
+  const connectType = String(printer.connect_type || "").trim().toLowerCase();
+  if (connectType === "tcp" && /^tcp:\/\//i.test(interfaceValue)) {
+    return { connect_type: "tcp", interface_value: interfaceValue };
+  }
+  // USB queue names are not unique across computers. A self-test always uses
+  // this terminal's Agent, so the saved owner must match its full identity.
+  if (
+    connectType === "usb" && /^(cups|win):\S/i.test(interfaceValue) &&
+    agent?.agent_id && agent.device_code &&
+    printer.agent_id === agent.agent_id && printer.device_code === agent.device_code &&
+    printer.is_local_device !== false
+  ) return {
+    connect_type: "usb",
+    interface_value: interfaceValue,
+    expected_agent_id: agent.agent_id,
+    expected_device_code: agent.device_code,
+  };
+  return null;
 }
 
 export function matchesPrinterStatus(printer: Printer, filter: string) {

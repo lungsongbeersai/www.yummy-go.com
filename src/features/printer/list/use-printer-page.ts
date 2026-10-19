@@ -9,6 +9,7 @@ import { authStoreUuid, useAuthStore } from "@/stores/auth-store";
 import { usePrinterStore } from "@/stores/printer-store";
 import { useReferenceStore } from "@/stores/reference-store";
 import { useToastStore } from "@/stores/toast-store";
+import { usePrinterSelfTest } from "@/features/printer/use-printer-self-test";
 import {
   agentDownloadUrl,
   categoryLabel,
@@ -21,6 +22,7 @@ import {
   roleLabel,
   STATUS_ALL,
   summarizePrinters,
+  savedPrinterSelfTestTarget,
   TYPE_ALL,
 } from "./printer-page-utils";
 
@@ -38,7 +40,8 @@ export function usePrinterPage() {
   const agentFiles = usePrinterStore((state) => state.agentFiles);
   const loading = usePrinterStore((state) => state.loading);
   const loadingAgentFiles = usePrinterStore((state) => state.loadingAgentFiles);
-  const printing = usePrinterStore((state) => state.printing);
+  const agent = usePrinterStore((state) => state.agent);
+  const { printing, pendingSelfTest, runSelfTest, completeSelfTest } = usePrinterSelfTest();
   const loadPrintersForLocalAgent = usePrinterStore(
     (state) => state.loadPrintersForLocalAgent,
   );
@@ -57,6 +60,7 @@ export function usePrinterPage() {
   const [deleteTarget, setDeleteTarget] = useState<Printer | null>(null);
   const [testingUuid, setTestingUuid] = useState("");
   const [testingDrawerUuid, setTestingDrawerUuid] = useState("");
+  const [testingSelfTestUuid, setTestingSelfTestUuid] = useState("");
   const [togglingUuid, setTogglingUuid] = useState("");
   const [searchText, setSearchText] = useState("");
   const [typeFilter, setTypeFilter] = useState(TYPE_ALL);
@@ -67,6 +71,14 @@ export function usePrinterPage() {
   const language = i18n.language;
   const storeUuid = authStoreUuid(user);
   const branchUuid = user?.branch_uuid;
+  const selfTestTargets = useMemo(() => {
+    const targets = new Map<string, NonNullable<ReturnType<typeof savedPrinterSelfTestTarget>>>();
+    for (const row of printers) {
+      const target = savedPrinterSelfTestTarget(row, agent);
+      if (target) targets.set(row.print_config_uuid, target);
+    }
+    return targets;
+  }, [printers, agent]);
   const roleItemsByPrinter = useMemo(
     () =>
       new Map(
@@ -222,7 +234,7 @@ export function usePrinterPage() {
   }
 
   async function testPrinter(row: Printer) {
-    if (!user?.uuid || !row.print_config_uuid || testingUuid) return;
+    if (!user?.uuid || !row.print_config_uuid || testingUuid || printing || pendingSelfTest) return;
     setTestingUuid(row.print_config_uuid);
     try {
       const routingWarning = await testPrinterAction({
@@ -252,7 +264,7 @@ export function usePrinterPage() {
   }
 
   async function testDrawer(row: Printer) {
-    if (!user?.uuid || !row.print_config_uuid || testingDrawerUuid) return;
+    if (!user?.uuid || !row.print_config_uuid || testingDrawerUuid || printing || pendingSelfTest) return;
     setTestingDrawerUuid(row.print_config_uuid);
     try {
       const { routingWarning, cashDrawerEnabled } = await testDrawerAction({
@@ -280,6 +292,17 @@ export function usePrinterPage() {
       });
     } finally {
       setTestingDrawerUuid("");
+    }
+  }
+
+  async function testSelfTest(row: Printer) {
+    const target = selfTestTargets.get(row.print_config_uuid);
+    if (!target || !user?.uuid || printing || pendingSelfTest || testingSelfTestUuid) return;
+    setTestingSelfTestUuid(row.print_config_uuid);
+    try {
+      await runSelfTest(target);
+    } finally {
+      setTestingSelfTestUuid("");
     }
   }
 
@@ -316,6 +339,9 @@ export function usePrinterPage() {
     user,
     printers,
     printing,
+    pendingSelfTest,
+    completeSelfTest,
+    selfTestTargets,
     categories,
     zones,
     roleItemsByPrinter,
@@ -333,6 +359,7 @@ export function usePrinterPage() {
     deleteTarget,
     testingUuid,
     testingDrawerUuid,
+    testingSelfTestUuid,
     togglingUuid,
     searchText,
     typeFilter,
@@ -351,6 +378,7 @@ export function usePrinterPage() {
     remove,
     testPrinter,
     testDrawer,
+    testSelfTest,
     togglePrinter,
   };
 }

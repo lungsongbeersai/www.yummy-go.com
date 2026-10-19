@@ -425,6 +425,10 @@ export async function dispatchPrintJob(
   job: PrintJob,
   localAgent?: AgentInfo,
 ) {
+  if (job.cash_drawer_only === true || job.type === "cash_drawer") {
+    await dispatchCashDrawer(job, localAgent);
+    return;
+  }
   if (isBrowserDevicePrintJob(job)) {
     if (!Capacitor.isNativePlatform()) {
       throw new ServiceError(
@@ -454,6 +458,33 @@ export async function dispatchPrintJob(
       interface_value: interfaceValue,
       escpos_base64: escposBase64,
       require_completion_confirmation: true,
+    });
+    return;
+  }
+
+  await printWithLocalAgent(job, localAgent);
+}
+
+export async function dispatchCashDrawer(job: PrintJob, localAgent?: AgentInfo) {
+  // Reject an older backend's test receipt before it can reach any renderer.
+  if (
+    job.type !== "cash_drawer" || job.cash_drawer_only !== true ||
+    job.open_cash_drawer !== true || job.cut_after !== false ||
+    !Array.isArray(job.ops) || job.ops.length !== 0
+  ) {
+    throw new ServiceError("Update the server to support cash-drawer-only tests", 409);
+  }
+
+  if (Capacitor.isNativePlatform()) {
+    if (!/^tcp:\/\//i.test(textValue(job.interface_value))) {
+      throw new ServiceError("Cash drawer testing in the mobile app requires Wi-Fi/LAN", 501);
+    }
+    // ESC p 0 25 250: use the existing drawer pulse without paper, cut or status
+    // bytes. The shared TCP queue still enforces printer self-test maintenance.
+    await printMobileEscposOverTcp({
+      interface_value: job.interface_value,
+      escpos_base64: "G3AAGfo=",
+      require_completion_confirmation: false,
     });
     return;
   }

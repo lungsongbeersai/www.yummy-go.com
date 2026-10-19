@@ -6,6 +6,7 @@ import type {
   PrinterMappingType,
   PrinterSharingMode,
   PrinterAccessMode,
+  PrinterSelfTestInput,
   SearchPrinterResult,
 } from "@/services/printer";
 import type { Category } from "@/services/category";
@@ -13,6 +14,45 @@ import type { Zone } from "@/services/zone";
 import { cn } from "@/lib/utils";
 
 export type ConnectType = "usb" | "tcp";
+
+export function printerSelfTestTarget({
+  connectType,
+  interfaceValue,
+  ip,
+  port,
+  availableUsbPrinters,
+}: {
+  connectType: ConnectType;
+  interfaceValue: string;
+  ip: string;
+  port: string;
+  availableUsbPrinters: SearchPrinterResult[];
+}): PrinterSelfTestInput | null {
+  if (connectType === "usb") {
+    const selected = interfaceValue.trim();
+    // A saved USB queue can belong to another computer. Only target a queue
+    // discovered on the current device, even before the form is saved.
+    if (
+      !/^(cups|win):\S/i.test(selected) ||
+      !availableUsbPrinters.some((printer) => printer.interface_value === selected)
+    ) return null;
+    return { connect_type: "usb", interface_value: selected };
+  }
+
+  const address = ip.trim();
+  const octets = address.split(".");
+  const targetPort = port.trim() ? Number(port) : 9100;
+  if (
+    octets.length !== 4 ||
+    !octets.every((octet) => /^\d{1,3}$/.test(octet) && Number(octet) <= 255) ||
+    !Number.isInteger(targetPort) || targetPort < 1 || targetPort > 65535
+  ) return null;
+
+  return {
+    connect_type: "tcp",
+    interface_value: `tcp://${address}:${targetPort}`,
+  };
+}
 // ค่าเลือกในฟอร์ม เพิ่ม "OFF" เหนือ PrinterMappingType จริง (ZONE/CATEGORY) เพื่อแทนสถานะ
 // "ปิด ไม่ผูกกับเมนู" — ค่านี้ไม่มีอยู่บน wire เลย ตอน submit ต้องแปลงเป็น undefined
 // เพื่อไม่ส่ง mapping_type (และ zone/cate_uuid_fk) ไปเลย ดู submit() ใน use-printer-form.ts

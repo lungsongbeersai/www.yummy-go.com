@@ -1,7 +1,33 @@
 import { readdirSync, readFileSync } from "node:fs";
 import { join, relative } from "node:path";
-import { describe, expect, it, vi } from "vitest";
-import { __mobileTcpInternals } from "@/services/printer/mobile-tcp";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import {
+  __mobileTcpInternals,
+  completeMobilePrinterSelfTest,
+  printMobileEscposOverTcp,
+  printMobilePrinterSelfTestOverTcp,
+} from "@/services/printer/mobile-tcp";
+
+const nativeTcpMocks = vi.hoisted(() => ({
+  connect: vi.fn(),
+  send: vi.fn(),
+  read: vi.fn(),
+  disconnect: vi.fn(),
+}));
+
+vi.mock("@capacitor/core", () => ({
+  Capacitor: { isNativePlatform: () => true },
+}));
+vi.mock("@deedarb/capacitor-tcp-socket", () => ({ TcpSocket: nativeTcpMocks }));
+
+beforeEach(() => {
+  vi.resetAllMocks();
+  nativeTcpMocks.connect.mockResolvedValue({ client: "self-test-client" });
+  nativeTcpMocks.send.mockResolvedValue(undefined);
+  nativeTcpMocks.read.mockResolvedValue({ result: "AA==" });
+  nativeTcpMocks.disconnect.mockResolvedValue(undefined);
+});
+afterEach(() => vi.unstubAllGlobals());
 
 function productionSourceFiles(directory: string): string[] {
   return readdirSync(directory, { withFileTypes: true }).flatMap((entry) => {
@@ -38,10 +64,10 @@ describe("mobile TCP printer queue", () => {
     expect(
       relativeFilesContaining("@deedarb/capacitor-tcp-socket"),
     ).toEqual(["services/printer/mobile-tcp.ts"]);
-    expect(relativeFilesContaining("printMobileEscposOverTcp")).toEqual([
+    expect(relativeFilesContaining("@/services/printer/mobile-tcp")).toEqual([
       "services/printer/agent-transport.ts",
-      "services/printer/mobile-tcp.ts",
       "services/printer/print-jobs.ts",
+      "services/printer/self-test.ts",
       "stores/printer-store.ts",
     ]);
   });
@@ -87,6 +113,21 @@ describe("mobile TCP printer queue", () => {
     expect(events).toEqual(["failed-printer", "next-printer"]);
   });
 
+  it("rejects self-test while the physical printer has an active job", async () => {
+    let release: (() => void) | undefined;
+    const active = __mobileTcpInternals.runOnMobileTcpQueue(
+      "tcp://busy-printer:9100",
+      () => new Promise<void>((resolve) => { release = resolve; }),
+    );
+    await expect(printMobilePrinterSelfTestOverTcp(
+      "tcp://BUSY-PRINTER:09100",
+    )).rejects.toMatchObject({ statusCode: 409, code: "PRINTER_BUSY", delivery_state: "not_sent" });
+    expect(nativeTcpMocks.connect).not.toHaveBeenCalled();
+    await Promise.resolve();
+    release?.();
+    await active;
+  });
+
   it("runs different physical printers concurrently", async () => {
     const events: string[] = [];
     let release: (() => void) | undefined;
@@ -120,6 +161,107 @@ describe("mobile TCP printer queue", () => {
       chunkSize: 256 * 1024,
       profile: "tcp_backpressure",
     });
+  });
+
+  it("sends self-test unchanged without a status query or ticket completion callback", async () => {
+    const command = Buffer.from([0x1d, 0x28, 0x41, 0x02, 0x00, 0x00, 0x02]);
+    const delivered = vi.fn();
+    nativeTcpMocks.connect.mockResolvedValue({ client: "self-test-client" });
+    nativeTcpMocks.send.mockResolvedValue(undefined);
+    nativeTcpMocks.disconnect.mockResolvedValue(undefined);
+
+    await printMobileEscposOverTcp({
+      interface_value: "tcp://192.168.1.20:9100",
+      escpos_base64: command.toString("base64"),
+      require_completion_confirmation: false,
+      on_ticket_delivered: delivered,
+    });
+
+    expect(nativeTcpMocks.connect).toHaveBeenCalledExactlyOnceWith({
+      ipAddress: "192.168.1.20", port: 9100, timeout: 10,
+    });
+    expect(nativeTcpMocks.send).toHaveBeenCalledExactlyOnceWith({
+      client: "self-test-client",
+      data: command.toString("base64"),
+      encoding: "base64",
+    });
+    expect(nativeTcpMocks.read).not.toHaveBeenCalled();
+    expect(delivered).not.toHaveBeenCalled();
+    expect(nativeTcpMocks.disconnect).toHaveBeenCalledExactlyOnceWith({ client: "self-test-client" });
+  });
+
+  it("holds the native printer after self-test until the user confirms readiness", async () => {
+    const target = "tcp://diagnostic-printer:09100";
+    const command = Buffer.from([0x1d, 0x28, 0x41, 0x02, 0x00, 0x00, 0x02]);
+    const execution = printMobilePrinterSelfTestOverTcp(target);
+
+    expect(() => completeMobilePrinterSelfTest(target)).toThrow("Printer is busy");
+    await execution;
+    expect(nativeTcpMocks.send).toHaveBeenCalledExactlyOnceWith({
+      client: "self-test-client", data: command.toString("base64"), encoding: "base64",
+    });
+    expect(nativeTcpMocks.read).not.toHaveBeenCalled();
+
+    const normalJob = {
+      interface_value: "tcp://DIAGNOSTIC-PRINTER:9100",
+      escpos_base64: Buffer.from([0x1b, 0x40]).toString("base64"),
+    };
+    await expect(printMobileEscposOverTcp(normalJob)).rejects.toMatchObject({
+      statusCode: 409, code: "PRINTER_SELF_TEST_IN_PROGRESS", delivery_state: "not_sent",
+    });
+    await expect(printMobilePrinterSelfTestOverTcp(target)).rejects.toMatchObject({
+      code: "PRINTER_SELF_TEST_IN_PROGRESS",
+    });
+    expect(nativeTcpMocks.connect).toHaveBeenCalledTimes(1);
+
+    completeMobilePrinterSelfTest(target);
+    completeMobilePrinterSelfTest(target);
+    await expect(printMobileEscposOverTcp(normalJob)).resolves.toBeUndefined();
+    expect(nativeTcpMocks.read).toHaveBeenCalledTimes(1);
+  });
+
+  it("clears maintenance after a connection failure before any bytes are sent", async () => {
+    const target = "tcp://refused-diagnostic-printer:9100";
+    nativeTcpMocks.connect.mockRejectedValueOnce(new Error("Connection refused"));
+    await expect(printMobilePrinterSelfTestOverTcp(target)).rejects.toMatchObject({ delivery_state: "not_sent" });
+    expect(nativeTcpMocks.send).not.toHaveBeenCalled();
+    await expect(printMobileEscposOverTcp({
+      interface_value: target,
+      escpos_base64: "G0A=",
+    })).resolves.toBeUndefined();
+  });
+
+  it("keeps maintenance on an uncertain send and never retries the command", async () => {
+    const target = "tcp://uncertain-diagnostic-printer:9100";
+    nativeTcpMocks.send.mockRejectedValueOnce(new Error("Write failed after flush"));
+    await expect(printMobilePrinterSelfTestOverTcp(target)).rejects.toMatchObject({ delivery_state: "unknown" });
+    expect(nativeTcpMocks.send).toHaveBeenCalledTimes(1);
+    await expect(printMobileEscposOverTcp({
+      interface_value: target,
+      escpos_base64: "G0A=",
+    })).rejects.toMatchObject({ code: "PRINTER_SELF_TEST_IN_PROGRESS" });
+    expect(nativeTcpMocks.send).toHaveBeenCalledTimes(1);
+    completeMobilePrinterSelfTest(target);
+  });
+
+  it("restores the maintenance barrier after a WebView reload", async () => {
+    const target = "tcp://restored-diagnostic-printer:9100";
+    const stored = new Map([
+      ["yummy_printer_self_test_maintenance", JSON.stringify([target])],
+    ]);
+    vi.stubGlobal("window", { localStorage: {
+      getItem: (key: string) => stored.get(key) ?? null,
+      setItem: (key: string, value: string) => stored.set(key, value),
+      removeItem: (key: string) => stored.delete(key),
+    } });
+
+    await expect(printMobileEscposOverTcp({
+      interface_value: target,
+      escpos_base64: "G0A=",
+    })).rejects.toMatchObject({ code: "PRINTER_SELF_TEST_IN_PROGRESS", delivery_state: "not_sent" });
+    expect(nativeTcpMocks.send).not.toHaveBeenCalled();
+    completeMobilePrinterSelfTest(target);
+    expect(stored.has("yummy_printer_self_test_maintenance")).toBe(false);
   });
 
   it("sends every byte of a long payload in order before completing", async () => {

@@ -48,6 +48,7 @@ import {
   ackPrintJob,
   deletePrinter,
   dispatchPrintJob,
+  dispatchCashDrawer,
   executeInvoicePrintJobs,
   executeKitchenPrintJobs,
   getPendingPrintJobs,
@@ -171,6 +172,97 @@ describe("printer service dispatch", () => {
     axiosMocks.post.mockReset();
     capacitorMocks.isNativePlatform.mockReset().mockReturnValue(false);
     mobileTcpMocks.printMobileEscposOverTcp.mockReset().mockResolvedValue(undefined);
+  });
+
+  function cashDrawerJob(overrides: Partial<PrintJob> = {}) {
+    return printJob({
+      type: "cash_drawer",
+      cash_drawer_only: true,
+      open_cash_drawer: true,
+      cut_after: false,
+      ops: [],
+      ...overrides,
+    });
+  }
+
+  it("sends drawer-only commands through the selected local Agent without rendering", async () => {
+    const job = cashDrawerJob();
+    const agent = { agent_id: "agent-1", device_code: "device-1", agent_name: "Local" };
+    axiosMocks.post.mockResolvedValue({ data: { ok: true } });
+
+    await dispatchCashDrawer(job, agent);
+
+    expect(axiosMocks.post).toHaveBeenCalledExactlyOnceWith(
+      "http://127.0.0.1:7777/print-ops", job, expect.any(Object),
+    );
+    expect(apiMocks.apiRequest).not.toHaveBeenCalled();
+    expect(mobileTcpMocks.printMobileEscposOverTcp).not.toHaveBeenCalled();
+  });
+
+  it("keeps drawer-only markers and owner identity when relaying a shared USB printer", async () => {
+    const job = cashDrawerJob({ agent_id: "owner-agent", device_code: "owner-device", interface_value: "win:Receipt" });
+    const agent = { agent_id: "local-agent", device_code: "local-device", agent_name: "Local" };
+    axiosMocks.post.mockResolvedValue({ data: { ok: true } });
+
+    await dispatchCashDrawer(job, agent);
+
+    expect(axiosMocks.post).toHaveBeenCalledExactlyOnceWith(
+      "http://127.0.0.1:7777/print-ops-relay", job, expect.any(Object),
+    );
+    expect(apiMocks.apiRequest).not.toHaveBeenCalled();
+  });
+
+  it("writes only the existing drawer pulse in the native app without rendering or a status query", async () => {
+    capacitorMocks.isNativePlatform.mockReturnValue(true);
+    const job = cashDrawerJob();
+
+    await dispatchCashDrawer(job);
+
+    expect(mobileTcpMocks.printMobileEscposOverTcp).toHaveBeenCalledExactlyOnceWith({
+      interface_value: job.interface_value,
+      escpos_base64: Buffer.from([0x1b, 0x70, 0x00, 0x19, 0xfa]).toString("base64"),
+      require_completion_confirmation: false,
+    });
+    expect(apiMocks.apiRequest).not.toHaveBeenCalled();
+    expect(axiosMocks.post).not.toHaveBeenCalled();
+    expect(axiosMocks.get).not.toHaveBeenCalled();
+  });
+
+  it("routes explicit drawer commands away from receipt rendering even through generic dispatch", async () => {
+    capacitorMocks.isNativePlatform.mockReturnValue(true);
+    await dispatchPrintJob(cashDrawerJob({ agent_id: BROWSER_PRINTER_AGENT_ID, device_code: "android-web-device" }));
+    expect(mobileTcpMocks.printMobileEscposOverTcp).toHaveBeenCalledOnce();
+    expect(apiMocks.apiRequest).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    { type: "ops" },
+    { cash_drawer_only: false },
+    { open_cash_drawer: false },
+    { cut_after: true },
+    { cut_after: undefined },
+    { ops: [{ type: "text", text: "Test receipt" }] },
+  ])("rejects a receipt or incomplete backend drawer contract before transport (%j)", async (overrides) => {
+    await expect(dispatchCashDrawer(cashDrawerJob(overrides))).rejects.toThrow("Update the server");
+    expect(axiosMocks.post).not.toHaveBeenCalled();
+    expect(axiosMocks.get).not.toHaveBeenCalled();
+    expect(apiMocks.apiRequest).not.toHaveBeenCalled();
+    expect(mobileTcpMocks.printMobileEscposOverTcp).not.toHaveBeenCalled();
+  });
+
+  it("rejects native USB drawer tests before rendering or transport", async () => {
+    capacitorMocks.isNativePlatform.mockReturnValue(true);
+    await expect(dispatchCashDrawer(cashDrawerJob({ interface_value: "win:Receipt" }))).rejects.toThrow("requires Wi-Fi/LAN");
+    expect(mobileTcpMocks.printMobileEscposOverTcp).not.toHaveBeenCalled();
+    expect(apiMocks.apiRequest).not.toHaveBeenCalled();
+  });
+
+  it("preserves native self-test maintenance failures for drawer commands", async () => {
+    capacitorMocks.isNativePlatform.mockReturnValue(true);
+    const error = Object.assign(new Error("Confirm the printer is ready"), { delivery_state: "not_sent" });
+    mobileTcpMocks.printMobileEscposOverTcp.mockRejectedValueOnce(error);
+    await expect(dispatchCashDrawer(cashDrawerJob())).rejects.toBe(error);
+    expect(apiMocks.apiRequest).not.toHaveBeenCalled();
   });
 
   it("prints desktop jobs through the local printer agent", async () => {

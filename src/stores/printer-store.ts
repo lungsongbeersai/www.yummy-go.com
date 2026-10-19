@@ -8,6 +8,7 @@ import {
   buildTestJob,
   deletePrinter,
   dispatchPrintJob,
+  dispatchCashDrawer,
   executeInvoicePrintJobs,
   executeKitchenPrintJobs,
   executeReportPrintJobs,
@@ -16,6 +17,9 @@ import {
   getCategoryRoles,
   getDefaultCategoryByRole,
   getPrinterErrorMessage,
+  printPrinterSelfTest,
+  completePrinterSelfTest,
+  getPrinterDeliveryState,
   isBrowserPrinterAgentId,
   rememberNativePrinterDeviceCode,
   migrateMobilePrinterDevice,
@@ -50,6 +54,7 @@ import {
   type PrinterDeviceContext,
   type PrinterDeviceContextParams,
   type PrinterRole,
+  type PrinterSelfTestInput,
   type ResolvedPrinter,
   type SaveCategoryPrinterInput,
   type SaveCategoryRoleInput,
@@ -65,6 +70,48 @@ import { isCapacitorMobileApp } from "@/lib/capacitor-platform";
 import { printReport, type ReportPrintInput, type ReportPrintResponse } from "@/services/report";
 
 type AgentStatus = "unchecked" | "connected" | "offline";
+
+const PENDING_SELF_TEST_KEY = "yummy_pending_printer_self_test";
+
+function rememberPendingSelfTest(target: PrinterSelfTestInput | null, expected?: PrinterSelfTestInput) {
+  try {
+    if (typeof window === "undefined") return;
+    if (target) window.localStorage.setItem(PENDING_SELF_TEST_KEY, JSON.stringify(target));
+    else {
+      const current = readPendingSelfTest();
+      if (expected && (
+        current?.connect_type !== expected.connect_type || current?.interface_value !== expected.interface_value ||
+        current?.expected_agent_id !== expected.expected_agent_id || current?.expected_device_code !== expected.expected_device_code
+      )) return;
+      window.localStorage.removeItem(PENDING_SELF_TEST_KEY);
+    }
+  } catch {
+    // The active store still holds the maintenance state if storage is blocked.
+  }
+}
+
+function readPendingSelfTest(): PrinterSelfTestInput | null {
+  try {
+    if (typeof window === "undefined") return null;
+    const raw: unknown = JSON.parse(window.localStorage.getItem(PENDING_SELF_TEST_KEY) || "null");
+    if (!raw || typeof raw !== "object") return null;
+    if (!("connect_type" in raw) || !("interface_value" in raw)) return null;
+    if (
+      (raw.connect_type !== "tcp" && raw.connect_type !== "usb") ||
+      typeof raw.interface_value !== "string" || !raw.interface_value.trim()
+    ) return null;
+    return {
+      connect_type: raw.connect_type,
+      interface_value: raw.interface_value,
+      ...("expected_agent_id" in raw && typeof raw.expected_agent_id === "string"
+        ? { expected_agent_id: raw.expected_agent_id } : {}),
+      ...("expected_device_code" in raw && typeof raw.expected_device_code === "string"
+        ? { expected_device_code: raw.expected_device_code } : {}),
+    };
+  } catch {
+    return null;
+  }
+}
 
 function textValue(value: unknown) {
   return String(value ?? "").trim();
@@ -118,6 +165,9 @@ interface PrinterState {
   searching: boolean;
   saving: boolean;
   printing: boolean;
+  pendingSelfTest: PrinterSelfTestInput | null;
+  restoreSelfTest: () => void;
+  completeSelfTest: () => Promise<void>;
   error: string | null;
   loadPrinters: (params: FetchPrintersParams) => Promise<Printer[]>;
   loadPrintersForLocalAgent: (params: FetchPrintersForLocalAgentParams) => Promise<Printer[]>;
@@ -132,6 +182,7 @@ interface PrinterState {
   toggleActive: (printConfigUuid: string) => Promise<void>;
   buildTest: (data: BuildTestJobRequest) => ReturnType<typeof buildTestJob>;
   test: (data: BuildTestJobRequest) => Promise<string | null>;
+  selfTest: (input: PrinterSelfTestInput) => Promise<void>;
   testDrawer: (
     data: BuildTestJobRequest,
   ) => Promise<{ routingWarning: string | null; cashDrawerEnabled: boolean }>;
@@ -184,6 +235,27 @@ export const usePrinterStore = create<PrinterState>((set, get) => ({
   searching: false,
   saving: false,
   printing: false,
+  pendingSelfTest: null,
+  restoreSelfTest: () => {
+    if (!get().pendingSelfTest) set({ pendingSelfTest: readPendingSelfTest() });
+  },
+  completeSelfTest: async () => {
+    const target = get().pendingSelfTest;
+    if (!target) return;
+    if (get().printing) throw new Error("A printer command is already running");
+    const isCurrentSession = createSessionGuard();
+    set({ printing: true, error: null });
+    try {
+      await completePrinterSelfTest(target);
+      if (isCurrentSession()) {
+        rememberPendingSelfTest(null, target);
+        set({ pendingSelfTest: null, printing: false });
+      }
+    } catch (error) {
+      if (isCurrentSession()) set({ printing: false, error: getPrinterErrorMessage(error) });
+      throw error;
+    }
+  },
   error: null,
   loadPrinters: async (params) => {
     const isCurrentSession = createSessionGuard();
@@ -423,6 +495,36 @@ export const usePrinterStore = create<PrinterState>((set, get) => ({
     }
   },
   buildTest: (data) => buildTestJob(data),
+  selfTest: async (input) => {
+    if (get().printing) throw new Error("A printer command is already running");
+    const pendingSelfTest = get().pendingSelfTest ?? readPendingSelfTest();
+    if (pendingSelfTest) {
+      set({ pendingSelfTest });
+      throw new Error("Confirm the printer is ready before starting another self-test");
+    }
+    const isCurrentSession = createSessionGuard();
+    rememberPendingSelfTest(input);
+    set({ printing: true, error: null, pendingSelfTest: input });
+    try {
+      await printPrinterSelfTest(input);
+      if (isCurrentSession()) set({ printing: false });
+    } catch (error) {
+      // A different tab may have started maintenance before this tab recovered
+      // its local state. Keep the readiness dialog so the printer can resume.
+      const alreadyInProgress = error !== null && typeof error === "object" &&
+        "code" in error && error.code === "PRINTER_SELF_TEST_IN_PROGRESS";
+      const notSent = !alreadyInProgress && getPrinterDeliveryState(error) === "not_sent";
+      if (isCurrentSession()) {
+        if (notSent) rememberPendingSelfTest(null, input);
+        set({
+          printing: false,
+          error: getPrinterErrorMessage(error),
+          ...(notSent ? { pendingSelfTest: null } : {}),
+        });
+      }
+      throw error;
+    }
+  },
   test: async (input) => {
     const isCurrentSession = createSessionGuard();
     set({ printing: true, error: null });
@@ -554,6 +656,12 @@ export const usePrinterStore = create<PrinterState>((set, get) => ({
 
   },
   testDrawer: async (input) => {
+    if (get().printing) throw new Error("A printer command is already running");
+    const pendingSelfTest = get().pendingSelfTest ?? readPendingSelfTest();
+    if (pendingSelfTest) {
+      set({ pendingSelfTest });
+      throw new Error("Confirm the printer is ready before testing the cash drawer");
+    }
     const isCurrentSession = createSessionGuard();
     set({ printing: true, error: null });
 
@@ -565,6 +673,11 @@ export const usePrinterStore = create<PrinterState>((set, get) => ({
           input.print_config_uuid &&
           item.print_config_uuid === input.print_config_uuid,
       );
+
+      if (selectedPrinter?.cash_drawer_enabled === false) {
+        set({ printing: false });
+        return { routingWarning: null, cashDrawerEnabled: false };
+      }
 
       const selectedConnectType = textValue(selectedPrinter?.connect_type).toLowerCase();
       const nativeTcpPrinter =
@@ -588,6 +701,7 @@ export const usePrinterStore = create<PrinterState>((set, get) => ({
       const result = await buildTestJob({
         ...input,
         open_cash_drawer: true,
+        cash_drawer_only: true,
         device_code: selectedPrinter?.device_code || printer.device_code,
         agent_id: selectedPrinter?.agent_id || printer.agent_id,
         agent_name: selectedPrinter?.agent_name || printer.agent_name,
@@ -599,50 +713,21 @@ export const usePrinterStore = create<PrinterState>((set, get) => ({
       const routingWarning = result.data.routing_warning?.trim() || null;
       const cashDrawerEnabled = result.data.cash_drawer_enabled !== false;
 
-      const printerConnectType = textValue(
-        (printer as { connect_type?: string | null }).connect_type,
-      ).toLowerCase();
+      if (!cashDrawerEnabled) {
+        set({ printing: false });
+        return { routingWarning, cashDrawerEnabled };
+      }
 
-      const jobConnectType = textValue(
-        (job as { connect_type?: string | null }).connect_type,
-      ).toLowerCase();
-
-      const isNativeApp = Capacitor.isNativePlatform();
-
-      const isMobileWifi =
-        isNativeApp &&
-        (
-          textValue(printer.print_mode).toLowerCase() === "mobile_wifi" ||
-          textValue(job.print_mode).toLowerCase() === "mobile_wifi" ||
-          textValue(job.print_client).toLowerCase() === "mobile_wifi" ||
-          nativeTcpPrinter ||
-          printerConnectType === "tcp" ||
-          jobConnectType === "tcp"
-        );
-
-      if (isMobileWifi) {
-        phase = "renderMobileEscpos";
-        const escposBase64 = await renderMobileEscpos(job);
-        if (!isCurrentSession()) return { routingWarning: null, cashDrawerEnabled };
-
-        phase = "printMobileEscposOverTcp";
-        await printMobileEscposOverTcp({
-          interface_value: job.interface_value,
-          escpos_base64: escposBase64,
-        });
+      phase = "dispatchCashDrawer";
+      if (input.print_config_uuid && job.print_config_uuid !== input.print_config_uuid) {
+        throw new Error("Cash drawer command does not match the selected printer");
+      }
+      const localAgent = get().agent;
+      const localTestJob = localSharedTcpTestJob(job, selectedPrinter, localAgent);
+      if (localTestJob && localAgent) {
+        await dispatchCashDrawer(localTestJob, localAgent);
       } else {
-        phase = "dispatchPrintJob";
-        const localAgent = get().agent;
-        const localTestJob = localSharedTcpTestJob(
-          job,
-          selectedPrinter,
-          localAgent,
-        );
-        if (localTestJob && localAgent) {
-          await dispatchPrintJob(localTestJob, localAgent);
-        } else {
-          await dispatchPrintJob(job);
-        }
+        await dispatchCashDrawer(job);
       }
 
       phase = "done";
@@ -721,6 +806,7 @@ export const usePrinterStore = create<PrinterState>((set, get) => ({
       searching: false,
       saving: false,
       printing: false,
+      pendingSelfTest: null,
       error: null
     })
 }));

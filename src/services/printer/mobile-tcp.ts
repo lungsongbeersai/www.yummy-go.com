@@ -1,5 +1,6 @@
 import { Capacitor } from "@capacitor/core";
 import { ServiceError } from "@/lib/api";
+import { getPrinterDeliveryState } from "@/services/printer/helpers";
 
 type TcpClient = string | number;
 
@@ -54,6 +55,10 @@ const MOBILE_TCP_STATUS_TIMEOUT_MS = 60000;
 const MOBILE_TCP_SEGMENT_MAX_BYTES = 160 * 1024;
 const ESC_POS_PAPER_STATUS_COMMAND = new Uint8Array([0x1d, 0x72, 0x01]);
 const mobileTcpQueues = new Map<string, Promise<void>>();
+const mobileTcpSelfTests = new Set<string>();
+const mobileTcpMaintenance = new Set<string>();
+const MOBILE_TCP_MAINTENANCE_KEY = "yummy_printer_self_test_maintenance";
+const SELF_TEST_BASE64 = "HShBAgAAAg==";
 const MOBILE_TCP_DEBUG = process.env.NEXT_PUBLIC_MOBILE_TCP_DEBUG === "true";
 
 function mobileTcpDebug(message: string, details?: unknown) {
@@ -334,11 +339,71 @@ function addCompletionQueries(base64: string) {
     };
 }
 
-function runOnMobileTcpQueue<T>(queueKey: string, task: () => Promise<T>) {
+function mobilePrinterQueueKey(queueKey: string) {
+    try {
+        const { host, port } = parseTcpInterface(queueKey);
+        return `tcp://${host.toLowerCase().replace(/\.$/, "")}:${port}`;
+    } catch {
+        return String(queueKey || "mobile-printer").trim().toLowerCase();
+    }
+}
+
+function restoreMobilePrinterMaintenance() {
+    try {
+        if (typeof window === "undefined") return;
+        const saved: unknown = JSON.parse(window.localStorage.getItem(MOBILE_TCP_MAINTENANCE_KEY) || "[]");
+        if (Array.isArray(saved)) {
+            for (const value of saved) {
+                if (typeof value === "string") mobileTcpMaintenance.add(value);
+            }
+        }
+    } catch {
+        // Keep the in-memory barrier when WebView storage is unavailable.
+    }
+}
+
+function persistMobilePrinterMaintenance() {
+    try {
+        if (typeof window === "undefined") return;
+        if (mobileTcpMaintenance.size) {
+            window.localStorage.setItem(MOBILE_TCP_MAINTENANCE_KEY, JSON.stringify([...mobileTcpMaintenance]));
+        } else {
+            window.localStorage.removeItem(MOBILE_TCP_MAINTENANCE_KEY);
+        }
+    } catch {
+        // Sending can continue with the in-memory barrier for this session.
+    }
+}
+
+function printerBusyError(selfTestInProgress = false) {
+    return Object.assign(new ServiceError(
+        selfTestInProgress
+            ? "Printer self-test is in progress. Confirm the printer is ready before printing."
+            : "Printer is busy. Wait until printing has finished before running self-test.",
+        409,
+    ), {
+        code: selfTestInProgress ? "PRINTER_SELF_TEST_IN_PROGRESS" : "PRINTER_BUSY",
+        delivery_state: "not_sent" as const,
+    });
+}
+
+function runOnMobileTcpQueue<T>(
+    queueKey: string,
+    task: () => Promise<T>,
+    rejectIfBusy = false,
+    allowDuringSelfTest = false,
+) {
     // หนึ่งเครื่องพิมพ์ต้องรับงานเรียงลำดับเพื่อไม่ให้ byte ของคนละใบสลับกัน
     // ส่วนคนละเครื่องทำพร้อมกันได้ เพราะ native plugin แยก socket/output stream
     // ตาม client แล้ว (ดู patch-package ของ capacitor-tcp-socket)
-    const key = String(queueKey || "mobile-printer").trim().toLowerCase();
+    const key = mobilePrinterQueueKey(queueKey);
+    restoreMobilePrinterMaintenance();
+    if (!allowDuringSelfTest && mobileTcpMaintenance.has(key)) {
+        return Promise.reject(printerBusyError(true));
+    }
+    if (rejectIfBusy && mobileTcpQueues.has(key)) {
+        return Promise.reject(printerBusyError());
+    }
     const previous = mobileTcpQueues.get(key) ?? Promise.resolve();
     const execution = previous.then(task, task);
     const tail = execution.then(
@@ -544,13 +609,26 @@ async function sendEscposOnConnectedClient({
     client,
     escposBase64,
     onTicketDelivered,
+    requireCompletionConfirmation = true,
 }: {
     TcpSocket: TcpSocketApi;
     client: TcpClient;
     escposBase64: string;
     onTicketDelivered?: (completed: number, total: number) => void;
+    requireCompletionConfirmation?: boolean;
 }) {
     const cleanBase64 = normalizeBase64(escposBase64);
+    if (!requireCompletionConfirmation) {
+        // Self-test resets the printer in software, so appending GS r or
+        // awaiting a status reply can turn a successful send into an error.
+        await sendBase64InChunks({
+            TcpSocket,
+            client,
+            base64: cleanBase64,
+            ...mobileTcpSendProfile(),
+        });
+        return;
+    }
     const completionPlan = addCompletionQueries(cleanBase64);
     const analysis = analyzeEscposPayload(cleanBase64);
     const sendProfile = mobileTcpSendProfile();
@@ -604,6 +682,7 @@ async function printMobileEscposOverTcpNow({
     interface_value,
     escpos_base64,
     on_ticket_delivered,
+    require_completion_confirmation = true,
 }: {
     interface_value?: string;
     escpos_base64: string;
@@ -661,6 +740,7 @@ async function printMobileEscposOverTcpNow({
             client,
             escposBase64: cleanBase64,
             onTicketDelivered: on_ticket_delivered,
+            requireCompletionConfirmation: require_completion_confirmation,
         });
         mobileTcpDebug("[mobile-tcp] send success");
     } catch (error) {
@@ -687,12 +767,54 @@ export function printMobileEscposOverTcp(input: {
     interface_value?: string;
     escpos_base64: string;
     require_completion_confirmation?: boolean;
+    reject_if_busy?: boolean;
     on_ticket_delivered?: (completed: number, total: number) => void;
 }) {
     return runOnMobileTcpQueue(
         String(input.interface_value || "mobile-printer"),
         () => printMobileEscposOverTcpNow(input),
+        input.reject_if_busy,
     );
+}
+
+export function printMobilePrinterSelfTestOverTcp(interfaceValue: string) {
+    const key = mobilePrinterQueueKey(interfaceValue);
+    restoreMobilePrinterMaintenance();
+    if (mobileTcpMaintenance.has(key)) return Promise.reject(printerBusyError(true));
+    if (mobileTcpQueues.has(key)) return Promise.reject(printerBusyError());
+
+    mobileTcpMaintenance.add(key);
+    mobileTcpSelfTests.add(key);
+    persistMobilePrinterMaintenance();
+    const execution = runOnMobileTcpQueue(
+        key,
+        () => printMobileEscposOverTcpNow({
+            interface_value: interfaceValue,
+            escpos_base64: SELF_TEST_BASE64,
+            require_completion_confirmation: false,
+        }),
+        true,
+        true,
+    );
+    void execution.then(
+        () => { mobileTcpSelfTests.delete(key); },
+        (error: unknown) => {
+            mobileTcpSelfTests.delete(key);
+            if (getPrinterDeliveryState(error) === "not_sent") {
+                mobileTcpMaintenance.delete(key);
+                persistMobilePrinterMaintenance();
+            }
+        },
+    );
+    return execution;
+}
+
+export function completeMobilePrinterSelfTest(interfaceValue: string) {
+    const key = mobilePrinterQueueKey(interfaceValue);
+    restoreMobilePrinterMaintenance();
+    if (mobileTcpSelfTests.has(key)) throw printerBusyError();
+    mobileTcpMaintenance.delete(key);
+    persistMobilePrinterMaintenance();
 }
 
 export const __mobileTcpInternals = {

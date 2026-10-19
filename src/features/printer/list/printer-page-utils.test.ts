@@ -18,6 +18,7 @@ import {
   printerReachable,
   printerZones,
   summarizePrinters,
+  savedPrinterSelfTestTarget,
 } from "./printer-page-utils";
 
 describe("agent download URL", () => {
@@ -61,6 +62,47 @@ function printer(isOwner?: boolean): Printer {
     is_owner: isOwner,
   };
 }
+
+describe("saved printer self-test targets", () => {
+  const agent = { agent_id: "current-agent", device_code: "current-device", agent_name: "This terminal" };
+
+  it("can directly test a shared network printer while its owner Agent is offline", () => {
+    expect(savedPrinterSelfTestTarget({
+      ...printer(false),
+      connect_type: "tcp",
+      interface_value: "tcp://192.168.1.12:9100",
+      is_shared: true,
+      is_local_device: false,
+      agent_online: false,
+    }, agent)).toEqual({ connect_type: "tcp", interface_value: "tcp://192.168.1.12:9100" });
+  });
+
+  it("requires the saved USB queue to match both parts of the local Agent identity", () => {
+    const usb = { ...printer(), agent_id: agent.agent_id, device_code: agent.device_code };
+    expect(savedPrinterSelfTestTarget(usb, agent)).toEqual({
+      connect_type: "usb", interface_value: "cups:Printer",
+      expected_agent_id: agent.agent_id, expected_device_code: agent.device_code,
+    });
+    expect(savedPrinterSelfTestTarget({ ...usb, agent_id: "other-agent" }, agent)).toBeNull();
+    expect(savedPrinterSelfTestTarget({ ...usb, device_code: "other-device" }, agent)).toBeNull();
+    expect(savedPrinterSelfTestTarget({ ...usb, is_local_device: false }, agent)).toBeNull();
+    expect(savedPrinterSelfTestTarget(usb, null)).toBeNull();
+  });
+
+  it("does not use a remote USB queue even when its owner is online", () => {
+    expect(savedPrinterSelfTestTarget({
+      ...printer(false), is_shared: true, agent_online: true,
+      agent_id: "remote-agent", device_code: "remote-device",
+    }, agent)).toBeNull();
+  });
+
+  it("allows disabled local printers to be diagnosed without enabling them", () => {
+    expect(savedPrinterSelfTestTarget({
+      ...printer(), is_active: false,
+      agent_id: agent.agent_id, device_code: agent.device_code,
+    }, agent)).not.toBeNull();
+  });
+});
 
 describe("printer ownership filter", () => {
   it("separates own and shared printers while preserving legacy ownership", () => {

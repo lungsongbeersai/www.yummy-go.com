@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { RefreshCw, Save } from "lucide-react";
+import { Printer, RefreshCw, Save } from "lucide-react";
 import { BackButton } from "@/components/common/back-button";
 import {
   AlertDialog,
@@ -55,6 +55,7 @@ import {
 } from "./printer-form-utils";
 import { usePrinterForm } from "./use-printer-form";
 import { PrinterOutputSettings } from "./printer-output-settings";
+import { PrinterSelfTestDialog } from "@/features/printer/printer-self-test-dialog";
 
 export function PrinterFormPage() {
   const form = usePrinterForm();
@@ -274,6 +275,28 @@ export function PrinterFormPage() {
                     onChange={(event) => form.setPaperWidth(event.target.value)}
                   />
                 </Field>
+                <div className="flex flex-col gap-3 rounded-lg border border-border bg-muted/30 p-4 md:col-span-2 sm:flex-row sm:items-start sm:justify-between">
+                  <div className="flex min-w-0 flex-col gap-1">
+                    <p className="text-sm font-semibold">{t("printer.selfTestTitle")}</p>
+                    <p className="text-sm text-muted-foreground" id="printer-self-test-hint">
+                      {t("printer.selfTestHint")}
+                    </p>
+                    <p className="text-sm text-muted-foreground" id="printer-self-test-connection-hint">
+                      {t(form.connectType === "usb" ? "printer.selfTestUsbHint" : "printer.selfTestTcpHint")}
+                    </p>
+                  </div>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="min-h-11 w-full shrink-0 sm:w-auto"
+                    disabled={!form.canSelfTest}
+                    aria-describedby="printer-self-test-hint printer-self-test-connection-hint"
+                    onClick={() => void form.printSelfTest()}
+                  >
+                    {form.printing ? <Spinner data-icon="inline-start" /> : <Printer data-icon="inline-start" />}
+                    {t(form.printing ? "printer.selfTestSending" : "printer.selfTestAction")}
+                  </Button>
+                </div>
                 <PrinterOutputSettings
                   accessMode={form.accessMode}
                   onAccessModeChange={form.setAccessMode}
@@ -423,7 +446,7 @@ export function PrinterFormPage() {
                 {/* กดได้เสมอแม้ยังกรอกไม่ครบ — validationMessage ด้านบนบอกเหตุผลอยู่แล้วตลอดเวลา
                     ปุ่ม submit ที่ถูก disable ล่วงหน้าทำให้ผู้ใช้งงว่าทำไมกดไม่ได้ (ดู submit() ที่ no-op
                     เองถ้ายัง !canSubmit) */}
-                <Button disabled={form.saving || form.loading} type="submit">
+                <Button disabled={form.saving || form.loading || form.printing} type="submit">
                   {form.saving ? (
                     <Spinner data-icon="inline-start" />
                   ) : (
@@ -436,6 +459,8 @@ export function PrinterFormPage() {
           </form>
         </CardContent>
       </Card>
+
+      <PrinterSelfTestDialog pendingSelfTest={form.pendingSelfTest} printing={form.printing} onReady={form.completeSelfTest} />
 
       <AlertDialog open={confirmDiscardOpen} onOpenChange={setConfirmDiscardOpen}>
         <AlertDialogContent>

@@ -5,6 +5,7 @@
 export { AGENT_URL } from "@/config/printer-agent";
 export {
   getPrinterErrorMessage,
+  getPrinterDeliveryState,
   parseInterfaceValue,
   tcpInterfaceValue
 } from "@/services/printer/helpers";
@@ -73,6 +74,9 @@ export type {
   PrinterSharingMode,
   PrinterAccessMode,
   PrinterSource,
+  PrinterSelfTestInput,
+  PrinterSelfTestCompletionResult,
+  PrinterSelfTestResult,
   PrinterZone,
   RegisterPrinterAgentInput,
   RegisterPrinterAgentResult,
@@ -83,6 +87,8 @@ export type {
   SavePrinterResponse,
   SearchPrinterResult
 } from "@/services/printer/types";
+
+export { completePrinterSelfTest, printPrinterSelfTest } from "@/services/printer/self-test";
 
 export {
   buildTestJob,
@@ -110,6 +116,7 @@ export {
 export {
   checkPrinterAgentConnection,
   dispatchPrintJob,
+  dispatchCashDrawer,
   getLocalPrinterAgentInfo,
   printBatchWithLocalAgent,
   printWithLocalAgent,
