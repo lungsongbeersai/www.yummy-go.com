@@ -5,6 +5,7 @@ import { DEFAULT_PAGE_LIMIT, isAllPageLimit } from "@/lib/pagination";
 import {
   deleteProduct,
   getProducts,
+  getProductImageBlob,
   getSizesByStatus,
   getStatusSorts,
   saveProduct,
@@ -64,6 +65,7 @@ interface ProductState {
   setPageLimit: (pageLimit: PageLimit) => void;
   load: (params?: FetchProductsParams) => Promise<Product[]>;
   loadAllForImport: (params: FetchProductsParams) => Promise<Product[]>;
+  loadProductImage: (filename: string) => Promise<Blob>;
   loadStatusSorts: (lang?: string) => Promise<StatusSort[]>;
   loadSizesByStatus: (storeUuid: string, statusSort: number, lang?: string) => Promise<SizeOption[]>;
   ensureImportReferences: (
@@ -146,6 +148,7 @@ export const useProductStore = create<ProductState>((set, get) => ({
     });
     return result.data ?? [];
   },
+  loadProductImage: (filename) => getProductImageBlob(filename),
   loadStatusSorts: async (lang) => {
     const isCurrentSession = createSessionGuard();
     const statusSorts = await getStatusSorts(lang);

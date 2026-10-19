@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { PencilLine, Plus, Search, Trash2, Upload } from "lucide-react";
+import { Download, PencilLine, Plus, Search, Trash2, Upload } from "lucide-react";
 import { AppPagination } from "@/components/common/app-pagination";
 import { ConfirmDialog } from "@/components/common/confirm-dialog";
 import { EmptyState } from "@/components/common/empty-state";
@@ -51,6 +51,10 @@ export function ProductPage({ initialPagination }: { initialPagination: UrlPagin
           </TabsList>
         </Tabs>
         <div className="flex gap-2">
+          <Button type="button" variant="outline" disabled={product.exportingProducts} onClick={() => void product.exportProducts()}>
+            {product.exportingProducts ? <Spinner data-icon="inline-start" /> : <Download data-icon="inline-start" />}
+            {t(product.exportingProducts ? "product.transfer.exporting" : "product.transfer.exportButton")}
+          </Button>
           <Button type="button" variant="outline" onClick={() => product.setImportDialogOpen(true)}>
             <Upload data-icon="inline-start" />
             {t("product.import.button")}

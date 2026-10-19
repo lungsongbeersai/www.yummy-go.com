@@ -33,7 +33,7 @@ function draftPriceLabel(draft: ProductImportDraft) {
 
 export function ProductImportDialog({ workflow }: { workflow: ProductListWorkflow }) {
   const ready =
-    workflow.importSummary.ready > 0 &&
+    (workflow.transferCount > 0 || workflow.importSummary.ready > 0) &&
     Boolean(workflow.importDefaultGroupName.trim()) &&
     !workflow.importing &&
     !workflow.importParsing;
@@ -66,10 +66,10 @@ export function ProductImportDialog({ workflow }: { workflow: ProductListWorkflo
         <div className="grid min-h-0 flex-1 gap-4 overflow-y-auto px-4 py-4 lg:grid-cols-[minmax(16rem,20rem)_minmax(0,1fr)] sm:px-6">
           <aside className="flex min-w-0 flex-col gap-4">
             <Field className="rounded-md border bg-muted/20 p-3">
-              <FieldLabel htmlFor="product-import-file">{workflow.t("product.import.excelFile")}</FieldLabel>
+                <FieldLabel htmlFor="product-import-file">{workflow.t("product.transfer.fileLabel")}</FieldLabel>
               <Input
                 id="product-import-file"
-                accept=".xlsx,.xls"
+                accept=".xlsx,.xls,.zip"
                 disabled={busy}
                 type="file"
                 onChange={(event) => {
@@ -120,11 +120,29 @@ export function ProductImportDialog({ workflow }: { workflow: ProductListWorkflo
               </FieldDescription>
             </Field>
 
-            <Alert>
-              <Info />
-              <AlertTitle>{workflow.t("product.import.summaryTitle")}</AlertTitle>
-              <AlertDescription>{workflow.t("product.import.defaultsDescription")}</AlertDescription>
-            </Alert>
+            {!workflow.transferCount ? (
+              <Alert>
+                <Info />
+                <AlertTitle>{workflow.t("product.import.summaryTitle")}</AlertTitle>
+                <AlertDescription>{workflow.t("product.import.defaultsDescription")}</AlertDescription>
+              </Alert>
+            ) : null}
+
+            {workflow.transferCount ? (
+              <Alert>
+                <Info />
+                <AlertTitle>{workflow.t("product.transfer.archivePreview")}</AlertTitle>
+                <AlertDescription>
+                  {workflow.t("product.transfer.archiveSummary", {
+                    count: workflow.transferCount,
+                    images: workflow.transferImageOmissions,
+                    conflicts: workflow.transferCodeConflictCount,
+                  })}
+                  <br />
+                  {workflow.t("product.transfer.zeroStock")}
+                </AlertDescription>
+              </Alert>
+            ) : null}
 
             {workflow.importFileName ? (
               <div className="flex min-w-0 flex-col gap-2 rounded-md border p-3 text-sm">
@@ -161,7 +179,7 @@ export function ProductImportDialog({ workflow }: { workflow: ProductListWorkflo
           <section className="flex min-w-0 flex-col gap-3">
             <div className="flex flex-wrap items-center justify-between gap-2">
               <h3 className="text-sm font-semibold">{workflow.t("product.import.previewTitle")}</h3>
-              <Badge>{workflow.importSummary.total}</Badge>
+              <Badge>{workflow.transferCount || workflow.importSummary.total}</Badge>
             </div>
 
             {workflow.importResult ? (
@@ -298,7 +316,9 @@ export function ProductImportDialog({ workflow }: { workflow: ProductListWorkflo
           </Button>
           <Button type="button" disabled={!ready} onClick={() => void workflow.importProductsFromDrafts()}>
             {workflow.importing ? <Spinner data-icon="inline-start" /> : <Upload data-icon="inline-start" />}
-            {workflow.t(
+            {workflow.transferCount
+              ? workflow.t("product.transfer.importButton", { count: workflow.transferCount })
+              : workflow.t(
               workflow.importSummary.failed
                 ? "product.import.retryButton"
                 : "product.import.importButton",

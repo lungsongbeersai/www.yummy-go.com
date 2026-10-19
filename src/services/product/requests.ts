@@ -1,4 +1,5 @@
-import { apiRequest } from "@/lib/api";
+import { apiRequest, publicApiRequest } from "@/lib/api";
+import { getProductImageUrl } from "@/lib/image";
 import { toFormData } from "@/lib/form-data";
 import { toApiLanguage } from "@/lib/language";
 import { requiredUuid } from "@/services/shared/validators";
@@ -69,6 +70,13 @@ export async function getProducts(params: FetchProductsParams = {}) {
     ...result,
     data: orderBy === null ? result.data ?? [] : sortProductsByApiOrder(result.data ?? [], orderBy)
   };
+}
+
+export function getProductImageBlob(filename: string) {
+  return publicApiRequest<Blob>("get", getProductImageUrl(filename), {
+    headers: { Accept: "image/*" },
+    responseType: "blob",
+  });
 }
 
 export async function getStatusSorts(lang = "la") {

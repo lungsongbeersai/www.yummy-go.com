@@ -113,7 +113,7 @@ export type ProductImportDraftReferenceContext = Omit<
   keyof ProductImportReferenceNames
 >;
 
-const DEFAULT_COLOR = "#10B981";
+export const DEFAULT_COLOR = "#10B981";
 const DEFAULT_ORDER_POINT = 10;
 const DEFAULT_STOCK_QTY = 100;
 

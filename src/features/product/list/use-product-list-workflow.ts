@@ -2,7 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { useResetOnChange } from "@/hooks/use-reset-on-change";
+import { useResetOnChange, useResetOnDeps } from "@/hooks/use-reset-on-change";
 import { arrayMove } from "@dnd-kit/sortable";
 import { useReducedMotion } from "motion/react";
 import { useTranslation } from "react-i18next";
@@ -25,8 +25,13 @@ import {
   productImportResultTone,
 } from "@/stores/product-store/import-execution";
 import {
+  planProductImportReferences,
   type ProductImportReferencePlan,
 } from "@/stores/product-store/import-references";
+import { productTransferReferenceNames, buildProductTransferSaveInput } from "@/stores/product-store/product-transfer";
+import { useToppingStore } from "@/stores/topping-store";
+import { useTasteStore } from "@/stores/taste-store";
+import { useSetChildOptionStore } from "@/stores/set-child-option-store";
 import { useReferenceStore } from "@/stores/reference-store";
 import { useToastStore } from "@/stores/toast-store";
 import { generateProdCode } from "@/features/product/form/product-form-utils";
@@ -57,6 +62,12 @@ import {
   parseProductImportWorkbook,
   ProductImportWorkbookError,
 } from "./product-import-workbook";
+import { exportProductTransfer } from "./product-transfer";
+import {
+  parseProductTransferArchive,
+  ProductTransferArchiveError,
+  type ProductTransferManifest,
+} from "./product-transfer-archive";
 
 const DEFAULT_STATUS_SORT = "1";
 const EMPTY_CATEGORIES: Category[] = [];
@@ -118,6 +129,7 @@ export function useProductListWorkflow(initialPagination: UrlPaginationState) {
   const loadAllProductsForImport = useProductStore(
     (state) => state.loadAllForImport,
   );
+  const loadProductImage = useProductStore((state) => state.loadProductImage);
   const loadStatusSorts = useProductStore((state) => state.loadStatusSorts);
   const loadSizesByStatus = useProductStore((state) => state.loadSizesByStatus);
   const ensureImportReferences = useProductStore((state) => state.ensureImportReferences);
@@ -137,6 +149,12 @@ export function useProductListWorkflow(initialPagination: UrlPaginationState) {
   const loadGroups = useReferenceStore((state) => state.loadGroups);
   const loadUnits = useReferenceStore((state) => state.loadUnits);
   const loadSizes = useReferenceStore((state) => state.loadSizes);
+  const loadToppings = useReferenceStore((state) => state.loadToppings);
+  const loadTastes = useReferenceStore((state) => state.loadTastes);
+  const saveTopping = useToppingStore((state) => state.save);
+  const saveTaste = useTasteStore((state) => state.save);
+  const loadSetChildOptions = useSetChildOptionStore((state) => state.load);
+  const saveSetChildOption = useSetChildOptionStore((state) => state.save);
   const [deleteTarget, setDeleteTarget] = useState<Product | null>(null);
   const [orderEditTarget, setOrderEditTarget] = useState<ProductTableRow | null>(null);
   const [categoryDropdownOpen, setCategoryDropdownOpen] = useState(false);
@@ -155,6 +173,13 @@ export function useProductListWorkflow(initialPagination: UrlPaginationState) {
   const [importDefaultGroupName, setImportDefaultGroupName] = useState("");
   const [importing, setImporting] = useState(false);
   const [importParsing, setImportParsing] = useState(false);
+  const [transferBundle, setTransferBundle] = useState<{
+    manifest: ProductTransferManifest;
+    images: Map<string, Uint8Array>;
+  } | null>(null);
+  const [transferSucceededKeys, setTransferSucceededKeys] = useState<Set<string>>(() => new Set());
+  const [transferCodeConflictCount, setTransferCodeConflictCount] = useState(0);
+  const [exportingProducts, setExportingProducts] = useState(false);
   const [importResult, setImportResult] = useState("");
   const [importResultTone, setImportResultTone] = useState<
     "success" | "partial" | "error" | ""
@@ -254,6 +279,52 @@ export function useProductListWorkflow(initialPagination: UrlPaginationState) {
   const canSortProductDetails = !loading && !saving;
 
   const branchUuid = user?.branch_uuid ?? "";
+  useResetOnDeps([storeUuid, branchUuid], resetImportState);
+
+  async function exportProducts() {
+    if (!branchUuid) {
+      showToast({ title: t("product.branchRequired"), tone: "error" });
+      return;
+    }
+    if (exportingProducts) return;
+    setExportingProducts(true);
+    try {
+      const products = await loadAllProductsForImport({
+        branch_uuid_fk: branchUuid,
+        lang: language,
+      });
+      const result = await exportProductTransfer(products, (product) => {
+        const image = String(product.prod_image ?? "").trim();
+        const raw = String(product.prod_image_raw ?? "").trim();
+        const filename = image && !image.startsWith("#") ? image : raw && !raw.startsWith("#") ? raw : "";
+        return filename ? loadProductImage(filename) : Promise.resolve(null);
+      });
+      const archiveBuffer = new ArrayBuffer(result.bytes.byteLength);
+      new Uint8Array(archiveBuffer).set(result.bytes);
+      const archive = new Blob([archiveBuffer], { type: "application/zip" });
+      const downloadUrl = URL.createObjectURL(archive);
+      const anchor = document.createElement("a");
+      anchor.href = downloadUrl;
+      anchor.download = `yummy-go-products-${new Date().toISOString().slice(0, 10)}.zip`;
+      anchor.click();
+      window.setTimeout(() => URL.revokeObjectURL(downloadUrl), 1000);
+      showToast({
+        title: t("product.transfer.exported", { count: products.length }),
+        description: result.imageOmissions
+          ? t("product.transfer.imageOmissions", { count: result.imageOmissions })
+          : undefined,
+        tone: result.imageOmissions ? "info" : "success",
+      });
+    } catch (error) {
+      showToast({
+        title: t("product.transfer.exportFailed"),
+        description: error instanceof Error ? error.message : t("toasts.pleaseTryAgain"),
+        tone: "error",
+      });
+    } finally {
+      setExportingProducts(false);
+    }
+  }
 
   const load = useCallback(async () => {
     if (!branchUuid) return;
@@ -651,6 +722,9 @@ export function useProductListWorkflow(initialPagination: UrlPaginationState) {
     setImportDefaultGroupName("");
     setImportResult("");
     setImportResultTone("");
+    setTransferBundle(null);
+    setTransferSucceededKeys(new Set());
+    setTransferCodeConflictCount(0);
   }
 
   const importFieldLabels = useMemo(
@@ -753,6 +827,9 @@ export function useProductListWorkflow(initialPagination: UrlPaginationState) {
     setImportSucceededKeys(new Set());
     setImportResult("");
     setImportResultTone("");
+    setTransferBundle(null);
+    setTransferSucceededKeys(new Set());
+    setTransferCodeConflictCount(0);
     if (!file) return;
 
     if (!user?.branch_uuid || !storeUuid) {
@@ -764,6 +841,19 @@ export function useProductListWorkflow(initialPagination: UrlPaginationState) {
     setImportFileName(file.name);
 
     try {
+      if (file.name.toLowerCase().endsWith(".zip")) {
+        const { manifest, images } = await parseProductTransferArchive(file);
+        const targetProducts = await loadAllProductsForImport({
+          branch_uuid_fk: user.branch_uuid,
+          lang: language,
+        });
+        setTransferCodeConflictCount(productTransferCodeConflicts(manifest.products, targetProducts).size);
+        setTransferBundle({ manifest, images });
+        setImportDefaultGroupName("Imported Products");
+        setImportResult(t("product.transfer.previewReady", { count: manifest.products.length }));
+        setImportResultTone("success");
+        return;
+      }
       const workbook = await parseProductImportWorkbook(file);
       const normalRows = workbook.Normal
         ? sheetRowsFromAoA(workbook.Normal, [
@@ -832,7 +922,9 @@ export function useProductListWorkflow(initialPagination: UrlPaginationState) {
       setImportReferenceContext(null);
       setImportBaseDrafts([]);
       setImportResult(
-        error instanceof ProductImportWorkbookError
+        error instanceof ProductTransferArchiveError
+          ? error.message
+          : error instanceof ProductImportWorkbookError
           ? t(`product.import.errors.${error.code}`, {
               defaultValue: error.message,
             })
@@ -847,6 +939,10 @@ export function useProductListWorkflow(initialPagination: UrlPaginationState) {
   }
 
   async function importProductsFromDrafts() {
+    if (transferBundle) {
+      await importProductTransferBundle();
+      return;
+    }
     if (importExecutionLock.current) return;
     if (!importDefaultGroupName.trim()) {
       showToast({
@@ -1039,6 +1135,135 @@ export function useProductListWorkflow(initialPagination: UrlPaginationState) {
     }
   }
 
+  async function importProductTransferBundle() {
+    if (!transferBundle || importExecutionLock.current) return;
+    if (!branchUuid || !storeUuid) {
+      showToast({ title: t("product.branchRequired"), tone: "error" });
+      return;
+    }
+    importExecutionLock.current = true;
+    setImporting(true);
+    try {
+      const [targetGroups, targetCategories, targetUnits, targetNormalSizes, targetSetSizes, existingProducts] = await Promise.all([
+        loadGroups(language, storeUuid),
+        loadCategories(language, storeUuid),
+        loadUnits(language, storeUuid),
+        loadSizesByStatus(storeUuid, 1, language),
+        loadSizesByStatus(storeUuid, 2, language),
+        loadAllProductsForImport({ branch_uuid_fk: branchUuid, lang: language }),
+      ]);
+      const codeConflicts = productTransferCodeConflicts(transferBundle.manifest.products, existingProducts);
+      const eligibleRecords = transferBundle.manifest.products.filter((_, index) => !codeConflicts.has(index));
+      const names = productTransferReferenceNames(eligibleRecords);
+      const plan = planProductImportReferences({
+        defaultGroupName: importDefaultGroupName.trim() || "Imported Products",
+        groups: targetGroups,
+        categories: targetCategories,
+        units: targetUnits,
+        normalSizes: targetNormalSizes as Size[],
+        setSizes: targetSetSizes as Size[],
+        categoryNames: names.categoryNames,
+        unitNames: names.unitNames,
+        normalSizeNames: names.normalSizeNames,
+        setSizeNames: names.setSizeNames,
+      });
+      if (plan.conflicts.length) {
+        throw new Error(t("product.transfer.referenceConflict", {
+          names: plan.conflicts.map((conflict) => conflict.name).join(", "),
+        }));
+      }
+
+      const resolved = await ensureImportReferences({ storeUuid, language, plan });
+      const [targetToppings, targetTastes, targetChildOptions] = await Promise.all([
+        loadToppings(language, storeUuid),
+        loadTastes(language, storeUuid),
+        loadSetChildOptions({ lang: language, store_uuid_fk: storeUuid, limit: "All" }),
+      ]);
+      const toppings = await ensureNamedMasterReferences({
+        names: names.toppingNames,
+        rows: targetToppings,
+        idKey: "topping_uuid",
+        nameKeys: ["topping_name_la", "topping_name", "topping_name_eng"],
+        create: (name) => saveTopping({ store_uuid_fk: storeUuid, topping_name_la: name, topping_name_eng: name }),
+        reload: () => loadToppings(language, storeUuid),
+      });
+      const tastes = await ensureNamedMasterReferences({
+        names: names.tasteNames,
+        rows: targetTastes,
+        idKey: "taste_uuid",
+        nameKeys: ["taste_name_la", "taste_name", "taste_name_eng"],
+        create: (name) => saveTaste({ store_uuid_fk: storeUuid, taste_name_la: name, taste_name_eng: name }),
+        reload: () => loadTastes(language, storeUuid),
+      });
+      const childOptions = await ensureNamedMasterReferences({
+        names: names.setChildOptionNames,
+        rows: targetChildOptions,
+        idKey: "set_child_option_uuid",
+        nameKeys: ["set_child_option_name_la", "set_child_option_name", "set_child_option_name_eng"],
+        create: (name) => saveSetChildOption({ store_uuid_fk: storeUuid, set_child_option_name_la: name, set_child_option_name_eng: name }),
+        reload: async () => loadSetChildOptions({ lang: language, store_uuid_fk: storeUuid, limit: "All" }),
+      });
+
+      const refs = {
+        branchUuid,
+        categories: resolved.categories as unknown as Array<Record<string, unknown>>,
+        units: resolved.units as unknown as Array<Record<string, unknown>>,
+        normalSizes: resolved.sizes as unknown as Array<Record<string, unknown>>,
+        setSizes: resolved.setSizes as unknown as Array<Record<string, unknown>>,
+        toppings: toppings as unknown as Array<Record<string, unknown>>,
+        tastes: tastes as unknown as Array<Record<string, unknown>>,
+        setChildOptions: childOptions as unknown as Array<Record<string, unknown>>,
+      };
+      let succeeded = 0;
+      const conflicted = codeConflicts.size;
+      let failed = 0;
+      const nextSucceededKeys = new Set(transferSucceededKeys);
+      for (const [index, record] of transferBundle.manifest.products.entries()) {
+        const key = `${index}:${String(record.product.prod_code ?? "")}`;
+        if (nextSucceededKeys.has(key)) continue;
+        if (codeConflicts.has(index)) continue;
+        try {
+          let image: File | undefined;
+          if (record.imagePath) {
+            const bytes = transferBundle.images.get(record.imagePath);
+            if (!bytes) throw new Error(`Photo data is missing for ${String(record.product.prod_name_la ?? "product")}`);
+            const imageBuffer = new ArrayBuffer(bytes.byteLength);
+            new Uint8Array(imageBuffer).set(bytes);
+            const extension = record.imagePath.split(".").pop()?.toLowerCase() ?? "bin";
+            const mime = record.imageMime ?? (extension === "jpg" || extension === "jpeg" ? "image/jpeg" : `image/${extension}`);
+            image = new File([imageBuffer], record.imagePath.split("/").pop() ?? "product-image", { type: mime });
+          }
+          await saveProduct(buildProductTransferSaveInput(record, refs, image));
+          nextSucceededKeys.add(key);
+          succeeded += 1;
+        } catch {
+          failed += 1;
+        }
+      }
+      setTransferSucceededKeys(nextSucceededKeys);
+      setImportResult(t("product.transfer.importResult", { success: succeeded, conflicts: conflicted, failed }));
+      setImportResultTone(failed || conflicted ? "partial" : "success");
+      showToast({
+        title: t("product.transfer.importFinished"),
+        description: t("product.transfer.importResult", { success: succeeded, conflicts: conflicted, failed }),
+        tone: failed || conflicted ? "info" : "success",
+      });
+      try {
+        await load();
+      } catch {
+        showToast({ title: t("product.transfer.refreshFailed"), tone: "info" });
+      }
+    } catch (error) {
+      const message = error instanceof Error ? error.message : t("toasts.pleaseTryAgain");
+      setImportResult(message);
+      setImportResultTone("error");
+      showToast({ title: t("settings.saveFailed"), description: message, tone: "error" });
+    } finally {
+      setImporting(false);
+      importExecutionLock.current = false;
+    }
+  }
+
   const importSummary = productImportSummary(importDrafts);
   const importWillCreate = useCallback(
     (draft: ProductImportDraft) =>
@@ -1075,6 +1300,11 @@ export function useProductListWorkflow(initialPagination: UrlPaginationState) {
     setImportDefaultGroupName,
     importSummary,
     importParsing,
+    transferCount: transferBundle?.manifest.products.length ?? 0,
+    transferImageOmissions: transferBundle?.manifest.products.filter((record) => record.imageUnavailable).length ?? 0,
+    transferCodeConflictCount,
+    exportingProducts,
+    exportProducts,
     importing,
     importResult,
     importResultTone,
@@ -1139,3 +1369,58 @@ export function useProductListWorkflow(initialPagination: UrlPaginationState) {
 }
 
 export type ProductListWorkflow = ReturnType<typeof useProductListWorkflow>;
+
+async function ensureNamedMasterReferences<T extends Record<string, unknown>>({
+  names,
+  rows,
+  idKey,
+  nameKeys,
+  create,
+  reload,
+}: {
+  names: string[];
+  rows: T[];
+  idKey: string;
+  nameKeys: string[];
+  create: (name: string) => Promise<T | null | undefined>;
+  reload: () => Promise<T[]>;
+}) {
+  let currentRows = rows.filter((row): row is T => Boolean(row));
+  const normalizedNames = [...new Set(names.map(normalizeProductImportKey).filter(Boolean))];
+  const matchingRows = (name: string) => currentRows.filter((row) =>
+    nameKeys.some((key) => normalizeProductImportKey(row[key]) === normalizeProductImportKey(name)),
+  );
+  const id = (row: T | null | undefined) => String(row?.[idKey] ?? "").trim();
+
+  for (const name of normalizedNames) {
+    const matches = matchingRows(name);
+    if (new Set(matches.map(id).filter(Boolean)).size > 1) {
+      throw new Error(`Reference name is ambiguous: ${name}`);
+    }
+  }
+  for (const name of names) {
+    if (matchingRows(name).some((row) => id(row))) continue;
+    const created = await create(name);
+    if (created && id(created)) {
+      currentRows.push(created);
+    } else {
+      currentRows = await reload();
+      if (!matchingRows(name).some((row) => id(row))) {
+        throw new Error(`Could not resolve newly created reference: ${name}`);
+      }
+    }
+  }
+  return currentRows;
+}
+
+function productTransferCodeConflicts(records: ProductTransferManifest["products"], existingProducts: Product[]) {
+  const reserved = new Set(existingProducts.map((product) => normalizeProductImportKey(product.prod_code)).filter(Boolean));
+  const conflicts = new Set<number>();
+  records.forEach((record, index) => {
+    const code = normalizeProductImportKey(record.product.prod_code);
+    if (!code) return;
+    if (reserved.has(code)) conflicts.add(index);
+    else reserved.add(code);
+  });
+  return conflicts;
+}

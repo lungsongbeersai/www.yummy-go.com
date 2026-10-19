@@ -26,6 +26,7 @@ export interface RequestOptions {
   params?: Record<string, unknown>;
   data?: unknown;
   headers?: Record<string, string>;
+  responseType?: "blob";
 }
 
 function createClient(authenticated: boolean): AxiosInstance {
@@ -85,7 +86,7 @@ async function send<T>(
 ) {
   switch (method) {
     case "get":
-      return client.get<T>(url, { params: options?.params, headers: options?.headers });
+      return client.get<T>(url, { params: options?.params, headers: options?.headers, responseType: options?.responseType });
     case "post":
       return client.post<T>(url, options?.data, { headers: options?.headers });
     case "put":
