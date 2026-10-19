@@ -142,14 +142,16 @@ export function usePublicBrowseWorkflow({
     return () => { cancelled = true; };
   }, [refreshCartInBackground, t, toast, token, viewOnly]);
 
-  usePublicOrderRealtime({
-    branchUuid: viewOnly ? undefined : table?.branch_uuid_fk,
-    refresh: refreshCartInBackground,
-  });
   const cartOrderUuids = useMemo(
     () => Array.from(new Set(cart.map((order) => order.order_uuid).filter(Boolean))),
     [cart],
   );
+  usePublicOrderRealtime({
+    branchUuid: viewOnly ? undefined : table?.branch_uuid_fk,
+    tableUuid: table?.table_uuid,
+    orderUuids: cartOrderUuids,
+    refresh: refreshCartInBackground,
+  });
   usePublicOrderStatusNotifications({
     branchUuid: viewOnly ? undefined : table?.branch_uuid_fk,
     orderUuids: cartOrderUuids,

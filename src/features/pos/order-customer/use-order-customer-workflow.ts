@@ -57,7 +57,7 @@ import {
   type ProductModalMode,
   type SelectedTopping,
 } from "./order-customer-utils";
-import { cartForTable, cartQuantityCount } from "../table-selection/utils";
+import { cartForTable, cartOrders, cartQuantityCount } from "../table-selection/utils";
 import { useDraftCleanup } from "./use-draft-cleanup";
 import { createCartRefreshQueue } from "./cart-refresh-queue";
 import { useOrderCustomerRealtime } from "./use-order-customer-realtime";
@@ -693,7 +693,18 @@ export function useOrderCustomerWorkflow({
     };
   }, [refreshCartInBackground]);
 
-  useOrderCustomerRealtime({ branchUuid, refresh: refreshCartInBackground });
+  const cartOrderUuids = useMemo(
+    () => initialTableUuid
+      ? cartOrders(selectedCart).map((order) => order.order_uuid)
+      : [counterOrderUuid],
+    [counterOrderUuid, initialTableUuid, selectedCart],
+  );
+  useOrderCustomerRealtime({
+    branchUuid,
+    tableUuid: initialTableUuid,
+    orderUuids: cartOrderUuids,
+    refresh: refreshCartInBackground,
+  });
 
   useEffect(() => {
     void loadMenu({ refreshCategories: true });

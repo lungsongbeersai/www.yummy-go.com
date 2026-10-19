@@ -2,14 +2,16 @@
 
 import { useCallback, useEffect, useRef } from "react";
 import { useLatestValue } from "@/hooks/use-latest-value";
+import { shouldRefreshCartForEvent } from "@/lib/pos/cart-realtime";
 import {
-  isBranchRealtimeEvent,
   subscribeBranchTableRealtime,
   type BranchRealtimePayload,
 } from "@/lib/socket";
 
 interface UseOrderCustomerRealtimeParams {
   branchUuid?: string;
+  tableUuid?: string;
+  orderUuids: readonly string[];
   refresh: () => Promise<void>;
 }
 
@@ -18,8 +20,9 @@ interface UseOrderCustomerRealtimeParams {
 // ต้องรีเฟรช cart ให้ตรงข้อมูลจริงด้วย ไม่ใช่รอ mount ครั้งแรกอย่างเดียว — ใช้
 // event ชุดเดียวกับหน้าเลือกโต๊ะ (table_status_changed + order_queue_changed)
 // coalesce เป็นการโหลด cart ใหม่ครั้งเดียวเหมือน use-table-alerts.ts
-export function useOrderCustomerRealtime({ branchUuid, refresh }: UseOrderCustomerRealtimeParams) {
+export function useOrderCustomerRealtime({ branchUuid, tableUuid, orderUuids, refresh }: UseOrderCustomerRealtimeParams) {
   const refreshRef = useLatestValue(refresh);
+  const scopeRef = useLatestValue({ branchUuid: branchUuid ?? "", tableUuid, orderUuids });
   const refreshTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const scheduleRefresh = useCallback(() => {
@@ -42,10 +45,10 @@ export function useOrderCustomerRealtime({ branchUuid, refresh }: UseOrderCustom
     const activeBranchUuid = branchUuid;
 
     function handleBranchRealtime(payload: BranchRealtimePayload) {
-      if (!isBranchRealtimeEvent(payload, activeBranchUuid)) return;
+      if (!shouldRefreshCartForEvent(payload, scopeRef.current)) return;
       scheduleRefresh();
     }
 
     return subscribeBranchTableRealtime(activeBranchUuid, handleBranchRealtime, scheduleRefresh);
-  }, [branchUuid, scheduleRefresh]);
+  }, [branchUuid, scheduleRefresh, scopeRef]);
 }

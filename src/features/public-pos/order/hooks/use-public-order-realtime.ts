@@ -1,14 +1,17 @@
 "use client";
 
 import { useCallback, useEffect, useRef } from "react";
+import { useLatestValue } from "@/hooks/use-latest-value";
+import { shouldRefreshCartForEvent } from "@/lib/pos/cart-realtime";
 import {
-  isBranchRealtimeEvent,
   subscribeBranchTableRealtime,
   type BranchRealtimePayload,
 } from "@/lib/socket";
 
 interface UsePublicOrderRealtimeParams {
   branchUuid?: string;
+  tableUuid?: string;
+  orderUuids: readonly string[];
   refresh: () => Promise<void>;
 }
 
@@ -17,16 +20,18 @@ interface UsePublicOrderRealtimeParams {
 // เอา event เดียวกับหน้าเลือกโต๊ะฝั่ง POS มาฟัง (table_status_changed +
 // order_queue_changed) แล้ว coalesce เป็นการโหลด cart ใหม่ครั้งเดียว เหมือน
 // use-table-alerts.ts
-export function usePublicOrderRealtime({ branchUuid, refresh }: UsePublicOrderRealtimeParams) {
+export function usePublicOrderRealtime({ branchUuid, tableUuid, orderUuids, refresh }: UsePublicOrderRealtimeParams) {
+  const refreshRef = useLatestValue(refresh);
+  const scopeRef = useLatestValue({ branchUuid: branchUuid ?? "", tableUuid, orderUuids });
   const refreshTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const scheduleRefresh = useCallback(() => {
     if (refreshTimerRef.current) clearTimeout(refreshTimerRef.current);
     refreshTimerRef.current = setTimeout(() => {
       refreshTimerRef.current = null;
-      void refresh().catch(() => undefined);
+      void refreshRef.current().catch(() => undefined);
     }, 250);
-  }, [refresh]);
+  }, [refreshRef]);
 
   useEffect(
     () => () => {
@@ -36,23 +41,25 @@ export function usePublicOrderRealtime({ branchUuid, refresh }: UsePublicOrderRe
   );
 
   useEffect(() => {
+    if (!branchUuid) return;
+
     function handleVisibilityChange() {
-      if (document.visibilityState === "visible") void refresh().catch(() => undefined);
+      if (document.visibilityState === "visible") void refreshRef.current().catch(() => undefined);
     }
 
     document.addEventListener("visibilitychange", handleVisibilityChange);
     return () => document.removeEventListener("visibilitychange", handleVisibilityChange);
-  }, [refresh]);
+  }, [branchUuid, refreshRef]);
 
   useEffect(() => {
     if (!branchUuid) return;
     const activeBranchUuid = branchUuid;
 
     function handleBranchRealtime(payload: BranchRealtimePayload) {
-      if (!isBranchRealtimeEvent(payload, activeBranchUuid)) return;
+      if (!shouldRefreshCartForEvent(payload, scopeRef.current)) return;
       scheduleRefresh();
     }
 
-    return subscribeBranchTableRealtime(activeBranchUuid, handleBranchRealtime);
-  }, [branchUuid, scheduleRefresh]);
+    return subscribeBranchTableRealtime(activeBranchUuid, handleBranchRealtime, scheduleRefresh);
+  }, [branchUuid, scheduleRefresh, scopeRef]);
 }

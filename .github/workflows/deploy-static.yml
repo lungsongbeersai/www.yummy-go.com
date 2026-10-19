@@ -1,4 +1,4 @@
-name: Deploy Next SSR (systemd)
+name: Deploy Next SSR (versioned standalone)
 
 on:
   push:
@@ -9,156 +9,87 @@ concurrency:
   group: deploy-next-ssr-production
   cancel-in-progress: false
 
+permissions:
+  contents: read
+
 jobs:
   deploy:
-    runs-on: ubuntu-latest
-
+    runs-on: ubuntu-22.04
+    timeout-minutes: 30
+    env:
+      NEXT_TELEMETRY_DISABLED: 1
+      ELECTRON_SKIP_BINARY_DOWNLOAD: 1
+      NEXT_PUBLIC_SITE_URL: ${{ secrets.NEXT_PUBLIC_SITE_URL }}
+      NEXT_PUBLIC_API_URL: ${{ secrets.NEXT_PUBLIC_API_URL }}
+      NEXT_PUBLIC_BASE_URL: ${{ secrets.NEXT_PUBLIC_BASE_URL }}
+      RELEASE_ID: ${{ github.sha }}-${{ github.run_id }}-${{ github.run_attempt }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Validate required secrets are present
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Validate required configuration
         shell: bash
+        env:
+          SSH_HOST: ${{ secrets.SSH_HOST }}
+          SSH_PORT: ${{ secrets.SSH_PORT }}
+          SSH_USER: ${{ secrets.SSH_USER }}
+          SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
         run: |
           set -euo pipefail
-          [ -n "${{ secrets.SSH_HOST }}" ] || (echo "SSH_HOST is empty" && exit 1)
-          [ -n "${{ secrets.SSH_PORT }}" ] || (echo "SSH_PORT is empty" && exit 1)
-          [ -n "${{ secrets.SSH_USER }}" ] || (echo "SSH_USER is empty" && exit 1)
-          [ -n "${{ secrets.SSH_PRIVATE_KEY }}" ] || (echo "SSH_PRIVATE_KEY is empty" && exit 1)
+          for name in SSH_HOST SSH_PORT SSH_USER SSH_PRIVATE_KEY NEXT_PUBLIC_SITE_URL NEXT_PUBLIC_API_URL NEXT_PUBLIC_BASE_URL; do
+            test -n "${!name}" || { echo "Missing configuration: $name"; exit 1; }
+          done
 
-          [ -n "${{ secrets.NEXT_PUBLIC_SITE_URL }}" ] || (echo "NEXT_PUBLIC_SITE_URL is empty" && exit 1)
-          [ -n "${{ secrets.NEXT_PUBLIC_API_URL }}"  ] || (echo "NEXT_PUBLIC_API_URL is empty" && exit 1)
-          [ -n "${{ secrets.NEXT_PUBLIC_BASE_URL }}" ] || (echo "NEXT_PUBLIC_BASE_URL is empty" && exit 1)
+      - name: Install and verify
+        run: |
+          npm ci --include=optional
+          npx next typegen
+          npm run typecheck
+          npm run lint
+          npm test
+          node --test scripts/deploy/deploy-release.test.mjs
+
+      - name: Build and package standalone on CI
+        shell: bash
+        env:
+          NEXT_PUBLIC_SOCKET_URL: ${{ secrets.NEXT_PUBLIC_SOCKET_URL }}
+          NEXT_PUBLIC_PRINTER_AGENT_URL: ${{ secrets.NEXT_PUBLIC_PRINTER_AGENT_URL }}
+          NEXT_PUBLIC_PRINTER_AGENT_SECRET: ${{ secrets.NEXT_PUBLIC_PRINTER_AGENT_SECRET }}
+          NEXT_PUBLIC_BASE_PATH: ${{ secrets.NEXT_PUBLIC_BASE_PATH }}
+          NEXT_PUBLIC_MOBILE_TCP_DEBUG: ${{ secrets.NEXT_PUBLIC_MOBILE_TCP_DEBUG }}
+        run: |
+          set -euo pipefail
+          for name in NEXT_PUBLIC_SOCKET_URL NEXT_PUBLIC_PRINTER_AGENT_URL NEXT_PUBLIC_PRINTER_AGENT_SECRET NEXT_PUBLIC_BASE_PATH NEXT_PUBLIC_MOBILE_TCP_DEBUG; do
+            test -n "${!name}" || unset "$name"
+          done
+          npm run build
+          node scripts/deploy/package-release.mjs . "$RUNNER_TEMP/yummygo-$RELEASE_ID.tar.gz" "$RELEASE_ID"
 
       - name: Setup SSH agent
         uses: webfactory/ssh-agent@v0.9.0
         with:
           ssh-private-key: ${{ secrets.SSH_PRIVATE_KEY }}
 
-      - name: Add host to known_hosts
-        shell: bash
-        run: |
-          set -euo pipefail
-          mkdir -p ~/.ssh
-          ssh-keyscan -p "${{ secrets.SSH_PORT }}" "${{ secrets.SSH_HOST }}" >> ~/.ssh/known_hosts
-
-      - name: Sync to server (SAFE)
-        shell: bash
-        run: |
-          set -euo pipefail
-          HOST="${{ secrets.SSH_HOST }}"
-          PORT="${{ secrets.SSH_PORT }}"
-          USER="${{ secrets.SSH_USER }}"
-          DEST="/var/www/front-end/yummy-go/www.yummy-go.com"
-
-          if [ -d "./front-end/www.yummy-go.com" ]; then
-            SRC="./front-end/www.yummy-go.com"
-          elif [ -d "./front-end" ]; then
-            SRC="./front-end"
-          else
-            SRC="."
-          fi
-
-          test -f "$SRC/package.json" || { echo "ERROR: $SRC/package.json not found"; exit 1; }
-
-          ssh -p "$PORT" "$USER@$HOST" "mkdir -p '$DEST'"
-
-          rsync -az --delete \
-            --exclude '.git' \
-            --exclude '.github' \
-            --exclude 'node_modules' \
-            --exclude '.env' --exclude '.env.*' \
-            --exclude '.next' --exclude '.turbo' --exclude '.vercel' \
-            -e "ssh -p $PORT" \
-            "$SRC/" "$USER@$HOST:$DEST/"
-
-      - name: Build & restart systemd service on server
+      - name: Transfer and activate release
         shell: bash
         env:
           SSH_HOST: ${{ secrets.SSH_HOST }}
           SSH_PORT: ${{ secrets.SSH_PORT }}
           SSH_USER: ${{ secrets.SSH_USER }}
-
-          NEXT_PUBLIC_SITE_URL: ${{ secrets.NEXT_PUBLIC_SITE_URL }}
-          NEXT_PUBLIC_API_URL: ${{ secrets.NEXT_PUBLIC_API_URL }}
-          NEXT_PUBLIC_BASE_URL: ${{ secrets.NEXT_PUBLIC_BASE_URL }}
         run: |
           set -euo pipefail
-
+          mkdir -p ~/.ssh
+          ssh-keyscan -p "$SSH_PORT" "$SSH_HOST" >> ~/.ssh/known_hosts
+          REMOTE_DIR=$(ssh -p "$SSH_PORT" "$SSH_USER@$SSH_HOST" 'mktemp -d /tmp/yummygo-deploy-XXXXXXXX')
+          [[ "$REMOTE_DIR" =~ ^/tmp/yummygo-deploy-[a-zA-Z0-9]+$ ]] || { echo "Invalid remote temporary directory"; exit 1; }
+          trap 'ssh -p "$SSH_PORT" "$SSH_USER@$SSH_HOST" "rm -rf -- $REMOTE_DIR" || true' EXIT
+          scp -P "$SSH_PORT" "$RUNNER_TEMP/yummygo-$RELEASE_ID.tar.gz" "$SSH_USER@$SSH_HOST:$REMOTE_DIR/release.tar.gz"
+          scp -P "$SSH_PORT" scripts/deploy/activate-release.sh "$SSH_USER@$SSH_HOST:$REMOTE_DIR/activate-release.sh"
           ssh -p "$SSH_PORT" "$SSH_USER@$SSH_HOST" \
-            /usr/bin/env -i \
-              NEXT_PUBLIC_SITE_URL="$NEXT_PUBLIC_SITE_URL" \
-              NEXT_PUBLIC_API_URL="$NEXT_PUBLIC_API_URL" \
-              NEXT_PUBLIC_BASE_URL="$NEXT_PUBLIC_BASE_URL" \
-              bash -s <<'EOSSH'
-          set -euo pipefail
-
-          APP_DIR="/var/www/front-end/yummy-go/www.yummy-go.com"
-          SERVICE="yummy-go-fe.service"
-          PORT="3002"
-
-          cd "$APP_DIR"
-
-          [ -n "${NEXT_PUBLIC_SITE_URL:-}" ] || { echo "NEXT_PUBLIC_SITE_URL missing"; exit 1; }
-          [ -n "${NEXT_PUBLIC_API_URL:-}" ] || { echo "NEXT_PUBLIC_API_URL missing"; exit 1; }
-          [ -n "${NEXT_PUBLIC_BASE_URL:-}" ] || { echo "NEXT_PUBLIC_BASE_URL missing"; exit 1; }
-
-          echo "ENV LENGTHS: site=${#NEXT_PUBLIC_SITE_URL} api=${#NEXT_PUBLIC_API_URL} base=${#NEXT_PUBLIC_BASE_URL}"
-
-          sudo rm -f .env.production
-          printf "NODE_ENV=production\n" | sudo tee .env.production >/dev/null
-          printf "NEXT_PUBLIC_SITE_URL=%s\n" "${NEXT_PUBLIC_SITE_URL}" | sudo tee -a .env.production >/dev/null
-          printf "NEXT_PUBLIC_API_URL=%s\n" "${NEXT_PUBLIC_API_URL}" | sudo tee -a .env.production >/dev/null
-          printf "NEXT_PUBLIC_BASE_URL=%s\n" "${NEXT_PUBLIC_BASE_URL}" | sudo tee -a .env.production >/dev/null
-
-          sudo chown root:linuxuser .env.production
-          sudo chmod 640 .env.production
-
-          sudo -u linuxuser bash -lc '
-            set -euo pipefail
-            cd "'"$APP_DIR"'"
-
-            echo "Using node: $(node -v) / npm: $(npm -v)"
-            node scripts/check-node-version.mjs
-            export NEXT_TELEMETRY_DISABLED=1
-
-            rm -rf .next
-
-            if [ -f package-lock.json ]; then
-              npm ci --include=optional
-            else
-              npm install --include=optional
-            fi
-
-            npm rebuild lightningcss || true
-            npm run build
-            test -s .next/BUILD_ID
-          '
-
-          sudo systemctl restart "$SERVICE"
-
-          sudo systemctl is-active --quiet "$SERVICE" || {
-            echo "❌ $SERVICE not active"
-            sudo systemctl status "$SERVICE" --no-pager -l || true
-            sudo journalctl -u "$SERVICE" -n 150 --no-pager || true
-            exit 1
-          }
-
-          for i in {1..30}; do
-            if curl -fsS "http://127.0.0.1:${PORT}" >/dev/null; then
-              echo "✅ FE is up on ${PORT}"
-              break
-            fi
-            sleep 1
-          done
-
-          curl -fsS "http://127.0.0.1:${PORT}" >/dev/null || {
-            echo "❌ FE still not responding on ${PORT}"
-            sudo systemctl status "$SERVICE" --no-pager -l || true
-            sudo journalctl -u "$SERVICE" -n 150 --no-pager || true
-            ss -lntp | grep ":${PORT}" || true
-            exit 1
-          }
-
-          echo "✅ Deploy done"
-          EOSSH
+            "sudo bash $REMOTE_DIR/activate-release.sh $REMOTE_DIR/release.tar.gz $RELEASE_ID"
