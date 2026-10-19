@@ -1,14 +1,23 @@
 "use client";
 
 import Link from "next/link";
-import { Download, PencilLine, Plus, Search, Trash2, Upload } from "lucide-react";
+import { ChevronDown, Download, FileArchive, FileSpreadsheet, FileText, PencilLine, Plus, Search, Trash2, Upload } from "lucide-react";
 import { AppPagination } from "@/components/common/app-pagination";
+import { BlockingLoadingDialog } from "@/components/common/blocking-loading-dialog";
 import { ConfirmDialog } from "@/components/common/confirm-dialog";
 import { EmptyState } from "@/components/common/empty-state";
 import { LoadingState } from "@/components/common/loading-state";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { ButtonGroup } from "@/components/ui/button-group";
 import { Checkbox } from "@/components/ui/checkbox";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuGroup,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { Field, FieldLabel } from "@/components/ui/field";
 import { InputGroup, InputGroupAddon, InputGroupButton, InputGroupInput } from "@/components/ui/input-group";
 import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -16,6 +25,7 @@ import { Spinner } from "@/components/ui/spinner";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { PAGE_LIMIT_OPTIONS } from "@/lib/pagination";
 import type { UrlPaginationState } from "@/lib/url-pagination";
+import { authStoreUuid, useAuthStore } from "@/stores/auth-store";
 import { categoryOptionName, categoryUuid } from "./product-list-utils";
 import { ProductImportDialog } from "./product-import-dialog";
 import { ProductListMobile } from "./product-list-mobile";
@@ -23,11 +33,14 @@ import { ProductOrderDialog } from "./product-order-dialog";
 import { ProductListTable } from "./product-list-table";
 import { ALL_CATEGORIES_VALUE, useProductListWorkflow } from "./use-product-list-workflow";
 import { ProductBulkEditDialog } from "./product-bulk-edit-dialog";
+import { ProductMenuTemplateDialog } from "./product-menu-template-dialog";
+import { ProductMenuDownloadDialog } from "./product-menu-download-dialog";
 
 // โครงแบบ Data Table ของ shadcn: แท็บประเภท + ปุ่มหลัก → แถบค้นหา/กรอง → ตารางในกรอบ → แถบแบ่งหน้า
 // ชื่อหน้ามีอยู่แล้วบนแถบหัวของ app shell จึงไม่แสดงซ้ำในหน้า
 export function ProductPage({ initialPagination }: { initialPagination: UrlPaginationState }) {
   const product = useProductListWorkflow(initialPagination);
+  const menuAccountScope = useAuthStore((state) => `${authStoreUuid(state.user)}:${state.user?.branch_uuid ?? ""}`);
   const { t } = product;
   const selectedCount = product.selectedRows.size;
   const bulkBusy = product.bulkEditing || product.bulkDeleting;
@@ -50,15 +63,49 @@ export function ProductPage({ initialPagination }: { initialPagination: UrlPagin
             ))}
           </TabsList>
         </Tabs>
-        <div className="flex gap-2">
-          <Button type="button" variant="outline" disabled={product.exportingProducts} onClick={() => void product.exportProducts()}>
-            {product.exportingProducts ? <Spinner data-icon="inline-start" /> : <Download data-icon="inline-start" />}
-            {t(product.exportingProducts ? "product.transfer.exporting" : "product.transfer.exportButton")}
-          </Button>
-          <Button type="button" variant="outline" onClick={() => product.setImportDialogOpen(true)}>
-            <Upload data-icon="inline-start" />
-            {t("product.import.button")}
-          </Button>
+        <div className="flex flex-wrap items-center justify-end gap-2">
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button type="button" variant="outline" disabled={product.exportingProducts} aria-busy={product.exportingProducts}>
+                {product.exportingProducts ? <Spinner data-icon="inline-start" /> : <FileSpreadsheet data-icon="inline-start" />}
+                {t(product.exportingProducts ? "product.transfer.exporting" : "product.fileMenu")}
+                <ChevronDown data-icon="inline-end" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="min-w-64">
+              <DropdownMenuGroup>
+                <DropdownMenuItem className="min-h-14" disabled={product.exportingProducts} onSelect={product.openMenuDesigner}>
+                  <FileText />
+                  <div className="flex min-w-0 flex-col gap-0.5">
+                    <span>{t("product.menuPdf.download")}</span>
+                    <span className="text-xs text-muted-foreground">{t("product.menuPdf.scope")}</span>
+                  </div>
+                </DropdownMenuItem>
+              </DropdownMenuGroup>
+              <DropdownMenuSeparator />
+              <DropdownMenuGroup>
+                <DropdownMenuItem className="min-h-10" disabled={product.exportingProducts} onSelect={() => void product.exportProductsExcel()}>
+                  <Download />
+                  {t("product.excel.download")}
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  className="min-h-10"
+                  disabled={product.importing || product.importParsing}
+                  onSelect={() => product.setImportDialogOpen(true)}
+                >
+                  <Upload />
+                  {t("product.excel.import")}
+                </DropdownMenuItem>
+              </DropdownMenuGroup>
+              <DropdownMenuSeparator />
+              <DropdownMenuGroup>
+                <DropdownMenuItem className="min-h-10" disabled={product.exportingProducts} onSelect={() => void product.exportProducts()}>
+                  <FileArchive />
+                  {t("product.transfer.exportZipButton")}
+                </DropdownMenuItem>
+              </DropdownMenuGroup>
+            </DropdownMenuContent>
+          </DropdownMenu>
           <Link className={buttonVariants()} href="/products/form">
             <Plus data-icon="inline-start" />
             {t("product.newProduct")}
@@ -236,6 +283,27 @@ export function ProductPage({ initialPagination }: { initialPagination: UrlPagin
         }}
       />
       <ProductImportDialog workflow={product} />
+      <ProductMenuTemplateDialog
+        key={`${menuAccountScope}:${product.language}`}
+        open={product.menuDesignerOpen}
+        onOpenChange={product.changeMenuDesignerOpen}
+        loading={product.menuDesignerLoading}
+        photoProgress={product.menuDesignerPhotoProgress}
+        error={product.menuDesignerError}
+        categories={product.menuDesignerCategories}
+        images={product.menuDesignerImages}
+        onRetry={() => void product.prepareMenuDesigner()}
+        onDownload={(templateId, rows, background, heroPhoto, photoOverrides) => void product.exportMenuPdf(templateId, rows, background, heroPhoto, photoOverrides)}
+        downloading={product.menuPdfProgress !== null}
+      />
+      <BlockingLoadingDialog
+        open={product.menuPdfProgress !== null}
+        title={t("product.menuPdf.preparing")}
+        description={t("product.menuPdf.preparingDescription")}
+        progressLabel={t("product.menuPdf.preparing")}
+        progressValue={product.menuPdfProgress}
+      />
+      <ProductMenuDownloadDialog file={product.menuDownloadFile} onOpenChange={product.changeMenuDownloadOpen} />
       <ProductBulkEditDialog workflow={product} />
       <ProductOrderDialog workflow={product} />
     </div>

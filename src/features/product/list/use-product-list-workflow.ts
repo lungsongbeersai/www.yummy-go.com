@@ -9,6 +9,7 @@ import { useTranslation } from "react-i18next";
 import { useAppliedSearch } from "@/hooks/use-applied-search";
 import { useUrlPagination } from "@/hooks/use-url-pagination";
 import { pageLimitSize } from "@/lib/pagination";
+import { localDateInputValue } from "@/lib/format";
 import { normalizeProductImportKey } from "@/lib/product-import";
 import { samePageLimit, type UrlPaginationState } from "@/lib/url-pagination";
 import type { Category } from "@/services/category";
@@ -63,6 +64,13 @@ import {
   ProductImportWorkbookError,
 } from "./product-import-workbook";
 import { exportProductTransfer } from "./product-transfer";
+import { createProductExportWorkbook } from "./product-export-workbook";
+import { loadProductMenuImages } from "./product-menu-images";
+import { DEFAULT_MENU_CATALOG_ROWS, DEFAULT_MENU_TEMPLATE_ID, type MenuCatalogRows, type MenuTemplateId } from "./product-menu-templates";
+import { DEFAULT_MENU_BACKGROUND, type ProductMenuBackground } from "./product-menu-background";
+import { buildProductMenu, type MenuCategory, type ProductMenuLabels } from "./product-menu-utils";
+import type { ProductMenuDownloadFile } from "./product-menu-download-dialog";
+import { DEFAULT_MENU_HERO_PHOTO, type ProductMenuHeroPhoto } from "./product-menu-hero-photo";
 import {
   parseProductTransferArchive,
   ProductTransferArchiveError,
@@ -79,6 +87,17 @@ interface ProductImportReferenceContext {
   units: Unit[];
   normalSizes: Size[];
   setSizes: Size[];
+}
+
+interface ProductMenuDraft {
+  scopeKey: string;
+  products: Product[];
+  categories: MenuCategory[];
+  images: Readonly<Record<string, string>>;
+}
+
+interface ProductMenuReadyFile extends ProductMenuDownloadFile {
+  scopeKey: string;
 }
 
 function productImportDraftWillCreate(
@@ -180,6 +199,17 @@ export function useProductListWorkflow(initialPagination: UrlPaginationState) {
   const [transferSucceededKeys, setTransferSucceededKeys] = useState<Set<string>>(() => new Set());
   const [transferCodeConflictCount, setTransferCodeConflictCount] = useState(0);
   const [exportingProducts, setExportingProducts] = useState(false);
+  const [menuPdfProgress, setMenuPdfProgress] = useState<number | null>(null);
+  const [menuDesignerOpen, setMenuDesignerOpen] = useState(false);
+  const [menuDesignerLoading, setMenuDesignerLoading] = useState(false);
+  const [menuDesignerPhotoProgress, setMenuDesignerPhotoProgress] = useState<{ completed: number; total: number } | null>(null);
+  const [menuDesignerError, setMenuDesignerError] = useState<string | null>(null);
+  const [menuDraft, setMenuDraft] = useState<ProductMenuDraft | null>(null);
+  const [menuReadyFile, setMenuReadyFile] = useState<ProductMenuReadyFile | null>(null);
+  const [menuDownloadOpen, setMenuDownloadOpen] = useState(false);
+  const menuPdfRequest = useRef(0);
+  const menuPdfUrl = useRef<string | null>(null);
+  const menuPreviewRequest = useRef(0);
   const [importResult, setImportResult] = useState("");
   const [importResultTone, setImportResultTone] = useState<
     "success" | "partial" | "error" | ""
@@ -280,6 +310,206 @@ export function useProductListWorkflow(initialPagination: UrlPaginationState) {
 
   const branchUuid = user?.branch_uuid ?? "";
   useResetOnDeps([storeUuid, branchUuid], resetImportState);
+  const menuScopeKey = `${storeUuid}:${branchUuid}:${language}`;
+  useResetOnChange(menuScopeKey, () => {
+    setMenuDesignerOpen(false);
+    setMenuDesignerLoading(false);
+    setMenuDesignerPhotoProgress(null);
+    setMenuDesignerError(null);
+    setMenuDraft(null);
+    setMenuReadyFile(null);
+    setMenuDownloadOpen(false);
+    if (menuPdfProgress !== null) {
+      setMenuPdfProgress(null);
+      setExportingProducts(false);
+    }
+  });
+  useEffect(() => () => { menuPreviewRequest.current += 1; }, [menuScopeKey]);
+  useEffect(() => () => {
+    menuPdfRequest.current += 1;
+    if (menuPdfUrl.current) {
+      URL.revokeObjectURL(menuPdfUrl.current);
+      menuPdfUrl.current = null;
+    }
+  }, [menuScopeKey]);
+
+  function isCurrentMenuScope() {
+    const currentUser = useAuthStore.getState().user;
+    return authStoreUuid(currentUser) === storeUuid &&
+      (currentUser?.branch_uuid ?? "") === branchUuid &&
+      useAppStore.getState().language === language;
+  }
+
+  function menuLabels(): ProductMenuLabels {
+    return {
+      uncategorized: t("product.menuPdf.uncategorized"),
+      regular: t("product.menuPdf.regular"),
+      contactPrice: t("product.menuPdf.contactPrice"),
+      included: t("product.menuPdf.included"),
+      chooseCount: (count) => t("product.menuPdf.chooseCount", { count }),
+    };
+  }
+
+  function changeMenuDesignerOpen(open: boolean) {
+    setMenuDesignerOpen(open);
+    if (!open) {
+      menuPreviewRequest.current += 1;
+      setMenuDesignerLoading(false);
+      setMenuDesignerPhotoProgress(null);
+    }
+  }
+
+  async function prepareMenuDesigner() {
+    const request = ++menuPreviewRequest.current;
+    const isCurrent = () => menuPreviewRequest.current === request && isCurrentMenuScope();
+    setMenuDesignerLoading(true);
+    setMenuDesignerPhotoProgress(null);
+    setMenuDesignerError(null);
+    try {
+      const products = await loadAllProductsForImport({ branch_uuid_fk: branchUuid, lang: language });
+      if (!isCurrent()) return;
+      const categories = buildProductMenu(products, language, menuLabels());
+      const { images } = await loadProductMenuImages(categories, loadProductImage, {
+        onProgress: (completed, total) => {
+          if (isCurrent()) setMenuDesignerPhotoProgress({ completed, total });
+        },
+      });
+      if (!isCurrent()) return;
+      setMenuDraft({ scopeKey: menuScopeKey, products, categories, images });
+    } catch (error) {
+      if (isCurrent()) setMenuDesignerError(error instanceof Error ? error.message : t("toasts.pleaseTryAgain"));
+    } finally {
+      if (isCurrent()) setMenuDesignerLoading(false);
+    }
+  }
+
+  function openMenuDesigner() {
+    if (!branchUuid) {
+      showToast({ title: t("product.branchRequired"), tone: "error" });
+      return;
+    }
+    if (exportingProducts) return;
+    setMenuDesignerOpen(true);
+    setMenuDesignerError(null);
+    // Refresh names, prices and photos on every opening so edited product
+    // photos are current. This opening's thumbnails are reused in its PDF.
+    void prepareMenuDesigner();
+  }
+
+  async function exportMenuPdf(templateId: MenuTemplateId = DEFAULT_MENU_TEMPLATE_ID, rows: MenuCatalogRows = DEFAULT_MENU_CATALOG_ROWS, background: ProductMenuBackground = DEFAULT_MENU_BACKGROUND, heroPhoto: ProductMenuHeroPhoto = DEFAULT_MENU_HERO_PHOTO, photoOverrides?: Readonly<Record<string, string>>) {
+    if (!branchUuid) {
+      showToast({ title: t("product.branchRequired"), tone: "error" });
+      return;
+    }
+    if (exportingProducts) return;
+    const prepared = menuDraft?.scopeKey === menuScopeKey ? menuDraft : null;
+    const request = ++menuPdfRequest.current;
+    const isCurrent = () => menuPdfRequest.current === request && isCurrentMenuScope();
+    changeMenuDesignerOpen(false);
+    if (menuPdfUrl.current) {
+      URL.revokeObjectURL(menuPdfUrl.current);
+      menuPdfUrl.current = null;
+    }
+    setMenuReadyFile(null);
+    setMenuDownloadOpen(false);
+    setExportingProducts(true);
+    setMenuPdfProgress(0);
+    try {
+      const products = prepared?.products ?? await loadAllProductsForImport({ branch_uuid_fk: branchUuid, lang: language });
+      if (!isCurrent()) return;
+      setMenuPdfProgress(8);
+      const { createProductMenuPdf } = await import("./product-menu-pdf");
+      const result = await createProductMenuPdf({
+        products,
+        language,
+        templateId,
+        rows,
+        background,
+        heroPhoto,
+        photoOverrides,
+        existingImages: prepared?.images,
+        brand: {
+          storeName: user?.store_name || user?.branch_name || t("product.menuPdf.restaurant"),
+          branchName: user?.branch_name ?? "",
+          phone: user?.branch_tel ?? "",
+          address: user?.branch_address ?? "",
+        },
+        labels: menuLabels(),
+        copy: {
+          title: t("product.menuPdf.title"),
+          subtitle: t("product.menuPdf.subtitle"),
+          currency: t("product.menuPdf.currency"),
+          continued: t("product.menuPdf.continued"),
+          setOptions: t("product.menuPdf.setOptions"),
+          optionLabel: t("product.menuPdf.optionLabel"),
+          priceLabel: t("product.menuPdf.priceLabel"),
+          setPriceLabel: t("product.menuPdf.setPriceLabel"),
+          noPhoto: t("product.menuPdf.noPhoto"),
+          pageLabel: (page, total) => t("product.menuPdf.page", { page, total }),
+          itemsLabel: (count) => t("product.menuPdf.items", { count }),
+        },
+        loadImage: loadProductImage,
+        onProgress: (progress) => { if (isCurrent()) setMenuPdfProgress(progress); },
+      });
+      if (!isCurrent()) return;
+      const url = URL.createObjectURL(result.pdf.output("blob"));
+      // Own the URL before scheduling state, including an unmount before the
+      // result commits. Closing the result keeps it available to the PDF tab.
+      menuPdfUrl.current = url;
+      setMenuReadyFile({
+        scopeKey: menuScopeKey,
+        url,
+        filename: `yummy-go-menu-${localDateInputValue()}.pdf`,
+        itemCount: result.itemCount,
+        pageCount: result.pageCount,
+        imageOmissions: result.imageOmissions,
+        secureContext: window.isSecureContext,
+      });
+      setMenuDownloadOpen(true);
+    } catch (error) {
+      if (!isCurrent()) return;
+      const code = error instanceof Error && error.name === "ProductMenuExportError" && "code" in error ? error.code : null;
+      showToast({
+        title: t("product.menuPdf.failed"),
+        description: code === "empty" || code === "layout" || code === "font"
+          ? t(`product.menuPdf.errors.${code}`)
+          : error instanceof Error ? error.message : t("toasts.pleaseTryAgain"),
+        tone: "error",
+      });
+    } finally {
+      if (menuPdfRequest.current === request) {
+        setMenuPdfProgress(null);
+        setExportingProducts(false);
+      }
+    }
+  }
+
+  async function exportProductsExcel() {
+    if (!branchUuid) {
+      showToast({ title: t("product.branchRequired"), tone: "error" });
+      return;
+    }
+    if (exportingProducts) return;
+    setExportingProducts(true);
+    try {
+      const products = await loadAllProductsForImport({
+        branch_uuid_fk: branchUuid,
+        lang: language,
+      });
+      const XLSX = await import("xlsx");
+      const workbook = createProductExportWorkbook(XLSX, products);
+      XLSX.writeFile(workbook, `yummy-go-products-${new Date().toISOString().slice(0, 10)}.xlsx`);
+      showToast({ title: t("product.excel.exported", { count: products.length }), tone: "success" });
+    } catch (error) {
+      showToast({
+        title: t("product.excel.exportFailed"),
+        description: error instanceof Error ? error.message : t("toasts.pleaseTryAgain"),
+        tone: "error",
+      });
+    } finally {
+      setExportingProducts(false);
+    }
+  }
 
   async function exportProducts() {
     if (!branchUuid) {
@@ -1304,6 +1534,20 @@ export function useProductListWorkflow(initialPagination: UrlPaginationState) {
     transferImageOmissions: transferBundle?.manifest.products.filter((record) => record.imageUnavailable).length ?? 0,
     transferCodeConflictCount,
     exportingProducts,
+    menuPdfProgress,
+    menuDownloadFile: menuDownloadOpen && menuReadyFile?.scopeKey === menuScopeKey ? menuReadyFile : null,
+    changeMenuDownloadOpen: setMenuDownloadOpen,
+    menuDesignerOpen,
+    changeMenuDesignerOpen,
+    menuDesignerLoading,
+    menuDesignerPhotoProgress,
+    menuDesignerError,
+    menuDesignerCategories: menuDraft?.scopeKey === menuScopeKey ? menuDraft.categories : [],
+    menuDesignerImages: menuDraft?.scopeKey === menuScopeKey ? menuDraft.images : {},
+    openMenuDesigner,
+    prepareMenuDesigner,
+    exportMenuPdf,
+    exportProductsExcel,
     exportProducts,
     importing,
     importResult,

@@ -26,5 +26,12 @@ export function getAccountQrUrl(filename: string) {
 }
 
 export function getProductImageUrl(filename: string) {
-  return filename?.startsWith("#") ? filename : uploadedUrl(filename, "uploaded/products");
+  if (filename?.startsWith("#")) return filename;
+  const storagePath = filename?.replace(/^\/+/, "");
+  // The product API can return a complete local storage path as prod_image;
+  // only bare filenames need the default product folder added.
+  if (storagePath?.startsWith("uploaded/products/")) {
+    return `${BASE_URL.replace(/\/+$/, "")}/${storagePath}`;
+  }
+  return uploadedUrl(filename, "uploaded/products");
 }
