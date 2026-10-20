@@ -10,6 +10,7 @@ import { Spinner } from "@/components/ui/spinner";
 import { TableCell, TableRow } from "@/components/ui/table";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
+import { setChildOptionNames } from "@/lib/pos/set-child-options";
 import {
   formatQueueClock,
   formatQueueDateTime,
@@ -167,6 +168,18 @@ export function QueueItemNote({ note }: { note: string }) {
         {value}
       </span>
     </p>
+  );
+}
+
+export function QueueItemSelections({ item }: { item: OrderQueueItem }) {
+  const { i18n } = useTranslation();
+  const names = setChildOptionNames(item.set_child_options, i18n.resolvedLanguage);
+  if (!names.length) return null;
+
+  return (
+    <div className="font-lao grid gap-0.5 text-xs text-muted-foreground">
+      {names.map((name, index) => <p key={`${name}-${index}`}>• {name}</p>)}
+    </div>
   );
 }
 
@@ -388,6 +401,7 @@ export function OrderQueueTableRow({
             <p className="lao-tone-text font-bold text-foreground">
               {item.product_name}
             </p>
+            <QueueItemSelections item={item} />
             <QueueItemNote note={item.note} />
           </div>
         </div>

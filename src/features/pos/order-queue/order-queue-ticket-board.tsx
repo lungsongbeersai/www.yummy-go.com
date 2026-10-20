@@ -9,6 +9,7 @@ import {
   QueueCancelButton,
   QueueItemMedia,
   QueueItemNote,
+  QueueItemSelections,
   QueueStateBadge,
   QueueWaitPill,
   isInteractiveClick
@@ -266,6 +267,7 @@ function OrderQueueTicketLine({
             ) : null}
             {finished ? null : <QueueStateBadge item={item} status={status} />}
           </div>
+          <QueueItemSelections item={item} />
           <QueueItemNote note={item.note} />
         </div>
       </div>

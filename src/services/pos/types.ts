@@ -413,6 +413,19 @@ export interface CartTopping extends ApiEntity {
   topping_qty?: number;
   topping_price?: number;
   topping_line_total?: number;
+  is_set_component?: boolean;
+  set_child_options?: CartSetChildOption[];
+  tastes?: CartTaste[];
+}
+
+export interface CartSetChildOption {
+  set_detail_option_group_uuid_fk?: string;
+  set_child_option_uuid_fk?: string;
+  child_option_name_la?: string;
+  child_option_name_eng?: string;
+  group_name_la?: string;
+  group_name_eng?: string;
+  taste_uuid_fks?: string[];
 }
 
 export interface CartTaste extends ApiEntity {
@@ -483,6 +496,7 @@ export interface CartItem extends ApiEntity {
   detail?: CartItemDetail;
   toppings?: CartTopping[];
   tastes?: CartTaste[];
+  set_child_options?: CartSetChildOption[];
 }
 
 export interface CartOrder extends ApiEntity {
@@ -1065,6 +1079,8 @@ export interface OrderQueueItem {
   order_item_status: number;
 
   product_name: string;
+
+  set_child_options?: CartSetChildOption[];
 
   product_image: string;
 

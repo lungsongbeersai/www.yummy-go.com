@@ -44,6 +44,7 @@ import { TabsTrigger } from "@/components/ui/tabs";
 import { money } from "@/lib/format";
 import { promotionQuantity } from "@/lib/pos/cart-quantity";
 import { shouldUnoptimizeProductImage } from "@/lib/pos/product-media";
+import { cartItemSelectionNames, cartSelectionNames } from "@/lib/pos/set-child-options";
 import { cn } from "@/lib/utils";
 import type { CartItem } from "@/services/pos";
 import type { CartItemAction, CartTab } from "./types";
@@ -387,7 +388,7 @@ function CartItemRow({
   splitSelectedQty?: number;
   updating: boolean;
 }) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const detail = item.detail;
   const qty = quantityOverride ?? cartItemQty(item);
   const qtyStep = promotionQuantity(detail, qty).qtyStep;
@@ -420,7 +421,7 @@ function CartItemRow({
   const sizeName = optionalString(detail?.size_name);
   const title = cartItemDisplayName(rawTitle, sizeName);
   const toppings = item.toppings ?? [];
-  const tastes = item.tastes ?? [];
+  const selectionNames = cartItemSelectionNames(item, i18n.resolvedLanguage);
   const hasPromo =
     promoSaleQty !== null || promoFreeQty !== null || freeQty !== null;
   const hasDiscount =
@@ -453,7 +454,7 @@ function CartItemRow({
       hasDiscount ||
       affectsTotal === false ||
       toppings.length ||
-      tastes.length ||
+      selectionNames.length ||
       toppingLineTotal !== null ||
       discountAmount !== null ||
       creatorName ||
@@ -678,7 +679,7 @@ function CartItemRow({
                   {t("pos.orderCreatedBy", { name: creatorName })}
                 </CartDetailRow>
               ) : null}
-              {tastes.length ? <CartTastesList tastes={tastes} /> : null}
+              {selectionNames.length ? <CartSelectionsList names={selectionNames} /> : null}
               {toppings.length || toppingLineTotal !== null ? (
                 <CartToppingsList
                   toppingTotal={toppingLineTotal}
@@ -1033,7 +1034,7 @@ function CartToppingsList({
   toppingTotal: number | null;
   toppings: NonNullable<CartItem["toppings"]>;
 }) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
 
   return (
     <div className="grid gap-0.5">
@@ -1049,43 +1050,42 @@ function CartToppingsList({
       {toppings.map((topping, index) => {
         const name = optionalString(topping.topping_name) ?? "-";
         const { qty, total } = cartToppingDisplay(topping);
+        const selectionNames = cartSelectionNames(topping, i18n.resolvedLanguage);
 
         return (
-          <CartDetailRow
-            key={`${name}-${index}`}
-            className="pl-5"
-            tone="topping"
-            right={total !== null ? `+${money(total)}` : null}
-          >
-            + {name}
-            {qty !== null ? ` x${formatQuantityValue(qty)}` : ""}
-          </CartDetailRow>
+          <div key={`${name}-${index}`} className="grid gap-0.5">
+            <CartDetailRow
+              className="pl-5"
+              tone="topping"
+              right={total !== null ? `+${money(total)}` : null}
+            >
+              + {name}
+              {qty !== null ? ` x${formatQuantityValue(qty)}` : ""}
+            </CartDetailRow>
+            {selectionNames.length ? (
+              <div className="pl-3">
+                <CartSelectionsList names={selectionNames} />
+              </div>
+            ) : null}
+          </div>
         );
       })}
     </div>
   );
 }
 
-function CartTastesList({
-  tastes,
+function CartSelectionsList({
+  names,
 }: {
-  tastes: NonNullable<CartItem["tastes"]>;
+  names: string[];
 }) {
   return (
-    <div className="grid gap-0.5">
-      {tastes.map((taste, index) => {
-        const name =
-          optionalString(
-            taste.taste_name,
-            taste.taste_name_la,
-            taste.taste_name_eng
-          ) ?? "-";
-        return (
-          <CartDetailRow key={`${name}-${index}`} className="pl-5" tone="taste">
-            • {name}
-          </CartDetailRow>
-        );
-      })}
+    <div className="font-lao grid gap-0.5">
+      {names.map((name, index) => (
+        <CartDetailRow key={`${name}-${index}`} className="pl-5" tone="taste">
+          • {name}
+        </CartDetailRow>
+      ))}
     </div>
   );
 }

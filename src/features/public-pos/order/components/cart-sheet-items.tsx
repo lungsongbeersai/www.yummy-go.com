@@ -26,6 +26,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { ProductImageStatus } from "@/config/pos-constants";
+import { cartItemSelectionNames, cartSelectionNames } from "@/lib/pos/set-child-options";
 import type { CartItem, ChangeType, FetchCartStatusRule } from "@/services/pos";
 import {
   cartItemTitle,
@@ -209,6 +210,7 @@ function CartItemCard({
   const editableItem = isEditableCartItem(item, statusRule);
   const promotion = promotionQuantity(item.detail, qty);
   const discountAmount = numeric(item.detail?.order_it_discount_amount);
+  const selectionNames = cartItemSelectionNames(item, lang);
 
   return (
     <div
@@ -264,43 +266,38 @@ function CartItemCard({
               </Badge>
             ) : null}
           </div>
-          {item.tastes?.length ? (
-            <div className="mt-1 flex flex-wrap gap-1">
-              {item.tastes.map((taste, tasteIndex) => (
-                <Badge
-                  key={`${
-                    taste.taste_uuid_fk ?? taste.taste_name
-                  }-${tasteIndex}`}
-                  variant="secondary"
-                  className="h-auto rounded-sm px-1.5 py-0.5 text-2xs font-medium"
-                >
-                  {taste.taste_name ||
-                    taste.taste_name_la ||
-                    taste.taste_name_eng ||
-                    "-"}
-                </Badge>
-              ))}
-            </div>
+          {selectionNames.length ? (
+            <CartSelectionBadges names={selectionNames} />
           ) : null}
           {item.toppings?.length ? (
             <div className="mt-1 flex flex-wrap gap-1">
               {item.toppings.map((topping, toppingIndex) => {
                 const toppingQty = numeric(topping.topping_qty);
+                const toppingSelections = cartSelectionNames(topping, lang);
                 return (
-                  <Badge
+                  <div
                     key={`${topping.topping_name}-${toppingIndex}`}
-                    variant="secondary"
-                    className="h-auto rounded-sm px-1.5 py-0.5 text-2xs font-medium"
+                    className="grid content-start justify-items-start gap-1"
                   >
-                    {topping.topping_name}
-                    {toppingQty > 0 ? ` x${toppingQty}` : ""}
-                    {numeric(topping.topping_line_total) > 0
-                      ? ` +${formatMoney(
-                          numeric(topping.topping_line_total),
-                          lang
-                        )}`
-                      : ""}
-                  </Badge>
+                    <Badge
+                      variant="secondary"
+                      className="h-auto rounded-sm px-1.5 py-0.5 text-2xs font-medium"
+                    >
+                      {topping.topping_name}
+                      {toppingQty > 0 ? ` x${toppingQty}` : ""}
+                      {numeric(topping.topping_line_total) > 0
+                        ? ` +${formatMoney(
+                            numeric(topping.topping_line_total),
+                            lang
+                          )}`
+                        : ""}
+                    </Badge>
+                    {toppingSelections.length ? (
+                      <div className="pl-2">
+                        <CartSelectionBadges names={toppingSelections} />
+                      </div>
+                    ) : null}
+                  </div>
                 );
               })}
             </div>
@@ -395,6 +392,22 @@ function CartItemCard({
           </div>
         </div>
       </div>
+    </div>
+  );
+}
+
+function CartSelectionBadges({ names }: { names: string[] }) {
+  return (
+    <div className="font-lao mt-1 flex flex-wrap gap-1">
+      {names.map((name, index) => (
+        <Badge
+          key={`${name}-${index}`}
+          variant="secondary"
+          className="h-auto rounded-sm px-1.5 py-0.5 text-2xs font-medium"
+        >
+          {name}
+        </Badge>
+      ))}
     </div>
   );
 }
