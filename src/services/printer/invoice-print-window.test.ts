@@ -113,7 +113,7 @@ describe("invoice payable row", () => {
       labels: { total: lao.pos.invoicePrintAmountToPay },
     } as InvoicePrintData;
     const html = renderInvoiceTotals(data);
-    expect(html).toContain('<p class="total-row grand-total"><span>ມູນຄ່າຕ້ອງຊຳລະ</span><span>123.456.789 ₭</span></p>');
+    expect(html).toContain('<p class="total-row grand-total"><span class="payable-label-lao">ມູນຄ່າຕ້ອງຊຳລະ</span><span>123.456.789 ₭</span></p>');
     expect(data.total).toBe(123456789);
   });
 
@@ -125,7 +125,7 @@ describe("invoice payable row", () => {
     });
     const listeners = new Map<string, () => void | Promise<void>>();
     const parts = [
-      { fontSize: 16, width: 140 }, { fontSize: 24, width: 145 },
+      { fontSize: 18, width: 140 }, { fontSize: 26, width: 145 },
     ].map(({ fontSize, width }) => ({
       baseFontSize: fontSize,
       style: { fontSize: "", removeProperty() { this.fontSize = ""; } },

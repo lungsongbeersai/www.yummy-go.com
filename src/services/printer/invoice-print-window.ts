@@ -347,7 +347,6 @@ function renderInvoiceReceiptBody(data: InvoicePrintData) {
       ${renderInvoiceHeader(data)}
       <div class="divider"></div>
       ${renderInvoiceMeta(data)}
-      <div class="divider"></div>
       ${renderInvoiceItems(data)}
       <div class="divider"></div>
       ${renderInvoiceTotals(data)}
@@ -427,6 +426,8 @@ function invoiceSharedStyles(paperWidthMm: number) {
       }
       .totals {
         display: grid;
+        grid-template-columns: minmax(0, 1fr);
+        min-width: 0;
         gap: 0.45mm;
       }
       .total-row {
@@ -436,6 +437,12 @@ function invoiceSharedStyles(paperWidthMm: number) {
       .item {
         padding: 0.7mm 0;
         border-bottom: 1px dashed #d4d4d4;
+      }
+      .item-heading {
+        margin-top: 0.8mm;
+        padding: 0.8mm 0;
+        border-top: 1px dashed #111;
+        border-bottom: 1px dashed #111;
       }
       .item-name {
         min-width: 0;
@@ -476,16 +483,19 @@ function invoiceSharedStyles(paperWidthMm: number) {
         width: 100%;
         margin-top: 0.8mm;
         padding-top: 0;
-        font-size: ${paperWidthMm <= 58 ? 16 : 18}px;
+        font-size: ${paperWidthMm <= 58 ? 18 : 20}px;
         font-weight: 900;
       }
       .grand-total span {
         flex: 0 0 auto;
         white-space: nowrap;
       }
+      .grand-total .payable-label-lao {
+        -webkit-text-stroke: 0.3px currentColor;
+      }
       .grand-total span:last-child {
         min-width: 0;
-        font-size: ${paperWidthMm <= 58 ? 24 : 28}px;
+        font-size: ${paperWidthMm <= 58 ? 26 : 30}px;
         font-weight: 900;
         line-height: 1.14;
       }
@@ -653,7 +663,8 @@ export function invoiceMetaRow(label: string, value: string) {
 }
 
 export function invoiceTotalRow(label: string, value: string, strong = false) {
-  return `<p class="total-row ${strong ? "grand-total" : ""}"><span>${escapeHtml(label)}</span><span>${escapeHtml(value)}</span></p>`;
+  const laoLabelClass = strong && /[\u0E80-\u0EFF]/.test(label) ? ' class="payable-label-lao"' : "";
+  return `<p class="total-row ${strong ? "grand-total" : ""}"><span${laoLabelClass}>${escapeHtml(label)}</span><span>${escapeHtml(value)}</span></p>`;
 }
 
 export function formatInvoiceQty(value: number) {
