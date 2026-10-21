@@ -24,6 +24,8 @@ import type {
   DefaultCategoryZoneDetail,
   PrinterKitchenCutMode,
   PrinterAccessMode,
+  PrinterPrintRoleMode,
+  PrinterCategoryPrintPermission,
 } from "@/services/printer";
 import type { Category } from "@/services/category";
 import type { Zone } from "@/services/zone";
@@ -39,6 +41,11 @@ import {
   buzzerOnCutOf,
   cashDrawerEnabledOf,
   categoryLabel,
+  categoryPrintPermission,
+  categoryPrintPermissionsEqual,
+  categoryPrintPermissionsForCategories,
+  employeeRoleLabel,
+  printRoleSettingsValidation,
   cutFeedLinesOf,
   initialPrinterFormValues,
   kitchenCutModeOf,
@@ -49,6 +56,8 @@ import {
   requiresZoneMapping,
   shouldResolveCurrentPrinterIdentity,
   textValue,
+  toggleCategoryPrintRole,
+  updateCategoryPrintPermission,
   zoneLabel,
   type ConnectType,
   type MappingTypeSelection,
@@ -68,6 +77,11 @@ export function usePrinterForm() {
   const printers = usePrinterStore((state) => state.printers);
   const found = usePrinterStore((state) => state.found);
   const roles = usePrinterStore((state) => state.roles);
+  const employeeRoles = usePrinterStore((state) => state.employeeRoles);
+  const loadingEmployeeRoles = usePrinterStore((state) => state.loadingEmployeeRoles);
+  const employeeRolesLoaded = usePrinterStore((state) => state.employeeRolesLoaded);
+  const employeeRolesError = usePrinterStore((state) => state.employeeRolesError);
+  const loadEmployeeRoles = usePrinterStore((state) => state.loadEmployeeRoles);
   const agent = usePrinterStore((state) => state.agent);
   const loading = usePrinterStore((state) => state.loading);
   const searching = usePrinterStore((state) => state.searching);
@@ -156,6 +170,13 @@ export function usePrinterForm() {
         .filter((category) => category.value),
     [categories, categoryAssignments, language],
   );
+  const employeeRoleOptions = useMemo(
+    () => employeeRoles.map((role) => ({
+      value: Number(role.roles_id),
+      label: employeeRoleLabel(role, language),
+    })).filter((role) => Number.isInteger(role.value) && role.value > 0),
+    [employeeRoles, language],
+  );
   const zoneOptions = useMemo(
     () =>
       zones
@@ -207,6 +228,10 @@ export function usePrinterForm() {
   const [selectedCategories, setSelectedCategories] = useState<string[]>(
     initialForm.selectedCategories,
   );
+  const [printRoleMode, setPrintRoleMode] = useState<PrinterPrintRoleMode>(initialForm.printRoleMode);
+  const [categoryPrintPermissions, setCategoryPrintPermissions] = useState<PrinterCategoryPrintPermission[]>(
+    initialForm.categoryPrintPermissions,
+  );
   const [selectedZones, setSelectedZones] = useState<string[]>(
     initialForm.selectedZones,
   );
@@ -239,6 +264,32 @@ export function usePrinterForm() {
     interfaceValue.trim() &&
     !found.some((item) => item.interface_value === interfaceValue.trim()),
   );
+  const selectedCategoryPrintPermissions = categoryPrintPermissionsForCategories(
+    selectedCategories, categoryPrintPermissions,
+  );
+  const permissionCategoryOptions = selectedCategories.map((uuid) =>
+    categoryOptions.find((category) => category.value === uuid) ?? { value: uuid, label: uuid },
+  );
+  const reloadEmployeeRoles = useCallback(
+    () => loadEmployeeRoles(language),
+    [language, loadEmployeeRoles],
+  );
+  useEffect(() => {
+    if (printRoleMode !== 2 || !user?.uuid) return;
+    void reloadEmployeeRoles().catch(() => undefined);
+  }, [printRoleMode, reloadEmployeeRoles, user?.uuid]);
+
+  function togglePrintRole(categoryUuid: string, roleId: number) {
+    setCategoryPrintPermissions((current) => toggleCategoryPrintRole(current, categoryUuid, roleId));
+  }
+
+  function setAllPrintRoles(categoryUuid: string, allRoles: boolean) {
+    setCategoryPrintPermissions((current) => updateCategoryPrintPermission(current, {
+      ...categoryPrintPermission(current, categoryUuid),
+      all_roles: allRoles,
+      allowed_role_ids: [],
+    }));
+  }
 
   // เครื่องพิมพ์ครัว/บาร์มักผูกกับโซน — พอเพิ่งเลือก role พวกนี้ (ตอนยังเป็น "ปิด") แนะนำสลับเป็น ZONE
   // ให้อัตโนมัติ, พอเอา role ครัว/บาร์ออกจนไม่เหลือเลย ก็สลับกลับเป็น "ปิด" ให้เช่นกัน — ทั้งสองทิศทาง
@@ -329,6 +380,8 @@ export function usePrinterForm() {
     setMappingType(values.mappingType);
     setAccessMode(values.accessMode);
     setSelectedCategories(values.selectedCategories);
+    setPrintRoleMode(values.printRoleMode);
+    setCategoryPrintPermissions(values.categoryPrintPermissions);
     setSelectedZones(values.selectedZones);
     setSelectedDevice(values.selectedDevice);
     setAgentUrl(values.agentUrl);
@@ -449,6 +502,11 @@ export function usePrinterForm() {
     accessMode !== baseline.accessMode ||
     selectedDevice !== baseline.selectedDevice ||
     !arraysHaveSameValues(selectedRoles, baseline.selectedRoles) ||
+    printRoleMode !== baseline.printRoleMode ||
+    !categoryPrintPermissionsEqual(
+      selectedCategoryPrintPermissions,
+      categoryPrintPermissionsForCategories(selectedCategories, baseline.categoryPrintPermissions),
+    ) ||
     !arraysHaveSameValues(selectedCategories, baseline.selectedCategories) ||
     !arraysHaveSameValues(selectedZones, baseline.selectedZones);
 
@@ -466,6 +524,20 @@ export function usePrinterForm() {
   if (recordMissing) missingFields.push(t("printer.validationRecordMissing"));
   if (!displayName.trim()) missingFields.push(t("printer.validationDisplayName"));
   if (selectedRoles.length === 0) missingFields.push(t("printer.validationRoles"));
+  const roleSettingsValidation = printRoleSettingsValidation(
+    printRoleMode, mappingType, selectedCategories, categoryPrintPermissions,
+    { loaded: employeeRolesLoaded, loading: loadingEmployeeRoles, error: employeeRolesError },
+  );
+  if (roleSettingsValidation.roleOptionsStatus === "loading") missingFields.push(t("printer.employeeRolesLoading"));
+  if (roleSettingsValidation.roleOptionsStatus === "error") missingFields.push(t("printer.employeeRolesLoadFailed"));
+  const invalidPermissionCategories = roleSettingsValidation.invalidCategoryUuids;
+  if (invalidPermissionCategories.length) {
+    missingFields.push(t("printer.validationPrintRoles", {
+      categories: permissionCategoryOptions
+        .filter((category) => invalidPermissionCategories.includes(category.value))
+        .map((category) => category.label).join(", "),
+    }));
+  }
   // backend บังคับ: ZONE ต้องเลือกทั้งโซนและหมวดหมู่คู่กัน — CATEGORY (ค่าเริ่มต้น) ปล่อยว่างได้
   // เพื่อรองรับเครื่องพิมพ์ที่ไม่ผูกกับเมนู เช่น ใบเรียกเก็บเงิน/ใบเสร็จ/รายงาน
   if (mappingType === "ZONE") {
@@ -625,6 +697,10 @@ export function usePrinterForm() {
         buzzer_on_cut: buzzerOnCut,
         cut_feed_lines: cutFeedLines.trim() ? Number(cutFeedLines) : null,
         role_codes: selectedRoles,
+        print_role_mode: printRoleMode,
+        ...(mappingType === "OFF" ? {} : {
+          category_print_permissions: selectedCategoryPrintPermissions,
+        }),
         // "OFF" (ค่าเริ่มต้น ไม่ผูกกับเมนู) ต้องไม่ส่ง mapping_type เลย ไม่ใช่ส่งเป็นค่าใดค่าหนึ่ง —
         // backend บังคับ: ZONE ส่งทั้งโซนและหมวดหมู่ที่เลือกไว้, CATEGORY ส่งแค่หมวดหมู่
         // savePrinter() ใน config-api.ts เป็นจุดที่ตัด zone_uuid_fk/cate_uuid_fk ออกตาม mapping_type
@@ -672,6 +748,17 @@ export function usePrinterForm() {
     found,
     usbOptions,
     roleOptions,
+    employeeRoleOptions,
+    loadingEmployeeRoles,
+    employeeRolesLoaded,
+    employeeRolesError,
+    reloadEmployeeRoles,
+    printRoleMode,
+    setPrintRoleMode,
+    permissionCategoryOptions,
+    selectedCategoryPrintPermissions,
+    togglePrintRole,
+    setAllPrintRoles,
     mappingType,
     setMappingType,
     zoneMappingRequired,

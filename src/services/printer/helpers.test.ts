@@ -72,4 +72,24 @@ describe("printer helpers", () => {
       { print_job_item_uuid: "3", status: "success" }
     ]);
   });
+
+  it("defaults legacy role settings without converting an explicitly empty restriction to all", () => {
+    expect(mapPrinter({}).print_role_mode).toBe(1);
+    expect(mapPrinter({}).category_print_permissions).toEqual([]);
+    expect(mapPrinter({
+      print_role_mode: "2",
+      category_print_permissions: [
+        { cate_uuid_fk: "drinks", all_roles: false, allowed_role_ids: ["17", 17, -1, "bad"] },
+        { cate_uuid_fk: "food", all_roles: false, allowed_role_ids: [] },
+        { cate_uuid_fk: "all", all_roles: true, allowed_role_ids: [] },
+      ],
+    })).toMatchObject({
+      print_role_mode: 2,
+      category_print_permissions: [
+        { cate_uuid_fk: "drinks", all_roles: false, allowed_role_ids: [17] },
+        { cate_uuid_fk: "food", all_roles: false, allowed_role_ids: [] },
+        { cate_uuid_fk: "all", all_roles: true, allowed_role_ids: [] },
+      ],
+    });
+  });
 });

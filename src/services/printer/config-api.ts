@@ -31,6 +31,7 @@ import type {
   Printer,
   PrinterCategoryRole,
   PrinterRolesResponse,
+  PrinterEmployeeRole,
   RegisterPrinterAgentInput,
   RegisterPrinterAgentResult,
   ResolvedPrinter,
@@ -151,6 +152,15 @@ export async function getPrinterRoles(lang = "la") {
   return result.data ?? [];
 }
 
+export async function getPrinterEmployeeRoles(lang = "la") {
+  const result = await apiRequest<ApiDataResponse<PrinterEmployeeRole[]>>(
+    "get", "/api/v1/printer/employee-roles", {
+      params: { lang: toApiLanguage(lang) },
+    },
+  );
+  return result.data ?? [];
+}
+
 export async function getAgentFiles() {
   const result = await apiRequest<AgentFilesResponse>("get", "/api/v1/agent/fetch");
   return result.data ?? [];
@@ -179,6 +189,10 @@ export async function savePrinter(input: SavePrinterInput) {
     // กลับไปใช้ค่ากลาง" กับ "ผู้ใช้ไม่ได้แตะฟิลด์นี้เลย" ได้ถูกต้องตอนแก้ไขเครื่องพิมพ์
     cut_feed_lines: input.cut_feed_lines ?? null,
     role_codes: input.role_codes,
+    ...(input.print_role_mode === undefined ? {} : { print_role_mode: input.print_role_mode }),
+    ...(input.category_print_permissions === undefined
+      ? {}
+      : { category_print_permissions: input.category_print_permissions }),
 
     agent_url: isMobileWifi ? "" : input.agent_url || AGENT_URL,
     agent_id: input.agent_id,

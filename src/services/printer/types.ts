@@ -93,6 +93,18 @@ export type PrinterAccessMode = "DIRECT" | "LAN" | "INTERNET";
 export type PrinterKitchenCutMode = "per_ticket" | "none";
 export type PrinterBatchCutMode = PrinterKitchenCutMode | "end";
 export type PrinterSource = "OWN" | "SHARED";
+export type PrinterPrintRoleMode = 1 | 2;
+export interface PrinterCategoryPrintPermission {
+  cate_uuid_fk: string;
+  all_roles: boolean;
+  allowed_role_ids: number[];
+}
+export interface PrinterEmployeeRole {
+  roles_id: number;
+  roles_name: string;
+  roles_name_la: string;
+  roles_name_eng: string;
+}
 export interface Printer extends ApiEntity {
   print_config_id?: string;
   print_config_uuid: string;
@@ -123,6 +135,9 @@ export interface Printer extends ApiEntity {
   updated_at?: string;
   font_size?: number;
   role_codes: string[];
+  // Employee authorization is separate from role_codes (printer job types).
+  print_role_mode?: PrinterPrintRoleMode;
+  category_print_permissions?: PrinterCategoryPrintPermission[];
   // เครื่องพิมพ์ที่บันทึกไว้ก่อน backend เพิ่ม mapping_type จะไม่มีฟิลด์นี้มา — ถือว่าเป็น
   // CATEGORY (พฤติกรรมเดิมก่อนมีโซน) ดู mappingTypeOf() ใน printer-form-utils.ts
   mapping_type?: PrinterMappingType;
@@ -201,6 +216,9 @@ export interface SavePrinterInput extends ApiEntity {
   buzzer_on_cut?: boolean;
   cut_feed_lines?: number | null;
   role_codes: string[];
+  // Omitted fields preserve settings when an older caller edits a printer.
+  print_role_mode?: PrinterPrintRoleMode;
+  category_print_permissions?: PrinterCategoryPrintPermission[];
   // ไม่ส่งเลย (undefined) เมื่อผู้ใช้ไม่ได้เปิดผูกกับเมนู (ค่าเริ่มต้น "OFF" ในฟอร์ม) — ต่างจาก
   // CATEGORY ที่เป็นการเลือกจริง savePrinter() ใน config-api.ts ต้องคง key นี้หายไปทั้งหมดบน wire
   mapping_type?: PrinterMappingType;

@@ -2,11 +2,14 @@ import { parseInterfaceValue, AGENT_URL } from "@/config/printer-agent";
 import type {
   AgentInfo,
   Printer,
+  PrinterCategoryPrintPermission,
+  PrinterEmployeeRole,
   PrinterKitchenCutMode,
   PrinterMappingType,
   PrinterSharingMode,
   PrinterAccessMode,
   PrinterSelfTestInput,
+  PrinterPrintRoleMode,
   SearchPrinterResult,
 } from "@/services/printer";
 import type { Category } from "@/services/category";
@@ -104,6 +107,99 @@ export function arraysHaveSameValues(a: string[], b: string[]) {
   const sortedA = [...a].sort();
   const sortedB = [...b].sort();
   return sortedA.every((value, index) => value === sortedB[index]);
+}
+
+export function employeeRoleLabel(role: PrinterEmployeeRole, language: string) {
+  const english = language.startsWith("en");
+  return (english ? role.roles_name_eng : role.roles_name_la) ||
+    role.roles_name || role.roles_name_la || role.roles_name_eng || String(role.roles_id);
+}
+
+export function categoryPrintPermission(
+  permissions: PrinterCategoryPrintPermission[],
+  categoryUuid: string,
+): PrinterCategoryPrintPermission {
+  return permissions.find((rule) => rule.cate_uuid_fk === categoryUuid) ?? {
+    cate_uuid_fk: categoryUuid,
+    all_roles: true,
+    allowed_role_ids: [],
+  };
+}
+
+export function categoryPrintPermissionsForCategories(
+  categoryUuids: string[],
+  permissions: PrinterCategoryPrintPermission[],
+) {
+  return [...new Set(categoryUuids)].map((uuid) => {
+    const rule = categoryPrintPermission(permissions, uuid);
+    return { ...rule, allowed_role_ids: [...rule.allowed_role_ids] };
+  });
+}
+
+export function updateCategoryPrintPermission(
+  permissions: PrinterCategoryPrintPermission[],
+  rule: PrinterCategoryPrintPermission,
+) {
+  return [...permissions.filter((item) => item.cate_uuid_fk !== rule.cate_uuid_fk), rule];
+}
+
+export function toggleCategoryPrintRole(
+  permissions: PrinterCategoryPrintPermission[],
+  categoryUuid: string,
+  roleId: number,
+) {
+  const rule = categoryPrintPermission(permissions, categoryUuid);
+  const selected = rule.all_roles ? [] : rule.allowed_role_ids;
+  return updateCategoryPrintPermission(permissions, {
+    ...rule,
+    all_roles: false,
+    allowed_role_ids: selected.includes(roleId)
+      ? selected.filter((id) => id !== roleId)
+      : [...selected, roleId],
+  });
+}
+
+export function categoryPrintPermissionsEqual(
+  first: PrinterCategoryPrintPermission[],
+  second: PrinterCategoryPrintPermission[],
+) {
+  const key = (rules: PrinterCategoryPrintPermission[]) => JSON.stringify(
+    rules.map((rule) => ({
+      cate_uuid_fk: rule.cate_uuid_fk,
+      all_roles: rule.all_roles,
+      allowed_role_ids: [...rule.allowed_role_ids].sort((a, b) => a - b),
+    })).sort((a, b) => a.cate_uuid_fk.localeCompare(b.cate_uuid_fk)),
+  );
+  return key(first) === key(second);
+}
+
+export function invalidPrintPermissionCategories(
+  mode: PrinterPrintRoleMode,
+  mappingType: MappingTypeSelection,
+  categoryUuids: string[],
+  permissions: PrinterCategoryPrintPermission[],
+) {
+  if (mode !== 2 || mappingType === "OFF") return [];
+  return categoryPrintPermissionsForCategories(categoryUuids, permissions)
+    .filter((rule) => !rule.all_roles && rule.allowed_role_ids.length === 0)
+    .map((rule) => rule.cate_uuid_fk);
+}
+
+export function printRoleSettingsValidation(
+  mode: PrinterPrintRoleMode,
+  mappingType: MappingTypeSelection,
+  categoryUuids: string[],
+  permissions: PrinterCategoryPrintPermission[],
+  roleOptions: { loaded: boolean; loading: boolean; error: string | null },
+) {
+  const roleOptionsStatus = mode === 1 ? "ready" as const
+    : roleOptions.error ? "error" as const
+    : roleOptions.loading || !roleOptions.loaded ? "loading" as const
+    : "ready" as const;
+  return {
+    roleOptionsStatus,
+    invalidCategoryUuids: invalidPrintPermissionCategories(mode, mappingType, categoryUuids, permissions),
+  };
 }
 
 export function mergeUsbPrinterOptions(
@@ -323,6 +419,10 @@ export function printerFormValues(printer: Printer | null) {
     buzzerOnCut: buzzerOnCutOf(printer),
     cutFeedLines: cutFeedLinesOf(printer),
     selectedRoles: printer?.role_codes ?? [],
+    printRoleMode: printer?.print_role_mode === 2 ? 2 as const : 1 as const,
+    categoryPrintPermissions: categoryPrintPermissionsForCategories(
+      categoryUuids(printer), printer?.category_print_permissions ?? [],
+    ),
     mappingType: initialMappingSelection(printer),
     sharingMode: sharingModeOf(printer),
     accessMode: accessModeOf(printer),

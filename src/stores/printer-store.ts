@@ -27,6 +27,7 @@ import {
   getPendingPrintJobs,
   getPrinterOptions,
   getPrinterRoles,
+  getPrinterEmployeeRoles,
   getPrinters,
   resolvePrinterDeviceContext,
   resolvePrinterDeviceIdentity,
@@ -54,6 +55,7 @@ import {
   type PrinterDeviceContext,
   type PrinterDeviceContextParams,
   type PrinterRole,
+  type PrinterEmployeeRole,
   type PrinterSelfTestInput,
   type ResolvedPrinter,
   type SaveCategoryPrinterInput,
@@ -153,6 +155,10 @@ interface PrinterState {
   agentFiles: AgentFile[];
   found: SearchPrinterResult[];
   roles: PrinterRole[];
+  employeeRoles: PrinterEmployeeRole[];
+  loadingEmployeeRoles: boolean;
+  employeeRolesLoaded: boolean;
+  employeeRolesError: string | null;
   categoryRoles: CategoryRole[];
   printerCategoryRole: PrinterCategoryRole | null;
   resolvedPrinters: ResolvedPrinter[];
@@ -177,6 +183,7 @@ interface PrinterState {
   checkAgent: (agentUrl?: string) => Promise<boolean>;
   resolveDeviceIdentity: (agentUrl?: string) => Promise<AgentInfo>;
   loadRoles: (lang?: string) => Promise<PrinterRole[]>;
+  loadEmployeeRoles: (lang?: string) => Promise<PrinterEmployeeRole[]>;
   save: (input: SavePrinterInput) => Promise<Printer>;
   remove: (printConfigUuid: string) => Promise<void>;
   toggleActive: (printConfigUuid: string) => Promise<void>;
@@ -223,6 +230,10 @@ export const usePrinterStore = create<PrinterState>((set, get) => ({
   agentFiles: [],
   found: [],
   roles: [],
+  employeeRoles: [],
+  loadingEmployeeRoles: false,
+  employeeRolesLoaded: false,
+  employeeRolesError: null,
   categoryRoles: [],
   printerCategoryRole: null,
   resolvedPrinters: [],
@@ -420,6 +431,20 @@ export const usePrinterStore = create<PrinterState>((set, get) => ({
     const roles = await getPrinterRoles(lang);
     if (isCurrentSession()) set({ roles });
     return roles;
+  },
+  loadEmployeeRoles: async (lang) => {
+    const isCurrentSession = createSessionGuard();
+    set({ loadingEmployeeRoles: true, employeeRolesLoaded: false, employeeRolesError: null });
+    try {
+      const employeeRoles = await getPrinterEmployeeRoles(lang);
+      if (isCurrentSession()) set({ employeeRoles, loadingEmployeeRoles: false, employeeRolesLoaded: true });
+      return employeeRoles;
+    } catch (error) {
+      if (isCurrentSession()) {
+        set({ loadingEmployeeRoles: false, employeeRolesError: errorMessage(error) });
+      }
+      throw error;
+    }
   },
   save: async (input) => {
     const isCurrentSession = createSessionGuard();
@@ -794,6 +819,10 @@ export const usePrinterStore = create<PrinterState>((set, get) => ({
       agentFiles: [],
       found: [],
       roles: [],
+      employeeRoles: [],
+      loadingEmployeeRoles: false,
+      employeeRolesLoaded: false,
+      employeeRolesError: null,
       categoryRoles: [],
       printerCategoryRole: null,
       resolvedPrinters: [],

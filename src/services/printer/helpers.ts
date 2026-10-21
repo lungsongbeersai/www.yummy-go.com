@@ -6,6 +6,7 @@ import type {
   AckPayload,
   Printer,
   PrinterCategory,
+  PrinterCategoryPrintPermission,
   PrinterDeliveryState,
 } from "@/services/printer/types";
 import { stringArray } from "@/services/shared/validators";
@@ -121,6 +122,23 @@ function activeLabel(item: Record<string, unknown>) {
   return undefined;
 }
 
+function categoryPrintPermissions(value: unknown): PrinterCategoryPrintPermission[] {
+  if (!Array.isArray(value)) return [];
+  return value.flatMap((entry: unknown) => {
+    const rule = objectValue(entry);
+    const categoryUuid = textValue(rule?.cate_uuid_fk);
+    if (!rule || !categoryUuid) return [];
+    const roleIds = Array.isArray(rule.allowed_role_ids)
+      ? rule.allowed_role_ids.map(Number).filter((id) => Number.isInteger(id) && id > 0)
+      : [];
+    return [{
+      cate_uuid_fk: categoryUuid,
+      all_roles: rule.all_roles === true || rule.all_roles === 1,
+      allowed_role_ids: [...new Set(roleIds)],
+    }];
+  });
+}
+
 export function mapPrinter(item: Record<string, unknown>): Printer {
   return {
     ...item,
@@ -153,6 +171,8 @@ export function mapPrinter(item: Record<string, unknown>): Printer {
     updated_at: item.updated_at === undefined ? undefined : String(item.updated_at),
     font_size: item.font_size === undefined ? undefined : Number(item.font_size),
     role_codes: stringArray(item.role_codes),
+    print_role_mode: Number(item.print_role_mode) === 2 ? 2 : 1,
+    category_print_permissions: categoryPrintPermissions(item.category_print_permissions),
     categories: Array.isArray(item.categories) ? item.categories as PrinterCategory[] : [],
     cate_uuid_fk: stringArray(item.cate_uuid_fk),
     is_owner: optionalBoolean(item.is_owner),

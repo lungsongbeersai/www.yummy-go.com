@@ -12,7 +12,16 @@ import {
   shouldResolveCurrentPrinterIdentity,
   sharingModeOf,
   accessModeOf,
+  categoryPrintPermission,
+  categoryPrintPermissionsEqual,
+  categoryPrintPermissionsForCategories,
+  employeeRoleLabel,
+  invalidPrintPermissionCategories,
+  printRoleSettingsValidation,
+  toggleCategoryPrintRole,
+  updateCategoryPrintPermission,
 } from "@/features/printer/form/printer-form-utils";
+import type { Printer, PrinterCategoryPrintPermission } from "@/services/printer";
 
 describe("printerSelfTestTarget", () => {
   const form = {
@@ -339,5 +348,100 @@ describe("restoring printer mappings", () => {
     }
     expect(printerFormValues({ ...printer, connect_type: "tcp", interface_value: "tcp://192.168.1.20:9100" }))
       .toMatchObject({ connectType: "tcp", ip: "192.168.1.20" });
+  });
+});
+
+describe("employee role print permissions", () => {
+  const printer: Printer = {
+    print_config_uuid: "printer", printer_name: "Bar", connect_type: "tcp",
+    interface_value: "tcp://192.168.1.20:9100", paper_width_mm: 80,
+    is_active: true, role_codes: ["b-001"], cate_uuid_fk: ["drinks", "food"],
+  };
+  const rules: PrinterCategoryPrintPermission[] = [
+    { cate_uuid_fk: "drinks", all_roles: false, allowed_role_ids: [17] },
+    { cate_uuid_fk: "food", all_roles: true, allowed_role_ids: [] },
+  ];
+
+  it("keeps new and legacy printers unrestricted and defaults new categories to all roles", () => {
+    expect(printerFormValues(null).printRoleMode).toBe(1);
+    expect(printerFormValues(printer)).toMatchObject({
+      printRoleMode: 1,
+      categoryPrintPermissions: [
+        { cate_uuid_fk: "drinks", all_roles: true, allowed_role_ids: [] },
+        { cate_uuid_fk: "food", all_roles: true, allowed_role_ids: [] },
+      ],
+    });
+    expect(categoryPrintPermission(rules, "new-category")).toEqual({
+      cate_uuid_fk: "new-category", all_roles: true, allowed_role_ids: [],
+    });
+  });
+
+  it("restores configured rules independently from the printer's active role mode", () => {
+    for (const printRoleMode of [1, 2] as const) {
+      const values = printerFormValues({ ...printer, print_role_mode: printRoleMode, category_print_permissions: rules });
+      expect(values.printRoleMode).toBe(printRoleMode);
+      expect(values.categoryPrintPermissions).toEqual(rules);
+      values.categoryPrintPermissions[0].allowed_role_ids.push(19);
+      expect(rules[0].allowed_role_ids).toEqual([17]);
+    }
+  });
+
+  it("chooses a specific real role without enabling all roles or changing another category", () => {
+    const next = toggleCategoryPrintRole(rules, "food", 23);
+    expect(categoryPrintPermission(next, "food")).toEqual({
+      cate_uuid_fk: "food", all_roles: false, allowed_role_ids: [23],
+    });
+    expect(categoryPrintPermission(next, "drinks")).toEqual(rules[0]);
+    expect(rules[1].all_roles).toBe(true);
+  });
+
+  it("requires a role after deselecting the last one only when restrictions are active", () => {
+    const next = toggleCategoryPrintRole(rules, "drinks", 17);
+    expect(invalidPrintPermissionCategories(2, "CATEGORY", printer.cate_uuid_fk, next)).toEqual(["drinks"]);
+    expect(invalidPrintPermissionCategories(2, "ZONE", printer.cate_uuid_fk, next)).toEqual(["drinks"]);
+    expect(invalidPrintPermissionCategories(1, "CATEGORY", printer.cate_uuid_fk, next)).toEqual([]);
+    expect(invalidPrintPermissionCategories(2, "OFF", printer.cate_uuid_fk, next)).toEqual([]);
+    const all = updateCategoryPrintPermission(next, { cate_uuid_fk: "drinks", all_roles: true, allowed_role_ids: [] });
+    expect(invalidPrintPermissionCategories(2, "CATEGORY", printer.cate_uuid_fk, all)).toEqual([]);
+  });
+
+  it("saves only selected categories without erasing draft rules for categories toggled off", () => {
+    expect(categoryPrintPermissionsForCategories(["food", "new"], rules)).toEqual([
+      rules[1], { cate_uuid_fk: "new", all_roles: true, allowed_role_ids: [] },
+    ]);
+    expect(categoryPrintPermissionsForCategories(["drinks"], rules)).toEqual([rules[0]]);
+  });
+
+  it("compares rules without treating role or category ordering as unsaved edits", () => {
+    const first = [{ cate_uuid_fk: "drinks", all_roles: false, allowed_role_ids: [23, 17] }, rules[1]];
+    const reordered = [rules[1], { cate_uuid_fk: "drinks", all_roles: false, allowed_role_ids: [17, 23] }];
+    expect(categoryPrintPermissionsEqual(first, reordered)).toBe(true);
+    expect(categoryPrintPermissionsEqual(first, rules)).toBe(false);
+  });
+
+  it("uses employee role names returned by the backend in the active language", () => {
+    const role = { roles_id: 17, roles_name: "Counter", roles_name_la: "ແຄັດເຊຍ", roles_name_eng: "Cashier" };
+    expect(employeeRoleLabel(role, "la")).toBe("ແຄັດເຊຍ");
+    expect(employeeRoleLabel(role, "en")).toBe("Cashier");
+    expect(employeeRoleLabel({ ...role, roles_name_eng: "" }, "en")).toBe("Counter");
+  });
+
+  it("requires a loaded role list before enabling restrictions while preserving unrestricted saves", () => {
+    const roleStates = [
+      { loaded: false, loading: false, error: null },
+      { loaded: false, loading: true, error: null },
+      { loaded: false, loading: false, error: "Connection failed" },
+    ];
+    for (const roleOptions of roleStates) {
+      expect(printRoleSettingsValidation(1, "CATEGORY", printer.cate_uuid_fk, rules, roleOptions)).toEqual({
+        roleOptionsStatus: "ready", invalidCategoryUuids: [],
+      });
+      expect(printRoleSettingsValidation(2, "CATEGORY", printer.cate_uuid_fk, rules, roleOptions).roleOptionsStatus)
+        .toBe(roleOptions.error ? "error" : "loading");
+    }
+    const next = toggleCategoryPrintRole(rules, "drinks", 17);
+    expect(printRoleSettingsValidation(2, "CATEGORY", printer.cate_uuid_fk, next, {
+      loaded: true, loading: false, error: null,
+    })).toEqual({ roleOptionsStatus: "ready", invalidCategoryUuids: ["drinks"] });
   });
 });

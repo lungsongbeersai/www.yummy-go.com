@@ -55,6 +55,7 @@ import {
 } from "./printer-form-utils";
 import { usePrinterForm } from "./use-printer-form";
 import { PrinterOutputSettings } from "./printer-output-settings";
+import { PrinterPrintPermissions } from "./printer-print-permissions";
 import { PrinterSelfTestDialog } from "@/features/printer/printer-self-test-dialog";
 
 export function PrinterFormPage() {
@@ -425,6 +426,8 @@ export function PrinterFormPage() {
                 }
               />
             ) : null}
+
+            <PrinterPrintPermissions form={form} />
 
             <div className="flex flex-col items-end gap-2">
               {/* สรุปเหตุผลที่ยังบันทึกไม่ได้ — ผู้ใช้ที่เลื่อนผ่าน badge สีแดงด้านบนไปแล้วจะได้รู้ว่าขาดอะไร

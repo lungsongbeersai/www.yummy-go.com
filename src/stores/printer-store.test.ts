@@ -10,6 +10,7 @@ import {
   getPrinters,
   getPendingPrintJobs,
   getInternetPrintSettings,
+  getPrinterEmployeeRoles,
   registerPrinterAgent,
   resolvePrinterDeviceContext,
   resolvePrinterDeviceIdentity,
@@ -18,6 +19,7 @@ import {
   type BuildTestJobResponse,
   type PrintJob,
   type Printer,
+  type PrinterEmployeeRole,
 } from "@/services/printer";
 import { usePrinterStore } from "@/stores/printer-store";
 import { resetSessionStores } from "@/stores/session-store-registry";
@@ -45,6 +47,7 @@ vi.mock("@/services/printer", () => ({
     error && typeof error === "object" && "delivery_state" in error && error.delivery_state === "not_sent"
       ? "not_sent" : "unknown",
   getPrinterRoles: vi.fn(),
+  getPrinterEmployeeRoles: vi.fn(),
   getPrinters: vi.fn(),
   registerPrinterAgent: vi.fn(),
   isBrowserPrinterAgentId: (agentId: unknown) =>
@@ -94,6 +97,10 @@ describe("printer store", () => {
       internetPrintSettings: null,
       loadingInternetPrintSettings: false,
       internetPrintSettingsError: null,
+      employeeRoles: [],
+      loadingEmployeeRoles: false,
+      employeeRolesLoaded: false,
+      employeeRolesError: null,
     });
   });
 
@@ -238,6 +245,38 @@ describe("printer store", () => {
     await request;
     expect(usePrinterStore.getState().internetPrintSettings).toBeNull();
     expect(usePrinterStore.getState().loadingInternetPrintSettings).toBe(false);
+  });
+
+  it("loads employee print roles independently of printer station roles and surfaces failures", async () => {
+    const roles: PrinterEmployeeRole[] = [{
+      roles_id: 17, roles_name: "Counter", roles_name_la: "ແຄັດເຊຍ", roles_name_eng: "Cashier",
+    }];
+    const stationRoles = [{ role_code: "b-001", role_name: "Bar 1" }];
+    usePrinterStore.setState({ roles: stationRoles });
+    vi.mocked(getPrinterEmployeeRoles).mockResolvedValueOnce(roles);
+    expect(await usePrinterStore.getState().loadEmployeeRoles("en")).toEqual(roles);
+    expect(getPrinterEmployeeRoles).toHaveBeenCalledWith("en");
+    expect(usePrinterStore.getState().employeeRoles).toEqual(roles);
+    expect(usePrinterStore.getState().employeeRolesLoaded).toBe(true);
+    expect(usePrinterStore.getState().roles).toEqual(stationRoles);
+    vi.mocked(getPrinterEmployeeRoles).mockRejectedValueOnce(new Error("Role list unavailable"));
+    await expect(usePrinterStore.getState().loadEmployeeRoles("en")).rejects.toThrow("Role list unavailable");
+    expect(usePrinterStore.getState()).toMatchObject({
+      employeeRoles: roles, loadingEmployeeRoles: false, employeeRolesLoaded: false, employeeRolesError: "Role list unavailable",
+    });
+  });
+
+  it("does not leak a late employee role list into another login session", async () => {
+    const pending = deferred<PrinterEmployeeRole[]>();
+    vi.mocked(getPrinterEmployeeRoles).mockReturnValueOnce(pending.promise);
+    const request = usePrinterStore.getState().loadEmployeeRoles("la");
+    expect(usePrinterStore.getState().loadingEmployeeRoles).toBe(true);
+    resetSessionStores();
+    pending.resolve([{ roles_id: 17, roles_name: "Counter", roles_name_la: "", roles_name_eng: "" }]);
+    await request;
+    expect(usePrinterStore.getState()).toMatchObject({
+      employeeRoles: [], loadingEmployeeRoles: false, employeeRolesLoaded: false, employeeRolesError: null,
+    });
   });
 
   it("keeps management printers visible when the desktop Agent is unavailable", async () => {
