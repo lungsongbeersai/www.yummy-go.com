@@ -143,6 +143,10 @@ export function updateCategoryPrintPermission(
   return [...permissions.filter((item) => item.cate_uuid_fk !== rule.cate_uuid_fk), rule];
 }
 
+export function selectCategoryForPrintPermission(selected: string[], categoryUuid: string) {
+  return selected.includes(categoryUuid) ? selected : [...selected, categoryUuid];
+}
+
 export function toggleCategoryPrintRole(
   permissions: PrinterCategoryPrintPermission[],
   categoryUuid: string,

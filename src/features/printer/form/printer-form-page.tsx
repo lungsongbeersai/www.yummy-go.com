@@ -55,7 +55,7 @@ import {
 } from "./printer-form-utils";
 import { usePrinterForm } from "./use-printer-form";
 import { PrinterOutputSettings } from "./printer-output-settings";
-import { PrinterPrintPermissions } from "./printer-print-permissions";
+import { PrinterCategoryPrintRoles, PrinterPrintPermissions } from "./printer-print-permissions";
 import { PrinterSelfTestDialog } from "@/features/printer/printer-self-test-dialog";
 
 export function PrinterFormPage() {
@@ -398,6 +398,8 @@ export function PrinterFormPage() {
               />
             ) : null}
 
+            <PrinterPrintPermissions form={form} />
+
             {/* backend บังคับ: ZONE ต้องเลือกหมวดหมู่คู่กับโซนด้วยเสมอ ไม่ใช่เลือกอย่างใดอย่างหนึ่ง —
                 hint จึงต้องเปลี่ยนไปตามโหมด ไม่งั้นผู้ใช้จะไม่เข้าใจว่าทำไมบังคับเลือก
                 "OFF" (ค่าเริ่มต้น) ไม่ผูกกับเมนูเลย จึงซ่อนไปทั้งช่อง ไม่ใช่แค่ปล่อยว่างได้ —
@@ -413,6 +415,10 @@ export function PrinterFormPage() {
                 emptyLabel={t("printer.noCategories")}
                 name="printer-category"
                 options={form.categoryOptions}
+                disabled={form.saving}
+                renderOptionDetails={form.printRoleMode === 2 ? (category) => (
+                  <PrinterCategoryPrintRoles form={form} categoryUuid={category.value} categoryLabel={category.label} />
+                ) : undefined}
                 required={form.mappingType === "ZONE"}
                 selectAllLabel={t("common.selectAll")}
                 selected={form.selectedCategories}
@@ -426,8 +432,6 @@ export function PrinterFormPage() {
                 }
               />
             ) : null}
-
-            <PrinterPrintPermissions form={form} />
 
             <div className="flex flex-col items-end gap-2">
               {/* สรุปเหตุผลที่ยังบันทึกไม่ได้ — ผู้ใช้ที่เลื่อนผ่าน badge สีแดงด้านบนไปแล้วจะได้รู้ว่าขาดอะไร

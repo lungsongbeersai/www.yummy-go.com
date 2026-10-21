@@ -1,6 +1,7 @@
 "use client";
 
 import { useTranslation } from "react-i18next";
+import type { ReactNode } from "react";
 import { cn } from "@/lib/utils";
 import { Checkbox, type CheckboxProps } from "@/components/ui/checkbox";
 import {
@@ -28,6 +29,7 @@ export function IndeterminateCheckbox({
 
 export function CheckboxOptionList({
   description,
+  disabled = false,
   emptyLabel,
   legend,
   name,
@@ -35,10 +37,12 @@ export function CheckboxOptionList({
   required = false,
   selectAllLabel,
   selected,
+  renderOptionDetails,
   onToggle,
   onToggleAll,
 }: {
   description: string;
+  disabled?: boolean;
   emptyLabel: string;
   legend: string;
   name: string;
@@ -46,6 +50,7 @@ export function CheckboxOptionList({
   required?: boolean;
   selectAllLabel: string;
   selected: string[];
+  renderOptionDetails?: (option: CheckboxOption) => ReactNode;
   onToggle: (value: string) => void;
   onToggleAll: (checked: boolean) => void;
 }) {
@@ -94,6 +99,7 @@ export function CheckboxOptionList({
             <IndeterminateCheckbox
               id={selectAllId}
               checked={allSelected}
+              disabled={disabled}
               indeterminate={someSelected}
               onCheckedChange={(checked) => onToggleAll(checked as boolean)}
             />
@@ -104,24 +110,25 @@ export function CheckboxOptionList({
           {options.map((option) => {
             const id = safeId(name, option.value);
             const checked = selected.includes(option.value);
-            return (
+            const selection = (
               <Field
                 key={option.value}
                 orientation="horizontal"
-                className={optionRowClass(checked)}
+                className={cn(optionRowClass(checked), renderOptionDetails && "rounded-none border-0 ring-0")}
                 onClick={(event) => {
                   // Radix Checkbox ซ่อน <input type="checkbox"> ไว้ข้างในเพื่อ sync กับ native form
                   // และยิง click event ของมันเองทุกครั้งที่ checked เปลี่ยน (ไม่มี role="checkbox")
                   // ถ้าไม่กันด้วย input ตรงนี้ click นั้นจะ bubble มาเข้า onToggle ซ้ำ กลายเป็น toggle
                   // วนไม่รู้จบ (setState loop) — label/[role=checkbox] กันคลิกจริงจากผู้ใช้อยู่แล้ว
                   const target = event.target as HTMLElement;
-                  if (target.closest('label, input, [role="checkbox"]')) return;
+                  if (disabled || target.closest('label, input, [role="checkbox"]')) return;
                   onToggle(option.value);
                 }}
               >
                 <Checkbox
                   id={id}
                   checked={checked}
+                  disabled={disabled}
                   onCheckedChange={() => onToggle(option.value)}
                 />
                 <div className="min-w-0 flex-1">
@@ -135,6 +142,18 @@ export function CheckboxOptionList({
                   ) : null}
                 </div>
               </Field>
+            );
+            if (!renderOptionDetails) return selection;
+            // Details sit outside the routing header's click handler so an
+            // employee-role click cannot toggle the category a second time.
+            return (
+              <div key={option.value} className={cn(
+                "flex min-w-0 flex-col overflow-hidden rounded-md border",
+                checked ? "border-primary" : "border-border",
+              )}>
+                {selection}
+                <div className="border-t border-border p-3">{renderOptionDetails(option)}</div>
+              </div>
             );
           })}
         </div>

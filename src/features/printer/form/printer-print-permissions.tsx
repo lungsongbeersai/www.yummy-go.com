@@ -3,7 +3,6 @@
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Empty, EmptyDescription } from "@/components/ui/empty";
 import { Field, FieldDescription, FieldLabel, FieldLegend, FieldSet } from "@/components/ui/field";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Switch } from "@/components/ui/switch";
@@ -12,7 +11,6 @@ import type { PrinterFormWorkflow } from "./use-printer-form";
 
 export function PrinterPrintPermissions({ form }: { form: PrinterFormWorkflow }) {
   const { t } = form;
-  const categories = form.mappingType === "OFF" ? [] : form.permissionCategoryOptions;
 
   return (
     <div className="flex flex-col gap-4 rounded-lg border border-border bg-card p-4">
@@ -55,62 +53,67 @@ export function PrinterPrintPermissions({ form }: { form: PrinterFormWorkflow })
               </AlertDescription>
             </Alert>
           ) : null}
-          {categories.length === 0 ? (
-            <Empty className="border">
-              <EmptyDescription>{t("printer.printRoleSelectCategories")}</EmptyDescription>
-            </Empty>
-          ) : categories.map((category) => {
-            const permission = categoryPrintPermission(form.selectedCategoryPrintPermissions, category.value);
-            const allId = safeId("printer-print-all-roles", category.value);
-            const disabled = form.saving || form.loadingEmployeeRoles || !form.employeeRolesLoaded || Boolean(form.employeeRolesError);
-            const missingRole = !permission.all_roles && permission.allowed_role_ids.length === 0;
-            return (
-              <FieldSet key={category.value} className="gap-3 rounded-md border border-border p-3">
-                <div>
-                  <FieldLegend className="mb-1 text-sm font-semibold">{category.label}</FieldLegend>
-                  <FieldDescription>{t("printer.categoryPrintRolesHint")}</FieldDescription>
-                </div>
-                <Field orientation="horizontal" className={optionRowClass(permission.all_roles)} onClick={(event) => {
-                  if (disabled || (event.target as HTMLElement).closest('label, input, [role="checkbox"]')) return;
-                  form.setAllPrintRoles(category.value, !permission.all_roles);
-                }}>
-                  <Checkbox
-                    id={allId}
-                    checked={permission.all_roles}
-                    disabled={disabled}
-                    onCheckedChange={(checked) => form.setAllPrintRoles(category.value, checked === true)}
-                  />
-                  <FieldLabel htmlFor={allId} className="flex-1 font-semibold">{t("printer.allEmployeeRoles")}</FieldLabel>
-                </Field>
-                {form.employeeRoleOptions.length ? (
-                  <div className="grid gap-2 sm:grid-cols-2">
-                    {form.employeeRoleOptions.map((role) => {
-                      const id = safeId(`printer-print-role-${category.value}`, String(role.value));
-                      const checked = !permission.all_roles && permission.allowed_role_ids.includes(role.value);
-                      return (
-                        <Field key={role.value} orientation="horizontal" className={optionRowClass(checked)} onClick={(event) => {
-                          if (disabled || (event.target as HTMLElement).closest('label, input, [role="checkbox"]')) return;
-                          form.togglePrintRole(category.value, role.value);
-                        }}>
-                          <Checkbox id={id} checked={checked} disabled={disabled} onCheckedChange={() => {
-                            form.togglePrintRole(category.value, role.value);
-                          }} />
-                          <FieldLabel htmlFor={id} className="flex-1">{role.label}</FieldLabel>
-                        </Field>
-                      );
-                    })}
-                  </div>
-                ) : !form.loadingEmployeeRoles && !form.employeeRolesError ? (
-                  <FieldDescription>{t("printer.noEmployeeRoles")}</FieldDescription>
-                ) : null}
-                {missingRole ? (
-                  <p className="text-sm text-destructive" role="status">{t("printer.selectPrintRoleRequired")}</p>
-                ) : null}
-              </FieldSet>
-            );
-          })}
+          <FieldDescription>
+            {t(form.mappingType === "OFF" ? "printer.printRoleSelectCategories" : "printer.printRoleInlineHint")}
+          </FieldDescription>
         </>
       ) : null}
     </div>
+  );
+}
+
+export function PrinterCategoryPrintRoles({ form, categoryUuid, categoryLabel }: {
+  form: PrinterFormWorkflow;
+  categoryUuid: string;
+  categoryLabel: string;
+}) {
+  const { t } = form;
+  const permission = categoryPrintPermission(form.categoryPrintPermissions, categoryUuid);
+  const allId = safeId("printer-print-all-roles", categoryUuid);
+  const selected = form.selectedCategories.includes(categoryUuid);
+  const disabled = form.saving || form.loadingEmployeeRoles || !form.employeeRolesLoaded || Boolean(form.employeeRolesError);
+  const missingRole = selected && !permission.all_roles && permission.allowed_role_ids.length === 0;
+
+  return (
+    <FieldSet className="min-w-0 gap-3" aria-label={t("printer.categoryPrintRolesLabel", { category: categoryLabel })}>
+      <FieldLegend className="text-xs font-semibold">{t("printer.categoryPrintRoles")}</FieldLegend>
+      {!selected ? <FieldDescription>{t("printer.categoryPrintRoleAutoSelectHint")}</FieldDescription> : null}
+      <Field orientation="horizontal" className={optionRowClass(permission.all_roles)} onClick={(event) => {
+        if (disabled || (event.target as HTMLElement).closest('label, input, [role="checkbox"]')) return;
+        form.setAllPrintRoles(categoryUuid, !permission.all_roles);
+      }}>
+        <Checkbox
+          id={allId}
+          checked={permission.all_roles}
+          disabled={disabled}
+          onCheckedChange={(checked) => form.setAllPrintRoles(categoryUuid, checked === true)}
+        />
+        <FieldLabel htmlFor={allId} className="flex-1 font-semibold">{t("printer.allEmployeeRoles")}</FieldLabel>
+      </Field>
+      {form.employeeRoleOptions.length ? (
+        <div className="grid gap-2 sm:grid-cols-2">
+          {form.employeeRoleOptions.map((role) => {
+            const id = safeId(`printer-print-role-${categoryUuid}`, String(role.value));
+            const checked = !permission.all_roles && permission.allowed_role_ids.includes(role.value);
+            return (
+              <Field key={role.value} orientation="horizontal" className={optionRowClass(checked)} onClick={(event) => {
+                if (disabled || (event.target as HTMLElement).closest('label, input, [role="checkbox"]')) return;
+                form.togglePrintRole(categoryUuid, role.value);
+              }}>
+                <Checkbox id={id} checked={checked} disabled={disabled} onCheckedChange={() => {
+                  form.togglePrintRole(categoryUuid, role.value);
+                }} />
+                <FieldLabel htmlFor={id} className="flex-1">{role.label}</FieldLabel>
+              </Field>
+            );
+          })}
+        </div>
+      ) : !form.loadingEmployeeRoles && form.employeeRolesLoaded && !form.employeeRolesError ? (
+        <FieldDescription>{t("printer.noEmployeeRoles")}</FieldDescription>
+      ) : null}
+      {missingRole ? (
+        <p className="text-sm text-destructive" role="status">{t("printer.selectPrintRoleRequired")}</p>
+      ) : null}
+    </FieldSet>
   );
 }

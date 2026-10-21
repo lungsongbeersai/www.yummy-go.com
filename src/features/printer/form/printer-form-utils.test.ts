@@ -18,6 +18,7 @@ import {
   employeeRoleLabel,
   invalidPrintPermissionCategories,
   printRoleSettingsValidation,
+  selectCategoryForPrintPermission,
   toggleCategoryPrintRole,
   updateCategoryPrintPermission,
 } from "@/features/printer/form/printer-form-utils";
@@ -393,6 +394,33 @@ describe("employee role print permissions", () => {
     });
     expect(categoryPrintPermission(next, "drinks")).toEqual(rules[0]);
     expect(rules[1].all_roles).toBe(true);
+  });
+
+  it("selects an unchecked category when its role is edited and preserves each category after saving", () => {
+    const initial = printerFormValues({
+      ...printer,
+      cate_uuid_fk: ["food"],
+      print_role_mode: 2,
+      category_print_permissions: [rules[1]],
+    });
+    const selected = selectCategoryForPrintPermission(initial.selectedCategories, "drinks");
+    const edited = toggleCategoryPrintRole(initial.categoryPrintPermissions, "drinks", 17);
+    const saved = printerFormValues({
+      ...printer,
+      cate_uuid_fk: selected,
+      print_role_mode: 2,
+      category_print_permissions: categoryPrintPermissionsForCategories(selected, edited),
+    });
+
+    expect(initial.selectedCategories).toEqual(["food"]);
+    expect(selected).toEqual(["food", "drinks"]);
+    expect(selectCategoryForPrintPermission(selected, "drinks")).toEqual(selected);
+    expect(saved).toMatchObject({
+      printRoleMode: 2,
+      selectedCategories: ["food", "drinks"],
+      categoryPrintPermissions: [rules[1], rules[0]],
+    });
+    expect(invalidPrintPermissionCategories(2, "CATEGORY", selected, edited)).toEqual([]);
   });
 
   it("requires a role after deselecting the last one only when restrictions are active", () => {

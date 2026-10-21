@@ -54,6 +54,7 @@ import {
   printerFormValues,
   printerSelfTestTarget,
   requiresZoneMapping,
+  selectCategoryForPrintPermission,
   shouldResolveCurrentPrinterIdentity,
   textValue,
   toggleCategoryPrintRole,
@@ -280,10 +281,12 @@ export function usePrinterForm() {
   }, [printRoleMode, reloadEmployeeRoles, user?.uuid]);
 
   function togglePrintRole(categoryUuid: string, roleId: number) {
+    setSelectedCategories((current) => selectCategoryForPrintPermission(current, categoryUuid));
     setCategoryPrintPermissions((current) => toggleCategoryPrintRole(current, categoryUuid, roleId));
   }
 
   function setAllPrintRoles(categoryUuid: string, allRoles: boolean) {
+    setSelectedCategories((current) => selectCategoryForPrintPermission(current, categoryUuid));
     setCategoryPrintPermissions((current) => updateCategoryPrintPermission(current, {
       ...categoryPrintPermission(current, categoryUuid),
       all_roles: allRoles,
@@ -756,6 +759,7 @@ export function usePrinterForm() {
     printRoleMode,
     setPrintRoleMode,
     permissionCategoryOptions,
+    categoryPrintPermissions,
     selectedCategoryPrintPermissions,
     togglePrintRole,
     setAllPrintRoles,
