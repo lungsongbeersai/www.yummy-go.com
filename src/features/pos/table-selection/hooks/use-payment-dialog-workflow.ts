@@ -961,12 +961,6 @@ export function usePaymentDialogWorkflow({
       );
     setInvoicePrinting(true);
     try {
-      showToast({
-        id: context.toastId,
-        title: t("common.printing"),
-        description: context.label,
-        tone: "info",
-      });
       const printResult = await executeInvoice({
         print_job: response.print_job,
         pending_query: response.pending_query,
