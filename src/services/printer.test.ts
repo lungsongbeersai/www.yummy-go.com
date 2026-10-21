@@ -64,6 +64,7 @@ import {
   sendMobileBackendPrintJob,
   togglePrinterActive,
   type PrintJob,
+  type PrintOpsBatchPayload,
   type PrintProgress,
 } from "@/services/printer";
 
@@ -566,6 +567,238 @@ describe("printer service dispatch", () => {
     expect(new Set(ackPayloads[0].results.map((item) => item.print_job_item_uuid))).toEqual(
       new Set(successResults.map((item) => item.print_job_item_uuid))
     );
+  });
+
+  describe("combined kitchen groups in one transport batch", () => {
+    function prepareGroupBatch(jobUuid: string, native: boolean, loseFirstAck = false) {
+      const itemUuids = ["queue-rice", "queue-pork", "queue-beer"];
+      const printConfigUuid = `${jobUuid}-printer`;
+      const interfaceValue = native ? "tcp://192.168.1.20:9100" : "win:KITCHEN";
+      const jobs = [
+        windowsPrintJob({
+          job_id: `${jobUuid}-food`,
+          print_config_uuid: printConfigUuid,
+          interface_value: interfaceValue,
+          meta: {
+            print_job_uuid: jobUuid,
+            print_job_item_uuid: itemUuids[0],
+            print_job_item_uuids: itemUuids.slice(0, 2),
+            kitchen_combined: true,
+          },
+        }),
+        windowsPrintJob({
+          job_id: `${jobUuid}-drinks`,
+          print_config_uuid: printConfigUuid,
+          interface_value: interfaceValue,
+          meta: {
+            print_job_uuid: jobUuid,
+            print_job_item_uuid: itemUuids[2],
+            print_job_item_uuids: itemUuids.slice(2),
+            kitchen_combined: true,
+          },
+        }),
+      ];
+      const batch: PrintOpsBatchPayload = {
+        cut_mode: "per_ticket",
+        print_config_uuid: printConfigUuid,
+        interface_value: interfaceValue,
+        print_mode: native ? "mobile_wifi" : "windows_agent",
+        print_client: native ? "mobile_wifi" : "agent",
+        agent_id: "agent-1",
+        device_code: "device-1",
+        print_job_item_uuids: itemUuids,
+        job_total: itemUuids.length,
+        jobs,
+        ...(native ? {
+          mobile_ready: true,
+          mobile_escpos: { interface_value: interfaceValue, escpos_base64: "GROUPS_WITH_TWO_CUTS" },
+        } : {}),
+      };
+      const ackPayloads: AckPayload[] = [];
+      capacitorMocks.isNativePlatform.mockReturnValue(native);
+      axiosMocks.get.mockResolvedValue({
+        data: { agent_id: "agent-1", agent_name: "Local", device_code: "device-1" },
+      });
+      axiosMocks.post.mockResolvedValue({ data: { ok: true } });
+      apiMocks.apiRequest.mockImplementation(async (method, url, options) => {
+        if (method === "get" && url === "/api/v1/printer/jobs/pending") {
+          return {
+            print_batch_payloads: [batch],
+            ack_success_payload: {
+              print_job_uuid: jobUuid,
+              results: itemUuids.map((print_job_item_uuid) => ({ print_job_item_uuid, status: "success" })),
+            },
+            ack_failed_payload: {
+              print_job_uuid: jobUuid,
+              results: itemUuids.map((print_job_item_uuid) => ({ print_job_item_uuid, status: "failed" })),
+            },
+          };
+        }
+        if (method === "post" && url === "/api/v1/printer/jobs/ack") {
+          ackPayloads.push(options?.data as AckPayload);
+          if (loseFirstAck && ackPayloads.length === 1) throw new Error("ACK response lost");
+          return {};
+        }
+        throw new Error(`Unexpected request ${method} ${url}`);
+      });
+      return {
+        batch,
+        jobs,
+        ackPayloads,
+        ledgerKey: `yummy_kitchen_printer_delivery:${jobUuid}:agent-1|device-1|${interfaceValue.toLowerCase()}:${jobs.map((job) => job.job_id).join("|")}`,
+        input: {
+          pending_query: {
+            print_job_uuid: jobUuid,
+            login_uuid_fk: "login-1",
+            device_code: "device-1",
+            agent_id: "agent-1",
+            print_mode: batch.print_mode || "",
+          },
+        },
+        printedResults: itemUuids.map((print_job_item_uuid) => ({
+          print_job_item_uuid,
+          status: "success",
+          delivery_state: "printed",
+          print_config_uuid: printConfigUuid,
+        })),
+        failDrinks() {
+          const message = "Printer disconnected before drinks completed";
+          const error = Object.assign(new Error(message), {
+            delivery_state: "unknown",
+            completed_jobs: 1,
+            response: {
+              status: 500,
+              headers: { "x-printer-delivery-state": "unknown" },
+              data: { error: message, completed: 1, jobs_total: 2 },
+            },
+          });
+          if (native) mobileTcpMocks.printMobileEscposOverTcp.mockRejectedValue(error);
+          else axiosMocks.post.mockRejectedValue(error);
+          return message;
+        },
+      };
+    }
+
+    it.each([false, true])("sends two group sheets once and ACKs all three items (native=%s)", async (native) => {
+      const fixture = prepareGroupBatch(`groups-success-${native}`, native);
+
+      await expect(executeKitchenPrintJobs(fixture.input)).resolves.toEqual({
+        successCount: 2, failedCount: 0, total: 2,
+      });
+
+      expect(fixture.ackPayloads).toHaveLength(1);
+      expect(fixture.ackPayloads[0].results).toEqual(fixture.printedResults);
+      if (native) {
+        expect(mobileTcpMocks.printMobileEscposOverTcp).toHaveBeenCalledTimes(1);
+        expect(mobileTcpMocks.printMobileEscposOverTcp).toHaveBeenCalledWith(expect.objectContaining({
+          escpos_base64: "GROUPS_WITH_TWO_CUTS",
+        }));
+        expect(axiosMocks.post).not.toHaveBeenCalled();
+      } else {
+        expect(axiosMocks.post).toHaveBeenCalledTimes(1);
+        expect(axiosMocks.post).toHaveBeenCalledWith(
+          "http://127.0.0.1:7777/print-ops-batch",
+          { cut_mode: "per_ticket", jobs: fixture.jobs },
+          expect.objectContaining({ timeout: 75000 }),
+        );
+      }
+    });
+
+    it.each([false, true])("ACKs both food items as printed when the drinks sheet fails (native=%s)", async (native) => {
+      const fixture = prepareGroupBatch(`groups-partial-${native}`, native);
+      const message = fixture.failDrinks();
+
+      await expect(executeKitchenPrintJobs(fixture.input)).resolves.toEqual({
+        successCount: 1, failedCount: 0, total: 2, pending: true, errorMessage: message,
+      });
+
+      expect(fixture.ackPayloads[0].results).toEqual([
+        ...fixture.printedResults.slice(0, 2),
+        {
+          ...fixture.printedResults[2],
+          status: "failed",
+          delivery_state: "unknown",
+          reason: message,
+        },
+      ]);
+    });
+
+    it.each([false, true])("retries a lost ACK without sending either group again (native=%s)", async (native) => {
+      const fixture = prepareGroupBatch(`groups-ack-retry-${native}`, native, true);
+
+      await executeKitchenPrintJobs(fixture.input);
+      await expect(executeKitchenPrintJobs(fixture.input)).resolves.toEqual({
+        successCount: 2, failedCount: 0, total: 2,
+      });
+
+      expect(fixture.ackPayloads).toHaveLength(2);
+      expect(fixture.ackPayloads[1].results).toEqual(fixture.printedResults);
+      expect(native ? mobileTcpMocks.printMobileEscposOverTcp : axiosMocks.post).toHaveBeenCalledTimes(1);
+    });
+
+    it.each([false, true])("preserves food delivery when retrying a lost partial ACK (native=%s)", async (native) => {
+      const fixture = prepareGroupBatch(`groups-partial-ack-retry-${native}`, native, true);
+      const message = fixture.failDrinks();
+
+      await executeKitchenPrintJobs(fixture.input);
+      await expect(executeKitchenPrintJobs(fixture.input)).resolves.toEqual({
+        successCount: 1, failedCount: 0, total: 2, pending: true, errorMessage: message,
+      });
+
+      expect(fixture.ackPayloads).toHaveLength(2);
+      expect(fixture.ackPayloads[1]).toEqual(fixture.ackPayloads[0]);
+      expect(fixture.ackPayloads[1].results.slice(0, 2)).toEqual(fixture.printedResults.slice(0, 2));
+      expect(native ? mobileTcpMocks.printMobileEscposOverTcp : axiosMocks.post).toHaveBeenCalledTimes(1);
+    });
+
+    it("restores a persisted partial delivery with both food item ACKs", async () => {
+      const fixture = prepareGroupBatch("groups-persisted-partial", false);
+      mockLocalStorage({
+        [fixture.ledgerKey]: JSON.stringify({
+          deliveryState: "unknown",
+          deliveredJobs: 1,
+          deliveredItemUuids: ["queue-rice", "queue-pork"],
+          errorMessage: "Drinks delivery is uncertain",
+        }),
+      });
+
+      await expect(executeKitchenPrintJobs(fixture.input)).resolves.toEqual({
+        successCount: 1, failedCount: 0, total: 2, pending: true,
+        errorMessage: "Drinks delivery is uncertain",
+      });
+
+      expect(fixture.ackPayloads[0].results.slice(0, 2)).toEqual(fixture.printedResults.slice(0, 2));
+      expect(fixture.ackPayloads[0].results[2]).toMatchObject({ status: "failed", delivery_state: "unknown" });
+      expect(axiosMocks.post).not.toHaveBeenCalled();
+    });
+
+    it.each([
+      ["legacy", {}],
+      ["negative-count", { deliveredJobs: -1, deliveredItemUuids: [] }],
+      ["fractional-count", { deliveredJobs: 1.5, deliveredItemUuids: ["queue-rice", "queue-pork"] }],
+      ["string-count", { deliveredJobs: "1", deliveredItemUuids: ["queue-rice", "queue-pork"] }],
+      ["oversized-count", { deliveredJobs: 3, deliveredItemUuids: ["queue-rice", "queue-pork", "queue-beer"] }],
+      ["invalid-item-type", { deliveredJobs: 1, deliveredItemUuids: ["queue-rice", 7] }],
+      ["wrong-group", { deliveredJobs: 1, deliveredItemUuids: ["queue-beer"] }],
+      ["incomplete-group", { deliveredJobs: 1, deliveredItemUuids: ["queue-rice"] }],
+    ] as const)("keeps %s stored uncertainty without claiming delivery or resending", async (kind, fields) => {
+      const fixture = prepareGroupBatch(`groups-persisted-${kind}`, false);
+      mockLocalStorage({
+        [fixture.ledgerKey]: JSON.stringify({
+          deliveryState: "unknown",
+          errorMessage: { malformed: "not a string" },
+          ...fields,
+        }),
+      });
+
+      await expect(executeKitchenPrintJobs(fixture.input)).resolves.toEqual({
+        successCount: 0, failedCount: 0, total: 2, pending: true,
+      });
+
+      expect(fixture.ackPayloads[0].results).toHaveLength(3);
+      expect(fixture.ackPayloads[0].results.every((item) => item.delivery_state === "unknown")).toBe(true);
+      expect(axiosMocks.post).not.toHaveBeenCalled();
+    });
   });
 
   it("prints an invoice batch and ACKs its physical delivery", async () => {

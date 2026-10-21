@@ -162,16 +162,12 @@ function escposCommandLength(bytes: Uint8Array, offset: number) {
     return offset + commandLength <= bytes.length ? commandLength : null;
 }
 
-function splitEscposBase64ForTransport(
-    base64: string,
+function splitEscposBytesForTransport(
+    bytes: Uint8Array,
     maxSegmentBytes = MOBILE_TCP_SEGMENT_MAX_BYTES,
 ) {
-    const cleanBase64 = normalizeBase64(base64);
-    if (!cleanBase64) return [];
-
-    const bytes = base64ToBytes(cleanBase64);
     const safeMaxBytes = Math.max(8, Math.floor(maxSegmentBytes));
-    if (bytes.length <= safeMaxBytes) return [cleanBase64];
+    if (bytes.length <= safeMaxBytes) return [bytes];
 
     const commandLengths: number[] = [];
     for (let offset = 0; offset < bytes.length;) {
@@ -179,20 +175,20 @@ function splitEscposBase64ForTransport(
 
         // แบ่งเฉพาะ payload ที่ renderer ของระบบสร้างและตรวจโครงสร้างได้ครบ
         // ถ้าเป็น ESC/POS รูปแบบอื่นให้คงก้อนเดิมเพื่อไม่ตัดคำสั่งโดยเดา
-        if (!commandLength) return [cleanBase64];
+        if (!commandLength) return [bytes];
 
         commandLengths.push(commandLength);
         offset += commandLength;
     }
 
-    const segments: string[] = [];
+    const segments: Uint8Array[] = [];
     let segmentStart = 0;
     let segmentLength = 0;
     let cursor = 0;
 
     for (const commandLength of commandLengths) {
         if (segmentLength > 0 && segmentLength + commandLength > safeMaxBytes) {
-            segments.push(bytesToBase64(bytes.subarray(segmentStart, cursor)));
+            segments.push(bytes.subarray(segmentStart, cursor));
             segmentStart = cursor;
             segmentLength = 0;
         }
@@ -202,10 +198,25 @@ function splitEscposBase64ForTransport(
     }
 
     if (segmentLength > 0) {
-        segments.push(bytesToBase64(bytes.subarray(segmentStart, cursor)));
+        segments.push(bytes.subarray(segmentStart, cursor));
     }
 
     return segments;
+}
+
+function splitEscposBase64ForTransport(
+    base64: string,
+    maxSegmentBytes = MOBILE_TCP_SEGMENT_MAX_BYTES,
+) {
+    const cleanBase64 = normalizeBase64(base64);
+    if (!cleanBase64) return [];
+
+    const segments = splitEscposBytesForTransport(
+        base64ToBytes(cleanBase64),
+        maxSegmentBytes,
+    );
+
+    return segments.length === 1 ? [cleanBase64] : segments.map(bytesToBase64);
 }
 
 interface EscposPayloadAnalysis {
@@ -272,7 +283,7 @@ function analyzeEscposPayload(base64: string): EscposPayloadAnalysis {
     };
 }
 
-function addCompletionQueries(base64: string) {
+function prepareEscposCompletion(base64: string) {
     const cleanBase64 = normalizeBase64(base64);
     const bytes = base64ToBytes(cleanBase64);
     const parts: Uint8Array[] = [];
@@ -289,9 +300,9 @@ function addCompletionQueries(base64: string) {
             fallback.set(bytes);
             fallback.set(ESC_POS_PAPER_STATUS_COMMAND, bytes.length);
             return {
-                base64: bytesToBase64(fallback),
+                bytes: fallback,
                 acknowledgementTotal: 1,
-                acknowledgementGroups: [bytesToBase64(fallback)],
+                acknowledgementEnds: [fallback.length],
             };
         }
 
@@ -325,17 +336,28 @@ function addCompletionQueries(base64: string) {
         cursor += part.length;
     }
 
+    return {
+        bytes: result,
+        acknowledgementTotal,
+        acknowledgementEnds,
+    };
+}
+
+function completionGroupBytes(plan: ReturnType<typeof prepareEscposCompletion>) {
     let groupStart = 0;
-    const acknowledgementGroups = acknowledgementEnds.map((groupEnd) => {
-        const group = bytesToBase64(result.subarray(groupStart, groupEnd));
+    return plan.acknowledgementEnds.map((groupEnd) => {
+        const group = plan.bytes.subarray(groupStart, groupEnd);
         groupStart = groupEnd;
         return group;
     });
+}
 
+function addCompletionQueries(base64: string) {
+    const plan = prepareEscposCompletion(base64);
     return {
-        base64: bytesToBase64(result),
-        acknowledgementTotal,
-        acknowledgementGroups,
+        base64: bytesToBase64(plan.bytes),
+        acknowledgementTotal: plan.acknowledgementTotal,
+        acknowledgementGroups: completionGroupBytes(plan).map(bytesToBase64),
     };
 }
 
@@ -629,10 +651,13 @@ async function sendEscposOnConnectedClient({
         });
         return;
     }
-    const completionPlan = addCompletionQueries(cleanBase64);
+    const completionPlan = prepareEscposCompletion(cleanBase64);
     const sendProfile = mobileTcpSendProfile();
-    const deliveryGroups = completionPlan.acknowledgementGroups.map((group) =>
-        splitEscposBase64ForTransport(group)
+    // Keep acknowledged groups as byte views until their final transport
+    // segments are ready. Encoding a second full batch and decoding every
+    // group again delays the first write on a mobile WebView.
+    const deliveryGroups = completionGroupBytes(completionPlan).map((group) =>
+        splitEscposBytesForTransport(group).map(bytesToBase64)
     );
     const segmentTotal = deliveryGroups.reduce(
         (total, segments) => total + segments.length,

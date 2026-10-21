@@ -380,6 +380,95 @@ describe("mobile TCP printer queue", () => {
     }
   });
 
+  it("decodes a long batch once and encodes only the segments sent to the printer", async () => {
+    const rasterBand = (seed: number) => Buffer.concat([
+      Buffer.from([0x1d, 0x76, 0x30, 0x00, 72, 0, 24, 0]),
+      Buffer.alloc(72 * 24, seed),
+    ]);
+    const cut = Buffer.from([0x1d, 0x56, 0x01]);
+    const status = Buffer.from([0x1d, 0x72, 0x01]);
+    const firstTicket = Buffer.concat([
+      Buffer.from([0x1b, 0x40]),
+      ...Array.from({ length: 220 }, (_, index) => rasterBand(index)),
+      cut,
+    ]);
+    const secondTicket = Buffer.concat([
+      Buffer.from([0x1b, 0x40]),
+      rasterBand(0x55),
+      cut,
+    ]);
+    const epilogue = Buffer.from([0x1b, 0x61, 0x00]);
+    const source = Buffer.concat([firstTicket, secondTicket, epilogue]);
+    const base64 = source.toString("base64");
+    const decode = vi.spyOn(globalThis, "atob");
+    const encode = vi.spyOn(globalThis, "btoa");
+
+    try {
+      await __mobileTcpInternals.sendEscposOnConnectedClient({
+        TcpSocket: nativeTcpMocks,
+        client: "long-batch-client",
+        escposBase64: base64,
+      });
+
+      expect(decode.mock.calls.map(([value]) => value).filter((value) => value !== "AA=="))
+        .toEqual([base64]);
+      const sent = nativeTcpMocks.send.mock.calls.map(([payload]) => payload.data as string);
+      expect(encode.mock.results.map((result) => result.value)).toEqual(sent);
+      expect(sent).toHaveLength(4);
+      expect(sent.every((segment) => Buffer.from(segment, "base64").length <=
+        __mobileTcpInternals.MOBILE_TCP_SEGMENT_MAX_BYTES)).toBe(true);
+      expect(Buffer.concat(sent.map((segment) => Buffer.from(segment, "base64"))))
+        .toEqual(Buffer.concat([firstTicket, status, secondTicket, status, epilogue]));
+      expect(nativeTcpMocks.read).toHaveBeenCalledTimes(2);
+    } finally {
+      decode.mockRestore();
+      encode.mockRestore();
+    }
+  });
+
+  it("keeps unknown ESC/POS bytes intact and appends one completion query", async () => {
+    const source = Buffer.from([0x41, 0x1d, 0x56, 0x01, 0xff]);
+    const delivered = vi.fn();
+
+    await __mobileTcpInternals.sendEscposOnConnectedClient({
+      TcpSocket: nativeTcpMocks,
+      client: "unknown-command-client",
+      escposBase64: source.toString("base64"),
+      onTicketDelivered: delivered,
+    });
+
+    expect(nativeTcpMocks.send).toHaveBeenCalledExactlyOnceWith({
+      client: "unknown-command-client",
+      data: Buffer.concat([source, Buffer.from([0x1d, 0x72, 0x01])]).toString("base64"),
+      encoding: "base64",
+    });
+    expect(nativeTcpMocks.read).toHaveBeenCalledTimes(1);
+    expect(delivered).toHaveBeenCalledExactlyOnceWith(1, 1);
+  });
+
+  it("retains uncertain delivery and stops the batch when a printer reply fails", async () => {
+    const ticket = Buffer.from([0x1b, 0x40, 0x1d, 0x56, 0x01]);
+    const delivered = vi.fn();
+    nativeTcpMocks.read.mockRejectedValueOnce(new Error("Connection reset"));
+
+    await expect(printMobileEscposOverTcp({
+      interface_value: "tcp://reply-failure-printer:9100",
+      escpos_base64: Buffer.concat([ticket, ticket]).toString("base64"),
+      on_ticket_delivered: delivered,
+    })).rejects.toMatchObject({
+      delivery_state: "unknown",
+      message: "Connection reset",
+    });
+
+    expect(nativeTcpMocks.send).toHaveBeenCalledExactlyOnceWith({
+      client: "self-test-client",
+      data: Buffer.concat([ticket, Buffer.from([0x1d, 0x72, 0x01])]).toString("base64"),
+      encoding: "base64",
+    });
+    expect(delivered).not.toHaveBeenCalled();
+    expect(nativeTcpMocks.disconnect).toHaveBeenCalledOnce();
+  });
+
   it("waits for each printer reply before sending the next ticket", async () => {
     const statusCommand = Buffer.from([0x1d, 0x72, 0x01]);
     const cut = Buffer.from([0x1d, 0x56, 0x01]);

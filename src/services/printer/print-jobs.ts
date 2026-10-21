@@ -53,6 +53,8 @@ const REMOTE_SHARED_STATUS_OBSERVATION_MS =
 
 interface StoredDelivery {
   deliveryState: Exclude<PrinterDeliveryState, "not_sent">;
+  deliveredItemUuids?: string[];
+  deliveredJobs?: number;
   errorMessage?: string;
 }
 
@@ -97,18 +99,48 @@ function deliveryStorage() {
   }
 }
 
-function readStoredDelivery(key: string): StoredDelivery | null {
-  const memoryValue = deliveryLedgerMemory.get(key);
-  if (memoryValue) return memoryValue;
+function readStoredDelivery(key: string, batch: PrintOpsBatchPayload): StoredDelivery | null {
   try {
-    const raw = deliveryStorage()?.getItem(key);
-    if (!raw) return null;
-    const parsed = JSON.parse(raw) as StoredDelivery;
-    if (parsed.deliveryState !== "printed" && parsed.deliveryState !== "unknown") {
+    const memoryValue = deliveryLedgerMemory.get(key);
+    const raw = memoryValue ? null : deliveryStorage()?.getItem(key);
+    const parsed: unknown = memoryValue ?? (raw ? JSON.parse(raw) : null);
+    if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) return null;
+    const record = parsed as Record<string, unknown>;
+    if (record.deliveryState !== "printed" && record.deliveryState !== "unknown") {
       return null;
     }
-    deliveryLedgerMemory.set(key, parsed);
-    return parsed;
+    const delivery: StoredDelivery = {
+      deliveryState: record.deliveryState,
+      ...(typeof record.errorMessage === "string" ? { errorMessage: record.errorMessage } : {}),
+    };
+    const deliveredJobs = record.deliveredJobs;
+    const deliveredItemUuids = record.deliveredItemUuids;
+    if (
+      record.deliveryState === "unknown" &&
+      typeof deliveredJobs === "number" &&
+      Number.isSafeInteger(deliveredJobs) &&
+      deliveredJobs >= 0 &&
+      deliveredJobs <= printBatchJobTotal(batch) &&
+      Array.isArray(deliveredItemUuids) &&
+      deliveredItemUuids.every((itemUuid): itemUuid is string =>
+        typeof itemUuid === "string" && itemUuid.trim().length > 0
+      )
+    ) {
+      const storedItemUuids = new Set(deliveredItemUuids);
+      const expectedItemUuids = deliveredBatchItemUuids(batch, deliveredJobs);
+      // Only replay a complete physical-job prefix. Corrupt or older entries
+      // still block duplicate printing, without guessing successful items.
+      if (
+        (deliveredJobs === 0 || expectedItemUuids.length > 0) &&
+        storedItemUuids.size === expectedItemUuids.length &&
+        expectedItemUuids.every((itemUuid) => storedItemUuids.has(itemUuid))
+      ) {
+        delivery.deliveredJobs = deliveredJobs;
+        delivery.deliveredItemUuids = expectedItemUuids;
+      }
+    }
+    deliveryLedgerMemory.set(key, delivery);
+    return delivery;
   } catch {
     return null;
   }
@@ -965,7 +997,7 @@ async function executePrintJobs(
     const batchOutcomes = await Promise.all(
       batchPayloads.map((batch, batchIndex) => {
         const ledgerKey = deliveryLedgerKey(jobUuid, batch);
-        const stored = options.idempotent ? readStoredDelivery(ledgerKey) : null;
+        const stored = options.idempotent ? readStoredDelivery(ledgerKey, batch) : null;
         const mobileBatch = isMobilePrintBatch(batch);
         const printConfigUuid = textValue(
           batch.print_config_uuid || batch.jobs?.[0]?.print_config_uuid
@@ -1033,6 +1065,8 @@ async function executePrintJobs(
           return Promise.resolve<BatchPrintOutcome>({
             acknowledge: true,
             deliveryState: stored.deliveryState,
+            deliveredItemUuids: stored.deliveredItemUuids,
+            deliveredJobs: stored.deliveredJobs,
             errorMessage: stored.errorMessage,
             itemUuids: batchPrintJobItemUuids(batch),
             ledgerKey,
@@ -1044,12 +1078,14 @@ async function executePrintJobs(
         return runOnPrinterQueue(printerBatchQueueKey(batch), async () => {
           // A second request can reach this queue while the first is printing.
           const queuedStored = options.idempotent
-            ? readStoredDelivery(ledgerKey)
+            ? readStoredDelivery(ledgerKey, batch)
             : null;
           if (queuedStored) {
             return {
               acknowledge: true,
               deliveryState: queuedStored.deliveryState,
+              deliveredItemUuids: queuedStored.deliveredItemUuids,
+              deliveredJobs: queuedStored.deliveredJobs,
               errorMessage: queuedStored.errorMessage,
               itemUuids: batchPrintJobItemUuids(batch),
               ledgerKey,
@@ -1096,7 +1132,12 @@ async function executePrintJobs(
               deliveredJobs,
             );
             if (options.idempotent && deliveryState === "unknown") {
-              storeDelivery(ledgerKey, { deliveryState, errorMessage });
+              storeDelivery(ledgerKey, {
+                deliveryState,
+                deliveredItemUuids,
+                deliveredJobs,
+                errorMessage,
+              });
             }
             return {
               // UNKNOWN is a real terminal delivery result, not an absent ACK.
