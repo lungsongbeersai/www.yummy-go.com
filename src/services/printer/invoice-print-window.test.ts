@@ -26,15 +26,22 @@ function item(overrides: Partial<InvoicePrintItem> = {}): InvoicePrintItem {
   };
 }
 
-it("prints the Lao item and amount headings before the first food item", () => {
-  const html = renderInvoiceItems({
-    items: [item({ name: "First food item" })],
+it("emphasizes only the Lao item and amount headings before the first food item", () => {
+  const productName = "ເຂົ້າຜັດ";
+  const data = {
+    items: [item({ name: productName })],
     labels: { item: lao.pos.invoicePrintItem, amount: lao.pos.invoicePrintAmount },
-  } as InvoicePrintData);
-  expect(html).toContain("ລາຍການ");
-  expect(html).toContain("ຈຳນວນເງິນ");
-  expect(html.indexOf("ລາຍການ")).toBeLessThan(html.indexOf("First food item"));
-  expect(html.indexOf("ຈຳນວນເງິນ")).toBeLessThan(html.indexOf("First food item"));
+  } as InvoicePrintData;
+  const html = renderInvoiceItems(data);
+  expect(html).toContain('<span class="item-name item-heading-lao">ລາຍການ</span>');
+  expect(html).toContain('<span class="item-total item-heading-lao">ຈຳນວນເງິນ</span>');
+  expect(html.match(/item-heading-lao/g)).toHaveLength(2);
+  expect(html).toContain(`<span class="item-name">${productName}</span>`);
+  expect(html.indexOf("ລາຍການ")).toBeLessThan(html.indexOf(productName));
+  expect(html.indexOf("ຈຳນວນເງິນ")).toBeLessThan(html.indexOf(productName));
+  expect(renderInvoiceItems({
+    ...data, labels: { ...data.labels, item: "Item", amount: "Amount" },
+  })).not.toContain("item-heading-lao");
 });
 
 describe("mergeInvoicePrintItems", () => {

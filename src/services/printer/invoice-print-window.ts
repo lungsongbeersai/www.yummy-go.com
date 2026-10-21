@@ -444,6 +444,12 @@ function invoiceSharedStyles(paperWidthMm: number) {
         border-top: 1px dashed #111;
         border-bottom: 1px dashed #111;
       }
+      .item-heading > span {
+        font-weight: 900;
+      }
+      .item-heading .item-heading-lao {
+        -webkit-text-stroke: 0.3px currentColor;
+      }
       .item-name {
         min-width: 0;
         font-weight: 800;
@@ -537,6 +543,9 @@ export function renderInvoiceMeta(data: InvoicePrintData) {
 }
 
 export function renderInvoiceItems(data: InvoicePrintData) {
+  const itemLabel = data.labels.item ?? "Item";
+  const amountLabel = data.labels.amount ?? "Amount";
+  const laoHeadingClass = (label: string) => /[\u0E80-\u0EFF]/.test(label) ? " item-heading-lao" : "";
   const items = mergeInvoicePrintItems(data.items);
   const rows = items.length
     ? items.map(renderInvoiceItem).join("")
@@ -545,8 +554,8 @@ export function renderInvoiceItems(data: InvoicePrintData) {
   return `
     <section>
       <div class="item-main strong item-heading">
-        <span class="item-name">${escapeHtml(data.labels.item ?? "Item")}</span>
-        <span class="item-total">${escapeHtml(data.labels.amount ?? "Amount")}</span>
+        <span class="item-name${laoHeadingClass(itemLabel)}">${escapeHtml(itemLabel)}</span>
+        <span class="item-total${laoHeadingClass(amountLabel)}">${escapeHtml(amountLabel)}</span>
       </div>
       ${rows}
     </section>`;
