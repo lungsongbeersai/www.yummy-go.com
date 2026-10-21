@@ -16,6 +16,7 @@ export interface DailyClosingPrintLabels {
   cancelledBills: string;
   cash: string;
   cashier: string;
+  category: string;
   credit: string;
   currencyUnit: string;
   discount: string;
@@ -26,9 +27,11 @@ export interface DailyClosingPrintLabels {
   items: string;
   revenueSummary: string;
   noData: string;
+  noCategory: string;
   orderChannelSummary: string;
   paymentTotal: string;
   product: string;
+  salesTotals: string;
   serviceCharge: string;
   storeManagerSignature: string;
   title: string;
@@ -99,7 +102,9 @@ const DAILY_CLOSING_EXTRA_STYLES = `
       .daily-closing h1,
       .daily-closing h2,
       .daily-closing .column-heading,
-      .daily-closing .category-total > span:first-child,
+      .daily-closing .group-heading,
+      .daily-closing .category-heading,
+      .daily-closing .group-total > span:first-child,
       .daily-closing .headline-total-label {
         font-weight: 900;
         -webkit-text-stroke: 0.25px currentColor;
@@ -128,7 +133,7 @@ const DAILY_CLOSING_EXTRA_STYLES = `
       }
 
       .daily-closing .product-amount,
-      .daily-closing .category-total > span:last-child,
+      .daily-closing .group-total > span:last-child,
       .daily-closing .total-row > span:last-child,
       .daily-closing .headline-total-value {
         font-family: Arial, "Yummy Go Saysettha OT", sans-serif !important;
@@ -179,21 +184,46 @@ const DAILY_CLOSING_EXTRA_STYLES = `
         padding-left: 1mm;
       }
 
-      .daily-closing .category {
-        padding-top: 1.5mm;
+      .daily-closing .report-groups {
+        border-bottom: 1.5px solid currentColor;
       }
 
-      .daily-closing .category h2 {
-        margin: 0 0 0.7mm;
-      }
-
-      .daily-closing .category-total {
+      .daily-closing .report-group {
+        border-top: 1.5px solid currentColor;
         padding: 1mm 0;
-        font-size: 14px;
       }
 
-      .daily-closing .category-total > span:last-child {
-        font-size: 16px;
+      .daily-closing .group-heading {
+        margin: 0 0 0.8mm;
+        font-size: 18px;
+        line-height: 1.35;
+        break-after: avoid;
+      }
+
+      .daily-closing .product-category {
+        padding-top: 0.8mm;
+      }
+
+      .daily-closing .category-heading {
+        margin: 0 0 0.4mm;
+        font-size: 13px;
+        line-height: 1.4;
+        break-after: avoid;
+      }
+
+      .daily-closing .group-total {
+        border-top: 1px dashed currentColor;
+        padding: 1.2mm 0 0.5mm;
+        font-size: 15px;
+        break-inside: avoid;
+      }
+
+      .daily-closing .group-total > span:last-child {
+        font-size: 18px;
+      }
+
+      .daily-closing .sales-totals {
+        padding-top: 1.2mm;
       }
 
       .daily-closing .total-row {
@@ -285,6 +315,25 @@ function dailyClosingDocumentStyles(paperWidthMm: 58 | 80) {
 // (ไม่ใช่ข้อความ 1 บรรทัดตรงกลาง) เพื่อให้จุดแต่ละท่อนอยู่ตรงเหนือชื่อของตัวเองพอดี
 const SIGNATURE_DOTS = ".".repeat(26);
 
+// Category UUIDs keep equally named categories separate. Retain first-seen
+// category/item order and use the API's group subtotal rather than summing again.
+function itemCategories(items: DailyClosingReportItem[]) {
+  const categories = new Map<string, { name: string; items: DailyClosingReportItem[] }>();
+  for (const item of items) {
+    const uuid = item.categoryUuid?.trim();
+    const name = item.categoryName?.trim() || "";
+    const key = uuid ? `uuid:${uuid}` : name ? `name:${name}` : "unassigned";
+    let category = categories.get(key);
+    if (!category) {
+      category = { name, items: [] };
+      categories.set(key, category);
+    }
+    if (!category.name && name) category.name = name;
+    category.items.push(item);
+  }
+  return [...categories.values()];
+}
+
 // เนื้อหาใบเสร็จไม่รวม html/head/style/script
 // ใช้ร่วมกันระหว่างหน้าพิมพ์และ preview บนหน้าจอ
 export function renderDailyClosingReceiptBody(
@@ -294,10 +343,7 @@ export function renderDailyClosingReceiptBody(
   const apiLabels = report.labels;
 
   const groupLabel = labels.group;
-  const groupTotalLabel = dailyClosingLabel(
-    apiLabels.groupTotal,
-    labels.groupTotal,
-  );
+  const groupTotalLabel = dailyClosingLabel(labels.groupTotal, apiLabels.groupTotal);
   const discountLabel = dailyClosingLabel(
     apiLabels.discountAmount,
     labels.discount,
@@ -310,11 +356,12 @@ export function renderDailyClosingReceiptBody(
   )} (${labels.currencyUnit})`;
 
   const groups = report.groups
-    .map((group) => {
+    .map((group, groupIndex) => {
       const groupName =
         group.name || dailyClosingLabel(apiLabels.noGroup, "-");
 
-      const products = group.items
+      const categories = itemCategories(group.items).map((category) => {
+        const products = category.items
         .map((item) => {
           const basePrice = getItemBasePrice(item);
 
@@ -363,20 +410,31 @@ export function renderDailyClosingReceiptBody(
         })
         .join("");
 
+        return `<section class="product-category">
+          <h3 class="category-heading">${escapeHtml(labels.category)}: ${escapeHtml(category.name || labels.noCategory)}</h3>
+          ${products}
+        </section>`;
+      }).join("");
+
       return `
-        <section class="category">
-          <h2>
-            ${escapeHtml(groupLabel)}: ${escapeHtml(groupName)}
+        <section class="report-group">
+          <h2 class="group-heading">
+            ${escapeHtml(groupLabel)} ${groupIndex + 1}: ${escapeHtml(groupName)}
           </h2>
 
+          <div class="column-heading row">
+            <span>${escapeHtml(labels.product)}</span>
+            <span>${escapeHtml(withoutEnglishSuffix(totalAmountLabel))}</span>
+          </div>
+
           ${
-            products ||
+            categories ||
             `<p style="text-align:center">${escapeHtml(labels.noData)}</p>`
           }
 
-          <div class="category-total row">
+          <div class="group-total row">
             <span>
-              ${escapeHtml(groupTotalLabel)} ${escapeHtml(groupName)}
+              ${escapeHtml(groupTotalLabel)}: ${escapeHtml(groupName)}
             </span>
 
             <span>${escapeHtml(money(group.totalAmount, ""))}</span>
@@ -405,21 +463,16 @@ export function renderDailyClosingReceiptBody(
       ${receiptMetaRowHtml(labels.cashier, data.cashier)}
     </section>
 
-    <div class="divider"></div>
-
-    <div class="column-heading row">
-      <span>${escapeHtml(labels.product)}</span>
-      <span>${escapeHtml(withoutEnglishSuffix(totalAmountLabel))}</span>
-    </div>
-
+    <div class="report-groups">
     ${
       groups ||
       `<p style="text-align:center">${escapeHtml(labels.noData)}</p>`
     }
 
-    <div class="divider"></div>
+    </div>
 
-    <section>
+    <section class="sales-totals">
+      <h2 class="section-title">${escapeHtml(labels.salesTotals)}</h2>
       <div class="total-row">
         <span>
           ${escapeHtml(
@@ -604,7 +657,7 @@ export function buildDailyClosingReportOps(
     text_role: "report_row",
   });
 
-  const groupTotalLabel = dailyClosingLabel(apiLabels.groupTotal, labels.groupTotal);
+  const groupTotalLabel = dailyClosingLabel(labels.groupTotal, apiLabels.groupTotal);
   const discountLabel = dailyClosingLabel(apiLabels.discountAmount, labels.discount);
   // เติมหน่วยเงินต่อท้ายเหมือนฝั่ง HTML — ดู renderDailyClosingReceiptBody
   const totalAmountLabel = `${dailyClosingLabel(apiLabels.totalAmount, labels.totalAmount)} (${labels.currencyUnit})`;
@@ -645,19 +698,25 @@ export function buildDailyClosingReportOps(
       ]
     : [];
 
-  // แต่ละกลุ่มปิดท้ายด้วย line เพื่อแทน border-bottom ของ .category-total ใน HTML
-  const groupOps: ReportPrintOp[] = report.groups.flatMap((group) => {
+  const groupDivider: ReportPrintOp = { type: "line", style: "solid" };
+  const groupOps: ReportPrintOp[] = report.groups.flatMap((group, groupIndex) => {
     const groupName = group.name || dailyClosingLabel(apiLabels.noGroup, "-");
     const products: ReportPrintOp[] = group.items.length
-      ? group.items.flatMap(itemOps)
+      ? itemCategories(group.items).flatMap((category) => [
+          { type: "spacer", px: 5 },
+          { type: "text", text: `${labels.category}: ${category.name || labels.noCategory}`, align: "left", bold: true, size: 26, text_role: "report_heading" },
+          ...category.items.flatMap(itemOps),
+        ] satisfies ReportPrintOp[])
       : [{ type: "text", text: labels.noData, align: "center", bold: false, size: 22, text_role: "report_detail" }];
 
     return [
-      { type: "spacer", px: 6 },
-      { type: "text", text: `${labels.group}: ${groupName}`, align: "left", bold: true, size: 28, text_role: "report_heading" },
+      groupDivider,
+      { type: "text", text: `${labels.group} ${groupIndex + 1}: ${groupName}`, align: "left", bold: true, size: 32, text_role: "report_heading" },
+      { type: "lr", left: labels.product, right: withoutEnglishSuffix(totalAmountLabel), bold: true, size: 26, text_role: "report_heading" },
       ...products,
-      lr(`${groupTotalLabel} ${groupName}`, group.totalAmount, true, 28),
       divider,
+      lr(`${groupTotalLabel}: ${groupName}`, group.totalAmount, true, 30),
+      { type: "spacer", px: 6 },
     ];
   });
 
@@ -675,11 +734,9 @@ export function buildDailyClosingReportOps(
       { type: "text", text: `${labels.businessDate}: ${data.businessDate}`, align: "left", bold: false, size: 24, text_role: "report_detail" } as ReportPrintOp,
     ]),
     { type: "text", text: `${labels.cashier}: ${data.cashier}`, align: "left", bold: false, size: 24, text_role: "report_detail" },
-    divider,
-    // ตัดเหลือแค่ภาษาลาว (withoutEnglishSuffix) แล้วข้อความสั้นพอจะแชร์แถวเดียวกับ "Product" ได้อย่างปลอดภัย
-    // ต่างจากตอนที่ยังมี " / English" ต่อท้ายซึ่งเคยล้นจนพิมพ์ออกมาผิดรูป
-    { type: "lr", left: labels.product, right: withoutEnglishSuffix(totalAmountLabel), bold: true, size: 28, text_role: "report_heading" },
     ...groupOps,
+    groupDivider,
+    { type: "text", text: labels.salesTotals, align: "center", bold: true, size: 30, text_role: "report_heading" },
     {
       type: "lr",
       left: dailyClosingLabel(apiLabels.totalQty, labels.totalQuantity),

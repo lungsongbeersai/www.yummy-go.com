@@ -92,6 +92,7 @@ function printData(): DailyClosingPrintData {
       cancelledBills: "Cancelled bills",
       cash: "Cash",
       cashier: "Cashier",
+      category: "Category",
       credit: "Credit",
       currencyUnit: "kip",
       discount: "Discount",
@@ -101,9 +102,11 @@ function printData(): DailyClosingPrintData {
       groupTotal: "Group total",
       items: "items",
       noData: "No data",
+      noCategory: "Uncategorized",
       orderChannelSummary: "Sales summary by order channel",
       paymentTotal: "Payments received",
       product: "Product",
+      salesTotals: "Sales totals",
       quantity: "Quantity",
       revenueSummary: "Revenue summary",
       serviceCharge: "Service charge",
@@ -227,8 +230,8 @@ describe("daily closing report print", () => {
   it("gives group and payment subtotals distinct hooks without changing shared receipt styles", () => {
     const html = renderDailyClosingPrintHtml(printData());
 
-    expect(html).not.toContain('class="category-total row strong"');
-    expect(html).toContain('class="category-total row"');
+    expect(html).toContain('class="report-group"');
+    expect(html).toContain('class="group-total row"');
     expect(html).toContain('class="total-row payment-total"');
     expect(html).toContain('class="product-amount"');
   });
@@ -257,6 +260,59 @@ describe("daily closing report print", () => {
 });
 
 describe("buildDailyClosingReportOps", () => {
+  it("keeps categories inside their group, prints every item once, and retains API subtotals", () => {
+    const data = printData();
+    const item = data.report.groups[0].items[0];
+    data.report.groups[0].items = [
+      { ...item, key: "a", productName: "Tea first", categoryUuid: "tea", categoryName: "Tea & coffee" },
+      { ...item, key: "b", productName: "Beer", categoryUuid: "beer", categoryName: "Beer <cold>" },
+      { ...item, key: "c", productName: "Tea second", categoryUuid: "tea", categoryName: "Tea & coffee" },
+      { ...item, key: "d", productName: "Other item" },
+    ];
+    data.report.groups.push({ ...data.report.groups[0], key: "group-2", name: "Second group", items: [
+      { ...item, key: "e", productName: "Other tea", categoryUuid: "tea", categoryName: "Tea & coffee" },
+    ], totalAmount: 12345 });
+    const before = structuredClone(data.report);
+    const ops = buildDailyClosingReportOps(data);
+    const groupStart = ops.findIndex((op) => op.text === "Group 1: Food & Drink");
+    const category = ops.findIndex((op) => op.text === "Category: Tea & coffee");
+    const subtotal = ops.findIndex((op) => op.left === "Group total: Food & Drink");
+    const secondGroup = ops.findIndex((op) => op.text === "Group 2: Second group");
+    expect(groupStart).toBeLessThan(category);
+    expect(category).toBeLessThan(subtotal);
+    expect(subtotal).toBeLessThan(secondGroup);
+    expect(ops.slice(groupStart, subtotal).filter((op) => op.text === "Category: Tea & coffee")).toHaveLength(1);
+    expect(ops.some((op) => op.text === "Category: Uncategorized")).toBe(true);
+    expect(ops.filter((op) => op.left && ["Tea first", "Tea second", "Beer", "Other item", "Other tea"].includes(op.left))).toHaveLength(5);
+    expect(ops.findIndex((op) => op.left === "Tea second")).toBeLessThan(ops.findIndex((op) => op.left === "Beer"));
+    expect(ops[subtotal].right).toBe(money(59000, ""));
+    expect(ops.find((op) => op.left === "Group total: Second group")?.right).toBe(money(12345, ""));
+    expect(ops.find((op) => op.left === "Grand total")?.right).toBe(money(64000, ""));
+    expect(ops[groupStart].size).toBeGreaterThan(ops[category].size!);
+    expect(ops[subtotal].size).toBeGreaterThan(ops.find((op) => op.left === "Beer")!.size!);
+
+    for (const width of [58, 80] as const) {
+      const html = renderDailyClosingReceiptPreviewDoc(data, width);
+      expect(html.match(/class="report-group"/g)).toHaveLength(2);
+      expect(html.match(/class="group-total row"/g)).toHaveLength(2);
+      expect(html).toContain("Category: Beer &lt;cold&gt;");
+      expect(html).toContain("Category: Tea &amp; coffee");
+      expect(html).toContain("Category: Uncategorized");
+      expect(html.indexOf("Sales totals</h2>")).toBeGreaterThan(html.indexOf("Group total: Second group"));
+    }
+    expect(data.report).toEqual(before);
+  });
+
+  it("keeps distinct category UUIDs separate even when their names match", () => {
+    const data = printData();
+    const item = data.report.groups[0].items[0];
+    data.report.groups[0].items = [
+      { ...item, categoryUuid: "one", categoryName: "Same name", productName: "First item" },
+      { ...item, categoryUuid: "two", categoryName: "Same name", productName: "Second item" },
+    ];
+    expect(buildDailyClosingReportOps(data).filter((op) => op.text === "Category: Same name")).toHaveLength(2);
+  });
+
   it("gives every lr op an explicit bold flag so the printer agent never receives an inconsistent op shape", () => {
     const ops = buildDailyClosingReportOps(printData());
     const lrOps = ops.filter((op) => op.type === "lr");
@@ -289,7 +345,7 @@ describe("buildDailyClosingReportOps", () => {
     const product = ops.find((op) => op.left === "Rice <Large>");
     const quantity = ops.find((op) => op.text === `${money(60000, "")} × 1`);
     const topping = ops.find((op) => op.text?.startsWith("+ Egg & meat"));
-    const group = ops.find((op) => op.text === "Group: Food & Drink");
+    const group = ops.find((op) => op.text === "Group 1: Food & Drink");
 
     expect(title).toMatchObject({ text_role: "report_heading", bold: true });
     expect(group).toMatchObject({ text_role: "report_heading", bold: true });
@@ -330,21 +386,23 @@ describe("buildDailyClosingReportOps", () => {
     expect(titleIndex).toBeGreaterThan(branchIndex);
   });
 
-  it("closes each group with a dashed rule resolved against the printer's width", () => {
+  it("separates the group subtotal from products and the following section", () => {
     const ops = buildDailyClosingReportOps(printData());
-    const groupTotalIndex = ops.findIndex((op) => op.left === "Group total Food & Drink");
+    const groupTotalIndex = ops.findIndex((op) => op.left === "Group total: Food & Drink");
 
     expect(groupTotalIndex).toBeGreaterThanOrEqual(0);
-    expect(ops[groupTotalIndex + 1]).toEqual({ type: "line", style: "dashed" });
+    expect(ops[groupTotalIndex - 1]).toEqual({ type: "line", style: "dashed" });
+    expect(ops[groupTotalIndex + 2]).toEqual({ type: "line", style: "solid" });
     expect(ops[groupTotalIndex]?.bold).toBe(true);
     expect(ops[groupTotalIndex]?.text_role).toBe("report_row");
   });
 
-  it("requests full-width dashed separators instead of fixed-length text", () => {
+  it("requests full-width solid group boundaries and dashed detail separators", () => {
     const ops = buildDailyClosingReportOps(printData());
 
     expect(ops.filter((op) => op.type === "line").length).toBeGreaterThan(0);
-    expect(ops.filter((op) => op.type === "line").every((op) => op.style === "dashed")).toBe(true);
+    expect(ops.some((op) => op.type === "line" && op.style === "solid")).toBe(true);
+    expect(ops.some((op) => op.type === "line" && op.style === "dashed")).toBe(true);
     expect(ops.some((op) => op.type === "text" && /^[-_]+$/.test(op.text ?? ""))).toBe(false);
   });
 

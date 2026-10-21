@@ -2531,6 +2531,9 @@
       "title": "Sales report by category"
     },
     "dailyClosing": {
+      "category": "Category",
+      "noCategory": "Uncategorized",
+      "salesTotals": "Sales totals",
       "paymentPeriod": "Payment period",
       "paymentPeriodHint": "Payment time in Laos (UTC+7). The end minute is included; select the next end date for overnight periods.",
       "timeFrom": "Time from",

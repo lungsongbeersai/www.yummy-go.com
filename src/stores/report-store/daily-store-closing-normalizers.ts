@@ -33,6 +33,8 @@ export interface DailyStoreClosingTopping {
 }
 
 export interface DailyStoreClosingItem {
+  categoryUuid?: string;
+  categoryName?: string;
   discountAmount: number;
   key: string;
   productName: string;
@@ -147,6 +149,8 @@ function normalizeGroups(value: unknown): DailyStoreClosingGroup[] {
   return records(value).map((group, groupIndex) => {
     const name = textValue(group.group_name);
     const items = records(group.items).map((item, itemIndex) => ({
+      categoryUuid: textValue(item.category_uuid),
+      categoryName: textValue(item.category_name),
       discountAmount: numberValue(item.discount_amount),
       key: `group-${groupIndex + 1}-item-${itemIndex + 1}`,
       productName: textValue(item.product_full_name),

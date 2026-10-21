@@ -36,6 +36,8 @@ describe("normalizeDailyStoreClosingReportResponse", () => {
           total_amount: "9500",
           items: [
             {
+              category_uuid: "category-1",
+              category_name: "Tea & coffee",
               product_full_name: "Tea",
               unit_price: "5000",
               total_qty: "2",
@@ -84,6 +86,8 @@ describe("normalizeDailyStoreClosingReportResponse", () => {
       totalQty: 0,
     });
     expect(report.groups[0].items[0]).toMatchObject({
+      categoryUuid: "category-1",
+      categoryName: "Tea & coffee",
       discountAmount: 500,
       productName: "Tea",
       totalAmount: 9500,
@@ -105,6 +109,18 @@ describe("normalizeDailyStoreClosingReportResponse", () => {
     });
     expect(report.paymentSummary.paymentTotal).toBe(11150);
     expect(report.cancelSummary).toEqual({ billCount: 1, totalAmount: 2000 });
+  });
+
+  it("accepts older and uncategorized items without inventing a category", () => {
+    const report = normalizeDailyStoreClosingReportResponse({ groups: [{
+      group_name: "Drinks", total_amount: 30, items: [
+        { product_full_name: "Old item", total_amount: 10 },
+        { product_full_name: "Uncategorized", total_amount: 20, category_uuid: null, category_name: "" },
+      ],
+    }] });
+    expect(report.groups[0].items.map((item) => [item.categoryUuid, item.categoryName])).toEqual([["", ""], ["", ""]]);
+    expect(report.groups[0].totalAmount).toBe(30);
+    expect(report.groups[0].items.map((item) => item.productName)).toEqual(["Old item", "Uncategorized"]);
   });
 
   it("returns printable zero-value sections for missing or null data", () => {
