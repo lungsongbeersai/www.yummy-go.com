@@ -242,7 +242,7 @@ const DAILY_CLOSING_EXTRA_STYLES = `
 
       .daily-closing .section-title {
         margin: 0;
-        padding: 0.8mm 0 1.2mm;
+        padding: 2mm 0;
         font-size: 15px;
       }
 
@@ -267,7 +267,7 @@ const DAILY_CLOSING_EXTRA_STYLES = `
       }
 
       .daily-closing .signatures {
-        margin-top: 8mm;
+        margin-top: 16mm;
         page-break-inside: avoid;
         break-inside: avoid;
       }
@@ -287,7 +287,16 @@ const DAILY_CLOSING_EXTRA_STYLES = `
       }
 
       .daily-closing .signature-line {
-        letter-spacing: 0;
+        margin-top: 0;
+        font-size: 14px;
+        font-weight: 900;
+        line-height: 1;
+        letter-spacing: 0.5px;
+        -webkit-text-stroke: 0.35px currentColor;
+      }
+
+      .daily-closing .signature-line > span {
+        overflow: hidden;
         white-space: nowrap;
       }
 
@@ -313,7 +322,7 @@ function dailyClosingDocumentStyles(paperWidthMm: 58 | 80) {
 // เส้นลายเซ็นแบบจุด — ใช้ string เดียวกันทั้ง HTML และ ops เพราะเครื่องพิมพ์วาดเส้นแบ่งครึ่งแบบ
 // CSS border ไม่ได้ ต้องพิมพ์เป็นตัวอักษรจริง วางเป็นแถว lr/flex เดียวกับแถวชื่อด้านล่าง
 // (ไม่ใช่ข้อความ 1 บรรทัดตรงกลาง) เพื่อให้จุดแต่ละท่อนอยู่ตรงเหนือชื่อของตัวเองพอดี
-const SIGNATURE_DOTS = ".".repeat(26);
+const SIGNATURE_DOTS = ".".repeat(44);
 
 // Category UUIDs keep equally named categories separate. Retain first-seen
 // category/item order and use the API's group subtotal rather than summing again.
@@ -647,6 +656,11 @@ export function buildDailyClosingReportOps(
   // The renderer knows the printer's printable width; a fixed run of glyphs
   // cannot fill both 58 mm and 80 mm paper without wrapping or leaving a gap.
   const divider: ReportPrintOp = { type: "line", style: "dashed" };
+  const summaryHeading = (text: string): ReportPrintOp[] => [
+    { type: "spacer", px: 16 },
+    { type: "text", text, align: "center", bold: true, size: 30, text_role: "report_heading" },
+    { type: "spacer", px: 16 },
+  ];
 
   const lr = (left: string, right: number, bold = false, size = 26): ReportPrintOp => ({
     type: "lr",
@@ -688,7 +702,7 @@ export function buildDailyClosingReportOps(
   const orderChannelOps: ReportPrintOp[] = report.orderChannels.length
     ? [
         divider,
-        { type: "text", text: labels.orderChannelSummary, align: "center", bold: true, size: 30, text_role: "report_heading" },
+        ...summaryHeading(labels.orderChannelSummary),
         ...report.orderChannels.map((channel, channelIndex) =>
           lr(
             `${channelIndex + 1}. ${channel.name || "-"} (${formatNumber(channel.billCount)})`,
@@ -736,7 +750,7 @@ export function buildDailyClosingReportOps(
     { type: "text", text: `${labels.cashier}: ${data.cashier}`, align: "left", bold: false, size: 24, text_role: "report_detail" },
     ...groupOps,
     groupDivider,
-    { type: "text", text: labels.salesTotals, align: "center", bold: true, size: 30, text_role: "report_heading" },
+    ...summaryHeading(labels.salesTotals),
     {
       type: "lr",
       left: dailyClosingLabel(apiLabels.totalQty, labels.totalQuantity),
@@ -760,7 +774,7 @@ export function buildDailyClosingReportOps(
       text_role: "amount_due",
     },
     divider,
-    { type: "text", text: labels.revenueSummary, align: "center", bold: true, size: 30, text_role: "report_heading" },
+    ...summaryHeading(labels.revenueSummary),
     lr(`1. ${dailyClosingLabel(apiLabels.cash, labels.cash)}`, report.paymentSummary.cash),
     lr(`2. ${dailyClosingLabel(apiLabels.transfer, labels.transfer)}`, report.paymentSummary.transfer),
     lr(`3. ${dailyClosingLabel(apiLabels.credit, labels.credit)}`, report.paymentSummary.credit),
@@ -777,9 +791,10 @@ export function buildDailyClosingReportOps(
       report.cancelSummary.totalAmount,
     ),
     ...orderChannelOps,
-    // Leave room to sign without the former24mm empty block.
-    { type: "spacer", px: 48 },
-    { type: "lr", left: SIGNATURE_DOTS, right: SIGNATURE_DOTS, bold: false, size: 22, text_role: "report_signature" },
+    // Split 16 mm of writing space into gaps below the API's 120 px limit.
+    { type: "spacer", px: 64 },
+    { type: "spacer", px: 64 },
+    { type: "lr", left: SIGNATURE_DOTS, right: SIGNATURE_DOTS, bold: true, size: 26, text_role: "report_signature" },
     { type: "lr", left: labels.employeeSignature, right: labels.storeManagerSignature, bold: false, size: 22, text_role: "report_signature" },
     { type: "spacer", px: 12 },
   ];

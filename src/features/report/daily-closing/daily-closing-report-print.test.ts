@@ -426,6 +426,8 @@ describe("buildDailyClosingReportOps", () => {
     expect(dotsRow?.type).toBe("lr");
     expect(dotsRow?.left).toBe(dotsRow?.right);
     expect(dotsRow?.left).toMatch(/^\.+$/);
+    expect(dotsRow?.left?.length).toBeGreaterThan(26);
+    expect(dotsRow).toMatchObject({ bold: true, text_role: "report_signature" });
 
     // The ops dot text must appear verbatim in the HTML preview too (1:1 parity).
     expect(html).toContain(`<span>${dotsRow?.left}</span>`);
@@ -448,15 +450,18 @@ describe("buildDailyClosingReportOps", () => {
     expect(ops.some((op) => op.text === "Grand total")).toBe(false);
   });
 
-  it("keeps a compact explicit signature gap and preserves both signature prompts", () => {
+  it("leaves handwriting space above the longer signature lines and preserves both prompts", () => {
     const ops = buildDailyClosingReportOps(printData());
     const signatureRow = ops.find((op) => op.left === "Employee signature");
     const dotsRow = ops[ops.indexOf(signatureRow!) - 1];
-    const gap = ops[ops.indexOf(dotsRow) - 1];
+    let gap = 0;
+    for (let index = ops.indexOf(dotsRow) - 1; ops[index]?.type === "spacer"; index--) {
+      expect(ops[index].px).toBeLessThanOrEqual(120);
+      gap += ops[index].px ?? 0;
+    }
 
-    expect(gap.type).toBe("spacer");
-    expect(gap.px).toBeGreaterThan(0);
-    expect(gap.px).toBeLessThanOrEqual(64);
+    expect(gap).toBeGreaterThanOrEqual(96);
+    expect(gap).toBeLessThanOrEqual(160);
     expect(signatureRow).toMatchObject({
       right: "Store manager signature", bold: false, text_role: "report_signature",
     });
@@ -467,7 +472,13 @@ describe("buildDailyClosingReportOps", () => {
 
     const titleIndex = ops.findIndex((op) => op.text === "Sales summary by order channel");
     expect(titleIndex).toBeGreaterThanOrEqual(0);
-    expect(ops[titleIndex - 1]).toEqual({ type: "line", style: "dashed" });
+    expect(ops[titleIndex - 2]).toEqual({ type: "line", style: "dashed" });
+    for (const text of ["Revenue summary", "Sales summary by order channel"]) {
+      const index = ops.findIndex((op) => op.text === text);
+      expect(ops[index - 1].type).toBe("spacer");
+      expect(ops[index + 1]).toEqual(ops[index - 1]);
+      expect(ops[index - 1].px).toBeGreaterThan(0);
+    }
 
     const channelOp = ops.find((op) => op.left === "1. Dine-in (9)");
     expect(channelOp?.type).toBe("lr");
