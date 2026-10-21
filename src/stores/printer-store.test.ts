@@ -88,6 +88,8 @@ describe("printer store", () => {
     registerPrinterAgentMock.mockResolvedValue(undefined);
     usePrinterStore.setState({
       agent: null,
+      agentStatus: "unchecked",
+      agentError: null,
       error: null,
       printing: false,
       pendingSelfTest: null,
@@ -339,6 +341,62 @@ describe("printer store", () => {
     await usePrinterStore.getState().discover("usb", true);
 
     expect(searchPrintersMock).toHaveBeenCalledWith("usb", true);
+  });
+
+  it.each(["checkAgent", "resolveDeviceIdentity"] as const)("keeps cached offline ownership without a false connected state in %s", async (action) => {
+    const cachedAgent = { agent_id: "counter-agent", agent_name: "Counter", device_code: "counter-device" };
+    resolvePrinterDeviceIdentityMock.mockResolvedValueOnce({
+      ok: true, agent: cachedAgent, connected: false, error: "Agent is restarting",
+    });
+    const result = await usePrinterStore.getState()[action]();
+    expect(result).toEqual(action === "checkAgent" ? false : cachedAgent);
+    expect(usePrinterStore.getState()).toMatchObject({
+      agent: cachedAgent, agentStatus: "offline", agentError: "Agent is restarting",
+    });
+  });
+
+  it.each(["checkAgent", "resolveDeviceIdentity"] as const)("does not treat a desktop browser identity as a running Agent in %s", async (action) => {
+    resolvePrinterDeviceIdentityMock.mockResolvedValueOnce({
+      ok: true, agent: { agent_id: "desktop", agent_name: "Browser", device_code: "desktop-web-device" },
+    });
+    await usePrinterStore.getState()[action]();
+    expect(usePrinterStore.getState()).toMatchObject({ agent: null, agentStatus: "offline" });
+  });
+
+  it("keeps a responding but unauthorized Agent distinct from an offline Agent", async () => {
+    resolvePrinterDeviceIdentityMock.mockResolvedValueOnce({
+      ok: true, agent: { agent_id: "counter-agent", agent_name: "Counter", device_code: "counter-device" },
+      connected: false, authorizationFailed: true, error: "Invalid Agent secret",
+    });
+    await expect(usePrinterStore.getState().checkAgent()).resolves.toBe(false);
+    expect(usePrinterStore.getState()).toMatchObject({
+      agentStatus: "unauthorized", agentError: "Invalid Agent secret",
+    });
+  });
+
+  it("keeps the Agent connected when enumeration fails but its identity endpoint responds", async () => {
+    searchPrintersMock.mockRejectedValueOnce(new Error("Printer enumeration failed"));
+    resolvePrinterDeviceIdentityMock.mockResolvedValueOnce({
+      ok: true, agent: { agent_id: "counter-agent", agent_name: "Counter", device_code: "counter-device" },
+    });
+    await expect(usePrinterStore.getState().discover()).rejects.toThrow("Printer enumeration failed");
+    expect(usePrinterStore.getState()).toMatchObject({
+      searching: false, error: "Printer enumeration failed", agentStatus: "connected", agentError: null,
+    });
+  });
+
+  it("does not let an older failed health read overwrite a successful newer read", async () => {
+    const previous = deferred<Awaited<ReturnType<typeof resolvePrinterDeviceIdentity>>>();
+    resolvePrinterDeviceIdentityMock.mockReturnValueOnce(previous.promise).mockResolvedValueOnce({
+      ok: true, agent: { agent_id: "new-agent", agent_name: "New Agent", device_code: "new-device" },
+    });
+    const older = usePrinterStore.getState().checkAgent();
+    await usePrinterStore.getState().checkAgent();
+    previous.resolve({ ok: false, error: "Old timeout" });
+    await older;
+    expect(usePrinterStore.getState()).toMatchObject({
+      agentStatus: "connected", agentError: null, agent: { agent_id: "new-agent", device_code: "new-device" },
+    });
   });
 
   it("forwards the connected Agent LAN addresses when loading shared printers", async () => {

@@ -1768,6 +1768,7 @@
     "status": {
       "connected": "Connected",
       "offline": "Offline",
+      "unauthorized": "Printer Agent access denied",
       "unchecked": "Unchecked"
     }
   },

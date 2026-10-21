@@ -527,5 +527,5 @@ export type ExecuteInvoicePrintInput = ExecuteKitchenPrintInput;
 export type ExecuteReportPrintInput = ExecuteKitchenPrintInput;
 
 export type CheckPrinterAgentConnectionResult =
-  | { ok: true; agent: AgentInfo; connected?: boolean; error?: string }
-  | { ok: false; error: string };
+  | { ok: true; agent: AgentInfo; connected?: boolean; error?: string; authorizationFailed?: boolean }
+  | { ok: false; error: string; authorizationFailed?: boolean };

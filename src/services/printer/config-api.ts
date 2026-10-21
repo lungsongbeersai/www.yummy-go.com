@@ -59,7 +59,8 @@ export async function searchPrinters(
     {
       params: { mode, ...(forceRefresh ? { refresh: "1" } : {}) },
       headers: { "x-agent-secret": AGENT_SECRET },
-      timeout: 5000,
+      // Native enumeration can need four bounded commands on older Agents.
+      timeout: 40000,
     }
   );
   assertAgentOk(data, "Printer search failed");

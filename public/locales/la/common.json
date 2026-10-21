@@ -1763,6 +1763,7 @@
     "usbSearchPending": "ເຄື່ອງພິມ USB ຈະສະແດງຢູ່ນີ້ຫຼັງຈາກ agent ຄົ້ນຫາສຳເລັດ.",
     "status": {
       "connected": "ເຊື່ອມຕໍ່ແລ້ວ",
+      "unauthorized": "ບໍ່ມີສິດເຂົ້າໃຊ້ Printer Agent",
       "offline": "ອອບລາຍ",
       "unchecked": "ຍັງບໍ່ໄດ້ກວດ"
     }

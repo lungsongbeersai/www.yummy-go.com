@@ -2,7 +2,7 @@
 // checking/connecting to the agent, dispatching a single job or a batch to it,
 // and rendering/sending native mobile jobs over physical TCP. Depends on
 // config-api.ts (getPrinters, renderMobileEscpos) — not vice versa.
-import axios from "axios";
+import axios, { isAxiosError } from "axios";
 import { Capacitor } from "@capacitor/core";
 import { isCapacitorMobileApp } from "@/lib/capacitor-platform";
 import { ServiceError } from "@/lib/api";
@@ -41,6 +41,55 @@ import type {
 const PRINTER_IDENTITY_MISSING = "Printer device identity missing";
 const LOCAL_AGENT_IDENTITY_KEY = "yummy_local_printer_agent_identity";
 const BATCH_PROGRESS_POLL_INTERVAL_MS = 200;
+const agentInfoRequests = new Map<string, Promise<AgentInfo>>();
+
+function retryableAgentInfoError(error: unknown) {
+  if (!isAxiosError(error)) return false;
+  if (error.response) return error.response.status >= 500;
+  return ["ECONNABORTED", "ETIMEDOUT", "ERR_NETWORK", "ECONNREFUSED", "ECONNRESET", "EHOSTUNREACH", "ENETUNREACH", "ENOTFOUND"]
+    .includes(error.code ?? "");
+}
+
+function requestAgentInfo(agentUrl: string) {
+  const base = printerAgentBase(AGENT_URL, agentUrl);
+  const existing = agentInfoRequests.get(base);
+  if (existing) return existing;
+
+  const request = Promise.resolve().then(async () => {
+    try {
+      for (let attempt = 0; ; attempt++) {
+        try {
+          const { data } = await axios.get<AgentInfoResponse | AgentInfo>(`${base}/agent/info`, {
+            headers: { "x-agent-secret": AGENT_SECRET },
+            timeout: 5000,
+          });
+          assertAgentOk(data as AgentInfoResponse, "Printer agent not ready");
+          const agent = getAgentFromPayload(data);
+          if (!agent) throw new ServiceError("Local printer agent identity missing", 500);
+          return agent;
+        } catch (error) {
+          // An Agent that is starting or waking may briefly refuse a read.
+          // Only identity GETs are retried; print POSTs remain single-attempt.
+          if (attempt > 0 || !retryableAgentInfoError(error)) throw error;
+          await new Promise<void>((resolve) => setTimeout(resolve, 300));
+        }
+      }
+    } catch (error) {
+      // No print endpoint was called, even when the browser reports a timeout.
+      if (error && typeof error === "object") {
+        (error as { delivery_state?: string }).delivery_state = "not_sent";
+        throw error;
+      }
+      const wrapped = new ServiceError(getPrinterErrorMessage(error), 503);
+      (wrapped as ServiceError & { delivery_state?: string }).delivery_state = "not_sent";
+      throw wrapped;
+    } finally {
+      agentInfoRequests.delete(base);
+    }
+  });
+  agentInfoRequests.set(base, request);
+  return request;
+}
 
 function batchProgressId() {
   const randomUuid = globalThis.crypto?.randomUUID?.();
@@ -194,14 +243,7 @@ function getAgentFromPayload(payload: AgentInfoResponse | AgentInfo | null | und
 
 export async function getLocalAgentInfo(agentUrl = AGENT_URL) {
   if (isCapacitorMobileApp()) throw new ServiceError("Capacitor uses native printing, not a Local Agent", 503);
-  const { data } = await axios.get<AgentInfoResponse | AgentInfo>(`${printerAgentBase(AGENT_URL, agentUrl)}/agent/info`, {
-    headers: { "x-agent-secret": AGENT_SECRET },
-    timeout: 5000
-  });
-  assertAgentOk(data as AgentInfoResponse, "Printer agent not ready");
-
-  const agent = getAgentFromPayload(data);
-  if (!agent) throw new ServiceError("Local printer agent identity missing", 500);
+  const agent = await requestAgentInfo(agentUrl);
   const cached = readCachedLocalAgentInfo();
   const merged = {
     ...agent,
@@ -253,18 +295,16 @@ export function isBrowserDevicePrintJob(job: PrintJob | null | undefined) {
 export async function checkPrinterAgentConnection(agentUrl = AGENT_URL): Promise<CheckPrinterAgentConnectionResult> {
   if (isCapacitorMobileApp()) return { ok: false, error: "Capacitor uses native printing, not a Local Agent" };
   try {
-    const { data } = await axios.get<AgentInfoResponse | AgentInfo>(`${printerAgentBase(AGENT_URL, agentUrl)}/agent/info`, {
-      headers: { "x-agent-secret": AGENT_SECRET },
-      timeout: 5000
-    });
-    assertAgentOk(data as AgentInfoResponse, "Printer agent not ready");
-
-    const agent = getAgentFromPayload(data);
-    if (!agent) throw new ServiceError("Local printer agent identity missing", 500);
+    const agent = await requestAgentInfo(agentUrl);
     if (hasPrinterDeviceIdentity(agent)) saveCachedLocalAgentInfo(agent);
     return { ok: true, agent };
   } catch (error) {
-    return { ok: false, error: getPrinterErrorMessage(error) };
+    const authorizationFailed = isAxiosError(error) && [401, 403].includes(error.response?.status ?? 0);
+    return {
+      ok: false,
+      error: getPrinterErrorMessage(error),
+      ...(authorizationFailed ? { authorizationFailed: true } : {}),
+    };
   }
 }
 
@@ -306,9 +346,16 @@ export async function resolvePrinterDeviceIdentity(agentUrl = AGENT_URL): Promis
           agent: cachedAgent,
           connected: false,
           error: result.error,
+          ...(result.authorizationFailed ? { authorizationFailed: true } : {}),
         };
       }
-      return { ok: true, agent: await getBrowserPrinterIdentity() };
+      return {
+        ok: true,
+        agent: await getBrowserPrinterIdentity(),
+        connected: false,
+        error: result.error,
+        ...(result.authorizationFailed ? { authorizationFailed: true } : {}),
+      };
     }
     if (!hasPrinterDeviceIdentity(result.agent)) {
       return { ok: false, error: PRINTER_IDENTITY_MISSING };

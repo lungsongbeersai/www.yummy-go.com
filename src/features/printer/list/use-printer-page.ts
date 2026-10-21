@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { isCapacitorMobileApp } from "@/lib/capacitor-platform";
 import type { Category } from "@/services/category";
 import type { Printer } from "@/services/printer";
 import type { Zone } from "@/services/zone";
@@ -10,6 +11,7 @@ import { usePrinterStore } from "@/stores/printer-store";
 import { useReferenceStore } from "@/stores/reference-store";
 import { useToastStore } from "@/stores/toast-store";
 import { usePrinterSelfTest } from "@/features/printer/use-printer-self-test";
+import { monitorPrinterAgentConnection } from "./printer-agent-monitor";
 import {
   agentDownloadUrl,
   categoryLabel,
@@ -41,6 +43,7 @@ export function usePrinterPage() {
   const loading = usePrinterStore((state) => state.loading);
   const loadingAgentFiles = usePrinterStore((state) => state.loadingAgentFiles);
   const agent = usePrinterStore((state) => state.agent);
+  const checkAgent = usePrinterStore((state) => state.checkAgent);
   const { printing, pendingSelfTest, runSelfTest, completeSelfTest } = usePrinterSelfTest();
   const loadPrintersForLocalAgent = usePrinterStore(
     (state) => state.loadPrintersForLocalAgent,
@@ -154,7 +157,9 @@ export function usePrinterPage() {
   const summary = useMemo(() => summarizePrinters(printers), [printers]);
   const pageStart = filteredRows.length ? 1 : 0;
   const pageEnd = filteredRows.length;
-  const agentStatusLabel = agentError ?? t(`printer.status.${agentStatus}`);
+  const agentStatusLabel = agentStatus === "unauthorized"
+    ? t("printer.status.unauthorized")
+    : agentError ?? t(`printer.status.${agentStatus}`);
 
   const loginUuid = user?.uuid ?? "";
 
@@ -190,6 +195,20 @@ export function usePrinterPage() {
   useEffect(() => {
     void load();
   }, [load]);
+
+  useEffect(() => {
+    if (!loginUuid) return;
+    const monitor = monitorPrinterAgentConnection(() => checkAgent());
+    const nativeListener = isCapacitorMobileApp()
+      ? import("@capacitor/app").then(({ App }) => App.addListener("appStateChange", ({ isActive }) => {
+          if (isActive) void monitor.refresh();
+        })).catch(() => null)
+      : Promise.resolve(null);
+    return () => {
+      monitor.stop();
+      void nativeListener.then((listener) => listener?.remove()).catch(() => undefined);
+    };
+  }, [checkAgent, loginUuid]);
 
   const loadAgentFilesOnOpen = useCallback(
     (open: boolean) => {

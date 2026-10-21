@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import axios from "axios";
 import type { SavePrinterInput } from "@/services/printer";
 
 const apiMocks = vi.hoisted(() => ({ apiRequest: vi.fn() }));
@@ -7,7 +8,7 @@ vi.mock("@/lib/api", () => ({
   ServiceError: class extends Error {},
 }));
 
-import { getPrinterEmployeeRoles, savePrinter } from "@/services/printer/config-api";
+import { getPrinterEmployeeRoles, savePrinter, searchPrinters } from "@/services/printer/config-api";
 
 describe("printer configuration API", () => {
   const input: SavePrinterInput = {
@@ -19,6 +20,15 @@ describe("printer configuration API", () => {
   };
 
   beforeEach(() => vi.clearAllMocks());
+
+  it("allows bounded native discovery to finish without a five-second false failure", async () => {
+    const request = vi.spyOn(axios, "get").mockResolvedValueOnce({ data: { ok: true, data: [] } });
+    await searchPrinters("usb", true);
+    expect(request).toHaveBeenCalledWith(expect.stringContaining("/printer/search-printer"), expect.objectContaining({
+      params: { mode: "usb", refresh: "1" }, timeout: 40000,
+    }));
+    request.mockRestore();
+  });
 
   it("loads actual employee roles with API language normalization", async () => {
     const roles = [{ roles_id: 17, roles_name: "Counter", roles_name_la: "ແຄັດເຊຍ", roles_name_eng: "Cashier" }];

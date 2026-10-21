@@ -1,15 +1,116 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { AxiosError } from "axios";
 import { resolvePosPrinterContext } from "@/stores/pos-store/printer-context";
 import {
   checkPrinterAgentConnection,
+  getLocalAgentInfo,
+  printWithLocalAgent,
   resolvePrinterDeviceIdentity,
 } from "./agent-transport";
+import { getPrinterDeliveryState } from "./helpers";
 
 const mocks = vi.hoisted(() => ({ get: vi.fn(), post: vi.fn(), apiRequest: vi.fn() }));
+
+const agent = {
+  agent_id: "front-agent",
+  agent_name: "Front POS",
+  device_code: "front-pos-device",
+  platform: "win32",
+};
 
 vi.mock("axios", async (importOriginal) => {
   const actual = await importOriginal<typeof import("axios")>();
   return { ...actual, default: { get: mocks.get, post: mocks.post } };
+});
+
+describe("safe Agent identity preflight", () => {
+  const job = {
+    agent_id: agent.agent_id, device_code: agent.device_code,
+    lang: "la", paper_width_mm: 80, interface_value: "tcp://192.168.1.10:9100",
+    printer_type: "thermal", ops: [],
+  };
+
+  beforeEach(() => {
+    vi.useFakeTimers();
+    vi.clearAllMocks();
+    mocks.get.mockReset();
+    mocks.post.mockReset();
+    browserStorage();
+    vi.stubGlobal("navigator", { userAgent: "Mozilla/5.0 Macintosh Safari" });
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    vi.useRealTimers();
+  });
+
+  it("recovers one refused identity read before sending exactly one print POST", async () => {
+    mocks.get.mockRejectedValueOnce(new AxiosError("Starting", "ECONNREFUSED"))
+      .mockResolvedValueOnce({ data: agent });
+    mocks.post.mockResolvedValueOnce({ data: { ok: true } });
+    const printing = printWithLocalAgent(job);
+    await vi.advanceTimersByTimeAsync(299);
+    expect(mocks.post).not.toHaveBeenCalled();
+    await vi.advanceTimersByTimeAsync(1);
+    await printing;
+    expect(mocks.get).toHaveBeenCalledTimes(2);
+    expect(mocks.post).toHaveBeenCalledTimes(1);
+  });
+
+  it("shares a pending identity GET between status and dispatch callers", async () => {
+    let respond!: (value: { data: typeof agent }) => void;
+    mocks.get.mockReturnValueOnce(new Promise((resolve) => { respond = resolve; }));
+    const health = checkPrinterAgentConnection();
+    const identity = getLocalAgentInfo("http://127.0.0.1:7777/");
+    await Promise.resolve();
+    expect(mocks.get).toHaveBeenCalledTimes(1);
+    respond({ data: agent });
+    await expect(health).resolves.toMatchObject({ ok: true, agent });
+    await expect(identity).resolves.toEqual(agent);
+    mocks.get.mockResolvedValueOnce({ data: agent });
+    await getLocalAgentInfo();
+    expect(mocks.get).toHaveBeenCalledTimes(2);
+  });
+
+  it("bounds retries and keeps a timed-out preflight definitely not sent", async () => {
+    mocks.get.mockRejectedValue(new AxiosError("Timed out", "ECONNABORTED"));
+    const printing = printWithLocalAgent(job);
+    const rejected = expect(printing).rejects.toMatchObject({ delivery_state: "not_sent" });
+    await vi.advanceTimersByTimeAsync(300);
+    await rejected;
+    expect(mocks.get).toHaveBeenCalledTimes(2);
+    expect(mocks.post).not.toHaveBeenCalled();
+  });
+
+  it.each([401, 403])("never retries or prints after Agent authorization denial %s", async (status) => {
+    const denied = Object.assign(new AxiosError("Agent access denied", "ERR_BAD_REQUEST"), {
+      response: { status, data: { error: "Invalid Agent secret" } },
+    });
+    mocks.get.mockRejectedValue(denied);
+    await expect(printWithLocalAgent(job)).rejects.toMatchObject({ delivery_state: "not_sent" });
+    expect(mocks.get).toHaveBeenCalledTimes(1);
+    expect(mocks.post).not.toHaveBeenCalled();
+    await expect(resolvePrinterDeviceIdentity()).resolves.toMatchObject({
+      ok: true, connected: false, authorizationFailed: true, error: "Invalid Agent secret",
+    });
+    expect(mocks.get).toHaveBeenCalledTimes(2);
+  });
+
+  it("does not retry malformed identity responses", async () => {
+    mocks.get.mockResolvedValueOnce({ data: {} });
+    await expect(printWithLocalAgent(job)).rejects.toMatchObject({ delivery_state: "not_sent" });
+    expect(mocks.get).toHaveBeenCalledTimes(1);
+    expect(mocks.post).not.toHaveBeenCalled();
+  });
+
+  it("never repeats a print POST or claims not-sent when its response is lost", async () => {
+    mocks.get.mockResolvedValueOnce({ data: agent });
+    mocks.post.mockRejectedValueOnce(new AxiosError("Print response timed out", "ECONNABORTED"));
+    const error: unknown = await printWithLocalAgent(job).catch((failure: unknown) => failure);
+    expect(getPrinterDeliveryState(error)).toBe("unknown");
+    expect(mocks.get).toHaveBeenCalledTimes(1);
+    expect(mocks.post).toHaveBeenCalledTimes(1);
+  });
 });
 
 vi.mock("@/lib/api", () => ({
@@ -33,13 +134,6 @@ vi.mock("@capacitor/core", () => ({
 vi.mock("@capacitor/device", () => ({
   Device: { getId: vi.fn(), getInfo: vi.fn() },
 }));
-
-const agent = {
-  agent_id: "front-agent",
-  agent_name: "Front POS",
-  device_code: "front-pos-device",
-  platform: "win32",
-};
 
 function browserStorage(initial: Record<string, string> = {}) {
   const values = new Map(Object.entries(initial));

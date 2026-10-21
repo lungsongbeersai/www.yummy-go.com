@@ -42,6 +42,7 @@ import {
   type AgentInfo,
   type BuildTestJobRequest,
   type CategoryRole,
+  type CheckPrinterAgentConnectionResult,
   type DefaultCategoryByRoleInput,
   type ExecuteInvoicePrintInput,
   type ExecuteKitchenPrintInput,
@@ -71,7 +72,25 @@ import { Capacitor } from "@capacitor/core";
 import { isCapacitorMobileApp } from "@/lib/capacitor-platform";
 import { printReport, type ReportPrintInput, type ReportPrintResponse } from "@/services/report";
 
-type AgentStatus = "unchecked" | "connected" | "offline";
+type AgentStatus = "unchecked" | "connected" | "offline" | "unauthorized";
+
+let agentConnectionGeneration = 0;
+
+function agentConnectionState(result: CheckPrinterAgentConnectionResult) {
+  const resolvedAgent = result.ok ? result.agent : null;
+  const browserIdentity = isBrowserPrinterAgentId(resolvedAgent?.agent_id);
+  const available = Boolean(
+    resolvedAgent && textValue(resolvedAgent.agent_id) && textValue(resolvedAgent.device_code) &&
+    (!browserIdentity || isCapacitorMobileApp()),
+  );
+  const connected = available && result.ok && result.connected !== false;
+  const agentStatus: AgentStatus = result.authorizationFailed ? "unauthorized" : connected ? "connected" : "offline";
+  return {
+    agent: available ? resolvedAgent : null,
+    agentStatus,
+    agentError: result.error ?? null,
+  };
+}
 
 const PENDING_SELF_TEST_KEY = "yummy_pending_printer_self_test";
 
@@ -282,21 +301,16 @@ export const usePrinterStore = create<PrinterState>((set, get) => ({
   },
   loadPrintersForLocalAgent: async (params) => {
     const isCurrentSession = createSessionGuard();
+    const connectionGeneration = ++agentConnectionGeneration;
     set({ loading: true, error: null });
 
     const result = await resolvePrinterDeviceIdentity();
     if (!isCurrentSession()) return [];
 
-    const resolvedAgent = result.ok ? result.agent : null;
-    const agentConnected = result.ok && result.connected !== false;
-    const browserIdentity = isBrowserPrinterAgentId(resolvedAgent?.agent_id);
-    const localAgentAvailable = Boolean(
-      resolvedAgent &&
-      textValue(resolvedAgent.agent_id) &&
-      textValue(resolvedAgent.device_code) &&
-      (!browserIdentity || isCapacitorMobileApp()),
-    );
-    const agent = localAgentAvailable ? resolvedAgent : null;
+    const connection = agentConnectionState(result);
+    const agentConnected = connection.agentStatus === "connected";
+    const agent = connection.agent;
+    const browserIdentity = isBrowserPrinterAgentId(agent?.agent_id);
     const agentId = textValue(agent?.agent_id);
     const deviceCode = textValue(agent?.device_code);
     const requesterNetworkHints = agent
@@ -306,13 +320,7 @@ export const usePrinterStore = create<PrinterState>((set, get) => ({
         ].filter(Boolean)
       : [];
 
-    if (isCurrentSession()) {
-      set({
-        agent,
-        agentStatus: localAgentAvailable && agentConnected ? "connected" : "offline",
-        agentError: result.ok ? result.error ?? null : result.error,
-      });
-    }
+    if (isCurrentSession() && connectionGeneration === agentConnectionGeneration) set(connection);
 
     try {
       if (
@@ -381,48 +389,44 @@ export const usePrinterStore = create<PrinterState>((set, get) => ({
   },
   discover: async (mode = "usb", forceRefresh = false) => {
     const isCurrentSession = createSessionGuard();
+    const connectionGeneration = ++agentConnectionGeneration;
     set({ searching: true, error: null });
     try {
       const result = await searchPrinters(mode, forceRefresh);
       if (isCurrentSession()) {
         set({
           found: result.printers,
-          agent: result.agent,
-          agentStatus: result.agent ? "connected" : "unchecked",
-          agentError: null,
+          ...(connectionGeneration === agentConnectionGeneration ? {
+            agent: result.agent,
+            agentStatus: result.agent ? "connected" : "unchecked",
+            agentError: null,
+          } : {}),
           searching: false
         });
       }
       return result.printers;
     } catch (error) {
       if (isCurrentSession()) {
-        set({ error: errorMessage(error), agentStatus: "offline", agentError: errorMessage(error), searching: false });
+        set({ error: errorMessage(error), searching: false });
+        // Enumeration can fail while the Agent's HTTP endpoint is healthy.
+        if (connectionGeneration === agentConnectionGeneration) await get().checkAgent();
       }
       throw error;
     }
   },
   checkAgent: async (agentUrl) => {
     const isCurrentSession = createSessionGuard();
+    const connectionGeneration = ++agentConnectionGeneration;
     const result = await resolvePrinterDeviceIdentity(agentUrl);
-    if (isCurrentSession()) {
-      set({
-        agent: result.ok ? result.agent ?? null : null,
-        agentStatus: result.ok ? "connected" : "offline",
-        agentError: result.ok ? null : result.error ?? null
-      });
-    }
-    return result.ok;
+    const connection = agentConnectionState(result);
+    if (isCurrentSession() && connectionGeneration === agentConnectionGeneration) set(connection);
+    return connection.agentStatus === "connected";
   },
   resolveDeviceIdentity: async (agentUrl) => {
     const isCurrentSession = createSessionGuard();
+    const connectionGeneration = ++agentConnectionGeneration;
     const result = await resolvePrinterDeviceIdentity(agentUrl);
-    if (isCurrentSession()) {
-      set({
-        agent: result.ok ? result.agent ?? null : null,
-        agentStatus: result.ok ? "connected" : "offline",
-        agentError: result.ok ? null : result.error ?? null
-      });
-    }
+    if (isCurrentSession() && connectionGeneration === agentConnectionGeneration) set(agentConnectionState(result));
     if (!result.ok) throw new Error(result.error);
     return result.agent;
   },

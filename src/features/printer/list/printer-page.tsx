@@ -43,6 +43,7 @@ import { PrinterSelfTestDialog } from "@/features/printer/printer-self-test-dial
 const AGENT_DOT: Record<string, string> = {
   connected: "bg-success",
   offline: "bg-warning",
+  unauthorized: "bg-warning",
   unchecked: "bg-muted-foreground",
 };
 
