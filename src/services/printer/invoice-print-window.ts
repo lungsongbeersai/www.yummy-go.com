@@ -6,6 +6,30 @@ import {
   WINDOW_OPEN_PRINT_ON_LOAD_SCRIPT,
 } from "@/lib/window-open-fonts";
 
+// Measure after the print fonts load so long totals fit beside the Lao label
+// without wrapping, truncating digits, or relying on estimated glyph widths.
+export const INVOICE_TOTAL_FIT_SCRIPT = `
+  const fitInvoiceTotals = () => {
+    for (const row of document.querySelectorAll(".grand-total")) {
+      const parts = Array.from(row.querySelectorAll("span"));
+      if (parts.length !== 2) continue;
+      for (const part of parts) part.style.removeProperty("font-size");
+      const gap = parseFloat(getComputedStyle(row).columnGap) || 0;
+      const available = row.getBoundingClientRect().width - gap - 1;
+      const width = parts.reduce((sum, part) => sum + part.getBoundingClientRect().width, 0);
+      const scale = Math.min(1, available / width);
+      if (scale > 0 && scale < 1) {
+        for (const part of parts) {
+          part.style.fontSize = (parseFloat(getComputedStyle(part).fontSize) * scale) + "px";
+        }
+      }
+    }
+  };
+  window.addEventListener("load", () =>
+    Promise.resolve(document.fonts?.ready).finally(fitInvoiceTotals));
+  window.addEventListener("beforeprint", fitInvoiceTotals);
+`;
+
 export type InvoicePrintItem = {
   displayTotal: number;
   hasItemDiscount: boolean;
@@ -159,6 +183,8 @@ export type InvoicePrintData = {
   > & {
     amountDueByCurrency?: string;
     currentExchangeRate?: string;
+    item?: string;
+    amount?: string;
   };
 
   contentWidthMm: number;
@@ -293,6 +319,7 @@ export function renderLocalInvoiceBatchHtml(
   </head>
   <body class="${WINDOW_OPEN_FONT_CLASS_NAME}">
     ${receipts}
+    <script>${INVOICE_TOTAL_FIT_SCRIPT}</script>
     ${autoPrint ? `<script>${WINDOW_OPEN_PRINT_ON_LOAD_SCRIPT}</script>` : ""}
   </body>
 </html>`;
@@ -355,8 +382,14 @@ function invoiceSharedStyles(paperWidthMm: number) {
       }
       .exchange-heading {
         margin: 0;
+        font-size: 17px;
+        font-weight: 900;
         text-align: center;
         line-height: 1.16;
+      }
+      .exchange-heading-lao {
+        /* Saysettha has no bold face; strengthen this heading's original glyphs. */
+        -webkit-text-stroke: 0.3px currentColor;
       }
       .divider {
         height: 0;
@@ -436,20 +469,23 @@ function invoiceSharedStyles(paperWidthMm: number) {
         font-variant-numeric: tabular-nums;
       }
       .grand-total {
-        display: grid;
-        grid-template-columns: minmax(0, 1fr);
-        gap: 0.5mm;
+        display: flex;
+        flex-wrap: nowrap;
+        align-items: baseline;
+        gap: 1mm;
         width: 100%;
         margin-top: 0.8mm;
         padding-top: 0;
-        font-size: 18px;
+        font-size: ${paperWidthMm <= 58 ? 16 : 18}px;
         font-weight: 900;
-        overflow-wrap: anywhere;
+      }
+      .grand-total span {
+        flex: 0 0 auto;
+        white-space: nowrap;
       }
       .grand-total span:last-child {
-        width: 100%;
         min-width: 0;
-        font-size: ${paperWidthMm <= 58 ? 28 : 32}px;
+        font-size: ${paperWidthMm <= 58 ? 24 : 28}px;
         font-weight: 900;
         line-height: 1.14;
       }
@@ -498,6 +534,10 @@ export function renderInvoiceItems(data: InvoicePrintData) {
 
   return `
     <section>
+      <div class="item-main strong item-heading">
+        <span class="item-name">${escapeHtml(data.labels.item ?? "Item")}</span>
+        <span class="item-total">${escapeHtml(data.labels.amount ?? "Amount")}</span>
+      </div>
       ${rows}
     </section>`;
 }
@@ -569,11 +609,13 @@ export function renderInvoiceTotals(data: InvoicePrintData) {
 
 export function renderInvoiceExchangeRates(data: InvoicePrintData) {
   if (!data.exchangeRates?.length) return "";
+  const heading = data.labels.currentExchangeRate ?? "Current Exchange Rate";
+  const laoHeadingClass = /[\u0E80-\u0EFF]/.test(heading) ? " exchange-heading-lao" : "";
 
   return `
     <div class="divider"></div>
     <section class="totals">
-      <p class="exchange-heading strong">${escapeHtml(data.labels.currentExchangeRate ?? "Current Exchange Rate")}</p>
+      <p class="exchange-heading${laoHeadingClass} strong">${escapeHtml(heading)}</p>
       ${data.exchangeRates
         .map((item) => invoiceTotalRow(`1 ${item.code}`, `${formatInvoiceExchangeRate(item.rate)} LAK`))
         .join("")}

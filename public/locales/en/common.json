@@ -1089,6 +1089,8 @@
     "invoicePrintStaff": "Staff",
     "invoicePrintCashier": "Cashier",
     "invoicePrintTotalAmount": "Total amount",
+    "invoicePrintItem": "Item",
+    "invoicePrintAmount": "Amount",
     "invoicePrintDiscount": "Discount",
     "invoicePrintAmountDueByCurrency": "Amount Due by Currency",
     "invoicePrintCurrentExchangeRate": "Current Exchange Rate",

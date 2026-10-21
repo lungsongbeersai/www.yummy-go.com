@@ -929,6 +929,8 @@ export function buildInvoicePrintData({
     }),
     labels: {
       address: translate("fields.branch_address"),
+      item: translate("pos.invoicePrintItem"),
+      amount: translate("pos.invoicePrintAmount"),
       amountDueByCurrency: translate("pos.invoicePrintAmountDueByCurrency"),
       cashier: translate("pos.invoicePrintStaff"),
       customer: translate("pos.customer"),
