@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef } from "react";
+import { memo, useEffect, useRef } from "react";
 import { ArrowLeft, RefreshCcw, ShoppingCart, Utensils } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -20,16 +20,10 @@ import { useIsNativeShellActive } from "@/hooks/use-native-shell-active";
 import { useIsCapacitorNativeApp } from "@/hooks/use-capacitor-native-app";
 import { useLandscapeTablet } from "@/hooks/use-landscape-tablet";
 import { cn } from "@/lib/utils";
-import { optionalString } from "@/lib/values";
 import { useNativeHeaderStore } from "@/stores/native-header-store";
 import { SelectedTableCartPanel } from "../table-selection/selected-table-cart-panel";
 import { DraftExitWarningDialog } from "./draft-exit-warning-dialog";
-import { productMedia } from "./product-media";
-import {
-  PRODUCT_GRID_CLASS,
-  PRODUCT_GRID_PRELOAD_COUNT,
-  productModeLabel,
-} from "./order-customer-utils";
+import { productModeLabel } from "./order-customer-utils";
 import {
   EmployeeCategoryRail,
   EmployeeCategorySidebar,
@@ -37,10 +31,8 @@ import {
   EmployeeMobileHeaderActions,
   EmployeeSortTabs,
 } from "./order-customer-menu-components";
-import {
-  EmployeeProductCard,
-  ProductGridSkeleton,
-} from "./order-customer-product-card";
+import { ProductGridSkeleton } from "./order-customer-product-card";
+import { EmployeeProductGrid } from "./order-customer-product-grid";
 import {
   ProductOptionsForm,
   ProductOptionsMedia,
@@ -48,6 +40,10 @@ import {
   ProductOptionsOverlay,
 } from "./order-customer-product-options";
 import type { OrderCustomerWorkflow } from "./use-order-customer-workflow";
+
+// Typing a menu search or changing product options leaves the server cart intact.
+// Its own state/store subscriptions still update this panel independently.
+const OrderCartPanel = memo(SelectedTableCartPanel);
 
 // สี white/black แบบ glass เดิมออกแบบไว้สำหรับพื้นหลังรูปภาพโหมดสว่างเท่านั้น (bg_wide.webp)
 // โหมดมืดไม่มีรูปพื้นหลัง (dark:bg-none dark:bg-background) เลยเหลือแต่กระจกใสซ้อนพื้นเข้ม
@@ -173,19 +169,6 @@ export function OrderCustomerView({
     setHeaderTitle(selectedTable?.table_name || null);
     return () => setHeaderTitle(null);
   }, [nativeShellActive, selectedTable, setHeaderTitle]);
-
-  // การ์ดแถวแรกคือ LCP ของหน้านี้ ปล่อยให้ lazy จะดีเลย์ LCP และ Next เตือนตอน dev
-  // เคยลองวัดความกว้างกล่องจริงด้วย ResizeObserver มาก่อน แต่ใช้ไม่ได้จริง — หน้านี้ SSR ตอนโหลดครั้งแรก
-  // HTML ที่ส่งมาถึงเบราว์เซอร์จึงมี loading attribute ตายตัวไปแล้วก่อน JS จะรันด้วยซ้ำ วัดฝั่ง client
-  // จึงช้าเกินไปเสมอ ใช้จำนวนคงที่ที่มากพอแทน (ดูเหตุผลที่ PRODUCT_GRID_PRELOAD_COUNT)
-  const preloadImageIndexes = useMemo(() => {
-    const indexes = new Set<number>();
-    for (const [index, entry] of activeProducts.entries()) {
-      if (indexes.size >= PRODUCT_GRID_PRELOAD_COUNT) break;
-      if (productMedia(entry.product).type === "image") indexes.add(index);
-    }
-    return indexes;
-  }, [activeProducts]);
 
   return (
     <div
@@ -485,30 +468,16 @@ export function OrderCustomerView({
                 // lg: (แนวนอน/แท็บเล็ต — ไม่มีปุ่มตะกร้าลอย/แถบล่างมาบัง) ต้องกันแถบ gesture ของ
                 // ระบบเองด้วย safe-area-inset-bottom โดยเฉพาะตอนรันบน Capacitor ผ่าน AppShell
                 // ที่ไม่มี bottom nav มาช่วยกันให้แล้วเหมือน NativeAppShell
-                <div
-                  className={cn(
-                    PRODUCT_GRID_CLASS,
-                    compactNativeProductGrid,
-                    "pb-24 lg:pb-[calc(1rem+var(--pos-system-bottom-safe-area))]"
-                  )}
-                >
-                  {activeProducts.map((entry, index) => (
-                    <EmployeeProductCard
-                      key={`${entry.cateUuid}-${entry.product.prodUuid}-${
-                        optionalString(entry.product.proDetailUuid) ??
-                        activeSort
-                      }`}
-                      activeSort={activeSort}
-                      compact={horizontalNativeOrderLayout}
-                      entry={entry}
-                      imagePreload={preloadImageIndexes.has(index)}
-                      loading={loadingProductUuid === entry.product.prodUuid}
-                      nativeMobile={isNativeApp}
-                      onAction={openOrAddProduct}
-                      onPrefetch={prefetchProduct}
-                    />
-                  ))}
-                </div>
+                <EmployeeProductGrid
+                  activeSort={activeSort}
+                  className={compactNativeProductGrid}
+                  compact={horizontalNativeOrderLayout}
+                  loadingProductUuid={loadingProductUuid}
+                  nativeMobile={isNativeApp}
+                  products={activeProducts}
+                  onAction={openOrAddProduct}
+                  onPrefetch={prefetchProduct}
+                />
               ) : (
                 <Empty className="min-h-105 rounded-xl border border-dashed bg-background text-foreground">
                   <EmptyHeader>
@@ -543,7 +512,7 @@ export function OrderCustomerView({
           )}
         >
           <div className="relative h-full min-h-0">
-            <SelectedTableCartPanel
+            <OrderCartPanel
               allZones={zones}
               cart={cart}
               loading={loadingCart}
@@ -610,7 +579,7 @@ export function OrderCustomerView({
           className="h-[calc(100dvh-8px-env(safe-area-inset-top,0px))] max-h-none gap-0 overflow-hidden rounded-t-2xl border-white/20 bg-[image:linear-gradient(color-mix(in_oklch,var(--primary)_45%,transparent),color-mix(in_oklch,var(--primary)_45%,transparent)),url('/posAll/background_wide.webp')] bg-cover bg-top p-0 text-white data-[side=bottom]:h-[calc(100dvh-8px-env(safe-area-inset-top,0px))] dark:border-primary/30 dark:bg-none dark:bg-background"
         >
           <SheetTitle className="sr-only">{t("pos.currentCart")}</SheetTitle>
-          <SelectedTableCartPanel
+          <OrderCartPanel
             allZones={zones}
             cart={cart}
             loading={loadingCart}

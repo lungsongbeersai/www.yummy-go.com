@@ -15,7 +15,11 @@ import {
   getPrinterErrorMessage,
   textValue
 } from "@/services/printer/helpers";
-import { getBrowserPrinterIdentity, isBrowserPrinterAgentId } from "@/services/printer/browser-device";
+import {
+  getBrowserPrinterIdentity,
+  isBrowserPrinterAgentId,
+  isMobileBrowserPrinterDevice,
+} from "@/services/printer/browser-device";
 import {
   getPrinters,
   registerPrinterAgent,
@@ -268,11 +272,31 @@ function hasPrinterDeviceIdentity(agent: AgentInfo | null | undefined) {
   return Boolean(textValue(agent?.agent_id) && textValue(agent?.device_code));
 }
 
+function isLoopbackAgentUrl(agentUrl: string) {
+  try {
+    const url = new URL(printerAgentBase(AGENT_URL, agentUrl));
+    return (url.protocol === "http:" || url.protocol === "https:") &&
+      ["localhost", "127.0.0.1", "[::1]"].includes(url.hostname.toLowerCase());
+  } catch {
+    return false;
+  }
+}
+
 export async function resolvePrinterDeviceIdentity(agentUrl = AGENT_URL): Promise<CheckPrinterAgentConnectionResult> {
   try {
     // Do not wait five seconds for a localhost Agent that cannot exist here.
     // Keep the existing browser-device id so printer ownership is not rotated.
     if (isCapacitorMobileApp()) return { ok: true, agent: await getBrowserPrinterIdentity() };
+    // A phone/tablet browser has no local desktop Agent. Skip only that
+    // impossible probe; configured network Agents and saved ownership keep
+    // their established connection checks and routing.
+    if (
+      isMobileBrowserPrinterDevice() &&
+      isLoopbackAgentUrl(agentUrl) &&
+      !readCachedLocalAgentInfo()
+    ) {
+      return { ok: true, agent: await getBrowserPrinterIdentity() };
+    }
     const result = await checkPrinterAgentConnection(agentUrl);
     if (!result.ok) {
       const cachedAgent = readCachedLocalAgentInfo();

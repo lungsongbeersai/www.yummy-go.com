@@ -1007,7 +1007,7 @@ export function PaymentDialogContent({
                   <Button
                     type="button"
                     className="h-11 min-w-0 px-2 font-bold"
-                    disabled={Boolean(validation) || processing}
+                    disabled={Boolean(validation) || processing || invoicePrinting}
                     onClick={requestSubmit}
                   >
                     {processing ? (
@@ -1090,7 +1090,7 @@ export function PaymentDialogContent({
                       <Button
                         type="button"
                         className="h-10 min-w-0 px-2 text-base font-bold sm:h-12"
-                        disabled={Boolean(validation) || processing}
+                        disabled={Boolean(validation) || processing || invoicePrinting}
                         onClick={requestSubmit}
                       >
                         {processing ? (
@@ -1213,7 +1213,7 @@ export function PaymentDialogContent({
               </AlertDialogCancel>
               <AlertDialogAction
                 className="h-12 text-base font-black sm:h-14"
-                disabled={processing}
+                disabled={processing || invoicePrinting}
                 onClick={() => void submitPayment()}
               >
                 {processing ? (

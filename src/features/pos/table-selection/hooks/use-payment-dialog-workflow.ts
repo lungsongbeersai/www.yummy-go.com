@@ -40,10 +40,17 @@ import { useReferenceStore } from "@/stores/reference-store";
 import { useToastStore } from "@/stores/toast-store";
 import { usePaymentCustomers } from "./use-payment-customers";
 import type { PaymentDialogProps } from "../payment-dialog-types";
-import { queuedDocumentPrintOutcome } from "../queued-document-print";
+import {
+  checkoutDocumentActionGuard,
+  finishCommittedPayment,
+  isInvoicePrintPreparationError,
+  queuedDocumentPrintOutcome,
+} from "../queued-document-print";
 import {
   cartOrdersBelongToTable,
   cartOrderInvoice,
+  cartOrders,
+  primaryCartOrder,
 } from "../utils";
 import {
   openLocalInvoicePrintWindow,
@@ -87,6 +94,12 @@ import {
 
 const EMPTY_EXCHANGES: Exchange[] = [];
 const EMPTY_TRANSFER_ACCOUNTS: BranchAccount[] = [];
+
+interface QueuedDocumentContext {
+  loginUuid: string;
+  label: string;
+  toastId: string;
+}
 
 export function usePaymentDialogWorkflow({
   hasRealTable = true,
@@ -156,6 +169,7 @@ export function usePaymentDialogWorkflow({
   const totalAmount = Math.max(0, Number(summary.grandTotal ?? 0));
   const invoice = cartOrderInvoice(orders);
   const orderUuid = firstOrderUuid(orders);
+  const documentActionKey = JSON.stringify([user?.uuid, orderUuid]);
   const currencyOptions = useMemo(
     () => exchangeCurrencyOptions(exchanges),
     [exchanges],
@@ -650,16 +664,24 @@ export function usePaymentDialogWorkflow({
   }
 
   function requestSubmit() {
-    if (validation || processing) return;
+    if (
+      validation ||
+      processing ||
+      invoicePrinting ||
+      checkoutDocumentActionGuard.isActive(documentActionKey)
+    ) return;
     setConfirmOpen(true);
   }
 
   async function submitPayment() {
-    if (validation || processing || !user?.uuid) return;
+    if (validation || processing || invoicePrinting || !user?.uuid) return;
     if (!cartOrdersBelongToTable(orders, table)) {
       showToast({ title: t("pos.paymentMissingOrder"), tone: "error" });
       return;
     }
+
+    const releaseAction = checkoutDocumentActionGuard.acquire(documentActionKey);
+    if (!releaseAction) return;
 
     setProcessing(true);
     try {
@@ -721,15 +743,35 @@ export function usePaymentDialogWorkflow({
             lang: toApiLanguage(language),
           });
 
-      await printReceipt(response);
-      showToast({
-        title: t(
-          isSplitPayment ? "pos.splitPaymentCreated" : "pos.paymentSuccess",
+      const context = queuedPrintContext(response, user.uuid);
+      const result = await finishCommittedPayment({
+        print: () => printReceipt(response, context),
+        onCommitted: () => {
+          const store = usePosStore.getState();
+          if (firstOrderUuid(cartOrders(primaryCartOrder(store.cart))) === orderUuid) {
+            store.invalidateCart();
+          }
+          showToast({
+            title: t(isSplitPayment ? "pos.splitPaymentCreated" : "pos.paymentSuccess"),
+            tone: "success",
+          });
+          onOpenChange(false);
+        },
+        refresh: onCompleted,
+        onPrintError: (error) => showQueuedPrintError(
+          t("pos.receiptPrintFailed"),
+          error instanceof Error ? error.message : "",
+          () => void printReceipt(response, context),
+          context,
         ),
-        tone: "success",
       });
-      onOpenChange(false);
-      await onCompleted();
+      if ("completionError" in result || "refreshError" in result) {
+        showToast({
+          title: t("pos.paymentRefreshFailed"),
+          description: context.label,
+          tone: "warning",
+        });
+      }
     } catch (error) {
       showToast({
         title: t(
@@ -739,12 +781,33 @@ export function usePaymentDialogWorkflow({
         tone: "error",
       });
     } finally {
+      releaseAction();
       setProcessing(false);
       setConfirmOpen(false);
     }
   }
 
-  async function printReceipt(response: PaymentResponse | SplitBillResponse) {
+  function queuedPrintContext(
+    response: PaymentResponse | SplitBillResponse,
+    loginUuid: string,
+  ): QueuedDocumentContext {
+    const responseInvoice = response.new_order_invoice ?? response.order_invoice;
+    const documentInvoice = typeof responseInvoice === "string" ? responseInvoice : invoice || orderUuid;
+    const printJobUuid = response.pending_query?.print_job_uuid ?? response.print_job?.print_job_uuid;
+    return {
+      loginUuid,
+      label: [
+        `${t("pos.invoicePrintNumber")}: ${documentInvoice}`,
+        hasRealTable ? `${t("pos.invoicePrintTable")}: ${table.table_name}` : "",
+      ].filter(Boolean).join(" · "),
+      toastId: `document-print:${printJobUuid || documentInvoice}`,
+    };
+  }
+
+  async function printReceipt(
+    response: PaymentResponse | SplitBillResponse,
+    context: QueuedDocumentContext,
+  ) {
     const pendingJobUuid =
       response.pending_query?.print_job_uuid ??
       (typeof response.print_job?.print_job_uuid === "string"
@@ -754,14 +817,15 @@ export function usePaymentDialogWorkflow({
       showQueuedPrintError(
         t("pos.receiptPrintFailed"),
         t("pos.invoicePrintMissingJob"),
-        () => void printReceipt(response),
+        () => void printReceipt(response, context),
+        context,
       );
       return;
     }
 
     await executeQueuedInvoice(
       response,
-      user?.uuid,
+      context,
       t("pos.receiptPrintFailed"),
     );
   }
@@ -781,7 +845,10 @@ export function usePaymentDialogWorkflow({
       return;
     }
 
-    const invoicePrintData = buildInvoicePrintData({
+    const releaseAction = checkoutDocumentActionGuard.acquire(documentActionKey);
+    if (!releaseAction) return;
+
+    const invoicePrintData = () => buildInvoicePrintData({
       exchangeRates: currencyOptions,
       invoice,
       orders,
@@ -845,7 +912,7 @@ export function usePaymentDialogWorkflow({
 
       if (!pendingJobUuid) {
         await showInvoicePrintFallback(
-          invoicePrintData,
+          invoicePrintData(),
           t("pos.invoicePrintMissingJob"),
         );
         return;
@@ -853,50 +920,72 @@ export function usePaymentDialogWorkflow({
 
       await executeQueuedInvoice(
         response,
-        user.uuid,
+        queuedPrintContext(response, user.uuid),
         t("pos.invoicePrintFailed"),
       );
     } catch (error) {
+      // This failure means Backend could not read the bill's actual items.
+      // A cached cart is not a safe substitute for that invoice snapshot.
+      if (isInvoicePrintPreparationError(error)) {
+        showToast({
+          title: t("pos.invoicePrintFailed"),
+          description: t("pos.invoicePrintPreparationFailed"),
+          tone: "error",
+          action: {
+            label: t("actions.tryAgain"),
+            onClick: () => void handlePrintInvoice(),
+          },
+        });
+        return;
+      }
       await showInvoicePrintFallback(
-        invoicePrintData,
+        invoicePrintData(),
         error instanceof Error ? error.message : "",
       );
     } finally {
+      releaseAction();
       setInvoicePrinting(false);
     }
   }
 
   async function executeQueuedInvoice(
     response: PaymentResponse | SplitBillResponse,
-    loginUuid: string | undefined,
+    context: QueuedDocumentContext,
     failureTitle: string,
   ) {
     const retry = () =>
       void executeQueuedInvoice(
         response,
-        loginUuid,
+        context,
         failureTitle,
       );
     setInvoicePrinting(true);
-
     try {
+      showToast({
+        id: context.toastId,
+        title: t("common.printing"),
+        description: context.label,
+        tone: "info",
+      });
       const printResult = await executeInvoice({
         print_job: response.print_job,
         pending_query: response.pending_query,
-        login_uuid_fk: loginUuid,
+        login_uuid_fk: context.loginUuid,
       });
       const outcome = queuedDocumentPrintOutcome(printResult);
 
       if (outcome === "pending") {
         showToast({
-          title: t("orderQueue.kitchenPrintQueued"),
+          id: context.toastId,
+          title: t("pos.documentPrintQueued"),
+          description: context.label,
           tone: "info",
         });
         return;
       }
 
       if (outcome === "success") {
-        showToast({ title: t("common.printSuccess"), tone: "success" });
+        showToast({ id: context.toastId, title: t("common.printSuccess"), description: context.label, tone: "success" });
         return;
       }
 
@@ -904,12 +993,14 @@ export function usePaymentDialogWorkflow({
         failureTitle,
         printResult.errorMessage,
         retry,
+        context,
       );
     } catch (error) {
       showQueuedPrintError(
         failureTitle,
         error instanceof Error ? error.message : "",
         retry,
+        context,
       );
     } finally {
       setInvoicePrinting(false);
@@ -920,10 +1011,12 @@ export function usePaymentDialogWorkflow({
     title: string,
     description: string | undefined,
     retry: () => void,
+    context?: QueuedDocumentContext,
   ) {
     showToast({
+      ...(context ? { id: context.toastId } : {}),
       title,
-      description: [description, t("pos.autoPrintRetryDescription")]
+      description: [context?.label, description, t("pos.autoPrintRetryDescription")]
         .filter(Boolean)
         .join(" "),
       tone: "error",

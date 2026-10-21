@@ -1,6 +1,6 @@
 "use client";
 
-import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { memo, useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { Bell, Check, Clock, MapPinPlus, Plus, Search, UserRound } from "lucide-react";
 import { useTranslation } from "react-i18next";
@@ -47,7 +47,7 @@ interface TableListSectionProps {
   zones: PosZone[];
   onSearchChange: (value: string) => void;
   onRefresh: () => Promise<unknown>;
-  onSelectTable: (table: PosTable) => void;
+  onSelectTable: (table: PosTable, zoneUuid: string) => void;
   onStatusFilterChange: (value: TableStatusFilter) => void;
 }
 
@@ -82,11 +82,19 @@ export function TableListSection({
     nativeOnly: false,
   });
   const zoneSectionRefs = useRef(new Map<string, HTMLElement>());
+  const setZoneSectionRef = useCallback((zoneUuid: string, element: HTMLElement | null) => {
+    if (element) zoneSectionRefs.current.set(zoneUuid, element);
+    else zoneSectionRefs.current.delete(zoneUuid);
+  }, []);
   const zoneRailRef = useRef<HTMLDivElement | null>(null);
   const statusRailRef = useRef<HTMLDivElement | null>(null);
   const [zoneRailOverflowing, setZoneRailOverflowing] = useState(false);
   const [statusRailOverflowing, setStatusRailOverflowing] = useState(false);
-  const visibleZones = useMemo(() => filterZones(zones, search, statusFilter), [search, statusFilter, zones]);
+  // Keep typing immediate on large grids. Realtime occupancy and status filters
+  // still use the current zones/status; only text filtering can yield to input.
+  const deferredSearch = useDeferredValue(search);
+  const filtering = search !== deferredSearch;
+  const visibleZones = useMemo(() => filterZones(zones, deferredSearch, statusFilter), [deferredSearch, statusFilter, zones]);
   const allTables = useMemo(() => zones.flatMap((zone) => zone.tables ?? []), [zones]);
   const filterOptions = zoneOptions.length ? zoneOptions : zones;
   const hasVisibleTables = tableCount(visibleZones) > 0;
@@ -251,32 +259,20 @@ export function TableListSection({
           (immersive /posAll/tables) จัดการ scroll เอง ไม่มี padding-bottom จาก AppShell ให้ */}
       <div className="relative flex min-h-0 flex-1 flex-col">
         <NativePullToRefreshIndicator local pullDistance={pullDistance} refreshing={refreshing} threshold={threshold} />
-        <div ref={scrollContainerRef} className="settings-table-scroll min-h-0 flex-1 overflow-y-auto overscroll-y-contain p-3 sm:p-4 xl:p-5">
+        <div ref={scrollContainerRef} aria-busy={loading || filtering} className="settings-table-scroll min-h-0 flex-1 overflow-y-auto overscroll-y-contain p-3 sm:p-4 xl:p-5">
           {loading ? (
             <LoadingState label={t("pos.loadingTables")} variant="posGrid" />
           ) : hasVisibleTables ? (
             <div className="flex min-w-0 flex-col gap-4">
               {visibleZones.map((zone) => (
-                <section
+                <TableZoneSection
                   key={zone.zone_uuid}
-                  ref={(el) => {
-                    if (el) zoneSectionRefs.current.set(zone.zone_uuid, el);
-                    else zoneSectionRefs.current.delete(zone.zone_uuid);
-                  }}
-                  className="flex flex-col gap-3"
-                >
-                  {filterOptions.length > 1 ? (
-                    <div className="flex flex-wrap items-center gap-2">
-                      <h2 className="text-sm font-semibold text-foreground">{zone.zone_name}</h2>
-                      <Badge className="bg-muted px-1.5 tabular-nums text-muted-foreground">{(zone.tables ?? []).length}</Badge>
-                    </div>
-                  ) : null}
-                  <div className="grid grid-cols-[repeat(auto-fill,minmax(min(150px,100%),1fr))] gap-2 sm:grid-cols-[repeat(auto-fill,minmax(min(164px,100%),1fr))] lg:grid-cols-[repeat(auto-fill,minmax(min(180px,100%),1fr))] xl:grid-cols-[repeat(auto-fill,minmax(min(200px,100%),1fr))]">
-                    {(zone.tables ?? []).map((table) => (
-                      <TableCard key={table.table_uuid} selected={selectedTable?.table_uuid === table.table_uuid} table={table} onOpen={onSelectTable} />
-                    ))}
-                  </div>
-                </section>
+                  selectedTableUuid={selectedTable?.table_uuid ?? ""}
+                  setZoneSectionRef={setZoneSectionRef}
+                  showHeading={filterOptions.length > 1}
+                  zone={zone}
+                  onSelectTable={onSelectTable}
+                />
               ))}
             </div>
           ) : (
@@ -288,6 +284,47 @@ export function TableListSection({
     </div>
   );
 }
+
+interface TableZoneSectionProps {
+  selectedTableUuid: string;
+  setZoneSectionRef: (zoneUuid: string, element: HTMLElement | null) => void;
+  showHeading: boolean;
+  zone: PosZone;
+  onSelectTable: (table: PosTable, zoneUuid: string) => void;
+}
+
+// Zone-chip selection and urgent search input do not change the table data.
+// Skip their card-map/reconciliation work while retaining normal prop updates.
+const TableZoneSection = memo(function TableZoneSection({
+  selectedTableUuid,
+  setZoneSectionRef,
+  showHeading,
+  zone,
+  onSelectTable,
+}: TableZoneSectionProps) {
+  const setSectionRef = useCallback((element: HTMLElement | null) => {
+    setZoneSectionRef(zone.zone_uuid, element);
+  }, [setZoneSectionRef, zone.zone_uuid]);
+  const openTable = useCallback((table: PosTable) => {
+    onSelectTable(table, zone.zone_uuid);
+  }, [onSelectTable, zone.zone_uuid]);
+
+  return (
+    <section ref={setSectionRef} className="flex flex-col gap-3">
+      {showHeading ? (
+        <div className="flex flex-wrap items-center gap-2">
+          <h2 className="text-sm font-semibold text-foreground">{zone.zone_name}</h2>
+          <Badge className="bg-muted px-1.5 tabular-nums text-muted-foreground">{(zone.tables ?? []).length}</Badge>
+        </div>
+      ) : null}
+      <div className="grid grid-cols-[repeat(auto-fill,minmax(min(150px,100%),1fr))] gap-2 sm:grid-cols-[repeat(auto-fill,minmax(min(164px,100%),1fr))] lg:grid-cols-[repeat(auto-fill,minmax(min(180px,100%),1fr))] xl:grid-cols-[repeat(auto-fill,minmax(min(200px,100%),1fr))]">
+        {(zone.tables ?? []).map((table) => (
+          <TableCard key={table.table_uuid} selected={selectedTableUuid === table.table_uuid} table={table} onOpen={openTable} />
+        ))}
+      </div>
+    </section>
+  );
+});
 
 // ToggleGroupItem แทน Button+active-prop แบบเดิม (shadcn rule: option set 2-7
 // ตัวเลือกใช้ ToggleGroup แทนการ loop Button คุม active เอง) — ได้ roving-tabindex

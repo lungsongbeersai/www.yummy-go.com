@@ -423,6 +423,7 @@ export interface PendingPrintJobsParams {
   print_mode?: string;
   relay_device_code?: string;
   agent_ready?: boolean;
+  refs_only?: boolean;
 }
 export interface PendingPrintJobsResult {
   jobs: PendingPrintJobData[];

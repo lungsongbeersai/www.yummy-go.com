@@ -135,6 +135,15 @@ function browserAgentId(userAgent: string, platform = "", mobile = false) {
   return BROWSER_DESKTOP_AGENT_ID;
 }
 
+export function isMobileBrowserPrinterDevice() {
+  const browser = currentNavigator();
+  return browserAgentId(
+    browser?.userAgent ?? "",
+    browser?.userAgentData?.platform ?? "",
+    browser?.userAgentData?.mobile ?? false,
+  ) === BROWSER_MOBILE_AGENT_ID;
+}
+
 async function getDeviceHints() {
   const userAgentData = currentNavigator()?.userAgentData;
 

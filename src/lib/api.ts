@@ -27,6 +27,8 @@ export interface RequestOptions {
   data?: unknown;
   headers?: Record<string, string>;
   responseType?: "blob";
+  timeout?: number;
+  signal?: AbortSignal;
 }
 
 function createClient(authenticated: boolean): AxiosInstance {
@@ -84,20 +86,25 @@ async function send<T>(
   url: string,
   options?: RequestOptions,
 ) {
+  const requestControls = {
+    ...(options?.timeout !== undefined ? { timeout: options.timeout } : {}),
+    ...(options?.signal ? { signal: options.signal } : {}),
+  };
   switch (method) {
     case "get":
-      return client.get<T>(url, { params: options?.params, headers: options?.headers, responseType: options?.responseType });
+      return client.get<T>(url, { params: options?.params, headers: options?.headers, responseType: options?.responseType, ...requestControls });
     case "post":
-      return client.post<T>(url, options?.data, { headers: options?.headers });
+      return client.post<T>(url, options?.data, { headers: options?.headers, ...requestControls });
     case "put":
-      return client.put<T>(url, options?.data, { headers: options?.headers });
+      return client.put<T>(url, options?.data, { headers: options?.headers, ...requestControls });
     case "patch":
-      return client.patch<T>(url, options?.data, { headers: options?.headers });
+      return client.patch<T>(url, options?.data, { headers: options?.headers, ...requestControls });
     case "delete":
       return client.delete<T>(url, {
         params: options?.params,
         data: options?.data,
         headers: options?.headers,
+        ...requestControls,
       });
   }
 }

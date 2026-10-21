@@ -12,7 +12,7 @@ index 3d335a6..4062c71 100644
      }
      lintOptions {
 diff --git a/node_modules/@deedarb/capacitor-tcp-socket/android/src/main/java/com/svend/plugins/tcp/socket/TcpSocketPlugin.java b/node_modules/@deedarb/capacitor-tcp-socket/android/src/main/java/com/svend/plugins/tcp/socket/TcpSocketPlugin.java
-index 78ec7c8..7054f9e 100644
+index 78ec7c8..551a98a 100644
 --- a/node_modules/@deedarb/capacitor-tcp-socket/android/src/main/java/com/svend/plugins/tcp/socket/TcpSocketPlugin.java
 +++ b/node_modules/@deedarb/capacitor-tcp-socket/android/src/main/java/com/svend/plugins/tcp/socket/TcpSocketPlugin.java
 @@ -19,7 +19,9 @@ import java.io.IOException;
@@ -55,43 +55,56 @@ index 78ec7c8..7054f9e 100644
  
      @PluginMethod()
      public void connect(PluginCall call) {
-@@ -45,21 +64,29 @@ public class TcpSocketPlugin extends Plugin {
+@@ -45,22 +64,34 @@ public class TcpSocketPlugin extends Plugin {
          Integer port = call.getInt("port", 9100);
          Integer timeout = call.getInt("timeout", 10); // Default 10 second timeout (in seconds)
  
-+        int clientIndex;
-+        Socket clientSocket = new Socket();
-         try {
+-        try {
 -            if (socket != null && socket.isConnected()) {
 -                socket.close();
-+            clientSocket.connect(new InetSocketAddress(ipAddress, port), timeout * 1000); // Convert seconds to milliseconds
-+            DataOutputStream output = new DataOutputStream(new BufferedOutputStream(clientSocket.getOutputStream()));
-+            synchronized (clients) {
-+                clientIndex = clients.size();
-+                clients.add(clientSocket);
-+                outputs.add(output);
++        // Capacitor shares one plugin thread. An unreachable printer must not
++        // block sends or cancellation for other connected printers.
++        new Thread(() -> {
++            int clientIndex;
++            Socket clientSocket = new Socket();
++            try {
++                clientSocket.connect(new InetSocketAddress(ipAddress, port), timeout * 1000); // Convert seconds to milliseconds
++                DataOutputStream output = new DataOutputStream(new BufferedOutputStream(clientSocket.getOutputStream()));
++                synchronized (clients) {
++                    clientIndex = clients.size();
++                    clients.add(clientSocket);
++                    outputs.add(output);
++                }
++            } catch (IOException e) {
++                try {
++                    clientSocket.close();
++                } catch (IOException ignored) {
++                    // Preserve the original connection error.
++                }
++                Log.d("Connection failed", e.getMessage());
++                call.reject(e.getMessage());
++                return;
              }
 -            socket = new Socket();
 -            socket.connect(new InetSocketAddress(ipAddress, port), timeout * 1000); // Convert seconds to milliseconds
 -            clients.add(socket);
-         } catch (IOException e) {
-+            try {
-+                clientSocket.close();
-+            } catch (IOException ignored) {
-+                // Preserve the original connection error.
-+            }
-             Log.d("Connection failed", e.getMessage());
-             call.reject(e.getMessage());
-             return;
-         }
+-        } catch (IOException e) {
+-            Log.d("Connection failed", e.getMessage());
+-            call.reject(e.getMessage());
+-            return;
+-        }
  
-         JSObject ret = new JSObject();
+-        JSObject ret = new JSObject();
 -        ret.put("client", clients.size() - 1);
-+        ret.put("client", clientIndex);
-         call.resolve(ret);
+-        call.resolve(ret);
++            JSObject ret = new JSObject();
++            ret.put("client", clientIndex);
++            call.resolve(ret);
++        }).start();
      }
  
-@@ -73,30 +100,29 @@ public class TcpSocketPlugin extends Plugin {
+     @PluginMethod()
+@@ -73,30 +104,29 @@ public class TcpSocketPlugin extends Plugin {
              return;
          }
  
@@ -134,7 +147,7 @@ index 78ec7c8..7054f9e 100644
              call.reject("Socket not connected");
              return;
          }
-@@ -108,7 +134,7 @@ public class TcpSocketPlugin extends Plugin {
+@@ -108,22 +138,34 @@ public class TcpSocketPlugin extends Plugin {
      public void read(final PluginCall call) {
          final Integer client = call.getInt("client", -1);
          final Integer length = call.getInt("expectLen", 1024);
@@ -143,10 +156,18 @@ index 78ec7c8..7054f9e 100644
          if (client == -1 || length == -1) {
              call.reject("Client or length not specified");
              return;
-@@ -118,12 +144,19 @@ public class TcpSocketPlugin extends Plugin {
+         }
+ 
++        final Socket socket = getClient(client);
++        if (socket == null || socket.isClosed() || !socket.isConnected()) {
++            call.reject("Socket not connected");
++            return;
++        }
++
+         Runnable runnable = () -> {
              try {
                  if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                     final Socket socket = clients.get(client);
+-                    final Socket socket = clients.get(client);
 -                    DataInputStream mBufferIn = new DataInputStream(new BufferedInputStream(socket.getInputStream()));
 +                    socket.setSoTimeout(Math.max(1, timeout) * 1000);
 +                    // Do not wrap each one-byte status read in a fresh buffered
@@ -166,7 +187,7 @@ index 78ec7c8..7054f9e 100644
                      call.resolve(ret);
                  } else {
                      JSObject ret = new JSObject();
-@@ -135,13 +168,8 @@ public class TcpSocketPlugin extends Plugin {
+@@ -135,16 +177,6 @@ public class TcpSocketPlugin extends Plugin {
              }
          };
  
@@ -177,12 +198,13 @@ index 78ec7c8..7054f9e 100644
 -            } catch (IOException e) {
 -                call.reject("Generic error");
 -            }
-+        Socket socket = getClient(client);
-+        if (socket == null || socket.isClosed() || !socket.isConnected()) {
-             call.reject("Socket not connected");
-             return;
-         }
-@@ -156,19 +184,36 @@ public class TcpSocketPlugin extends Plugin {
+-            call.reject("Socket not connected");
+-            return;
+-        }
+         Thread thread = new Thread(runnable);
+         thread.start();
+     }
+@@ -156,19 +188,36 @@ public class TcpSocketPlugin extends Plugin {
              call.reject("No client specified");
              return;
          }
@@ -196,21 +218,22 @@ index 78ec7c8..7054f9e 100644
          }
 -        final Socket socket = clients.get(client);
 +        IOException closeError = null;
++        // Closing a buffered output flushes it first and can wait behind a
++        // stalled write. Close the socket first to cancel in-flight I/O.
          try {
 -            if (!socket.isConnected()) {
 -                socket.close();
 -                call.reject("Socket not connected");
-+            if (output != null) {
-+                output.close();
-             }
+-            }
 -            socket.close();
-         } catch (IOException e) {
--            call.reject(e.getMessage());
++            if (!socket.isClosed()) socket.close();
++        } catch (IOException e) {
 +            closeError = e;
 +        }
 +        try {
-+            if (!socket.isClosed()) socket.close();
-+        } catch (IOException e) {
++            if (output != null) output.close();
+         } catch (IOException e) {
+-            call.reject(e.getMessage());
 +            if (closeError == null) closeError = e;
 +        }
 +
@@ -228,10 +251,66 @@ index 78ec7c8..7054f9e 100644
  
          JSObject ret = new JSObject();
 diff --git a/node_modules/@deedarb/capacitor-tcp-socket/ios/Plugin/TcpSocketPlugin.swift b/node_modules/@deedarb/capacitor-tcp-socket/ios/Plugin/TcpSocketPlugin.swift
-index b9314e1..7ab9779 100644
+index b9314e1..a10e423 100644
 --- a/node_modules/@deedarb/capacitor-tcp-socket/ios/Plugin/TcpSocketPlugin.swift
 +++ b/node_modules/@deedarb/capacitor-tcp-socket/ios/Plugin/TcpSocketPlugin.swift
-@@ -45,18 +45,18 @@ public class TcpSocketPlugin: CAPPlugin {
+@@ -8,7 +8,14 @@ import Socket
+  */
+ @objc(TcpSocketPlugin)
+ public class TcpSocketPlugin: CAPPlugin {
+-    var clients: [Socket] = []
++    private var clients: [Socket] = []
++    private let clientsLock = NSLock()
++
++    private func getClient(_ index: Int) -> Socket? {
++        clientsLock.lock()
++        defer { clientsLock.unlock() }
++        return clients[safe: index]
++    }
+     
+     @objc func connect(_ call: CAPPluginCall) {
+         guard let ip = call.getString("ipAddress") else {
+@@ -18,13 +25,23 @@ public class TcpSocketPlugin: CAPPlugin {
+         let port = Int32(call.getInt("port", 9100))
+         let timeout = UInt(call.getInt("timeout", 10) * 1000) // Default 10 second timeout
+         
+-        do {
+-            let client = try Socket.create()
+-            try client.connect(to: ip, port: port, timeout: timeout)
+-            clients.append(client)
+-            call.resolve(["client": clients.count - 1])
+-        } catch {
+-            call.reject(error.localizedDescription)
++        // Capacitor uses one bridge queue for plugin calls. A slow connection
++        // must not block sends or cancellation for other printers.
++        DispatchQueue.global(qos: .userInitiated).async {
++            var client: Socket?
++            do {
++                let socket = try Socket.create()
++                client = socket
++                try socket.connect(to: ip, port: port, timeout: timeout)
++                self.clientsLock.lock()
++                let clientIndex = self.clients.count
++                self.clients.append(socket)
++                self.clientsLock.unlock()
++                call.resolve(["client": clientIndex])
++            } catch {
++                client?.close()
++                call.reject(error.localizedDescription)
++            }
+         }
+     }
+     
+@@ -35,7 +52,7 @@ public class TcpSocketPlugin: CAPPlugin {
+             return
+         }
+         
+-        guard let client = clients[safe: clientIndex] else {
++        guard let client = getClient(clientIndex) else {
+             call.reject("Invalid client index")
+             return
+         }
+@@ -45,18 +62,18 @@ public class TcpSocketPlugin: CAPPlugin {
              return
          }
          
@@ -245,7 +324,7 @@ index b9314e1..7ab9779 100644
 +            call.reject("Invalid base64 data")
 +            return
 +        }
- 
+             
 -            // Send the raw data
 -            try client.write(from: decodedData)
 -            call.resolve()
@@ -261,7 +340,14 @@ index b9314e1..7ab9779 100644
          }
      }
      
-@@ -73,20 +73,25 @@ public class TcpSocketPlugin: CAPPlugin {
+@@ -67,26 +84,31 @@ public class TcpSocketPlugin: CAPPlugin {
+             return
+         }
+         
+-        guard let client = clients[safe: clientIndex] else {
++        guard let client = getClient(clientIndex) else {
+             call.reject("Invalid client index")
+             return
          }
          
          let expectLen = call.getInt("expectLen", 1024)
@@ -300,3 +386,12 @@ index b9314e1..7ab9779 100644
          }
      }
      
+@@ -97,7 +119,7 @@ public class TcpSocketPlugin: CAPPlugin {
+             return
+         }
+         
+-        if let client = clients[safe: clientIndex] {
++        if let client = getClient(clientIndex) {
+             client.close()
+         }
+         call.resolve(["client": clientIndex])

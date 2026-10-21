@@ -32,9 +32,10 @@ vi.mock("@/lib/api", () => ({
   }
 }));
 
-vi.mock("axios", () => ({
-  default: axiosMocks
-}));
+vi.mock("axios", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("axios")>();
+  return { default: axiosMocks, isCancel: actual.isCancel, isAxiosError: actual.isAxiosError };
+});
 
 vi.mock("@capacitor/core", () => ({
   Capacitor: capacitorMocks
@@ -831,14 +832,14 @@ describe("printer service dispatch", () => {
     expect(apiMocks.apiRequest).toHaveBeenCalledWith(
       "get",
       "/api/v1/printer/jobs/pending",
-      {
+      expect.objectContaining({
         params: expect.objectContaining({
           print_job_uuid: "shared-job-1",
           login_uuid_fk: "login-1",
           device_code: "REQUESTER-PC",
           agent_id: "requester-agent",
         }),
-      },
+      }),
     );
     expect(axiosMocks.post).not.toHaveBeenCalled();
   });
@@ -2552,7 +2553,7 @@ describe("printer pending jobs", () => {
     ]);
   });
 
-  it("advertises owner readiness only after the Local Agent was verified", async () => {
+  it("discovers shared job references without preparing print payloads after owner verification", async () => {
     apiMocks.apiRequest.mockResolvedValue({ data: [] });
 
     await getPendingPrintJobs({
@@ -2561,6 +2562,7 @@ describe("printer pending jobs", () => {
       device_code: "INCLUDE",
       agent_id: "include-f8e4f9",
       agent_ready: true,
+      refs_only: true,
     });
 
     expect(apiMocks.apiRequest).toHaveBeenCalledWith("get", "/api/v1/printer/jobs/pending", {
@@ -2571,6 +2573,7 @@ describe("printer pending jobs", () => {
         agent_id: "include-f8e4f9",
         print_mode: undefined,
         agent_ready: true,
+        refs_only: true,
       },
     });
   });

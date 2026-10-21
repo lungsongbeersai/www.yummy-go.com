@@ -271,10 +271,14 @@ export function filterZones(
 ) {
   const query = search.trim().toLowerCase();
 
-  return zones
-    .map((zone) => ({
-      ...zone,
-      tables: (zone.tables ?? []).filter((table) => {
+  let changed = false;
+  const visibleZones: PosZone[] = [];
+
+  for (const zone of zones) {
+    const sourceTables = zone.tables ?? [];
+    const tables = !query && statusFilter === "all"
+      ? sourceTables
+      : sourceTables.filter((table) => {
         const matchesSearch =
           !query || table.table_name.toLowerCase().includes(query);
         const matchesStatus =
@@ -283,9 +287,24 @@ export function filterZones(
           (statusFilter === "busy" && tableStatus(table) === "busy") ||
           (statusFilter === "update" && Boolean(table.customer_order_state));
         return matchesSearch && matchesStatus;
-      }),
-    }))
-    .filter((zone) => (zone.tables ?? []).length > 0);
+      });
+
+    if (tables.length === 0) {
+      changed = true;
+      continue;
+    }
+
+    // Keep unchanged zone/table identities so memoized sections can skip work
+    // during search and updates affecting another zone.
+    if (tables.length === sourceTables.length) {
+      visibleZones.push(zone);
+    } else {
+      changed = true;
+      visibleZones.push({ ...zone, tables });
+    }
+  }
+
+  return changed ? visibleZones : zones;
 }
 
 export function tableCount(zones: PosZone[]) {

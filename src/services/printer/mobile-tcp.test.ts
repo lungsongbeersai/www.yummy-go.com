@@ -352,6 +352,34 @@ describe("mobile TCP printer queue", () => {
     expect(TcpSocket.read).toHaveBeenCalledTimes(1);
   });
 
+  it("prepares the receipt without decoding the full payload again for disabled diagnostics", async () => {
+    const source = Buffer.concat([
+      Buffer.from([0x1b, 0x40, 0x1d, 0x76, 0x30, 0x00, 72, 0, 24, 0]),
+      Buffer.alloc(72 * 24, 0x55),
+      Buffer.from([0x1d, 0x56, 0x01]),
+    ]);
+    const base64 = source.toString("base64");
+    const decode = vi.spyOn(globalThis, "atob");
+
+    try {
+      await __mobileTcpInternals.sendEscposOnConnectedClient({
+        TcpSocket: nativeTcpMocks,
+        client: "receipt-client",
+        escposBase64: base64,
+      });
+
+      expect(decode.mock.calls.filter(([value]) => value === base64)).toHaveLength(1);
+      expect(nativeTcpMocks.send).toHaveBeenCalledExactlyOnceWith({
+        client: "receipt-client",
+        data: Buffer.concat([source, Buffer.from([0x1d, 0x72, 0x01])]).toString("base64"),
+        encoding: "base64",
+      });
+      expect(nativeTcpMocks.read).toHaveBeenCalledTimes(1);
+    } finally {
+      decode.mockRestore();
+    }
+  });
+
   it("waits for each printer reply before sending the next ticket", async () => {
     const statusCommand = Buffer.from([0x1d, 0x72, 0x01]);
     const cut = Buffer.from([0x1d, 0x56, 0x01]);

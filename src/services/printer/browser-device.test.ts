@@ -8,6 +8,7 @@ import {
   getBrowserPrinterIdentity,
   nativePrinterDeviceCode,
   rememberNativePrinterDeviceCode,
+  isMobileBrowserPrinterDevice,
   isBrowserPrinterAgentId
 } from "@/services/printer/browser-device";
 import { printerPrintModeForPlatform } from "@/lib/printer-platform";
@@ -90,6 +91,26 @@ describe("browser printer device identity", () => {
     expect(getBrowserAgentName("Mozilla/5.0 Android Chrome/120.0.0.0", {
       model: "Infinix GT30 Pro"
     })).toBe("Infinix GT30 Pro");
+  });
+
+  it.each([
+    { userAgent: "Mozilla/5.0 Android 15 Chrome", userAgentData: { mobile: false, platform: "Android" } },
+    { userAgent: "Mozilla/5.0 iPhone Safari" },
+    { userAgent: "Mozilla/5.0 iPad Safari" },
+    { userAgent: "Mozilla/5.0 Macintosh Safari", maxTouchPoints: 5 },
+  ])("recognizes a mobile printer browser from OS evidence: %j", (browser) => {
+    vi.stubGlobal("navigator", browser);
+    expect(isMobileBrowserPrinterDevice()).toBe(true);
+  });
+
+  it.each([
+    { userAgent: "Mozilla/5.0 Windows NT 10.0 Chrome", maxTouchPoints: 10 },
+    { userAgent: "Mozilla/5.0 Macintosh Safari", maxTouchPoints: 0 },
+    { userAgent: "Unknown browser", maxTouchPoints: 10 },
+  ])("keeps desktop/unknown browsers on Agent checks: %j", (browser) => {
+    vi.stubGlobal("navigator", browser);
+    vi.stubGlobal("window", { innerWidth: 320 });
+    expect(isMobileBrowserPrinterDevice()).toBe(false);
   });
 
   it("returns a mobile device identity from high entropy browser data", async () => {

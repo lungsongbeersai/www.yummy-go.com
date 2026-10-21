@@ -77,13 +77,14 @@ export function TableSelectionPage() {
   }, [load, skipTableSelection]);
 
   // Table cards navigate programmatically, so Next cannot auto-prefetch them like a
-  // visible <Link>. Warm the shared order route once table data is ready; search params
-  // are read client-side, so one prefetch covers every table on the screen.
+  // visible <Link>. Warm the shared order route alongside the table request;
+  // waiting for the grid response creates another network step before a quick tap.
+  // Search params are read client-side, so one prefetch covers every table.
   useEffect(() => {
-    if (!skipTableSelection && zones.length > 0) {
+    if (branchUuid && !skipTableSelection) {
       router.prefetch("/posAll/order");
     }
-  }, [router, skipTableSelection, zones.length]);
+  }, [branchUuid, router, skipTableSelection]);
 
   // ปุ่มรีเฟรชย้ายเข้า NativeTopBar (capacitor/top-bar.tsx) แทนแถวโซนในตัวหน้า —
   // ลงทะเบียน action ผ่าน store กลางเพราะ top bar เรนเดอร์อยู่คนละต้นไม้กับหน้านี้
@@ -95,18 +96,13 @@ export function TableSelectionPage() {
     return () => setHeaderRefreshAction(null);
   }, [nativeShellActive, loading, load, setHeaderRefreshAction]);
 
-  const selectTable = useCallback((table: PosTable) => {
+  const selectTable = useCallback((table: PosTable, zoneUuid: string) => {
     const params = new URLSearchParams({ table_uuid: table.table_uuid });
     if (table.table_name) params.set("table_name", table.table_name);
-    const zoneUuid = zones.find((zone) =>
-      (zone.tables ?? []).some(
-        (zoneTable) => zoneTable.table_uuid === table.table_uuid,
-      ),
-    )?.zone_uuid;
     if (zoneUuid) params.set("zone_uuid", zoneUuid);
     const target = `/posAll/order?${params.toString()}` as const;
     router.push(target);
-  }, [router, zones]);
+  }, [router]);
 
   if (skipTableSelection) return null;
 

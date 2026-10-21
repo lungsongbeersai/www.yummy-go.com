@@ -630,7 +630,6 @@ async function sendEscposOnConnectedClient({
         return;
     }
     const completionPlan = addCompletionQueries(cleanBase64);
-    const analysis = analyzeEscposPayload(cleanBase64);
     const sendProfile = mobileTcpSendProfile();
     const deliveryGroups = completionPlan.acknowledgementGroups.map((group) =>
         splitEscposBase64ForTransport(group)
@@ -640,12 +639,17 @@ async function sendEscposOnConnectedClient({
         0,
     );
 
-    mobileTcpDebug("[mobile-tcp] transport plan", {
-        segments: segmentTotal,
-        byteEstimate: analysis.byteLength,
-        cutCommands: analysis.cutCommands,
-        profile: sendProfile.profile,
-    });
+    // Diagnostics decode and scan the complete raster. Keep that work out of
+    // normal mobile printing, especially for long multi-ticket batches.
+    if (MOBILE_TCP_DEBUG) {
+        const analysis = analyzeEscposPayload(cleanBase64);
+        mobileTcpDebug("[mobile-tcp] transport plan", {
+            segments: segmentTotal,
+            byteEstimate: analysis.byteLength,
+            cutCommands: analysis.cutCommands,
+            profile: sendProfile.profile,
+        });
+    }
 
     let sentSegments = 0;
     for (let groupIndex = 0; groupIndex < deliveryGroups.length; groupIndex++) {

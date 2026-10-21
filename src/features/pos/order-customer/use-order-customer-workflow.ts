@@ -1108,7 +1108,7 @@ export function useOrderCustomerWorkflow({
     }
   }
 
-  async function handleTableActionComplete(nextTableUuid?: string) {
+  const handleTableActionComplete = useCallback(async (nextTableUuid?: string) => {
     const nextZones = await loadTablesForBranch();
     const targetUuid = nextTableUuid || initialTableUuid;
 
@@ -1133,16 +1133,31 @@ export function useOrderCustomerWorkflow({
       return;
     }
 
-    if (counterOrderUuid && branchUuid) {
+    // Checkout can open the next counter bill while table refresh is pending.
+    // A late refresh must not replace that bill with the one just paid.
+    if (
+      counterOrderUuid &&
+      branchUuid &&
+      usePosStore.getState().counterOrderUuid === counterOrderUuid
+    ) {
       await loadCartStore({
         branch_uuid_fk: branchUuid,
         order_uuid: counterOrderUuid,
         lang: language,
       });
     }
-  }
+  }, [
+    branchUuid,
+    counterOrderUuid,
+    initialTableName,
+    initialTableUuid,
+    language,
+    loadCartStore,
+    loadTablesForBranch,
+    router,
+  ]);
 
-  async function handlePaymentComplete() {
+  const handlePaymentComplete = useCallback(async () => {
     if (isNoTableStore) {
       await handleTableActionComplete();
       return;
@@ -1150,7 +1165,7 @@ export function useOrderCustomerWorkflow({
 
     setCartSheetOpen(false);
     router.replace(tableSelectionUrl(selectedTableZoneUuid));
-  }
+  }, [handleTableActionComplete, isNoTableStore, router, selectedTableZoneUuid]);
 
   return {
     activeProducts,

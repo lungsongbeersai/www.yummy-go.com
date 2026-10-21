@@ -57,10 +57,12 @@ const originalLoadProductCategories =
 
 function deferred<T>() {
   let resolve!: (value: T) => void;
-  const promise = new Promise<T>((done) => {
+  let reject!: (error: Error) => void;
+  const promise = new Promise<T>((done, fail) => {
     resolve = done;
+    reject = fail;
   });
-  return { promise, resolve };
+  return { promise, resolve, reject };
 }
 
 function zone(zoneUuid: string): PosZone {
@@ -676,6 +678,99 @@ describe("POS store menu and table browse state", () => {
       error: "menu failed",
       loadingMenu: false
     });
+  });
+
+  it("keeps the latest category and loading state when an older menu finishes first", async () => {
+    const stale = Array.from({ length: 3 }, () => deferred<Awaited<ReturnType<typeof fetchCateProducts>>>());
+    const fresh = Array.from({ length: 3 }, () => deferred<Awaited<ReturnType<typeof fetchCateProducts>>>());
+    for (const response of [...stale, ...fresh]) fetchCateProductsMock.mockReturnValueOnce(response.promise);
+    const store = usePosStore.getState();
+    const oldLoad = store.loadMenu({ branchUuid: "branch-1", language: "en", cateUuid: "old" });
+    const newLoad = store.loadMenu({ branchUuid: "branch-1", language: "en", cateUuid: "new" });
+
+    for (const response of stale) response.resolve({ status: "success", message: "ok", categories: [categoryWithProduct("old")] });
+    await oldLoad;
+    expect(usePosStore.getState().loadingMenu).toBe(true);
+    expect(usePosStore.getState().selectedCateUuid).not.toBe("old");
+
+    for (const response of fresh) response.resolve({ status: "success", message: "ok", categories: [categoryWithProduct("new")] });
+    await newLoad;
+    expect(usePosStore.getState()).toMatchObject({ selectedCateUuid: "new", loadingMenu: false, error: null });
+    expect(usePosStore.getState().menuBySort[ProductSortStatus.NORMAL][0]?.cateUuid).toBe("new");
+  });
+
+  it("ignores an older search response and error after the latest search is visible", async () => {
+    const stale = Array.from({ length: 3 }, () => deferred<Awaited<ReturnType<typeof fetchCateProducts>>>());
+    for (const response of stale) fetchCateProductsMock.mockReturnValueOnce(response.promise);
+    fetchCateProductsMock.mockResolvedValue({ status: "success", message: "ok", categories: [categoryWithProduct("fresh")] });
+    const store = usePosStore.getState();
+    const oldLoad = store.loadMenu({ branchUuid: "branch-1", language: "en", query: "old" });
+    await store.loadMenu({ branchUuid: "branch-1", language: "en", query: "fresh" });
+    const currentProducts = usePosStore.getState().products;
+    stale[0].resolve({ status: "success", message: "ok", categories: [categoryWithProduct("old")] });
+    stale[1].reject(new Error("Old menu request failed"));
+    stale[2].resolve({ status: "success", message: "ok", categories: [] });
+    await oldLoad;
+
+    expect(usePosStore.getState()).toMatchObject({ selectedCateUuid: "", submittedSearch: "fresh", loadingMenu: false, error: null });
+    expect(usePosStore.getState().products).toBe(currentProducts);
+    expect(usePosStore.getState().menuBySort[ProductSortStatus.NORMAL][0]?.cateUuid).toBe("fresh");
+  });
+
+  it("does not start more sorted requests after obsolete category discovery finishes", async () => {
+    const discovery = deferred<Awaited<ReturnType<typeof fetchCateProducts>>>();
+    fetchCateProductsMock.mockReturnValueOnce(discovery.promise);
+    fetchCateProductsMock.mockResolvedValue({ status: "success", message: "ok", categories: [categoryWithProduct("new")] });
+    const store = usePosStore.getState();
+    const oldLoad = store.loadMenu({ branchUuid: "branch-1", language: "en", refreshCategories: true });
+    await store.loadMenu({ branchUuid: "branch-1", language: "en", cateUuid: "new" });
+    discovery.resolve({ status: "success", message: "ok", categories: [category("old")], defaultCateUuid: "old" });
+    await oldLoad;
+
+    expect(fetchCateProductsMock).toHaveBeenCalledTimes(4);
+    expect(usePosStore.getState().selectedCateUuid).toBe("new");
+    expect(usePosStore.getState().menuBySort[ProductSortStatus.NORMAL][0]?.cateUuid).toBe("new");
+  });
+
+  it("never shows the previous category's SET or promotion while the new group is still loading", async () => {
+    usePosStore.setState({ menuBySort: {
+      [ProductSortStatus.NORMAL]: [categoryWithProduct("old-normal")],
+      [ProductSortStatus.SET]: [categoryWithProduct("old-set")],
+      [ProductSortStatus.PROMOTION]: [categoryWithProduct("old-promotion")],
+    } });
+    const responses = Array.from({ length: 3 }, () => deferred<Awaited<ReturnType<typeof fetchCateProducts>>>());
+    for (const response of responses) fetchCateProductsMock.mockReturnValueOnce(response.promise);
+    const store = usePosStore.getState();
+    const loading = store.loadMenu({ branchUuid: "branch-1", language: "en", cateUuid: "new" });
+    responses[0].resolve({ status: "success", message: "ok", categories: [categoryWithProduct("new-normal")] });
+    await vi.waitFor(() => expect(usePosStore.getState().loadingMenu).toBe(false));
+    expect(usePosStore.getState().menuBySort[ProductSortStatus.SET]).toEqual([]);
+    expect(usePosStore.getState().menuBySort[ProductSortStatus.PROMOTION]).toEqual([]);
+
+    store.setActiveSort(ProductSortStatus.SET);
+    expect(usePosStore.getState().loadingMenu).toBe(true);
+    responses[1].resolve({ status: "success", message: "ok", categories: [categoryWithProduct("new-set")] });
+    await vi.waitFor(() => expect(usePosStore.getState().loadingMenu).toBe(false));
+    expect(usePosStore.getState().menuBySort[ProductSortStatus.SET][0]?.cateUuid).toBe("new-set");
+
+    store.setActiveSort(ProductSortStatus.PROMOTION);
+    expect(usePosStore.getState().loadingMenu).toBe(true);
+    responses[2].resolve({ status: "success", message: "ok", categories: [categoryWithProduct("new-promotion")] });
+    await loading;
+    expect(usePosStore.getState()).toMatchObject({ loadingMenu: false, pendingMenuSorts: [] });
+    expect(usePosStore.getState().menuBySort[ProductSortStatus.PROMOTION][0]?.cateUuid).toBe("new-promotion");
+  });
+
+  it("keeps a current menu failure visible when its other parallel groups finish later", async () => {
+    const responses = Array.from({ length: 3 }, () => deferred<Awaited<ReturnType<typeof fetchCateProducts>>>());
+    for (const response of responses) fetchCateProductsMock.mockReturnValueOnce(response.promise);
+    const loading = usePosStore.getState().loadMenu({ branchUuid: "branch-1", language: "en", cateUuid: "new" });
+    responses[0].reject(new Error("Current menu failed"));
+    await expect(loading).rejects.toThrow("Current menu failed");
+    for (const response of responses.slice(1)) response.resolve({ status: "success", message: "ok", categories: [categoryWithProduct("late")] });
+    await Promise.all(responses.slice(1).map((response) => response.promise));
+    expect(usePosStore.getState()).toMatchObject({ error: "Current menu failed", loadingMenu: false, pendingMenuSorts: [], products: [] });
+    expect(usePosStore.getState().menuBySort[ProductSortStatus.SET]).toEqual([]);
   });
 
   it("resets route-local menu fields without clearing table state", () => {

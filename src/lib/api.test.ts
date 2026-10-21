@@ -1,6 +1,6 @@
 import axios from "axios";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { apiClient, apiRequest } from "@/lib/api";
+import { apiClient, apiRequest, publicApiClient, publicApiRequest } from "@/lib/api";
 import { useAuthStore, type AuthUser } from "@/stores/auth-store";
 
 const user: AuthUser = {
@@ -44,6 +44,43 @@ describe("online-only API transport", () => {
       { headers: undefined },
     );
     expect(data).not.toHaveProperty("sync_event_uuid");
+  });
+
+  it.each(["get", "post", "put", "patch", "delete"] as const)(
+    "forwards request timeout and cancellation for %s without changing client defaults",
+    async (method) => {
+      const request = vi.spyOn(apiClient, method).mockResolvedValue({
+        status: 200,
+        data: { status: "success" },
+      });
+      const controller = new AbortController();
+      await apiRequest(method, "/api/v1/printer/jobs/pending", {
+        timeout: 750,
+        signal: controller.signal,
+      });
+
+      const configIndex = method === "get" || method === "delete" ? 1 : 2;
+      expect(request.mock.calls[0][configIndex]).toEqual(expect.objectContaining({
+        timeout: 750,
+        signal: controller.signal,
+      }));
+      expect(apiClient.defaults.timeout).toBe(30000);
+    },
+  );
+
+  it("supports a bounded public request without changing its client defaults", async () => {
+    const get = vi.spyOn(publicApiClient, "get").mockResolvedValue({
+      status: 200,
+      data: { status: "success" },
+    });
+    const controller = new AbortController();
+    await publicApiRequest("get", "/status", { timeout: 500, signal: controller.signal });
+
+    expect(get).toHaveBeenCalledWith("/status", expect.objectContaining({
+      timeout: 500,
+      signal: controller.signal,
+    }));
+    expect(publicApiClient.defaults.timeout).toBe(30000);
   });
 
   it("never turns a transport failure into a queued local success", async () => {

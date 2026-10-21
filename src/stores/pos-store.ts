@@ -155,6 +155,7 @@ function textValue(value: unknown) {
 }
 
 let posMenuLifecycleVersion = 0;
+let posMenuRequestVersion = 0;
 // เพิ่มทุกครั้งที่เรียก loadCart (ต่างจาก posMenuLifecycleVersion ที่เพิ่มเฉพาะตอน reset) — กัน
 // response ของ request เก่าที่ค้างอยู่ (เช่น สลับแท็บระหว่างที่ยิง updateQty ค้างอยู่) มาถึงหลัง
 // request ใหม่กว่าแล้วเขียนทับ cart ด้วยข้อมูลเก่ากว่า
@@ -165,6 +166,7 @@ function initialPosMenuState() {
     categories: [] as CateWithProducts[],
     selectedCateUuid: "",
     menuBySort: emptyPosMenuBySort(),
+    pendingMenuSorts: [] as ProductSortStatusType[],
     loadingMenu: false,
     submittedSearch: "",
     activeSort: ProductSortStatus.NORMAL as ProductSortStatusType,
@@ -184,6 +186,7 @@ interface PosState {
   categories: CateWithProducts[];
   selectedCateUuid: string;
   menuBySort: PosMenuBySort;
+  pendingMenuSorts: ProductSortStatusType[];
   loadingMenu: boolean;
   submittedSearch: string;
   activeSort: ProductSortStatusType;
@@ -225,7 +228,10 @@ interface PosState {
     options?: { maxAgeMs?: number },
   ) => Promise<PosZone[]>;
   refreshTables: (params: FetchPosParams) => Promise<PosZone[]>;
-  loadProductCategories: (params: FetchCateProductsParams) => Promise<FetchCateProductsResponse>;
+  loadProductCategories: (
+    params: FetchCateProductsParams,
+    options?: { isCurrent?: () => boolean },
+  ) => Promise<FetchCateProductsResponse>;
   loadMenu: (params: {
     branchUuid: string;
     language: string;
@@ -303,7 +309,10 @@ export const usePosStore = create<PosState>((set, get) => ({
   error: null,
   setZones: (zones) => set({ zones }),
   setProducts: (products) => set({ products }),
-  setActiveSort: (activeSort) => set({ activeSort }),
+  setActiveSort: (activeSort) => set((state) => ({
+    activeSort,
+    loadingMenu: state.pendingMenuSorts.includes(activeSort),
+  })),
   resetMenu: () => {
     posMenuLifecycleVersion += 1;
     clearProductItemCache();
@@ -415,12 +424,13 @@ export const usePosStore = create<PosState>((set, get) => ({
       throw error;
     }
   },
-  loadProductCategories: async (params) => {
+  loadProductCategories: async (params, options) => {
     const isCurrentSession = createSessionGuard();
+    const canPublish = () => isCurrentSession() && (options?.isCurrent?.() ?? true);
     try {
       const result = await posService.fetchCateProducts(params);
       const categories = result.categories ?? [];
-      if (isCurrentSession()) {
+      if (canPublish()) {
         set({
           products: categories.flatMap((category: CateWithProducts) => category.products ?? []),
           error: null
@@ -428,7 +438,7 @@ export const usePosStore = create<PosState>((set, get) => ({
       }
       return result;
     } catch (error) {
-      if (isCurrentSession()) set({ error: errorMessage(error) });
+      if (canPublish()) set({ error: errorMessage(error) });
       throw error;
     }
   },
@@ -442,16 +452,25 @@ export const usePosStore = create<PosState>((set, get) => ({
   }) => {
     const isCurrentSession = createSessionGuard();
     const menuLifecycleVersion = posMenuLifecycleVersion;
+    const menuRequestVersion = ++posMenuRequestVersion;
     const isCurrentMenuLifecycle = () =>
       isCurrentSession() &&
-      menuLifecycleVersion === posMenuLifecycleVersion;
+      menuLifecycleVersion === posMenuLifecycleVersion &&
+      menuRequestVersion === posMenuRequestVersion;
     if (!branchUuid) {
       get().resetMenu();
       return emptyPosMenuBySort();
     }
 
     if (refreshCategories) clearProductItemCache();
-    if (!background) set({ loadingMenu: true, error: null });
+    if (!background) set({
+      loadingMenu: true,
+      error: null,
+      // Never expose the previous category's SET/promotion while only the
+      // new normal group is ready. Switching tabs keeps its own Loading.
+      menuBySort: emptyPosMenuBySort(),
+      pendingMenuSorts: [ProductSortStatus.NORMAL, ProductSortStatus.SET, ProductSortStatus.PROMOTION],
+    });
     try {
       let nextCateUuid = textValue(cateUuid);
       const nextQuery = query ?? "";
@@ -464,7 +483,10 @@ export const usePosStore = create<PosState>((set, get) => ({
           lang: language,
           search: "",
           statusSortFk: ProductSortStatus.NORMAL
-        });
+        }, { isCurrent: isCurrentMenuLifecycle });
+        // A newer category/search may already be visible. Do not launch its
+        // stale predecessor's remaining requests or replace the latest grid.
+        if (!isCurrentMenuLifecycle()) return emptyPosMenuBySort();
         const categories = catalog.categories ?? [];
         nextCateUuid = nextPosMenuCategoryUuid({
           categories,
@@ -484,22 +506,21 @@ export const usePosStore = create<PosState>((set, get) => ({
           categories: CateWithProducts[],
         ) => {
           if (!isCurrentMenuLifecycle()) return;
-          set((state) => ({
-            // Publish each independent group as soon as it arrives. The previous
-            // implementation kept the full grid behind a skeleton until the slowest
-            // of NORMAL/SET/PROMOTION finished, even when the active group was ready.
-            menuBySort: {
-              ...state.menuBySort,
-              [statusSortFk]: categories,
-            },
-            selectedCateUuid: nextCateUuid,
-            submittedSearch: nextQuery,
-            loadingMenu:
-              state.activeSort === statusSortFk &&
-              countPosMenuProducts(categories) > 0
-                ? false
-                : state.loadingMenu,
-          }));
+          set((state) => {
+            const pendingMenuSorts = state.pendingMenuSorts.filter((status) => status !== statusSortFk);
+            return {
+              // Publish each independent group as soon as it arrives; the
+              // active tab need not wait for unrelated slower groups.
+              menuBySort: {
+                ...state.menuBySort,
+                [statusSortFk]: categories,
+              },
+              selectedCateUuid: nextCateUuid,
+              submittedSearch: nextQuery,
+              pendingMenuSorts,
+              loadingMenu: pendingMenuSorts.includes(state.activeSort),
+            };
+          });
         };
         const request = (statusSortFk: ProductSortStatusType) =>
           get().loadProductCategories({
@@ -508,7 +529,7 @@ export const usePosStore = create<PosState>((set, get) => ({
             lang: language,
             search: searchQuery,
             statusSortFk
-          }).then((result) => {
+          }, { isCurrent: isCurrentMenuLifecycle }).then((result) => {
             publishMenuGroup(statusSortFk, result.categories ?? []);
             return result;
           });
@@ -548,10 +569,14 @@ export const usePosStore = create<PosState>((set, get) => ({
       }
       return menuBySort;
     } catch (error) {
-      if (isCurrentMenuLifecycle()) set({ error: errorMessage(error) });
+      if (!isCurrentMenuLifecycle()) return emptyPosMenuBySort();
+      // The remaining parallel groups must not erase this error or publish
+      // more of a failed request after Loading has been released.
+      posMenuRequestVersion += 1;
+      set({ error: errorMessage(error), loadingMenu: false, pendingMenuSorts: [] });
       throw error;
     } finally {
-      if (isCurrentMenuLifecycle()) set({ loadingMenu: false });
+      if (isCurrentMenuLifecycle()) set({ loadingMenu: false, pendingMenuSorts: [] });
     }
   },
   loadProducts: async (params) => {

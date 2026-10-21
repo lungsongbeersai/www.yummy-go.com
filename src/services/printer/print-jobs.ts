@@ -1,7 +1,8 @@
 // Pending print-job fetch/ack + kitchen/invoice print execution (P3.4 split
 // of printer.ts). Depends on agent-transport.ts (dispatch to local agent) and
 // config-api.ts (renderMobileEscpos) — the top of the printer/ import graph.
-import { apiRequest, ServiceError } from "@/lib/api";
+import { isAxiosError, isCancel } from "axios";
+import { apiRequest, ServiceError, type RequestOptions } from "@/lib/api";
 import { Capacitor } from "@capacitor/core";
 import {
   deliveredPayload,
@@ -47,6 +48,8 @@ const deliveryLedgerMemory = new Map<string, StoredDelivery>();
 const DELIVERY_LEDGER_PREFIX = "yummy_kitchen_printer_delivery:";
 const REMOTE_SHARED_STATUS_POLL_INTERVAL_MS = 500;
 const REMOTE_SHARED_STATUS_MAX_POLLS = 20;
+const REMOTE_SHARED_STATUS_OBSERVATION_MS =
+  REMOTE_SHARED_STATUS_POLL_INTERVAL_MS * REMOTE_SHARED_STATUS_MAX_POLLS;
 
 interface StoredDelivery {
   deliveryState: Exclude<PrinterDeliveryState, "not_sent">;
@@ -129,8 +132,12 @@ function clearStoredDelivery(key: string) {
   }
 }
 
-export async function getPendingPrintJobs(params: PendingPrintJobsParams): Promise<PendingPrintJobsResult> {
+export async function getPendingPrintJobs(
+  params: PendingPrintJobsParams,
+  options?: Pick<RequestOptions, "timeout" | "signal">,
+): Promise<PendingPrintJobsResult> {
   const result = await apiRequest<PendingPrintJobsFullResponse>("get", "/api/v1/printer/jobs/pending", {
+    ...options,
     params: {
       print_job_uuid: params.print_job_uuid,
       login_uuid_fk: params.login_uuid_fk,
@@ -141,6 +148,7 @@ export async function getPendingPrintJobs(params: PendingPrintJobsParams): Promi
         ? { relay_device_code: params.relay_device_code }
         : {}),
       ...(params.agent_ready === true ? { agent_ready: true } : {}),
+      ...(params.refs_only === true ? { refs_only: true } : {}),
     }
   });
   const hasBatchPayloads = Array.isArray(result.print_batch_payloads);
@@ -545,9 +553,9 @@ function pendingUncertainItemTotal(result: PendingPrintJobsResult) {
   return result.printSummary.has_uncertain_delivery === true ? 1 : 0;
 }
 
-function waitForRemoteSharedStatusPoll() {
+function waitForRemoteSharedStatusPoll(delayMs: number) {
   return new Promise<void>((resolve) => {
-    globalThis.setTimeout(resolve, REMOTE_SHARED_STATUS_POLL_INTERVAL_MS);
+    globalThis.setTimeout(resolve, delayMs);
   });
 }
 
@@ -626,74 +634,98 @@ async function waitForRemoteSharedPrintCompletion({
   }
 
   const requester = requesterIdentity.agent;
-  for (
-    let pollIndex = 0;
-    pollIndex < REMOTE_SHARED_STATUS_MAX_POLLS;
-    pollIndex += 1
-  ) {
-    const pendingResult = await getPendingPrintJobs({
-      print_job_uuid: jobUuid,
-      login_uuid_fk: loginUuid,
-      device_code: textValue(requester.device_code),
-      agent_id: textValue(requester.agent_id),
-    });
-    const terminalResult = requestedPrintJobResult(pendingResult);
-    if (terminalResult) {
-      input.onProgress?.({
-        total: terminalResult.total,
-        completed: terminalResult.total,
-        successCount: terminalResult.successCount,
-        failedCount: terminalResult.failedCount,
-        phase: "done",
-      });
-      return terminalResult;
-    }
-
-    if (pendingResult.printSummary.requested_job_found === false) {
-      throw new ServiceError("Shared print job was not found", 404);
-    }
-
-    const total = Math.max(
-      1,
-      Number(pendingResult.printSummary.requested_job_total ?? 0),
-    );
-    const successCount = Math.max(
-      0,
-      Number(pendingResult.printSummary.requested_job_success_total ?? 0),
-    );
-    const failedCount = Math.max(
-      0,
-      Number(pendingResult.printSummary.requested_job_failed_total ?? 0),
-    );
-    input.onProgress?.({
-      total,
-      completed: Math.min(total, successCount + failedCount),
-      successCount,
-      failedCount,
-      phase: "printing",
-    });
-
-    // SHARED delivery is owned by another device. Its ACK is useful when it
-    // arrives promptly, but it must never keep the requester's blocking POS
-    // dialog open indefinitely. The durable Backend queue remains authoritative
-    // after this bounded observation window and prevents duplicate printing.
-    if (pollIndex === REMOTE_SHARED_STATUS_MAX_POLLS - 1) {
-      return {
-        successCount,
-        failedCount,
-        total,
-        pending: true,
-      };
-    }
-    await waitForRemoteSharedStatusPoll();
-  }
-
-  return {
+  // A poll count alone lets slow status reads extend this dialog for minutes.
+  // Cancel only the observation GET; the owner's durable job keeps running.
+  const observationDeadline = Date.now() + REMOTE_SHARED_STATUS_OBSERVATION_MS;
+  const observationController = new AbortController();
+  const observationTimer = globalThis.setTimeout(
+    () => observationController.abort(),
+    REMOTE_SHARED_STATUS_OBSERVATION_MS,
+  );
+  let latestPendingResult: KitchenPrintResult = {
     successCount: 0,
     failedCount: 0,
     total: 0,
     pending: true,
   };
+
+  try {
+    for (
+      let pollIndex = 0;
+      pollIndex < REMOTE_SHARED_STATUS_MAX_POLLS;
+      pollIndex += 1
+    ) {
+      const remainingMs = observationDeadline - Date.now();
+      if (remainingMs <= 0) return latestPendingResult;
+
+      const pendingResult = await getPendingPrintJobs({
+        print_job_uuid: jobUuid,
+        login_uuid_fk: loginUuid,
+        device_code: textValue(requester.device_code),
+        agent_id: textValue(requester.agent_id),
+      }, {
+        timeout: remainingMs,
+        signal: observationController.signal,
+      });
+      const terminalResult = requestedPrintJobResult(pendingResult);
+      if (terminalResult) {
+        input.onProgress?.({
+          total: terminalResult.total,
+          completed: terminalResult.total,
+          successCount: terminalResult.successCount,
+          failedCount: terminalResult.failedCount,
+          phase: "done",
+        });
+        return terminalResult;
+      }
+
+      if (pendingResult.printSummary.requested_job_found === false) {
+        throw new ServiceError("Shared print job was not found", 404);
+      }
+
+      const total = Math.max(
+        1,
+        Number(pendingResult.printSummary.requested_job_total ?? 0),
+      );
+      const successCount = Math.max(
+        0,
+        Number(pendingResult.printSummary.requested_job_success_total ?? 0),
+      );
+      const failedCount = Math.max(
+        0,
+        Number(pendingResult.printSummary.requested_job_failed_total ?? 0),
+      );
+      latestPendingResult = { successCount, failedCount, total, pending: true };
+      input.onProgress?.({
+        total,
+        completed: Math.min(total, successCount + failedCount),
+        successCount,
+        failedCount,
+        phase: "printing",
+      });
+
+      if (pollIndex === REMOTE_SHARED_STATUS_MAX_POLLS - 1) break;
+      const pollDelayMs = Math.min(
+        REMOTE_SHARED_STATUS_POLL_INTERVAL_MS,
+        observationDeadline - Date.now(),
+      );
+      if (pollDelayMs <= 0) break;
+      await waitForRemoteSharedStatusPoll(pollDelayMs);
+    }
+
+    return latestPendingResult;
+  } catch (error) {
+    const originalError = error instanceof ServiceError ? error.originalError : error;
+    const observationAborted = observationController.signal.aborted && isCancel(originalError);
+    const observationTimedOut =
+      isAxiosError(originalError) && originalError.code === "ECONNABORTED" && Date.now() >= observationDeadline;
+    // Only stop observing the owner's durable job. Never dispatch or ACK from
+    // this requester when the result is still unknown, including a stalled GET.
+    if (observationAborted || observationTimedOut) return latestPendingResult;
+    throw error;
+  } finally {
+    globalThis.clearTimeout(observationTimer);
+  }
 }
 
 async function printKitchenBatchJob(

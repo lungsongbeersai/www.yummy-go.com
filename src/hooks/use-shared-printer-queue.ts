@@ -148,6 +148,9 @@ export function useSharedPrinterQueue() {
           device_code: textValue(agent.device_code),
           agent_id: textValue(agent.agent_id),
           agent_ready: true,
+          // Discovery needs job identities; the guarded executor prepares each
+          // job once, immediately before handing it to its printer.
+          refs_only: true,
         });
 
         for (const ref of (pending.pendingJobRefs ?? []).filter((item) => isSharedPrintJobForLocalOwner(item, agent))) {
