@@ -62,109 +62,223 @@ interface DailyClosingItemPriceFields {
   price?: PriceValue;
 }
 
-// สไตล์เฉพาะของใบปิดยอด (ต่อยอดจาก RECEIPT_80MM_BASE_STYLES):
-// สองคอลัมน์ (ชื่อสินค้า + ราคาฐาน × จำนวน | ยอดรวม) และช่องลายเซ็น
-// body บังคับ bold ทั้งใบ (เฉพาะรายงานนี้ ไม่กระทบใบเสร็จอื่นที่ใช้ RECEIPT_80MM_BASE_STYLES ร่วมกัน)
-// เพื่อให้อ่านง่ายตอนกระทบยอดปิดกะ — ส่วนหัวข้อ/ยอดรวมที่ตั้ง font-weight ไว้สูงกว่าอยู่แล้ว (800/900) ยังคงเด่นกว่าเดิม
+// Print-window styles stay inside this report so the other receipt reports keep
+// their own density. Explicit amounts and wrapping preserve long values at58mm.
 const DAILY_CLOSING_EXTRA_STYLES = `
-      body {
-        font-weight: 700;
+      .daily-closing {
+        --closing-amount-width: 26mm;
+        font-size: 13px;
+        font-weight: 400;
+        line-height: 1.4;
+        overflow-wrap: anywhere;
       }
 
-      .row {
+      .daily-closing header .strong {
+        font-size: 17px;
+      }
+
+      .daily-closing header > p:not(.strong) {
+        font-size: 13px;
+      }
+
+      .daily-closing h1 {
+        margin: 1.5mm 0;
+        font-size: 22px;
+        line-height: 1.3;
+      }
+
+      .daily-closing h2,
+      .daily-closing .column-heading {
+        font-size: 14px;
+        line-height: 1.4;
+      }
+
+      /* Saysettha has one regular face. A light stroke gives the report's Lao
+         headings visible emphasis instead of relying on a missing bold face. */
+      .daily-closing header .strong,
+      .daily-closing h1,
+      .daily-closing h2,
+      .daily-closing .column-heading,
+      .daily-closing .category-total > span:first-child,
+      .daily-closing .headline-total-label {
+        font-weight: 900;
+        -webkit-text-stroke: 0.25px currentColor;
+      }
+
+      .daily-closing .row,
+      .daily-closing .total-row,
+      .daily-closing .headline-total {
         display: grid;
-        grid-template-columns: minmax(0, 1fr) 23mm;
-        gap: 1mm;
-        align-items: start;
+        grid-template-columns: minmax(0, 1fr) minmax(0, var(--closing-amount-width));
+        gap: 1.5mm;
+        align-items: baseline;
       }
 
-      .row > span:last-child {
-        text-align: right;
-        font-variant-numeric: tabular-nums;
-      }
-
-      .product-main {
+      .daily-closing .row > span,
+      .daily-closing .total-row > span {
         min-width: 0;
         overflow-wrap: anywhere;
       }
 
-      .product-name {
-        display: block;
-      }
-
-      .product-price-quantity {
-        display: block;
-        margin-top: 0.3mm;
-        color: #444;
-        font-size: 10px;
-        font-weight: 700;
-        line-height: 1.2;
+      .daily-closing .row > span:last-child,
+      .daily-closing .total-row > span:last-child,
+      .daily-closing .headline-total-value {
+        text-align: right;
         font-variant-numeric: tabular-nums;
       }
 
-      .product-topping {
-        display: block;
-        margin-top: 0.35mm;
-        padding-left: 1.5mm;
-        color: #333;
-        font-size: 10px;
+      .daily-closing .product-amount,
+      .daily-closing .category-total > span:last-child,
+      .daily-closing .total-row > span:last-child,
+      .daily-closing .headline-total-value {
+        font-family: Arial, "Yummy Go Saysettha OT", sans-serif !important;
         font-weight: 700;
-        line-height: 1.2;
       }
 
-      /* แถวในใบปิดยอดชิดกันเกินไป (โดยเฉพาะหลัง body บังคับ bold ทั้งใบด้านบน ทำให้ตัวหนังสือหนาขึ้นแต่ระยะเดิมไม่เปลี่ยน)
-         ใช้ padding-top แทน margin-top ตรง .category/.section-title เพราะ margin ของ h2 ด้านในจะ collapse
-         กับ margin ของ section/element ที่ครอบไว้ (กลายเป็นค่า max ไม่ใช่ค่าบวกกัน) padding ไม่ collapse จึงเห็นผลจริง
-         เฉพาะรายงานนี้ ไม่แตะ .total-row ฐานที่ report อื่นใช้ร่วมกัน */
-      .category {
-        padding-top: 2mm;
+      .daily-closing .column-heading {
+        grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+        padding: 0.8mm 0;
+        border-bottom: 1px solid currentColor;
       }
 
-      .total-row {
-        padding-top: 0.9mm;
+      .daily-closing .product {
+        padding: 1.3mm 0;
+        break-inside: avoid;
       }
 
-      .section-title {
-        padding-top: 1mm;
-        padding-bottom: 2mm;
+      .daily-closing .product-main {
+        min-width: 0;
       }
 
-      /* receiptHeadlineTotalHtml (shared) เรียง label/value เป็น <p> ซ้อนกันคนละบรรทัดโดย default
-         เฉพาะใบปิดยอดต้องการให้ "ລວມທັງໝົດ" กับยอดเงินอยู่บรรทัดเดียวกัน จึงบังคับเป็น flex row ที่นี่
-         (ไม่แตะ RECEIPT_80MM_BASE_STYLES เพราะรายงานอื่นยังใช้เวอร์ชันซ้อนบรรทัดเดิม) */
-      .headline-total {
-        display: flex;
-        align-items: baseline;
-        justify-content: space-between;
-        gap: 2mm;
+      .daily-closing .product-name {
+        display: block;
+        font-size: 14px;
+        font-weight: 700;
+        -webkit-text-stroke: 0.15px currentColor;
       }
 
-      .headline-total-label {
+      .daily-closing .product-amount {
+        font-size: 16px;
+        line-height: 1.3;
+      }
+
+      .daily-closing .product-price-quantity,
+      .daily-closing .product-topping {
+        display: block;
+        margin-top: 0.5mm;
+        font-size: 12px;
+        font-weight: 400;
+        line-height: 1.4;
+      }
+
+      .daily-closing .product-price-quantity {
+        font-variant-numeric: tabular-nums;
+      }
+
+      .daily-closing .product-topping {
+        padding-left: 1mm;
+      }
+
+      .daily-closing .category {
+        padding-top: 1.5mm;
+      }
+
+      .daily-closing .category h2 {
+        margin: 0 0 0.7mm;
+      }
+
+      .daily-closing .category-total {
+        padding: 1mm 0;
+        font-size: 14px;
+      }
+
+      .daily-closing .category-total > span:last-child {
+        font-size: 16px;
+      }
+
+      .daily-closing .total-row {
+        padding: 0.7mm 0;
+      }
+
+      .daily-closing .total-row > span:last-child {
+        flex-shrink: 1;
+        font-size: 14px;
+      }
+
+      .daily-closing .payment-total > span:first-child {
+        font-weight: 900;
+        -webkit-text-stroke: 0.25px currentColor;
+      }
+
+      .daily-closing .section-title {
         margin: 0;
+        padding: 0.8mm 0 1.2mm;
+        font-size: 15px;
       }
 
-      .headline-total-value {
+      .daily-closing .headline-total {
+        grid-template-columns: minmax(0, 1fr) minmax(0, 55%);
+        margin-top: 1mm;
+        padding: 1.5mm 0;
+      }
+
+      .daily-closing .headline-total-label {
         margin: 0;
+        font-size: 16px;
+        line-height: 1.4;
       }
 
-      .signatures {
-        margin-top: 24mm;
-        padding-top: 4mm;
+      .daily-closing .headline-total-value {
+        min-width: 0;
+        margin: 0;
+        font-size: 22px;
+        line-height: 1.25;
+        overflow-wrap: anywhere;
+      }
+
+      .daily-closing .signatures {
+        margin-top: 8mm;
         page-break-inside: avoid;
         break-inside: avoid;
       }
 
-      .signature-row {
-        display: flex;
-        justify-content: space-between;
-        margin-top: 1.5mm;
-        font-size: 10px;
+      .daily-closing .signature-row {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+        gap: 2mm;
+        margin-top: 1mm;
+        font-size: 12px;
+        text-align: center;
       }
 
-      .signature-line {
-        letter-spacing: 1px;
+      .daily-closing .signature-row > span {
+        min-width: 0;
+        overflow-wrap: anywhere;
+      }
+
+      .daily-closing .signature-line {
+        letter-spacing: 0;
+        white-space: nowrap;
+      }
+
+      @media (max-width: 240px) {
+        .daily-closing {
+          --closing-amount-width: 22mm;
+        }
       }
 `;
+
+function dailyClosingDocumentStyles(paperWidthMm: 58 | 80) {
+  // The selected printer supplies roll length; CSS page size cannot combine a
+  // fixed width with auto height. Keep only the printable content width here.
+  const contentWidth = paperWidthMm - 6;
+  return `${DAILY_CLOSING_EXTRA_STYLES}
+      @page { size: auto; margin: 3mm; }
+      html, body { width: ${contentWidth}mm; }
+      @media print { html, body { width: ${contentWidth}mm; } }
+      ${paperWidthMm === 58 ? ".daily-closing { --closing-amount-width: 22mm; }" : ""}
+`;
+}
 
 // เส้นลายเซ็นแบบจุด — ใช้ string เดียวกันทั้ง HTML และ ops เพราะเครื่องพิมพ์วาดเส้นแบ่งครึ่งแบบ
 // CSS border ไม่ได้ ต้องพิมพ์เป็นตัวอักษรจริง วางเป็นแถว lr/flex เดียวกับแถวชื่อด้านล่าง
@@ -243,7 +357,7 @@ export function renderDailyClosingReceiptBody(
                 ${toppings}
               </span>
 
-              <span>${escapeHtml(money(item.totalAmount, ""))}</span>
+              <span class="product-amount">${escapeHtml(money(item.totalAmount, ""))}</span>
             </div>
           `;
         })
@@ -273,6 +387,7 @@ export function renderDailyClosingReceiptBody(
     .join("");
 
   return `
+    <main class="daily-closing">
     ${receiptHeaderHtml({
       branchName: data.branchName,
       storeName: data.storeName,
@@ -292,7 +407,7 @@ export function renderDailyClosingReceiptBody(
 
     <div class="divider"></div>
 
-    <div class="row">
+    <div class="column-heading row">
       <span>${escapeHtml(labels.product)}</span>
       <span>${escapeHtml(withoutEnglishSuffix(totalAmountLabel))}</span>
     </div>
@@ -383,6 +498,7 @@ export function renderDailyClosingReceiptBody(
           labels.paymentTotal,
         ),
         report.paymentSummary.paymentTotal,
+        "payment-total",
       )}
 
       ${numberedTotalRow(
@@ -429,15 +545,17 @@ export function renderDailyClosingReceiptBody(
         <span class="store-manager-signature">${escapeHtml(labels.storeManagerSignature)}</span>
       </div>
     </footer>
+    </main>
   `;
 }
 
 export function renderDailyClosingPrintHtml(
   data: DailyClosingPrintData,
+  paperWidthMm: 58 | 80 = 80,
 ) {
   return receiptDocumentHtml({
     bodyHtml: renderDailyClosingReceiptBody(data),
-    extraStyles: DAILY_CLOSING_EXTRA_STYLES,
+    extraStyles: dailyClosingDocumentStyles(paperWidthMm),
     title: data.labels.title,
   });
 }
@@ -446,11 +564,12 @@ export function renderDailyClosingPrintHtml(
 // แต่ไม่มีสคริปต์สั่งพิมพ์
 export function renderDailyClosingReceiptPreviewDoc(
   data: DailyClosingPrintData,
+  paperWidthMm: 58 | 80 = 80,
 ) {
   return receiptDocumentHtml({
     autoPrint: false,
     bodyHtml: renderDailyClosingReceiptBody(data),
-    extraStyles: `${DAILY_CLOSING_EXTRA_STYLES}
+    extraStyles: `${dailyClosingDocumentStyles(paperWidthMm)}
 
       html,
       body {
@@ -476,12 +595,13 @@ export function buildDailyClosingReportOps(
   // cannot fill both 58 mm and 80 mm paper without wrapping or leaving a gap.
   const divider: ReportPrintOp = { type: "line", style: "dashed" };
 
-  const lr = (left: string, right: number, bold = false): ReportPrintOp => ({
+  const lr = (left: string, right: number, bold = false, size = 26): ReportPrintOp => ({
     type: "lr",
     left,
     right: money(Object.is(right, -0) ? 0 : right, ""),
     bold,
-    size: bold ? 26 : 24,
+    size,
+    text_role: "report_row",
   });
 
   const groupTotalLabel = dailyClosingLabel(apiLabels.groupTotal, labels.groupTotal);
@@ -492,27 +612,30 @@ export function buildDailyClosingReportOps(
   const toppingOp = (topping: DailyClosingReportItem["toppings"][number]): ReportPrintOp => {
     const quantity = topping.qty > 0 ? ` × ${formatNumber(topping.qty)}` : "";
     const price = topping.price === null ? "" : ` · ${money(topping.price, "")}`;
-    return { type: "text", text: `+ ${topping.name}${quantity}${price}`, align: "left", size: 18 };
+    return { type: "text", text: `+ ${topping.name}${quantity}${price}`, align: "left", bold: false, size: 22, text_role: "report_detail" };
   };
 
   const itemOps = (item: DailyClosingReportItem): ReportPrintOp[] => {
     const basePrice = getItemBasePrice(item);
     return [
-      lr(item.productName || "-", item.totalAmount),
+      lr(item.productName || "-", item.totalAmount, true, 28),
       {
         type: "text",
         text: `${money(basePrice, "")} × ${formatNumber(item.totalQty)}`,
         align: "left",
-        size: 20,
+        bold: false,
+        size: 22,
+        text_role: "report_detail",
       },
       ...item.toppings.filter((topping) => topping.name).map(toppingOp),
+      { type: "spacer", px: 5 },
     ];
   };
 
   const orderChannelOps: ReportPrintOp[] = report.orderChannels.length
     ? [
         divider,
-        { type: "text", text: labels.orderChannelSummary, align: "center", bold: true, size: 26 },
+        { type: "text", text: labels.orderChannelSummary, align: "center", bold: true, size: 30, text_role: "report_heading" },
         ...report.orderChannels.map((channel, channelIndex) =>
           lr(
             `${channelIndex + 1}. ${channel.name || "-"} (${formatNumber(channel.billCount)})`,
@@ -527,59 +650,68 @@ export function buildDailyClosingReportOps(
     const groupName = group.name || dailyClosingLabel(apiLabels.noGroup, "-");
     const products: ReportPrintOp[] = group.items.length
       ? group.items.flatMap(itemOps)
-      : [{ type: "text", text: labels.noData, align: "center", size: 22 }];
+      : [{ type: "text", text: labels.noData, align: "center", bold: false, size: 22, text_role: "report_detail" }];
 
     return [
-      { type: "text", text: `${labels.group}: ${groupName}`, align: "left", bold: true, size: 26 },
+      { type: "spacer", px: 6 },
+      { type: "text", text: `${labels.group}: ${groupName}`, align: "left", bold: true, size: 28, text_role: "report_heading" },
       ...products,
-      lr(`${groupTotalLabel} ${groupName}`, group.totalAmount),
+      lr(`${groupTotalLabel} ${groupName}`, group.totalAmount, true, 28),
       divider,
     ];
   });
 
   return [
     // ลำดับหัวใบเสร็จต้องตรงกับ receiptHeaderHtml: ชื่อร้าน(หนา) -> ชื่อสาขา -> หัวข้อรายงาน(ใหญ่สุด)
-    ...(data.storeName ? [{ type: "text", text: data.storeName, align: "center", bold: true, size: 24 } as ReportPrintOp] : []),
-    ...(data.branchName ? [{ type: "text", text: data.branchName, align: "center", size: 22 } as ReportPrintOp] : []),
-    { type: "text", text: labels.title, align: "center", bold: true, size: 32 },
+    ...(data.storeName ? [{ type: "text", text: data.storeName, align: "center", bold: true, size: 30, text_role: "report_heading" } as ReportPrintOp] : []),
+    ...(data.branchName ? [{ type: "text", text: data.branchName, align: "center", bold: false, size: 24, text_role: "report_detail" } as ReportPrintOp] : []),
+    { type: "text", text: labels.title, align: "center", bold: true, size: 36, text_role: "report_heading" },
     divider,
     ...(data.paymentPeriod ? [
-      { type: "text", text: `${labels.businessDate}:`, align: "left", size: 22 } as ReportPrintOp,
-      { type: "text", text: `${data.paymentPeriod.from} -`, align: "left", size: 22 } as ReportPrintOp,
-      { type: "text", text: data.paymentPeriod.to, align: "left", size: 22 } as ReportPrintOp,
+      { type: "text", text: `${labels.businessDate}:`, align: "left", bold: false, size: 24, text_role: "report_detail" } as ReportPrintOp,
+      { type: "text", text: `${data.paymentPeriod.from} -`, align: "left", bold: false, size: 24, text_role: "report_detail" } as ReportPrintOp,
+      { type: "text", text: data.paymentPeriod.to, align: "left", bold: false, size: 24, text_role: "report_detail" } as ReportPrintOp,
     ] : [
-      { type: "text", text: `${labels.businessDate}: ${data.businessDate}`, align: "left", size: 24 } as ReportPrintOp,
+      { type: "text", text: `${labels.businessDate}: ${data.businessDate}`, align: "left", bold: false, size: 24, text_role: "report_detail" } as ReportPrintOp,
     ]),
-    { type: "text", text: `${labels.cashier}: ${data.cashier}`, align: "left", size: 24 },
+    { type: "text", text: `${labels.cashier}: ${data.cashier}`, align: "left", bold: false, size: 24, text_role: "report_detail" },
     divider,
     // ตัดเหลือแค่ภาษาลาว (withoutEnglishSuffix) แล้วข้อความสั้นพอจะแชร์แถวเดียวกับ "Product" ได้อย่างปลอดภัย
     // ต่างจากตอนที่ยังมี " / English" ต่อท้ายซึ่งเคยล้นจนพิมพ์ออกมาผิดรูป
-    { type: "lr", left: labels.product, right: withoutEnglishSuffix(totalAmountLabel), bold: false, size: 24 },
+    { type: "lr", left: labels.product, right: withoutEnglishSuffix(totalAmountLabel), bold: true, size: 28, text_role: "report_heading" },
     ...groupOps,
     {
       type: "lr",
       left: dailyClosingLabel(apiLabels.totalQty, labels.totalQuantity),
       right: `${formatNumber(report.summary.totalQty)} ${labels.items}`,
       bold: false,
-      size: 24,
+      size: 26,
+      text_role: "report_row",
     },
     lr(totalAmountLabel, report.summary.totalAmount),
     lr(discountLabel, -report.summary.discountAmount),
     lr(dailyClosingLabel(apiLabels.serviceCharge, labels.serviceCharge), report.summary.serviceCharge),
     lr(dailyClosingLabel(apiLabels.vat, labels.vat), report.summary.vat),
     divider,
-    // Keep the main total on two prominent lines so older Agents that ignore
-    // styling on lr rows retain the same readable total as current renderers.
-    { type: "text", text: dailyClosingLabel(apiLabels.grandTotal, labels.grandTotal), align: "left", bold: true, size: 26 },
-    { type: "text", text: money(report.summary.grandTotal, ""), align: "right", bold: true, size: 32 },
+    {
+      type: "lr",
+      left: dailyClosingLabel(apiLabels.grandTotal, labels.grandTotal),
+      right: money(report.summary.grandTotal, ""),
+      bold: true,
+      size: 32,
+      right_size: 38,
+      text_role: "amount_due",
+    },
     divider,
-    { type: "text", text: labels.revenueSummary, align: "center", bold: true, size: 26 },
+    { type: "text", text: labels.revenueSummary, align: "center", bold: true, size: 30, text_role: "report_heading" },
     lr(`1. ${dailyClosingLabel(apiLabels.cash, labels.cash)}`, report.paymentSummary.cash),
     lr(`2. ${dailyClosingLabel(apiLabels.transfer, labels.transfer)}`, report.paymentSummary.transfer),
     lr(`3. ${dailyClosingLabel(apiLabels.credit, labels.credit)}`, report.paymentSummary.credit),
     lr(
       `4. ${dailyClosingLabel(apiLabels.paymentTotal, labels.paymentTotal)}`,
       report.paymentSummary.paymentTotal,
+      true,
+      28,
     ),
     lr(
       `5. ${dailyClosingLabel(apiLabels.cancelBill, labels.cancelledBills)} (${formatNumber(
@@ -588,12 +720,11 @@ export function buildDailyClosingReportOps(
       report.cancelSummary.totalAmount,
     ),
     ...orderChannelOps,
-    // เว้นบรรทัดว่างเพิ่มให้พื้นที่เซ็นชื่อหายใจ + ใช้แถว lr เดียวกับแถวชื่อสำหรับเส้นจุด
-    // (ตรงกับ SIGNATURE_DOTS ที่ใช้ใน HTML) เพื่อให้จุดแต่ละฝั่งอยู่ตรงเหนือชื่อของตัวเองพอดี
-    { type: "blank", n: 3 },
-    { type: "lr", left: SIGNATURE_DOTS, right: SIGNATURE_DOTS, bold: false, size: 20 },
-    { type: "lr", left: labels.employeeSignature, right: labels.storeManagerSignature, bold: false, size: 20 },
-    { type: "blank", n: 2 },
+    // Leave room to sign without the former24mm empty block.
+    { type: "spacer", px: 48 },
+    { type: "lr", left: SIGNATURE_DOTS, right: SIGNATURE_DOTS, bold: false, size: 22, text_role: "report_signature" },
+    { type: "lr", left: labels.employeeSignature, right: labels.storeManagerSignature, bold: false, size: 22, text_role: "report_signature" },
+    { type: "spacer", px: 12 },
   ];
 }
 

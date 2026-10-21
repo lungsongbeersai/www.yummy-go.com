@@ -302,15 +302,18 @@ export interface BestSellingProductsReportResponse extends ApiEntity {
 }
 
 export interface ReportPrintOp {
-  type: "text" | "line" | "lr" | "blank";
+  type: "text" | "line" | "lr" | "blank" | "spacer";
   style?: "dashed" | "solid";
   text?: string;
   align?: "left" | "center" | "right";
   bold?: boolean;
   size?: number;
+  right_size?: number;
+  text_role?: "report_heading" | "report_row" | "report_detail" | "report_signature" | "amount_due";
   left?: string;
   right?: string;
   n?: number;
+  px?: number;
 }
 
 export interface ReportPrintBrowserPayload {
