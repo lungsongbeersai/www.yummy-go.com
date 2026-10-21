@@ -284,7 +284,7 @@ export function renderLocalInvoiceBatchHtml(
         break-after: auto;
         page-break-after: auto;
       }
-      ${invoiceSharedStyles()}
+      ${invoiceSharedStyles(paperWidth)}
       @media print {
         html, body { width: ${paperWidth}mm; }
         .receipt { width: ${contentWidth}mm; min-height: ${paperHeight}mm; margin: 0 auto; }
@@ -329,7 +329,7 @@ function renderInvoiceReceiptBody(data: InvoicePrintData) {
       <p class="footer">${escapeHtml(data.labels.thankYou)}</p>`;
 }
 
-function invoiceSharedStyles() {
+function invoiceSharedStyles(paperWidthMm: number) {
   return `
       .center { text-align: center; }
       .strong { font-weight: 800; }
@@ -429,10 +429,22 @@ function invoiceSharedStyles() {
         font-variant-numeric: tabular-nums;
       }
       .grand-total {
-        margin-top: 0.25mm;
+        display: grid;
+        grid-template-columns: minmax(0, 1fr);
+        gap: 0.5mm;
+        width: 100%;
+        margin-top: 0.8mm;
         padding-top: 0;
-        font-size: 16px;
+        font-size: 18px;
         font-weight: 900;
+        overflow-wrap: anywhere;
+      }
+      .grand-total span:last-child {
+        width: 100%;
+        min-width: 0;
+        font-size: ${paperWidthMm <= 58 ? 28 : 32}px;
+        font-weight: 900;
+        line-height: 1.14;
       }
       .footer {
         margin-top: 2mm;
