@@ -348,8 +348,15 @@ function invoiceSharedStyles(paperWidthMm: number) {
         margin: 0.9mm 0 0.4mm;
         font-size: 18px;
         font-weight: 900;
+        /* The print font only includes regular glyphs; retain their shape while strengthening the title. */
+        -webkit-text-stroke: 0.3px currentColor;
         text-align: center;
         line-height: 1.12;
+      }
+      .exchange-heading {
+        margin: 0;
+        text-align: center;
+        line-height: 1.16;
       }
       .divider {
         height: 0;
@@ -566,7 +573,7 @@ export function renderInvoiceExchangeRates(data: InvoicePrintData) {
   return `
     <div class="divider"></div>
     <section class="totals">
-      <p class="total-row strong"><span>${escapeHtml(data.labels.currentExchangeRate ?? "Current Exchange Rate")}</span><span></span></p>
+      <p class="exchange-heading strong">${escapeHtml(data.labels.currentExchangeRate ?? "Current Exchange Rate")}</p>
       ${data.exchangeRates
         .map((item) => invoiceTotalRow(`1 ${item.code}`, `${formatInvoiceExchangeRate(item.rate)} LAK`))
         .join("")}
