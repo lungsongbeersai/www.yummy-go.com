@@ -9,7 +9,7 @@ vi.mock("@/lib/api", () => ({
 
 import { getPrinterEmployeeRoles, savePrinter } from "@/services/printer/config-api";
 
-describe("employee role printer configuration API", () => {
+describe("printer configuration API", () => {
   const input: SavePrinterInput = {
     login_uuid_fk: "login", display_name: "Bar", connect_type: "tcp",
     ip: "192.168.1.20", paper_width_mm: 80, kitchen_cut_mode: "per_ticket",
@@ -48,5 +48,37 @@ describe("employee role printer configuration API", () => {
     const request = apiMocks.apiRequest.mock.calls[0][2] as { data: Record<string, unknown> };
     expect(request.data).not.toHaveProperty("print_role_mode");
     expect(request.data).not.toHaveProperty("category_print_permissions");
+  });
+
+  it.each([
+    { connectType: "tcp", printShowLogo: true },
+    { connectType: "tcp", printShowLogo: false },
+    { connectType: "usb", printShowLogo: true },
+    { connectType: "usb", printShowLogo: false },
+  ] as const)("round-trips invoice and receipt logos on $connectType printers with setting $printShowLogo", async ({ connectType, printShowLogo }) => {
+    apiMocks.apiRequest.mockResolvedValueOnce({
+      data: { print_config_uuid: "printer", print_show_logo: printShowLogo },
+    });
+
+    const printer = await savePrinter({
+      ...input,
+      connect_type: connectType,
+      interface_value: connectType === "usb" ? "win:Receipt" : "tcp://192.168.1.20:9100",
+      role_codes: ["invoice", "receipt"],
+      print_show_logo: printShowLogo,
+    });
+
+    expect(apiMocks.apiRequest).toHaveBeenCalledWith("post", "/api/v1/printer/create", {
+      data: expect.objectContaining({ print_show_logo: printShowLogo }),
+    });
+    expect(printer.print_show_logo).toBe(printShowLogo);
+  });
+
+  it("omits the logo field for older callers to preserve the printer setting", async () => {
+    apiMocks.apiRequest.mockResolvedValueOnce({ data: { print_config_uuid: "printer", print_show_logo: true } });
+    const printer = await savePrinter(input);
+    const request = apiMocks.apiRequest.mock.calls[0][2] as { data: Record<string, unknown> };
+    expect(JSON.parse(JSON.stringify(request.data))).not.toHaveProperty("print_show_logo");
+    expect(printer.print_show_logo).toBe(true);
   });
 });

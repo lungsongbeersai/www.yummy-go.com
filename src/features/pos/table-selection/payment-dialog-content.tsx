@@ -34,6 +34,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { DocumentLogoCheckbox } from "@/features/printer/document-logo-checkbox";
 import {
   Command,
   CommandEmpty,
@@ -938,9 +939,15 @@ export function PaymentDialogContent({
             </section>
 
             <aside
-              className="min-h-0 border-t border-border bg-background p-2 pb-[calc(0.5rem+var(--pos-system-bottom-safe-area))] sm:p-3 sm:pb-[calc(0.75rem+var(--pos-system-bottom-safe-area))] md:col-span-2 lg:col-span-1 lg:border-l lg:border-t-0 lg:p-4 lg:pb-[calc(1rem+var(--pos-system-bottom-safe-area))]"
+              className="flex min-h-0 flex-col border-t border-border bg-background p-2 pb-[calc(0.5rem+var(--pos-system-bottom-safe-area))] sm:p-3 sm:pb-[calc(0.75rem+var(--pos-system-bottom-safe-area))] md:col-span-2 lg:col-span-1 lg:border-l lg:border-t-0 lg:p-4 lg:pb-[calc(1rem+var(--pos-system-bottom-safe-area))]"
               data-pos-keypad-ignore="true"
             >
+              <DocumentLogoCheckbox
+                className="mb-2 shrink-0 rounded-md border border-border px-3"
+                checked={workflow.documentLogo.checked}
+                onCheckedChange={workflow.documentLogo.setShowLogo}
+                disabled={processing || invoicePrinting}
+              />
               <div className="grid min-h-0 gap-1.5 md:hidden">
                 <PaymentSummaryStrip
                   items={[
@@ -1020,7 +1027,7 @@ export function PaymentDialogContent({
                 </div>
               </div>
 
-              <div className="hidden min-h-0 gap-1.5 md:grid md:grid-cols-[minmax(0,1fr)_auto] md:grid-rows-1 md:gap-2 lg:h-full lg:grid-cols-1 lg:grid-rows-[minmax(0,1fr)_auto]">
+              <div className="hidden min-h-0 gap-1.5 md:grid md:grid-cols-[minmax(0,1fr)_auto] md:grid-rows-1 md:gap-2 lg:flex-1 lg:grid-cols-1 lg:grid-rows-[minmax(0,1fr)_auto]">
                 {/* สรุปยอดเป็นกล่องเดียวแบบใบเสร็จ: ยอดต้องชำระเด่นสุด แล้วรับเงิน/เงินทอนเป็นแถวใต้ —
                     เงินทอนสีเขียว ยอดค้างสีแดง ให้แคชเชียร์แยกได้ทันทีว่าต้องทอนหรือยังขาดอยู่ */}
                 <div className="grid min-h-0 grid-cols-3 gap-1.5 md:gap-2 lg:grid-cols-1 lg:content-start lg:self-start lg:gap-0 lg:overflow-hidden lg:rounded-xl lg:border lg:border-border lg:bg-card">

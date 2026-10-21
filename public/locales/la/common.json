@@ -899,6 +899,8 @@
     "tableActionsDescription": "ຍ້າຍ ຫຼື ລວມອໍເດີສຳລັບ {{table}}.",
     "createTableQr": "ສ້າງ QR ໂຕະ",
     "createBranchMenuQr": "ສ້າງ QR ເມນູອາຫານ",
+    "scanQrToOrder": "ສະແກນ QR ເພື່ອສັ່ງອາຫານ",
+    "scanQrToViewMenu": "ສະແກນ QR ເພື່ອເບິ່ງເມນູອາຫານ",
     "branchMenuQrDescription": "ສ້າງ QR ໃຫ້ລູກຄ້າສະແກນເບິ່ງເມນູໄດ້ — ເບິ່ງໄດ້ຢ່າງດຽວ ສັ່ງອາຫານບໍ່ໄດ້.",
     "createEmployeeOrder": "ສັ່ງຫານທີ່ນີ້",
     "customerDisplayScreen": "ຈໍລູກຄ້າ",
@@ -1081,6 +1083,7 @@
     "receiptPrintFailed": "ພິມໃບບິນບໍ່ສຳເລັດ",
     "autoPrintRetryDescription": "ງານນີ້ຍັງຖືກກຳນົດໃຫ້ Printer Agent. ກວດສອບ Agent ແລະ ເຄື່ອງພິມ ແລ້ວລອງພິມງານເດີມອີກຄັ້ງ.",
     "printInvoice": "ພິມໃບຮຽກເກັບເງິນ",
+    "showDocumentLogo": "ສະແດງໂລໂກ້ໃນໃບຮຽກເກັບເງິນ ແລະ ໃບຮັບເງິນ",
     "invoicePrintTitle": "ໃບຮຽກເກັບເງິນ",
     "receiptPrintTitle": "ໃບຮັບເງິນ",
     "invoicePrintNumber": "ເລກທີບິນ",
@@ -1543,6 +1546,10 @@
     "tryDifferentIconSearch": "ລອງຄົ້ນຫາໄອຄອນດ້ວຍຄຳອື່ນ."
   },
   "printer": {
+    "documentLogoMode": "ໂລໂກ້ໃບຮຽກເກັບເງິນ ແລະ ໃບຮັບເງິນ",
+    "documentLogoModeHint": "ໃຊ້ໂລໂກ້ຈາກຂໍ້ມູນຮ້ານ ແລະ ສາຂາ ໂດຍສາມາດປ່ຽນໄດ້ກ່ອນພິມແຕ່ລະບິນ",
+    "showDocumentLogo": "ສະແດງໂລໂກ້ໃບຮຽກເກັບເງິນ ແລະ ໃບຮັບເງິນ",
+    "hideDocumentLogo": "ບໍ່ສະແດງໂລໂກ້ໃບຮຽກເກັບເງິນ ແລະ ໃບຮັບເງິນ",
     "queueTicketMode": "ການພິມໃບຄິວ",
     "queueTicketModeHint": "ສຳລັບຮ້ານບໍ່ມີໂຕະ: ຕັ້ງວ່າເຄື່ອງພິມນີ້ຈະພິມໃບຄິວ ຫຼື ບໍ່ພິມ. ໃບຮັບເງິນຍັງພິມຕາມເດີມ.",
     "setupMenu": "ຕິດຕັ້ງ & ດາວໂຫຼດ",

@@ -387,6 +387,7 @@ describe("payment dialog helpers", () => {
         { value: "usd", code: "USD", label: "USD", rate: 23000 },
       ],
       invoice: "INV-1",
+      showLogo: true,
       orders: [order()],
       qrUrl: "https://example.com/qr.png",
       selectedCustomer: customer,
@@ -408,6 +409,7 @@ describe("payment dialog helpers", () => {
         email: "cashier@example.com",
         name: "Noy",
         store_name: "<Store>",
+        store_logo: "https://example.com/branch-logo.png",
         branch_name: "Branch",
       } as unknown as AuthUser,
     });
@@ -421,6 +423,8 @@ describe("payment dialog helpers", () => {
       hasItemDiscount: true,
     });
     expect(html).toContain("&lt;Store&gt;");
+    expect(data.logoUrl).toBe("https://example.com/branch-logo.png");
+    expect(html).toContain('class="branch-logo" src="https://example.com/branch-logo.png"');
     expect(html).toContain("&lt;VIP&gt;");
     expect(html).toContain("pos.invoicePrintCurrentExchangeRate");
     expect(html).toContain("1 THB");
@@ -462,12 +466,14 @@ describe("payment dialog helpers", () => {
         email: "cashier@example.com",
         name: "Noy",
         store_name: "Store",
+        store_logo: "https://example.com/branch-logo.png",
       } as unknown as AuthUser,
     });
 
     const receipt = withReceiptPrintLabels(data, translate);
 
     expect(data.title).toBe("pos.invoicePrintTitle");
+    expect(data.logoUrl).toBeNull();
     expect(receipt.title).toBe("pos.receiptPrintTitle");
     expect(receipt.labels.invoice).toBe("pos.receiptPrintNumber");
     expect(renderLocalInvoiceHtml(receipt, receipt.title)).toContain("pos.receiptPrintTitle");

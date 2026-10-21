@@ -6,6 +6,7 @@ import { useResetOnChange, useResetOnDeps } from "@/hooks/use-reset-on-change";
 import { useTranslation } from "react-i18next";
 import { openLocalInvoicePrintWindow, type InvoicePrintData } from "@/services/printer/invoice-print-window";
 import { buildSalesListInvoicePrintData } from "@/features/sales/cancel-sale/cancel-sale-utils";
+import { useDocumentLogo } from "@/features/printer/use-document-logo";
 import { useUrlPagination } from "@/hooks/use-url-pagination";
 import { isCapacitorNativeApp } from "@/lib/capacitor-platform";
 import { createMutationUuid } from "@/lib/pos/mutation-identity";
@@ -105,6 +106,7 @@ export function useSalesListPage(initialPagination: UrlPaginationState) {
   const canApply = Boolean(draftFilters.branchUuid && draftFilters.dateFrom && draftFilters.dateTo);
   const canReprintReceipt = Boolean(user?.uuid);
   const selectedBill = bills.find((bill) => bill.id === selectedBillId) ?? null;
+  const documentLogo = useDocumentLogo(Boolean(selectedBill) && (isDesktop || mobileDetailOpen), user?.uuid, selectedBillId, "receipt");
   const initialLoading = loading && !bills.length;
 
   useEffect(() => {
@@ -223,6 +225,7 @@ export function useSalesListPage(initialPagination: UrlPaginationState) {
 
     return buildSalesListInvoicePrintData({
       bill: receiptSource,
+      showLogo: documentLogo.previewShowLogo,
       translate: (key, options) => String(t(key, options)),
       user: receiptUser
     });
@@ -238,6 +241,7 @@ export function useSalesListPage(initialPagination: UrlPaginationState) {
         order_uuid: orderUuid,
         operation_uuid: createMutationUuid(),
         login_uuid_fk: user.uuid,
+        ...(typeof documentLogo.showLogo === "boolean" ? { show_logo: documentLogo.showLogo } : {}),
         lang: language
       });
 
@@ -351,6 +355,7 @@ export function useSalesListPage(initialPagination: UrlPaginationState) {
     canApply,
     canReprintReceipt,
     draftFilters,
+    documentLogo,
     error,
     goToPage,
     initialLoading,

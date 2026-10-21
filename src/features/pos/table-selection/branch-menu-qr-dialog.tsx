@@ -1,9 +1,8 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import Image from "next/image";
 import QRCode from "qrcode";
-import { Copy, Download, ExternalLink, Minus, Plus, Printer, QrCode as QrCodeIcon } from "lucide-react";
+import { Copy, Download, ExternalLink, Minus, Plus, Printer } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { PrintLoadingDialog } from "@/components/common/print-loading-dialog";
 import { Button } from "@/components/ui/button";
@@ -11,7 +10,6 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { ButtonGroup, ButtonGroupText } from "@/components/ui/button-group";
 import { Field, FieldLabel } from "@/components/ui/field";
 import { InputGroup, InputGroupAddon, InputGroupButton, InputGroupInput } from "@/components/ui/input-group";
-import { Skeleton } from "@/components/ui/skeleton";
 import { Spinner } from "@/components/ui/spinner";
 import { useIsCapacitorNativeApp } from "@/hooks/use-capacitor-native-app";
 import { useResetOnChange, useResetOnDeps } from "@/hooks/use-reset-on-change";
@@ -24,6 +22,7 @@ import { usePosStore } from "@/stores/pos-store";
 import { usePrinterStore } from "@/stores/printer-store";
 import { useToastStore } from "@/stores/toast-store";
 import { resolveTableQrPrinterContext, tableQrPrintAttemptResponse, tableQrPrintOutcome } from "./table-qr-printing";
+import { QrPrintPreview } from "./qr-print-preview";
 
 const MIN_PRINT_COPIES = 1;
 const MAX_PRINT_COPIES = 20;
@@ -141,7 +140,7 @@ export function BranchMenuQrDialog({
     if (!targetUrl) return;
 
     let ignore = false;
-    QRCode.toDataURL(targetUrl, { errorCorrectionLevel: "M", margin: 2, width: 320 })
+    QRCode.toDataURL(targetUrl, { errorCorrectionLevel: "M", margin: 4, width: 320 })
       .then((dataUrl) => {
         if (!ignore) setQrDataUrl(dataUrl);
       })
@@ -258,29 +257,18 @@ export function BranchMenuQrDialog({
     <>
       <Dialog open={open} onOpenChange={onOpenChange}>
         <DialogContent className="max-h-[calc(100dvh-2rem-env(safe-area-inset-top,0px)-env(safe-area-inset-bottom,0px))] gap-0 overflow-hidden p-0 duration-200 sm:max-w-130">
-        <DialogHeader className="px-5 pb-3 pt-5 pr-12 text-left">
+        <DialogHeader className="gap-2 px-5 pb-5 pt-5 pr-12 text-left">
           <DialogTitle className="text-xl font-bold leading-6">{t("pos.createBranchMenuQr")}</DialogTitle>
           <DialogDescription>{t("pos.branchMenuQrDescription")}</DialogDescription>
         </DialogHeader>
 
         <div className="flex min-h-0 flex-col gap-4 overflow-y-auto px-5 pb-5">
-          {/* การ์ดตัวอย่างแบบเดียวกับ QR โต๊ะ (table-qr-dialog.tsx) — ชื่อสาขาเหนือ QR */}
-          <div className="flex flex-col items-center rounded-xl border bg-muted/40 p-4">
-            <div className="flex flex-col items-center gap-2 rounded-xl bg-card p-4 shadow-sm ring-1 ring-border">
-              {response?.branch_name ? (
-                <p className="max-w-56 truncate text-lg font-bold leading-7 text-foreground">{response.branch_name}</p>
-              ) : null}
-              {pending ? (
-                <Skeleton className="size-52 rounded-lg sm:size-56" />
-              ) : qrDataUrl ? (
-                <Image src={qrDataUrl} alt={`${response?.branch_name ?? ""} QR`} width={224} height={224} unoptimized className="size-52 object-contain sm:size-56" />
-              ) : (
-                <div className="grid size-52 place-items-center rounded-lg bg-muted text-muted-foreground sm:size-56">
-                  <QrCodeIcon />
-                </div>
-              )}
-            </div>
-          </div>
+          <QrPrintPreview
+            title={response?.branch_name || t("pos.foodMenu")}
+            caption={t("pos.scanQrToViewMenu")}
+            imageUrl={qrDataUrl}
+            loading={pending}
+          />
 
           <Field className="gap-2">
             <FieldLabel htmlFor="branch-menu-qr-url">{t("pos.menuLink")}</FieldLabel>

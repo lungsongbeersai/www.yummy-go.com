@@ -125,6 +125,7 @@ export interface Printer extends ApiEntity {
   // ค่าเดิมของเครื่องพิมพ์ก่อนมี option นี้คืออนุญาตให้เปิดลิ้นชักเมื่อรับเงิน
   cash_drawer_enabled?: boolean;
   queue_ticket_enabled?: boolean;
+  print_show_logo?: boolean;
   // เครื่องรุ่นที่ต้องการเสียงเตือนตอนตัดกระดาษ (เช่น Rongta RP325) — ค่าเดิมคือปิด
   buzzer_on_cut?: boolean;
   // ระยะป้อนกระดาษก่อนตัด (หน่วยบรรทัด) เฉพาะเครื่องนี้ — null/undefined = ใช้ค่ากลางของระบบ
@@ -213,6 +214,7 @@ export interface SavePrinterInput extends ApiEntity {
   kitchen_cut_mode: PrinterKitchenCutMode;
   cash_drawer_enabled?: boolean;
   queue_ticket_enabled?: boolean;
+  print_show_logo?: boolean;
   buzzer_on_cut?: boolean;
   cut_feed_lines?: number | null;
   role_codes: string[];

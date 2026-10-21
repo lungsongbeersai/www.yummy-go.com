@@ -12,6 +12,7 @@ interface PrinterOutputSettingsProps {
   kitchenCutMode: PrinterKitchenCutMode;
   queueTicketEnabled: boolean;
   showQueueTicketOption: boolean;
+  printShowLogo: boolean;
   cashDrawerEnabled: boolean;
   buzzerOnCut: boolean;
   cutFeedLines: string;
@@ -22,6 +23,7 @@ interface PrinterOutputSettingsProps {
   onAccessModeChange: (value: PrinterAccessMode) => void;
   onKitchenCutModeChange: (value: PrinterKitchenCutMode) => void;
   onQueueTicketEnabledChange: (value: boolean) => void;
+  onPrintShowLogoChange: (value: boolean) => void;
   onCashDrawerEnabledChange: (value: boolean) => void;
   onBuzzerOnCutChange: (value: boolean) => void;
   onCutFeedLinesChange: (value: string) => void;
@@ -93,6 +95,19 @@ export function PrinterOutputSettings(props: PrinterOutputSettingsProps) {
               ]}
             />
           ) : null}
+          <RadioOptionList
+            className="min-w-0 lg:col-span-2"
+            legend={t("printer.documentLogoMode")}
+            description={t("printer.documentLogoModeHint")}
+            name="printer-document-logo"
+            value={props.printShowLogo ? "enabled" : "disabled"}
+            disabled={props.saving}
+            onValueChange={(value) => props.onPrintShowLogoChange(value === "enabled")}
+            options={[
+              { value: "enabled", label: t("printer.showDocumentLogo") },
+              { value: "disabled", label: t("printer.hideDocumentLogo") },
+            ]}
+          />
         </div>
       </FieldSet>
       <FieldSet className="gap-4 rounded-lg border border-border bg-card p-4">

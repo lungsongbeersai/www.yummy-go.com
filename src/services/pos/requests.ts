@@ -250,6 +250,7 @@ export const createBranchMenuQR = (params: CreateBranchMenuQRRequest) =>
 export const printInvoice = (params: PrintInvoiceRequest) =>
   apiRequest<PrintInvoiceResponse>("post", "/api/v1/posAll/print_invoice", {
     data: {
+      ...(typeof params.show_logo === "boolean" ? { show_logo: params.show_logo } : {}),
       login_uuid_fk: params.login_uuid_fk,
       order_uuid: params.order_uuid,
       operation_uuid: params.operation_uuid,
@@ -265,6 +266,7 @@ export const printInvoice = (params: PrintInvoiceRequest) =>
 export const reprintReceipt = (params: ReprintReceiptRequest) =>
   apiRequest<ReprintReceiptResponse>("post", "/api/v1/posAll/reprint_receipt", {
     data: {
+      ...(typeof params.show_logo === "boolean" ? { show_logo: params.show_logo } : {}),
       order_uuid: params.order_uuid,
       operation_uuid: params.operation_uuid,
       login_uuid_fk: params.login_uuid_fk,

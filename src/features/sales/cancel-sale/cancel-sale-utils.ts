@@ -2,7 +2,7 @@ import type { InvoicePrintData, InvoicePrintItem, InvoicePrintTaste, InvoicePrin
 import { dateTime, money } from "@/lib/format";
 import { pageLimitNumber } from "@/lib/pagination";
 import type { CancelableBill, CancelableBillDetail, CancelableDateOption } from "@/services/cancel";
-import { getBranchQrUrl } from "@/lib/image";
+import { getBranchQrUrl, getStoreLogoUrl } from "@/lib/image";
 import type { ApiEntity, PageLimit, SortOrder } from "@/services/shared/types";
 import type { AuthUser } from "@/stores/auth-store";
 
@@ -396,10 +396,12 @@ export function salesListInvoicePrintItems(
 
 export function buildSalesListInvoicePrintData({
   bill,
+  showLogo = false,
   translate,
   user
 }: {
   bill: BillSource;
+  showLogo?: boolean;
   translate: (key: string, options?: Record<string, unknown>) => string;
   user: AuthUser;
 }): InvoicePrintData {
@@ -420,6 +422,7 @@ export function buildSalesListInvoicePrintData({
     invoice: firstText(readFromBillSections([bill], invoiceKeys, ["order", "self"])) || null,
     items: salesListInvoicePrintItems(bill, translate),
     labels: salesListInvoicePrintLabels(translate, bill),
+    logoUrl: showLogo && user.store_logo ? getStoreLogoUrl(user.store_logo) : null,
     contentWidthMm: 72.1,
     paperHeightMm: 210,
     paperWidthMm: 80,

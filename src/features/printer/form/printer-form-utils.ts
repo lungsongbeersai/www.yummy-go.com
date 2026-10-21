@@ -444,6 +444,7 @@ export function printerFormValues(printer: Printer | null) {
     kitchenCutMode: kitchenCutModeOf(printer),
     cashDrawerEnabled: cashDrawerEnabledOf(printer),
     queueTicketEnabled: printer?.queue_ticket_enabled !== false,
+    printShowLogo: printer?.print_show_logo === true,
     buzzerOnCut: buzzerOnCutOf(printer),
     cutFeedLines: cutFeedLinesOf(printer),
     selectedRoles: printer?.role_codes ?? [],

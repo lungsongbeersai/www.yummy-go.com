@@ -2,6 +2,8 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useResetOnDeps } from "@/hooks/use-reset-on-change";
+import { useMediaQuery } from "@/hooks/use-media-query";
+import { useDocumentLogo } from "@/features/printer/use-document-logo";
 import { useTranslation } from "react-i18next";
 import { EmptyState } from "@/components/common/empty-state";
 import { PrintLoadingDialog } from "@/components/common/print-loading-dialog";
@@ -88,6 +90,8 @@ export function CancelSalePage({
   );
   const detailSource = selectedBill ?? selectedListBill ?? null;
   const detailOrderUuid = billUuid(detailSource);
+  const isDesktop = useMediaQuery("(min-width: 1280px)");
+  const documentLogo = useDocumentLogo(Boolean(detailOrderUuid) && (isDesktop || mobileDetailOpen), user?.uuid, selectedOrderUuid || detailOrderUuid, "receipt");
   const detailCanCancel = billCanCancel(selectedBill, selectedListBill);
   const cancelOrderUuid = detailOrderUuid;
   const canReprintReceipt = Boolean(detailOrderUuid && user?.uuid && !receiptPrintingOrderUuid);
@@ -239,6 +243,7 @@ export function CancelSalePage({
         order_uuid: orderUuid,
         operation_uuid: createMutationUuid(),
         login_uuid_fk: user.uuid,
+        ...(typeof documentLogo.showLogo === "boolean" ? { show_logo: documentLogo.showLogo } : {}),
         lang: language
       });
 
@@ -264,6 +269,7 @@ export function CancelSalePage({
         if (printStarted && !isCapacitorNativeApp()) {
           const receiptData = buildSalesListInvoicePrintData({
             bill: detailSource,
+            showLogo: documentLogo.previewShowLogo,
             translate: (key, options) => String(t(key, options)),
             user
           });
@@ -384,6 +390,8 @@ export function CancelSalePage({
           canReprintReceipt={canReprintReceipt}
           className="hidden xl:flex"
           loading={detailLoading}
+          logoChecked={documentLogo.checked}
+          onLogoCheckedChange={documentLogo.setShowLogo}
           reprintingReceipt={reprintingReceipt}
           onCancel={openCancelDialog}
           onReprintReceipt={() => void reprintReceipt()}
@@ -395,6 +403,8 @@ export function CancelSalePage({
         canCancel={detailCanCancel}
         canReprintReceipt={canReprintReceipt}
         loading={detailLoading}
+        logoChecked={documentLogo.checked}
+        onLogoCheckedChange={documentLogo.setShowLogo}
         open={mobileDetailOpen}
         reprintingReceipt={reprintingReceipt}
         onCancel={openCancelDialog}

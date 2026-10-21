@@ -214,6 +214,7 @@ describe("POS store session follow-up requests", () => {
     });
 
     const result = await usePosStore.getState().reprintReceipt({
+      show_logo: false,
       order_uuid: "order-1",
       operation_uuid: "88888888-8888-4888-8888-888888888888",
       login_uuid_fk: "login-1",
@@ -221,6 +222,7 @@ describe("POS store session follow-up requests", () => {
     });
 
     expect(reprintReceiptMock).toHaveBeenCalledWith({
+      show_logo: false,
       order_uuid: "order-1",
       operation_uuid: "88888888-8888-4888-8888-888888888888",
       login_uuid_fk: "login-1",

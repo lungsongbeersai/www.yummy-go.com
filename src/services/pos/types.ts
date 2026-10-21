@@ -722,6 +722,7 @@ export interface UpdateOrderNoteInput {
 export interface UpdateOrderNoteResponse extends ApiEntity {}
 
 export interface PaymentInput extends ApiEntity {
+  show_logo?: boolean;
   print_queue_ticket?: boolean;
   payment_uuid?: string;
   order_uuid: string;
@@ -799,6 +800,7 @@ export interface PaymentResponse extends ApiEntity {
 export type SplitBillItemQuantity = Record<string, number>;
 
 export interface SplitBillInput extends ApiEntity {
+  show_logo?: boolean;
   sync_event_uuid?: string;
   new_order_uuid?: string;
   payment_uuid?: string;
@@ -1244,6 +1246,7 @@ export interface CleanupDraftOrderItemsResponse extends ApiEntity {
 }
 
 export interface PrintInvoiceRequest extends ApiEntity {
+  show_logo?: boolean;
   order_uuid: string;
   operation_uuid: string;
   login_uuid_fk: string;
@@ -1269,6 +1272,7 @@ export interface PrintInvoiceResponse extends ApiEntity {
 }
 
 export interface ReprintReceiptRequest {
+  show_logo?: boolean;
   order_uuid: string;
   operation_uuid: string;
   login_uuid_fk: string;

@@ -161,6 +161,7 @@ export function mapPrinter(item: Record<string, unknown>): Printer {
       ? true
       : Boolean(item.cash_drawer_enabled),
     queue_ticket_enabled: item.queue_ticket_enabled !== false,
+    print_show_logo: item.print_show_logo === true,
     buzzer_on_cut: Boolean(item.buzzer_on_cut),
     cut_feed_lines: item.cut_feed_lines === undefined || item.cut_feed_lines === null
       ? null

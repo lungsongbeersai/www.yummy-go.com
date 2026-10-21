@@ -154,6 +154,7 @@ export function mergeInvoicePrintItems(items: InvoicePrintItem[]) {
 }
 
 export type InvoicePrintData = {
+  logoUrl?: string | null;
   branchAddress: string;
   branchName: string;
   branchTel: string;
@@ -556,12 +557,22 @@ function invoiceSharedStyles(paperWidthMm: number) {
         height: auto;
         margin: 2.4mm auto 1.6mm;
         object-fit: contain;
+      }
+      .branch-logo {
+        display: block;
+        max-width: 32mm;
+        max-height: 26mm;
+        width: auto;
+        height: auto;
+        margin: 0 auto 1.5mm;
+        object-fit: contain;
       }`;
 }
 
 export function renderInvoiceHeader(data: InvoicePrintData) {
   return `
     <header class="center">
+      ${data.logoUrl ? `<img class="branch-logo" src="${escapeHtml(data.logoUrl)}" alt="" />` : ""}
       ${data.storeName ? `<p class="store">${escapeHtml(data.storeName)}</p>` : ""}
       ${data.branchName ? `<p class="muted">${escapeHtml(data.branchName)}</p>` : ""}
       ${data.branchTel ? `<p class="muted">${escapeHtml(data.branchTel)}</p>` : ""}

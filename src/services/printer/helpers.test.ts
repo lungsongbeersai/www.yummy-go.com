@@ -53,6 +53,12 @@ describe("printer helpers", () => {
     });
   });
 
+  it("hides logos for legacy printers and restores explicit document logo choices", () => {
+    expect(mapPrinter({}).print_show_logo).toBe(false);
+    expect(mapPrinter({ print_show_logo: false }).print_show_logo).toBe(false);
+    expect(mapPrinter({ print_show_logo: true }).print_show_logo).toBe(true);
+  });
+
   it("adds failure reason only when missing", () => {
     expect(
       failPayload(

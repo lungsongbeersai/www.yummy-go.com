@@ -2,16 +2,14 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useResetOnChange, useResetOnDeps } from "@/hooks/use-reset-on-change";
-import Image from "next/image";
 import QRCode from "qrcode";
-import { Copy, Download, ExternalLink, Printer, QrCode as QrCodeIcon } from "lucide-react";
+import { Copy, Download, ExternalLink, Printer } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { PrintLoadingDialog } from "@/components/common/print-loading-dialog";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Field, FieldLabel } from "@/components/ui/field";
 import { InputGroup, InputGroupAddon, InputGroupButton, InputGroupInput } from "@/components/ui/input-group";
-import { Skeleton } from "@/components/ui/skeleton";
 import { Spinner } from "@/components/ui/spinner";
 import { useIsCapacitorNativeApp } from "@/hooks/use-capacitor-native-app";
 import { openWindowOutsideNativeApp } from "@/lib/capacitor-platform";
@@ -23,6 +21,7 @@ import { usePrinterStore } from "@/stores/printer-store";
 import { useToastStore } from "@/stores/toast-store";
 import { resolveTableQrPrinterContext, tableQrPendingJobUuid, tableQrPrintAttemptResponse, tableQrPrintOutcome } from "./table-qr-printing";
 import { optionalString } from "./utils";
+import { QrPrintPreview } from "./qr-print-preview";
 
 const localQrTargetUrl = "http://localhost:3001/posAll/tables";
 const productionQrOrigin = "https://yummy-go.com";
@@ -277,28 +276,18 @@ export function TableQrDialog({
     <>
       <Dialog open={open} onOpenChange={onOpenChange}>
         <DialogContent className="max-h-[calc(100dvh-2rem-env(safe-area-inset-top,0px)-env(safe-area-inset-bottom,0px))] gap-0 overflow-hidden p-0 duration-200 sm:max-w-130">
-        <DialogHeader className="px-5 pb-3 pt-5 pr-12 text-left">
+        <DialogHeader className="gap-2 px-5 pb-5 pt-5 pr-12 text-left">
           <DialogTitle className="text-xl font-bold leading-6">{t("pos.createTableQr")}</DialogTitle>
           <DialogDescription>{t("pos.tableQrDescription", { table: table.table_name })}</DialogDescription>
         </DialogHeader>
 
         <div className="flex min-h-0 flex-col gap-4 overflow-y-auto px-5 pb-5">
-          {/* ตัวอย่างหน้าตาเดียวกับกระดาษที่พิมพ์ออก (ชื่อโต๊ะ + QR) — ให้เห็นก่อนพิมพ์ว่าเป็นโต๊ะไหน */}
-          <div className="flex flex-col items-center gap-3 rounded-xl border bg-muted/40 p-4">
-            <div className="flex flex-col items-center gap-2 rounded-xl bg-card p-4 shadow-sm ring-1 ring-border">
-              <p className="text-xs font-medium text-muted-foreground">{t("nav.table")}</p>
-              <p className="-mt-2 max-w-56 truncate text-2xl font-bold leading-8 text-foreground">{table.table_name}</p>
-              {pending ? (
-                <Skeleton className="size-52 rounded-lg sm:size-56" />
-              ) : previewUrl ? (
-                <Image src={previewUrl} alt={`${table.table_name} QR`} width={224} height={224} unoptimized className="size-52 object-contain sm:size-56" />
-              ) : (
-                <div className="grid size-52 place-items-center rounded-lg bg-muted text-muted-foreground sm:size-56">
-                  <QrCodeIcon />
-                </div>
-              )}
-            </div>
-          </div>
+          <QrPrintPreview
+            title={`${t("nav.table")}: ${table.table_name}`}
+            caption={t("pos.scanQrToOrder")}
+            imageUrl={previewUrl}
+            loading={pending}
+          />
 
           <Field className="gap-2">
             <FieldLabel htmlFor="table-qr-url">{t("pos.menuLink")}</FieldLabel>
@@ -395,7 +384,7 @@ function isLocalBrowser() {
 }
 
 function createFallbackQrDataUrl(value: string) {
-  return QRCode.toDataURL(value, { errorCorrectionLevel: "M", margin: 2, width: 320 });
+  return QRCode.toDataURL(value, { errorCorrectionLevel: "M", margin: 4, width: 320 });
 }
 
 function normalizePublicUrl(value: string) {

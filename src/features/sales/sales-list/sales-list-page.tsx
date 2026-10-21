@@ -111,6 +111,8 @@ export function SalesListPage({ initialPagination }: { initialPagination: UrlPag
               canReprintReceipt={page.canReprintReceipt}
               loading={page.loading}
               printingBillId={page.printingBillId}
+              logoChecked={page.documentLogo.checked}
+              onLogoCheckedChange={page.documentLogo.setShowLogo}
               onReprint={(group) => void page.reprintReceipt(group)}
             />
         </div>
@@ -121,6 +123,8 @@ export function SalesListPage({ initialPagination }: { initialPagination: UrlPag
         loading={page.loading}
         open={page.mobileDetailOpen}
         printingBillId={page.printingBillId}
+        logoChecked={page.documentLogo.checked}
+        onLogoCheckedChange={page.documentLogo.setShowLogo}
         onOpenChange={page.setMobileDetailOpen}
         onReprint={(group) => void page.reprintReceipt(group)}
       />

@@ -883,6 +883,8 @@
     "tableActionsDescription": "Move or join orders for {{table}}.",
     "createTableQr": "Create table QR",
     "createBranchMenuQr": "Create menu QR",
+    "scanQrToOrder": "Scan QR to order food",
+    "scanQrToViewMenu": "Scan QR to view the menu",
     "branchMenuQrDescription": "Create a QR customers can scan to browse the menu — viewing only, no ordering.",
     "createEmployeeOrder": "Order Now",
     "customerDisplayScreen": "Customer display",
@@ -1080,6 +1082,7 @@
     "receiptPrintFailed": "Receipt print failed",
     "autoPrintRetryDescription": "This job remains assigned to Printer Agent. Check the Agent and printer, then retry the same job.",
     "printInvoice": "Print invoice",
+    "showDocumentLogo": "Show logo on invoice and receipt",
     "invoicePrintTitle": "Invoice",
     "receiptPrintTitle": "Receipt",
     "invoicePrintNumber": "Invoice No",
@@ -1547,6 +1550,10 @@
     "tryDifferentIconSearch": "Try a different icon search."
   },
   "printer": {
+    "documentLogoMode": "Invoice and receipt logo",
+    "documentLogoModeHint": "Use the logo saved in the store and branch settings. You can change this for each bill before printing.",
+    "showDocumentLogo": "Show logo on invoices and receipts",
+    "hideDocumentLogo": "Hide logo on invoices and receipts",
     "queueTicketMode": "Queue tickets",
     "queueTicketModeHint": "For stores without tables: save whether this printer prints queue tickets. Receipts are still printed.",
     "setupMenu": "Setup & downloads",

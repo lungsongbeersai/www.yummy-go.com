@@ -323,6 +323,25 @@ describe("queue ticket preference", () => {
   });
 });
 
+describe("invoice and receipt logo preference", () => {
+  const printer: Printer = {
+    print_config_uuid: "printer", printer_name: "Receipt", connect_type: "tcp",
+    interface_value: "tcp://192.168.1.20:9100", paper_width_mm: 80,
+    is_active: true, role_codes: ["invoice", "receipt"], cate_uuid_fk: [],
+  };
+
+  it("hides the logo on new and legacy printers", () => {
+    expect(printerFormValues(null).printShowLogo).toBe(false);
+    expect(printerFormValues(printer).printShowLogo).toBe(false);
+  });
+
+  it.each([true, false])("restores the saved logo preference %s during initial load and hydration", (printShowLogo) => {
+    const savedPrinter = { ...printer, print_show_logo: printShowLogo };
+    expect(printerFormValues(savedPrinter).printShowLogo).toBe(printShowLogo);
+    expect(initialPrinterFormValues(savedPrinter, null, true).printShowLogo).toBe(printShowLogo);
+  });
+});
+
 describe("new printer access default", () => {
   const printer = { print_config_uuid: "printer", printer_name: "Printer", connect_type: "tcp", interface_value: "tcp://192.168.1.20:9100", paper_width_mm: 80, is_active: true, role_codes: [], cate_uuid_fk: [] };
   it("starts new printers as device-only without changing existing configurations", () => {

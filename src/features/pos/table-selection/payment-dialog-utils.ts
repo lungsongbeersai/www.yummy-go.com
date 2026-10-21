@@ -5,6 +5,7 @@ import {
   SplitSquareHorizontal,
 } from "lucide-react";
 import { money } from "@/lib/format";
+import { getStoreLogoUrl } from "@/lib/image";
 import { toApiLanguage } from "@/lib/language";
 import type { InvoicePrintData } from "@/services/printer/invoice-print-window";
 import type {
@@ -791,6 +792,7 @@ export function buildInvoicePrintData({
   orders,
   qrUrl,
   selectedCustomer,
+  showLogo = false,
   summary,
   table,
   translate,
@@ -801,6 +803,7 @@ export function buildInvoicePrintData({
   orders: CartOrder[];
   qrUrl: string | null;
   selectedCustomer: Customer | null;
+  showLogo?: boolean;
   summary: ReturnType<typeof cartSummary>;
   table: PosTable;
   translate: Translate;
@@ -810,6 +813,7 @@ export function buildInvoicePrintData({
   const taxRate = formatRate(summary.taxRate);
 
   return {
+    logoUrl: showLogo && user.store_logo ? getStoreLogoUrl(user.store_logo) : null,
     branchAddress: optionalString(user.branch_address) ?? "",
     branchName: optionalString(user.branch_name) ?? "",
     branchTel: optionalString(user.branch_tel) ?? "",

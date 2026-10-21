@@ -316,6 +316,15 @@ describe("sales list utils", () => {
     expect(printData.labels.vat).toBe("VAT (7%)");
   });
 
+  it("uses the branch branding only when the logo is selected for receipt reprints", () => {
+    const receiptUser = { ...user, store_logo: "branch-logo.png" };
+    const bill = source({ order_invoice: "RECEIPT-1" });
+    expect(buildSalesListInvoicePrintData({ bill, translate, user: receiptUser }).logoUrl).toBeNull();
+    expect(buildSalesListInvoicePrintData({ bill, translate, user: receiptUser, showLogo: false }).logoUrl).toBeNull();
+    expect(buildSalesListInvoicePrintData({ bill, translate, user: receiptUser, showLogo: true }).logoUrl).toBe("/uploaded/store/branch-logo.png");
+    expect(buildSalesListInvoicePrintData({ bill, translate, user: { ...user, store_logo: "" }, showLogo: true }).logoUrl).toBeNull();
+  });
+
   it("uses product_full_name in receipt print items from sale list API", () => {
     const [printItem] = salesListInvoicePrintItems(
       source({

@@ -4,6 +4,7 @@ import type { ReactNode } from "react";
 import { ArrowLeftRight, Banknote, Coins, Printer, RefreshCcw, Store, UserRound } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { EmptyState } from "@/components/common/empty-state";
+import { DocumentLogoCheckbox } from "@/features/printer/document-logo-checkbox";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -31,6 +32,8 @@ interface SalesBillDetailPanelProps {
   canReprintReceipt: boolean;
   className?: string;
   loading: boolean;
+  logoChecked: boolean | "indeterminate";
+  onLogoCheckedChange: (checked: boolean) => void;
   onReprint: (group: DailySaleItemsBillGroup) => void;
   printingBillId: string;
   variant?: "panel" | "drawer";
@@ -41,6 +44,8 @@ export function SalesBillDetailPanel({
   canReprintReceipt,
   className,
   loading,
+  logoChecked,
+  onLogoCheckedChange,
   onReprint,
   printingBillId,
   variant = "panel"
@@ -75,6 +80,11 @@ export function SalesBillDetailPanel({
   );
   const body = (
     <div className="flex flex-col gap-4 p-3 sm:p-4">
+      <DocumentLogoCheckbox
+        checked={logoChecked}
+        disabled={loading || Boolean(printingBillId) || !canReprintReceipt}
+        onCheckedChange={onLogoCheckedChange}
+      />
       <BillInfoGrid bill={bill} />
       <section className="flex flex-col gap-2">
         <div className="flex items-baseline justify-between gap-2 px-0.5">
@@ -187,6 +197,8 @@ interface SalesBillDetailDrawerProps {
   bill: DailySaleItemsBillGroup | null;
   canReprintReceipt: boolean;
   loading: boolean;
+  logoChecked: boolean | "indeterminate";
+  onLogoCheckedChange: (checked: boolean) => void;
   onOpenChange: (open: boolean) => void;
   onReprint: (group: DailySaleItemsBillGroup) => void;
   open: boolean;
@@ -197,6 +209,8 @@ export function SalesBillDetailDrawer({
   bill,
   canReprintReceipt,
   loading,
+  logoChecked,
+  onLogoCheckedChange,
   onOpenChange,
   onReprint,
   open,
@@ -217,6 +231,8 @@ export function SalesBillDetailDrawer({
             canReprintReceipt={canReprintReceipt}
             className="flex h-full flex-col rounded-none border-0 shadow-none"
             loading={loading}
+            logoChecked={logoChecked}
+            onLogoCheckedChange={onLogoCheckedChange}
             printingBillId={printingBillId}
             variant="drawer"
             onReprint={onReprint}

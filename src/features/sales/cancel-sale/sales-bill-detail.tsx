@@ -4,6 +4,7 @@ import type { ReactNode } from "react";
 import { ArrowLeftRight, BadgePercent, Ban, Banknote, Coins, Lock, Package, Printer, StickyNote, Tag, UserRound, Wallet } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { EmptyState } from "@/components/common/empty-state";
+import { DocumentLogoCheckbox } from "@/features/printer/document-logo-checkbox";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -54,6 +55,8 @@ interface SalesBillDetailProps {
   canCancel: boolean;
   canReprintReceipt: boolean;
   loading: boolean;
+  logoChecked: boolean | "indeterminate";
+  onLogoCheckedChange: (checked: boolean) => void;
   reprintingReceipt: boolean;
   onCancel: () => void;
   onReprintReceipt: () => void;
@@ -65,6 +68,8 @@ export function SalesBillDetailPanel({
   canReprintReceipt,
   className,
   loading,
+  logoChecked,
+  onLogoCheckedChange,
   reprintingReceipt,
   onCancel,
   onReprintReceipt,
@@ -111,6 +116,11 @@ export function SalesBillDetailPanel({
   );
   const body = (
     <div className="flex flex-col gap-4 p-3 sm:p-4">
+      <DocumentLogoCheckbox
+        checked={logoChecked}
+        disabled={loading || reprintingReceipt || !canReprintReceipt}
+        onCheckedChange={onLogoCheckedChange}
+      />
       {canCancel ? null : <CannotCancelNotice bill={bill} />}
       <BillInfoGrid bill={bill} />
       <BillItemsSection bill={bill} />
@@ -210,7 +220,7 @@ function BillDetailActions({
   reprintingReceipt,
   onCancel,
   onReprintReceipt
-}: Omit<SalesBillDetailProps, "bill"> & { drawer: boolean }) {
+}: Omit<SalesBillDetailProps, "bill" | "logoChecked" | "onLogoCheckedChange"> & { drawer: boolean }) {
   const { t } = useTranslation();
 
   return (

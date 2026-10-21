@@ -310,6 +310,8 @@ export function PrinterFormPage() {
                   showQueueTicketOption={form.showQueueTicketOption}
                   queueTicketEnabled={form.queueTicketEnabled}
                   onQueueTicketEnabledChange={form.setQueueTicketEnabled}
+                  printShowLogo={form.printShowLogo}
+                  onPrintShowLogoChange={form.setPrintShowLogo}
                   cashDrawerEnabled={form.cashDrawerEnabled}
                   onCashDrawerEnabledChange={form.setCashDrawerEnabled}
                   buzzerOnCut={form.buzzerOnCut}

@@ -5,6 +5,7 @@ import {
   INVOICE_TOTAL_FIT_SCRIPT,
   mergeInvoicePrintItems,
   renderInvoiceItems,
+  renderInvoiceHeader,
   renderInvoiceExchangeRates,
   renderInvoiceTotals,
   type InvoicePrintData,
@@ -25,6 +26,15 @@ function item(overrides: Partial<InvoicePrintItem> = {}): InvoicePrintItem {
     ...overrides,
   };
 }
+
+it("prints the branch logo above the store heading only when supplied", () => {
+  const data = { storeName: "Store", title: "Invoice", logoUrl: 'https://example.com/logo.png?v=1&name="shop"' } as InvoicePrintData;
+  const header = renderInvoiceHeader(data);
+  expect(header).toContain('class="branch-logo" src="https://example.com/logo.png?v=1&amp;name=&quot;shop&quot;"');
+  expect(header.indexOf('class="branch-logo"')).toBeLessThan(header.indexOf('class="store"'));
+  expect(renderInvoiceHeader({ ...data, logoUrl: null })).not.toContain('class="branch-logo"');
+  expect(renderInvoiceHeader({ ...data, logoUrl: undefined })).not.toContain('class="branch-logo"');
+});
 
 it("emphasizes only the Lao item and amount headings before the first food item", () => {
   const productName = "ເຂົ້າຜັດ";

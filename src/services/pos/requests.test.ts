@@ -399,6 +399,18 @@ describe("pos requests", () => {
     });
   });
 
+  it.each([true, false, undefined])("preserves invoice and receipt logo override %s", async (showLogo) => {
+    apiMocks.apiRequest.mockResolvedValue({ status: "success" });
+    const input = { order_uuid: "order-1", operation_uuid: "operation-1", login_uuid_fk: "login-1", show_logo: showLogo };
+    await printInvoice(input);
+    await reprintReceipt(input);
+    for (const call of apiMocks.apiRequest.mock.calls) {
+      const body = call[2].data as Record<string, unknown>;
+      if (showLogo === undefined) expect(body).not.toHaveProperty("show_logo");
+      else expect(body.show_logo).toBe(showLogo);
+    }
+  });
+
   it("patches kitchen confirmation with printer identity fields", async () => {
     apiMocks.apiRequest.mockResolvedValue({ status: "success" });
 
@@ -453,6 +465,7 @@ describe("pos requests", () => {
     apiMocks.apiRequest.mockResolvedValue({ status: "success" });
 
     await createPayment({
+      show_logo: true,
       order_uuid: "order-1",
       table_uuid: "table-5",
       customer_uuid_fk: "customer-1",
@@ -472,6 +485,7 @@ describe("pos requests", () => {
 
     expect(apiMocks.apiRequest).toHaveBeenCalledWith("post", "/api/v1/posAll/payment", {
       data: {
+        show_logo: true,
         order_uuid: "order-1",
         table_uuid: "table-5",
         customer_uuid_fk: "customer-1",
@@ -495,6 +509,7 @@ describe("pos requests", () => {
     apiMocks.apiRequest.mockResolvedValue({ status: "success" });
 
     await splitBill({
+      show_logo: false,
       order_uuid: "order-1",
       table_uuid: "table-5",
       order_item_uuids: [{ "item-1": 2 }],
@@ -516,6 +531,7 @@ describe("pos requests", () => {
 
     expect(apiMocks.apiRequest).toHaveBeenCalledWith("post", "/api/v1/posAll/split_bill", {
       data: {
+        show_logo: false,
         order_uuid: "order-1",
         table_uuid: "table-5",
         order_item_uuids: [{ "item-1": 2 }],

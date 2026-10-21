@@ -38,6 +38,7 @@ import { usePosStore } from "@/stores/pos-store";
 import { usePrinterStore } from "@/stores/printer-store";
 import { useReferenceStore } from "@/stores/reference-store";
 import { useToastStore } from "@/stores/toast-store";
+import { useDocumentLogo } from "@/features/printer/use-document-logo";
 import { usePaymentCustomers } from "./use-payment-customers";
 import type { PaymentDialogProps } from "../payment-dialog-types";
 import {
@@ -170,6 +171,7 @@ export function usePaymentDialogWorkflow({
   const invoice = cartOrderInvoice(orders);
   const orderUuid = firstOrderUuid(orders);
   const documentActionKey = JSON.stringify([user?.uuid, orderUuid]);
+  const documentLogo = useDocumentLogo(open, user?.uuid, documentActionKey);
   const currencyOptions = useMemo(
     () => exchangeCurrencyOptions(exchanges),
     [exchanges],
@@ -690,6 +692,7 @@ export function usePaymentDialogWorkflow({
       if (!splitNewOrderUuidRef.current) splitNewOrderUuidRef.current = createMutationUuid();
       if (!splitPaymentUuidRef.current) splitPaymentUuidRef.current = createMutationUuid();
       const paymentPayload = {
+        ...(typeof documentLogo.showLogo === "boolean" ? { show_logo: documentLogo.showLogo } : {}),
         order_uuid: orderUuid,
         ...(hasRealTable ? { table_uuid: table.table_uuid } : {}),
         customer_uuid_fk: customers.customerUuid,
@@ -849,6 +852,7 @@ export function usePaymentDialogWorkflow({
     if (!releaseAction) return;
 
     const invoicePrintData = () => buildInvoicePrintData({
+      showLogo: documentLogo.previewShowInvoiceLogo,
       exchangeRates: currencyOptions,
       invoice,
       orders,
@@ -867,6 +871,7 @@ export function usePaymentDialogWorkflow({
             order_uuid: orderUuid,
             order_item_uuids: splitBillItemUuids,
             document_type: "invoice",
+            ...(typeof documentLogo.showLogo === "boolean" ? { show_logo: documentLogo.showLogo } : {}),
             order_channel: orderChannel,
             customer_uuid_fk: customers.customerUuid,
             ...(requiresTransferAccount && selectedTransferAccountUuid
@@ -896,6 +901,7 @@ export function usePaymentDialogWorkflow({
             login_uuid_fk: user.uuid,
           } satisfies SplitBillInput)
         : await printInvoice({
+            ...(typeof documentLogo.showLogo === "boolean" ? { show_logo: documentLogo.showLogo } : {}),
             order_uuid: orderUuid,
             operation_uuid: createMutationUuid(),
             ...(requiresTransferAccount && selectedTransferAccountUuid
@@ -1070,6 +1076,7 @@ export function usePaymentDialogWorkflow({
   }
 
   return {
+    documentLogo,
     accountBanks,
     accountBranchUuid,
     accountCreateLoading,
