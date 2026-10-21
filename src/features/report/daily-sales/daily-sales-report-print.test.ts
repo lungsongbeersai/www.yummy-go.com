@@ -161,7 +161,7 @@ describe("renderDailySalesPrintHtml", () => {
     expect(html).toContain(`href="${WINDOW_OPEN_FONT_STYLESHEET_HREF}"`);
     expect(html).toContain(`body class="${WINDOW_OPEN_FONT_CLASS_NAME}"`);
     expect(html).toContain("document.fonts?.ready");
-    expect(html.indexOf("grand-total")).toBeLessThan(html.indexOf("revenueSummary"));
+    expect(html.indexOf('<div class="total-row grand-total">')).toBeLessThan(html.indexOf('<h2 class="section-title">revenueSummary</h2>'));
   });
 
   it("separates each major section with a full-width CSS divider, matching auto print's { type: \"line\" } (auto print and window.open must always match)", () => {
@@ -293,6 +293,61 @@ describe("renderDailySalesPrintHtml", () => {
     const html = renderDailySalesPrintHtml(data);
 
     expect(html).not.toContain("totalQuantity");
+  });
+});
+
+describe("daily sales revenue summary placement", () => {
+  it.each([
+    { name: "no active sales", bills: [], cash: "0", transfer: "0", debt: "0", total: "0", cancelled: "0" },
+    {
+      name: "mixed payments and cancelled sales",
+      bills: [
+        bill({ lineTotal: 100000, receiveCashAmount: 60000, receiveTransferAmount: 30000, debtAmount: 10000 }),
+        bill({ id: "cancelled", cancelled: true, lineTotal: 900000, receiveCashAmount: 900000, receiveTransferAmount: 900000, debtAmount: 900000 }),
+      ],
+      cash: "60,000", transfer: "30,000", debt: "10,000", total: "100,000", cancelled: "900,000",
+    },
+    {
+      name: "tendered cash includes change",
+      bills: [bill({ lineTotal: 164707, receiveCashAmount: 200000, receiveTransferAmount: 0, debtAmount: 0, changeAmount: 35293 })],
+      cash: "200,000", transfer: "0", debt: "0", total: "164,707", cancelled: "0",
+    },
+    {
+      name: "credit sales",
+      bills: [bill({ lineTotal: 50000, receiveCashAmount: 0, receiveTransferAmount: 0, debtAmount: 50000 })],
+      cash: "0", transfer: "0", debt: "50,000", total: "50,000", cancelled: "0",
+    },
+  ])("keeps $name in the final five-row section in both print outputs", ({ bills, cash, transfer, debt, total, cancelled }) => {
+    const data = buildDailySalesPrintData({ bills, dateFrom: "2026-07-13", dateTo: "2026-07-13", labels, user });
+    const ops = buildDailySalesReportOps(data);
+    const html = renderDailySalesPrintHtml(data);
+    const body = html.slice(html.indexOf("<body"), html.indexOf("<script>"));
+    const section = body.slice(body.indexOf('<section class="revenue-summary">'));
+    const headingIndex = ops.findIndex((op) => op.type === "text" && op.text === "revenueSummary");
+    const grandTotalIndex = ops.findIndex((op) => op.type === "lr" && op.left === "grandTotal");
+    const expectedRows = [
+      ["cashReceived", cash],
+      ["transferReceived", transfer],
+      ["debt", debt],
+      ["totalRevenue", total],
+      [`cancelledBills (${data.summary.cancelledBillCount})`, cancelled],
+    ];
+
+    expect(grandTotalIndex).toBeGreaterThanOrEqual(0);
+    expect(headingIndex).toBeGreaterThan(grandTotalIndex);
+    expect(ops.filter((op) => op.text === "revenueSummary")).toHaveLength(1);
+    expect(ops.slice(headingIndex + 1).filter((op) => op.type === "lr").map((op) => [op.left, op.right])).toEqual(expectedRows);
+    expect(ops.find((op) => op.left === "totalRevenue")).toMatchObject({ bold: true, size: 32 });
+    expect(ops[headingIndex - 1]).toEqual({ type: "spacer", px: 12 });
+    expect(ops[headingIndex + 1]).toEqual({ type: "spacer", px: 12 });
+
+    expect(body.indexOf('<div class="total-row grand-total">')).toBeLessThan(body.indexOf('<section class="revenue-summary">'));
+    expect(body.match(/<h2 class="section-title">revenueSummary<\/h2>/g)).toHaveLength(1);
+    expect(Array.from(section.matchAll(/<div class="total-row[^\"]*"><span>([^<]*)<\/span><span>([^<]*)<\/span><\/div>/g), (match) => [match[1], match[2]])).toEqual(expectedRows);
+    for (const label of ["billCount", "subtotal", "discount", "serviceCharge", "vat", "grandTotal"]) {
+      expect(ops.findIndex((op) => op.type === "lr" && op.left === label)).toBeLessThan(headingIndex);
+      expect(section).not.toContain(`<span>${label}</span>`);
+    }
   });
 });
 

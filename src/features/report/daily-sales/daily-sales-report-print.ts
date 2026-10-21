@@ -29,6 +29,7 @@ export interface DailySalesPrintLabels {
   table: string;
   title: string;
   totalAmount: string;
+  totalRevenue: string;
   transferReceived: string;
   vat: string;
 }
@@ -177,6 +178,8 @@ const DAILY_SALES_EXTRA_STYLES = `
       .date-group h2 { margin: 0 0 0.8mm; padding-bottom: 0.5mm; border-bottom: 1px solid #111; font-size: 12px; }
       .invoice-table-header { border-bottom: 1px solid #111; padding-bottom: 0.5mm; margin-bottom: 0.5mm; }
       .invoice-items { margin: 0 0 0.65mm 4mm; font-size: 10px; }
+      .revenue-summary .section-title { margin: 0; padding: 1.5mm 0; font-size: 13px; font-weight: 900; -webkit-text-stroke: 0.2px currentColor; }
+      .revenue-total { margin-top: 0.6mm; padding: 0.8mm 0; border-top: 1px solid; font-size: 13px; font-weight: 900; -webkit-text-stroke: 0.2px currentColor; }
 `;
 
 export function renderDailySalesPrintHtml(data: DailySalesPrintData) {
@@ -217,8 +220,7 @@ export function renderDailySalesPrintHtml(data: DailySalesPrintData) {
     ${invoiceHeaderHtml}
     ${dateGroups || `<p style="text-align:center">-</p>`}
     ${dividerHtml}
-    <section>
-      <h2 class="section-title">${escapeHtml(labels.revenueSummary)}</h2>
+    <section class="sales-calculation">
       <div class="total-row strong"><span>${escapeHtml(labels.billCount)}</span><span>${escapeHtml(String(summary.activeBillCount))}</span></div>
       ${totalRow(labels.subtotal, summary.subtotal)}
       ${totalRow(labels.discount, -summary.discount)}
@@ -226,10 +228,14 @@ export function renderDailySalesPrintHtml(data: DailySalesPrintData) {
       ${totalRow(labels.vat, summary.vat)}
       ${dividerHtml}
       ${totalRow(labels.grandTotal, summary.grandTotal, "grand-total")}
-      ${dividerHtml}
+    </section>
+    ${dividerHtml}
+    <section class="revenue-summary">
+      <h2 class="section-title">${escapeHtml(labels.revenueSummary)}</h2>
       ${totalRow(labels.cashReceived, summary.cashReceived)}
       ${totalRow(labels.transferReceived, summary.transferReceived)}
       ${totalRow(labels.debt, summary.debt)}
+      ${totalRow(labels.totalRevenue, summary.grandTotal, "revenue-total")}
       <div class="total-row"><span>${escapeHtml(labels.cancelledBills)} (${summary.cancelledBillCount})</span><span>${escapeHtml(plainMoney(summary.cancelledAmount))}</span></div>
     </section>`;
 
@@ -289,7 +295,6 @@ export function buildDailySalesReportOps(data: DailySalesPrintData): ReportPrint
     divider,
     ...dateGroupOps,
     divider,
-    { type: "text", text: labels.revenueSummary, align: "center", bold: true, size: 30 },
     // ฝั่ง HTML ใช้ class="total-row strong" กับแถวนี้ (ตัวหนา) — ฝั่งนี้ต้องตรงกัน
     { type: "lr", left: labels.billCount, right: String(summary.activeBillCount), bold: true, size: 28 },
     lr(labels.subtotal, summary.subtotal),
@@ -299,9 +304,15 @@ export function buildDailySalesReportOps(data: DailySalesPrintData): ReportPrint
     divider,
     { ...lr(labels.grandTotal, summary.grandTotal, true), size: 34 },
     divider,
+    { type: "spacer", px: 12 },
+    { type: "text", text: labels.revenueSummary, align: "center", bold: true, size: 30 },
+    { type: "spacer", px: 12 },
     lr(labels.cashReceived, summary.cashReceived),
     lr(labels.transferReceived, summary.transferReceived),
     lr(labels.debt, summary.debt),
+    divider,
+    // Use the active bills' net total; tendered cash can include change.
+    { ...lr(labels.totalRevenue, summary.grandTotal, true), size: 32 },
     { type: "lr", left: `${labels.cancelledBills} (${summary.cancelledBillCount})`, right: plainMoney(summary.cancelledAmount), bold: false, size: 26 },
     { type: "blank", n: 2 }
   ];

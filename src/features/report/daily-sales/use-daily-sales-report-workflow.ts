@@ -725,9 +725,9 @@ export function useDailySalesReportWorkflow(
       const labels = {
         billCount: t("report.dailyPrint.billCount"),
         cancelledBills: t("report.dailyPrint.cancelledBills"),
-        cashReceived: t("report.columns.cashReceived"),
+        cashReceived: t("report.dailyPrint.cash"),
         dateTotal: t("report.dailyPrint.dateTotal"),
-        debt: t("report.columns.debtAmount"),
+        debt: t("report.dailyPrint.debt"),
         discount: t("report.columns.discount"),
         grandTotal: t("report.dailyPrint.grandTotal"),
         invoiceNumber: t("report.dailyPrint.invoiceNumber"),
@@ -742,7 +742,8 @@ export function useDailySalesReportWorkflow(
         table: t("report.dailyPrint.table"),
         title: t("report.dailyPrint.title"),
         totalAmount: t("report.columns.totalAmount"),
-        transferReceived: t("report.columns.transferReceived"),
+        totalRevenue: t("report.dailyPrint.totalRevenue"),
+        transferReceived: t("report.dailyPrint.transfer"),
         vat: t("report.columns.vat"),
       };
 

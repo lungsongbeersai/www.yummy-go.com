@@ -2648,7 +2648,9 @@
     "dailyPrint": {
       "billCount": "Completed bills",
       "cancelledBills": "Cancelled bills",
+      "cash": "Cash",
       "dateTotal": "Total sales",
+      "debt": "Credit",
       "grandTotal": "Grand total",
       "group": "Group",
       "invoiceNumber": "Invoice No.",
@@ -2660,7 +2662,9 @@
       "saleDate": "Sale date",
       "subtotal": "Subtotal",
       "table": "Table",
-      "title": "Daily sales summary"
+      "title": "Daily sales summary",
+      "totalRevenue": "Total revenue",
+      "transfer": "Transfer"
     },
     "showingBillsRange": "Showing bills {{start}}-{{end}} / {{total}}",
     "showingDetailLinesRange": "Showing lines {{start}}-{{end}} / {{total}}, grouped into {{bills}} bill(s)",

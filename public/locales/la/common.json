@@ -2651,7 +2651,9 @@
     "dailyPrint": {
       "billCount": "ຈຳນວນບິນສຳເລັດ",
       "cancelledBills": "ບິນຍົກເລີກ",
+      "cash": "ເງິນສົດ",
       "dateTotal": "ລວມຍອດຂາຍ",
+      "debt": "ຕິດໜີ້",
       "grandTotal": "ລວມທັງໝົດ",
       "group": "ກຸ່ມ",
       "invoiceNumber": "ເລກທີບິນ",
@@ -2663,7 +2665,9 @@
       "saleDate": "ວັນທີຂາຍ",
       "subtotal": "ຍອດກ່ອນລວມ",
       "table": "ໂຕະ",
-      "title": "ສະຫຼຸບຍອດຂາຍປະຈຳວັນ"
+      "title": "ສະຫຼຸບຍອດຂາຍປະຈຳວັນ",
+      "totalRevenue": "ລວມລາຍຮັບ",
+      "transfer": "ເງິນໂອນ"
     },
     "showingBillsRange": "ສະແດງບິນ {{start}}-{{end}} / {{total}}",
     "showingDetailLinesRange": "ສະແດງລາຍການ {{start}}-{{end}} / {{total}}, ຈັດກຸ່ມເປັນ {{bills}} ບິນ",
