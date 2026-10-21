@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   arraysHaveSameValues,
+  applyDefaultPrinterCategories,
   cashDrawerEnabledOf,
   formatIpInput,
   initialPrinterFormValues,
@@ -22,7 +23,7 @@ import {
   toggleCategoryPrintRole,
   updateCategoryPrintPermission,
 } from "@/features/printer/form/printer-form-utils";
-import type { Printer, PrinterCategoryPrintPermission } from "@/services/printer";
+import type { DefaultCategoryGroupDetail, Printer, PrinterCategoryPrintPermission } from "@/services/printer";
 
 describe("printerSelfTestTarget", () => {
   const form = {
@@ -156,6 +157,43 @@ describe("arraysHaveSameValues", () => {
   it("detects a real difference in the selected set", () => {
     expect(arraysHaveSameValues(["a", "b"], ["a", "c"])).toBe(false);
     expect(arraysHaveSameValues(["a"], ["a", "b"])).toBe(false);
+  });
+});
+
+describe("applyDefaultPrinterCategories", () => {
+  const details: DefaultCategoryGroupDetail[] = [
+    { cate_uuid: "food", is_default: true },
+    { cate_uuid: "foreign-drinks", is_default: true },
+    { cate_uuid: "drinks", is_default: false },
+    { cate_uuid: "food", is_default: true },
+    { zone_uuid: "zone", is_default: true },
+  ];
+  const loadedCategories = {
+    storeUuid: "current-store",
+    categories: [{ cate_uuid: "food" }, { cate_uuid: "drinks" }],
+  };
+
+  it("selects only distinct suggested categories available in the current store", () => {
+    expect(applyDefaultPrinterCategories([], details, "current-store", loadedCategories)).toEqual(["food"]);
+  });
+
+  it("waits for the current store's categories, including when a previous store is loaded", () => {
+    expect(applyDefaultPrinterCategories([], details, "current-store", null)).toEqual([]);
+    expect(applyDefaultPrinterCategories([], details, "other-store", loadedCategories)).toEqual([]);
+    expect(applyDefaultPrinterCategories([], details, "", loadedCategories)).toEqual([]);
+    expect(applyDefaultPrinterCategories([], details, "current-store", loadedCategories)).toEqual(["food"]);
+  });
+
+  it("keeps manual or saved selections even when absent from the available options", () => {
+    const selected = ["drinks", "saved-category"];
+    expect(applyDefaultPrinterCategories(selected, details, "current-store", loadedCategories)).toBe(selected);
+    expect(applyDefaultPrinterCategories(selected, details, "current-store", null)).toBe(selected);
+  });
+
+  it("leaves an empty selection when the store has no available categories", () => {
+    expect(applyDefaultPrinterCategories([], details, "current-store", {
+      storeUuid: "current-store", categories: [],
+    })).toEqual([]);
   });
 });
 

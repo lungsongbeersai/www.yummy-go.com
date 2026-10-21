@@ -1,6 +1,8 @@
 import { parseInterfaceValue, AGENT_URL } from "@/config/printer-agent";
 import type {
   AgentInfo,
+  DefaultCategoryCategoryDetail,
+  DefaultCategoryGroupDetail,
   Printer,
   PrinterCategoryPrintPermission,
   PrinterEmployeeRole,
@@ -78,6 +80,28 @@ export interface CheckboxOption {
   label: string;
   value: string;
   assignedTo?: string[];
+}
+
+export interface PrinterFormCategories {
+  storeUuid: string;
+  categories: Category[];
+}
+
+export function applyDefaultPrinterCategories(
+  selected: string[],
+  details: DefaultCategoryGroupDetail[],
+  storeUuid: string,
+  loadedCategories: PrinterFormCategories | null,
+) {
+  if (selected.length || !storeUuid || loadedCategories?.storeUuid !== storeUuid) return selected;
+
+  // Legacy branch products can reference a category from another store.
+  // Suggestions must stay within the options this form actually loaded.
+  const available = new Set(loadedCategories.categories.map((category) => category.cate_uuid));
+  return [...new Set(details
+    .filter((detail): detail is DefaultCategoryCategoryDetail => "cate_uuid" in detail && detail.is_default)
+    .map((detail) => detail.cate_uuid)
+    .filter((uuid) => available.has(uuid)))];
 }
 
 // สไตล์เดียวกับ choiceCardClass ในฟอร์มสินค้า — ให้แถวที่ติ๊กแล้วเด่นขึ้นมาทันที ไม่ต้องเพ่งดูแค่ checkbox เล็กๆ

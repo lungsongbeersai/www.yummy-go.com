@@ -20,14 +20,12 @@ import { printerPrintModeForPlatform } from "@/lib/printer-platform";
 import { isCapacitorMobileApp } from "@/lib/capacitor-platform";
 import type {
   AgentInfo,
-  DefaultCategoryCategoryDetail,
   DefaultCategoryZoneDetail,
   PrinterKitchenCutMode,
   PrinterAccessMode,
   PrinterPrintRoleMode,
   PrinterCategoryPrintPermission,
 } from "@/services/printer";
-import type { Category } from "@/services/category";
 import type { Zone } from "@/services/zone";
 import { authStoreUuid, useAuthStore } from "@/stores/auth-store";
 import { usePrinterStore } from "@/stores/printer-store";
@@ -37,6 +35,7 @@ import { useResetOnDeps } from "@/hooks/use-reset-on-change";
 import { usePrinterSelfTest } from "@/features/printer/use-printer-self-test";
 import {
   arraysHaveSameValues,
+  applyDefaultPrinterCategories,
   assignedPrinterNamesByValue,
   buzzerOnCutOf,
   cashDrawerEnabledOf,
@@ -62,9 +61,9 @@ import {
   zoneLabel,
   type ConnectType,
   type MappingTypeSelection,
+  type PrinterFormCategories,
 } from "./printer-form-utils";
 
-const EMPTY_CATEGORIES: Category[] = [];
 const EMPTY_ZONES: Zone[] = [];
 
 export function usePrinterForm() {
@@ -103,9 +102,9 @@ export function usePrinterForm() {
   const getDefaultCategoryByRole = usePrinterStore(
     (state) => state.getDefaultCategoryByRole,
   );
-  const categories = (useReferenceStore((state) => state.options.categories) ??
-    EMPTY_CATEGORIES) as Category[];
   const loadCategories = useReferenceStore((state) => state.loadCategories);
+  // Keep this form's scoped result; the shared options may belong to another screen/store.
+  const [loadedCategories, setLoadedCategories] = useState<PrinterFormCategories | null>(null);
   const zones = (useReferenceStore((state) => state.options.zones) ??
     EMPTY_ZONES) as Zone[];
   const loadZones = useReferenceStore((state) => state.loadZones);
@@ -162,14 +161,14 @@ export function usePrinterForm() {
   );
   const categoryOptions = useMemo(
     () =>
-      categories
+      (loadedCategories?.storeUuid === storeUuid ? loadedCategories.categories : [])
         .map((category) => ({
           label: categoryLabel(category, language),
           value: category.cate_uuid,
           assignedTo: categoryAssignments.get(category.cate_uuid) ?? [],
         }))
         .filter((category) => category.value),
-    [categories, categoryAssignments, language],
+    [loadedCategories, storeUuid, categoryAssignments, language],
   );
   const employeeRoleOptions = useMemo(
     () => employeeRoles.map((role) => ({
@@ -322,24 +321,28 @@ export function usePrinterForm() {
   // React Compiler จะ infer dependency เป็น object `user` ทั้งก้อน ไม่ตรงกับ dependency array
   const userUuid = user?.uuid;
 
-  const loadFormData = useCallback(async () => {
+  const loadFormData = useCallback(async (isCurrent: () => boolean) => {
     if (!userUuid) return;
     try {
       await Promise.all([
         loadPrintersForLocalAgent({ login_uuid_fk: userUuid, lang: language }),
         loadRoles(language),
         loadInternetSettings(),
-        storeUuid ? loadCategories(language, storeUuid) : Promise.resolve([]),
+        storeUuid ? loadCategories(language, storeUuid).then((categories) => {
+          if (isCurrent()) setLoadedCategories({ storeUuid, categories });
+        }) : Promise.resolve(),
         loadZones(language, branchUuid),
       ]);
     } catch (error) {
-      showToast({
-        title: t("printer.loadFailed"),
-        description: error instanceof Error ? error.message : "",
-        tone: "error",
-      });
+      if (isCurrent()) {
+        showToast({
+          title: t("printer.loadFailed"),
+          description: error instanceof Error ? error.message : "",
+          tone: "error",
+        });
+      }
     } finally {
-      setFormDataLoaded(true);
+      if (isCurrent()) setFormDataLoaded(true);
     }
   }, [
     branchUuid,
@@ -356,7 +359,9 @@ export function usePrinterForm() {
   ]);
 
   useEffect(() => {
-    void loadFormData();
+    let cancelled = false;
+    void loadFormData(() => !cancelled);
+    return () => { cancelled = true; };
   }, [loadFormData]);
 
   // Hydrate once per record, including a record that arrives after mount.
@@ -410,7 +415,8 @@ export function usePrinterForm() {
   // เครื่องพิมพ์ใหม่เท่านั้น (แก้ไขเครื่องเดิมใช้ค่าที่บันทึกไว้แล้วเสมอ) และเติมเฉพาะช่องที่ผู้ใช้
   // ยังไม่เลือกอะไรเลย ไม่ทับค่าที่ผู้ใช้ติ๊กเองไปแล้ว — ผิดพลาดแบบเงียบได้ เพราะเป็นแค่ suggestion เสริม
   useEffect(() => {
-    if (isEditing || !userUuid || !selectedRoles.length || mappingType === "OFF") return;
+    if (isEditing || !userUuid || !selectedRoles.length || mappingType === "OFF" ||
+      !storeUuid || loadedCategories?.storeUuid !== storeUuid) return;
     let cancelled = false;
     void (async () => {
       try {
@@ -440,14 +446,7 @@ export function usePrinterForm() {
         }
         if (categoryGroup) {
           setSelectedCategories((current) =>
-            current.length
-              ? current
-              : categoryGroup.details
-                  .filter(
-                    (detail): detail is DefaultCategoryCategoryDetail =>
-                      "cate_uuid" in detail && detail.is_default,
-                  )
-                  .map((detail) => detail.cate_uuid),
+            applyDefaultPrinterCategories(current, categoryGroup.details, storeUuid, loadedCategories),
           );
         }
       } catch {
@@ -461,8 +460,10 @@ export function usePrinterForm() {
     getDefaultCategoryByRole,
     isEditing,
     language,
+    loadedCategories,
     mappingType,
     selectedRoles,
+    storeUuid,
     userUuid,
   ]);
 
