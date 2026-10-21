@@ -185,12 +185,17 @@ const DAILY_CLOSING_EXTRA_STYLES = `
       }
 
       .daily-closing .report-groups {
+        border-top: 1.5px solid currentColor;
         border-bottom: 1.5px solid currentColor;
       }
 
       .daily-closing .report-group {
         border-top: 1.5px solid currentColor;
         padding: 1mm 0;
+      }
+
+      .daily-closing .report-group:first-of-type {
+        border-top: 0;
       }
 
       .daily-closing .group-heading {
@@ -283,6 +288,7 @@ const DAILY_CLOSING_EXTRA_STYLES = `
 
       .daily-closing .signature-row > span {
         min-width: 0;
+        text-align: center;
         overflow-wrap: anywhere;
       }
 
@@ -357,12 +363,13 @@ export function renderDailyClosingReceiptBody(
     apiLabels.discountAmount,
     labels.discount,
   );
-  // เติมหน่วยเงิน (เช่น "(ກີບ)") ต่อท้ายป้าย "ລວມເປັນເງິນ / Total Amount" เพราะใบปิดยอดตัดสัญลักษณ์ ₭ ออกจากทุกตัวเลขแล้ว
-  // (withoutEnglishSuffix ที่ใช้กับป้ายนี้ในหัวคอลัมน์สินค้ายังตัดได้ปกติ เพราะตัดที่ " / " ตัวแรกก่อนถึง "(...)")
+  // Keep the summary label intact; strip the column's English suffix before
+  // appending its currency so bilingual API labels cannot lose the unit.
   const totalAmountLabel = `${dailyClosingLabel(
     apiLabels.totalAmount,
     labels.totalAmount,
   )} (${labels.currencyUnit})`;
+  const columnAmountLabel = `${withoutEnglishSuffix(dailyClosingLabel(apiLabels.totalAmount, labels.totalAmount))} (${labels.currencyUnit})`;
 
   const groups = report.groups
     .map((group, groupIndex) => {
@@ -431,11 +438,6 @@ export function renderDailyClosingReceiptBody(
             ${escapeHtml(groupLabel)} ${groupIndex + 1}: ${escapeHtml(groupName)}
           </h2>
 
-          <div class="column-heading row">
-            <span>${escapeHtml(labels.product)}</span>
-            <span>${escapeHtml(withoutEnglishSuffix(totalAmountLabel))}</span>
-          </div>
-
           ${
             categories ||
             `<p style="text-align:center">${escapeHtml(labels.noData)}</p>`
@@ -473,6 +475,10 @@ export function renderDailyClosingReceiptBody(
     </section>
 
     <div class="report-groups">
+    <div class="column-heading row">
+      <span>${escapeHtml(labels.product)}</span>
+      <span>${escapeHtml(columnAmountLabel)}</span>
+    </div>
     ${
       groups ||
       `<p style="text-align:center">${escapeHtml(labels.noData)}</p>`
@@ -481,7 +487,6 @@ export function renderDailyClosingReceiptBody(
     </div>
 
     <section class="sales-totals">
-      <h2 class="section-title">${escapeHtml(labels.salesTotals)}</h2>
       <div class="total-row">
         <span>
           ${escapeHtml(
@@ -675,6 +680,7 @@ export function buildDailyClosingReportOps(
   const discountLabel = dailyClosingLabel(apiLabels.discountAmount, labels.discount);
   // เติมหน่วยเงินต่อท้ายเหมือนฝั่ง HTML — ดู renderDailyClosingReceiptBody
   const totalAmountLabel = `${dailyClosingLabel(apiLabels.totalAmount, labels.totalAmount)} (${labels.currencyUnit})`;
+  const columnAmountLabel = `${withoutEnglishSuffix(dailyClosingLabel(apiLabels.totalAmount, labels.totalAmount))} (${labels.currencyUnit})`;
 
   const toppingOp = (topping: DailyClosingReportItem["toppings"][number]): ReportPrintOp => {
     const quantity = topping.qty > 0 ? ` × ${formatNumber(topping.qty)}` : "";
@@ -724,9 +730,8 @@ export function buildDailyClosingReportOps(
       : [{ type: "text", text: labels.noData, align: "center", bold: false, size: 22, text_role: "report_detail" }];
 
     return [
-      groupDivider,
+      ...(groupIndex > 0 ? [groupDivider] : []),
       { type: "text", text: `${labels.group} ${groupIndex + 1}: ${groupName}`, align: "left", bold: true, size: 32, text_role: "report_heading" },
-      { type: "lr", left: labels.product, right: withoutEnglishSuffix(totalAmountLabel), bold: true, size: 26, text_role: "report_heading" },
       ...products,
       divider,
       lr(`${groupTotalLabel}: ${groupName}`, group.totalAmount, true, 30),
@@ -748,9 +753,11 @@ export function buildDailyClosingReportOps(
       { type: "text", text: `${labels.businessDate}: ${data.businessDate}`, align: "left", bold: false, size: 24, text_role: "report_detail" } as ReportPrintOp,
     ]),
     { type: "text", text: `${labels.cashier}: ${data.cashier}`, align: "left", bold: false, size: 24, text_role: "report_detail" },
+    groupDivider,
+    { type: "lr", left: labels.product, right: columnAmountLabel, bold: true, size: 26, text_role: "report_heading" },
+    groupDivider,
     ...groupOps,
     groupDivider,
-    ...summaryHeading(labels.salesTotals),
     {
       type: "lr",
       left: dailyClosingLabel(apiLabels.totalQty, labels.totalQuantity),

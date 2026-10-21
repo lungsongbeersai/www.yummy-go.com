@@ -123,6 +123,45 @@ function printData(): DailyClosingPrintData {
 }
 
 describe("daily closing report print", () => {
+  it.each(["no groups", "empty group", "multiple groups"])("prints one report-level column header and omits the sales-totals heading with %s", (scenario) => {
+    const data = printData();
+    if (scenario === "no groups") data.report.groups = [];
+    if (scenario === "empty group") data.report.groups[0].items = [];
+    if (scenario === "multiple groups") {
+      const first = data.report.groups[0];
+      data.report.groups.push({ ...first, key: "second", name: "Second group" });
+      data.report.groups.push({ ...first, key: "empty", name: "Empty group", items: [] });
+    }
+    const before = structuredClone(data.report);
+    const ops = buildDailyClosingReportOps(data);
+    const headers = ops.filter((op) => op.type === "lr" && op.left === data.labels.product);
+    expect(headers).toHaveLength(1);
+    expect(headers[0].right).toBe("Total amount (kip)");
+    const headerIndex = ops.indexOf(headers[0]);
+    for (const [index, group] of data.report.groups.entries()) {
+      expect(ops.findIndex((op) => op.text === `Group ${index + 1}: ${group.name}`)).toBeGreaterThan(headerIndex);
+      expect(ops.find((op) => op.left === `Group total: ${group.name}`)?.right).toBe(money(group.totalAmount, ""));
+    }
+    expect(ops.some((op) => op.text === data.labels.salesTotals)).toBe(false);
+    expect(ops.find((op) => op.left === "Grand total")?.right).toBe(money(data.report.summary.grandTotal, ""));
+    expect(ops.some((op) => op.text === data.labels.revenueSummary)).toBe(true);
+    expect(ops.some((op) => op.text === data.labels.orderChannelSummary)).toBe(true);
+    for (const width of [58, 80] as const) {
+      for (const html of [renderDailyClosingPrintHtml(data, width), renderDailyClosingReceiptPreviewDoc(data, width)]) {
+        const body = html.slice(html.indexOf('<main class="daily-closing">'));
+        expect(body.match(/class="column-heading row"/g)).toHaveLength(1);
+        expect(body).toContain("<span>Total amount (kip)</span>");
+        if (data.report.groups.length) {
+          expect(body.indexOf('class="column-heading row"')).toBeLessThan(body.indexOf('class="group-heading"'));
+        }
+        expect(body).not.toContain(`${data.labels.salesTotals}</h2>`);
+        expect(body).toContain(data.labels.revenueSummary);
+        expect(body).toContain(data.labels.orderChannelSummary);
+      }
+    }
+    expect(data.report).toEqual(before);
+  });
+
   it("renders on the shared 80 x 297 mm receipt base used by daily sales", () => {
     const html = renderDailyClosingPrintHtml(printData());
 
@@ -222,7 +261,7 @@ describe("daily closing report print", () => {
 
     const html = renderDailyClosingPrintHtml(data);
 
-    expect(html).toContain("<span>ລວມເປັນເງິນ</span>");
+    expect(html).toContain("<span>ລວມເປັນເງິນ (kip)</span>");
     // The dedicated Total Amount summary row further down still gets the full bilingual label.
     expect(html).toContain("ລວມເປັນເງິນ / Total Amount");
   });
@@ -298,7 +337,8 @@ describe("buildDailyClosingReportOps", () => {
       expect(html).toContain("Category: Beer &lt;cold&gt;");
       expect(html).toContain("Category: Tea &amp; coffee");
       expect(html).toContain("Category: Uncategorized");
-      expect(html.indexOf("Sales totals</h2>")).toBeGreaterThan(html.indexOf("Group total: Second group"));
+      expect(html.indexOf('<section class="sales-totals">')).toBeGreaterThan(html.indexOf("Group total: Second group"));
+      expect(html).not.toContain("Sales totals</h2>");
     }
     expect(data.report).toEqual(before);
   });
@@ -365,7 +405,7 @@ describe("buildDailyClosingReportOps", () => {
     const headerOp = ops.find((op) => op.left === "Product");
 
     expect(headerOp?.type).toBe("lr");
-    expect(headerOp?.right).toBe("ລວມເປັນເງິນ");
+    expect(headerOp?.right).toBe("ລວມເປັນເງິນ (kip)");
     expect(headerOp?.bold).toBe(true);
     expect(headerOp?.text_role).toBe("report_heading");
 
