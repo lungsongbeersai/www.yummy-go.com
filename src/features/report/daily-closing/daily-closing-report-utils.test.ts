@@ -8,6 +8,7 @@ import {
   dailyClosingPrintPeriod,
   dailyClosingReportItemCount,
   dailyClosingTimeParams,
+  initialDailyClosingFilters,
 } from "./daily-closing-report-utils";
 import type { DailyClosingReportFilters } from "./daily-closing-report-types";
 
@@ -89,20 +90,31 @@ describe("daily closing payment time range", () => {
   const filters: DailyClosingReportFilters = {
     branchUuid: "branch-1", tableUuid: "all", zoneUuid: "all",
     dateFrom: "2026-10-21", dateTo: "2026-10-21",
-    customTimeRange: false, timeFrom: "00:00", timeTo: "23:59",
+    timeFrom: "00:00", timeTo: "23:59",
   };
 
-  it("omits both time keys and retains legacy receipt dates while custom time is off", () => {
-    const legacy = { ...filters, timeFrom: "", timeTo: "" };
-    expect(dailyClosingTimeParams(legacy)).toEqual({});
-    expect(dailyClosingFilterError(legacy)).toBeNull();
-    expect(dailyClosingPeriodDisplay(legacy)).toBe("21/10/2026");
-    expect(dailyClosingPrintPeriod(legacy)).toBeUndefined();
-    expect(dailyClosingPeriodDisplay({ ...legacy, dateTo: "2026-10-23" })).toBe("21/10/2026 - 23/10/2026");
+  it("uses all four visible fields for the initial payment query and receipt", () => {
+    const initial = initialDailyClosingFilters("branch-1", new Date("2026-10-21T10:00:00Z"));
+    expect(initial).toEqual(filters);
+    expect(dailyClosingTimeParams(initial)).toEqual({ time_from: "00:00", time_to: "23:59" });
+    expect(dailyClosingFilterError(initial)).toBeNull();
+    expect(dailyClosingPeriodDisplay(initial)).toBe("21/10/2026 00:00 - 21/10/2026 23:59");
+    expect(dailyClosingPrintPeriod(initial)).toEqual({ from: "21/10/2026 00:00", to: "21/10/2026 23:59" });
+  });
+
+  it.each([
+    ["2026-10-21T16:59:59Z", "2026-10-21"],
+    ["2026-10-21T17:00:00Z", "2026-10-22"],
+    ["2026-10-21T20:00:00Z", "2026-10-22"],
+    ["2026-12-31T17:00:00Z", "2027-01-01"],
+  ])("defaults to the Laos calendar date even before the business-day cutoff: %s", (instant, expectedDate) => {
+    expect(initialDailyClosingFilters("branch-1", new Date(instant))).toMatchObject({
+      dateFrom: expectedDate, dateTo: expectedDate, timeFrom: "00:00", timeTo: "23:59",
+    });
   });
 
   it("sends a continuous calendar window and shows both exact endpoints on the receipt", () => {
-    const custom = { ...filters, customTimeRange: true, timeFrom: "20:00", dateTo: "2026-10-22", timeTo: "02:30" };
+    const custom = { ...filters, timeFrom: "20:00", dateTo: "2026-10-22", timeTo: "02:30" };
     expect(dailyClosingFilterError(custom)).toBeNull();
     expect(dailyClosingTimeParams(custom)).toEqual({ time_from: "20:00", time_to: "02:30" });
     expect(dailyClosingPeriodDisplay(custom)).toBe("21/10/2026 20:00 - 22/10/2026 02:30");
@@ -110,31 +122,35 @@ describe("daily closing payment time range", () => {
   });
 
   it("provides separate intact printable endpoints without changing the page's combined period", () => {
-    const custom = { ...filters, customTimeRange: true, timeFrom: "23:59", timeTo: "23:59" };
+    const custom = { ...filters, timeFrom: "23:59", timeTo: "23:59" };
     const period = dailyClosingPrintPeriod(custom);
     expect(period).toEqual({ from: "21/10/2026 23:59", to: "21/10/2026 23:59" });
     expect(dailyClosingPeriodDisplay(custom)).toBe(`${period?.from} - ${period?.to}`);
     expect(dailyClosingPrintPeriod({ ...custom, timeFrom: "" })).toBeUndefined();
     expect(dailyClosingPrintPeriod({ ...custom, timeTo: "22:00" })).toBeUndefined();
-    expect(dailyClosingPrintPeriod({ ...custom, customTimeRange: false })).toBeUndefined();
   });
 
   it("allows a single inclusive minute and the final minute of the selected calendar date", () => {
-    expect(dailyClosingFilterError({ ...filters, customTimeRange: true, timeFrom: "09:15", timeTo: "09:15" })).toBeNull();
-    expect(dailyClosingFilterError({ ...filters, customTimeRange: true })).toBeNull();
-    expect(dailyClosingFilterError({ ...filters, customTimeRange: true, timeFrom: "23:59", timeTo: "23:59" })).toBeNull();
+    expect(dailyClosingFilterError({ ...filters, timeFrom: "09:15", timeTo: "09:15" })).toBeNull();
+    expect(dailyClosingFilterError(filters)).toBeNull();
+    expect(dailyClosingFilterError({ ...filters, timeFrom: "23:59", timeTo: "23:59" })).toBeNull();
   });
 
   it("requires an explicit later end date for overnight times", () => {
-    const custom = { ...filters, customTimeRange: true, timeFrom: "20:00", timeTo: "02:30" };
+    const custom = { ...filters, timeFrom: "20:00", timeTo: "02:30" };
     expect(dailyClosingFilterError(custom)).toBe("range");
     expect(dailyClosingPeriodDisplay(custom)).toBe("");
     expect(dailyClosingFilterError({ ...custom, dateTo: "2026-10-22" })).toBeNull();
   });
 
   it.each(["", "24:00", "09:60", "9:00", "09:00:30"])("rejects incomplete or invalid custom clock values: %s", (time) => {
-    expect(dailyClosingFilterError({ ...filters, customTimeRange: true, timeFrom: time })).toBe("time");
-    expect(dailyClosingFilterError({ ...filters, customTimeRange: true, timeTo: time })).toBe("time");
+    expect(dailyClosingFilterError({ ...filters, timeFrom: time })).toBe("time");
+    expect(dailyClosingFilterError({ ...filters, timeTo: time })).toBe("time");
+  });
+
+  it("requires both visible clocks instead of silently querying a different date window", () => {
+    expect(dailyClosingFilterError({ ...filters, timeFrom: "", timeTo: "" })).toBe("time");
+    expect(dailyClosingPeriodDisplay({ ...filters, timeFrom: "", timeTo: "" })).toBe("");
   });
 
   it("rejects impossible/reversed calendar dates independently of browser timezone", () => {
@@ -143,12 +159,11 @@ describe("daily closing payment time range", () => {
     expect(dailyClosingFilterError({ ...filters, dateFrom: "2028-02-29", dateTo: "2028-02-29" })).toBeNull();
   });
 
-  it("detects changes to applied custom times without treating hidden time drafts as active filters", () => {
-    expect(dailyClosingFiltersEqual(filters, { ...filters, timeFrom: "08:00" })).toBe(true);
-    const custom = { ...filters, customTimeRange: true };
-    expect(dailyClosingFiltersEqual(filters, custom)).toBe(false);
-    expect(dailyClosingFiltersEqual(custom, { ...custom, timeFrom: "08:00" })).toBe(false);
-    expect(dailyClosingFiltersEqual(custom, { ...custom })).toBe(true);
-    expect(dailyClosingPeriodDisplay({ ...custom, customTimeRange: false })).toBe("21/10/2026");
+  it("reloads when either visible clock changes, keeping the query and displayed period aligned", () => {
+    expect(dailyClosingFiltersEqual(filters, { ...filters, timeFrom: "08:00" })).toBe(false);
+    expect(dailyClosingFiltersEqual(filters, { ...filters, timeTo: "18:00" })).toBe(false);
+    expect(dailyClosingFiltersEqual(filters, { ...filters })).toBe(true);
+    expect(dailyClosingPeriodDisplay({ ...filters, timeFrom: "08:00", timeTo: "18:00" }))
+      .toBe("21/10/2026 08:00 - 21/10/2026 18:00");
   });
 });

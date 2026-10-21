@@ -4,7 +4,6 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useResetOnChange } from "@/hooks/use-reset-on-change";
 import { isCapacitorNativeApp } from "@/lib/capacitor-platform";
-import { businessDateInputValue } from "@/lib/format";
 import { useAppStore } from "@/stores/app-store";
 import { useAuthStore } from "@/stores/auth-store";
 import { useBranchStore } from "@/stores/branch-store";
@@ -28,6 +27,7 @@ import {
   dailyClosingPrintPeriod,
   dailyClosingReportItemCount,
   dailyClosingTimeParams,
+  initialDailyClosingFilters,
 } from "./daily-closing-report-utils";
 
 export function useDailyClosingReportWorkflow() {
@@ -45,18 +45,9 @@ export function useDailyClosingReportWorkflow() {
   const resolveDeviceIdentity = usePrinterStore((state) => state.resolveDeviceIdentity);
   const submitReportPrint = usePrinterStore((state) => state.submitReportPrint);
   const showToast = useToastStore((state) => state.show);
-  const today = useMemo(() => businessDateInputValue(), []);
-
-  const [draftFilters, setDraftFilters] = useState<DailyClosingReportFilters>({
-    branchUuid: user?.branch_uuid ?? "",
-    dateFrom: today,
-    dateTo: today,
-    customTimeRange: false,
-    timeFrom: "00:00",
-    timeTo: "23:59",
-    tableUuid: "all",
-    zoneUuid: "all",
-  });
+  const [draftFilters, setDraftFilters] = useState<DailyClosingReportFilters>(
+    () => initialDailyClosingFilters(user?.branch_uuid ?? ""),
+  );
   const [appliedFilters, setAppliedFilters] = useState<DailyClosingReportFilters>(draftFilters);
   const [printing, setPrinting] = useState(false);
 
@@ -102,7 +93,7 @@ export function useDailyClosingReportWorkflow() {
 
   const printLabels = useMemo<DailyClosingPrintData["labels"]>(
     () => ({
-      businessDate: t(appliedFilters.customTimeRange ? "report.dailyClosing.paymentPeriod" : "report.dailyClosing.businessDate"),
+      businessDate: t("report.dailyClosing.paymentPeriod"),
       cancelledBills: t("report.dailyClosing.cancelBill"),
       cash: t("report.dailyClosing.cash"),
       cashier: t("cancelSale.cashier"),
@@ -129,7 +120,7 @@ export function useDailyClosingReportWorkflow() {
       transfer: t("report.dailyClosing.transfer"),
       vat: t("report.dailyClosing.vat"),
     }),
-    [appliedFilters.customTimeRange, t],
+    [t],
   );
 
   const buildPrintData = useCallback(

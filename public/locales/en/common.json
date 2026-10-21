@@ -2521,10 +2521,8 @@
       "title": "Sales report by category"
     },
     "dailyClosing": {
-      "customPaymentTime": "Filter by payment time",
-      "customPaymentTimeHint": "Include bills with a recorded payment time in this range, including cancelled-bill totals. Laos time (UTC+7); the end minute is included. For overnight ranges, select the next end date.",
-      "businessDayHint": "Off: keep the existing business-day range, from 06:00 on the start date to 06:00 after the end date (Laos time, UTC+7).",
       "paymentPeriod": "Payment period",
+      "paymentPeriodHint": "Payment time in Laos (UTC+7). The end minute is included; select the next end date for overnight periods.",
       "timeFrom": "Time from",
       "timeTo": "Time to",
       "invalidDateRange": "Select valid dates with the end date on or after the start date.",

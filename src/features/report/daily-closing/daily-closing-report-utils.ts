@@ -1,6 +1,18 @@
 import type { DailyStoreClosingReport } from "@/stores/report-store";
 import type { DailyClosingReportFilters } from "./daily-closing-report-types";
 
+export function initialDailyClosingFilters(branchUuid: string, now = new Date()): DailyClosingReportFilters {
+  const parts = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Asia/Vientiane", year: "numeric", month: "2-digit", day: "2-digit",
+  }).formatToParts(now);
+  const part = (type: Intl.DateTimeFormatPartTypes) => parts.find((item) => item.type === type)?.value ?? "";
+  const today = `${part("year")}-${part("month")}-${part("day")}`;
+  return {
+    branchUuid, dateFrom: today, timeFrom: "00:00", dateTo: today, timeTo: "23:59",
+    tableUuid: "all", zoneUuid: "all",
+  };
+}
+
 function validDate(value: string) {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
   const [year, month, day] = value.split("-").map(Number);
@@ -15,7 +27,6 @@ function validTime(value: string) {
 
 export function dailyClosingFilterError(filters: DailyClosingReportFilters): "date" | "time" | "range" | null {
   if (!validDate(filters.dateFrom) || !validDate(filters.dateTo) || filters.dateFrom > filters.dateTo) return "date";
-  if (!filters.customTimeRange) return null;
   if (!validTime(filters.timeFrom) || !validTime(filters.timeTo)) return "time";
   // The selected end minute is inclusive, so matching endpoints represent
   // one minute. Overnight ranges must name the following calendar date.
@@ -24,15 +35,13 @@ export function dailyClosingFilterError(filters: DailyClosingReportFilters): "da
 }
 
 export function dailyClosingTimeParams(filters: DailyClosingReportFilters) {
-  // Omitting both keys preserves the Backend's existing 06:00 business day.
-  return filters.customTimeRange ? { time_from: filters.timeFrom, time_to: filters.timeTo } : {};
+  return { time_from: filters.timeFrom, time_to: filters.timeTo };
 }
 
 export function dailyClosingFiltersEqual(first: DailyClosingReportFilters, second: DailyClosingReportFilters) {
   return first.branchUuid === second.branchUuid && first.dateFrom === second.dateFrom &&
     first.dateTo === second.dateTo && first.tableUuid === second.tableUuid &&
-    first.zoneUuid === second.zoneUuid && first.customTimeRange === second.customTimeRange &&
-    (!first.customTimeRange || (first.timeFrom === second.timeFrom && first.timeTo === second.timeTo));
+    first.zoneUuid === second.zoneUuid && first.timeFrom === second.timeFrom && first.timeTo === second.timeTo;
 }
 
 function displayDate(date: string) {
@@ -40,7 +49,7 @@ function displayDate(date: string) {
 }
 
 export function dailyClosingPrintPeriod(filters: DailyClosingReportFilters) {
-  if (!filters.customTimeRange || dailyClosingFilterError(filters)) return undefined;
+  if (dailyClosingFilterError(filters)) return undefined;
   return {
     from: `${displayDate(filters.dateFrom)} ${filters.timeFrom}`,
     to: `${displayDate(filters.dateTo)} ${filters.timeTo}`,
@@ -48,11 +57,8 @@ export function dailyClosingPrintPeriod(filters: DailyClosingReportFilters) {
 }
 
 export function dailyClosingPeriodDisplay(filters: DailyClosingReportFilters) {
-  if (dailyClosingFilterError(filters)) return "";
-  const from = displayDate(filters.dateFrom);
-  const to = displayDate(filters.dateTo);
-  if (filters.customTimeRange) return `${from} ${filters.timeFrom} - ${to} ${filters.timeTo}`;
-  return filters.dateFrom === filters.dateTo ? from : `${from} - ${to}`;
+  const period = dailyClosingPrintPeriod(filters);
+  return period ? `${period.from} - ${period.to}` : "";
 }
 
 export function dailyClosingReportItemCount(report: DailyStoreClosingReport) {
