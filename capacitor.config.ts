@@ -13,6 +13,9 @@ const config: CapacitorConfig = {
     // CAPACITOR_SERVER_URL=http://<LAN-IP>:3000 เฉพาะคำสั่ง cap run
     url: localServerUrl || "https://yummy-go.com",
     cleartext: Boolean(localServerUrl?.startsWith("http://")),
+    // ออฟไลน์ตอนเปิดแอปครั้งแรก WebView โหลด url ไม่ได้และค้างเป็นจอสีเขียว — ให้แสดง
+    // หน้า "กำลังเชื่อมต่อ" จาก capacitor-web แทน ซึ่งจะพากลับไปที่ url เองเมื่อออนไลน์
+    errorPath: "offline.html",
 
     androidScheme: "https",
     iosScheme: "https",
