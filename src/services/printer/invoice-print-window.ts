@@ -6,11 +6,11 @@ import {
   WINDOW_OPEN_PRINT_ON_LOAD_SCRIPT,
 } from "@/lib/window-open-fonts";
 
-// Measure after the print fonts load so long totals fit beside the Lao label
+// Measure after the print fonts load so money values fit beside their labels
 // without wrapping, truncating digits, or relying on estimated glyph widths.
 export const INVOICE_TOTAL_FIT_SCRIPT = `
   const fitInvoiceTotals = () => {
-    for (const row of document.querySelectorAll(".grand-total")) {
+    for (const row of document.querySelectorAll(".grand-total, .exchange-row")) {
       const parts = Array.from(row.querySelectorAll("span"));
       if (parts.length !== 2) continue;
       for (const part of parts) part.style.removeProperty("font-size");
@@ -390,6 +390,44 @@ function invoiceSharedStyles(paperWidthMm: number) {
         /* Saysettha has no bold face; strengthen this heading's original glyphs. */
         -webkit-text-stroke: 0.3px currentColor;
       }
+      .exchange-rates {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr);
+        row-gap: 1px;
+        min-width: 0;
+      }
+      .exchange-row {
+        display: flex;
+        align-items: baseline;
+        justify-content: space-between;
+        gap: 1mm;
+        min-width: 0;
+        margin: 0;
+        font-family: Arial, sans-serif !important;
+        font-size: ${paperWidthMm <= 58 ? 14 : 15}px;
+        font-weight: 700;
+        line-height: 1.05;
+      }
+      .exchange-row > span {
+        font-family: inherit !important;
+        flex: 0 0 auto;
+        white-space: nowrap;
+      }
+      .exchange-row .exchange-amount {
+        font-family: Arial, sans-serif !important;
+        font-size: ${paperWidthMm <= 58 ? 18 : 20}px;
+        font-weight: 700;
+        line-height: 1.05;
+        text-align: right;
+        font-variant-numeric: tabular-nums;
+      }
+      .exchange-rate {
+        margin: 0;
+        font-size: ${paperWidthMm <= 58 ? 11 : 12}px;
+        font-weight: 400;
+        line-height: 1.05;
+        overflow-wrap: anywhere;
+      }
       .divider {
         height: 0;
         margin: 0.8mm 0;
@@ -633,15 +671,10 @@ export function renderInvoiceExchangeRates(data: InvoicePrintData) {
 
   return `
     <div class="divider"></div>
-    <section class="totals">
+    <section class="exchange-rates">
       <p class="exchange-heading${laoHeadingClass} strong">${escapeHtml(heading)}</p>
       ${data.exchangeRates
-        .map((item) => invoiceTotalRow(`1 ${item.code}`, `${formatInvoiceExchangeRate(item.rate)} LAK`))
-        .join("")}
-      <p class="total-row strong"><span>${escapeHtml(data.labels.amountDueByCurrency ?? "Amount Due by Currency")}</span><span></span></p>
-      ${invoiceTotalRow("LAK", `${formatInvoiceExchangeRate(data.total)} LAK`)}
-      ${data.exchangeRates
-        .map((item) => invoiceTotalRow(item.code, `${formatInvoiceForeignDue(data.total, item.rate)} ${item.code}`))
+        .map((item) => `<div class="exchange-group"><p class="exchange-row"><span>${escapeHtml(item.code)}</span><span class="exchange-amount">${escapeHtml(formatInvoiceForeignDue(data.total, item.rate))}</span></p><p class="exchange-rate">1 ${escapeHtml(item.code)} = ${escapeHtml(formatInvoiceExchangeRate(item.rate))} LAK</p></div>`)
         .join("")}
     </section>`;
 }

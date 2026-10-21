@@ -427,10 +427,10 @@ describe("payment dialog helpers", () => {
     expect(html).toContain("690 LAK");
     expect(html).toContain("1 USD");
     expect(html).toContain("23,000 LAK");
-    expect(html).toContain("pos.invoicePrintAmountDueByCurrency");
-    expect(html).toContain("20,000 LAK");
-    expect(html).toContain("28.99 THB");
-    expect(html).toContain("0.87 USD");
+    expect(html).not.toContain("pos.invoicePrintAmountDueByCurrency");
+    expect(html).not.toContain("20,000 LAK");
+    expect(html).toContain('class="exchange-amount">28.99</span>');
+    expect(html).toContain('class="exchange-amount">0.87</span>');
     expect(data.qrUrl).toBe("https://example.com/qr.png");
     expect(html).toContain('class="branch-qr" src="https://example.com/qr.png"');
     expect(html).toContain(`href="${WINDOW_OPEN_FONT_STYLESHEET_HREF}"`);

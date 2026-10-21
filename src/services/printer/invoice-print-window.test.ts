@@ -173,4 +173,39 @@ describe("invoice exchange heading", () => {
       ...data, labels: { ...data.labels, currentExchangeRate: "Current Exchange Rate" },
     })).toContain('<p class="exchange-heading strong">Current Exchange Rate</p>');
   });
+
+  it("keeps each currency's converted amount beside its code and its rate immediately below", () => {
+    const data = {
+      total: 231000,
+      exchangeRates: [
+        { code: "THB", rate: 690 },
+        { code: "USD", rate: 23000 },
+        { code: "JPY", rate: 100 },
+      ],
+      labels: { currentExchangeRate: "Current Exchange Rate", amountDueByCurrency: "Old due heading" },
+    } as InvoicePrintData;
+    const original = structuredClone(data);
+    const html = renderInvoiceExchangeRates(data);
+    expect(html.match(/class="exchange-group"/g)).toHaveLength(3);
+    const groups = [
+      ["THB", "334.79", "690"],
+      ["USD", "10.05", "23,000"],
+      ["JPY", "2,310.00", "100"],
+    ].map(([code, amount, rate]) => `<div class="exchange-group"><p class="exchange-row"><span>${code}</span><span class="exchange-amount">${amount}</span></p><p class="exchange-rate">1 ${code} = ${rate} LAK</p></div>`);
+    expect(html).toContain(groups.join(""));
+    expect(html).not.toContain("Old due heading");
+    expect(html).not.toContain("231,000 LAK");
+    expect(data).toEqual(original);
+  });
+
+  it("escapes currency labels and keeps long converted values complete", () => {
+    const html = renderInvoiceExchangeRates({
+      total: 123456789, exchangeRates: [{ code: 'USD <&> "test"', rate: 1 }],
+      labels: { currentExchangeRate: "Exchange <rates>" },
+    } as InvoicePrintData);
+    expect(html).toContain("Exchange &lt;rates&gt;");
+    expect(html).toContain('<span>USD &lt;&amp;&gt; &quot;test&quot;</span><span class="exchange-amount">123,456,789.00</span>');
+    expect(html).toContain('1 USD &lt;&amp;&gt; &quot;test&quot; = 1 LAK');
+    expect(html).not.toContain("USD <&>");
+  });
 });
