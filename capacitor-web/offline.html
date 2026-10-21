@@ -78,9 +78,14 @@
         function tryReconnect() {
           if (checking || navigator.onLine === false) return;
           checking = true;
-          fetch(target, { mode: "no-cors", cache: "no-store" })
+          // A connected-but-dead network never fails the request on its own; abort it so
+          // the next retry can run instead of waiting on the OS TCP timeout.
+          var controller = typeof AbortController === "function" ? new AbortController() : null;
+          var timeout = controller ? setTimeout(function () { controller.abort(); }, 8000) : null;
+          fetch(target, { mode: "no-cors", cache: "no-store", signal: controller ? controller.signal : undefined })
             .then(function () { window.location.replace(target); })
-            .catch(function () { checking = false; });
+            .catch(function () { checking = false; })
+            .then(function () { if (timeout) clearTimeout(timeout); });
         }
 
         document.getElementById("retry").addEventListener("click", tryReconnect);
