@@ -42,6 +42,7 @@ export interface DailyClosingPrintLabels {
 export interface DailyClosingPrintData {
   branchName: string;
   businessDate: string;
+  paymentPeriod?: { from: string; to: string };
   cashier: string;
   labels: DailyClosingPrintLabels;
   report: DailyStoreClosingReport;
@@ -281,7 +282,11 @@ export function renderDailyClosingReceiptBody(
     <div class="divider"></div>
 
     <section class="meta">
-      ${receiptMetaRowHtml(labels.businessDate, data.businessDate)}
+      ${data.paymentPeriod ? `
+        ${receiptMetaRowHtml(labels.businessDate, "")}
+        <p>${escapeHtml(data.paymentPeriod.from)} -</p>
+        <p>${escapeHtml(data.paymentPeriod.to)}</p>
+      ` : receiptMetaRowHtml(labels.businessDate, data.businessDate)}
       ${receiptMetaRowHtml(labels.cashier, data.cashier)}
     </section>
 
@@ -460,10 +465,6 @@ export function renderDailyClosingReceiptPreviewDoc(
   });
 }
 
-// { type: "line" } พิมพ์ออกมาเป็นเส้น underscore ต่อกันบนเครื่องจริง (ยืนยันจากการพิมพ์ทดสอบ) ไม่ใช่เส้นประ —
-// ใช้ข้อความ "-" ยาวแทน ซึ่งพิมพ์ได้ถูกต้อง (เหมือน daily-sales)
-const RECEIPT_DIVIDER_TEXT = "---------------------";
-
 // เวอร์ชันพิมพ์ผ่าน printer agent — ต้องละเอียดครบเหมือน renderDailyClosingReceiptBody
 // เพราะใบปิดยอดใช้กระทบยอดตอนปิดกะ ต่างจาก daily-sales ที่ตัดรายการสินค้าออกได้
 export function buildDailyClosingReportOps(
@@ -471,12 +472,14 @@ export function buildDailyClosingReportOps(
 ): ReportPrintOp[] {
   const { labels, report } = data;
   const apiLabels = report.labels;
-  const divider: ReportPrintOp = { type: "text", text: RECEIPT_DIVIDER_TEXT, align: "left", size: 20 };
+  // The renderer knows the printer's printable width; a fixed run of glyphs
+  // cannot fill both 58 mm and 80 mm paper without wrapping or leaving a gap.
+  const divider: ReportPrintOp = { type: "line", style: "dashed" };
 
   const lr = (left: string, right: number, bold = false): ReportPrintOp => ({
     type: "lr",
     left,
-    right: money(right, ""),
+    right: money(Object.is(right, -0) ? 0 : right, ""),
     bold,
     size: bold ? 26 : 24,
   });
@@ -540,7 +543,13 @@ export function buildDailyClosingReportOps(
     ...(data.branchName ? [{ type: "text", text: data.branchName, align: "center", size: 22 } as ReportPrintOp] : []),
     { type: "text", text: labels.title, align: "center", bold: true, size: 32 },
     divider,
-    { type: "text", text: `${labels.businessDate}: ${data.businessDate}`, align: "left", size: 24 },
+    ...(data.paymentPeriod ? [
+      { type: "text", text: `${labels.businessDate}:`, align: "left", size: 22 } as ReportPrintOp,
+      { type: "text", text: `${data.paymentPeriod.from} -`, align: "left", size: 22 } as ReportPrintOp,
+      { type: "text", text: data.paymentPeriod.to, align: "left", size: 22 } as ReportPrintOp,
+    ] : [
+      { type: "text", text: `${labels.businessDate}: ${data.businessDate}`, align: "left", size: 24 } as ReportPrintOp,
+    ]),
     { type: "text", text: `${labels.cashier}: ${data.cashier}`, align: "left", size: 24 },
     divider,
     // ตัดเหลือแค่ภาษาลาว (withoutEnglishSuffix) แล้วข้อความสั้นพอจะแชร์แถวเดียวกับ "Product" ได้อย่างปลอดภัย
@@ -559,10 +568,8 @@ export function buildDailyClosingReportOps(
     lr(dailyClosingLabel(apiLabels.serviceCharge, labels.serviceCharge), report.summary.serviceCharge),
     lr(dailyClosingLabel(apiLabels.vat, labels.vat), report.summary.vat),
     divider,
-    // ยืนยันจากพิมพ์จริงหลายรอบแล้วว่า bold/size บนแถว type "lr" printer agent ไม่ใช้เลย
-    // (ต่างจาก type "text" ที่หัวใบเสร็จ/ชื่อร้านมีขนาดต่างจากเนื้อหาปกติชัดเจนบนกระดาษจริง)
-    // จึงเก็บจุดเน้นสูงสุดไว้ที่ยอดรวมทั้งหมดจุดเดียว โดยแยกเป็น text 2 บรรทัดแทน lr บรรทัดเดียว
-    // ส่วนแถว lr อื่น (ยอดรวมกลุ่ม, จำนวนรวม, ยอดรับชำระ) ตัด bold/size ที่ไม่มีผลจริงออกเพื่อไม่ให้โค้ดหลอกตา
+    // Keep the main total on two prominent lines so older Agents that ignore
+    // styling on lr rows retain the same readable total as current renderers.
     { type: "text", text: dailyClosingLabel(apiLabels.grandTotal, labels.grandTotal), align: "left", bold: true, size: 26 },
     { type: "text", text: money(report.summary.grandTotal, ""), align: "right", bold: true, size: 32 },
     divider,

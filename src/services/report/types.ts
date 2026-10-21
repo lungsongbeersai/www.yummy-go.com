@@ -105,6 +105,8 @@ export interface FetchDailyStoreClosingReportParams extends ReportLocationParams
   branch_uuid_fk: string;
   date_from: string;
   date_to: string;
+  time_from?: string;
+  time_to?: string;
   lang?: string;
 }
 
@@ -301,6 +303,7 @@ export interface BestSellingProductsReportResponse extends ApiEntity {
 
 export interface ReportPrintOp {
   type: "text" | "line" | "lr" | "blank";
+  style?: "dashed" | "solid";
   text?: string;
   align?: "left" | "center" | "right";
   bold?: boolean;

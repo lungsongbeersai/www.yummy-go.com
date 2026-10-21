@@ -115,6 +115,39 @@ describe("report services", () => {
     );
   });
 
+  it("sends explicit payment time boundaries while preserving selected dates and location filters", async () => {
+    await getDailyStoreClosingReport({
+      branch_uuid_fk: "branch-1", zone_uuid_fk: "zone-1", table_uuid_fk: "table-1",
+      date_from: "2026-10-21", time_from: "20:00", date_to: "2026-10-22", time_to: "02:30", lang: "en",
+    });
+    expect(mockedApiRequest).toHaveBeenCalledWith("get", "/api/v1/report_all/daily_closing", {
+      params: {
+        branch_uuid_fk: "branch-1", zone_uuid_fk: "zone-1", table_uuid_fk: "table-1",
+        date_from: "2026-10-21", time_from: "20:00", date_to: "2026-10-22", time_to: "02:30", lang: "eng",
+      },
+    });
+  });
+
+  it.each([
+    { time_from: "08:00" },
+    { time_to: "17:00" },
+    { time_from: "24:00", time_to: "23:59" },
+    { time_from: "08:00", time_to: "17:60" },
+  ])("rejects missing or malformed payment time pairs before calling the API: %j", (times) => {
+    expect(() => getDailyStoreClosingReport({
+      branch_uuid_fk: "branch-1", date_from: "2026-10-21", date_to: "2026-10-21", ...times,
+    })).toThrow("time_from and time_to must both use HH:mm");
+    expect(mockedApiRequest).not.toHaveBeenCalled();
+  });
+
+  it("rejects reversed custom boundaries while allowing one inclusive minute", async () => {
+    const params = { branch_uuid_fk: "branch-1", date_from: "2026-10-21", date_to: "2026-10-21", time_from: "20:00", time_to: "02:30" };
+    expect(() => getDailyStoreClosingReport(params)).toThrow("must not be before");
+    expect(mockedApiRequest).not.toHaveBeenCalled();
+    await getDailyStoreClosingReport({ ...params, time_from: "23:59", time_to: "23:59" });
+    expect(mockedApiRequest).toHaveBeenCalledOnce();
+  });
+
   it("sends payment methods query params expected by the new API", async () => {
     await getPaymentMethodsReport({
       branch_uuid_fk: "branch-1",

@@ -168,6 +168,7 @@ describe("daily closing report print", () => {
     // Checks the rendered value itself (">-0<"), not a bare "-0" substring — the business date
     // "2026-07-10" already contains "-0" (from "-07-") and would false-positive a looser check.
     expect(renderDailyClosingPrintHtml(data)).not.toContain(">-0<");
+    expect(buildDailyClosingReportOps(data).find((op) => op.left === "Discount")?.right).toBe("0");
   });
 
   it("omits the difference row and places employee and manager signatures left to right", () => {
@@ -288,25 +289,25 @@ describe("buildDailyClosingReportOps", () => {
     expect(titleIndex).toBeGreaterThan(branchIndex);
   });
 
-  it("closes each group with a dashed-text divider, matching the browser receipt's category-total border", () => {
+  it("closes each group with a dashed rule resolved against the printer's width", () => {
     const ops = buildDailyClosingReportOps(printData());
     const groupTotalIndex = ops.findIndex((op) => op.left === "Group total Food & Drink");
 
     expect(groupTotalIndex).toBeGreaterThanOrEqual(0);
-    expect(ops[groupTotalIndex + 1]?.type).toBe("text");
-    expect(ops[groupTotalIndex + 1]?.text).toBe("---------------------");
+    expect(ops[groupTotalIndex + 1]).toEqual({ type: "line", style: "dashed" });
     expect(ops[groupTotalIndex]?.bold).toBe(false);
     expect(ops[groupTotalIndex]?.size).toBe(24);
   });
 
-  it("never emits a line op — it prints as a run of underscores on the real printer — uses dashed text instead", () => {
+  it("requests full-width dashed separators instead of fixed-length text", () => {
     const ops = buildDailyClosingReportOps(printData());
 
-    expect(ops.some((op) => op.type === "line")).toBe(false);
-    expect(ops.filter((op) => op.type === "text" && op.text === "---------------------").length).toBeGreaterThan(0);
+    expect(ops.filter((op) => op.type === "line").length).toBeGreaterThan(0);
+    expect(ops.filter((op) => op.type === "line").every((op) => op.style === "dashed")).toBe(true);
+    expect(ops.some((op) => op.type === "text" && /^[-_]+$/.test(op.text ?? ""))).toBe(false);
   });
 
-  it("keeps the payment total row plain like the other revenue-summary rows, since bold on lr does nothing physically", () => {
+  it("keeps the payment total row consistent with the other revenue-summary rows", () => {
     const ops = buildDailyClosingReportOps(printData());
     const paymentTotalOp = ops.find((op) => op.left === "4. Payments received");
 
@@ -329,7 +330,7 @@ describe("buildDailyClosingReportOps", () => {
     expect(html).toContain(`<span>${dotsRow?.left}</span>`);
   });
 
-  it("prints the grand total as two bold text ops instead of an lr row, since the printer agent was found to ignore bold/size on type \"lr\"", () => {
+  it("keeps the grand total prominent with two bold lines on current and older Agents", () => {
     const ops = buildDailyClosingReportOps(printData());
     const labelOp = ops.find((op) => op.text === "Grand total");
     const amountOp = ops[ops.indexOf(labelOp!) + 1];
@@ -357,8 +358,7 @@ describe("buildDailyClosingReportOps", () => {
 
     const titleIndex = ops.findIndex((op) => op.text === "Sales summary by order channel");
     expect(titleIndex).toBeGreaterThanOrEqual(0);
-    expect(ops[titleIndex - 1]?.type).toBe("text");
-    expect(ops[titleIndex - 1]?.text).toBe("---------------------");
+    expect(ops[titleIndex - 1]).toEqual({ type: "line", style: "dashed" });
 
     const channelOp = ops.find((op) => op.left === "1. Dine-in (9)");
     expect(channelOp?.type).toBe("lr");
@@ -380,5 +380,31 @@ describe("buildDailyClosingReportOps", () => {
     const ops = buildDailyClosingReportOps(data);
 
     expect(ops.some((op) => op.text === "Sales summary by order channel")).toBe(false);
+  });
+
+  it("prints the applied date and time range in both the preview and ESC/POS metadata", () => {
+    const data = printData();
+    data.businessDate = "21/10/2026 18:00 - 22/10/2026 05:59";
+
+    expect(renderDailyClosingPrintHtml(data)).toContain(data.businessDate);
+    expect(buildDailyClosingReportOps(data)).toContainEqual({
+      type: "text", text: `Business date: ${data.businessDate}`, align: "left", size: 24,
+    });
+  });
+
+  it("keeps each payment-period endpoint together on a separate line for narrow paper", () => {
+    const data = printData();
+    data.labels.businessDate = "Payment period";
+    data.paymentPeriod = { from: "21/10/2026 18:00", to: "22/10/2026 05:59" };
+    const html = renderDailyClosingPrintHtml(data);
+    const ops = buildDailyClosingReportOps(data);
+
+    expect(html).toContain("<p>21/10/2026 18:00 -</p>");
+    expect(html).toContain("<p>22/10/2026 05:59</p>");
+    const header = ops.findIndex((op) => op.text === "Payment period:");
+    expect(header).toBeGreaterThanOrEqual(0);
+    expect(ops.slice(header + 1, header + 3).map((op) => op.text)).toEqual([
+      "21/10/2026 18:00 -", "22/10/2026 05:59",
+    ]);
   });
 });

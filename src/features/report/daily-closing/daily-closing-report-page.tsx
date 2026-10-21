@@ -71,6 +71,11 @@ export function DailyClosingReportPage() {
           refreshButton={refreshButton}
           onOpenFilters={() => setMobileFilterOpen(true)}
         />
+        {closing.appliedFilters.customTimeRange ? (
+          <p className="text-sm text-muted-foreground lg:hidden">
+            {t("report.dailyClosing.paymentPeriod")}: {closing.businessDateRange}
+          </p>
+        ) : null}
         <DailyClosingFilterBar
           actions={refreshButton}
           canApply={closing.canApply}

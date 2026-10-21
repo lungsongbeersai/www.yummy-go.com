@@ -12,7 +12,6 @@ import { usePrinterStore } from "@/stores/printer-store";
 import { useDailyStoreClosingReportStore } from "@/stores/report-store";
 import { useToastStore } from "@/stores/toast-store";
 import { openReceiptPrintWindow, renderReceiptPrintWindow } from "../shared/report-receipt-print";
-import { reportDateDisplayValue } from "../shared/report-date-input";
 import { useReportBranchSelection } from "../shared/use-report-branch-selection";
 import { reportLocationParams } from "../shared/report-location";
 import { useReportLocationOptions } from "../shared/use-report-location-options";
@@ -22,16 +21,14 @@ import {
   type DailyClosingPrintData,
   renderDailyClosingPrintHtml,
 } from "./daily-closing-report-print";
-import { dailyClosingReportItemCount } from "./daily-closing-report-utils";
-
-// ใบปิดยอดยังโชว์วันที่บรรทัดเดียว — ถ้าเลือกช่วงวันเดียว (from === to) แสดงวันเดียวเหมือนเดิม
-// ถ้าเลือกหลายวันแสดงเป็นช่วง "DD/MM/YYYY - DD/MM/YYYY"
-function formatBusinessDateRange(dateFrom: string, dateTo: string) {
-  if (!dateFrom) return "";
-  const fromDisplay = reportDateDisplayValue(dateFrom);
-  if (!dateTo || dateTo === dateFrom) return fromDisplay;
-  return `${fromDisplay} - ${reportDateDisplayValue(dateTo)}`;
-}
+import {
+  dailyClosingFilterError,
+  dailyClosingFiltersEqual,
+  dailyClosingPeriodDisplay,
+  dailyClosingPrintPeriod,
+  dailyClosingReportItemCount,
+  dailyClosingTimeParams,
+} from "./daily-closing-report-utils";
 
 export function useDailyClosingReportWorkflow() {
   const { t } = useTranslation();
@@ -54,6 +51,9 @@ export function useDailyClosingReportWorkflow() {
     branchUuid: user?.branch_uuid ?? "",
     dateFrom: today,
     dateTo: today,
+    customTimeRange: false,
+    timeFrom: "00:00",
+    timeTo: "23:59",
     tableUuid: "all",
     zoneUuid: "all",
   });
@@ -94,7 +94,7 @@ export function useDailyClosingReportWorkflow() {
     "";
   const itemCount = report ? dailyClosingReportItemCount(report) : 0;
   const canApply = Boolean(
-    (draftFilters.branchUuid || defaultBranchUuid) && draftFilters.dateFrom && draftFilters.dateTo,
+    (draftFilters.branchUuid || defaultBranchUuid) && !dailyClosingFilterError(draftFilters),
   );
   const printDisabled = loading || printing || !branchUuid || !report;
   const cashier = user?.email?.split("@")[0] || user?.email || "-";
@@ -102,7 +102,7 @@ export function useDailyClosingReportWorkflow() {
 
   const printLabels = useMemo<DailyClosingPrintData["labels"]>(
     () => ({
-      businessDate: t("report.dailyClosing.businessDate"),
+      businessDate: t(appliedFilters.customTimeRange ? "report.dailyClosing.paymentPeriod" : "report.dailyClosing.businessDate"),
       cancelledBills: t("report.dailyClosing.cancelBill"),
       cash: t("report.dailyClosing.cash"),
       cashier: t("cancelSale.cashier"),
@@ -129,7 +129,7 @@ export function useDailyClosingReportWorkflow() {
       transfer: t("report.dailyClosing.transfer"),
       vat: t("report.dailyClosing.vat"),
     }),
-    [t],
+    [appliedFilters.customTimeRange, t],
   );
 
   const buildPrintData = useCallback(
@@ -138,15 +138,16 @@ export function useDailyClosingReportWorkflow() {
       // ใช้ค่าจาก filter ฝั่ง client เสมอ (ไม่พึ่ง reportArg.filters.date จาก backend อีกต่อไป)
       // เพราะ backend สะท้อนกลับมาแค่ค่าเดียว แสดงเป็นช่วงวันที่ไม่ได้
       businessDate,
+      paymentPeriod: dailyClosingPrintPeriod(appliedFilters),
       cashier,
       labels: printLabels,
       report: reportArg,
       storeName,
     }),
-    [activeBranchLabel, cashier, printLabels, storeName],
+    [activeBranchLabel, appliedFilters, cashier, printLabels, storeName],
   );
 
-  const businessDateRange = formatBusinessDateRange(appliedFilters.dateFrom, appliedFilters.dateTo);
+  const businessDateRange = dailyClosingPeriodDisplay(appliedFilters);
 
   const previewData = useMemo(
     () => (report ? buildPrintData(report, businessDateRange) : null),
@@ -160,7 +161,7 @@ export function useDailyClosingReportWorkflow() {
   });
 
   const load = useCallback(async () => {
-    if (!branchUuid || !appliedFilters.dateFrom || !appliedFilters.dateTo) return false;
+    if (!branchUuid || dailyClosingFilterError(appliedFilters)) return false;
 
     try {
       await loadReport({
@@ -168,6 +169,7 @@ export function useDailyClosingReportWorkflow() {
         branch_uuid_fk: branchUuid,
         date_from: appliedFilters.dateFrom,
         date_to: appliedFilters.dateTo,
+        ...dailyClosingTimeParams(appliedFilters),
         lang: language,
       });
       return true;
@@ -186,13 +188,9 @@ export function useDailyClosingReportWorkflow() {
   }, [load]);
 
   function applyFilters() {
+    if (!canApply) return;
     const nextFilters = normalizeBranchFilters(draftFilters);
-    const unchanged =
-      nextFilters.branchUuid === appliedFilters.branchUuid &&
-      nextFilters.dateFrom === appliedFilters.dateFrom &&
-      nextFilters.dateTo === appliedFilters.dateTo &&
-      nextFilters.tableUuid === appliedFilters.tableUuid &&
-      nextFilters.zoneUuid === appliedFilters.zoneUuid;
+    const unchanged = dailyClosingFiltersEqual(nextFilters, appliedFilters);
 
     if (nextFilters.branchUuid) setSelectedBranch(nextFilters.branchUuid);
     setDraftFilters(nextFilters);
@@ -244,6 +242,7 @@ export function useDailyClosingReportWorkflow() {
           report_payload: {
             date_from: appliedFilters.dateFrom,
             date_to: appliedFilters.dateTo,
+            ...dailyClosingTimeParams(appliedFilters),
             grand_total: latestReport.summary.grandTotal,
           },
           print_document: {
@@ -313,6 +312,7 @@ export function useDailyClosingReportWorkflow() {
     branchLoading: branchSelectionLoading,
     branchOptions,
     branchUuid,
+    businessDateRange,
     canApply,
     canSelectBranch,
     draftFilters,

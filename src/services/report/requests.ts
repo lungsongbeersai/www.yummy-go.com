@@ -96,6 +96,15 @@ export function getDailyStoreClosingReport(params: FetchDailyStoreClosingReportP
   if (!params.branch_uuid_fk) throw new ServiceError("branch_uuid_fk is required", 400);
   if (!params.date_from) throw new ServiceError("date_from is required", 400);
   if (!params.date_to) throw new ServiceError("date_to is required", 400);
+  if (params.time_from !== undefined || params.time_to !== undefined) {
+    const timePattern = /^(?:[01]\d|2[0-3]):[0-5]\d$/;
+    if (!params.time_from || !params.time_to || !timePattern.test(params.time_from) || !timePattern.test(params.time_to)) {
+      throw new ServiceError("time_from and time_to must both use HH:mm", 400);
+    }
+    if (`${params.date_from} ${params.time_from}` > `${params.date_to} ${params.time_to}`) {
+      throw new ServiceError("The end of the report range must not be before its start", 400);
+    }
+  }
 
   return reportRequest<DailyStoreClosingReportResponse>("/api/v1/report_all/daily_closing", params);
 }

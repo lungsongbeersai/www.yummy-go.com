@@ -4,4 +4,7 @@ export interface DailyClosingReportFilters extends ReportLocationFilters {
   branchUuid: string;
   dateFrom: string;
   dateTo: string;
+  customTimeRange: boolean;
+  timeFrom: string;
+  timeTo: string;
 }

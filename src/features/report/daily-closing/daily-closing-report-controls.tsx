@@ -2,7 +2,9 @@
 
 import type { ReactNode } from "react";
 import { useTranslation } from "react-i18next";
-import { Field, FieldLabel } from "@/components/ui/field";
+import { Field, FieldDescription, FieldLabel } from "@/components/ui/field";
+import { Input } from "@/components/ui/input";
+import { Switch } from "@/components/ui/switch";
 import {
   Select,
   SelectContent,
@@ -12,11 +14,12 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { ReportFilterCard, ReportFilterSheet } from "../shared/report-filter-shell";
-import { ReportDateRangeFields } from "../shared/report-filter-fields";
+import { ReportDateField } from "../shared/report-filter-fields";
 import { ReportLocationFields } from "../shared/report-location-fields";
 import type { ReportLocationOptions } from "../shared/report-location";
 import type { ReportBranchOption } from "../shared/report-branch-options";
 import type { DailyClosingReportFilters } from "./daily-closing-report-types";
+import { dailyClosingFilterError } from "./daily-closing-report-utils";
 
 interface FieldsProps {
   branchLoading: boolean;
@@ -39,6 +42,10 @@ function DailyClosingFilterFields({
   onDraftChange,
 }: FieldsProps & { idPrefix: string }) {
   const { t } = useTranslation();
+  const filterError = dailyClosingFilterError(draftFilters);
+  const errorKey = filterError === "date" ? "report.dailyClosing.invalidDateRange"
+    : filterError === "time" ? "report.dailyClosing.invalidTime"
+    : "report.dailyClosing.invalidDateTimeRange";
 
   return (
     <>
@@ -78,14 +85,76 @@ function DailyClosingFilterFields({
         onTableChange={tableUuid => onDraftChange({ ...draftFilters, tableUuid })}
         onZoneChange={zoneUuid => onDraftChange({ ...draftFilters, tableUuid: "all", zoneUuid })}
       />
-      <ReportDateRangeFields
-        dateFrom={draftFilters.dateFrom}
-        dateTo={draftFilters.dateTo}
-        disabled={disabled}
-        idPrefix={idPrefix}
-        onDateFromChange={dateFrom => onDraftChange({ ...draftFilters, dateFrom })}
-        onDateToChange={dateTo => onDraftChange({ ...draftFilters, dateTo })}
-      />
+      <div className="col-span-full grid gap-3 rounded-lg border border-border bg-muted/20 p-3">
+        <Field orientation="horizontal" className="items-start">
+          <div className="flex-1">
+            <FieldLabel htmlFor={`${idPrefix}-custom-time`} className="mb-1 font-semibold">
+              {t("report.dailyClosing.customPaymentTime")}
+            </FieldLabel>
+            <FieldDescription id={`${idPrefix}-time-hint`}>
+              {t(draftFilters.customTimeRange ? "report.dailyClosing.customPaymentTimeHint" : "report.dailyClosing.businessDayHint")}
+            </FieldDescription>
+          </div>
+          <Switch
+            id={`${idPrefix}-custom-time`}
+            checked={draftFilters.customTimeRange}
+            disabled={disabled}
+            aria-describedby={`${idPrefix}-time-hint`}
+            onCheckedChange={customTimeRange => onDraftChange({ ...draftFilters, customTimeRange })}
+          />
+        </Field>
+        <div className="grid gap-3 sm:grid-cols-2">
+          <div className={draftFilters.customTimeRange ? "grid gap-3 sm:grid-cols-2" : "grid gap-3"}>
+            <ReportDateField
+              id={`${idPrefix}-date-from`}
+              label={t("report.filters.dateFrom")}
+              value={draftFilters.dateFrom}
+              disabled={disabled}
+              onChange={dateFrom => onDraftChange({ ...draftFilters, dateFrom })}
+            />
+            {draftFilters.customTimeRange ? (
+              <Field data-invalid={filterError === "time" || filterError === "range"}>
+                <FieldLabel htmlFor={`${idPrefix}-time-from`}>{t("report.dailyClosing.timeFrom")}</FieldLabel>
+                <Input
+                  id={`${idPrefix}-time-from`}
+                  type="time"
+                  step={60}
+                  value={draftFilters.timeFrom}
+                  disabled={disabled}
+                  aria-invalid={filterError === "time" || filterError === "range"}
+                  aria-describedby={filterError ? `${idPrefix}-range-error` : `${idPrefix}-time-hint`}
+                  onChange={event => onDraftChange({ ...draftFilters, timeFrom: event.target.value })}
+                />
+              </Field>
+            ) : null}
+          </div>
+          <div className={draftFilters.customTimeRange ? "grid gap-3 sm:grid-cols-2" : "grid gap-3"}>
+            <ReportDateField
+              id={`${idPrefix}-date-to`}
+              label={t("report.filters.dateTo")}
+              value={draftFilters.dateTo}
+              disabled={disabled}
+              onChange={dateTo => onDraftChange({ ...draftFilters, dateTo })}
+            />
+            {draftFilters.customTimeRange ? (
+              <Field data-invalid={filterError === "time" || filterError === "range"}>
+                <FieldLabel htmlFor={`${idPrefix}-time-to`}>{t("report.dailyClosing.timeTo")}</FieldLabel>
+                <Input
+                  id={`${idPrefix}-time-to`}
+                  type="time"
+                  step={60}
+                  value={draftFilters.timeTo}
+                  disabled={disabled}
+                  aria-invalid={filterError === "time" || filterError === "range"}
+                  aria-describedby={filterError ? `${idPrefix}-range-error` : `${idPrefix}-time-hint`}
+                  onChange={event => onDraftChange({ ...draftFilters, timeTo: event.target.value })}
+                />
+              </Field>
+            ) : null}
+          </div>
+        </div>
+        {filterError ? <p id={`${idPrefix}-range-error`} className="text-sm text-destructive" role="alert">{t(errorKey)}</p> : null}
+      </div>
     </>
   );
 }
@@ -105,7 +174,8 @@ export function DailyClosingFilterBar({ actions, canApply, loading, onApply, ...
       canApply={canApply}
       // shrink-0: Card มี overflow-hidden (min-height ของ flex item = 0) — กันถูกบีบ ดู report-layout.tsx
       className="hidden shrink-0 shadow-none lg:block"
-      contentClassName="grid items-end gap-3 py-4 lg:grid-cols-3 xl:grid-cols-6"
+      contentClassName="grid items-end gap-3 py-4 lg:grid-cols-4"
+      actionsClassName="lg:col-start-4 lg:row-start-1"
       loading={loading}
       onApply={onApply}
     >
