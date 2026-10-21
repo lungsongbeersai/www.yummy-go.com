@@ -85,6 +85,7 @@ export function useReportLocationOptions(
         ? buildReportLocationOptions({
             allTablesLabel: t("report.filters.allTables"),
             allZonesLabel: t("report.filters.allZones"),
+            branchUuid,
             language,
             rows: currentSource.tableRows,
             selectedZoneUuid,

@@ -9,6 +9,7 @@ import {
   dailyClosingReportItemCount,
   dailyClosingTimeParams,
   initialDailyClosingFilters,
+  normalizeDailyClosingBranchFilters,
 } from "./daily-closing-report-utils";
 import type { DailyClosingReportFilters } from "./daily-closing-report-types";
 
@@ -83,6 +84,30 @@ describe("daily closing report utils", () => {
   it("uses API labels when present and falls back for blank labels", () => {
     expect(dailyClosingLabel(" Cash ", "Fallback")).toBe("Cash");
     expect(dailyClosingLabel("   ", "Fallback")).toBe("Fallback");
+  });
+});
+
+describe("daily closing branch normalization", () => {
+  const filters: DailyClosingReportFilters = {
+    branchUuid: "branch-old", zoneUuid: "zone-old", tableUuid: "table-old",
+    dateFrom: "2026-10-21", dateTo: "2026-10-22",
+    timeFrom: "20:00", timeTo: "02:30",
+  };
+
+  it("clears the previous branch's zone and table when branch access selects a new branch", () => {
+    const normalized = normalizeDailyClosingBranchFilters(filters, (current) => ({
+      ...current, branchUuid: "branch-current",
+    }));
+
+    expect(normalized).toEqual({
+      ...filters, branchUuid: "branch-current", zoneUuid: "all", tableUuid: "all",
+    });
+    expect(filters).toMatchObject({ branchUuid: "branch-old", zoneUuid: "zone-old", tableUuid: "table-old" });
+  });
+
+  it("preserves location selections when branch normalization keeps the selected branch", () => {
+    expect(normalizeDailyClosingBranchFilters(filters, (current) => current)).toBe(filters);
+    expect(normalizeDailyClosingBranchFilters(filters, (current) => ({ ...current }))).toEqual(filters);
   });
 });
 

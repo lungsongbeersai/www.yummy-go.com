@@ -1,4 +1,5 @@
 import type { DailyStoreClosingReport } from "@/stores/report-store";
+import { REPORT_LOCATION_ALL } from "../shared/report-location";
 import type { DailyClosingReportFilters } from "./daily-closing-report-types";
 
 export function initialDailyClosingFilters(branchUuid: string, now = new Date()): DailyClosingReportFilters {
@@ -42,6 +43,16 @@ export function dailyClosingFiltersEqual(first: DailyClosingReportFilters, secon
   return first.branchUuid === second.branchUuid && first.dateFrom === second.dateFrom &&
     first.dateTo === second.dateTo && first.tableUuid === second.tableUuid &&
     first.zoneUuid === second.zoneUuid && first.timeFrom === second.timeFrom && first.timeTo === second.timeTo;
+}
+
+export function normalizeDailyClosingBranchFilters(
+  filters: DailyClosingReportFilters,
+  normalizeBranch: (filters: DailyClosingReportFilters) => DailyClosingReportFilters,
+): DailyClosingReportFilters {
+  const normalized = normalizeBranch(filters);
+  if (normalized.branchUuid === filters.branchUuid) return normalized;
+
+  return { ...normalized, zoneUuid: REPORT_LOCATION_ALL, tableUuid: REPORT_LOCATION_ALL };
 }
 
 function displayDate(date: string) {

@@ -41,6 +41,7 @@ export function reportLocationParams(
 export function buildReportLocationOptions({
   allTablesLabel,
   allZonesLabel,
+  branchUuid,
   language,
   rows,
   selectedZoneUuid,
@@ -48,22 +49,34 @@ export function buildReportLocationOptions({
 }: {
   allTablesLabel: string;
   allZonesLabel: string;
+  branchUuid: string;
   language: string;
   rows: TableListRow[];
   selectedZoneUuid: string;
   zones: Zone[];
 }): ReportLocationOptions {
+  const branchZones = branchUuid
+    ? zones.filter((zone) => zone.branch_uuid_fk === branchUuid)
+    : [];
+  const branchZoneIds = new Set(branchZones.map((zone) => zone.zone_uuid));
   const zoneOptions = [
     { label: allZonesLabel, value: REPORT_LOCATION_ALL },
-    ...zones.map((zone) => ({
+    ...branchZones.map((zone) => ({
       label: localizedZoneName(zone, language),
       value: zone.zone_uuid,
     })),
   ];
   const zoneNames = new Map(
-    zones.map((zone) => [zone.zone_uuid, localizedZoneName(zone, language)]),
+    branchZones.map((zone) => [zone.zone_uuid, localizedZoneName(zone, language)]),
   );
-  const tables = flattenTableRows(rows);
+  // Validate the zone relationship as well as explicit branch metadata. Grouped
+  // responses from older backends identify child tables only by their parent zone.
+  const tables = flattenTableRows(rows).filter(({ table, zoneUuid, branchUuid: rowBranchUuid }) =>
+    branchZoneIds.has(zoneUuid) &&
+    (!rowBranchUuid || rowBranchUuid === branchUuid) &&
+    (!table.branch_uuid_fk || table.branch_uuid_fk === branchUuid) &&
+    (!table.zone_uuid_fk || table.zone_uuid_fk === zoneUuid),
+  );
   const visibleTables =
     selectedZoneUuid && selectedZoneUuid !== REPORT_LOCATION_ALL
       ? tables.filter((entry) => entry.zoneUuid === selectedZoneUuid)
@@ -89,10 +102,10 @@ export function buildReportLocationOptions({
 function flattenTableRows(rows: TableListRow[]) {
   return rows.flatMap((row) => {
     if (isZoneGroup(row)) {
-      return row.tables.map((table) => ({ table, zoneUuid: row.zone_uuid }));
+      return row.tables.map((table) => ({ table, zoneUuid: row.zone_uuid, branchUuid: row.branch_uuid_fk }));
     }
 
-    return [{ table: row, zoneUuid: row.zone_uuid_fk ?? "" }];
+    return [{ table: row, zoneUuid: row.zone_uuid_fk ?? "", branchUuid: row.branch_uuid_fk }];
   });
 }
 

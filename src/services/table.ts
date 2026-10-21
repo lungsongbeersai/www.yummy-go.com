@@ -21,6 +21,7 @@ export interface Table extends ApiEntity {
 }
 export interface ZoneGroup extends ApiEntity {
   zone_uuid: string;
+  branch_uuid_fk?: string;
   zone_name?: string;
   zone_name_la?: string;
   zone_name_eng?: string;

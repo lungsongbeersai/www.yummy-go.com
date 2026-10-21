@@ -28,6 +28,7 @@ import {
   dailyClosingReportItemCount,
   dailyClosingTimeParams,
   initialDailyClosingFilters,
+  normalizeDailyClosingBranchFilters,
 } from "./daily-closing-report-utils";
 
 export function useDailyClosingReportWorkflow() {
@@ -62,6 +63,11 @@ export function useDailyClosingReportWorkflow() {
     storeUuid,
     userBranchUuid,
   } = useReportBranchSelection();
+
+  const normalizeFilters = useCallback(
+    (filters: DailyClosingReportFilters) => normalizeDailyClosingBranchFilters(filters, normalizeBranchFilters),
+    [normalizeBranchFilters],
+  );
 
   const storeBranches = useMemo(
     () => (branchStoreUuid === storeUuid ? branches : []),
@@ -149,9 +155,9 @@ export function useDailyClosingReportWorkflow() {
   );
 
   // เมื่อรายการสาขาเปลี่ยน ให้ปรับ Filter เพื่อให้สาขาที่เลือกยังใช้งานได้
-  useResetOnChange(normalizeBranchFilters, () => {
-    setDraftFilters((current) => normalizeBranchFilters(current));
-    setAppliedFilters((current) => normalizeBranchFilters(current));
+  useResetOnChange(normalizeFilters, () => {
+    setDraftFilters((current) => normalizeFilters(current));
+    setAppliedFilters((current) => normalizeFilters(current));
   });
 
   const load = useCallback(async () => {
@@ -183,7 +189,7 @@ export function useDailyClosingReportWorkflow() {
 
   function applyFilters() {
     if (!canApply) return;
-    const nextFilters = normalizeBranchFilters(draftFilters);
+    const nextFilters = normalizeFilters(draftFilters);
     const unchanged = dailyClosingFiltersEqual(nextFilters, appliedFilters);
 
     if (nextFilters.branchUuid) setSelectedBranch(nextFilters.branchUuid);
