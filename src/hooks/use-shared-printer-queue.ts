@@ -3,6 +3,7 @@
 import { useEffect, useRef } from "react";
 import { subscribePrintJobs, type PrintJobQueuedPayload } from "@/lib/socket";
 import { isCapacitorMobileApp } from "@/lib/capacitor-platform";
+import { printerPrintModeForPlatform } from "@/lib/printer-platform";
 import {
   executeInvoicePrintJobs,
   executeKitchenPrintJobs,
@@ -13,6 +14,7 @@ import {
   type AgentInfo,
   type CheckPrinterAgentConnectionResult,
   type PendingPrintJobRef,
+  type PendingPrintJobsParams,
 } from "@/services/printer";
 import { useAuthStore } from "@/stores/auth-store";
 
@@ -33,6 +35,22 @@ const DOCUMENT_PRINT_SOURCES = new Set([
 
 function textValue(value: unknown) {
   return String(value ?? "").trim();
+}
+
+export function sharedPrinterOwnerPendingQuery(
+  loginUuid: string,
+  agent: AgentInfo,
+  nativeMobile = false,
+): PendingPrintJobsParams {
+  return {
+    print_job_uuid: "",
+    login_uuid_fk: textValue(loginUuid),
+    device_code: textValue(agent.device_code),
+    agent_id: textValue(agent.agent_id),
+    print_mode: printerPrintModeForPlatform(agent.platform, nativeMobile),
+    agent_ready: true,
+    refs_only: true,
+  };
 }
 
 export function isSharedPrintJobForLocalOwner(ref: PendingPrintJobRef, agent: AgentInfo) {
@@ -142,16 +160,13 @@ export function useSharedPrinterQueue() {
         const agent = await localAgent();
         if (!agent || cancelled) return;
 
-        const pending = await getPendingPrintJobs({
-          print_job_uuid: "",
-          login_uuid_fk: loginUuid,
-          device_code: textValue(agent.device_code),
-          agent_id: textValue(agent.agent_id),
-          agent_ready: true,
-          // Discovery needs job identities; the guarded executor prepares each
-          // job once, immediately before handing it to its printer.
-          refs_only: true,
-        });
+        // Discovery must match the full assigned device/agent/mode tuple.
+        // Native identities can have a browser platform after WebView recovery.
+        const pending = await getPendingPrintJobs(sharedPrinterOwnerPendingQuery(
+          loginUuid,
+          agent,
+          isCapacitorMobileApp(),
+        ));
 
         for (const ref of (pending.pendingJobRefs ?? []).filter((item) => isSharedPrintJobForLocalOwner(item, agent))) {
           if (cancelled) return;

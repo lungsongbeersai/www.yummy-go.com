@@ -3,6 +3,7 @@ import {
   isSharedPrinterOwnerReady,
   isSharedPrintJobForLocalOwner,
   sharedPrintExecutionKind,
+  sharedPrinterOwnerPendingQuery,
 } from "@/hooks/use-shared-printer-queue";
 
 const windowsOwner = {
@@ -12,6 +13,55 @@ const windowsOwner = {
 };
 
 describe("shared printer owner queue", () => {
+  it("discovers native mobile assignments even when its recovered identity has a browser platform", () => {
+    expect(sharedPrinterOwnerPendingQuery(" cashier ", {
+      agent_id: " mobile ",
+      agent_name: "Native phone",
+      device_code: " PHONE ",
+      platform: "browser",
+    }, true)).toEqual({
+      print_job_uuid: "",
+      login_uuid_fk: "cashier",
+      device_code: "PHONE",
+      agent_id: "mobile",
+      print_mode: "mobile_wifi",
+      agent_ready: true,
+      refs_only: true,
+    });
+  });
+
+  it("includes the macOS physical mode when discovering its assigned Internet printers", () => {
+    expect(sharedPrinterOwnerPendingQuery("cashier", {
+      agent_id: "mac-agent",
+      agent_name: "Mac owner",
+      device_code: "MAC",
+      platform: "darwin",
+    })).toEqual({
+      print_job_uuid: "",
+      login_uuid_fk: "cashier",
+      device_code: "MAC",
+      agent_id: "mac-agent",
+      print_mode: "mac_agent",
+      agent_ready: true,
+      refs_only: true,
+    });
+  });
+
+  it("keeps Windows owner discovery on its physical platform mode", () => {
+    expect(sharedPrinterOwnerPendingQuery("cashier", {
+      ...windowsOwner,
+      platform: "win32",
+    })).toEqual({
+      print_job_uuid: "",
+      login_uuid_fk: "cashier",
+      device_code: "WINDOWS-OWNER",
+      agent_id: "windows-agent",
+      print_mode: "windows_agent",
+      agent_ready: true,
+      refs_only: true,
+    });
+  });
+
   it("does not advertise a cached desktop owner when its Local Agent is offline", () => {
     expect(isSharedPrinterOwnerReady({
       ok: true,
