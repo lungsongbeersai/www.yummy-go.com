@@ -94,6 +94,7 @@ describe("remote Shared print-result observation", () => {
       params: expect.objectContaining({
         device_code: "requester-device",
         agent_id: "requester-agent",
+        status_only: true,
       }),
       timeout: 10000,
       signal: expect.any(AbortSignal),

@@ -181,6 +181,7 @@ export async function getPendingPrintJobs(
         : {}),
       ...(params.agent_ready === true ? { agent_ready: true } : {}),
       ...(params.refs_only === true ? { refs_only: true } : {}),
+      ...(params.status_only === true ? { status_only: true } : {}),
     }
   });
   const hasBatchPayloads = Array.isArray(result.print_batch_payloads);
@@ -695,6 +696,9 @@ async function waitForRemoteSharedPrintCompletion({
         login_uuid_fk: loginUuid,
         device_code: textValue(requester.device_code),
         agent_id: textValue(requester.agent_id),
+        // Observe committed delivery without running the owner's queue repair,
+        // routing or rendering again after the paper has already printed.
+        status_only: true,
       }, {
         timeout: remainingMs,
         signal: observationController.signal,
