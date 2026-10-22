@@ -42,8 +42,8 @@ import type {
 } from "@/services/printer/types";
 
 const printerQueues = new Map<string, Promise<void>>();
-const kitchenExecutions = new Map<string, Promise<KitchenPrintResult>>();
-const documentExecutions = new Map<string, Promise<KitchenPrintResult>>();
+const printExecutions = new Map<string, Promise<KitchenPrintResult>>();
+const printAcknowledgements = new Map<string, Promise<void>>();
 const deliveryLedgerMemory = new Map<string, StoredDelivery>();
 const DELIVERY_LEDGER_PREFIX = "yummy_kitchen_printer_delivery:";
 const REMOTE_SHARED_STATUS_POLL_INTERVAL_MS = 500;
@@ -1169,17 +1169,34 @@ async function executePrintJobs(
       })
       : null;
     if (ackPayload) {
-      try {
-        await ackPrintJob(ackPayloadWithLogin(ackPayload, loginUuid));
-        for (const outcome of outcomes) {
-          if (options.idempotent && outcome.acknowledge) {
-            clearStoredDelivery(outcome.ledgerKey);
+      const acknowledgement = (async () => {
+        try {
+          await ackPrintJob(ackPayloadWithLogin(ackPayload, loginUuid));
+          for (const outcome of outcomes) {
+            if (options.idempotent && outcome.acknowledge) {
+              clearStoredDelivery(outcome.ledgerKey);
+            }
           }
+        } catch (error) {
+          // Keep the local ledger. A repeated request will ACK the recorded
+          // result without sending the bytes to this printer again.
+          console.error("[printer] print batch ACK failed", error);
         }
-      } catch (error) {
-        // Keep the local ledger. A repeated request will ACK the recorded
-        // result without sending the bytes to this printer again.
-        console.error("[printer] print batch ACK failed", error);
+      })();
+      if (options.idempotent && batchPayloads.some(isMobilePrintBatch)) {
+        // Native TCP has already confirmed the physical result, and the
+        // delivery ledger is persisted before this request. Backend may still
+        // be applying stock/table updates; that must not hold the print modal.
+        // Keep the executor reserved until ACK settles so socket/UI consumers
+        // share this result instead of fetching and sending the job again.
+        printAcknowledgements.set(jobUuid, acknowledgement);
+        void acknowledgement.then(() => {
+          if (printAcknowledgements.get(jobUuid) === acknowledgement) {
+            printAcknowledgements.delete(jobUuid);
+          }
+        });
+      } else {
+        await acknowledgement;
       }
     }
 
@@ -1436,7 +1453,7 @@ export async function executeKitchenPrintJobs(input: ExecuteKitchenPrintInput): 
     });
   }
 
-  const existing = kitchenExecutions.get(jobUuid);
+  const existing = printExecutions.get(jobUuid);
   if (existing) return existing;
 
   const execution = executePrintJobs(input, {
@@ -1445,14 +1462,22 @@ export async function executeKitchenPrintJobs(input: ExecuteKitchenPrintInput): 
     kitchenSemantics: true,
     requireCompletionConfirmation: true,
   });
-  kitchenExecutions.set(jobUuid, execution);
+  trackPrintExecution(jobUuid, execution);
+  return execution;
+}
+
+function trackPrintExecution(jobUuid: string, execution: Promise<KitchenPrintResult>) {
+  printExecutions.set(jobUuid, execution);
   const cleanup = () => {
-    if (kitchenExecutions.get(jobUuid) === execution) {
-      kitchenExecutions.delete(jobUuid);
+    if (printExecutions.get(jobUuid) === execution) {
+      printExecutions.delete(jobUuid);
     }
   };
-  void execution.then(cleanup, cleanup);
-  return execution;
+  void execution.then(() => {
+    const acknowledgement = printAcknowledgements.get(jobUuid);
+    if (acknowledgement) void acknowledgement.then(cleanup);
+    else cleanup();
+  }, cleanup);
 }
 
 function executeDocumentPrintJobs(
@@ -1465,17 +1490,11 @@ function executeDocumentPrintJobs(
     return executePrintJobs(input, { ack: true, idempotent: true });
   }
 
-  const existing = documentExecutions.get(jobUuid);
+  const existing = printExecutions.get(jobUuid);
   if (existing) return existing;
 
   const execution = executePrintJobs(input, { ack: true, idempotent: true });
-  documentExecutions.set(jobUuid, execution);
-  const cleanup = () => {
-    if (documentExecutions.get(jobUuid) === execution) {
-      documentExecutions.delete(jobUuid);
-    }
-  };
-  void execution.then(cleanup, cleanup);
+  trackPrintExecution(jobUuid, execution);
   return execution;
 }
 

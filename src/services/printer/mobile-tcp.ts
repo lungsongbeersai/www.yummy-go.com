@@ -49,6 +49,9 @@ const MOBILE_TCP_CHUNK_SIZE = 256 * 1024;
 // these durations. Long raster receipts can legitimately take tens of seconds.
 const MOBILE_TCP_SEND_TIMEOUT_MS = 60000;
 const MOBILE_TCP_STATUS_TIMEOUT_MS = 60000;
+// A confirmed ticket must not keep the UI or printer queue waiting for a
+// stalled native cleanup callback. The close is still requested every time.
+const MOBILE_TCP_DISCONNECT_TIMEOUT_MS = 1000;
 // Keep each native bridge call bounded, but keep every segment of one receipt
 // on the same TCP connection. Reconnecting between segments introduced visible
 // pauses and could leave a long receipt half-delivered before its final cut.
@@ -463,7 +466,10 @@ async function withSendTimeout<T>(operation: Promise<T>) {
     }
 }
 
-async function withPrinterStatusTimeout<T>(operation: Promise<T>) {
+async function withPrinterStatusTimeout<T>(
+    operation: Promise<T>,
+    timeoutMs = MOBILE_TCP_STATUS_TIMEOUT_MS,
+) {
     let timer: ReturnType<typeof setTimeout> | undefined;
     try {
         return await Promise.race([
@@ -471,7 +477,7 @@ async function withPrinterStatusTimeout<T>(operation: Promise<T>) {
             new Promise<never>((_, reject) => {
                 timer = setTimeout(
                     () => reject(new Error("Printer status response timed out")),
-                    MOBILE_TCP_STATUS_TIMEOUT_MS,
+                    timeoutMs,
                 );
             }),
         ]);
@@ -480,22 +486,29 @@ async function withPrinterStatusTimeout<T>(operation: Promise<T>) {
     }
 }
 
-function printerStatusByte(result?: string) {
+function printerStatusBytes(result?: string) {
     const value = typeof result === "string" ? result : "";
-    if (!value) return null;
+    if (!value) return new Uint8Array();
 
     // Android and iOS return the native read bytes as base64 after the plugin
     // patch. Keep the raw-byte fallback for Android builds installed before it.
     if (/^[A-Za-z0-9+/]+={0,2}$/.test(value) && value.length % 4 === 0) {
         try {
-            const decoded = base64ToBytes(value);
-            if (decoded.length === 1) return decoded[0];
+            return base64ToBytes(value);
         } catch {
             // Fall through to the legacy raw string result.
         }
     }
 
-    return value.charCodeAt(0) & 0xff;
+    return Uint8Array.from(value, (character) => character.charCodeAt(0) & 0xff);
+}
+
+function printerStatusByte(result?: string) {
+    return printerStatusBytes(result)[0] ?? null;
+}
+
+interface PrinterStatusStream {
+    asbBytesRemaining: number;
 }
 
 async function checkMobilePrinterPaperStatus({
@@ -514,27 +527,7 @@ async function checkMobilePrinterPaperStatus({
             }),
         );
 
-        const response = await withPrinterStatusTimeout(
-            TcpSocket.read({
-                client,
-                expectLen: 1,
-                timeout: Math.ceil(MOBILE_TCP_STATUS_TIMEOUT_MS / 1000),
-            }),
-        );
-        const status = printerStatusByte(response.result);
-
-        if (status === null) {
-            throw new Error("Printer returned an empty completion status");
-        }
-
-        // GS r 1 reports paper-end on bits 2 and 3. Bits 5 and 6 are
-        // reserved and may be set by compatible printers without meaning
-        // paper-out (0x60 is the mask for the different DLE EOT 4 command).
-        if ((status & 0x0c) === 0x0c) {
-            throw new Error("Printer reported paper out before completion");
-        }
-
-        mobileTcpDebug("[mobile-tcp] printer paper status received", { status });
+        await readMobilePrinterPaperStatus({ TcpSocket, client });
     } catch (error) {
         throw deliveryError(error, "unknown");
     }
@@ -543,28 +536,59 @@ async function checkMobilePrinterPaperStatus({
 async function readMobilePrinterPaperStatus({
     TcpSocket,
     client,
+    stream = { asbBytesRemaining: 0 },
 }: {
     TcpSocket: TcpSocketApi;
     client: TcpClient;
+    stream?: PrinterStatusStream;
 }) {
     try {
-        const response = await withPrinterStatusTimeout(
-            TcpSocket.read({
-                client,
-                expectLen: 1,
-                timeout: Math.ceil(MOBILE_TCP_STATUS_TIMEOUT_MS / 1000),
-            }),
-        );
-        const status = printerStatusByte(response.result);
+        const deadline = Date.now() + MOBILE_TCP_STATUS_TIMEOUT_MS;
+        while (true) {
+            const remainingMs = deadline - Date.now();
+            if (remainingMs <= 0) throw new Error("Printer status response timed out");
+            const response = await withPrinterStatusTimeout(
+                TcpSocket.read({
+                    client,
+                    expectLen: 1,
+                    timeout: Math.ceil(remainingMs / 1000),
+                }),
+                remainingMs,
+            );
+            const bytes = printerStatusBytes(response.result);
+            if (!bytes.length) {
+                throw new Error("Printer returned an empty completion status");
+            }
 
-        if (status === null) {
-            throw new Error("Printer returned an empty completion status");
-        }
-        if ((status & 0x0c) === 0x0c) {
-            throw new Error("Printer reported paper out before completion");
-        }
+            let paperStatus: number | undefined;
+            for (const status of bytes) {
+                // ASB is a four-byte unsolicited frame, not the response to
+                // this ticket. Its paper/error bytes can otherwise falsely
+                // complete a ticket or stop the rest of a batch.
+                // https://download4.epson.biz/sec_pubs/pos/reference_en/escpos/gs_la.html
+                if (stream.asbBytesRemaining) {
+                    if (status !== 0x11 && status !== 0x13) stream.asbBytesRemaining -= 1;
+                    continue;
+                }
+                if ((status & 0x93) === 0x10) {
+                    stream.asbBytesRemaining = 3;
+                    continue;
+                }
+                // GS r fixes bits 4/7 at zero. Reserved bits 5/6 remain
+                // allowed, including compatible printers returning 0x60.
+                // https://download4.epson.biz/sec_pubs/pos/reference_en/escpos/gs_lr.html
+                if ((status & 0x90) !== 0 || paperStatus !== undefined) continue;
+                if ((status & 0x0c) === 0x0c) {
+                    throw new Error("Printer reported paper out before completion");
+                }
+                paperStatus = status;
+            }
 
-        mobileTcpDebug("[mobile-tcp] printer paper status received", { status });
+            if (paperStatus !== undefined) {
+                mobileTcpDebug("[mobile-tcp] printer paper status received", { status: paperStatus });
+                return;
+            }
+        }
     } catch (error) {
         throw deliveryError(error, "unknown");
     }
@@ -677,6 +701,7 @@ async function sendEscposOnConnectedClient({
     }
 
     let sentSegments = 0;
+    const statusStream: PrinterStatusStream = { asbBytesRemaining: 0 };
     for (let groupIndex = 0; groupIndex < deliveryGroups.length; groupIndex++) {
         const segments = deliveryGroups[groupIndex];
         for (const segment of segments) {
@@ -702,7 +727,7 @@ async function sendEscposOnConnectedClient({
         // The GS r 1 query is the final command in this delivery group. Wait
         // for the printer response before releasing the next ticket so a slow
         // printer cannot lose the tail of a large mobile batch.
-        await readMobilePrinterPaperStatus({ TcpSocket, client });
+        await readMobilePrinterPaperStatus({ TcpSocket, client, stream: statusStream });
         onTicketDelivered?.(groupIndex + 1, completionPlan.acknowledgementTotal);
     }
 }
@@ -782,11 +807,22 @@ async function printMobileEscposOverTcpNow({
         throw deliveryError(error, "unknown");
     } finally {
         mobileTcpDebug("[mobile-tcp] disconnect start");
-        await TcpSocket.disconnect({ client }).catch((error: unknown) => {
+        let disconnectTimer: ReturnType<typeof setTimeout> | undefined;
+        await Promise.race([
+            Promise.resolve().then(() => TcpSocket.disconnect({ client })),
+            new Promise<never>((_, reject) => {
+                disconnectTimer = setTimeout(
+                    () => reject(new Error("Mobile TCP disconnect timed out")),
+                    MOBILE_TCP_DISCONNECT_TIMEOUT_MS,
+                );
+            }),
+        ]).catch((error: unknown) => {
             console.warn(
                 "[mobile-tcp] disconnect failed:",
                 error instanceof Error ? error.message : String(error),
             );
+        }).finally(() => {
+            if (disconnectTimer) clearTimeout(disconnectTimer);
         });
         mobileTcpDebug("[mobile-tcp] disconnect done");
     }

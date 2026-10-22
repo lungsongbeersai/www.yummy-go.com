@@ -704,6 +704,44 @@ describe("printer service dispatch", () => {
       }
     });
 
+    it.each([
+      ["kitchen", executeKitchenPrintJobs],
+      ["receipt/invoice (including split payment)", executeInvoicePrintJobs],
+    ] as const)("finishes mobile %s when the printer confirms, while a slow Backend ACK stays deduplicated", async (kind, execute) => {
+      const fixture = prepareGroupBatch(`mobile-slow-ack-${kind}`, true);
+      const storage = mockLocalStorage();
+      const request = apiMocks.apiRequest.getMockImplementation()!;
+      let finishAck!: () => void;
+      const slowAck = new Promise<void>((resolve) => { finishAck = resolve; });
+      apiMocks.apiRequest.mockImplementation((method, url, options) => {
+        if (method === "post" && url === "/api/v1/printer/jobs/ack") return slowAck;
+        return request(method, url, options);
+      });
+      const onProgress = vi.fn();
+
+      try {
+        await expect(execute({ ...fixture.input, onProgress })).resolves.toEqual({
+          successCount: 2, failedCount: 0, total: 2,
+        });
+        expect(storage.getItem(fixture.ledgerKey)).toBe(JSON.stringify({ deliveryState: "printed" }));
+        expect(onProgress).toHaveBeenLastCalledWith(expect.objectContaining({ phase: "done", successCount: 2 }));
+
+        // Socket delivery and the initiating screen can use different entry
+        // points; both must share the recorded result while ACK is pending.
+        await Promise.all([
+          executeKitchenPrintJobs(fixture.input),
+          executeInvoicePrintJobs(fixture.input),
+        ]);
+        expect(mobileTcpMocks.printMobileEscposOverTcp).toHaveBeenCalledTimes(1);
+        expect(apiMocks.apiRequest.mock.calls.filter(([, url]) => url === "/api/v1/printer/jobs/pending")).toHaveLength(1);
+        expect(apiMocks.apiRequest.mock.calls.filter(([, url]) => url === "/api/v1/printer/jobs/ack")).toHaveLength(1);
+      } finally {
+        finishAck();
+        await slowAck;
+      }
+      await vi.waitFor(() => expect(storage.getItem(fixture.ledgerKey)).toBeNull());
+    });
+
     it.each([false, true])("ACKs both food items as printed when the drinks sheet fails (native=%s)", async (native) => {
       const fixture = prepareGroupBatch(`groups-partial-${native}`, native);
       const message = fixture.failDrinks();

@@ -32,6 +32,7 @@ import type {
 import { finishCommittedCartItemAction } from "../committed-cart-item-action";
 import { CartItemActionUnavailableError, currentCartItemAction, isMissingCartItemError } from "../cart-item-action-state";
 import { kitchenConfirmPrintOutcome } from "../kitchen-confirm-print-outcome";
+import { runKitchenConfirmation } from "../kitchen-confirmation-workflow";
 import {
   billDiscountButtonValue,
   buildCustomerDisplayPayload,
@@ -189,6 +190,8 @@ export function useSelectedTableCartPanelWorkflow({
   const queuedQuantityRef = useRef<QueuedQuantityUpdate | null>(null);
   const quantityDebounceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [confirming, setConfirming] = useState(false);
+  const [synchronizingKitchenConfirmation, setSynchronizingKitchenConfirmation] =
+    useState(false);
   const [confirmAllProgress, setConfirmAllProgress] =
     useState<ConfirmAllProgress | null>(null);
   const [confirmingItemStage, setConfirmingItemStage] =
@@ -301,6 +304,7 @@ export function useSelectedTableCartPanelWorkflow({
   const nonQuantityActionsLocked = Boolean(
     !hasSelectedTable ||
     confirming ||
+    synchronizingKitchenConfirmation ||
     actingItemUuid ||
     billDiscountPending,
   );
@@ -773,147 +777,134 @@ export function useSelectedTableCartPanelWorkflow({
     kitchenConfirmationInFlightRef.current = true;
     setConfirming(true);
     beginKitchenConfirmation();
-    try {
-      const printResult: {
-        successCount: number;
-        failedCount: number;
-        total: number;
-        errorMessage?: string;
-        pending?: boolean;
-      } = { successCount: 0, failedCount: 0, total: 0, pending: false };
-      const setProgress = (
-        completed: number,
-        label: string,
-        printProgress?: { successCount: number; total: number },
-      ) => {
-        const safeCompleted = Math.min(
-          completed,
-          CONFIRM_ORDER_PROGRESS_TOTAL,
-        );
-        const printTotal = Math.max(0, Math.floor(printProgress?.total ?? 0));
-        setConfirmAllProgress({
-          completed: safeCompleted,
-          label,
-          ...(printTotal > 0
-            ? {
-                printSuccessCount: Math.min(
-                  Math.max(0, Math.floor(printProgress?.successCount ?? 0)),
+    await runKitchenConfirmation({
+      confirmAndPrint: async () => {
+        const printResult: {
+          successCount: number;
+          failedCount: number;
+          total: number;
+          errorMessage?: string;
+          pending?: boolean;
+        } = { successCount: 0, failedCount: 0, total: 0, pending: false };
+        const setProgress = (
+          completed: number,
+          label: string,
+          printProgress?: { successCount: number; total: number },
+        ) => {
+          const safeCompleted = Math.min(
+            completed,
+            CONFIRM_ORDER_PROGRESS_TOTAL,
+          );
+          const printTotal = Math.max(0, Math.floor(printProgress?.total ?? 0));
+          setConfirmAllProgress({
+            completed: safeCompleted,
+            label,
+            ...(printTotal > 0
+              ? {
+                  printSuccessCount: Math.min(
+                    Math.max(0, Math.floor(printProgress?.successCount ?? 0)),
+                    printTotal,
+                  ),
                   printTotal,
-                ),
-                printTotal,
-              }
-            : {}),
-          total: CONFIRM_ORDER_PROGRESS_TOTAL,
-        });
-      };
-
-      setProgress(
-        confirmOrderProgressStep({ phase: "preparing" }),
-        t("pos.confirmAllPreparing"),
-      );
-
-      for (const [groupIndex, group] of confirmGroups.entries()) {
-        setProgress(
-          confirmOrderProgressStep({
-            groupCount: confirmGroups.length,
-            groupIndex,
-            phase: "confirming",
-          }),
-          t("pos.confirmAllConfirming"),
-        );
-        const response = await confirmKitchen({
-          order_uuid: group.orderUuid,
-          login_uuid_fk: user.uuid,
-          order_item_uuids: group.itemUuids,
-          device_code: activePrinterContext?.device_code,
-          agent_id: activePrinterContext?.agent_id,
-          print_mode: activePrinterContext?.print_mode,
-        });
-
-        const result = await executeKitchenAck(
-          response,
-          user.uuid,
-          activePrinterContext,
-          (progress) => {
-            const label =
-              progress.phase === "fetching"
-                ? t("pos.confirmAllFetchingPrintJobs")
-                : t("pos.confirmAllPrinting");
-
-            setProgress(
-              confirmOrderProgressStep({
-                groupCount: confirmGroups.length,
-                groupIndex,
-                phase:
-                  progress.phase === "fetching" ? "fetching" : "printing",
-                printingCompleted: progress.completed,
-                printingTotal: progress.total,
-              }),
-              label,
-              {
-                successCount:
-                  printResult.successCount + progress.successCount,
-                total: printResult.total + progress.total,
-              },
-            );
-          },
-        );
-        printResult.successCount += result.successCount;
-        printResult.failedCount += result.failedCount;
-        printResult.total += result.total;
-        printResult.pending = printResult.pending || result.pending === true;
-        if (result.errorMessage) printResult.errorMessage = result.errorMessage;
+                }
+              : {}),
+            total: CONFIRM_ORDER_PROGRESS_TOTAL,
+          });
+        };
 
         setProgress(
-          confirmOrderProgressStep({
-            groupCount: confirmGroups.length,
-            groupIndex,
-            phase: "group-complete",
-          }),
-          t("pos.confirmAllPrinting"),
-          {
-            successCount: printResult.successCount,
-            total: printResult.total,
-          },
+          confirmOrderProgressStep({ phase: "preparing" }),
+          t("pos.confirmAllPreparing"),
         );
-      }
 
-      setProgress(
-        confirmOrderProgressStep({ phase: "refreshing" }),
-        t("pos.confirmAllRefreshing"),
-        {
-          successCount: printResult.successCount,
-          total: printResult.total,
-        },
-      );
-      await onTableActionComplete();
-      setProgress(
-        confirmOrderProgressStep({ phase: "done" }),
-        t("pos.confirmAllDone"),
-        {
-          successCount: printResult.successCount,
-          total: printResult.total,
-        },
-      );
-      showKitchenConfirmResult(printResult);
-    } catch (error) {
-      setConfirmAllProgress((current) =>
-        current
-          ? { ...current, label: t("pos.confirmAllRefreshing") }
-          : current,
-      );
-      await onCartRefresh().catch(() => undefined);
-      showToast({
-        title: t("pos.orderConfirmFailed"),
-        description: error instanceof Error ? error.message : "",
-        tone: "error",
-      });
-    } finally {
-      endKitchenConfirmation();
-      setConfirming(false);
-      setConfirmAllProgress(null);
-      kitchenConfirmationInFlightRef.current = false;
-    }
+        for (const [groupIndex, group] of confirmGroups.entries()) {
+          setProgress(
+            confirmOrderProgressStep({
+              groupCount: confirmGroups.length,
+              groupIndex,
+              phase: "confirming",
+            }),
+            t("pos.confirmAllConfirming"),
+          );
+          const response = await confirmKitchen({
+            order_uuid: group.orderUuid,
+            login_uuid_fk: user.uuid,
+            order_item_uuids: group.itemUuids,
+            device_code: activePrinterContext?.device_code,
+            agent_id: activePrinterContext?.agent_id,
+            print_mode: activePrinterContext?.print_mode,
+          });
+
+          const result = await executeKitchenAck(
+            response,
+            user.uuid,
+            activePrinterContext,
+            (progress) => {
+              const label =
+                progress.phase === "fetching"
+                  ? t("pos.confirmAllFetchingPrintJobs")
+                  : t("pos.confirmAllPrinting");
+
+              setProgress(
+                confirmOrderProgressStep({
+                  groupCount: confirmGroups.length,
+                  groupIndex,
+                  phase:
+                    progress.phase === "fetching" ? "fetching" : "printing",
+                  printingCompleted: progress.completed,
+                  printingTotal: progress.total,
+                }),
+                label,
+                {
+                  successCount:
+                    printResult.successCount + progress.successCount,
+                  total: printResult.total + progress.total,
+                },
+              );
+            },
+          );
+          printResult.successCount += result.successCount;
+          printResult.failedCount += result.failedCount;
+          printResult.total += result.total;
+          printResult.pending = printResult.pending || result.pending === true;
+          if (result.errorMessage) printResult.errorMessage = result.errorMessage;
+
+          setProgress(
+            confirmOrderProgressStep({
+              groupCount: confirmGroups.length,
+              groupIndex,
+              phase: "group-complete",
+            }),
+            t("pos.confirmAllPrinting"),
+            {
+              successCount: printResult.successCount,
+              total: printResult.total,
+            },
+          );
+        }
+
+        showKitchenConfirmResult(printResult);
+      },
+      onConfirmationError: (error) => {
+        showToast({
+          title: t("pos.orderConfirmFailed"),
+          description: error instanceof Error ? error.message : "",
+          tone: "error",
+        });
+      },
+      closeLoading: () => {
+        setConfirming(false);
+        setConfirmAllProgress(null);
+        setSynchronizingKitchenConfirmation(true);
+      },
+      refresh: onTableActionComplete,
+      onRefreshError: showKitchenCartRefreshError,
+      release: () => {
+        endKitchenConfirmation();
+        setSynchronizingKitchenConfirmation(false);
+        kitchenConfirmationInFlightRef.current = false;
+      },
+    });
   }
 
   async function confirmSingleItemToKitchen(item: CartItem) {
@@ -931,41 +922,55 @@ export function useSelectedTableCartPanelWorkflow({
     setActingItemUuid(itemUuid);
     setConfirmingItemStage("confirming");
     beginKitchenConfirmation();
-    try {
-      const response = await confirmKitchen({
-        order_uuid: orderUuid,
-        login_uuid_fk: user.uuid,
-        order_item_uuids: cartItemActionUuids(item),
-        device_code: activePrinterContext?.device_code,
-        agent_id: activePrinterContext?.agent_id,
-        print_mode: activePrinterContext?.print_mode,
-      });
-      const result = await executeKitchenAck(
-        response,
-        user.uuid,
-        activePrinterContext,
-        (progress) =>
-          setConfirmingItemStage(
-            progress.phase === "fetching" ? "fetching" : "printing",
-          ),
-      );
-      setConfirmingItemStage("refreshing");
-      await onCartRefresh();
-      showKitchenConfirmResult(result);
-    } catch (error) {
-      setConfirmingItemStage("refreshing");
-      await onCartRefresh().catch(() => undefined);
-      showToast({
-        title: t("pos.confirmToKitchenFailed"),
-        description: error instanceof Error ? error.message : "",
-        tone: "error",
-      });
-    } finally {
-      endKitchenConfirmation();
-      setActingItemUuid(null);
-      setConfirmingItemStage(null);
-      kitchenConfirmationInFlightRef.current = false;
-    }
+    await runKitchenConfirmation({
+      confirmAndPrint: async () => {
+        const response = await confirmKitchen({
+          order_uuid: orderUuid,
+          login_uuid_fk: user.uuid,
+          order_item_uuids: cartItemActionUuids(item),
+          device_code: activePrinterContext?.device_code,
+          agent_id: activePrinterContext?.agent_id,
+          print_mode: activePrinterContext?.print_mode,
+        });
+        const result = await executeKitchenAck(
+          response,
+          user.uuid,
+          activePrinterContext,
+          (progress) =>
+            setConfirmingItemStage(
+              progress.phase === "fetching" ? "fetching" : "printing",
+            ),
+        );
+        showKitchenConfirmResult(result);
+      },
+      onConfirmationError: (error) => {
+        showToast({
+          title: t("pos.confirmToKitchenFailed"),
+          description: error instanceof Error ? error.message : "",
+          tone: "error",
+        });
+      },
+      closeLoading: () => {
+        setActingItemUuid(null);
+        setConfirmingItemStage(null);
+        setSynchronizingKitchenConfirmation(true);
+      },
+      refresh: onCartRefresh,
+      onRefreshError: showKitchenCartRefreshError,
+      release: () => {
+        endKitchenConfirmation();
+        setSynchronizingKitchenConfirmation(false);
+        kitchenConfirmationInFlightRef.current = false;
+      },
+    });
+  }
+
+  function showKitchenCartRefreshError(error: unknown) {
+    showToast({
+      title: t("pos.cartUpdateFailed"),
+      description: error instanceof Error ? error.message : "",
+      tone: "error",
+    });
   }
 
   // ปริ้นครัวซ้ำ — คนละ endpoint/response shape จาก confirmKitchen (ดู

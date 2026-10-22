@@ -729,4 +729,120 @@ describe("mobile TCP printer queue", () => {
       }),
     ).resolves.toBeUndefined();
   });
+
+  it.each([
+    [[0x10, 0, 0x0c, 0], [0x12, 0x80, 0xff]],
+    [[0x10], [0, 0x13], [0x0c, 0], [0x11, 0x80]],
+  ])("ignores ASB frames and unrelated bytes before the ticket response: %j", async (...packets) => {
+    const delivered = vi.fn();
+    let respond: ((value: { result: string }) => void) | undefined;
+    for (const packet of packets) {
+      nativeTcpMocks.read.mockResolvedValueOnce({ result: Buffer.from(packet).toString("base64") });
+    }
+    nativeTcpMocks.read.mockImplementationOnce(() => new Promise<{ result: string }>((resolve) => {
+      respond = resolve;
+    }));
+
+    const printing = __mobileTcpInternals.sendEscposOnConnectedClient({
+      TcpSocket: nativeTcpMocks,
+      client: "asb-client",
+      escposBase64: "G0AdVgE=",
+      onTicketDelivered: delivered,
+    });
+    await new Promise<void>((resolve) => setImmediate(resolve));
+
+    expect(nativeTcpMocks.read).toHaveBeenCalledTimes(packets.length + 1);
+    expect(nativeTcpMocks.send).toHaveBeenCalledTimes(1);
+    expect(delivered).not.toHaveBeenCalled();
+    expect(respond).toBeTypeOf("function");
+    respond?.({ result: "YA==" });
+    await printing;
+    expect(delivered).toHaveBeenCalledExactlyOnceWith(1, 1);
+  });
+
+  it("retains a split ASB frame across ticket responses without false paper-out", async () => {
+    nativeTcpMocks.read
+      .mockResolvedValueOnce({ result: Buffer.from([0x60, 0x10, 0]).toString("base64") })
+      .mockResolvedValueOnce({ result: Buffer.from([0x0c, 0]).toString("base64") })
+      .mockResolvedValueOnce({ result: "YA==" });
+    const delivered = vi.fn();
+    const ticket = Buffer.from([0x1b, 0x40, 0x1d, 0x56, 1]);
+
+    await __mobileTcpInternals.sendEscposOnConnectedClient({
+      TcpSocket: nativeTcpMocks,
+      client: "split-asb-client",
+      escposBase64: Buffer.concat([ticket, ticket]).toString("base64"),
+      onTicketDelivered: delivered,
+    });
+
+    expect(nativeTcpMocks.read).toHaveBeenCalledTimes(3);
+    expect(nativeTcpMocks.send).toHaveBeenCalledTimes(2);
+    expect(delivered.mock.calls).toEqual([[1, 2], [2, 2]]);
+  });
+
+  it("keeps one completion deadline while ignoring unrelated printer responses", async () => {
+    vi.useFakeTimers();
+    const delivered = vi.fn();
+    nativeTcpMocks.read
+      .mockImplementationOnce(() => new Promise<{ result: string }>((resolve) => {
+        setTimeout(() => resolve({ result: "gA==" }), 25000);
+      }))
+      .mockImplementationOnce(() => new Promise<never>(() => {}));
+    try {
+      const printing = __mobileTcpInternals.sendEscposOnConnectedClient({
+        TcpSocket: nativeTcpMocks,
+        client: "status-deadline-client",
+        escposBase64: "G0AdVgE=",
+        onTicketDelivered: delivered,
+      });
+      const rejected = expect(printing).rejects.toMatchObject({
+        delivery_state: "unknown",
+        message: "Printer status response timed out",
+      });
+      await vi.advanceTimersByTimeAsync(25000);
+      expect(nativeTcpMocks.read.mock.calls[1]?.[0]).toMatchObject({ timeout: 35 });
+      await vi.advanceTimersByTimeAsync(35000);
+      await rejected;
+      expect(nativeTcpMocks.send).toHaveBeenCalledTimes(1);
+      expect(delivered).not.toHaveBeenCalled();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it.each([false, true])("releases the printer queue after stalled cleanup, failed delivery=%s", async (failedDelivery) => {
+    vi.useFakeTimers();
+    const warning = vi.spyOn(console, "warn").mockImplementation(() => {});
+    const delivered = vi.fn();
+    nativeTcpMocks.disconnect.mockImplementationOnce(() => new Promise<never>(() => {}));
+    if (failedDelivery) nativeTcpMocks.read.mockRejectedValueOnce(new Error("Connection reset"));
+    const input = {
+      interface_value: `tcp://stalled-cleanup-${failedDelivery}:9100`,
+      escpos_base64: "G0AdVgE=",
+      on_ticket_delivered: delivered,
+    };
+    try {
+      const first = printMobileEscposOverTcp(input);
+      const firstResult = failedDelivery
+        ? expect(first).rejects.toMatchObject({ delivery_state: "unknown", message: "Connection reset" })
+        : expect(first).resolves.toBeUndefined();
+      const second = printMobileEscposOverTcp(input);
+      await vi.advanceTimersByTimeAsync(0);
+      expect(nativeTcpMocks.disconnect).toHaveBeenCalledTimes(1);
+      expect(nativeTcpMocks.connect).toHaveBeenCalledTimes(1);
+
+      await vi.advanceTimersByTimeAsync(1000);
+      await firstResult;
+      await second;
+
+      expect(nativeTcpMocks.disconnect).toHaveBeenCalledTimes(2);
+      expect(nativeTcpMocks.connect).toHaveBeenCalledTimes(2);
+      expect(nativeTcpMocks.send).toHaveBeenCalledTimes(2);
+      expect(delivered).toHaveBeenCalledTimes(failedDelivery ? 1 : 2);
+      expect(warning).toHaveBeenCalledWith("[mobile-tcp] disconnect failed:", "Mobile TCP disconnect timed out");
+    } finally {
+      vi.useRealTimers();
+      warning.mockRestore();
+    }
+  });
 });
