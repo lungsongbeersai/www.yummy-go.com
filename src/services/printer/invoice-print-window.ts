@@ -388,7 +388,7 @@ function invoiceSharedStyles(paperWidthMm: number) {
         line-height: 1.16;
       }
       .exchange-heading-lao {
-        /* Saysettha has no bold face; strengthen this heading's original glyphs. */
+        /* The print stylesheet exposes a regular face; strengthen this heading's original glyphs. */
         -webkit-text-stroke: 0.3px currentColor;
       }
       .exchange-rates {

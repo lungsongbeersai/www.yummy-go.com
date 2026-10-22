@@ -96,8 +96,8 @@ const DAILY_CLOSING_EXTRA_STYLES = `
         line-height: 1.4;
       }
 
-      /* Saysettha has one regular face. A light stroke gives the report's Lao
-         headings visible emphasis instead of relying on a missing bold face. */
+      /* The print stylesheet exposes a regular face. A light stroke gives the
+         report's Lao headings consistent emphasis on thermal printers. */
       .daily-closing header .strong,
       .daily-closing h1,
       .daily-closing h2,
@@ -136,7 +136,7 @@ const DAILY_CLOSING_EXTRA_STYLES = `
       .daily-closing .group-total > span:last-child,
       .daily-closing .total-row > span:last-child,
       .daily-closing .headline-total-value {
-        font-family: Arial, "Yummy Go Saysettha OT", sans-serif !important;
+        font-family: Arial, "Yummy Go Noto Sans Lao", sans-serif !important;
         font-weight: 700;
       }
 
