@@ -66,6 +66,7 @@ import {
   type PrintJob,
   type PrintOpsBatchPayload,
   type PrintProgress,
+  type ExecuteKitchenPrintInput,
 } from "@/services/printer";
 
 function mockLocalStorage(initial: Record<string, string> = {}) {
@@ -1265,6 +1266,175 @@ describe("printer service dispatch", () => {
       escpos_base64: "BASE64"
     });
     expect(axiosMocks.post).not.toHaveBeenCalled();
+  });
+
+  describe("kitchen jobs assigned to native LAN and remote Internet executors", () => {
+    function prepareMixedJob(
+      jobUuid: string,
+      options: { deferred?: boolean; empty?: boolean; ack?: () => Promise<unknown> } = {},
+    ) {
+      capacitorMocks.isNativePlatform.mockReturnValue(true);
+      const itemUuid = `${jobUuid}-item`;
+      const ackPayloads: AckPayload[] = [];
+      const batch: PrintOpsBatchPayload = {
+        cut_mode: "per_ticket",
+        device_code: "requester-phone",
+        agent_id: "native-phone",
+        print_mode: "mobile_wifi",
+        print_client: "mobile_wifi",
+        print_config_uuid: "test-lan-printer",
+        print_job_item_uuids: [itemUuid],
+        interface_value: "tcp://192.168.1.20:9100",
+        job_total: 1,
+        jobs: [],
+        mobile_escpos: {
+          interface_value: "tcp://192.168.1.20:9100",
+          escpos_base64: "LAN-ESC-POS",
+        },
+      };
+      const response = {
+        print_batch_payloads: options.empty ? [] : [batch],
+        print_summary: {
+          has_deferred_remote_delivery: options.deferred ?? true,
+          requested_job_status: "pending",
+          requested_job_total: 1,
+          requested_job_success_total: 0,
+          uncertain_item_total: 0,
+        },
+        ack_success_payload: {
+          print_job_uuid: jobUuid,
+          results: [{ print_job_item_uuid: itemUuid, status: "success" }],
+        },
+        ack_failed_payload: {
+          print_job_uuid: jobUuid,
+          results: [{ print_job_item_uuid: itemUuid, status: "failed" }],
+        },
+      };
+      apiMocks.apiRequest.mockImplementation(async (method, url, request) => {
+        if (method === "get" && url === "/api/v1/printer/jobs/pending") return response;
+        if (method === "post" && url === "/api/v1/printer/jobs/ack") {
+          ackPayloads.push(request?.data as AckPayload);
+          return options.ack ? options.ack() : {};
+        }
+        throw new Error(`Unexpected request ${method} ${url}`);
+      });
+      const input: ExecuteKitchenPrintInput = {
+        print_job: { print_job_uuid: jobUuid, remote_shared_print: false },
+        pending_query: {
+          print_job_uuid: jobUuid,
+          login_uuid_fk: "cashier-1",
+          device_code: "requester-phone",
+          agent_id: "native-phone",
+          print_mode: "mobile_wifi",
+          remote_shared_print: false,
+        },
+      };
+      return { input, response, ackPayloads, itemUuid };
+    }
+
+    it("returns LAN delivery as pending before a held ACK and coalesces repeated requests", async () => {
+      let finishAck = () => {};
+      const ack = new Promise<void>((resolve) => { finishAck = resolve; });
+      const fixture = prepareMixedJob("mixed-lan-held-ack", { ack: () => ack });
+      const observedResult = vi.fn();
+      const execution = executeKitchenPrintJobs(fixture.input);
+      void execution.then(observedResult);
+      const expected = { successCount: 1, failedCount: 0, total: 1, pending: true };
+      try {
+        await vi.waitFor(() => expect(observedResult).toHaveBeenCalledExactlyOnceWith(expected));
+        await expect(executeKitchenPrintJobs(fixture.input)).resolves.toEqual(expected);
+        expect(mobileTcpMocks.printMobileEscposOverTcp).toHaveBeenCalledOnce();
+        expect(axiosMocks.get).not.toHaveBeenCalled();
+        expect(axiosMocks.post).not.toHaveBeenCalled();
+        expect(apiMocks.apiRequest.mock.calls.filter(([, url]) => url === "/api/v1/printer/jobs/pending"))
+          .toHaveLength(1);
+        expect(fixture.ackPayloads).toEqual([{
+          print_job_uuid: "mixed-lan-held-ack",
+          login_uuid_fk: "cashier-1",
+          results: [{
+            print_job_item_uuid: fixture.itemUuid,
+            print_config_uuid: "test-lan-printer",
+            status: "success",
+            delivery_state: "printed",
+          }],
+        }]);
+      } finally {
+        finishAck();
+        await execution;
+      }
+    });
+
+    it("keeps uncertain LAN delivery pending and never resends it while remote work remains", async () => {
+      const fixture = prepareMixedJob("mixed-lan-unknown");
+      mobileTcpMocks.printMobileEscposOverTcp.mockRejectedValueOnce(Object.assign(
+        new Error("LAN delivery is uncertain"),
+        { delivery_state: "unknown" },
+      ));
+      await expect(executeKitchenPrintJobs(fixture.input)).resolves.toEqual({
+        successCount: 0, failedCount: 0, total: 1, pending: true,
+        errorMessage: "LAN delivery is uncertain",
+      });
+
+      fixture.response.print_batch_payloads = [];
+      fixture.response.print_summary.uncertain_item_total = 1;
+      await Promise.resolve();
+      await expect(executeKitchenPrintJobs(fixture.input)).resolves.toMatchObject({
+        successCount: 0, failedCount: 0, total: 1, pending: true,
+      });
+      expect(mobileTcpMocks.printMobileEscposOverTcp).toHaveBeenCalledOnce();
+      expect(fixture.ackPayloads[0].results).toEqual([{
+        print_job_item_uuid: fixture.itemUuid,
+        print_config_uuid: "test-lan-printer",
+        status: "failed",
+        delivery_state: "unknown",
+        reason: "LAN delivery is uncertain",
+      }]);
+    });
+
+    it("preserves a real LAN failure and remote pending without ACKing the other printer", async () => {
+      const fixture = prepareMixedJob("mixed-lan-failure");
+      mobileTcpMocks.printMobileEscposOverTcp.mockRejectedValueOnce(Object.assign(
+        new Error("LAN printer unreachable"),
+        { delivery_state: "not_sent" },
+      ));
+      await expect(executeKitchenPrintJobs(fixture.input)).resolves.toEqual({
+        successCount: 0, failedCount: 1, total: 1, pending: true,
+        errorMessage: "LAN printer unreachable",
+      });
+      expect(fixture.ackPayloads[0].results).toEqual([{
+        print_job_item_uuid: fixture.itemUuid,
+        print_config_uuid: "test-lan-printer",
+        status: "failed",
+        delivery_state: "not_sent",
+        reason: "LAN printer unreachable",
+      }]);
+    });
+
+    it("returns an empty local stage as pending without inventing remote delivery counts", async () => {
+      const fixture = prepareMixedJob("mixed-no-local-batch", { empty: true });
+      fixture.response.print_summary.requested_job_total = 7;
+      fixture.response.print_summary.requested_job_success_total = 2;
+      await expect(executeKitchenPrintJobs(fixture.input)).resolves.toEqual({
+        successCount: 0, failedCount: 0, total: 0, pending: true,
+      });
+      expect(mobileTcpMocks.printMobileEscposOverTcp).not.toHaveBeenCalled();
+      expect(fixture.ackPayloads).toHaveLength(0);
+      expect(apiMocks.apiRequest).toHaveBeenCalledOnce();
+    });
+
+    it("still completes ordinary native kitchen jobs when no other executor has pending work", async () => {
+      const fixture = prepareMixedJob("ordinary-native-lan", { deferred: false });
+      await expect(executeKitchenPrintJobs(fixture.input)).resolves.toEqual({
+        successCount: 1, failedCount: 0, total: 1,
+      });
+    });
+
+    it("does not apply kitchen executor flags to unrelated invoice documents", async () => {
+      const fixture = prepareMixedJob("invoice-ignores-kitchen-assignment");
+      await expect(executeInvoicePrintJobs(fixture.input)).resolves.toEqual({
+        successCount: 1, failedCount: 0, total: 1,
+      });
+    });
   });
 
   it("reports each completed mobile ticket while later tickets are still printing", async () => {

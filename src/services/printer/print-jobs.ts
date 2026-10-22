@@ -835,6 +835,8 @@ async function executePrintJobs(
   const batchPayloads = pendingResult.batchPayloads;
   const globalAckSuccess = pendingResult.ackSuccess;
   const globalAckFailed = pendingResult.ackFailed;
+  const hasDeferredRemoteDelivery = options.kitchenSemantics === true &&
+    pendingResult.printSummary.has_deferred_remote_delivery === true;
 
   if (pendingResult.hasBatchPayloads && batchPayloads.length === 0) {
     const uncertainTotal = pendingUncertainItemTotal(pendingResult);
@@ -854,6 +856,19 @@ async function executePrintJobs(
         errorMessage:
           "Printer delivery is uncertain; automatic retry was stopped to prevent a duplicate.",
       };
+    }
+
+    if (hasDeferredRemoteDelivery) {
+      // This executor has no physical payload left. Other assigned printers
+      // keep their durable work; their unobserved counts are not local success.
+      input.onProgress?.({
+        total: 0,
+        completed: 0,
+        successCount: 0,
+        failedCount: 0,
+        phase: "done",
+      });
+      return { successCount: 0, failedCount: 0, total: 0, pending: true };
     }
 
     // งานครัว: backend/agent จัดการคิวพิมพ์และยืนยันสถานะออเดอร์เองทั้งหมด
@@ -968,7 +983,9 @@ async function executePrintJobs(
     const deliveredByBatch = batchPayloads.map(() => 0);
     let reportedDeliveredTotal = 0;
     let reportedFailedCount = 0;
-    let hasPendingDelivery = false;
+    // Mixed kitchen jobs can assign LAN and Internet printers to different
+    // executors. Finishing this device's batches cannot complete the whole job.
+    let hasPendingDelivery = hasDeferredRemoteDelivery;
     let lastErrorMessage: string | undefined;
     let localAgentPromise: Promise<AgentInfo> | null = null;
     const sharedLocalAgent = () => {
@@ -1235,7 +1252,7 @@ async function executePrintJobs(
   let successCount = 0;
   let failedCount = 0;
   let skippedCount = 0;
-  let hasPendingDelivery = false;
+  let hasPendingDelivery = hasDeferredRemoteDelivery;
   let lastErrorMessage: string | undefined;
   const batchItems: PendingPrintItem[] = [];
 
