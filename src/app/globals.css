@@ -78,6 +78,16 @@
   --chart-cat-3: #1baf7a;
   --chart-cat-4: #eda100;
   --chart-cat-5: #e87ba4;
+  /* Dashboard "banknote plate" (revenue hero). Neutral white/black overlays with their own
+     alpha, so they tint whatever --primary resolves to (every data-theme-color preset, light
+     and dark, and the sRGB Capacitor blocks) and parse on Android WebView 101 (hex8, no
+     color-mix). The shade sits under the plate's small text and only ever raises contrast
+     against --primary-foreground; the sheen and engraving stay in the text-free corner. */
+  --dash-sheen: #ffffff1a;
+  --dash-shade: #0000003d;
+  --dash-engrave: #ffffff1f;
+  --dash-card-shadow: 0 1px 2px #0f172a0f, 0 12px 32px -20px #0f172a47;
+  --dash-plate-shadow: 0 24px 48px -28px #0f172a8c;
   --radius: 0.625rem;
 }
 
@@ -133,6 +143,11 @@
   --chart-cat-3: #199e70;
   --chart-cat-4: #c98500;
   --chart-cat-5: #d55181;
+  --dash-sheen: #ffffff14;
+  --dash-shade: #00000059;
+  --dash-engrave: #ffffff17;
+  --dash-card-shadow: inset 0 1px 0 #ffffff0d, 0 1px 2px #00000080, 0 16px 32px -24px #000000cc;
+  --dash-plate-shadow: 0 24px 48px -28px #000000b3;
 }
 
 /* ธีมสี accent เลือกได้จากเมนูตั้งค่าการแสดงผลใน header (display-settings-menu) — ค่าเริ่มต้น
@@ -514,6 +529,8 @@ html[data-font-scale="xl"] {
   --radius-2xl: calc(var(--radius) * 1.8);
   --radius-3xl: calc(var(--radius) * 2.2);
   --radius-4xl: calc(var(--radius) * 2.6);
+  --shadow-dash-card: var(--dash-card-shadow);
+  --shadow-dash-plate: var(--dash-plate-shadow);
 
   /* สเกลตัวอักษรของระบบ — ขั้นบันไดเดียวใช้ทั้งแอป ห้ามใช้ text-[Npx] ที่ไหนอีก
      เพราะค่า px ไม่ขยาย/หดตาม html[data-font-scale] (ตัวเลือกขนาดตัวอักษรของผู้ใช้)
@@ -532,6 +549,42 @@ html[data-font-scale="xl"] {
      เครื่องหมายจะทับกันจนอ่านไม่ออก (ต่างจากอักษรละตินที่ 9-10px ยังพอไหว) */
   --text-2xs: 0.6875rem;
   --text-2xs--line-height: 1rem;
+}
+
+/* Dashboard surface patterns. Utilities rather than tokens so their var() references resolve on
+   the element that uses them (a per-element --primary or currentColor). Raw gradients with no
+   interpolation method paint on Android WebView 101, unlike Tailwind's bg-radial/bg-conic
+   which emit an unguarded `in oklab`. */
+@utility bg-dash-plate {
+  background-image:
+    radial-gradient(55% 80% at 100% 0%, var(--dash-sheen), transparent 70%),
+    linear-gradient(170deg, transparent 45%, var(--dash-shade));
+}
+
+/* Coin milling over a progress track: the 2px gaps take the plate colour. */
+@utility bg-dash-notches {
+  background-image: repeating-linear-gradient(
+    90deg,
+    transparent 0 calc(10% - 2px),
+    var(--primary) calc(10% - 2px) 10%
+  );
+}
+
+@utility bg-perforation {
+  background-image: radial-gradient(circle, var(--muted-foreground) 1px, transparent 1.5px);
+  background-size: 8px 6px;
+  background-repeat: repeat-x;
+  background-position: center;
+}
+
+/* "Owed / waiting" everywhere on the dashboard; the hue comes from text-* (currentColor), so
+   the meaning never rides on colour alone. */
+@utility bg-hatch {
+  background-image: repeating-linear-gradient(
+    135deg,
+    currentColor 0 2px,
+    transparent 2px 5px
+  );
 }
 
 * {
@@ -1733,22 +1786,48 @@ html.swan1-legacy-colors
   padding-top: 32px;
 }
 
+/* Tailwind's composed ring + shadow box-shadow does not paint on WebView 101, so the
+   dashboard cards get their outline and depth from plain declarations here. */
 html.swan1-legacy-colors
   .app-shell[data-desktop-home-layout="true"]
   [data-slot="card"] {
   border: 1px solid var(--border);
+  box-shadow: var(--dash-card-shadow);
 }
 
+/* The plate paints its own bg-primary + bg-dash-plate on Chromium 101; an extra white
+   wash here would sit under the footer text and drop it to ~3.4:1. */
 html.swan1-legacy-colors
   .app-shell[data-desktop-home-layout="true"]
   [data-dashboard-revenue-card] {
   border-color: transparent;
-  background-color: var(--primary);
-  background-image: linear-gradient(
-    135deg,
-    rgba(255, 255, 255, 0),
-    rgba(255, 255, 255, 0.22)
-  );
+  box-shadow: var(--dash-plate-shadow);
+}
+
+/* Same static-terminal policy as the POS layout above, for the dashboard home screen the
+   terminal sits on all day: entrances, odometer rolls and meter fills land immediately. */
+html.swan1-legacy-colors
+  .app-shell[data-desktop-home-layout="true"]
+  [data-fx]:not([data-slot="spinner"]),
+html.swan1-legacy-colors
+  .app-shell[data-desktop-home-layout="true"]
+  [data-fx]
+  *:not([data-slot="spinner"]),
+html.swan1-legacy-colors .app-shell[data-desktop-home-layout="true"] [data-fx] *::before,
+html.swan1-legacy-colors .app-shell[data-desktop-home-layout="true"] [data-fx] *::after {
+  animation: none !important;
+  transition-duration: 0.01ms !important;
+  transition-delay: 0ms !important;
+  scroll-behavior: auto !important;
+}
+
+/* Ring utilities do not paint on WebView 101; keep a visible keyboard focus. --foreground, not
+   --ring: the ring grey is ~2.4:1 on a white card, under the 3:1 a focus indicator needs. */
+html.swan1-legacy-colors
+  .app-shell[data-desktop-home-layout="true"]
+  :focus-visible {
+  outline: 2px solid var(--foreground);
+  outline-offset: 2px;
 }
 
 .app-shell-body {
@@ -2492,6 +2571,43 @@ html.swan1-legacy-colors
     color-mix(in oklch, var(--foreground) 10%, transparent) 42%,
     color-mix(in oklch, var(--foreground) 18%, transparent) 50%,
     color-mix(in oklch, var(--foreground) 10%, transparent) 58%,
+    transparent 80%
+  );
+}
+
+/* Placeholder bars that sit on a filled --primary surface (the dashboard plate skeleton). */
+.skeleton-shimmer[data-skeleton-tone="inverse"] {
+  background-color: color-mix(in oklch, var(--primary-foreground) 22%, transparent);
+}
+
+/* color-mix() above is dropped by Android WebView 101, which left skeletons invisible on
+   Capacitor Android; the rgba() channels come from the legacy opacity postcss plugin. */
+html.capacitor-android .skeleton-shimmer {
+  background-color: rgba(var(--legacy-foreground-rgb), 0.09);
+}
+
+html.capacitor-android .skeleton-shimmer[data-skeleton-tone="inverse"] {
+  background-color: rgba(var(--legacy-primary-foreground-rgb), 0.22);
+}
+
+html.capacitor-android .skeleton-shimmer::after {
+  background: linear-gradient(
+    100deg,
+    transparent 20%,
+    rgba(var(--legacy-background-rgb), 0.7) 42%,
+    rgba(var(--legacy-background-rgb), 0.95) 50%,
+    rgba(var(--legacy-background-rgb), 0.7) 58%,
+    transparent 80%
+  );
+}
+
+html.capacitor-android.dark .skeleton-shimmer::after {
+  background: linear-gradient(
+    100deg,
+    transparent 20%,
+    rgba(var(--legacy-foreground-rgb), 0.1) 42%,
+    rgba(var(--legacy-foreground-rgb), 0.18) 50%,
+    rgba(var(--legacy-foreground-rgb), 0.1) 58%,
     transparent 80%
   );
 }
