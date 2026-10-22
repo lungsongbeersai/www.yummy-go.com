@@ -818,6 +818,7 @@ export const usePosStore = create<PosState>((set, get) => ({
     const response = await posService.reprintReceipt({
       ...(typeof params.show_logo === "boolean" ? { show_logo: params.show_logo } : {}),
       order_uuid: params.order_uuid,
+      ...(params.payment_uuid ? { payment_uuid: params.payment_uuid } : {}),
       operation_uuid: params.operation_uuid,
       login_uuid_fk: params.login_uuid_fk,
       lang: params.lang,
@@ -826,16 +827,29 @@ export const usePosStore = create<PosState>((set, get) => ({
       print_mode: printer.print_mode
     });
     assertCurrentSession(isCurrentSession);
-    const printJobUuid = textValue(response.print_job?.print_job_uuid);
+    const pendingQuery = response.pending_query;
+    const printJobUuid = textValue(response.print_job?.print_job_uuid) ||
+      textValue(pendingQuery?.print_job_uuid);
 
-    if (!printJobUuid) return null;
+    if (!printJobUuid) {
+      const reason = textValue(response.print_queue_error?.message) ||
+        textValue(response.fallback_print?.reason);
+      if (reason) throw new Error(reason);
+      return null;
+    }
+    if (pendingQuery?.print_job_uuid && textValue(pendingQuery.print_job_uuid) !== printJobUuid) {
+      throw new Error("Receipt print job identity mismatch");
+    }
+    const remoteShared = pendingQuery?.remote_shared_print ?? response.print_job?.remote_shared_print;
 
     return {
+      ...pendingQuery,
       print_job_uuid: printJobUuid,
       login_uuid_fk: params.login_uuid_fk,
-      device_code: printer.device_code,
-      agent_id: printer.agent_id,
-      print_mode: printer.print_mode
+      device_code: textValue(pendingQuery?.device_code) || printer.device_code,
+      agent_id: textValue(pendingQuery?.agent_id) || printer.agent_id,
+      print_mode: textValue(pendingQuery?.print_mode) || printer.print_mode,
+      ...(typeof remoteShared === "boolean" ? { remote_shared_print: remoteShared } : {}),
     };
   },
   setOrderHistory: (orders) => set({ orderHistory: posService.cartOrdersToHistory(orders) }),

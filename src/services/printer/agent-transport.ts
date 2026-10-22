@@ -289,7 +289,11 @@ export function assertPrintJobForAgent(job: PrintJob, agent: AgentInfo) {
 }
 
 export function isBrowserDevicePrintJob(job: PrintJob | null | undefined) {
-  return isBrowserPrinterAgentId(job?.agent_id) && textValue(job?.device_code).includes("-web-");
+  if (!isBrowserPrinterAgentId(job?.agent_id)) return false;
+  const deviceCode = textValue(job?.device_code);
+  // Native shells now use a stable Device plugin ID. Legacy pending jobs must
+  // use the same direct TCP transport as batches after that identity migration.
+  return deviceCode.includes("-web-") || deviceCode.includes("-native-");
 }
 
 export async function checkPrinterAgentConnection(agentUrl = AGENT_URL): Promise<CheckPrinterAgentConnectionResult> {

@@ -184,7 +184,7 @@ describe("POS store session follow-up requests", () => {
     expect(executeKitchenMock).not.toHaveBeenCalled();
   });
 
-  it("builds a reprint pending query from the local printer context", async () => {
+  it("preserves the shared receipt owner query while requesting as the current device", async () => {
     resolvePrinterDeviceIdentityMock.mockResolvedValueOnce({
       ok: true,
       agent: {
@@ -197,25 +197,19 @@ describe("POS store session follow-up requests", () => {
     reprintReceiptMock.mockResolvedValueOnce({
       print_job: { print_job_uuid: " job-1 " },
       pending_query: {
-        print_job_uuid: "ignored-job",
-        login_uuid_fk: "ignored-login",
-        device_code: "ignored-device",
-        agent_id: "ignored-agent",
-        print_mode: "ignored-mode"
+        print_job_uuid: "job-1",
+        login_uuid_fk: "login-1",
+        device_code: "owner-device",
+        agent_id: "owner-agent",
+        print_mode: "windows_agent",
+        remote_shared_print: true,
       }
-    } as ReprintReceiptResponse & {
-      pending_query: {
-        print_job_uuid: string;
-        login_uuid_fk: string;
-        device_code: string;
-        agent_id: string;
-        print_mode: string;
-      };
     });
 
     const result = await usePosStore.getState().reprintReceipt({
       show_logo: false,
       order_uuid: "order-1",
+      payment_uuid: "original-payment",
       operation_uuid: "88888888-8888-4888-8888-888888888888",
       login_uuid_fk: "login-1",
       lang: "la"
@@ -224,6 +218,7 @@ describe("POS store session follow-up requests", () => {
     expect(reprintReceiptMock).toHaveBeenCalledWith({
       show_logo: false,
       order_uuid: "order-1",
+      payment_uuid: "original-payment",
       operation_uuid: "88888888-8888-4888-8888-888888888888",
       login_uuid_fk: "login-1",
       lang: "la",
@@ -234,10 +229,39 @@ describe("POS store session follow-up requests", () => {
     expect(result).toEqual({
       print_job_uuid: "job-1",
       login_uuid_fk: "login-1",
-      device_code: "local-device",
-      agent_id: "local-agent",
-      print_mode: "windows_agent"
+      device_code: "owner-device",
+      agent_id: "owner-agent",
+      print_mode: "windows_agent",
+      remote_shared_print: true,
     });
+  });
+
+  it("surfaces a receipt queue failure instead of dropping its printer configuration reason", async () => {
+    resolvePrinterDeviceIdentityMock.mockResolvedValueOnce({
+      ok: true,
+      agent: { agent_id: "agent-1", agent_name: "Agent", device_code: "device-1", platform: "win32" },
+    });
+    reprintReceiptMock.mockResolvedValueOnce({
+      print_job: null,
+      fallback_print: { reason: "no active printer config for role_code receipt" },
+    });
+    await expect(usePosStore.getState().reprintReceipt({
+      order_uuid: "paid-order", operation_uuid: "receipt-retry", login_uuid_fk: "login-1",
+    })).rejects.toThrow("no active printer config for role_code receipt");
+  });
+
+  it("rejects mismatched receipt queue identities rather than printing another job", async () => {
+    resolvePrinterDeviceIdentityMock.mockResolvedValueOnce({
+      ok: true,
+      agent: { agent_id: "agent-1", agent_name: "Agent", device_code: "device-1", platform: "win32" },
+    });
+    reprintReceiptMock.mockResolvedValueOnce({
+      print_job: { print_job_uuid: "original-job" },
+      pending_query: { print_job_uuid: "another-job", login_uuid_fk: "login-1" },
+    });
+    await expect(usePosStore.getState().reprintReceipt({
+      order_uuid: "paid-order", operation_uuid: "receipt-retry", login_uuid_fk: "login-1",
+    })).rejects.toThrow("Receipt print job identity mismatch");
   });
 
   it("returns null when the reprint response has no usable job UUID", async () => {

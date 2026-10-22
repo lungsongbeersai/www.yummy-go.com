@@ -8,9 +8,10 @@ export type ToastTone = "success" | "error" | "warning" | "info";
 export interface ToastInput {
   action?: {
     label: string;
-    onClick: () => void;
+    onClick: (event: { preventDefault: () => void }) => void;
   };
   id?: string | number;
+  duration?: number;
   title: string;
   description?: string;
   tone: ToastTone;
@@ -28,12 +29,14 @@ const toneToToast = {
 } as const;
 
 export const useToastStore = create<ToastState>(() => ({
-  show: ({ action, id, title, description, tone }) => {
+  show: ({ action, id, duration, title, description, tone }) => {
     const fn = toneToToast[tone] ?? sonnerToast;
     fn(title, {
-      ...(action ? { action } : {}),
+      // Sonner merges updates by ID; clear an old retry after printing succeeds.
+      action: action ?? null,
       ...(description ? { description } : {}),
       ...(id !== undefined ? { id } : {}),
+      ...(duration !== undefined ? { duration } : {}),
     });
   }
 }));

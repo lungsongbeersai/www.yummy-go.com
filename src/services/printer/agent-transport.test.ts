@@ -3,13 +3,18 @@ import { AxiosError } from "axios";
 import { resolvePosPrinterContext } from "@/stores/pos-store/printer-context";
 import {
   checkPrinterAgentConnection,
+  dispatchPrintJob,
   getLocalAgentInfo,
   printWithLocalAgent,
   resolvePrinterDeviceIdentity,
 } from "./agent-transport";
 import { getPrinterDeliveryState } from "./helpers";
 
-const mocks = vi.hoisted(() => ({ get: vi.fn(), post: vi.fn(), apiRequest: vi.fn() }));
+const mocks = vi.hoisted(() => ({
+  get: vi.fn(), post: vi.fn(), apiRequest: vi.fn(),
+  native: false,
+  printMobileEscposOverTcp: vi.fn(),
+}));
 
 const agent = {
   agent_id: "front-agent",
@@ -128,7 +133,14 @@ vi.mock("@/config/printer-agent", async (importOriginal) => ({
 }));
 
 vi.mock("@capacitor/core", () => ({
-  Capacitor: { isNativePlatform: () => false, getPlatform: () => "web" },
+  Capacitor: {
+    isNativePlatform: () => mocks.native,
+    getPlatform: () => mocks.native ? "android" : "web",
+  },
+}));
+
+vi.mock("@/services/printer/mobile-tcp", () => ({
+  printMobileEscposOverTcp: mocks.printMobileEscposOverTcp,
 }));
 
 vi.mock("@capacitor/device", () => ({
@@ -227,5 +239,84 @@ describe("mobile browser printer Agent probing", () => {
     mocks.get.mockResolvedValue({ data: agent });
     await expect(checkPrinterAgentConnection()).resolves.toMatchObject({ ok: true, agent });
     expect(mocks.get).toHaveBeenCalledOnce();
+  });
+});
+
+describe("legacy mobile print dispatch", () => {
+  const job = {
+    agent_id: "mobile",
+    device_code: "android-native-receipt-terminal",
+    lang: "la",
+    paper_width_mm: 80,
+    interface_value: "tcp://192.168.1.10:9100",
+    printer_type: "thermal",
+    ops: [],
+  };
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mocks.native = false;
+    mocks.apiRequest.mockReset();
+    mocks.post.mockReset();
+    mocks.printMobileEscposOverTcp.mockResolvedValue(undefined);
+  });
+
+  afterEach(() => { mocks.native = false; });
+
+  it.each(["android-native-terminal", "ios-native-terminal", "android-web-previous"])(
+    "renders and sends the native job directly over TCP for %s",
+    async (deviceCode) => {
+      mocks.native = true;
+      mocks.apiRequest.mockResolvedValueOnce({ data: { escpos_base64: "G0AdVgE=" } });
+      const nativeJob = { ...job, device_code: deviceCode };
+
+      await dispatchPrintJob(nativeJob);
+
+      expect(mocks.apiRequest).toHaveBeenCalledExactlyOnceWith(
+        "post", "/api/v1/printer/mobile/render-escpos", { data: nativeJob },
+      );
+      expect(mocks.printMobileEscposOverTcp).toHaveBeenCalledExactlyOnceWith({
+        interface_value: job.interface_value,
+        escpos_base64: "G0AdVgE=",
+        require_completion_confirmation: true,
+      });
+      expect(mocks.get).not.toHaveBeenCalled();
+      expect(mocks.post).not.toHaveBeenCalled();
+    },
+  );
+
+  it.each(["android-native-terminal", "iphone-web-terminal"])(
+    "requires the native app before rendering or sending %s",
+    async (deviceCode) => {
+      await expect(dispatchPrintJob({ ...job, device_code: deviceCode })).rejects.toMatchObject({
+        statusCode: 501,
+        message: "Physical printing requires the mobile app or a running Printer Agent",
+      });
+
+      expect(mocks.apiRequest).not.toHaveBeenCalled();
+      expect(mocks.printMobileEscposOverTcp).not.toHaveBeenCalled();
+      expect(mocks.get).not.toHaveBeenCalled();
+      expect(mocks.post).not.toHaveBeenCalled();
+    },
+  );
+
+  it("keeps desktop Agent ownership even when its device name contains a native marker", async () => {
+    const desktopAgent = { ...agent, device_code: "front-native-terminal" };
+    const desktopJob = {
+      ...job,
+      agent_id: desktopAgent.agent_id,
+      device_code: desktopAgent.device_code,
+      print_mode: "windows_agent",
+    };
+    mocks.post.mockResolvedValueOnce({ data: { ok: true } });
+
+    await dispatchPrintJob(desktopJob, desktopAgent);
+
+    expect(mocks.post).toHaveBeenCalledExactlyOnceWith(
+      "http://127.0.0.1:7777/print-ops", desktopJob,
+      expect.objectContaining({ headers: { "x-agent-secret": expect.any(String) } }),
+    );
+    expect(mocks.apiRequest).not.toHaveBeenCalled();
+    expect(mocks.printMobileEscposOverTcp).not.toHaveBeenCalled();
   });
 });

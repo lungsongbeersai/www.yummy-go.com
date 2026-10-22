@@ -1,6 +1,88 @@
 import type { KitchenPrintResult } from "@/services/printer";
+import type { ConfirmToKitchenPendingQuery, ReprintReceiptRequest } from "@/services/pos";
 
 export type QueuedDocumentPrintOutcome = "success" | "pending" | "error";
+
+export function queuedDocumentPrintFailureMessage(
+  response: {
+    print_queue_error?: { message?: unknown } | null;
+    fallback_print?: { reason?: unknown } | null;
+  },
+  fallbackMessage: string,
+): string {
+  for (const reason of [response.print_queue_error?.message, response.fallback_print?.reason]) {
+    if (typeof reason === "string" && reason.trim()) return reason.trim();
+  }
+  return fallbackMessage;
+}
+
+interface CommittedReceiptOrder {
+  order_uuid?: string;
+  print_order_uuid?: string;
+  new_order_uuid?: string;
+  payment?: { order_uuid_fk?: string };
+  new_order?: { order_uuid?: string };
+  data?: { new_order?: { order_uuid?: string } };
+}
+
+export function committedReceiptOrderUuid(
+  response: CommittedReceiptOrder,
+  committedOrderUuid: string,
+  isSplitPayment = false,
+): string {
+  return response.print_order_uuid ||
+    response.payment?.order_uuid_fk ||
+    response.new_order?.order_uuid ||
+    response.data?.new_order?.order_uuid ||
+    response.new_order_uuid ||
+    (!isSplitPayment ? response.order_uuid : "") ||
+    committedOrderUuid;
+}
+
+export function canRestartReceiptPrint(
+  result: Pick<KitchenPrintResult, "failedCount" | "successCount" | "pending">,
+): boolean {
+  return result.failedCount > 0 &&
+    result.successCount === 0 &&
+    result.pending !== true;
+}
+
+export function createCommittedReceiptRetry({
+  receipt,
+  requestReceipt,
+  execute,
+  createOperationUuid,
+  missingJobMessage,
+}: {
+  receipt: Omit<ReprintReceiptRequest, "operation_uuid">;
+  requestReceipt: (request: ReprintReceiptRequest) => Promise<ConfirmToKitchenPendingQuery | null>;
+  execute: (query: ConfirmToKitchenPendingQuery) => Promise<QueuedDocumentPrintOutcome>;
+  createOperationUuid: () => string;
+  missingJobMessage: string;
+}) {
+  const committedReceipt = { ...receipt };
+  let operationUuid = createOperationUuid();
+  let pendingQuery: ConfirmToKitchenPendingQuery | undefined;
+
+  return {
+    orderUuid: committedReceipt.order_uuid,
+    async retry(newPrintRound = false): Promise<QueuedDocumentPrintOutcome> {
+      if (newPrintRound) {
+        operationUuid = createOperationUuid();
+        pendingQuery = undefined;
+      }
+      if (!pendingQuery) {
+        const query = await requestReceipt({
+          ...committedReceipt,
+          operation_uuid: operationUuid,
+        });
+        if (!query) throw new Error(missingJobMessage);
+        pendingQuery = query;
+      }
+      return execute(pendingQuery);
+    },
+  };
+}
 
 export function createCheckoutDocumentActionGuard() {
   const active = new Set<string>();
@@ -32,15 +114,26 @@ export async function finishCommittedPayment({
   refresh,
   onPrintError,
 }: {
-  print: () => Promise<void>;
-  onCommitted: () => void;
+  print: () => Promise<QueuedDocumentPrintOutcome>;
+  onCommitted: (printOutcome: QueuedDocumentPrintOutcome) => void;
   refresh: () => Promise<void>;
   onPrintError: (error: unknown) => void;
-}): Promise<{ completionError?: unknown; refreshError?: unknown }> {
-  const result: { completionError?: unknown; refreshError?: unknown } = {};
+}): Promise<{
+  printOutcome: QueuedDocumentPrintOutcome;
+  printError?: unknown;
+  completionError?: unknown;
+  refreshError?: unknown;
+}> {
+  const result: {
+    printOutcome: QueuedDocumentPrintOutcome;
+    printError?: unknown;
+    completionError?: unknown;
+    refreshError?: unknown;
+  } = { printOutcome: "error" };
   try {
-    await print();
+    result.printOutcome = await print();
   } catch (printError) {
+    result.printError = printError;
     try {
       onPrintError(printError);
     } catch (completionError) {
@@ -48,7 +141,7 @@ export async function finishCommittedPayment({
     }
   }
   try {
-    onCommitted();
+    onCommitted(result.printOutcome);
   } catch (completionError) {
     result.completionError = completionError;
   }
@@ -75,10 +168,11 @@ export function queuedDocumentPrintOutcome(
   result: Pick<
     KitchenPrintResult,
     "successCount" | "failedCount" | "pending"
-  >,
+  > & Partial<Pick<KitchenPrintResult, "total" | "errorMessage">>,
 ): QueuedDocumentPrintOutcome {
   if (result.failedCount > 0) return "error";
   if (result.pending) return "pending";
-  if (result.successCount > 0) return "success";
+  if (result.errorMessage) return "error";
+  if (result.successCount > 0 && result.successCount >= (result.total ?? 0)) return "success";
   return "error";
 }

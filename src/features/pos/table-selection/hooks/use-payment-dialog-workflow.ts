@@ -43,9 +43,14 @@ import { usePaymentCustomers } from "./use-payment-customers";
 import type { PaymentDialogProps } from "../payment-dialog-types";
 import {
   checkoutDocumentActionGuard,
+  canRestartReceiptPrint,
+  committedReceiptOrderUuid,
+  createCommittedReceiptRetry,
   finishCommittedPayment,
   isInvoicePrintPreparationError,
+  queuedDocumentPrintFailureMessage,
   queuedDocumentPrintOutcome,
+  type QueuedDocumentPrintOutcome,
 } from "../queued-document-print";
 import {
   cartOrdersBelongToTable,
@@ -100,6 +105,8 @@ interface QueuedDocumentContext {
   loginUuid: string;
   label: string;
   toastId: string;
+  receipt?: ReturnType<typeof createCommittedReceiptRetry>;
+  retryDocument?: () => void;
 }
 
 export function usePaymentDialogWorkflow({
@@ -135,6 +142,7 @@ export function usePaymentDialogWorkflow({
   const createPayment = usePosStore((state) => state.createPayment);
   const splitBill = usePosStore((state) => state.splitBill);
   const printInvoice = usePosStore((state) => state.printInvoice);
+  const reprintReceipt = usePosStore((state) => state.reprintReceipt);
   const executeInvoice = usePrinterStore((state) => state.executeInvoice);
   const showToast = useToastStore((state) => state.show);
   const activeAmountInputRef = useRef<HTMLInputElement>(null);
@@ -685,6 +693,7 @@ export function usePaymentDialogWorkflow({
     const releaseAction = checkoutDocumentActionGuard.acquire(documentActionKey);
     if (!releaseAction) return;
 
+    let paymentCommitted = false;
     setProcessing(true);
     try {
       if (!paymentUuidRef.current) paymentUuidRef.current = createMutationUuid();
@@ -746,25 +755,49 @@ export function usePaymentDialogWorkflow({
             lang: toApiLanguage(language),
           });
 
+      paymentCommitted = true;
       const context = queuedPrintContext(response, user.uuid);
+      context.receipt = createCommittedReceiptRetry({
+        receipt: {
+          order_uuid: committedReceiptOrderUuid(
+            response,
+            isSplitPayment ? splitNewOrderUuidRef.current : orderUuid,
+            isSplitPayment,
+          ),
+          payment_uuid: response.payment?.payment_uuid,
+          login_uuid_fk: context.loginUuid,
+          lang: language,
+          ...(typeof documentLogo.showLogo === "boolean" ? { show_logo: documentLogo.showLogo } : {}),
+        },
+        requestReceipt: reprintReceipt,
+        execute: (pendingQuery) => executeQueuedInvoice(
+          { pending_query: pendingQuery },
+          context,
+          t("pos.paymentReceiptPrintFailed"),
+        ),
+        createOperationUuid: createMutationUuid,
+        missingJobMessage: t("pos.invoicePrintMissingJob"),
+      });
       const result = await finishCommittedPayment({
         print: () => printReceipt(response, context),
-        onCommitted: () => {
+        onCommitted: (printOutcome) => {
           const store = usePosStore.getState();
           if (firstOrderUuid(cartOrders(primaryCartOrder(store.cart))) === orderUuid) {
             store.invalidateCart();
           }
-          showToast({
-            title: t(isSplitPayment ? "pos.splitPaymentCreated" : "pos.paymentSuccess"),
-            tone: "success",
-          });
+          if (printOutcome === "success") {
+            showToast({
+              title: t(isSplitPayment ? "pos.splitPaymentCreated" : "pos.paymentSuccess"),
+              tone: "success",
+            });
+          }
           onOpenChange(false);
         },
         refresh: onCompleted,
         onPrintError: (error) => showQueuedPrintError(
-          t("pos.receiptPrintFailed"),
+          t("pos.paymentReceiptPrintFailed"),
           error instanceof Error ? error.message : "",
-          () => void printReceipt(response, context),
+          () => void retryCommittedReceipt(context),
           context,
         ),
       });
@@ -777,9 +810,9 @@ export function usePaymentDialogWorkflow({
       }
     } catch (error) {
       showToast({
-        title: t(
-          isSplitPayment ? "pos.splitPaymentFailed" : "pos.paymentFailed",
-        ),
+        title: t(paymentCommitted
+          ? "pos.paymentRefreshFailed"
+          : isSplitPayment ? "pos.splitPaymentFailed" : "pos.paymentFailed"),
         description: error instanceof Error ? error.message : "",
         tone: "error",
       });
@@ -810,27 +843,47 @@ export function usePaymentDialogWorkflow({
   async function printReceipt(
     response: PaymentResponse | SplitBillResponse,
     context: QueuedDocumentContext,
-  ) {
+  ): Promise<QueuedDocumentPrintOutcome> {
     const pendingJobUuid =
       response.pending_query?.print_job_uuid ??
       (typeof response.print_job?.print_job_uuid === "string"
         ? response.print_job.print_job_uuid
         : "");
     if (!pendingJobUuid) {
-      showQueuedPrintError(
-        t("pos.receiptPrintFailed"),
-        t("pos.invoicePrintMissingJob"),
-        () => void printReceipt(response, context),
-        context,
-      );
-      return;
+      throw new Error(queuedDocumentPrintFailureMessage(response, t("pos.invoicePrintMissingJob")));
     }
 
-    await executeQueuedInvoice(
+    return executeQueuedInvoice(
       response,
       context,
-      t("pos.receiptPrintFailed"),
+      t("pos.paymentReceiptPrintFailed"),
     );
+  }
+
+  async function retryCommittedReceipt(context: QueuedDocumentContext, newPrintRound = false) {
+    const receipt = context.receipt;
+    if (!receipt?.orderUuid) return;
+    const releaseAction = checkoutDocumentActionGuard.acquire(
+      JSON.stringify(["receipt-retry", context.loginUuid, receipt.orderUuid]),
+    );
+    if (!releaseAction) return;
+
+    setInvoicePrinting(true);
+    try {
+      // The financial mutation is committed. Rebuild only this paid order's
+      // missing receipt; reuse its operation/job identity after an uncertain read.
+      await receipt.retry(newPrintRound);
+    } catch (error) {
+      showQueuedPrintError(
+        t("pos.paymentReceiptPrintFailed"),
+        error instanceof Error ? error.message : "",
+        () => void retryCommittedReceipt(context),
+        context,
+      );
+    } finally {
+      releaseAction();
+      setInvoicePrinting(false);
+    }
   }
 
   async function handlePrintInvoice() {
@@ -919,14 +972,17 @@ export function usePaymentDialogWorkflow({
       if (!pendingJobUuid) {
         await showInvoicePrintFallback(
           invoicePrintData(),
-          t("pos.invoicePrintMissingJob"),
+          queuedDocumentPrintFailureMessage(response, t("pos.invoicePrintMissingJob")),
         );
         return;
       }
 
       await executeQueuedInvoice(
         response,
-        queuedPrintContext(response, user.uuid),
+        {
+          ...queuedPrintContext(response, user.uuid),
+          retryDocument: () => void handlePrintInvoice(),
+        },
         t("pos.invoicePrintFailed"),
       );
     } catch (error) {
@@ -958,7 +1014,7 @@ export function usePaymentDialogWorkflow({
     response: PaymentResponse | SplitBillResponse,
     context: QueuedDocumentContext,
     failureTitle: string,
-  ) {
+  ): Promise<QueuedDocumentPrintOutcome> {
     const retry = () =>
       void executeQueuedInvoice(
         response,
@@ -978,23 +1034,40 @@ export function usePaymentDialogWorkflow({
         showToast({
           id: context.toastId,
           title: t("pos.documentPrintQueued"),
+          ...(context.receipt ? {
+            title: t("pos.paymentReceiptPrintQueued"),
+            duration: Infinity,
+            action: {
+              label: t("actions.tryAgain"),
+              onClick: (event) => {
+                event.preventDefault();
+                retry();
+              },
+            },
+          } : {}),
           description: context.label,
           tone: "info",
         });
-        return;
+        return outcome;
       }
 
       if (outcome === "success") {
-        showToast({ id: context.toastId, title: t("common.printSuccess"), description: context.label, tone: "success" });
-        return;
+        showToast({ id: context.toastId, title: t("common.printSuccess"), description: context.label, tone: "success", duration: 4000 });
+        return outcome;
       }
 
+      const retryDefiniteFailure = context.receipt
+        ? () => void retryCommittedReceipt(context, true)
+        : context.retryDocument;
       showQueuedPrintError(
         failureTitle,
         printResult.errorMessage,
-        retry,
+        canRestartReceiptPrint(printResult)
+          ? retryDefiniteFailure ?? retry
+          : retry,
         context,
       );
+      return outcome;
     } catch (error) {
       showQueuedPrintError(
         failureTitle,
@@ -1002,6 +1075,7 @@ export function usePaymentDialogWorkflow({
         retry,
         context,
       );
+      return "error";
     } finally {
       setInvoicePrinting(false);
     }
@@ -1013,16 +1087,23 @@ export function usePaymentDialogWorkflow({
     retry: () => void,
     context?: QueuedDocumentContext,
   ) {
+    const retryDescription = context?.receipt
+      ? t("pos.paidReceiptRetryDescription")
+      : context?.retryDocument ? "" : t("pos.autoPrintRetryDescription");
     showToast({
       ...(context ? { id: context.toastId } : {}),
+      ...(context?.receipt ? { duration: Infinity } : {}),
       title,
-      description: [context?.label, description, t("pos.autoPrintRetryDescription")]
+      description: [context?.label, description, retryDescription]
         .filter(Boolean)
         .join(" "),
       tone: "error",
       action: {
         label: t("actions.tryAgain"),
-        onClick: retry,
+        onClick: (event) => {
+          if (context?.receipt) event.preventDefault();
+          retry();
+        },
       },
     });
   }

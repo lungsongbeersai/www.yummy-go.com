@@ -1,16 +1,21 @@
 import { describe, expect, it, vi } from "vitest";
 import {
   createCheckoutDocumentActionGuard,
+  canRestartReceiptPrint,
+  committedReceiptOrderUuid,
+  createCommittedReceiptRetry,
+  type QueuedDocumentPrintOutcome,
   finishCommittedPayment,
   isInvoicePrintPreparationError,
   queuedDocumentPrintOutcome,
+  queuedDocumentPrintFailureMessage,
 } from "./queued-document-print";
 
 function deferred() {
-  let resolve = () => {};
+  let resolve: (outcome?: QueuedDocumentPrintOutcome) => void = () => {};
   let reject: (error: Error) => void = () => {};
-  const promise = new Promise<void>((resolvePromise, rejectPromise) => {
-    resolve = resolvePromise;
+  const promise = new Promise<QueuedDocumentPrintOutcome>((resolvePromise, rejectPromise) => {
+    resolve = (outcome = "success") => resolvePromise(outcome);
     reject = rejectPromise;
   });
   return { promise, resolve, reject };
@@ -41,6 +46,26 @@ describe("checkout document action guard", () => {
 });
 
 describe("finishCommittedPayment", () => {
+  it.each(["pending", "error"] as const)(
+    "preserves a %s receipt result when completing an already committed payment",
+    async (printOutcome) => {
+      const onCommitted = vi.fn();
+      const refresh = vi.fn(async () => {});
+      const onPrintError = vi.fn();
+      const result = await finishCommittedPayment({
+        print: async () => printOutcome,
+        onCommitted,
+        refresh,
+        onPrintError,
+      });
+
+      expect(result.printOutcome).toBe(printOutcome);
+      expect(onCommitted).toHaveBeenCalledExactlyOnceWith(printOutcome);
+      expect(refresh).toHaveBeenCalledOnce();
+      expect(onPrintError).not.toHaveBeenCalled();
+    },
+  );
+
   it("keeps the payment dialog available for print loading until receipt delivery settles", async () => {
     const printer = deferred();
     const events: string[] = [];
@@ -56,7 +81,7 @@ describe("finishCommittedPayment", () => {
     printer.resolve();
     const result = await completion;
     expect(events).toEqual(["print original job", "close paid dialog", "refresh orders"]);
-    expect(result).toEqual({});
+    expect(result).toEqual({ printOutcome: "success" });
     expect(onPrintError).not.toHaveBeenCalled();
   });
 
@@ -103,13 +128,15 @@ describe("finishCommittedPayment", () => {
     const onPrintError = vi.fn();
     const close = vi.fn();
     const refresh = vi.fn(async () => {});
-    await finishCommittedPayment({
+    const result = await finishCommittedPayment({
       print: () => { throw failure; },
       onCommitted: close,
       refresh,
       onPrintError,
     });
     expect(onPrintError).toHaveBeenCalledExactlyOnceWith(failure);
+    expect(result.printOutcome).toBe("error");
+    expect(result.printError).toBe(failure);
     expect(close).toHaveBeenCalledOnce();
     expect(refresh).toHaveBeenCalledOnce();
   });
@@ -117,7 +144,7 @@ describe("finishCommittedPayment", () => {
   it("keeps a close-dialog error separate from payment failure and still refreshes orders", async () => {
     const failure = new Error("Dialog completion failed");
     const refresh = vi.fn(async () => {});
-    const print = vi.fn(async () => {});
+    const print = vi.fn(async () => "success" as const);
     const result = await finishCommittedPayment({
       print,
       onCommitted: () => { throw failure; },
@@ -142,6 +169,179 @@ describe("finishCommittedPayment", () => {
     expect(result.completionError).toBe(failure);
     expect(close).toHaveBeenCalledOnce();
     expect(refresh).toHaveBeenCalledOnce();
+  });
+});
+
+describe("committedReceiptOrderUuid", () => {
+  it("uses the order attached to the committed payment instead of the displayed table order", () => {
+    expect(committedReceiptOrderUuid({
+      order_uuid: "table-order",
+      new_order: { order_uuid: "split-order" },
+      payment: { order_uuid_fk: "paid-order" },
+    }, "current-table-order")).toBe("paid-order");
+  });
+
+  it("reprints a paid split bill using its child order rather than the remaining source bill", () => {
+    expect(committedReceiptOrderUuid({
+      order_uuid: "source-order",
+      new_order: { order_uuid: "paid-split-order" },
+    }, "generated-paid-split-order", true)).toBe("paid-split-order");
+    expect(committedReceiptOrderUuid({
+      data: { new_order: { order_uuid: "paid-split-order" } },
+    }, "generated-paid-split-order")).toBe("paid-split-order");
+    expect(committedReceiptOrderUuid({
+      order_uuid: "source-order",
+    }, "generated-paid-split-order", true)).toBe("generated-paid-split-order");
+  });
+
+  it("retains the captured committed identity when the response contains no order details", () => {
+    expect(committedReceiptOrderUuid({}, "original-paid-order")).toBe("original-paid-order");
+  });
+});
+
+describe("canRestartReceiptPrint", () => {
+  it("allows an explicit new receipt-only print after definitive failure of every item", () => {
+    expect(canRestartReceiptPrint({ failedCount: 1, successCount: 0 })).toBe(true);
+  });
+
+  it.each([
+    { failedCount: 1, successCount: 1 },
+    { failedCount: 1, successCount: 0, pending: true },
+    { failedCount: 0, successCount: 0, pending: true },
+    { failedCount: 0, successCount: 0 },
+    { failedCount: 0, successCount: 1 },
+  ])("does not duplicate successful, partial, or uncertain delivery: %j", (result) => {
+    expect(canRestartReceiptPrint(result)).toBe(false);
+  });
+});
+
+describe("queued document preparation errors", () => {
+  it("surfaces the authoritative printer routing error instead of a generic missing-job message", () => {
+    expect(queuedDocumentPrintFailureMessage({
+      print_queue_error: { message: "No active printer config for role invoice" },
+      fallback_print: { reason: "Fallback printer unavailable" },
+    }, "No print job")).toBe("No active printer config for role invoice");
+  });
+
+  it("preserves the backend fallback reason for invoice and split preview requests", () => {
+    expect(queuedDocumentPrintFailureMessage({
+      fallback_print: { reason: "Shared invoice printer is not ready" },
+    }, "No print job")).toBe("Shared invoice printer is not ready");
+  });
+
+  it("uses the missing-job message only when backend supplied no usable reason", () => {
+    expect(queuedDocumentPrintFailureMessage({
+      print_queue_error: { message: "  " },
+      fallback_print: { reason: false },
+    }, "No print job")).toBe("No print job");
+  });
+});
+
+describe("committed receipt recovery", () => {
+  it("prints only the captured paid order/payment and retains the Shared owner query across retries", async () => {
+    const receipt = {
+      order_uuid: "paid-split-order",
+      payment_uuid: "committed-payment",
+      login_uuid_fk: "original-cashier",
+      lang: "la",
+      show_logo: false,
+    };
+    const sharedQuery = {
+      print_job_uuid: "recovered-receipt-job",
+      device_code: "shared-owner",
+      login_uuid_fk: "original-cashier",
+      remote_shared_print: true,
+    };
+    const requestReceipt = vi.fn(async () => sharedQuery);
+    const execute = vi.fn(async () => "pending" as const);
+    const recovery = createCommittedReceiptRetry({
+      receipt,
+      requestReceipt,
+      execute,
+      createOperationUuid: () => "receipt-operation",
+      missingJobMessage: "No receipt job",
+    });
+
+    // A different bill can become visible before the cashier retries printing.
+    receipt.order_uuid = "next-unpaid-order";
+    receipt.payment_uuid = "different-payment";
+    expect(await recovery.retry()).toBe("pending");
+    expect(await recovery.retry()).toBe("pending");
+    expect(requestReceipt).toHaveBeenCalledExactlyOnceWith({
+      order_uuid: "paid-split-order",
+      payment_uuid: "committed-payment",
+      login_uuid_fk: "original-cashier",
+      lang: "la",
+      show_logo: false,
+      operation_uuid: "receipt-operation",
+    });
+    expect(execute).toHaveBeenNthCalledWith(1, sharedQuery);
+    expect(execute).toHaveBeenNthCalledWith(2, sharedQuery);
+  });
+
+  it("reuses the operation UUID after an uncertain enqueue response instead of creating duplicate receipts", async () => {
+    const failure = new Error("Response interrupted");
+    const query = { print_job_uuid: "same-recovered-job", login_uuid_fk: "cashier" };
+    const requestReceipt = vi.fn()
+      .mockRejectedValueOnce(failure)
+      .mockResolvedValueOnce(query);
+    const operation = vi.fn(() => "stable-receipt-operation");
+    const execute = vi.fn(async () => "success" as const);
+    const recovery = createCommittedReceiptRetry({
+      receipt: { order_uuid: "paid-order", login_uuid_fk: "cashier" },
+      requestReceipt,
+      execute,
+      createOperationUuid: operation,
+      missingJobMessage: "No receipt job",
+    });
+
+    await expect(recovery.retry()).rejects.toBe(failure);
+    await expect(recovery.retry()).resolves.toBe("success");
+    expect(operation).toHaveBeenCalledOnce();
+    expect(requestReceipt.mock.calls[0]).toEqual(requestReceipt.mock.calls[1]);
+    expect(execute).toHaveBeenCalledExactlyOnceWith(query);
+  });
+
+  it("creates a fresh receipt-only job only after an explicit new print round", async () => {
+    const requestReceipt = vi.fn()
+      .mockResolvedValueOnce({ print_job_uuid: "failed-receipt-job" })
+      .mockResolvedValueOnce({ print_job_uuid: "retry-receipt-job" });
+    const execute = vi.fn()
+      .mockResolvedValueOnce("error")
+      .mockResolvedValueOnce("success");
+    const operation = vi.fn()
+      .mockReturnValueOnce("first-operation")
+      .mockReturnValueOnce("explicit-retry-operation");
+    const recovery = createCommittedReceiptRetry({
+      receipt: { order_uuid: "paid-order", payment_uuid: "paid-once", login_uuid_fk: "cashier" },
+      requestReceipt,
+      execute,
+      createOperationUuid: operation,
+      missingJobMessage: "No receipt job",
+    });
+
+    await expect(recovery.retry()).resolves.toBe("error");
+    await expect(recovery.retry(true)).resolves.toBe("success");
+    expect(requestReceipt).toHaveBeenNthCalledWith(2, {
+      order_uuid: "paid-order",
+      payment_uuid: "paid-once",
+      login_uuid_fk: "cashier",
+      operation_uuid: "explicit-retry-operation",
+    });
+    expect(execute).toHaveBeenNthCalledWith(2, { print_job_uuid: "retry-receipt-job" });
+  });
+
+  it("keeps missing receipt jobs as recoverable errors and never reports print success", async () => {
+    const execute = vi.fn(async () => "success" as const);
+    const recovery = createCommittedReceiptRetry({
+      receipt: { order_uuid: "paid-order", login_uuid_fk: "cashier" },
+      requestReceipt: async () => null,
+      execute,
+      createOperationUuid: () => "receipt-operation",
+      missingJobMessage: "No active receipt printer",
+    });
+    await expect(recovery.retry()).rejects.toThrow("No active receipt printer");
+    expect(execute).not.toHaveBeenCalled();
   });
 });
 
@@ -213,5 +413,19 @@ describe("queuedDocumentPrintOutcome", () => {
         pending: false,
       }),
     ).toBe("error");
+  });
+
+  it("does not claim receipt success when only some expected documents were printed", () => {
+    expect(queuedDocumentPrintOutcome({
+      successCount: 1,
+      failedCount: 0,
+      total: 2,
+    })).toBe("error");
+    expect(queuedDocumentPrintOutcome({
+      successCount: 1,
+      failedCount: 0,
+      total: 1,
+      errorMessage: "Receipt delivery was incomplete",
+    })).toBe("error");
   });
 });

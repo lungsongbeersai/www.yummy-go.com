@@ -784,6 +784,8 @@ export interface PaymentResponse extends ApiEntity {
   order_uuid?: string;
   order_invoice?: string;
   payment?: PaymentRecord;
+  payment_committed?: boolean;
+  print_queue_error?: PrintQueueError | null;
   totals?: PaymentTotals;
   is_fully_paid?: boolean;
   order_check_bill_after?: number;
@@ -845,10 +847,16 @@ export interface SplitBillResponseData extends ApiEntity {
 export interface SplitBillResponse extends ApiEntity {
   status?: string;
   message?: string;
+  order_uuid?: string;
+  new_order_uuid?: string;
+  print_order_uuid?: string;
   new_order?: CartOrder;
   new_order_invoice?: string;
   order_invoice?: string;
   payment?: PaymentRecord;
+  payment_committed?: boolean;
+  print_queue_error?: PrintQueueError | null;
+  fallback_print?: ApiEntity | null;
   print_job?: ConfirmToKitchenPrintJob;
   next_action?: ConfirmToKitchenNextAction;
   pending_query?: ConfirmToKitchenPendingQuery;
@@ -1274,6 +1282,7 @@ export interface PrintInvoiceResponse extends ApiEntity {
 export interface ReprintReceiptRequest {
   show_logo?: boolean;
   order_uuid: string;
+  payment_uuid?: string;
   operation_uuid: string;
   login_uuid_fk: string;
   lang?: string;
@@ -1282,10 +1291,11 @@ export interface ReprintReceiptRequest {
   print_mode?: string;
 }
 
-export interface ReprintReceiptPrintJob {
-  print_job_uuid?: string;
-}
+export type ReprintReceiptPrintJob = ConfirmToKitchenPrintJob;
 
 export interface ReprintReceiptResponse {
   print_job?: ReprintReceiptPrintJob | null;
+  pending_query?: ConfirmToKitchenPendingQuery | null;
+  fallback_print?: ApiEntity | null;
+  print_queue_error?: PrintQueueError | null;
 }

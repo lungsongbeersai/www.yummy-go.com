@@ -268,6 +268,7 @@ export const reprintReceipt = (params: ReprintReceiptRequest) =>
     data: {
       ...(typeof params.show_logo === "boolean" ? { show_logo: params.show_logo } : {}),
       order_uuid: params.order_uuid,
+      ...(params.payment_uuid ? { payment_uuid: params.payment_uuid } : {}),
       operation_uuid: params.operation_uuid,
       login_uuid_fk: params.login_uuid_fk,
       lang: toApiLanguage(params.lang),
