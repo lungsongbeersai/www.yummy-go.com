@@ -4,6 +4,7 @@ import { useTranslation } from "react-i18next";
 import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Separator } from "@/components/ui/separator";
+import { Switch } from "@/components/ui/switch";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { cn } from "@/lib/utils";
 import {
@@ -31,6 +32,8 @@ export function AppearanceControls({
   const setThemeColor = useAppStore((state) => state.setThemeColor);
   const fontScale = useAppStore((state) => state.fontScale);
   const setFontScale = useAppStore((state) => state.setFontScale);
+  const decorBackground = useAppStore((state) => state.decorBackground);
+  const setDecorBackground = useAppStore((state) => state.setDecorBackground);
   const touch = size === "touch";
 
   return (
@@ -106,6 +109,21 @@ export function AppearanceControls({
             </ToggleGroupItem>
           ))}
         </ToggleGroup>
+      </div>
+
+      <Separator />
+
+      {/* The floral artwork behind the top bar and the sidebar (globals.css, data-decor-background). */}
+      <div className="flex items-center justify-between gap-3">
+        <Label htmlFor={`${idPrefix}-decor-background`} className="flex flex-col items-start gap-0.5">
+          <span className="text-xs font-semibold text-muted-foreground">{t("app.appearance.backgroundLabel")}</span>
+          <span className="text-2xs font-normal text-muted-foreground">{t("app.appearance.backgroundDescription")}</span>
+        </Label>
+        <Switch
+          id={`${idPrefix}-decor-background`}
+          checked={decorBackground}
+          onCheckedChange={setDecorBackground}
+        />
       </div>
     </div>
   );

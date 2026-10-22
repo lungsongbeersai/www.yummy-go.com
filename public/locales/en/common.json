@@ -212,6 +212,8 @@
       "title": "Appearance",
       "colorLabel": "Accent color",
       "fontSizeLabel": "Text size",
+      "backgroundLabel": "Background image",
+      "backgroundDescription": "Floral artwork behind the top bar and the menu",
       "modeLabel": "Mode",
       "languageLabel": "Language",
       "modes": {

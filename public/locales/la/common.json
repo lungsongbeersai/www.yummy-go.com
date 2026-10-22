@@ -212,6 +212,8 @@
       "title": "ການສະແດງຜົນ",
       "colorLabel": "ສີຫຼັກ",
       "fontSizeLabel": "ຂະໜາດຕົວອັກສອນ",
+      "backgroundLabel": "ຮູບພື້ນຫຼັງ",
+      "backgroundDescription": "ລາຍໃບໄມ້ຢູ່ແຖບເທິງ ແລະ ເມນູດ້ານຂ້າງ",
       "modeLabel": "ໂໝດສີ",
       "languageLabel": "ພາສາ",
       "modes": {

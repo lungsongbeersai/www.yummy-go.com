@@ -54,6 +54,10 @@ function applyDocumentThemeColor(themeColor: ThemeColor) {
   document.documentElement.dataset.themeColor = themeColor;
 }
 
+function applyDocumentDecorBackground(decorBackground: boolean) {
+  document.documentElement.dataset.decorBackground = decorBackground ? "on" : "off";
+}
+
 function applyDocumentFontScale(fontScale: FontScale) {
   document.documentElement.dataset.fontScale = fontScale;
 }
@@ -129,6 +133,7 @@ export function Providers({ children, initialLanguage }: ProvidersProps) {
   const theme = useAppStore((state) => state.theme);
   const themeColor = useAppStore((state) => state.themeColor);
   const fontScale = useAppStore((state) => state.fontScale);
+  const decorBackground = useAppStore((state) => state.decorBackground);
   const language = useAppStore((state) => state.language);
   const hydrated = useAppStore((state) => state.hydrated);
 
@@ -222,6 +227,11 @@ export function Providers({ children, initialLanguage }: ProvidersProps) {
     if (!mounted || !hydrated) return;
     applyDocumentFontScale(fontScale);
   }, [fontScale, hydrated, mounted]);
+
+  useEffect(() => {
+    if (!mounted || !hydrated) return;
+    applyDocumentDecorBackground(decorBackground);
+  }, [decorBackground, hydrated, mounted]);
 
   useEffect(() => {
     if (!mounted || !hydrated) return;

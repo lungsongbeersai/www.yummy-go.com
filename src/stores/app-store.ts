@@ -35,6 +35,9 @@ interface AppState {
   theme: ThemeMode;
   themeColor: ThemeColor;
   fontScale: FontScale;
+  // ภาพพื้นหลังลายใบไม้ของแถบบนและเมนูข้าง (globals.css html[data-decor-background]) — ปิดได้สำหรับ
+  // คนที่อยากได้หน้าตาเรียบ หรือเครื่องที่วาดภาพพื้นหลังช้า
+  decorBackground: boolean;
   language: Language;
   orderAlertSound: OrderAlertSoundId;
   waiterAlertSound: OrderAlertSoundId;
@@ -47,6 +50,7 @@ interface AppState {
   toggleTheme: () => void;
   setThemeColor: (themeColor: ThemeColor) => void;
   setFontScale: (fontScale: FontScale) => void;
+  setDecorBackground: (decorBackground: boolean) => void;
   setLanguage: (language: Language) => void;
   setOrderAlertSound: (orderAlertSound: OrderAlertSoundId) => void;
   setWaiterAlertSound: (waiterAlertSound: OrderAlertSoundId) => void;
@@ -63,6 +67,7 @@ export const useAppStore = create<AppState>()(
       theme: "light",
       themeColor: "emerald",
       fontScale: "md",
+      decorBackground: true,
       language: DEFAULT_LANGUAGE,
       orderAlertSound: DEFAULT_ORDER_ALERT_SOUND,
       waiterAlertSound: DEFAULT_WAITER_ALERT_SOUND,
@@ -74,6 +79,7 @@ export const useAppStore = create<AppState>()(
       toggleTheme: () => set({ theme: get().theme === "dark" ? "light" : "dark" }),
       setThemeColor: (themeColor) => set({ themeColor }),
       setFontScale: (fontScale) => set({ fontScale }),
+      setDecorBackground: (decorBackground) => set({ decorBackground }),
       setLanguage: (language) => set({ language }),
       setOrderAlertSound: (orderAlertSound) => set({ orderAlertSound }),
       setWaiterAlertSound: (waiterAlertSound) => set({ waiterAlertSound }),
@@ -99,10 +105,11 @@ export const useAppStore = create<AppState>()(
         return persistedState as AppState;
       },
       // waiterAlertSound/alertSoundEnabled ไม่ต้อง migrate — ผู้ใช้เดิมไม่มีค่านี้ persist จะ merge ค่าเริ่มต้นให้เอง
-      partialize: ({ theme, themeColor, fontScale, language, orderAlertSound, waiterAlertSound, alertSoundEnabled, collapsed }) => ({
+      partialize: ({ theme, themeColor, fontScale, decorBackground, language, orderAlertSound, waiterAlertSound, alertSoundEnabled, collapsed }) => ({
         theme,
         themeColor,
         fontScale,
+        decorBackground,
         language,
         orderAlertSound,
         waiterAlertSound,
@@ -114,6 +121,7 @@ export const useAppStore = create<AppState>()(
         if (!state) return;
         if (!THEME_COLORS.includes(state.themeColor)) state.setThemeColor("emerald");
         if (!FONT_SCALES.includes(state.fontScale)) state.setFontScale("md");
+        if (typeof state.decorBackground !== "boolean") state.setDecorBackground(true);
         if (!isOrderAlertSoundId(state.orderAlertSound)) state.setOrderAlertSound(DEFAULT_ORDER_ALERT_SOUND);
         if (!isOrderAlertSoundId(state.waiterAlertSound)) state.setWaiterAlertSound(DEFAULT_WAITER_ALERT_SOUND);
         // ค่าเสีย (แก้ localStorage เอง/เวอร์ชันเก่า) ถือว่าเปิดเสียง — ปลอดภัยกว่าเงียบโดยไม่รู้ตัว

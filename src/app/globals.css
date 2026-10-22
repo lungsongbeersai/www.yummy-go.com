@@ -822,6 +822,31 @@ html {
   background: var(--card);
 }
 
+/* WebView 101 drops color-mix(), so the decorative wash uses the sRGB channels from the opacity
+   plugin there. Old WebViews also repaint fixed backgrounds on the main thread, so each box gets
+   its own slice instead (the join does not line up there, by design). */
+html.android-webview-compat:not([data-decor-background="off"]) .app-header,
+html.android-webview-compat:not([data-decor-background="off"]) .app-sidebar-panel,
+html.android-webview-compat:not([data-decor-background="off"]) [data-slot="sidebar-inner"] {
+  background-color: var(--primary);
+  background-image: linear-gradient(
+      rgba(var(--legacy-primary-rgb), 0.3),
+      rgba(var(--legacy-primary-rgb), 0.3)
+    ),
+    url("/posAll/background_wide.webp");
+  background-attachment: scroll;
+}
+
+html.android-webview-compat.dark:not([data-decor-background="off"]) .app-header,
+html.android-webview-compat.dark:not([data-decor-background="off"]) .app-sidebar-panel,
+html.android-webview-compat.dark:not([data-decor-background="off"]) [data-slot="sidebar-inner"] {
+  background-image: linear-gradient(
+      rgba(var(--legacy-primary-rgb), 0.4),
+      rgba(var(--legacy-primary-rgb), 0.4)
+    ),
+    url("/posAll/background_wide_dark.webp");
+}
+
 .android-webview-compat .app-sidebar-panel {
   background: var(--sidebar);
 }
@@ -1780,6 +1805,13 @@ html.swan1-legacy-colors
   height: 88px;
   margin-left: 16rem;
   border-bottom: 1px solid var(--border);
+}
+
+/* With the decorative background off, Swan 1's home top bar is plain (otherwise it shares the
+   floral .app-header). */
+html.swan1-legacy-colors[data-decor-background="off"]
+  .app-shell[data-desktop-home-layout="true"]
+  .swan1-home-top-bar {
   background: var(--background);
 }
 
@@ -1951,6 +1983,65 @@ html.swan1-legacy-colors
 
 .dark .app-header {
   background: hsl(var(--app) / 0.85);
+  box-shadow: none;
+}
+
+/* Decorative background (Display settings → Background image, app-store decorBackground,
+   html[data-decor-background]; on unless set to "off"). The top bar and the sidebar wear the
+   green floral artwork of the POS tables screen (table-selection-page.tsx) under a theme wash;
+   the solid --primary underneath shows if the image or color-mix() is unavailable. Everything
+   inside them is token-driven, so the tokens are re-pointed to light values for these subtrees
+   instead of restyling each control. Menus and tooltips portal out and keep the normal theme. */
+html:not([data-decor-background="off"]) .app-header,
+html:not([data-decor-background="off"]) .app-shell [data-slot="sidebar-inner"],
+html:not([data-decor-background="off"]) [data-slot="sidebar"][data-mobile="true"],
+html:not([data-decor-background="off"]) .app-sidebar-panel {
+  --foreground: #ffffff;
+  --muted-foreground: #e3f3ea;
+  --muted: #ffffff26;
+  --accent: #ffffff26;
+  --accent-foreground: #ffffff;
+  --border: #ffffff33;
+  --sidebar: transparent;
+  --sidebar-foreground: #ffffff;
+  --sidebar-accent: #ffffff2e;
+  --sidebar-accent-foreground: #ffffff;
+  --sidebar-border: #ffffff33;
+  --sidebar-ring: #ffffff;
+  --sidebar-primary: #ffffff;
+  color: var(--foreground);
+  background-color: var(--primary);
+  background-image: linear-gradient(
+      color-mix(in oklch, var(--primary) 30%, transparent),
+      color-mix(in oklch, var(--primary) 30%, transparent)
+    ),
+    url("/posAll/background_wide.webp");
+  /* One picture for the whole shell: anchored to the viewport, the top bar and the sidebar each
+     show their own slice of the same image, so the leaves run on across the corner where they
+     meet instead of restarting in each box. Both are fixed/sticky, so nothing scrolls under it. */
+  background-attachment: fixed;
+  background-position: top left;
+  background-size: cover;
+  backdrop-filter: none;
+}
+
+html:not([data-decor-background="off"]) .app-header {
+  box-shadow: 0 10px 30px -24px rgb(15 23 42 / 0.6);
+  border-bottom: 1px solid var(--border);
+}
+
+html.dark:not([data-decor-background="off"]) .app-header,
+html.dark:not([data-decor-background="off"]) .app-shell [data-slot="sidebar-inner"],
+html.dark:not([data-decor-background="off"]) [data-slot="sidebar"][data-mobile="true"],
+html.dark:not([data-decor-background="off"]) .app-sidebar-panel {
+  background-image: linear-gradient(
+      color-mix(in oklch, var(--primary) 40%, transparent),
+      color-mix(in oklch, var(--primary) 40%, transparent)
+    ),
+    url("/posAll/background_wide_dark.webp");
+}
+
+html.dark:not([data-decor-background="off"]) .app-header {
   box-shadow: none;
 }
 
