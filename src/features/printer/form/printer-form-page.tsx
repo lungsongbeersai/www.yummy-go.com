@@ -473,6 +473,7 @@ export function PrinterFormPage() {
         pendingSelfTest={form.pendingSelfTest} printing={form.printing} onReady={form.completeSelfTest}
         selection={form.selfTestSelection} profile={form.selfTestProfile} onProfileChange={form.setSelfTestProfile}
         onConfirm={form.confirmSelfTest} onCancel={form.cancelSelfTest}
+        phase={form.selfTestPhase} error={form.selfTestError} onCheck={form.checkSelfTest}
       />
 
       <AlertDialog open={confirmDiscardOpen} onOpenChange={setConfirmDiscardOpen}>

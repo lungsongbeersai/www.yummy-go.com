@@ -47,6 +47,7 @@ export function usePrinterPage() {
   const {
     printing, pendingSelfTest, runSelfTest, completeSelfTest,
     selfTestSelection, selfTestProfile, setSelfTestProfile, confirmSelfTest, cancelSelfTest,
+    selfTestPhase, selfTestError, checkSelfTest,
   } = usePrinterSelfTest();
   const loadPrintersForLocalAgent = usePrinterStore(
     (state) => state.loadPrintersForLocalAgent,
@@ -364,6 +365,7 @@ export function usePrinterPage() {
     pendingSelfTest,
     completeSelfTest,
     selfTestSelection, selfTestProfile, setSelfTestProfile, confirmSelfTest, cancelSelfTest,
+    selfTestPhase, selfTestError, checkSelfTest,
     selfTestTargets,
     categories,
     zones,

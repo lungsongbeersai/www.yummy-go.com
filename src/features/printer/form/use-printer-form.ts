@@ -89,6 +89,7 @@ export function usePrinterForm() {
   const {
     printing, pendingSelfTest, runSelfTest, completeSelfTest,
     selfTestSelection, selfTestProfile, setSelfTestProfile, confirmSelfTest, cancelSelfTest,
+    selfTestPhase, selfTestError, checkSelfTest,
   } = usePrinterSelfTest();
   const internetSettings = usePrinterStore((state) => state.internetPrintSettings);
   const loadingInternetSettings = usePrinterStore((state) => state.loadingInternetPrintSettings);
@@ -756,6 +757,7 @@ export function usePrinterForm() {
     pendingSelfTest,
     completeSelfTest,
     selfTestSelection, selfTestProfile, setSelfTestProfile, confirmSelfTest, cancelSelfTest,
+    selfTestPhase, selfTestError, checkSelfTest,
     searching,
     found,
     usbOptions,

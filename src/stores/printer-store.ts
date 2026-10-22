@@ -19,6 +19,7 @@ import {
   getPrinterErrorMessage,
   printPrinterSelfTest,
   completePrinterSelfTest,
+  getPrinterSelfTestStatus,
   getPrinterDeliveryState,
   isBrowserPrinterAgentId,
   rememberNativePrinterDeviceCode,
@@ -73,6 +74,7 @@ import { isCapacitorMobileApp } from "@/lib/capacitor-platform";
 import { printReport, type ReportPrintInput, type ReportPrintResponse } from "@/services/report";
 
 type AgentStatus = "unchecked" | "connected" | "offline" | "unauthorized";
+export type PrinterSelfTestPhase = "idle" | "dispatching" | "restored" | "checking" | "manual" | "error" | "completing";
 
 let agentConnectionGeneration = 0;
 
@@ -103,7 +105,7 @@ function rememberPendingSelfTest(target: PrinterSelfTestInput | null, expected?:
       if (expected && (
         current?.connect_type !== expected.connect_type || current?.interface_value !== expected.interface_value ||
         current?.expected_agent_id !== expected.expected_agent_id || current?.expected_device_code !== expected.expected_device_code ||
-        current?.command_profile !== expected.command_profile
+        current?.command_profile !== expected.command_profile || current?.self_test_id !== expected.self_test_id
       )) return;
       window.localStorage.removeItem(PENDING_SELF_TEST_KEY);
     }
@@ -131,10 +133,18 @@ function readPendingSelfTest(): PrinterSelfTestInput | null {
         ? { expected_device_code: raw.expected_device_code } : {}),
       ...("command_profile" in raw && (raw.command_profile === "epson" || raw.command_profile === "xprinter" || raw.command_profile === "rongta")
         ? { command_profile: raw.command_profile } : {}),
+      ...("self_test_id" in raw && typeof raw.self_test_id === "string" && /^[a-f\d]{8}-(?:[a-f\d]{4}-){3}[a-f\d]{12}$/i.test(raw.self_test_id)
+        ? { self_test_id: raw.self_test_id } : {}),
     };
   } catch {
     return null;
   }
+}
+
+function sameSelfTestTarget(left: PrinterSelfTestInput | null, right: PrinterSelfTestInput) {
+  return left?.connect_type === right.connect_type && left.interface_value === right.interface_value &&
+    left.command_profile === right.command_profile && left.self_test_id === right.self_test_id &&
+    left.expected_agent_id === right.expected_agent_id && left.expected_device_code === right.expected_device_code;
 }
 
 function textValue(value: unknown) {
@@ -194,6 +204,8 @@ interface PrinterState {
   saving: boolean;
   printing: boolean;
   pendingSelfTest: PrinterSelfTestInput | null;
+  selfTestPhase: PrinterSelfTestPhase;
+  checkSelfTest: () => Promise<void>;
   restoreSelfTest: () => void;
   completeSelfTest: () => Promise<void>;
   error: string | null;
@@ -269,23 +281,57 @@ export const usePrinterStore = create<PrinterState>((set, get) => ({
   saving: false,
   printing: false,
   pendingSelfTest: null,
+  selfTestPhase: "idle",
   restoreSelfTest: () => {
-    if (!get().pendingSelfTest) set({ pendingSelfTest: readPendingSelfTest() });
+    if (!get().pendingSelfTest) {
+      const target = readPendingSelfTest();
+      set({ pendingSelfTest: target, selfTestPhase: target ? (target.self_test_id ? "restored" : "manual") : "idle" });
+    }
+  },
+  checkSelfTest: async () => {
+    const target = get().pendingSelfTest;
+    if (!target || get().printing) return;
+    if (!target.self_test_id) { set({ selfTestPhase: "manual" }); return; }
+    const isCurrentSession = createSessionGuard();
+    const isCurrent = () => isCurrentSession() && sameSelfTestTarget(get().pendingSelfTest, target);
+    const deadline = Date.now() + 45000;
+    set({ printing: true, selfTestPhase: "checking", error: null });
+    try {
+      while (isCurrent()) {
+        if (Date.now() >= deadline) throw new Error("Printer readiness could not be confirmed. Check the printer or retry the status check.");
+        const result = await getPrinterSelfTestStatus(target);
+        if (!isCurrent()) return;
+        if (result.readiness === "ready") {
+          if (result.self_test_id !== target.self_test_id) throw new Error("Printer self-test operation changed. Check the printer before continuing.");
+          rememberPendingSelfTest(null, target);
+          set({ pendingSelfTest: null, printing: false, selfTestPhase: "idle", error: null });
+          return;
+        }
+        if (result.readiness === "manual_required") {
+          set({ printing: false, selfTestPhase: "manual" });
+          return;
+        }
+        await new Promise<void>((resolve) => setTimeout(resolve, 500));
+      }
+    } catch (error) {
+      if (isCurrent()) set({ printing: false, selfTestPhase: "error", error: getPrinterErrorMessage(error) });
+      throw error;
+    }
   },
   completeSelfTest: async () => {
     const target = get().pendingSelfTest;
     if (!target) return;
     if (get().printing) throw new Error("A printer command is already running");
     const isCurrentSession = createSessionGuard();
-    set({ printing: true, error: null });
+    set({ printing: true, selfTestPhase: "completing", error: null });
     try {
       await completePrinterSelfTest(target);
-      if (isCurrentSession()) {
+      if (isCurrentSession() && sameSelfTestTarget(get().pendingSelfTest, target)) {
         rememberPendingSelfTest(null, target);
-        set({ pendingSelfTest: null, printing: false });
+        set({ pendingSelfTest: null, printing: false, selfTestPhase: "idle" });
       }
     } catch (error) {
-      if (isCurrentSession()) set({ printing: false, error: getPrinterErrorMessage(error) });
+      if (isCurrentSession() && sameSelfTestTarget(get().pendingSelfTest, target)) set({ printing: false, selfTestPhase: "error", error: getPrinterErrorMessage(error) });
       throw error;
     }
   },
@@ -531,27 +577,53 @@ export const usePrinterStore = create<PrinterState>((set, get) => ({
     if (get().printing) throw new Error("A printer command is already running");
     const pendingSelfTest = get().pendingSelfTest ?? readPendingSelfTest();
     if (pendingSelfTest) {
-      set({ pendingSelfTest });
+      set({ pendingSelfTest, selfTestPhase: pendingSelfTest.self_test_id ? "restored" : "manual" });
       throw new Error("Confirm the printer is ready before starting another self-test");
     }
     const isCurrentSession = createSessionGuard();
     rememberPendingSelfTest(input);
-    set({ printing: true, error: null, pendingSelfTest: input });
+    set({ printing: true, selfTestPhase: "dispatching", error: null, pendingSelfTest: input });
+    let commandSent = false;
+    let activeTarget = input;
     try {
-      await printPrinterSelfTest(input);
-      if (isCurrentSession()) set({ printing: false });
+      const result = await printPrinterSelfTest(input);
+      commandSent = true;
+      if (!isCurrentSession() || !sameSelfTestTarget(get().pendingSelfTest, input)) return;
+      if (result.readiness === "ready") {
+        rememberPendingSelfTest(null, input);
+        set({ pendingSelfTest: null, printing: false, selfTestPhase: "idle" });
+      } else if (result.readiness === "pending" && result.self_test_id) {
+        const tracked = { ...input, self_test_id: result.self_test_id };
+        activeTarget = tracked;
+        rememberPendingSelfTest(tracked);
+        set({ pendingSelfTest: tracked, printing: false, selfTestPhase: "restored" });
+        await get().checkSelfTest();
+      } else {
+        if (result.self_test_id) {
+          const tracked = { ...input, self_test_id: result.self_test_id };
+          rememberPendingSelfTest(tracked);
+          set({ pendingSelfTest: tracked, printing: false, selfTestPhase: "manual" });
+        } else set({ printing: false, selfTestPhase: "manual" });
+      }
     } catch (error) {
       // A different tab may have started maintenance before this tab recovered
       // its local state. Keep the readiness dialog so the printer can resume.
       const alreadyInProgress = error !== null && typeof error === "object" &&
         "code" in error && error.code === "PRINTER_SELF_TEST_IN_PROGRESS";
-      const notSent = !alreadyInProgress && getPrinterDeliveryState(error) === "not_sent";
-      if (isCurrentSession()) {
+      const recoveryId = !commandSent && error !== null && typeof error === "object" && "self_test_id" in error &&
+        typeof error.self_test_id === "string" && /^[a-f\d]{8}-(?:[a-f\d]{4}-){3}[a-f\d]{12}$/i.test(error.self_test_id)
+        ? error.self_test_id : undefined;
+      const notSent = !commandSent && !alreadyInProgress && !recoveryId && getPrinterDeliveryState(error) === "not_sent";
+      if (isCurrentSession() && sameSelfTestTarget(get().pendingSelfTest, activeTarget)) {
         if (notSent) rememberPendingSelfTest(null, input);
+        const recovered = recoveryId ? { ...activeTarget, self_test_id: recoveryId } : null;
+        if (recovered) rememberPendingSelfTest(recovered);
         set({
           printing: false,
+          selfTestPhase: notSent ? "idle" : "error",
           error: getPrinterErrorMessage(error),
           ...(notSent ? { pendingSelfTest: null } : {}),
+          ...(recovered ? { pendingSelfTest: recovered } : {}),
         });
       }
       throw error;
@@ -843,6 +915,7 @@ export const usePrinterStore = create<PrinterState>((set, get) => ({
       saving: false,
       printing: false,
       pendingSelfTest: null,
+      selfTestPhase: "idle",
       error: null
     })
 }));

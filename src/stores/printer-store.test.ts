@@ -7,6 +7,7 @@ import {
   renderMobileEscpos,
   printPrinterSelfTest,
   completePrinterSelfTest,
+  getPrinterSelfTestStatus,
   getPrinters,
   getPendingPrintJobs,
   getInternetPrintSettings,
@@ -33,6 +34,7 @@ vi.mock("@/services/printer", () => ({
   renderMobileEscpos: vi.fn(),
   printPrinterSelfTest: vi.fn(),
   completePrinterSelfTest: vi.fn(),
+  getPrinterSelfTestStatus: vi.fn(),
   executeInvoicePrintJobs: vi.fn(),
   executeKitchenPrintJobs: vi.fn(),
   fetchPrinterCategoryRole: vi.fn(),
@@ -85,6 +87,7 @@ function deferred<T>() {
 describe("printer store", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    vi.mocked(getPrinterSelfTestStatus).mockReset();
     registerPrinterAgentMock.mockResolvedValue(undefined);
     usePrinterStore.setState({
       agent: null,
@@ -93,6 +96,7 @@ describe("printer store", () => {
       error: null,
       printing: false,
       pendingSelfTest: null,
+      selfTestPhase: "idle",
       printers: [],
       saving: false,
       searching: false,
@@ -119,6 +123,123 @@ describe("printer store", () => {
     expect(usePrinterStore.getState().printing).toBe(false);
     expect(usePrinterStore.getState().pendingSelfTest).toEqual(target);
     expect(buildTestJobMock).not.toHaveBeenCalled();
+  });
+
+  it("automatically releases a confirmed ready self-test and allows the next print", async () => {
+    const target = { connect_type: "usb" as const, interface_value: "cups:Receipt" };
+    const ready = { ok: true as const, status: "command_sent" as const, readiness: "ready" as const, self_test_id: "8aa530cf-0736-470b-9d0f-4e5d2bc960bc" };
+    vi.mocked(printPrinterSelfTest).mockResolvedValueOnce(ready).mockResolvedValueOnce(ready);
+    await usePrinterStore.getState().selfTest(target);
+    expect(usePrinterStore.getState()).toMatchObject({ pendingSelfTest: null, printing: false, selfTestPhase: "idle" });
+    await usePrinterStore.getState().selfTest(target);
+    expect(printPrinterSelfTest).toHaveBeenCalledTimes(2);
+    expect(completePrinterSelfTest).not.toHaveBeenCalled();
+  });
+
+  it("keeps loading while the tracked operation is pending and closes only after ready", async () => {
+    vi.useFakeTimers();
+    try {
+      const self_test_id = "8aa530cf-0736-470b-9d0f-4e5d2bc960bc";
+      const target = { connect_type: "usb" as const, interface_value: "cups:Receipt" };
+      vi.mocked(printPrinterSelfTest).mockResolvedValueOnce({ ok: true, status: "command_sent", readiness: "pending", self_test_id });
+      vi.mocked(getPrinterSelfTestStatus).mockResolvedValueOnce({ ok: true, readiness: "pending", self_test_id }).mockResolvedValueOnce({ ok: true, readiness: "ready", self_test_id });
+      const request = usePrinterStore.getState().selfTest(target);
+      await vi.advanceTimersByTimeAsync(0);
+      expect(usePrinterStore.getState()).toMatchObject({ printing: true, selfTestPhase: "checking", pendingSelfTest: { ...target, self_test_id } });
+      await vi.advanceTimersByTimeAsync(500);
+      await request;
+      expect(usePrinterStore.getState()).toMatchObject({ printing: false, selfTestPhase: "idle", pendingSelfTest: null });
+      expect(printPrinterSelfTest).toHaveBeenCalledTimes(1);
+      expect(getPrinterSelfTestStatus).toHaveBeenCalledTimes(2);
+      expect(completePrinterSelfTest).not.toHaveBeenCalled();
+    } finally { vi.useRealTimers(); }
+  });
+
+  it("retains a sent operation after status failure and retries only its status", async () => {
+    const self_test_id = "8aa530cf-0736-470b-9d0f-4e5d2bc960bc";
+    const target = { connect_type: "usb" as const, interface_value: "cups:Receipt" };
+    vi.mocked(printPrinterSelfTest).mockResolvedValueOnce({ ok: true, status: "command_sent", readiness: "pending", self_test_id });
+    vi.mocked(getPrinterSelfTestStatus).mockRejectedValueOnce(Object.assign(new Error("Status identity read failed"), { delivery_state: "not_sent" }));
+    await expect(usePrinterStore.getState().selfTest(target)).rejects.toThrow("Status identity read failed");
+    expect(usePrinterStore.getState()).toMatchObject({ printing: false, selfTestPhase: "error", pendingSelfTest: { ...target, self_test_id } });
+    vi.mocked(getPrinterSelfTestStatus).mockResolvedValueOnce({ ok: true, readiness: "ready", self_test_id });
+    await usePrinterStore.getState().checkSelfTest();
+    expect(usePrinterStore.getState().pendingSelfTest).toBeNull();
+    expect(printPrinterSelfTest).toHaveBeenCalledTimes(1);
+    expect(completePrinterSelfTest).not.toHaveBeenCalled();
+  });
+
+  it("retains the exact recovery ID after an ambiguous start and uses it for manual completion", async () => {
+    const self_test_id = "8aa530cf-0736-470b-9d0f-4e5d2bc960bc";
+    const target = { connect_type: "usb" as const, interface_value: "cups:Receipt" };
+    vi.mocked(printPrinterSelfTest).mockRejectedValueOnce(Object.assign(new Error("Submission uncertain"), { self_test_id, readiness: "manual_required", delivery_state: "unknown" }));
+    await expect(usePrinterStore.getState().selfTest(target)).rejects.toThrow("Submission uncertain");
+    expect(usePrinterStore.getState()).toMatchObject({ pendingSelfTest: { ...target, self_test_id }, printing: false, selfTestPhase: "error" });
+    vi.mocked(completePrinterSelfTest).mockResolvedValueOnce({ ok: true, status: "ready" });
+    await usePrinterStore.getState().completeSelfTest();
+    expect(completePrinterSelfTest).toHaveBeenCalledWith({ ...target, self_test_id });
+    expect(printPrinterSelfTest).toHaveBeenCalledTimes(1);
+  });
+
+  it("falls back to explicit readiness when the Agent cannot track completion", async () => {
+    const self_test_id = "8aa530cf-0736-470b-9d0f-4e5d2bc960bc";
+    const target = { connect_type: "usb" as const, interface_value: "cups:Receipt" };
+    vi.mocked(printPrinterSelfTest).mockResolvedValueOnce({ ok: true, status: "command_sent", readiness: "pending", self_test_id });
+    vi.mocked(getPrinterSelfTestStatus).mockResolvedValueOnce({ ok: true, readiness: "manual_required" });
+    await usePrinterStore.getState().selfTest(target);
+    expect(usePrinterStore.getState()).toMatchObject({ pendingSelfTest: { ...target, self_test_id }, printing: false, selfTestPhase: "manual" });
+    expect(completePrinterSelfTest).not.toHaveBeenCalled();
+    expect(printPrinterSelfTest).toHaveBeenCalledTimes(1);
+  });
+
+  it("ends loading at the watchdog without declaring the pending printer ready", async () => {
+    vi.useFakeTimers();
+    try {
+      const self_test_id = "8aa530cf-0736-470b-9d0f-4e5d2bc960bc";
+      const target = { connect_type: "usb" as const, interface_value: "cups:Receipt", self_test_id };
+      usePrinterStore.setState({ pendingSelfTest: target });
+      vi.mocked(getPrinterSelfTestStatus).mockResolvedValue({ ok: true, readiness: "pending", self_test_id });
+      const request = usePrinterStore.getState().checkSelfTest();
+      const rejected = expect(request).rejects.toThrow("could not be confirmed");
+      await vi.advanceTimersByTimeAsync(45000);
+      await rejected;
+      expect(usePrinterStore.getState()).toMatchObject({ printing: false, selfTestPhase: "error", pendingSelfTest: target });
+      expect(printPrinterSelfTest).not.toHaveBeenCalled();
+      expect(completePrinterSelfTest).not.toHaveBeenCalled();
+    } finally { vi.useRealTimers(); }
+  });
+
+  it("does not let a late status response clear a newer operation at the same printer", async () => {
+    const firstId = "8aa530cf-0736-470b-9d0f-4e5d2bc960bc";
+    const target = { connect_type: "usb" as const, interface_value: "cups:Receipt", self_test_id: firstId };
+    const next = { ...target, self_test_id: "bed2d087-4e42-4e72-87d0-bbe7b8563d62" };
+    const status = deferred<{ ok: true; readiness: "ready"; self_test_id: string }>();
+    vi.mocked(getPrinterSelfTestStatus).mockReturnValueOnce(status.promise);
+    usePrinterStore.setState({ pendingSelfTest: target });
+    const request = usePrinterStore.getState().checkSelfTest();
+    usePrinterStore.setState({ pendingSelfTest: next, printing: true, selfTestPhase: "checking" });
+    status.resolve({ ok: true, readiness: "ready", self_test_id: firstId });
+    await request;
+    expect(usePrinterStore.getState()).toMatchObject({ pendingSelfTest: next, printing: true, selfTestPhase: "checking" });
+  });
+
+  it("restores the tracked operation after reload and checks it without reprinting", async () => {
+    const target = { connect_type: "usb" as const, interface_value: "cups:Receipt", self_test_id: "8aa530cf-0736-470b-9d0f-4e5d2bc960bc", command_profile: "xprinter" as const };
+    const storage = new Map([["yummy_pending_printer_self_test", JSON.stringify(target)]]);
+    vi.stubGlobal("window", { localStorage: {
+      getItem: (key: string) => storage.get(key) ?? null,
+      setItem: (key: string, value: string) => storage.set(key, value),
+      removeItem: (key: string) => storage.delete(key),
+    } });
+    try {
+      usePrinterStore.getState().restoreSelfTest();
+      expect(usePrinterStore.getState()).toMatchObject({ pendingSelfTest: target, selfTestPhase: "restored" });
+      vi.mocked(getPrinterSelfTestStatus).mockResolvedValueOnce({ ok: true, readiness: "ready", self_test_id: target.self_test_id });
+      await usePrinterStore.getState().checkSelfTest();
+      expect(usePrinterStore.getState().pendingSelfTest).toBeNull();
+      expect(storage.size).toBe(0);
+      expect(printPrinterSelfTest).not.toHaveBeenCalled();
+    } finally { vi.unstubAllGlobals(); }
   });
 
   it("surfaces a self-test failure instead of reporting print success", async () => {

@@ -79,6 +79,8 @@ export type {
   PrinterSource,
   PrinterSelfTestInput,
   PrinterSelfTestCommandProfile,
+  PrinterSelfTestReadiness,
+  PrinterSelfTestStatusResult,
   PrinterSelfTestCompletionResult,
   PrinterSelfTestResult,
   PrinterZone,
@@ -92,7 +94,7 @@ export type {
   SearchPrinterResult
 } from "@/services/printer/types";
 
-export { completePrinterSelfTest, printPrinterSelfTest } from "@/services/printer/self-test";
+export { completePrinterSelfTest, getPrinterSelfTestStatus, printPrinterSelfTest } from "@/services/printer/self-test";
 
 export {
   buildTestJob,

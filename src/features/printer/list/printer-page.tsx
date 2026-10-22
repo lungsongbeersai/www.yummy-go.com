@@ -351,6 +351,7 @@ export function PrinterPage() {
         pendingSelfTest={printer.pendingSelfTest} printing={printer.printing} onReady={printer.completeSelfTest}
         selection={printer.selfTestSelection} profile={printer.selfTestProfile} onProfileChange={printer.setSelfTestProfile}
         onConfirm={printer.confirmSelfTest} onCancel={printer.cancelSelfTest}
+        phase={printer.selfTestPhase} error={printer.selfTestError} onCheck={printer.checkSelfTest}
       />
     </div>
   );

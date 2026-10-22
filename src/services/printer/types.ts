@@ -10,16 +10,25 @@ export interface SearchPrinterResult extends ApiEntity {
   platform: string;
 }
 export type PrinterSelfTestCommandProfile = "epson" | "xprinter" | "rongta";
+export type PrinterSelfTestReadiness = "pending" | "ready" | "manual_required";
 export interface PrinterSelfTestInput {
   connect_type: "tcp" | "usb";
   interface_value: string;
   command_profile?: PrinterSelfTestCommandProfile;
   expected_agent_id?: string;
   expected_device_code?: string;
+  self_test_id?: string;
 }
 export interface PrinterSelfTestResult {
   ok: true;
   status: "command_sent";
+  self_test_id?: string;
+  readiness?: PrinterSelfTestReadiness;
+}
+export interface PrinterSelfTestStatusResult {
+  ok: true;
+  readiness: PrinterSelfTestReadiness;
+  self_test_id?: string;
 }
 export interface PrinterSelfTestCompletionResult {
   ok: true;
@@ -28,6 +37,7 @@ export interface PrinterSelfTestCompletionResult {
 export interface AgentInfo extends ApiEntity {
   version?: string;
   self_test_profiles?: PrinterSelfTestCommandProfile[];
+  supports_self_test_status?: boolean;
   agent_id: string;
   agent_name: string;
   store_code?: string | null;

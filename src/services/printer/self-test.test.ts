@@ -30,12 +30,13 @@ vi.mock("@/services/printer/mobile-tcp", () => ({
 }));
 
 import { AGENT_URL } from "@/config/printer-agent";
-import { completePrinterSelfTest, printPrinterSelfTest } from "@/services/printer/self-test";
+import { completePrinterSelfTest, getPrinterSelfTestStatus, printPrinterSelfTest } from "@/services/printer/self-test";
 
 const tcpInput: PrinterSelfTestInput = {
   connect_type: "tcp",
   interface_value: "tcp://192.168.1.20:9100",
 };
+const selfTestId = "8aa530cf-0736-470b-9d0f-4e5d2bc960bc";
 
 beforeEach(() => {
   vi.resetAllMocks();
@@ -51,6 +52,80 @@ beforeEach(() => {
 });
 
 describe("printer self-test", () => {
+  it.each(["pending", "ready"] as const)("retains a supported Agent's tracked %s readiness", async (readiness) => {
+    mocks.getLocalAgentInfo.mockResolvedValue({ agent_id: "local-agent", device_code: "local-device", supports_self_test_status: true });
+    mocks.post.mockResolvedValue({ data: { ok: true, status: "command_sent", self_test_id: selfTestId, readiness } });
+    await expect(printPrinterSelfTest(tcpInput)).resolves.toEqual({ ok: true, status: "command_sent", self_test_id: selfTestId, readiness });
+  });
+
+  it("checks the exact operation using fresh identity without printing again", async () => {
+    mocks.getLocalAgentInfo.mockResolvedValue({ agent_id: "local-agent", device_code: "local-device", supports_self_test_status: true });
+    mocks.post.mockResolvedValue({ data: { ok: true, self_test_id: selfTestId, readiness: "ready" } });
+    await expect(getPrinterSelfTestStatus({ ...tcpInput, self_test_id: selfTestId })).resolves.toEqual({ ok: true, self_test_id: selfTestId, readiness: "ready" });
+    expect(mocks.post).toHaveBeenCalledExactlyOnceWith(`${AGENT_URL.replace(/\/+$/, "")}/printer/self-test/status`, {
+      agent_id: "local-agent", device_code: "local-device", interface_value: tcpInput.interface_value, self_test_id: selfTestId,
+    }, { headers: { "x-agent-secret": expect.any(String) }, timeout: 10000 });
+  });
+
+  it.each([
+    { readiness: "ready" },
+    { readiness: "ready", self_test_id: "wrong-id" },
+    { readiness: "ready", self_test_id: "bed2d087-4e42-4e72-87d0-bbe7b8563d62" },
+    { readiness: "pending", self_test_id: "bed2d087-4e42-4e72-87d0-bbe7b8563d62" },
+    { readiness: "unknown", self_test_id: selfTestId },
+  ])("does not confirm readiness from malformed or foreign operation metadata: %j", async (metadata) => {
+    mocks.getLocalAgentInfo.mockResolvedValue({ agent_id: "local-agent", device_code: "local-device", supports_self_test_status: true });
+    mocks.post.mockResolvedValue({ data: { ok: true, ...metadata } });
+    await expect(getPrinterSelfTestStatus({ ...tcpInput, self_test_id: selfTestId })).rejects.toMatchObject({ delivery_state: "unknown" });
+    expect(mocks.post).toHaveBeenCalledTimes(1);
+  });
+
+  it("returns manual fallback for an older Agent without issuing a status or print command", async () => {
+    await expect(getPrinterSelfTestStatus({ ...tcpInput, self_test_id: selfTestId })).resolves.toEqual({ ok: true, readiness: "manual_required" });
+    expect(mocks.post).not.toHaveBeenCalled();
+  });
+
+  it("returns manual fallback for native TCP without treating send completion as printer readiness", async () => {
+    mocks.isCapacitorMobileApp.mockReturnValue(true);
+    await expect(getPrinterSelfTestStatus({ ...tcpInput, self_test_id: selfTestId })).resolves.toEqual({ ok: true, readiness: "manual_required" });
+    expect(mocks.printMobilePrinterSelfTestOverTcp).not.toHaveBeenCalled();
+    expect(mocks.completeMobilePrinterSelfTest).not.toHaveBeenCalled();
+    expect(mocks.post).not.toHaveBeenCalled();
+  });
+
+  it("sends the operation identity on an explicit manual release", async () => {
+    mocks.post.mockResolvedValue({ data: { ok: true, status: "ready" } });
+    await completePrinterSelfTest({ ...tcpInput, self_test_id: selfTestId });
+    expect(mocks.post).toHaveBeenCalledWith(expect.stringContaining("/complete"), expect.objectContaining({ self_test_id: selfTestId }), expect.any(Object));
+  });
+
+  it.each([undefined, selfTestId])("requires a scoped manual release on new Agents even when the tab restored without an ID: %s", async (id) => {
+    mocks.getLocalAgentInfo.mockResolvedValue({ agent_id: "local-agent", device_code: "local-device", supports_self_test_status: true });
+    mocks.post.mockResolvedValue({ data: { ok: true, status: "ready" } });
+    await completePrinterSelfTest({ ...tcpInput, ...(id ? { self_test_id: id } : {}) });
+    expect(mocks.post).toHaveBeenCalledExactlyOnceWith(`${AGENT_URL.replace(/\/+$/, "")}/printer/self-test/complete`, {
+      agent_id: "local-agent", device_code: "local-device", interface_value: tcpInput.interface_value,
+      require_self_test_id: true, ...(id ? { self_test_id: id } : {}),
+    }, { headers: { "x-agent-secret": expect.any(String) }, timeout: 45000 });
+  });
+
+  it("preserves only validated recovery metadata after an ambiguous start response", async () => {
+    mocks.post.mockRejectedValue({ response: { status: 500, data: {
+      self_test_id: selfTestId, readiness: "manual_required", delivery_state: "unknown", error: "private-agent-secret",
+    } } });
+    const error = await printPrinterSelfTest(tcpInput).catch((value: unknown) => value);
+    expect(error).toMatchObject({ self_test_id: selfTestId, readiness: "manual_required", delivery_state: "unknown" });
+    expect(String(error)).not.toContain("private-agent-secret");
+    expect(error).not.toHaveProperty("payload");
+    expect(mocks.post).toHaveBeenCalledTimes(1);
+  });
+
+  it("does not trust malformed recovery IDs from an error response", async () => {
+    mocks.post.mockRejectedValue({ response: { status: 500, data: { self_test_id: "private-secret-id", readiness: "ready" } } });
+    const error = await printPrinterSelfTest(tcpInput).catch((value: unknown) => value);
+    expect(error).not.toHaveProperty("self_test_id");
+    expect(error).not.toHaveProperty("readiness");
+  });
   it.each(["xprinter", "rongta"] as const)("sends the selected %s profile with fresh live capability and identity", async (profile) => {
     mocks.getLocalAgentInfo.mockResolvedValue({
       agent_id: "local-agent", device_code: "local-device", self_test_profiles: ["epson", "xprinter", "rongta"],

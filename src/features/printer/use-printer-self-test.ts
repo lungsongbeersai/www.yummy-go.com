@@ -11,6 +11,9 @@ export function usePrinterSelfTest() {
   const showToast = useToastStore((state) => state.show);
   const printing = usePrinterStore((state) => state.printing);
   const pendingSelfTest = usePrinterStore((state) => state.pendingSelfTest);
+  const selfTestPhase = usePrinterStore((state) => state.selfTestPhase);
+  const selfTestError = usePrinterStore((state) => state.error);
+  const checkSelfTestPrinter = usePrinterStore((state) => state.checkSelfTest);
   const restoreSelfTest = usePrinterStore((state) => state.restoreSelfTest);
   const selfTestPrinter = usePrinterStore((state) => state.selfTest);
   const completeSelfTestPrinter = usePrinterStore((state) => state.completeSelfTest);
@@ -20,6 +23,12 @@ export function usePrinterSelfTest() {
   useEffect(() => {
     restoreSelfTest();
   }, [restoreSelfTest]);
+
+  useEffect(() => {
+    if (pendingSelfTest?.self_test_id && selfTestPhase === "restored" && !printing) {
+      void checkSelfTestPrinter().catch(() => undefined);
+    }
+  }, [pendingSelfTest, selfTestPhase, printing, checkSelfTestPrinter]);
 
   useEffect(() => {
     if (!pendingSelfTest) return;
@@ -40,17 +49,20 @@ export function usePrinterSelfTest() {
     setSelfTestSelection(null);
     try {
       await selfTestPrinter(target);
-      showToast({
-        title: t("printer.selfTestCommandSent"),
-        description: t("printer.selfTestCommandSentHint"),
-        tone: "info",
-      });
     } catch (error) {
       showToast({
-        title: t("printer.selfTestFailed"),
+        title: t(usePrinterStore.getState().pendingSelfTest ? "printer.selfTestStatusFailed" : "printer.selfTestFailed"),
         description: error instanceof Error ? error.message : "",
         tone: "error",
       });
+    }
+  }
+
+  async function checkSelfTest() {
+    try {
+      await checkSelfTestPrinter();
+    } catch (error) {
+      showToast({ title: t("printer.selfTestStatusFailed"), description: error instanceof Error ? error.message : "", tone: "error" });
     }
   }
 
@@ -70,5 +82,6 @@ export function usePrinterSelfTest() {
     printing, pendingSelfTest, runSelfTest, completeSelfTest,
     selfTestSelection, selfTestProfile, setSelfTestProfile, confirmSelfTest,
     cancelSelfTest: () => setSelfTestSelection(null),
+    selfTestPhase, selfTestError, checkSelfTest,
   };
 }
