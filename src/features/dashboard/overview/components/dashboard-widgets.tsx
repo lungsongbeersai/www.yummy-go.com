@@ -88,7 +88,7 @@ export const DashboardHeader = memo(function DashboardHeader({
   return (
     <header className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
       <div className="flex min-w-0 flex-col gap-2">
-        <h1 className="font-heading text-xl font-bold sm:text-2xl lg:text-3xl">{text(section.section_name, copy.title)}</h1>
+        <h1 className="font-heading text-xl font-bold text-primary-text sm:text-2xl lg:text-3xl">{text(section.section_name, copy.title)}</h1>
         <div className="flex flex-wrap items-center gap-2">
           {branchLabel ? (
             <Badge variant="outline" className="h-auto gap-1.5 py-1 text-xs">
@@ -525,7 +525,10 @@ type KpiTone = "neutral" | "warning" | "destructive";
 // something to look at. Literal class strings so Tailwind emits them.
 type KpiAccent = "info" | "primary" | "warning" | "destructive";
 
-const kpiAccents: Record<KpiAccent, { bar: string; blob: string; chip: string; line: string; meter: string; stroke: string }> = {
+const kpiAccents: Record<
+  KpiAccent,
+  { bar: string; blob: string; chip: string; line: string; meter: string; stroke: string; text: string }
+> = {
   destructive: {
     bar: "bg-destructive",
     blob: "bg-destructive/10",
@@ -533,6 +536,7 @@ const kpiAccents: Record<KpiAccent, { bar: string; blob: string; chip: string; l
     line: "bg-destructive/25",
     meter: "bg-destructive/15 *:data-[slot=progress-indicator]:bg-destructive",
     stroke: "stroke-destructive",
+    text: "text-destructive",
   },
   info: {
     bar: "bg-info",
@@ -541,6 +545,7 @@ const kpiAccents: Record<KpiAccent, { bar: string; blob: string; chip: string; l
     line: "bg-info/25",
     meter: "bg-info/15 *:data-[slot=progress-indicator]:bg-info",
     stroke: "stroke-info",
+    text: "text-info-text",
   },
   // primary-text, not primary, for the thin marks: dark mode's --primary is a deep fill colour that
   // nearly vanishes as a 4px line on a dark card.
@@ -551,6 +556,7 @@ const kpiAccents: Record<KpiAccent, { bar: string; blob: string; chip: string; l
     line: "bg-primary-text/30",
     meter: "bg-primary-text/15 *:data-[slot=progress-indicator]:bg-primary-text",
     stroke: "stroke-primary-text",
+    text: "text-primary-text",
   },
   warning: {
     bar: "bg-warning",
@@ -559,6 +565,7 @@ const kpiAccents: Record<KpiAccent, { bar: string; blob: string; chip: string; l
     line: "bg-warning/25",
     meter: "bg-warning/15 *:data-[slot=progress-indicator]:bg-warning",
     stroke: "stroke-warning",
+    text: "text-warning-text",
   },
 };
 
@@ -613,7 +620,7 @@ function KpiTile({
       <span aria-hidden="true" className={cn("absolute inset-x-0 top-0 h-1", colors.bar)} />
       <span aria-hidden="true" className={cn("absolute -top-10 -right-10 -z-10 size-32 rounded-full", colors.blob)} />
       <div className="flex items-start justify-between gap-2">
-        <span className="text-sm font-medium text-muted-foreground">{label}</span>
+        <span className={cn("text-sm font-semibold", colors.text)}>{label}</span>
         <span aria-hidden="true" className={cn("flex size-9 shrink-0 items-center justify-center rounded-xl shadow-sm", colors.chip)}>
           <Icon className="size-4" />
         </span>
@@ -624,7 +631,7 @@ function KpiTile({
           // The tiles are 4-up (lg/xl) or 2-up beside the plate (2xl), so the size follows the
           // tile, not the viewport alone.
           kipFigureSize(value, 9) === "long" ? "text-xl xl:text-2xl 2xl:text-xl" : "text-2xl xl:text-3xl 2xl:text-2xl",
-          kpiValueTones[tone],
+          tone === "neutral" ? colors.text : kpiValueTones[tone],
         )}
       >
         {value}

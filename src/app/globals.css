@@ -78,6 +78,12 @@
   --chart-cat-3: #1baf7a;
   --chart-cat-4: #eda100;
   --chart-cat-5: #e87ba4;
+  /* Text shades of the first three categories and of --success: the fills above are 2.8-4.6:1 on
+     white, these are >=4.7:1 on --card and on the /10 category tints (WCAG AA for small text). */
+  --chart-cat-1-text: #1f62b8;
+  --chart-cat-2-text: #b8461a;
+  --chart-cat-3-text: #0b7a52;
+  --success-text: #13714c;
   /* Dashboard "banknote plate" (revenue hero). Neutral white/black overlays with their own
      alpha, so they tint whatever --primary resolves to (every data-theme-color preset, light
      and dark, and the sRGB Capacitor blocks) and parse on Android WebView 101 (hex8, no
@@ -143,6 +149,10 @@
   --chart-cat-3: #199e70;
   --chart-cat-4: #c98500;
   --chart-cat-5: #d55181;
+  --chart-cat-1-text: #6aa6f0;
+  --chart-cat-2-text: #f28b5e;
+  --chart-cat-3-text: #3cc896;
+  --success-text: #5fd3a4;
   --dash-sheen: #ffffff14;
   --dash-shade: #00000059;
   --dash-engrave: #ffffff17;
@@ -522,6 +532,10 @@ html[data-font-scale="xl"] {
   --color-chart-cat-3: var(--chart-cat-3);
   --color-chart-cat-4: var(--chart-cat-4);
   --color-chart-cat-5: var(--chart-cat-5);
+  --color-chart-cat-1-text: var(--chart-cat-1-text);
+  --color-chart-cat-2-text: var(--chart-cat-2-text);
+  --color-chart-cat-3-text: var(--chart-cat-3-text);
+  --color-success-text: var(--success-text);
   --radius-sm: calc(var(--radius) * 0.6);
   --radius-md: calc(var(--radius) * 0.8);
   --radius-lg: var(--radius);

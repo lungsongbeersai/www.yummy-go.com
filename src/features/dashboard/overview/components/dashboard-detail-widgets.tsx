@@ -106,7 +106,7 @@ function SectionCard({
             <Icon className="size-4" />
           </span>
           <div className="flex min-w-0 flex-col gap-0.5">
-            <h2 id={titleId} className="text-sm font-semibold text-foreground lg:text-base">
+            <h2 id={titleId} className="text-sm font-semibold text-primary-text lg:text-base">
               {title}
             </h2>
             {description ? <p className="text-xs text-muted-foreground tabular-nums">{description}</p> : null}
@@ -142,6 +142,14 @@ const splitTileClassNames: Record<PaymentSplitKey, string> = {
   debt: "bg-chart-cat-3/10",
   transfer: "bg-chart-cat-2/10",
   unallocated: "bg-muted",
+};
+
+// AA text shades of the category colours (--chart-cat-N-text), for labels and amounts.
+const splitTextClassNames: Record<PaymentSplitKey, string> = {
+  cash: "text-chart-cat-1-text",
+  debt: "text-chart-cat-3-text",
+  transfer: "text-chart-cat-2-text",
+  unallocated: "text-foreground",
 };
 
 const splitSegmentClassNames: Record<PaymentSplitKey, string> = {
@@ -274,9 +282,9 @@ function SalesCard({
         {split.segments.map((segment) => (
           <li key={segment.key} className="flex min-w-0 items-baseline gap-2">
             <span aria-hidden="true" className={cn("size-3 shrink-0 self-center rounded-xs", splitSegmentClassNames[segment.key])} />
-            <span className="min-w-0 text-sm font-medium">{splitLabel(copy, segment.key, segment.label)}</span>
+            <span className={cn("min-w-0 text-sm font-semibold", splitTextClassNames[segment.key])}>{splitLabel(copy, segment.key, segment.label)}</span>
             <span className="text-sm text-muted-foreground tabular-nums">{formatPercent(segment.share)}</span>
-            <span className="ml-auto font-heading text-base font-semibold tabular-nums">{formatKip(segment.value)}</span>
+            <span className={cn("ml-auto font-heading text-base font-semibold tabular-nums", splitTextClassNames[segment.key])}>{formatKip(segment.value)}</span>
           </li>
         ))}
       </ul>
@@ -367,11 +375,11 @@ function SalesCard({
                 className={cn("relative flex min-h-28 flex-col justify-between gap-3 overflow-hidden rounded-xl p-4", splitTileClassNames[segment.key])}
               >
                 <span aria-hidden="true" className={cn("absolute inset-x-0 top-0 h-1.5", splitSegmentClassNames[segment.key])} />
-                <span className="flex items-center gap-2 text-sm font-semibold">
+                <span className={cn("flex items-center gap-2 text-sm font-semibold", splitTextClassNames[segment.key])}>
                   <span aria-hidden="true" className={cn("size-3 shrink-0 rounded-xs", splitSegmentClassNames[segment.key])} />
                   {splitLabel(copy, segment.key, segment.label)}
                 </span>
-                <span className="flex flex-col gap-1">
+                <span className={cn("flex flex-col gap-1", splitTextClassNames[segment.key])}>
                   <span className="font-heading text-3xl leading-none font-bold font-stretch-semi-condensed tabular-nums">
                     {formatPercent(segment.share)}
                   </span>
@@ -420,12 +428,12 @@ function AccountingCard({ copy, rows }: { copy: DashboardCopy; rows: AccountingR
               const step = ledger.steps[index];
               return (
                 <div key={row.key} className="grid grid-cols-[auto_minmax(0,1fr)] items-baseline gap-x-2 py-1.5">
-                  <dt className={cn("text-sm", row.important ? "font-semibold text-foreground" : "text-muted-foreground")}>
+                  <dt className={cn("text-sm", row.important ? "font-semibold text-primary-text" : "text-muted-foreground")}>
                     {row.label}
                   </dt>
                   <dd className="flex min-w-0 items-baseline gap-2">
                     <span aria-hidden="true" className="mb-1 min-w-4 flex-1 border-b border-dotted border-border" />
-                    <span className={cn("font-heading text-sm font-semibold tabular-nums", row.negative && "text-destructive")}>
+                    <span className={cn("font-heading text-sm font-semibold tabular-nums", row.negative ? "text-destructive" : row.important && "text-primary-text")}>
                       {row.negative ? "− " : ""}
                       {formatKip(row.value)}
                     </span>
@@ -477,6 +485,14 @@ function channelTone(key: string) {
   return "bg-primary/10 text-primary-text";
 }
 
+function channelText(key: string) {
+  const channel = key.toUpperCase();
+  if (channel === "DINE_IN") return "text-info-text";
+  if (channel === "TAKEAWAY") return "text-warning-text";
+  if (channel === "DELIVERY") return "text-success-text";
+  return "text-primary-text";
+}
+
 function channelIcon(key: string): LucideIcon {
   const channel = key.toUpperCase();
   if (channel === "DINE_IN") return Utensils;
@@ -525,20 +541,20 @@ function OrderChannelsCard({
                   <Icon className="size-4" />
                 </span>
                 <span className="flex min-w-0 flex-wrap items-center gap-2">
-                  <span className={cn("text-sm font-medium", !active && "text-muted-foreground")}>{row.label}</span>
+                  <span className={cn("text-sm font-semibold", active ? channelText(row.key) : "text-muted-foreground")}>{row.label}</span>
                   {isMain && active ? (
                     <Badge variant="secondary" className="h-auto py-0.5 text-2xs">
                       {copy.mainChannel}
                     </Badge>
                   ) : null}
                 </span>
-                <span className={cn("font-heading text-base font-semibold tabular-nums", !active && "text-muted-foreground")}>
+                <span className={cn("font-heading text-base font-semibold tabular-nums", active ? channelText(row.key) : "text-muted-foreground")}>
                   {formatKip(row.value)}
                 </span>
                 {active ? (
                   <div className="col-span-2 col-start-2 flex flex-col gap-1.5">
-                    <ShareMeter label={copy.revenueShare} meterClassName="*:data-[slot=progress-indicator]:bg-primary" value={revenueShare} />
-                    <ShareMeter label={copy.orderShare} meterClassName="*:data-[slot=progress-indicator]:bg-muted-foreground" value={orderShare} />
+                    <ShareMeter label={copy.revenueShare} meterClassName="*:data-[slot=progress-indicator]:bg-primary" textClassName={channelText(row.key)} value={revenueShare} />
+                    <ShareMeter label={copy.orderShare} meterClassName="*:data-[slot=progress-indicator]:bg-muted-foreground" textClassName="text-foreground" value={orderShare} />
                     <span className="text-xs text-muted-foreground tabular-nums">
                       {formatNumber(count)} {copy.orders}
                       {count > 0 ? ` · ${copy.avgBill} ${formatKip(row.value / count)}` : ""}
@@ -558,12 +574,22 @@ function OrderChannelsCard({
   );
 }
 
-function ShareMeter({ label, meterClassName, value }: { label: string; meterClassName: string; value: number }) {
+function ShareMeter({
+  label,
+  meterClassName,
+  textClassName,
+  value,
+}: {
+  label: string;
+  meterClassName: string;
+  textClassName: string;
+  value: number;
+}) {
   return (
     <div className="grid grid-cols-[minmax(0,7rem)_minmax(0,1fr)_3.5rem] items-center gap-2 text-xs">
       <span className="truncate text-muted-foreground">{label}</span>
       <Progress aria-hidden="true" value={value} className={cn("h-1.5", meterClassName)} />
-      <span className="text-right font-medium tabular-nums">{formatPercent(value)}</span>
+      <span className={cn("text-right font-semibold tabular-nums", textClassName)}>{formatPercent(value)}</span>
     </div>
   );
 }
@@ -748,8 +774,8 @@ function TopProductsCard({
                           </div>
                         </div>
                       </TableCell>
-                      <TableCell className="hidden text-right tabular-nums md:table-cell">{formatNumber(product.qty)}</TableCell>
-                      <TableCell className="text-right font-heading font-semibold tabular-nums">{formatKip(product.revenue)}</TableCell>
+                      <TableCell className="hidden text-right font-medium text-info-text tabular-nums md:table-cell">{formatNumber(product.qty)}</TableCell>
+                      <TableCell className="text-right font-heading font-semibold text-primary-text tabular-nums">{formatKip(product.revenue)}</TableCell>
                       <TableCell className="hidden md:table-cell">
                         <div className="flex items-center gap-2">
                           <Progress
@@ -769,7 +795,7 @@ function TopProductsCard({
                         <TableCell colSpan={6} className="py-1.5">
                           <div className="flex items-center gap-2 text-xs font-medium text-muted-foreground">
                             <span aria-hidden="true" className="h-px flex-1 border-t border-dashed border-border" />
-                            <span className="whitespace-normal text-center">{t("dashboard.paretoCut", { count: eightyPercentCount })}</span>
+                            <span className="whitespace-normal text-center text-primary-text">{t("dashboard.paretoCut", { count: eightyPercentCount })}</span>
                             <span aria-hidden="true" className="h-px flex-1 border-t border-dashed border-border" />
                           </div>
                         </TableCell>
@@ -782,10 +808,10 @@ function TopProductsCard({
           </Table>
           <div className="flex flex-wrap gap-x-6 gap-y-1 text-xs text-muted-foreground tabular-nums">
             <span>
-              <span className="font-medium text-foreground">{copy.driveRevenue}:</span> {formatNumber(eightyPercentCount)} {copy.products}
+              <span className="font-semibold text-primary-text">{copy.driveRevenue}:</span> {formatNumber(eightyPercentCount)} {copy.products}
             </span>
             <span>
-              <span className="font-medium text-foreground">{copy.trackedTotal}:</span> {format(total)}
+              <span className="font-semibold text-primary-text">{copy.trackedTotal}:</span> {format(total)}
             </span>
           </div>
         </>
@@ -805,6 +831,13 @@ const seatClassNames: Record<SeatState, string> = {
   occupied: "bg-info",
   unknown: "bg-muted",
   waiting: "border border-warning bg-hatch text-warning",
+};
+
+const seatTextClassNames: Record<SeatState, string> = {
+  available: "text-success-text",
+  occupied: "text-info-text",
+  unknown: "text-muted-foreground",
+  waiting: "text-warning-text",
 };
 
 function TableStatusCard({ copy, summary }: { copy: DashboardCopy; summary: Row }) {
@@ -829,7 +862,7 @@ function TableStatusCard({ copy, summary }: { copy: DashboardCopy; summary: Row 
       {seats.total > 0 ? (
         <>
           <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
-            <span className="font-heading text-4xl leading-none font-bold font-stretch-semi-condensed tabular-nums xl:text-5xl">
+            <span className="font-heading text-4xl leading-none font-bold font-stretch-semi-condensed text-info-text tabular-nums xl:text-5xl">
               {formatNumber(seats.occupied)}
               <span className="text-2xl text-muted-foreground xl:text-3xl">/{formatNumber(seats.total)}</span>
             </span>
@@ -857,7 +890,7 @@ function TableStatusCard({ copy, summary }: { copy: DashboardCopy; summary: Row 
               <li key={item.state} className="flex items-center gap-2">
                 <span aria-hidden="true" className={cn("size-3 shrink-0 rounded-xs", seatClassNames[item.state])} />
                 <span className="text-sm text-muted-foreground">{item.label}</span>
-                <span className="font-heading text-base font-semibold tabular-nums">{formatNumber(item.count)}</span>
+                <span className={cn("font-heading text-base font-semibold tabular-nums", seatTextClassNames[item.state])}>{formatNumber(item.count)}</span>
               </li>
             ))}
           </ul>
@@ -881,8 +914,8 @@ type Highlight = {
 };
 
 const highlightToneClassNames = {
-  success: { chip: "bg-success text-success-foreground", edge: "border-l-success" },
-  warning: { chip: "bg-warning text-warning-foreground", edge: "border-l-warning" },
+  success: { chip: "bg-success text-success-foreground", edge: "border-l-success", text: "text-success-text" },
+  warning: { chip: "bg-warning text-warning-foreground", edge: "border-l-warning", text: "text-warning-text" },
 } as const;
 
 function HighlightsCard({
@@ -938,7 +971,7 @@ function HighlightsCard({
             </ItemMedia>
             <ItemContent>
               <ItemDescription className="text-xs">{item.label}</ItemDescription>
-              <ItemTitle className="line-clamp-2 text-sm font-semibold">{item.title}</ItemTitle>
+              <ItemTitle className={cn("line-clamp-2 text-sm font-semibold", highlightToneClassNames[item.tone].text)}>{item.title}</ItemTitle>
               <ItemDescription className="tabular-nums">{item.description}</ItemDescription>
             </ItemContent>
           </Item>
