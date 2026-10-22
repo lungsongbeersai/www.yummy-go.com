@@ -256,13 +256,13 @@ export function BranchMenuQrDialog({
   return (
     <>
       <Dialog open={open} onOpenChange={onOpenChange}>
-        <DialogContent className="max-h-[calc(100dvh-2rem-env(safe-area-inset-top,0px)-env(safe-area-inset-bottom,0px))] gap-0 overflow-hidden p-0 duration-200 sm:max-w-130">
+        <DialogContent className="max-h-[calc(100dvh-2rem-env(safe-area-inset-top,0px)-env(safe-area-inset-bottom,0px))] grid-rows-[auto_minmax(0,1fr)_auto] gap-0 overflow-hidden p-0 duration-200 sm:max-w-130">
         <DialogHeader className="gap-2 px-5 pb-5 pt-5 pr-12 text-left">
           <DialogTitle className="text-xl font-bold leading-6">{t("pos.createBranchMenuQr")}</DialogTitle>
           <DialogDescription>{t("pos.branchMenuQrDescription")}</DialogDescription>
         </DialogHeader>
 
-        <div className="flex min-h-0 flex-col gap-4 overflow-y-auto px-5 pb-5">
+        <div className="flex min-h-0 flex-col gap-4 overflow-y-auto overscroll-contain px-5 pb-5 [&>*]:shrink-0">
           <QrPrintPreview
             title={response?.branch_name || t("pos.foodMenu")}
             caption={t("pos.scanQrToViewMenu")}
