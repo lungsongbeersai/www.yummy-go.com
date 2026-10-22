@@ -1,5 +1,6 @@
 const THEME_COLORS = ["emerald", "blue", "amber", "rose", "violet"];
 const FONT_SCALES = ["sm", "md", "lg"];
+const LAO_FONTS = ["noto-sans", "noto-serif", "phetsarath", "saysettha"];
 
 // Inlined into the root layout's <head> via next/script (beforeInteractive) so the
 // theme/color/font-scale classes land before first paint, avoiding a flash of the
@@ -12,6 +13,7 @@ export const themeBootstrapScript = `
     var state = parsed && parsed.state ? parsed.state : null;
     var theme = state && state.theme === "dark" ? "dark" : "light";
     var themeColor = state && ${JSON.stringify(THEME_COLORS)}.indexOf(state.themeColor) !== -1 ? state.themeColor : "emerald";
+    var laoFont = state && ${JSON.stringify(LAO_FONTS)}.indexOf(state.laoFont) !== -1 ? state.laoFont : "noto-sans";
     var decorBackground = state && state.decorBackground === false ? "off" : "on";
     var fontScale = state && ${JSON.stringify(FONT_SCALES)}.indexOf(state.fontScale) !== -1 ? state.fontScale : "md";
     var root = document.documentElement;
@@ -20,6 +22,7 @@ export const themeBootstrapScript = `
     root.dataset.themeColor = themeColor;
     root.dataset.fontScale = fontScale;
     root.dataset.decorBackground = decorBackground;
+    root.dataset.laoFont = laoFont;
     root.style.colorScheme = theme;
   } catch (_) {
     var fallbackRoot = document.documentElement;
@@ -28,6 +31,7 @@ export const themeBootstrapScript = `
     fallbackRoot.dataset.themeColor = "emerald";
     fallbackRoot.dataset.fontScale = "md";
     fallbackRoot.dataset.decorBackground = "on";
+    fallbackRoot.dataset.laoFont = "noto-sans";
     fallbackRoot.style.colorScheme = "light";
   }
 })();

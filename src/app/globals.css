@@ -478,6 +478,24 @@ html[data-font-scale="xl"] {
   font-size: 125%; /* 20px */
 }
 
+/* The Lao face the whole UI uses (Appearance → Lao font, app-store laoFont, set on <html> by the
+   theme bootstrap script before first paint). Printed/exported surfaces keep their own faces. */
+html {
+  --font-lao-ui: var(--font-noto-sans-lao);
+}
+
+html[data-lao-font="noto-serif"] {
+  --font-lao-ui: var(--font-noto-serif-lao);
+}
+
+html[data-lao-font="phetsarath"] {
+  --font-lao-ui: var(--font-phetsarath);
+}
+
+html[data-lao-font="saysettha"] {
+  --font-lao-ui: var(--font-saysettha);
+}
+
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
@@ -518,10 +536,15 @@ html[data-font-scale="xl"] {
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-ring: var(--sidebar-ring);
   --color-app: hsl(var(--app));
-  --font-heading: var(--font-sans), var(--font-noto-sans-lao);
+  --font-heading: var(--font-sans), var(--font-lao-ui);
   --font-sans: var(--font-sans);
-  --font-lao: var(--font-noto-sans-lao);
-  --font-mono: ui-monospace, var(--font-noto-sans-lao), monospace;
+  --font-lao: var(--font-lao-ui);
+  --font-mono: ui-monospace, var(--font-lao-ui), monospace;
+  /* Fixed faces for previews in the Lao font picker (appearance-controls.tsx). */
+  --font-lao-noto-sans: var(--font-noto-sans-lao);
+  --font-lao-noto-serif: var(--font-noto-serif-lao);
+  --font-lao-phetsarath: var(--font-phetsarath);
+  --font-lao-saysettha: var(--font-saysettha);
   --color-chart-5: var(--chart-5);
   --color-chart-4: var(--chart-4);
   --color-chart-3: var(--chart-3);
@@ -1516,7 +1539,7 @@ body {
   background-attachment: fixed;
   color: var(--foreground);
   overscroll-behavior: none;
-  font-family: var(--font-noto-sans-lao), "Aptos", "Segoe UI", sans-serif;
+  font-family: var(--font-lao-ui), "Aptos", "Segoe UI", sans-serif;
 }
 
 /* iOS (iPhone/iPad, incl. the Capacitor WKWebView) renders text with subpixel

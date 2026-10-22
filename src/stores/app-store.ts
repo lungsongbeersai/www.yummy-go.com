@@ -15,11 +15,14 @@ import {
 export type ThemeMode = "light" | "dark";
 export type ThemeColor = "emerald" | "blue" | "amber" | "rose" | "violet";
 export type FontScale = "sm" | "md" | "lg" | "xl";
+// ฟอนต์ภาษาลาวของ UI ทั้งแอป (globals.css html[data-lao-font] → --font-lao-ui)
+export type LaoFont = "noto-sans" | "noto-serif" | "phetsarath" | "saysettha";
 
 // แหล่งความจริงเดียวของค่าที่ใช้ได้ — UI ตั้งค่าหน้าตาทุกตัว (AppearanceControls) อ่านจากที่นี่
 // แทนการประกาศ array ซ้ำในแต่ละ component ซึ่งเคยหลุดออกจากกันมาแล้ว
 export const THEME_COLORS: readonly ThemeColor[] = ["emerald", "blue", "amber", "rose", "violet"];
 export const FONT_SCALES: readonly FontScale[] = ["sm", "md", "lg", "xl"];
+export const LAO_FONTS: readonly LaoFont[] = ["noto-sans", "noto-serif", "phetsarath", "saysettha"];
 
 // px ที่แต่ละขั้นตั้งใจให้ตัวอักษรอ้างอิง (text-base) กลายเป็นจริง ๆ บนจอ — md คือ 16px
 // เดิม (ไม่ scale) ตรงกับ root font-size เริ่มต้นของเบราว์เซอร์พอดี จึงไล่ขั้นละ 2px คูณ/หาร
@@ -38,6 +41,7 @@ interface AppState {
   // ภาพพื้นหลังลายใบไม้ของแถบบนและเมนูข้าง (globals.css html[data-decor-background]) — ปิดได้สำหรับ
   // คนที่อยากได้หน้าตาเรียบ หรือเครื่องที่วาดภาพพื้นหลังช้า
   decorBackground: boolean;
+  laoFont: LaoFont;
   language: Language;
   orderAlertSound: OrderAlertSoundId;
   waiterAlertSound: OrderAlertSoundId;
@@ -51,6 +55,7 @@ interface AppState {
   setThemeColor: (themeColor: ThemeColor) => void;
   setFontScale: (fontScale: FontScale) => void;
   setDecorBackground: (decorBackground: boolean) => void;
+  setLaoFont: (laoFont: LaoFont) => void;
   setLanguage: (language: Language) => void;
   setOrderAlertSound: (orderAlertSound: OrderAlertSoundId) => void;
   setWaiterAlertSound: (waiterAlertSound: OrderAlertSoundId) => void;
@@ -68,6 +73,7 @@ export const useAppStore = create<AppState>()(
       themeColor: "emerald",
       fontScale: "md",
       decorBackground: true,
+      laoFont: "noto-sans",
       language: DEFAULT_LANGUAGE,
       orderAlertSound: DEFAULT_ORDER_ALERT_SOUND,
       waiterAlertSound: DEFAULT_WAITER_ALERT_SOUND,
@@ -80,6 +86,7 @@ export const useAppStore = create<AppState>()(
       setThemeColor: (themeColor) => set({ themeColor }),
       setFontScale: (fontScale) => set({ fontScale }),
       setDecorBackground: (decorBackground) => set({ decorBackground }),
+      setLaoFont: (laoFont) => set({ laoFont }),
       setLanguage: (language) => set({ language }),
       setOrderAlertSound: (orderAlertSound) => set({ orderAlertSound }),
       setWaiterAlertSound: (waiterAlertSound) => set({ waiterAlertSound }),
@@ -105,11 +112,12 @@ export const useAppStore = create<AppState>()(
         return persistedState as AppState;
       },
       // waiterAlertSound/alertSoundEnabled ไม่ต้อง migrate — ผู้ใช้เดิมไม่มีค่านี้ persist จะ merge ค่าเริ่มต้นให้เอง
-      partialize: ({ theme, themeColor, fontScale, decorBackground, language, orderAlertSound, waiterAlertSound, alertSoundEnabled, collapsed }) => ({
+      partialize: ({ theme, themeColor, fontScale, decorBackground, laoFont, language, orderAlertSound, waiterAlertSound, alertSoundEnabled, collapsed }) => ({
         theme,
         themeColor,
         fontScale,
         decorBackground,
+        laoFont,
         language,
         orderAlertSound,
         waiterAlertSound,
@@ -122,6 +130,7 @@ export const useAppStore = create<AppState>()(
         if (!THEME_COLORS.includes(state.themeColor)) state.setThemeColor("emerald");
         if (!FONT_SCALES.includes(state.fontScale)) state.setFontScale("md");
         if (typeof state.decorBackground !== "boolean") state.setDecorBackground(true);
+        if (!LAO_FONTS.includes(state.laoFont)) state.setLaoFont("noto-sans");
         if (!isOrderAlertSoundId(state.orderAlertSound)) state.setOrderAlertSound(DEFAULT_ORDER_ALERT_SOUND);
         if (!isOrderAlertSoundId(state.waiterAlertSound)) state.setWaiterAlertSound(DEFAULT_WAITER_ALERT_SOUND);
         // ค่าเสีย (แก้ localStorage เอง/เวอร์ชันเก่า) ถือว่าเปิดเสียง — ปลอดภัยกว่าเงียบโดยไม่รู้ตัว

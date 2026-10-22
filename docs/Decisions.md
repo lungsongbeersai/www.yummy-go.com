@@ -6,6 +6,21 @@ Entries below dated from git history are backfilled from existing code comments 
 
 ---
 
+## User-selectable Lao font: Noto Sans Lao (default), Noto Serif Lao, Phetsarath OT, Saysettha OT
+
+- **Date:** 2026-10-22.
+- **Context:** The owner asked to add Phetsarath OT, Noto Serif Lao and Saysettha so that each user can pick the Lao typeface they prefer. Design.md / Non-negotiable #8 allow only the approved fonts in `src/design-system/fonts.ts`, so this extends that approved set rather than adding fonts in feature code.
+- **Decision:** All four faces are registered through `next/font/local` in `src/design-system/fonts.ts`:
+  - Noto Serif Lao (variable) and Phetsarath OT (Regular + Bold) were downloaded from `github.com/google/fonts`. Both are SIL OFL 1.1, and `OFL.txt` sits next to each file in `public/fonts/`.
+  - Saysettha OT reuses the existing `public/fonts/saysettha_ot.ttf`, which the receipt CSS already ships.
+  - The three optional faces use `preload: false`.
+
+  A new token, `--font-lao-ui`, set per `html[data-lao-font]` in `globals.css`, now backs `font-lao`, `--font-heading`, `--font-mono`, the body font and toasts. The user picks the face under Appearance → Lao font (`app-store` `laoFont`, persisted). The theme bootstrap script applies it before first paint.
+- **Trade-off:** Printed and exported surfaces (report print surface, menu PDFs, receipts) keep their own fixed faces. Saysettha OT has a single 400 weight, so bold text in it is synthesized. Fonts a user has not chosen are not downloaded on normal pages. Opening the appearance picker does fetch all four, because each option previews itself (about 0.4 MB once, then cached). Latin text and figures stay on Noto Sans in mixed UI text (`font-heading` lists `--font-sans` first).
+- **Approved by:** repository owner (2026-10-22, in conversation: "download and add font … ໃຫ້ user ສາມາດປ່ຽນ font ໄດ້").
+
+---
+
 ## Dashboard redesign: CSS "banknote plate" hero, no WebGL, no new dependencies
 
 - **Date:** 2026-10-22.

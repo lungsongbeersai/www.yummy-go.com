@@ -214,6 +214,13 @@
       "fontSizeLabel": "Text size",
       "backgroundLabel": "Background image",
       "backgroundDescription": "Floral artwork behind the top bar and the menu",
+      "laoFontLabel": "Lao font",
+      "laoFonts": {
+        "noto-sans": "Noto Sans Lao (default)",
+        "noto-serif": "Noto Serif Lao",
+        "phetsarath": "Phetsarath OT",
+        "saysettha": "Saysettha OT"
+      },
       "modeLabel": "Mode",
       "languageLabel": "Language",
       "modes": {

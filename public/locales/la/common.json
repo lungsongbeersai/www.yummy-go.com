@@ -214,6 +214,13 @@
       "fontSizeLabel": "ຂະໜາດຕົວອັກສອນ",
       "backgroundLabel": "ຮູບພື້ນຫຼັງ",
       "backgroundDescription": "ລາຍໃບໄມ້ຢູ່ແຖບເທິງ ແລະ ເມນູດ້ານຂ້າງ",
+      "laoFontLabel": "ຟອນພາສາລາວ",
+      "laoFonts": {
+        "noto-sans": "Noto Sans Lao (ຄ່າເລີ່ມຕົ້ນ)",
+        "noto-serif": "Noto Serif Lao",
+        "phetsarath": "Phetsarath OT",
+        "saysettha": "Saysettha OT"
+      },
       "modeLabel": "ໂໝດສີ",
       "languageLabel": "ພາສາ",
       "modes": {

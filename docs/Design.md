@@ -43,6 +43,8 @@ Verified in active use across `src/features/`:
 
 Fonts load through `next/font` in `src/design-system/fonts.ts`. `font-sans` is the default typeface; `font-lao` is required wherever Lao text must render explicitly (Lao is the app's primary language — do not assume Latin-only fallback is acceptable).
 
+The Lao face behind `font-lao` is user-selectable (Appearance → Lao font): Noto Sans Lao (default), Noto Serif Lao, Phetsarath OT or Saysettha OT, through `--font-lao-ui` in `globals.css`. Use `font-lao`/`font-heading`, never one of those faces directly, so the choice applies everywhere; see `Decisions.md`.
+
 ## Theme tokens
 
 Use semantic tokens: `bg-primary`, `text-muted-foreground`, `border-border`, `bg-destructive`, etc. To change the visual theme, edit the light/dark CSS variables in `globals.css` — never hard-code a color in a feature component. `--warning`, `--success`, `--info`, `--pending` (plus their `-foreground` pairs) exist alongside the standard shadcn palette for POS-specific status states (order/table/print states); prefer them over ad hoc color choices for status badges.
