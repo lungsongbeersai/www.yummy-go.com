@@ -34,8 +34,8 @@ export function PrinterOutputSettings(props: PrinterOutputSettingsProps) {
 
   return (
     <div className="flex min-w-0 flex-col gap-4 md:col-span-2">
-      <FieldSet className="gap-4 rounded-lg border border-border bg-card p-4">
-        <FieldLegend className="mb-0 text-base font-black">{t("printer.outputSettings")}</FieldLegend>
+      <FieldSet className="gap-4 rounded-xl bg-muted/50 p-4">
+        <FieldLegend className="mb-0 text-base font-black text-success-text">{t("printer.outputSettings")}</FieldLegend>
         <div className="grid min-w-0 gap-4 lg:grid-cols-2">
           <div className="min-w-0 lg:col-span-2">
             <RadioOptionList
@@ -95,8 +95,8 @@ export function PrinterOutputSettings(props: PrinterOutputSettingsProps) {
           ) : null}
         </div>
       </FieldSet>
-      <FieldSet className="gap-4 rounded-lg border border-border bg-card p-4">
-        <FieldLegend className="mb-0 text-base font-black">{t("printer.hardwareSettings")}</FieldLegend>
+      <FieldSet className="gap-4 rounded-xl bg-muted/50 p-4">
+        <FieldLegend className="mb-0 text-base font-black text-success-text">{t("printer.hardwareSettings")}</FieldLegend>
         <div className="grid min-w-0 gap-4 lg:grid-cols-2">
           <RadioOptionList
             className="min-w-0"

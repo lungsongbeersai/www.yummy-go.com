@@ -1762,7 +1762,15 @@
       "connected": "Connected",
       "offline": "Offline",
       "unchecked": "Unchecked"
-    }
+    },
+    "connectTcpHint": "On the shop network, reached by its IP address",
+    "connectUsbHint": "Plugged into this computer, found by the print agent",
+    "mappingOffHint": "Receipts, bills and reports, not tied to the menu",
+    "mappingZoneHint": "Kitchen/bar tickets by seating zone and menu category",
+    "mappingCategoryHint": "Kitchen/bar tickets by menu category only",
+    "formReady": "All required details are filled in. Ready to save.",
+    "printSettingsTitle": "Printing and device options",
+    "printSettingsHint": "How tickets are sent and cut, the cash drawer and the buzzer."
   },
   "product": {
     "addDetail": "Add detail",

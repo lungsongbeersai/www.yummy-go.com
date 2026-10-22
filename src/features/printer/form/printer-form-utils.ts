@@ -82,8 +82,8 @@ export function optionRowClass(active: boolean) {
   return cn(
     "cursor-pointer rounded-md border p-3 transition",
     active
-      ? "border-primary bg-primary/5 ring-1 ring-primary/20"
-      : "border-border hover:border-primary/30 hover:bg-muted/30",
+      ? "border-primary bg-primary/10 ring-1 ring-primary/30"
+      : "border-border hover:border-primary/40 hover:bg-muted",
   );
 }
 
