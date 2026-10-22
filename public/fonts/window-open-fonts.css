@@ -1,6 +1,6 @@
 @font-face {
-  font-family: "Yummy Go Noto Sans Lao";
-  src: url("./NotoSansLao.ttf") format("truetype");
+  font-family: "Yummy Go Saysettha OT";
+  src: url("./saysettha_ot.ttf") format("truetype");
   font-display: swap;
   font-style: normal;
   font-weight: 400;
@@ -15,8 +15,8 @@
   font-weight: 400;
 }
 
-/* Limit Noto Sans Lao to Lao glyphs so Latin text, numbers, and punctuation fall through to Times. */
+/* Limit Saysettha to Lao glyphs so Latin text, numbers, and punctuation fall through to Times. */
 .window-open-fonts,
 .window-open-fonts * {
-  font-family: "Yummy Go Noto Sans Lao", "Yummy Go Times New Roman", "Times New Roman", serif !important;
+  font-family: "Yummy Go Saysettha OT", "Yummy Go Times New Roman", "Times New Roman", serif !important;
 }
