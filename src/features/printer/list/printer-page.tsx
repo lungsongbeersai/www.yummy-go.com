@@ -347,7 +347,11 @@ export function PrinterPage() {
         }}
       />
       <PrintLoadingDialog open={Boolean(printer.testingUuid)} />
-      <PrinterSelfTestDialog pendingSelfTest={printer.pendingSelfTest} printing={printer.printing} onReady={printer.completeSelfTest} />
+      <PrinterSelfTestDialog
+        pendingSelfTest={printer.pendingSelfTest} printing={printer.printing} onReady={printer.completeSelfTest}
+        selection={printer.selfTestSelection} profile={printer.selfTestProfile} onProfileChange={printer.setSelfTestProfile}
+        onConfirm={printer.confirmSelfTest} onCancel={printer.cancelSelfTest}
+      />
     </div>
   );
 }

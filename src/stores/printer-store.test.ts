@@ -157,7 +157,7 @@ describe("printer store", () => {
     expect(usePrinterStore.getState().pendingSelfTest).toBeNull();
   });
 
-  it("restores the pending printer after a page reload and forgets it after readiness", async () => {
+  it.each([undefined, "epson", "xprinter", "rongta"] as const)("restores the pending %s profile after a page reload and forgets it after readiness", async (profile) => {
     const storage = new Map<string, string>();
     vi.stubGlobal("window", {
       localStorage: {
@@ -170,6 +170,7 @@ describe("printer store", () => {
       const target = {
         connect_type: "usb" as const, interface_value: "cups:Receipt",
         expected_agent_id: "local-agent", expected_device_code: "local-device",
+        ...(profile ? { command_profile: profile } : {}),
       };
       vi.mocked(printPrinterSelfTest).mockResolvedValueOnce({ ok: true, status: "command_sent" });
       await usePrinterStore.getState().selfTest(target);
@@ -181,6 +182,31 @@ describe("printer store", () => {
       usePrinterStore.getState().restoreSelfTest();
       expect(usePrinterStore.getState().pendingSelfTest).toBeNull();
       expect(storage.size).toBe(0);
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+
+  it("does not erase a newer tab's maintenance for a different profile after late readiness", async () => {
+    const first = { connect_type: "usb" as const, interface_value: "cups:Receipt", command_profile: "epson" as const };
+    const next = { ...first, command_profile: "xprinter" as const };
+    const storage = new Map([["yummy_pending_printer_self_test", JSON.stringify(first)]]);
+    vi.stubGlobal("window", { localStorage: {
+      getItem: (key: string) => storage.get(key) ?? null,
+      setItem: (key: string, value: string) => storage.set(key, value),
+      removeItem: (key: string) => storage.delete(key),
+    } });
+    try {
+      usePrinterStore.setState({ pendingSelfTest: first });
+      const ready = deferred<{ ok: true; status: "ready" }>();
+      vi.mocked(completePrinterSelfTest).mockReturnValueOnce(ready.promise);
+      const completion = usePrinterStore.getState().completeSelfTest();
+      storage.set("yummy_pending_printer_self_test", JSON.stringify(next));
+      ready.resolve({ ok: true, status: "ready" });
+      await completion;
+      expect(storage.get("yummy_pending_printer_self_test")).toBe(JSON.stringify(next));
+      usePrinterStore.getState().restoreSelfTest();
+      expect(usePrinterStore.getState().pendingSelfTest).toEqual(next);
     } finally {
       vi.unstubAllGlobals();
     }

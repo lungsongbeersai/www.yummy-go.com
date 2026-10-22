@@ -1,6 +1,8 @@
 import { Capacitor } from "@capacitor/core";
 import { ServiceError } from "@/lib/api";
 import { getPrinterDeliveryState } from "@/services/printer/helpers";
+import { printerSelfTestCommandBase64 } from "@/services/printer/self-test-profile";
+import type { PrinterSelfTestCommandProfile } from "@/services/printer/types";
 
 type TcpClient = string | number;
 
@@ -61,7 +63,6 @@ const mobileTcpQueues = new Map<string, Promise<void>>();
 const mobileTcpSelfTests = new Set<string>();
 const mobileTcpMaintenance = new Set<string>();
 const MOBILE_TCP_MAINTENANCE_KEY = "yummy_printer_self_test_maintenance";
-const SELF_TEST_BASE64 = "HShBAgAAAg==";
 const MOBILE_TCP_DEBUG = process.env.NEXT_PUBLIC_MOBILE_TCP_DEBUG === "true";
 
 function mobileTcpDebug(message: string, details?: unknown) {
@@ -842,7 +843,17 @@ export function printMobileEscposOverTcp(input: {
     );
 }
 
-export function printMobilePrinterSelfTestOverTcp(interfaceValue: string) {
+export function printMobilePrinterSelfTestOverTcp(
+    interfaceValue: string,
+    commandProfile?: PrinterSelfTestCommandProfile,
+) {
+    // Validate before reserving the physical queue or persisting maintenance.
+    let commandBase64: string;
+    try {
+        commandBase64 = printerSelfTestCommandBase64(commandProfile);
+    } catch (error) {
+        return Promise.reject(error);
+    }
     const key = mobilePrinterQueueKey(interfaceValue);
     restoreMobilePrinterMaintenance();
     if (mobileTcpMaintenance.has(key)) return Promise.reject(printerBusyError(true));
@@ -855,7 +866,7 @@ export function printMobilePrinterSelfTestOverTcp(interfaceValue: string) {
         key,
         () => printMobileEscposOverTcpNow({
             interface_value: interfaceValue,
-            escpos_base64: SELF_TEST_BASE64,
+            escpos_base64: commandBase64,
             require_completion_confirmation: false,
         }),
         true,

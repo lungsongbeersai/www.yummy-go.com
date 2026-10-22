@@ -7,6 +7,7 @@ import {
   printMobileEscposOverTcp,
   printMobilePrinterSelfTestOverTcp,
 } from "@/services/printer/mobile-tcp";
+import type { PrinterSelfTestCommandProfile } from "@/services/printer/types";
 
 const nativeTcpMocks = vi.hoisted(() => ({
   connect: vi.fn(),
@@ -218,6 +219,44 @@ describe("mobile TCP printer queue", () => {
     completeMobilePrinterSelfTest(target);
     await expect(printMobileEscposOverTcp(normalJob)).resolves.toBeUndefined();
     expect(nativeTcpMocks.read).toHaveBeenCalledTimes(1);
+  });
+
+  it.each(["epson", "xprinter", "rongta"] as const)("sends exactly one fixed %s firmware command without a status probe", async (profile) => {
+    const target = `tcp://${profile}-profile-printer:9100`;
+    await printMobilePrinterSelfTestOverTcp(target, profile);
+    const expected = {
+      xprinter: [0x1f, 0x1b, 0x1f, 0x67, 0x00],
+      rongta: [0x12, 0x54],
+      epson: [0x1d, 0x28, 0x41, 0x02, 0x00, 0x00, 0x02],
+    }[profile];
+    expect(nativeTcpMocks.send).toHaveBeenCalledExactlyOnceWith({
+      client: "self-test-client", data: Buffer.from(expected).toString("base64"), encoding: "base64",
+    });
+    expect(nativeTcpMocks.read).not.toHaveBeenCalled();
+    completeMobilePrinterSelfTest(target);
+  });
+
+  it.each(["toString", "__proto__", "unknown", null, {}])("rejects an invalid native profile before writing or reserving maintenance: %j", async (profile) => {
+    const target = "tcp://invalid-profile-printer:9100";
+    const storage = { getItem: vi.fn(), setItem: vi.fn(), removeItem: vi.fn() };
+    vi.stubGlobal("window", { localStorage: storage });
+    await expect(printMobilePrinterSelfTestOverTcp(target, profile as PrinterSelfTestCommandProfile)).rejects.toMatchObject({
+      statusCode: 400, delivery_state: "not_sent",
+    });
+    expect(nativeTcpMocks.connect).not.toHaveBeenCalled();
+    expect(nativeTcpMocks.send).not.toHaveBeenCalled();
+    expect(storage.setItem).not.toHaveBeenCalled();
+    await expect(printMobileEscposOverTcp({ interface_value: target, escpos_base64: "G0A=" })).resolves.toBeUndefined();
+  });
+
+  it.each(["xprinter", "rongta"] as const)("keeps %s maintenance after uncertain transmission without a fallback command", async (profile) => {
+    const target = `tcp://uncertain-${profile}:9100`;
+    nativeTcpMocks.send.mockRejectedValueOnce(new Error("Response lost after flush"));
+    await expect(printMobilePrinterSelfTestOverTcp(target, profile)).rejects.toMatchObject({ delivery_state: "unknown" });
+    await expect(printMobilePrinterSelfTestOverTcp(target, "epson")).rejects.toMatchObject({ code: "PRINTER_SELF_TEST_IN_PROGRESS" });
+    expect(nativeTcpMocks.send).toHaveBeenCalledExactlyOnceWith({ client: "self-test-client", data: profile === "xprinter" ? "HxsfZwA=" : "ElQ=", encoding: "base64" });
+    expect(nativeTcpMocks.read).not.toHaveBeenCalled();
+    completeMobilePrinterSelfTest(target);
   });
 
   it("clears maintenance after a connection failure before any bytes are sent", async () => {

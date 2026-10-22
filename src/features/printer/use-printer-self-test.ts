@@ -1,8 +1,8 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
-import type { PrinterSelfTestInput } from "@/services/printer";
+import type { PrinterSelfTestCommandProfile, PrinterSelfTestInput } from "@/services/printer";
 import { usePrinterStore } from "@/stores/printer-store";
 import { useToastStore } from "@/stores/toast-store";
 
@@ -14,6 +14,8 @@ export function usePrinterSelfTest() {
   const restoreSelfTest = usePrinterStore((state) => state.restoreSelfTest);
   const selfTestPrinter = usePrinterStore((state) => state.selfTest);
   const completeSelfTestPrinter = usePrinterStore((state) => state.completeSelfTest);
+  const [selfTestSelection, setSelfTestSelection] = useState<PrinterSelfTestInput | null>(null);
+  const [selfTestProfile, setSelfTestProfile] = useState<PrinterSelfTestCommandProfile>("epson");
 
   useEffect(() => {
     restoreSelfTest();
@@ -27,6 +29,15 @@ export function usePrinterSelfTest() {
   }, [pendingSelfTest]);
 
   async function runSelfTest(target: PrinterSelfTestInput) {
+    if (printing || pendingSelfTest || selfTestSelection) return;
+    setSelfTestProfile("epson");
+    setSelfTestSelection(target);
+  }
+
+  async function confirmSelfTest() {
+    if (!selfTestSelection || printing || pendingSelfTest) return;
+    const target = { ...selfTestSelection, command_profile: selfTestProfile };
+    setSelfTestSelection(null);
     try {
       await selfTestPrinter(target);
       showToast({
@@ -55,5 +66,9 @@ export function usePrinterSelfTest() {
     }
   }
 
-  return { printing, pendingSelfTest, runSelfTest, completeSelfTest };
+  return {
+    printing, pendingSelfTest, runSelfTest, completeSelfTest,
+    selfTestSelection, selfTestProfile, setSelfTestProfile, confirmSelfTest,
+    cancelSelfTest: () => setSelfTestSelection(null),
+  };
 }

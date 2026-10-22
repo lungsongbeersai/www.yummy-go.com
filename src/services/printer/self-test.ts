@@ -13,6 +13,7 @@ import {
   completeMobilePrinterSelfTest,
   printMobilePrinterSelfTestOverTcp,
 } from "@/services/printer/mobile-tcp";
+import { printerSelfTestCommandProfile } from "@/services/printer/self-test-profile";
 import type {
   AgentInfo,
   PrinterSelfTestInput,
@@ -127,6 +128,13 @@ async function localSelfTestRequest(
     throw notSentError("Local Printer Agent identity changed. Refresh the printer list before running self-test.", 409);
   }
 
+  const manufacturerProfile = input.command_profile && input.command_profile !== "epson" ? input.command_profile : null;
+  if (!complete && manufacturerProfile && (
+    !Array.isArray(agent.self_test_profiles) || !agent.self_test_profiles.includes(manufacturerProfile)
+  )) {
+    throw notSentError("Update Local Printer Agent to use this manufacturer's self-test command.", 501);
+  }
+
   try {
     const { data } = await axios.post<unknown>(
       `${agentBase(AGENT_URL)}/printer/self-test${complete ? "/complete" : ""}`,
@@ -134,6 +142,7 @@ async function localSelfTestRequest(
         agent_id: agentId,
         device_code: deviceCode,
         interface_value: interfaceValue,
+        ...(!complete && input.command_profile ? { command_profile: input.command_profile } : {}),
       },
       { headers: { "x-agent-secret": AGENT_SECRET }, timeout: 45000 },
     );
@@ -144,6 +153,14 @@ async function localSelfTestRequest(
     ) {
       throw new Error("Unexpected printer self-test response");
     }
+    if (!complete && manufacturerProfile) {
+      const result = "result" in data ? data.result : null;
+      if (!result || typeof result !== "object" || !("command_profile" in result) || result.command_profile !== manufacturerProfile) {
+        // The Agent may have changed after the capability read. The command
+        // could already be sent, so keep maintenance and never try a fallback.
+        throw new Error("Unable to confirm the selected printer self-test command");
+      }
+    }
   } catch (error) {
     throw selfTestError(error);
   }
@@ -152,13 +169,15 @@ async function localSelfTestRequest(
 export async function printPrinterSelfTest(
   input: PrinterSelfTestInput,
 ): Promise<PrinterSelfTestResult> {
+  const commandProfile = printerSelfTestCommandProfile(input.command_profile);
   const interfaceValue = selfTestInterface(input);
   if (isCapacitorMobileApp()) {
     if (input.connect_type === "usb") {
       throw notSentError("Printer self-test in the mobile app requires Wi-Fi/LAN.", 501);
     }
     try {
-      await printMobilePrinterSelfTestOverTcp(interfaceValue);
+      if (input.command_profile === undefined) await printMobilePrinterSelfTestOverTcp(interfaceValue);
+      else await printMobilePrinterSelfTestOverTcp(interfaceValue, commandProfile);
     } catch (error) {
       throw selfTestError(error);
     }

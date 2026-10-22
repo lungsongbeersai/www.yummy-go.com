@@ -102,7 +102,8 @@ function rememberPendingSelfTest(target: PrinterSelfTestInput | null, expected?:
       const current = readPendingSelfTest();
       if (expected && (
         current?.connect_type !== expected.connect_type || current?.interface_value !== expected.interface_value ||
-        current?.expected_agent_id !== expected.expected_agent_id || current?.expected_device_code !== expected.expected_device_code
+        current?.expected_agent_id !== expected.expected_agent_id || current?.expected_device_code !== expected.expected_device_code ||
+        current?.command_profile !== expected.command_profile
       )) return;
       window.localStorage.removeItem(PENDING_SELF_TEST_KEY);
     }
@@ -128,6 +129,8 @@ function readPendingSelfTest(): PrinterSelfTestInput | null {
         ? { expected_agent_id: raw.expected_agent_id } : {}),
       ...("expected_device_code" in raw && typeof raw.expected_device_code === "string"
         ? { expected_device_code: raw.expected_device_code } : {}),
+      ...("command_profile" in raw && (raw.command_profile === "epson" || raw.command_profile === "xprinter" || raw.command_profile === "rongta")
+        ? { command_profile: raw.command_profile } : {}),
     };
   } catch {
     return null;

@@ -51,6 +51,103 @@ beforeEach(() => {
 });
 
 describe("printer self-test", () => {
+  it.each(["xprinter", "rongta"] as const)("sends the selected %s profile with fresh live capability and identity", async (profile) => {
+    mocks.getLocalAgentInfo.mockResolvedValue({
+      agent_id: "local-agent", device_code: "local-device", self_test_profiles: ["epson", "xprinter", "rongta"],
+    });
+    mocks.post.mockResolvedValue({ data: { ok: true, status: "command_sent", result: { bytes: profile === "xprinter" ? 5 : 2, command_profile: profile } } });
+    await printPrinterSelfTest({ connect_type: "usb", interface_value: "cups:Receipt", command_profile: profile });
+    expect(mocks.getLocalAgentInfo).toHaveBeenCalledExactlyOnceWith();
+    expect(mocks.post).toHaveBeenCalledExactlyOnceWith(
+      `${AGENT_URL.replace(/\/+$/, "")}/printer/self-test`,
+      { agent_id: "local-agent", device_code: "local-device", interface_value: "cups:Receipt", command_profile: profile },
+      expect.any(Object),
+    );
+  });
+
+  it("requires Rongta capability explicitly even if the Agent supports Xprinter", async () => {
+    mocks.getLocalAgentInfo.mockResolvedValue({
+      agent_id: "local-agent", device_code: "local-device", self_test_profiles: ["epson", "xprinter"],
+    });
+    await expect(printPrinterSelfTest({ ...tcpInput, command_profile: "rongta" })).rejects.toMatchObject({
+      statusCode: 501, delivery_state: "not_sent",
+    });
+    expect(mocks.post).not.toHaveBeenCalled();
+  });
+
+  it("keeps Rongta uncertainty when a different profile is echoed and never sends a fallback", async () => {
+    mocks.getLocalAgentInfo.mockResolvedValue({
+      agent_id: "local-agent", device_code: "local-device", self_test_profiles: ["rongta"],
+    });
+    mocks.post.mockResolvedValue({ data: { ok: true, status: "command_sent", result: { command_profile: "xprinter" } } });
+    await expect(printPrinterSelfTest({ ...tcpInput, command_profile: "rongta" })).rejects.toMatchObject({ delivery_state: "unknown" });
+    expect(mocks.post).toHaveBeenCalledTimes(1);
+  });
+
+  it.each([undefined, null, {}, { command_profile: "epson" }, { command_profile: "unknown" }])(
+    "keeps uncertainty if the Agent changes after its capability read and does not confirm Xprinter: %j", async (result) => {
+      mocks.getLocalAgentInfo.mockResolvedValue({
+        agent_id: "local-agent", device_code: "local-device", self_test_profiles: ["xprinter"],
+      });
+      mocks.post.mockResolvedValue({ data: { ok: true, status: "command_sent", result } });
+      await expect(printPrinterSelfTest({ ...tcpInput, command_profile: "xprinter" })).rejects.toMatchObject({ delivery_state: "unknown" });
+      expect(mocks.post).toHaveBeenCalledTimes(1);
+    },
+  );
+
+  it.each((["xprinter", "rongta"] as const).flatMap((profile) =>
+    [undefined, null, [], ["epson"], "xprinter", { includes: () => true }].map((profiles) => ({ profile, profiles })),
+  ))(
+    "does not dispatch a manufacturer command without an explicit capability array: %j", async ({ profile, profiles }) => {
+      mocks.getLocalAgentInfo.mockResolvedValue({
+        agent_id: "local-agent", device_code: "local-device", version: "99.0.0", self_test_profiles: profiles,
+      });
+      await expect(printPrinterSelfTest({ ...tcpInput, command_profile: profile })).rejects.toMatchObject({
+        statusCode: 501, delivery_state: "not_sent",
+      });
+      expect(mocks.post).not.toHaveBeenCalled();
+    },
+  );
+
+  it.each(["", "unknown", "toString", "__proto__", null, {}, 1])(
+    "rejects an invalid runtime profile before resolving identity or transport: %j", async (profile) => {
+      const input = { ...tcpInput, command_profile: profile } as unknown as PrinterSelfTestInput;
+      await expect(printPrinterSelfTest(input)).rejects.toMatchObject({ statusCode: 400, delivery_state: "not_sent" });
+      expect(mocks.getLocalAgentInfo).not.toHaveBeenCalled();
+      expect(mocks.post).not.toHaveBeenCalled();
+      expect(mocks.printMobilePrinterSelfTestOverTcp).not.toHaveBeenCalled();
+    },
+  );
+
+  it.each(["xprinter", "rongta"] as const)("uses the chosen %s command on the native transport without a Local Agent", async (profile) => {
+    mocks.isCapacitorMobileApp.mockReturnValue(true);
+    await printPrinterSelfTest({ ...tcpInput, command_profile: profile });
+    expect(mocks.printMobilePrinterSelfTestOverTcp).toHaveBeenCalledExactlyOnceWith(tcpInput.interface_value, profile);
+    expect(mocks.getLocalAgentInfo).not.toHaveBeenCalled();
+    expect(mocks.post).not.toHaveBeenCalled();
+  });
+
+  it("keeps Xprinter uncertainty single-attempt without trying the Epson command", async () => {
+    mocks.getLocalAgentInfo.mockResolvedValue({
+      agent_id: "local-agent", device_code: "local-device", self_test_profiles: ["xprinter"],
+    });
+    mocks.post.mockRejectedValue(new Error("Response lost after dispatch"));
+    await expect(printPrinterSelfTest({ ...tcpInput, command_profile: "xprinter" })).rejects.toMatchObject({ delivery_state: "unknown" });
+    expect(mocks.post).toHaveBeenCalledTimes(1);
+    expect(mocks.post.mock.calls[0][1]).toMatchObject({ command_profile: "xprinter" });
+  });
+
+  it.each(["xprinter", "rongta"] as const)("releases %s maintenance even when the fresh Agent no longer advertises that profile", async (profile) => {
+    mocks.post.mockResolvedValue({ data: { ok: true, status: "ready" } });
+    await expect(completePrinterSelfTest({ ...tcpInput, command_profile: profile })).resolves.toEqual({ ok: true, status: "ready" });
+    expect(mocks.post).toHaveBeenCalledExactlyOnceWith(
+      `${AGENT_URL.replace(/\/+$/, "")}/printer/self-test/complete`,
+      { agent_id: "local-agent", device_code: "local-device", interface_value: tcpInput.interface_value },
+      expect.any(Object),
+    );
+    expect(mocks.printMobilePrinterSelfTestOverTcp).not.toHaveBeenCalled();
+  });
+
   it("sends an unsaved printer's current interface with the live local identity", async () => {
     const inputWithSavedIdentity = {
       connect_type: "usb" as const,

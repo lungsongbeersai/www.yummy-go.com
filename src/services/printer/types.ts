@@ -9,9 +9,11 @@ export interface SearchPrinterResult extends ApiEntity {
   interface_value: string;
   platform: string;
 }
+export type PrinterSelfTestCommandProfile = "epson" | "xprinter" | "rongta";
 export interface PrinterSelfTestInput {
   connect_type: "tcp" | "usb";
   interface_value: string;
+  command_profile?: PrinterSelfTestCommandProfile;
   expected_agent_id?: string;
   expected_device_code?: string;
 }
@@ -25,6 +27,7 @@ export interface PrinterSelfTestCompletionResult {
 }
 export interface AgentInfo extends ApiEntity {
   version?: string;
+  self_test_profiles?: PrinterSelfTestCommandProfile[];
   agent_id: string;
   agent_name: string;
   store_code?: string | null;

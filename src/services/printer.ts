@@ -78,6 +78,7 @@ export type {
   PrinterAccessMode,
   PrinterSource,
   PrinterSelfTestInput,
+  PrinterSelfTestCommandProfile,
   PrinterSelfTestCompletionResult,
   PrinterSelfTestResult,
   PrinterZone,

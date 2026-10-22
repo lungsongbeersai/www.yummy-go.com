@@ -469,7 +469,11 @@ export function PrinterFormPage() {
         </CardContent>
       </Card>
 
-      <PrinterSelfTestDialog pendingSelfTest={form.pendingSelfTest} printing={form.printing} onReady={form.completeSelfTest} />
+      <PrinterSelfTestDialog
+        pendingSelfTest={form.pendingSelfTest} printing={form.printing} onReady={form.completeSelfTest}
+        selection={form.selfTestSelection} profile={form.selfTestProfile} onProfileChange={form.setSelfTestProfile}
+        onConfirm={form.confirmSelfTest} onCancel={form.cancelSelfTest}
+      />
 
       <AlertDialog open={confirmDiscardOpen} onOpenChange={setConfirmDiscardOpen}>
         <AlertDialogContent>

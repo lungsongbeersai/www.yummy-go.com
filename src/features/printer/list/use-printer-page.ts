@@ -44,7 +44,10 @@ export function usePrinterPage() {
   const loadingAgentFiles = usePrinterStore((state) => state.loadingAgentFiles);
   const agent = usePrinterStore((state) => state.agent);
   const checkAgent = usePrinterStore((state) => state.checkAgent);
-  const { printing, pendingSelfTest, runSelfTest, completeSelfTest } = usePrinterSelfTest();
+  const {
+    printing, pendingSelfTest, runSelfTest, completeSelfTest,
+    selfTestSelection, selfTestProfile, setSelfTestProfile, confirmSelfTest, cancelSelfTest,
+  } = usePrinterSelfTest();
   const loadPrintersForLocalAgent = usePrinterStore(
     (state) => state.loadPrintersForLocalAgent,
   );
@@ -360,6 +363,7 @@ export function usePrinterPage() {
     printing,
     pendingSelfTest,
     completeSelfTest,
+    selfTestSelection, selfTestProfile, setSelfTestProfile, confirmSelfTest, cancelSelfTest,
     selfTestTargets,
     categories,
     zones,
