@@ -102,7 +102,7 @@ function SectionCard({
     <Card role="region" aria-labelledby={titleId} className={cn("min-w-0 shadow-dash-card", className)}>
       <div className="flex flex-wrap items-start justify-between gap-3 px-4">
         <div className="flex min-w-0 items-start gap-3">
-          <span aria-hidden="true" className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-muted text-foreground">
+          <span aria-hidden="true" className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary-text">
             <Icon className="size-4" />
           </span>
           <div className="flex min-w-0 flex-col gap-0.5">
@@ -134,6 +134,15 @@ function EmptyPanel({ label }: { label: string }) {
 
 // ---------------------------------------------------------------------------
 // Sales: payment split for the whole period, then the daily bars when there is more than a day.
+
+// Tinted surfaces for the single-day method tiles: chart-cat tokens are registered with the
+// legacy-WebView opacity plugin, so the /10 tint stays a tint on Capacitor Android too.
+const splitTileClassNames: Record<PaymentSplitKey, string> = {
+  cash: "bg-chart-cat-1/10",
+  debt: "bg-chart-cat-3/10",
+  transfer: "bg-chart-cat-2/10",
+  unallocated: "bg-muted",
+};
 
 const splitSegmentClassNames: Record<PaymentSplitKey, string> = {
   cash: "bg-chart-cat-1",
@@ -260,6 +269,7 @@ function SalesCard({
               ))
           : null}
       </div>
+      {isSingleDay && !showChart ? null : (
       <ul className="grid gap-x-6 gap-y-2 sm:grid-cols-2 xl:grid-cols-3">
         {split.segments.map((segment) => (
           <li key={segment.key} className="flex min-w-0 items-baseline gap-2">
@@ -270,6 +280,7 @@ function SalesCard({
           </li>
         ))}
       </ul>
+      )}
       {splitWarning ? (
         <Alert>
           <AlertTriangle />
@@ -346,7 +357,32 @@ function SalesCard({
           </div>
         </>
       ) : isSingleDay ? (
-        // One day has no trend to draw: a one-bar chart says nothing, so offer the month instead.
+        // One day has no trend to draw (a one-bar chart says nothing). The payment methods take the
+        // room as large tiles — they are this card's legend too — and the month is one tap away.
+        <>
+          <ul className="grid flex-1 grid-cols-1 gap-3 sm:grid-cols-3">
+            {split.segments.map((segment) => (
+              <li
+                key={segment.key}
+                className={cn("relative flex min-h-28 flex-col justify-between gap-3 overflow-hidden rounded-xl p-4", splitTileClassNames[segment.key])}
+              >
+                <span aria-hidden="true" className={cn("absolute inset-x-0 top-0 h-1.5", splitSegmentClassNames[segment.key])} />
+                <span className="flex items-center gap-2 text-sm font-semibold">
+                  <span aria-hidden="true" className={cn("size-3 shrink-0 rounded-xs", splitSegmentClassNames[segment.key])} />
+                  {splitLabel(copy, segment.key, segment.label)}
+                </span>
+                <span className="flex flex-col gap-1">
+                  <span className="font-heading text-3xl leading-none font-bold font-stretch-semi-condensed tabular-nums">
+                    {formatPercent(segment.share)}
+                  </span>
+                  <span className="font-heading text-base font-semibold tabular-nums wrap-anywhere">{formatKip(segment.value)}</span>
+                </span>
+                <span aria-hidden="true" className="flex h-2 overflow-hidden rounded-full bg-card">
+                  <span className={splitSegmentClassNames[segment.key]} style={{ width: `${Math.min(100, segment.share)}%` }} />
+                </span>
+              </li>
+            ))}
+          </ul>
         <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg bg-muted px-3 py-2">
           <span className="text-sm text-foreground">{copy.singleDayHint}</span>
           <Button type="button" variant="outline" className="pointer-coarse:h-10" onClick={onThisMonth}>
@@ -354,6 +390,7 @@ function SalesCard({
             {t("dashboard.viewMonthTrend")}
           </Button>
         </div>
+        </>
       ) : (
         <EmptyPanel label={copy.noData} />
       )}
@@ -431,6 +468,15 @@ function AccountingCard({ copy, rows }: { copy: DashboardCopy; rows: AccountingR
 // Channels as lanes: revenue share against order share, so a channel that brings bigger or
 // smaller bills than the rest stands out. No categorical colour: icon and name identify it.
 
+// Status tokens, not the --chart-cat payment colours, so a channel never reads as a payment method.
+function channelTone(key: string) {
+  const channel = key.toUpperCase();
+  if (channel === "DINE_IN") return "bg-info/15 text-info-text";
+  if (channel === "TAKEAWAY") return "bg-warning/15 text-warning-text";
+  if (channel === "DELIVERY") return "bg-success/15 text-success";
+  return "bg-primary/10 text-primary-text";
+}
+
 function channelIcon(key: string): LucideIcon {
   const channel = key.toUpperCase();
   if (channel === "DINE_IN") return Utensils;
@@ -473,7 +519,7 @@ function OrderChannelsCard({
                   aria-hidden="true"
                   className={cn(
                     "flex size-9 items-center justify-center rounded-lg",
-                    active ? "bg-muted text-foreground" : "bg-muted text-muted-foreground",
+                    active ? channelTone(row.key) : "bg-muted text-muted-foreground",
                   )}
                 >
                   <Icon className="size-4" />

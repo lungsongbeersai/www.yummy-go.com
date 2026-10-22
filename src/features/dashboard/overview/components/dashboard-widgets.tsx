@@ -500,17 +500,17 @@ export const DashboardAlerts = memo(function DashboardAlerts({
 // ---------------------------------------------------------------------------
 // Hero row: the banknote plate and the four numbers that explain it.
 
-function Sparkline({ values }: { values: number[] }) {
+function Sparkline({ strokeClassName, values }: { strokeClassName: string; values: number[] }) {
   return (
     // The wrapper clips: Android compat mode forces overflow:visible on every <svg>.
     <div aria-hidden="true" className="h-8 overflow-hidden">
       <svg viewBox="0 0 100 32" preserveAspectRatio="none" className="size-full" focusable="false">
         <path
           d={sparklinePath(values)}
-          className="fill-none stroke-muted-foreground"
+          className={cn("fill-none", strokeClassName)}
           strokeLinecap="round"
           strokeLinejoin="round"
-          strokeWidth={1.5}
+          strokeWidth={2}
           vectorEffect="non-scaling-stroke"
         />
       </svg>
@@ -520,10 +520,46 @@ function Sparkline({ values }: { values: number[] }) {
 
 type KpiTone = "neutral" | "warning" | "destructive";
 
-const kpiChipTones: Record<KpiTone, string> = {
-  destructive: "bg-destructive text-destructive-foreground",
-  neutral: "bg-muted text-foreground",
-  warning: "bg-warning text-warning-foreground",
+// Each tile keeps its own accent whatever its value, so a quiet day (all zeros) still reads as
+// four distinct, coloured figures. The value text only turns warning/destructive when there is
+// something to look at. Literal class strings so Tailwind emits them.
+type KpiAccent = "info" | "primary" | "warning" | "destructive";
+
+const kpiAccents: Record<KpiAccent, { bar: string; blob: string; chip: string; line: string; meter: string; stroke: string }> = {
+  destructive: {
+    bar: "bg-destructive",
+    blob: "bg-destructive/10",
+    chip: "bg-destructive text-destructive-foreground",
+    line: "bg-destructive/25",
+    meter: "bg-destructive/15 *:data-[slot=progress-indicator]:bg-destructive",
+    stroke: "stroke-destructive",
+  },
+  info: {
+    bar: "bg-info",
+    blob: "bg-info/10",
+    chip: "bg-info text-info-foreground",
+    line: "bg-info/25",
+    meter: "bg-info/15 *:data-[slot=progress-indicator]:bg-info",
+    stroke: "stroke-info",
+  },
+  // primary-text, not primary, for the thin marks: dark mode's --primary is a deep fill colour that
+  // nearly vanishes as a 4px line on a dark card.
+  primary: {
+    bar: "bg-primary-text",
+    blob: "bg-primary-text/10",
+    chip: "bg-primary text-primary-foreground",
+    line: "bg-primary-text/30",
+    meter: "bg-primary-text/15 *:data-[slot=progress-indicator]:bg-primary-text",
+    stroke: "stroke-primary-text",
+  },
+  warning: {
+    bar: "bg-warning",
+    blob: "bg-warning/10",
+    chip: "bg-warning text-warning-foreground",
+    line: "bg-warning/25",
+    meter: "bg-warning/15 *:data-[slot=progress-indicator]:bg-warning",
+    stroke: "stroke-warning",
+  },
 };
 
 const kpiValueTones: Record<KpiTone, string> = {
@@ -532,16 +568,11 @@ const kpiValueTones: Record<KpiTone, string> = {
   warning: "text-warning-text",
 };
 
-const kpiMeterTones: Record<KpiTone, string> = {
-  destructive: "*:data-[slot=progress-indicator]:bg-destructive",
-  neutral: "*:data-[slot=progress-indicator]:bg-muted-foreground",
-  warning: "*:data-[slot=progress-indicator]:bg-warning",
-};
-
 // Entrance stagger for the four tiles on the full tier; complete class names so Tailwind emits them.
 const kpiDelays = ["motion-safe:delay-200", "motion-safe:delay-[260ms]", "motion-safe:delay-[320ms]", "motion-safe:delay-[380ms]"];
 
 function KpiTile({
+  accent,
   badge,
   detail,
   icon: Icon,
@@ -553,6 +584,7 @@ function KpiTile({
   tone,
   value,
 }: {
+  accent: KpiAccent;
   badge?: string;
   detail: string;
   icon: LucideIcon;
@@ -566,25 +598,31 @@ function KpiTile({
   tone: KpiTone;
   value: string;
 }) {
+  const colors = kpiAccents[accent];
+
   return (
     <Card
       className={cn(
-        "gap-3 px-4 shadow-dash-card",
+        "relative isolate gap-3 px-4 shadow-dash-card",
         tier !== "static" && "motion-safe:animate-in motion-safe:fade-in-0 motion-safe:slide-in-from-bottom-2 motion-safe:fill-mode-both motion-safe:duration-300",
         tier === "full" && kpiDelays[index],
       )}
     >
+      {/* Accent rule and a soft disc behind the chip. A positioned layer, not border-t: Swan 1's
+          card rule overrides card borders. -z-10 inside `isolate` keeps it under the text. */}
+      <span aria-hidden="true" className={cn("absolute inset-x-0 top-0 h-1", colors.bar)} />
+      <span aria-hidden="true" className={cn("absolute -top-10 -right-10 -z-10 size-32 rounded-full", colors.blob)} />
       <div className="flex items-start justify-between gap-2">
         <span className="text-sm font-medium text-muted-foreground">{label}</span>
-        <span aria-hidden="true" className={cn("flex size-8 shrink-0 items-center justify-center rounded-lg", kpiChipTones[tone])}>
+        <span aria-hidden="true" className={cn("flex size-9 shrink-0 items-center justify-center rounded-xl shadow-sm", colors.chip)}>
           <Icon className="size-4" />
         </span>
       </div>
       <p
         className={cn(
           "font-heading leading-tight font-bold font-stretch-semi-condensed tabular-nums wrap-anywhere",
-          // Literal class strings so Tailwind emits them. The tiles are 4-up (lg/xl) or 2-up beside
-          // the plate (2xl), so the size follows the tile, not the viewport alone.
+          // The tiles are 4-up (lg/xl) or 2-up beside the plate (2xl), so the size follows the
+          // tile, not the viewport alone.
           kipFigureSize(value, 9) === "long" ? "text-xl xl:text-2xl 2xl:text-xl" : "text-2xl xl:text-3xl 2xl:text-2xl",
           kpiValueTones[tone],
         )}
@@ -592,13 +630,16 @@ function KpiTile({
         {value}
       </p>
       {sparkline ? (
-        <Sparkline values={sparkline} />
+        <Sparkline strokeClassName={colors.stroke} values={sparkline} />
       ) : meter !== undefined ? (
         <div className="flex h-8 items-center">
-          <Progress aria-hidden="true" value={Math.min(100, Math.max(0, meter))} className={cn("h-1.5", kpiMeterTones[tone])} />
+          <Progress aria-hidden="true" value={Math.min(100, Math.max(0, meter))} className={cn("h-2 rounded-full", colors.meter)} />
         </div>
       ) : (
-        <div aria-hidden="true" className="h-8" />
+        // No daily series (a single day): a flat accent line keeps the tile's rhythm and colour.
+        <div aria-hidden="true" className="flex h-8 items-center">
+          <span className={cn("h-1 w-full rounded-full", colors.line)} />
+        </div>
       )}
       <div className="mt-auto flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-muted-foreground tabular-nums">
         <span>{detail}</span>
@@ -663,6 +704,7 @@ export const DashboardHeroRow = memo(function DashboardHeroRow({
       />
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4 lg:gap-4 2xl:col-span-4 2xl:grid-cols-2">
         <KpiTile
+          accent="info"
           index={0}
           tier={tier}
           tone="neutral"
@@ -673,6 +715,7 @@ export const DashboardHeroRow = memo(function DashboardHeroRow({
           detail={copy.totalBills}
         />
         <KpiTile
+          accent="primary"
           index={1}
           tier={tier}
           tone="neutral"
@@ -683,6 +726,7 @@ export const DashboardHeroRow = memo(function DashboardHeroRow({
           detail={`${formatNumber(orders)} ${copy.orders}`}
         />
         <KpiTile
+          accent="warning"
           index={2}
           tier={tier}
           tone={discountTotal > 0 ? "warning" : "neutral"}
@@ -695,6 +739,7 @@ export const DashboardHeroRow = memo(function DashboardHeroRow({
         />
         {/* Cancellations only turn red when there is something to look at. */}
         <KpiTile
+          accent="destructive"
           index={3}
           tier={tier}
           tone={cancelledCount > 0 ? "destructive" : "neutral"}
