@@ -1749,6 +1749,7 @@
     "alreadyAssignedTo": "Already assigned to: {{printers}}",
     "roles": "Roles",
     "rolesHint": "Select print jobs this printer should handle.",
+    "mappingUnlockHint": "Select a kitchen or bar role to set up zones and menu categories for this printer.",
     "saveFailed": "Save failed",
     "saved": "Printer saved",
     "searchFailed": "Search failed",

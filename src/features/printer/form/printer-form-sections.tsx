@@ -4,6 +4,7 @@ import type { LucideIcon } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { FieldDescription, FieldLabel, FieldLegend, FieldSet } from "@/components/ui/field";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { useVisualEffectsTier } from "@/hooks/use-visual-effects-tier";
 import { cn } from "@/lib/utils";
 
 // One colour per step, so a cashier can tell "connection" from "what it prints" at a glance.
@@ -43,9 +44,18 @@ export function FormSection({
   tone: SectionTone;
 }) {
   const colors = sectionTones[tone];
+  // Steps can appear mid-edit (the mapping step follows the kitchen/bar roles), so each one
+  // eases in on mount instead of popping; Swan 1 and reduced-motion users get no motion.
+  const tier = useVisualEffectsTier();
 
   return (
-    <Card className="relative gap-4 px-4 shadow-dash-card sm:px-5">
+    <Card
+      className={cn(
+        "relative gap-4 px-4 shadow-dash-card sm:px-5",
+        tier === "full" && "motion-safe:animate-in motion-safe:fade-in-0 motion-safe:slide-in-from-bottom-3 motion-safe:fill-mode-both motion-safe:duration-500",
+        tier === "lite" && "motion-safe:animate-in motion-safe:fade-in-0 motion-safe:fill-mode-both motion-safe:duration-300",
+      )}
+    >
       {/* Accent rule as a layer, not border-t: Swan 1's card border rule overrides card borders. */}
       <span aria-hidden="true" className={cn("absolute inset-x-0 top-0 h-1", colors.bar)} />
       <div className="flex flex-wrap items-start gap-3">

@@ -76,6 +76,19 @@ export function requiresZoneMapping(roleCodes: string[]) {
   );
 }
 
+// Groups a print role by its code so the form can give each kind its own icon and colour.
+// Same prefix rule as requiresZoneMapping: stations are numbered per branch (k-001, b-002, q-001).
+export type PrinterRoleKind = "kitchen" | "bar" | "bill" | "qr" | "report" | "other";
+
+export function printerRoleKind(roleCode: string): PrinterRoleKind {
+  if (roleCode.startsWith("k-")) return "kitchen";
+  if (roleCode.startsWith("b-")) return "bar";
+  if (roleCode.startsWith("q-")) return "qr";
+  if (roleCode === "invoice" || roleCode === "receipt") return "bill";
+  if (roleCode === "report") return "report";
+  return "other";
+}
+
 export interface CheckboxOption {
   label: string;
   value: string;

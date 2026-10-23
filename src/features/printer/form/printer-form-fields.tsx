@@ -39,6 +39,7 @@ export function CheckboxOptionList({
   selectAllLabel,
   selected,
   renderOptionDetails,
+  renderOptionIcon,
   onToggle,
   onToggleAll,
 }: {
@@ -54,6 +55,8 @@ export function CheckboxOptionList({
   selectAllLabel: string;
   selected: string[];
   renderOptionDetails?: (option: CheckboxOption) => ReactNode;
+  /** Decorative badge between the checkbox and the label, e.g. the kind of print role. */
+  renderOptionIcon?: (option: CheckboxOption) => ReactNode;
   onToggle: (value: string) => void;
   onToggleAll: (checked: boolean) => void;
 }) {
@@ -136,6 +139,7 @@ export function CheckboxOptionList({
                   disabled={disabled}
                   onCheckedChange={() => onToggle(option.value)}
                 />
+                {renderOptionIcon?.(option)}
                 <div className="min-w-0 flex-1">
                   <FieldLabel htmlFor={id}>{option.label}</FieldLabel>
                   {option.assignedTo?.length ? (

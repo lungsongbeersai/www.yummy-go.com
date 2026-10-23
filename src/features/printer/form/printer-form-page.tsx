@@ -6,12 +6,17 @@ import {
   Ban,
   Cable,
   CheckCircle2,
+  ChefHat,
+  CupSoda,
+  FileBarChart,
+  Info,
   MapPinned,
   Printer,
   ReceiptText,
   RefreshCw,
   Route,
   Save,
+  QrCode,
   ScrollText,
   SlidersHorizontal,
   Tags,
@@ -56,15 +61,38 @@ import { CheckboxOptionList } from "./printer-form-fields";
 import { ChoiceCards, FormSection } from "./printer-form-sections";
 import {
   formatIpInput,
+  printerRoleKind,
   toggleAllValues,
   toggleValue,
   type ConnectType,
   type MappingTypeSelection,
+  type PrinterRoleKind,
 } from "./printer-form-utils";
+import type { LucideIcon } from "lucide-react";
 import { usePrinterForm } from "./use-printer-form";
 import { PrinterOutputSettings } from "./printer-output-settings";
 import { PrinterCategoryPrintRoles, PrinterPrintPermissions } from "./printer-print-permissions";
 import { PrinterSelfTestDialog } from "@/features/printer/printer-self-test-dialog";
+
+// Kitchen and bar share the mapping step's warning/info hues so the link between the two steps reads.
+const roleKindBadges: Record<PrinterRoleKind, { icon: LucideIcon; className: string }> = {
+  kitchen: { icon: ChefHat, className: "bg-warning/15 text-warning-text" },
+  bar: { icon: CupSoda, className: "bg-info/15 text-info-text" },
+  bill: { icon: ReceiptText, className: "bg-success/15 text-success-text" },
+  qr: { icon: QrCode, className: "bg-primary/15 text-primary-text" },
+  report: { icon: FileBarChart, className: "bg-destructive/10 text-destructive" },
+  other: { icon: Printer, className: "bg-muted text-muted-foreground" },
+};
+
+function RoleKindBadge({ roleCode }: { roleCode: string }) {
+  const badge = roleKindBadges[printerRoleKind(roleCode)];
+  const Icon = badge.icon;
+  return (
+    <span aria-hidden="true" className={cn("flex size-8 shrink-0 items-center justify-center rounded-lg", badge.className)}>
+      <Icon className="size-4" />
+    </span>
+  );
+}
 
 export function PrinterFormPage() {
   const form = usePrinterForm();
@@ -332,6 +360,7 @@ export function PrinterFormPage() {
             required
             selectAllLabel={t("common.selectAll")}
             selected={form.selectedRoles}
+            renderOptionIcon={(option) => <RoleKindBadge roleCode={option.value} />}
             onToggle={(value) =>
               form.setSelectedRoles((current) => toggleValue(current, value))
             }
@@ -341,6 +370,13 @@ export function PrinterFormPage() {
               )
             }
           />
+          {/* บอกว่าขั้นที่ 3 หายไปเพราะอะไร — ไม่งั้นผู้ใช้ไม่รู้ว่าตั้งหมวดหมู่ได้ที่ไหน */}
+          {form.zoneMappingRequired ? null : (
+            <p className="flex items-start gap-2 rounded-lg bg-info/10 p-3 text-sm text-info-text">
+              <Info aria-hidden="true" className="mt-0.5 size-4 shrink-0" />
+              {t("printer.mappingUnlockHint")}
+            </p>
+          )}
         </FormSection>
 
         {/* หมวดหมู่/โซนใช้กับสถานีครัว/บาร์เท่านั้น — ไม่มี role พวกนี้ก็ไม่ต้องแสดงขั้นนี้ */}
