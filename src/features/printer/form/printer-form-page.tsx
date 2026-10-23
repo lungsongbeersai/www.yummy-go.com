@@ -343,91 +343,94 @@ export function PrinterFormPage() {
           />
         </FormSection>
 
-        <FormSection
-          step={3}
-          tone="warning"
-          icon={Route}
-          title={t("printer.mappingType")}
-          description={
-            form.zoneMappingRequired
-              ? t("printer.mappingTypeZoneRequiredHint")
-              : t("printer.mappingTypeHint")
-          }
-        >
-          <ChoiceCards
-            className="sm:grid-cols-3"
-            legend={t("printer.mappingType")}
-            name="printer-mapping-type"
+        {/* หมวดหมู่/โซนใช้กับสถานีครัว/บาร์เท่านั้น — ไม่มี role พวกนี้ก็ไม่ต้องแสดงขั้นนี้ */}
+        {form.zoneMappingRequired ? (
+          <FormSection
+            step={3}
             tone="warning"
-            value={form.mappingType}
-            disabled={form.saving}
-            onValueChange={(value) => form.setMappingType(value as MappingTypeSelection)}
-            options={[
-              { value: "OFF", label: t("printer.mappingTypeOff"), description: t("printer.mappingOffHint"), icon: Ban },
-              { value: "ZONE", label: t("printer.mappingTypeZone"), description: t("printer.mappingZoneHint"), icon: MapPinned },
-              { value: "CATEGORY", label: t("printer.mappingTypeCategory"), description: t("printer.mappingCategoryHint"), icon: Tags },
-            ]}
-          />
-
-          {form.mappingType === "ZONE" ? (
-            <CheckboxOptionList
-              legend={t("printer.zones")}
-              description={t("printer.zonesHint")}
-              emptyLabel={t("printer.noZones")}
-              name="printer-zone"
-              options={form.zoneOptions}
-              required
-              selectAllLabel={t("common.selectAll")}
-              selected={form.selectedZones}
-              onToggle={(value) =>
-                form.setSelectedZones((current) => toggleValue(current, value))
-              }
-              onToggleAll={(checked) =>
-                form.setSelectedZones((current) =>
-                  toggleAllValues(current, form.zoneOptions, checked),
-                )
-              }
-            />
-          ) : null}
-
-          <PrinterPrintPermissions form={form} />
-
-          {/* backend บังคับ: ZONE ต้องเลือกหมวดหมู่คู่กับโซนด้วยเสมอ ไม่ใช่เลือกอย่างใดอย่างหนึ่ง —
-              hint จึงต้องเปลี่ยนไปตามโหมด ไม่งั้นผู้ใช้จะไม่เข้าใจว่าทำไมบังคับเลือก
-              "OFF" (ค่าเริ่มต้น) ไม่ผูกกับเมนูเลย จึงซ่อนไปทั้งช่อง ไม่ใช่แค่ปล่อยว่างได้ —
-              เครื่องพิมพ์ใบเรียกเก็บเงิน/ใบเสร็จ/รายงานไม่ต้องเห็น checkbox list ว่างๆ นี้เลย */}
-          {form.mappingType !== "OFF" ? (
-            <CheckboxOptionList
-              legend={t("printer.categories")}
-              description={
-                form.mappingType === "ZONE"
-                  ? t("printer.categoriesHintZone")
-                  : t("printer.categoriesHint")
-              }
-              emptyLabel={t("printer.noCategories")}
-              name="printer-category"
-              options={form.categoryOptions}
+            icon={Route}
+            title={t("printer.mappingType")}
+            description={
+              form.zoneMappingRequired
+                ? t("printer.mappingTypeZoneRequiredHint")
+                : t("printer.mappingTypeHint")
+            }
+          >
+            <ChoiceCards
+              className="sm:grid-cols-3"
+              legend={t("printer.mappingType")}
+              name="printer-mapping-type"
+              tone="warning"
+              value={form.mappingType}
               disabled={form.saving}
-              renderOptionDetails={form.printRoleMode === 2 ? (category) => (
-                <PrinterCategoryPrintRoles form={form} categoryUuid={category.value} categoryLabel={category.label} />
-              ) : undefined}
-              required={form.mappingType === "ZONE"}
-              selectAllLabel={t("common.selectAll")}
-              selected={form.selectedCategories}
-              onToggle={(value) =>
-                form.setSelectedCategories((current) => toggleValue(current, value))
-              }
-              onToggleAll={(checked) =>
-                form.setSelectedCategories((current) =>
-                  toggleAllValues(current, form.categoryOptions, checked),
-                )
-              }
+              onValueChange={(value) => form.setMappingType(value as MappingTypeSelection)}
+              options={[
+                { value: "OFF", label: t("printer.mappingTypeOff"), description: t("printer.mappingOffHint"), icon: Ban },
+                { value: "ZONE", label: t("printer.mappingTypeZone"), description: t("printer.mappingZoneHint"), icon: MapPinned },
+                { value: "CATEGORY", label: t("printer.mappingTypeCategory"), description: t("printer.mappingCategoryHint"), icon: Tags },
+              ]}
             />
-          ) : null}
-        </FormSection>
+
+            {form.mappingType === "ZONE" ? (
+              <CheckboxOptionList
+                legend={t("printer.zones")}
+                description={t("printer.zonesHint")}
+                emptyLabel={t("printer.noZones")}
+                name="printer-zone"
+                options={form.zoneOptions}
+                required
+                selectAllLabel={t("common.selectAll")}
+                selected={form.selectedZones}
+                onToggle={(value) =>
+                  form.setSelectedZones((current) => toggleValue(current, value))
+                }
+                onToggleAll={(checked) =>
+                  form.setSelectedZones((current) =>
+                    toggleAllValues(current, form.zoneOptions, checked),
+                  )
+                }
+              />
+            ) : null}
+
+            <PrinterPrintPermissions form={form} />
+
+            {/* backend บังคับ: ZONE ต้องเลือกหมวดหมู่คู่กับโซนด้วยเสมอ ไม่ใช่เลือกอย่างใดอย่างหนึ่ง —
+                hint จึงต้องเปลี่ยนไปตามโหมด ไม่งั้นผู้ใช้จะไม่เข้าใจว่าทำไมบังคับเลือก
+                "OFF" (ค่าเริ่มต้น) ไม่ผูกกับเมนูเลย จึงซ่อนไปทั้งช่อง ไม่ใช่แค่ปล่อยว่างได้ —
+                เครื่องพิมพ์ใบเรียกเก็บเงิน/ใบเสร็จ/รายงานไม่ต้องเห็น checkbox list ว่างๆ นี้เลย */}
+            {form.mappingType !== "OFF" ? (
+              <CheckboxOptionList
+                legend={t("printer.categories")}
+                description={
+                  form.mappingType === "ZONE"
+                    ? t("printer.categoriesHintZone")
+                    : t("printer.categoriesHint")
+                }
+                emptyLabel={t("printer.noCategories")}
+                name="printer-category"
+                options={form.categoryOptions}
+                disabled={form.saving}
+                renderOptionDetails={form.printRoleMode === 2 ? (category) => (
+                  <PrinterCategoryPrintRoles form={form} categoryUuid={category.value} categoryLabel={category.label} />
+                ) : undefined}
+                required={form.mappingType === "ZONE"}
+                selectAllLabel={t("common.selectAll")}
+                selected={form.selectedCategories}
+                onToggle={(value) =>
+                  form.setSelectedCategories((current) => toggleValue(current, value))
+                }
+                onToggleAll={(checked) =>
+                  form.setSelectedCategories((current) =>
+                    toggleAllValues(current, form.categoryOptions, checked),
+                  )
+                }
+              />
+            ) : null}
+          </FormSection>
+        ) : null}
 
         <FormSection
-          step={4}
+          step={form.zoneMappingRequired ? 4 : 3}
           tone="success"
           icon={SlidersHorizontal}
           title={t("printer.printSettingsTitle")}
