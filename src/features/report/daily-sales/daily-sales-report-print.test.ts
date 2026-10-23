@@ -176,7 +176,7 @@ describe("renderDailySalesPrintHtml", () => {
     const html = renderDailySalesPrintHtml(data);
 
     expect(html.match(/<div class="divider"><\/div>/g)?.length).toBeGreaterThanOrEqual(3);
-    expect(html).toContain(".divider { border-top: 1px solid #111; }");
+    expect(html).toContain(".divider { border-top: 1px solid #000; }");
   });
 
   it("prints each bill as 'table · invoice' with the amount, and the item count on a lighter line below", () => {

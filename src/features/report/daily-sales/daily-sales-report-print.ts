@@ -183,21 +183,26 @@ export function buildDailySalesPrintData({
 // เส้นคั่นฝั่ง auto print ใช้ { type: "line" } (ยืนยันจากการพิมพ์ทดสอบจริงแล้วว่าออกมาเป็นเส้นเต็มปกติ)
 // ฝั่ง window.open จึงใช้ CSS border เต็มความกว้างแถว (solid) ให้ตรงกัน
 const DAILY_SALES_EXTRA_STYLES = `
-      .divider { border-top: 1px solid #111; }
-      .bold, header .strong, header h1 { font-weight: 900; -webkit-text-stroke: 0.25px currentColor; }
-      header .strong { font-size: 15px; line-height: 1.25; }
-      header h1 { font-size: 17px; }
+      /* เครื่อง thermal พิมพ์ได้แค่ขาว/ดำ: สีเทา (#111, #444) และตัวอักษรเล็กถูก dither เป็นจุดจนขอบตัวอักษรเบลอ
+         จึงใช้ดำล้วน #000 ทั้งใบและขยายขนาดตัวอักษรเนื้อหาให้เส้นหนาพอจะพิมพ์ออกมาคม */
+      html, body { color: #000; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+      body { font-size: 12.5px; line-height: 1.35; }
+      .divider { border-top: 1px solid #000; }
+      .bold, header .strong, header h1 { font-weight: 900; -webkit-text-stroke: 0.3px currentColor; }
+      header .strong { font-size: 16px; line-height: 1.25; }
+      header h1 { font-size: 18px; }
+      .meta p { margin: 0.6mm 0; }
       .date-group + .date-group { margin-top: 2.5mm; }
-      .date-head { display: flex; justify-content: space-between; align-items: baseline; gap: 2mm; margin: 1.2mm 0 0.8mm; font-size: 13px; }
-      .date-head .count { font-size: 10px; font-weight: 400; -webkit-text-stroke: 0; color: #444; }
-      .invoice { padding: 0.8mm 0; }
-      .invoice .total-row { padding: 0; font-size: 11.5px; }
-      .invoice .sub { margin: 0; font-size: 9.5px; color: #444; }
-      .date-total { padding: 1mm 0; font-size: 13px; }
-      .section-title { margin: 1.5mm 0 1mm; font-size: 13px; }
-      .grand-total { margin: 0; padding: 1mm 0; border: 0; font-size: 13px; }
-      .grand-total span:last-child { font-size: 16px; }
-      .revenue-total { margin-top: 0.6mm; padding: 1mm 0; border-top: 1px solid #111; font-size: 13px; }
+      .date-head { display: flex; justify-content: space-between; align-items: baseline; gap: 2mm; margin: 1.2mm 0 0.8mm; font-size: 14px; }
+      .date-head .count { font-size: 12px; font-weight: 400; -webkit-text-stroke: 0; }
+      .invoice { padding: 0.9mm 0; }
+      .invoice .total-row { padding: 0; font-size: 13px; }
+      .invoice .sub { margin: 0; font-size: 11px; }
+      .date-total { padding: 1mm 0; font-size: 14px; }
+      .section-title { margin: 1.5mm 0 1mm; font-size: 14px; }
+      .grand-total { margin: 0; padding: 1mm 0; border: 0; font-size: 14px; }
+      .grand-total span:last-child { font-size: 17px; }
+      .revenue-total { margin-top: 0.6mm; padding: 1mm 0; border-top: 1px solid #000; font-size: 14px; }
 `;
 
 export function renderDailySalesPrintHtml(data: DailySalesPrintData) {
