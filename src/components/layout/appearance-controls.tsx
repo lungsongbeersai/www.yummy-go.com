@@ -4,15 +4,27 @@ import { useTranslation } from "react-i18next";
 import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Separator } from "@/components/ui/separator";
+import { Switch } from "@/components/ui/switch";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { cn } from "@/lib/utils";
 import {
   FONT_SCALES,
+  LAO_FONTS,
   THEME_COLORS,
   useAppStore,
   type FontScale,
+  type LaoFont,
   type ThemeColor,
 } from "@/stores/app-store";
+
+// Each option previews itself in its own face; literal class names so Tailwind emits them
+// (--font-lao-* in globals.css @theme).
+const laoFontPreviewClassNames: Record<LaoFont, string> = {
+  "noto-sans": "font-lao-noto-sans",
+  "noto-serif": "font-lao-noto-serif",
+  phetsarath: "font-lao-phetsarath",
+  saysettha: "font-lao-saysettha",
+};
 
 // เว็บใช้ใน Popover แคบ ๆ (swatch เล็กพอ), Capacitor ต้องได้ touch target 48px ตาม Global Constraints
 export type AppearanceControlsSize = "compact" | "touch";
@@ -31,6 +43,10 @@ export function AppearanceControls({
   const setThemeColor = useAppStore((state) => state.setThemeColor);
   const fontScale = useAppStore((state) => state.fontScale);
   const setFontScale = useAppStore((state) => state.setFontScale);
+  const decorBackground = useAppStore((state) => state.decorBackground);
+  const laoFont = useAppStore((state) => state.laoFont);
+  const setLaoFont = useAppStore((state) => state.setLaoFont);
+  const setDecorBackground = useAppStore((state) => state.setDecorBackground);
   const touch = size === "touch";
 
   return (
@@ -106,6 +122,49 @@ export function AppearanceControls({
             </ToggleGroupItem>
           ))}
         </ToggleGroup>
+      </div>
+
+      <Separator />
+
+      <div className="flex flex-col gap-2">
+        <Label className="text-xs font-semibold text-muted-foreground">
+          {t("app.appearance.laoFontLabel")}
+        </Label>
+        <RadioGroup
+          value={laoFont}
+          onValueChange={(value) => setLaoFont(value as LaoFont)}
+          className="grid grid-cols-2 gap-2"
+        >
+          {LAO_FONTS.map((font) => (
+            <Label
+              key={font}
+              htmlFor={`${idPrefix}-lao-font-${font}`}
+              className={cn(
+                "flex cursor-pointer flex-col items-start gap-1 rounded-lg border border-border p-2 transition-colors hover:bg-muted has-data-[state=checked]:border-primary has-data-[state=checked]:bg-primary/10",
+                touch && "min-h-16 p-3",
+              )}
+            >
+              <RadioGroupItem id={`${idPrefix}-lao-font-${font}`} value={font} className="sr-only" />
+              <span className={cn("text-base leading-snug text-foreground", laoFontPreviewClassNames[font])}>ສະບາຍດີ</span>
+              <span className="text-2xs font-medium text-muted-foreground">{t(`app.appearance.laoFonts.${font}`)}</span>
+            </Label>
+          ))}
+        </RadioGroup>
+      </div>
+
+      <Separator />
+
+      {/* The floral artwork behind the top bar and the sidebar (globals.css, data-decor-background). */}
+      <div className="flex items-center justify-between gap-3">
+        <Label htmlFor={`${idPrefix}-decor-background`} className="flex flex-col items-start gap-0.5">
+          <span className="text-xs font-semibold text-muted-foreground">{t("app.appearance.backgroundLabel")}</span>
+          <span className="text-2xs font-normal text-muted-foreground">{t("app.appearance.backgroundDescription")}</span>
+        </Label>
+        <Switch
+          id={`${idPrefix}-decor-background`}
+          checked={decorBackground}
+          onCheckedChange={setDecorBackground}
+        />
       </div>
     </div>
   );

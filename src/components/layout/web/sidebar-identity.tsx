@@ -35,15 +35,17 @@ export function SidebarStoreHeader({ user }: { user: AuthUser | null }) {
   return (
     <SidebarMenu>
       <SidebarMenuItem>
-        <SidebarMenuButton size="lg" asChild tooltip={`${branchTitle} - ${address}`}>
+        {/* The shop is the sidebar's headline: a larger logo and name, and the address may take two
+            lines instead of being cut off. Collapsed to icons, the button keeps the rail's 32px. */}
+        <SidebarMenuButton size="lg" asChild tooltip={`${branchTitle} - ${address}`} className="h-auto gap-3 py-2">
           <Link href="/" onClick={() => setOpenMobile(false)}>
-            <Avatar className="size-8 rounded-lg">
+            <Avatar className="size-11 rounded-xl shadow-sm group-data-[collapsible=icon]:size-8">
               <AvatarImage src={logoSrc} alt={branchTitle} />
-              <AvatarFallback className="rounded-lg">{userInitials(user)}</AvatarFallback>
+              <AvatarFallback className="rounded-xl">{userInitials(user)}</AvatarFallback>
             </Avatar>
-            <div className="grid flex-1 text-left leading-tight">
-              <span className="truncate font-medium">{branchTitle}</span>
-              <span className="truncate text-muted-foreground">{address}</span>
+            <div className="grid flex-1 gap-0.5 text-left">
+              <span className="truncate text-base leading-tight font-bold">{branchTitle}</span>
+              <span className="line-clamp-2 text-xs leading-snug text-muted-foreground">{address}</span>
             </div>
           </Link>
         </SidebarMenuButton>

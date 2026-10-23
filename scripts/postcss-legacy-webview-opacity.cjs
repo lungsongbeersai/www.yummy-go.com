@@ -13,6 +13,7 @@ const COLOR_TOKENS = new Set([
   "sidebar-foreground", "sidebar-primary", "sidebar-primary-foreground",
   "sidebar-ring", "success", "success-foreground", "warning",
   "warning-foreground", "warning-text", "yg-accent", "yg-bg", "yg-bg2",
+  "chart-cat-1", "chart-cat-2", "chart-cat-3", "chart-cat-4", "chart-cat-5",
 ]);
 
 function isColorToken(token) {

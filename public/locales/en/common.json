@@ -212,6 +212,15 @@
       "title": "Appearance",
       "colorLabel": "Accent color",
       "fontSizeLabel": "Text size",
+      "backgroundLabel": "Background image",
+      "backgroundDescription": "Floral artwork behind the top bar and the menu",
+      "laoFontLabel": "Lao font",
+      "laoFonts": {
+        "noto-sans": "Noto Sans Lao (default)",
+        "noto-serif": "Noto Serif Lao",
+        "phetsarath": "Phetsarath OT",
+        "saysettha": "Saysettha OT"
+      },
       "modeLabel": "Mode",
       "languageLabel": "Language",
       "modes": {
@@ -408,13 +417,11 @@
     "productsSold": "sold",
     "qty": "Qty",
     "reportMonth": "Report month",
-    "reset": "Reset",
     "revenueShare": "Revenue share",
     "shareOfQty": "Share of qty",
     "startDate": "Start date",
     "serviceCharge": "Service charge",
     "tableLoad": "Current table load",
-    "tables": "tables",
     "tableStatus": "Table status",
     "thisMonth": "This Month",
     "top": "Top",
@@ -438,7 +445,21 @@
     "subtitle": "Today’s operating pulse",
     "tipOne": "Use the POS pages for active orders, checkout, printer routing, and kitchen flow.",
     "tipTwo": "All management pages are generated from the rebuilt service contract.",
-    "title": "Dashboard"
+    "title": "Dashboard",
+    "today": "Today",
+    "refresh": "Refresh",
+    "retry": "Retry",
+    "updatedAt": "Updated {{time}}",
+    "loadingPeriod": "Loading {{range}}…",
+    "unappliedChanges": "Filters changed. Press Apply to update",
+    "singleDayHint": "A single day has no daily trend",
+    "viewMonthTrend": "See this month's trend",
+    "weeklyTotals": "weekly totals",
+    "monthlyTotals": "monthly totals",
+    "dailyTable": "Daily figures table",
+    "paretoCut": "{{count}} products = 80% of tracked total",
+    "now": "Now",
+    "ledgerGap": "Rows differ from the total by {{amount}}; shown as reported"
   },
   "empty": {
     "adjustSearch": "Create the first record or adjust your search.",
@@ -1782,7 +1803,15 @@
       "offline": "Offline",
       "unauthorized": "Printer Agent access denied",
       "unchecked": "Unchecked"
-    }
+    },
+    "connectTcpHint": "On the shop network, reached by its IP address",
+    "connectUsbHint": "Plugged into this computer, found by the print agent",
+    "mappingOffHint": "Receipts, bills and reports, not tied to the menu",
+    "mappingZoneHint": "Kitchen/bar tickets by seating zone and menu category",
+    "mappingCategoryHint": "Kitchen/bar tickets by menu category only",
+    "formReady": "All required details are filled in. Ready to save.",
+    "printSettingsTitle": "Printing and device options",
+    "printSettingsHint": "How tickets are sent and cut, the cash drawer and the buzzer."
   },
   "product": {
     "addDetail": "Add detail",

@@ -212,6 +212,15 @@
       "title": "ການສະແດງຜົນ",
       "colorLabel": "ສີຫຼັກ",
       "fontSizeLabel": "ຂະໜາດຕົວອັກສອນ",
+      "backgroundLabel": "ຮູບພື້ນຫຼັງ",
+      "backgroundDescription": "ລາຍໃບໄມ້ຢູ່ແຖບເທິງ ແລະ ເມນູດ້ານຂ້າງ",
+      "laoFontLabel": "ຟອນພາສາລາວ",
+      "laoFonts": {
+        "noto-sans": "Noto Sans Lao (ຄ່າເລີ່ມຕົ້ນ)",
+        "noto-serif": "Noto Serif Lao",
+        "phetsarath": "Phetsarath OT",
+        "saysettha": "Saysettha OT"
+      },
       "modeLabel": "ໂໝດສີ",
       "languageLabel": "ພາສາ",
       "modes": {
@@ -405,13 +414,11 @@
     "productsSold": "ຂາຍໄດ້",
     "qty": "ຈໍານວນ",
     "reportMonth": "ເດືອນລາຍງານ",
-    "reset": "ລ້າງ",
     "revenueShare": "ສັດສ່ວນລາຍຮັບ",
     "shareOfQty": "ສັດສ່ວນຈໍານວນ",
     "startDate": "ວັນທີເລີ່ມຕົ້ນ",
     "serviceCharge": "ຄ່າບໍລິການ",
     "tableLoad": "ສະຖານະໂຕະປັດຈຸບັນ",
-    "tables": "ໂຕະ",
     "tableStatus": "ສະຖານະໂຕະ",
     "thisMonth": "ເດືອນນີ້",
     "top": "ອັນດັບ",
@@ -439,7 +446,21 @@
     "subtitle": "ພາບລວມການເຮັດວຽກມື້ນີ້",
     "tipOne": "ໃຊ້ໜ້າ POS ສຳລັບອໍເດີ, ຄິດເງິນ, ເຄື່ອງພິມ ແລະ ຄົວ.",
     "tipTwo": "ໜ້າຈັດການທັງໝົດສ້າງຈາກ service contract ໃໝ່.",
-    "title": "ໜ້າຫຼັກ"
+    "title": "ໜ້າຫຼັກ",
+    "today": "ມື້ນີ້",
+    "refresh": "ໂຫຼດຂໍ້ມູນໃໝ່",
+    "retry": "ລອງໃໝ່",
+    "updatedAt": "ອັບເດດ {{time}}",
+    "loadingPeriod": "ກຳລັງໂຫຼດ {{range}}…",
+    "unappliedChanges": "ຕົວກອງມີການປ່ຽນແປງ, ກົດຄົ້ນຫາເພື່ອນຳໃຊ້",
+    "singleDayHint": "ມື້ດຽວບໍ່ມີແນວໂນ້ມລາຍວັນ",
+    "viewMonthTrend": "ເບິ່ງແນວໂນ້ມເດືອນນີ້",
+    "weeklyTotals": "ລວມລາຍອາທິດ",
+    "monthlyTotals": "ລວມລາຍເດືອນ",
+    "dailyTable": "ຕາຕະລາງຍອດລາຍວັນ",
+    "paretoCut": "{{count}} ສິນຄ້າ = 80% ຂອງຍອດທີ່ຕິດຕາມ",
+    "now": "ຕອນນີ້",
+    "ledgerGap": "ລາຍການຕ່າງຈາກຍອດລວມ {{amount}}; ສະແດງຕາມທີ່ລາຍງານ"
   },
   "empty": {
     "adjustSearch": "ສ້າງລາຍການທຳອິດ ຫຼື ປ່ຽນຄຳຄົ້ນຫາ.",
@@ -1778,7 +1799,15 @@
       "unauthorized": "ບໍ່ມີສິດເຂົ້າໃຊ້ Printer Agent",
       "offline": "ອອບລາຍ",
       "unchecked": "ຍັງບໍ່ໄດ້ກວດ"
-    }
+    },
+    "connectTcpHint": "ຢູ່ໃນເຄືອຂ່າຍຂອງຮ້ານ ເຊື່ອມຕໍ່ຜ່ານ IP",
+    "connectUsbHint": "ສຽບກັບຄອມພິວເຕີເຄື່ອງນີ້ ຄົ້ນຫາຜ່ານ print agent",
+    "mappingOffHint": "ໃບບິນ, ໃບຮັບເງິນ ແລະ ລາຍງານ ບໍ່ຜູກກັບເມນູ",
+    "mappingZoneHint": "ໃບຄົວ/ບາ ແຍກຕາມໂຊນ ແລະ ໝວດເມນູ",
+    "mappingCategoryHint": "ໃບຄົວ/ບາ ແຍກຕາມໝວດເມນູເທົ່ານັ້ນ",
+    "formReady": "ກອກຂໍ້ມູນທີ່ຈຳເປັນຄົບແລ້ວ ພ້ອມບັນທຶກ.",
+    "printSettingsTitle": "ການພິມ ແລະ ອຸປະກອນ",
+    "printSettingsHint": "ວິທີສົ່ງ ແລະ ຕັດໃບພິມ, ລິ້ນຊັກເກັບເງິນ ແລະ ສຽງເຕືອນ."
   },
   "product": {
     "addDetail": "ເພີ່ມລາຍລະອຽດ",

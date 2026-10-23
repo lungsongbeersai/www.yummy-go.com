@@ -6,6 +6,55 @@ Entries below dated from git history are backfilled from existing code comments 
 
 ---
 
+## User-selectable Lao font: Noto Sans Lao (default), Noto Serif Lao, Phetsarath OT, Saysettha OT
+
+- **Date:** 2026-10-22.
+- **Context:** The owner asked to add Phetsarath OT, Noto Serif Lao and Saysettha so that each user can pick the Lao typeface they prefer. Design.md / Non-negotiable #8 allow only the approved fonts in `src/design-system/fonts.ts`, so this extends that approved set rather than adding fonts in feature code.
+- **Decision:** All four faces are registered through `next/font/local` in `src/design-system/fonts.ts`:
+  - Noto Serif Lao (variable) and Phetsarath OT (Regular + Bold) were downloaded from `github.com/google/fonts`. Both are SIL OFL 1.1, and `OFL.txt` sits next to each file in `public/fonts/`.
+  - Saysettha OT reuses the existing `public/fonts/saysettha_ot.ttf`, which the receipt CSS already ships.
+  - The three optional faces use `preload: false`.
+
+  A new token, `--font-lao-ui`, set per `html[data-lao-font]` in `globals.css`, now backs `font-lao`, `--font-heading`, `--font-mono`, the body font and toasts. The user picks the face under Appearance → Lao font (`app-store` `laoFont`, persisted). The theme bootstrap script applies it before first paint.
+- **Trade-off:** Printed and exported surfaces (report print surface, menu PDFs, receipts) keep their own fixed faces. Saysettha OT has a single 400 weight, so bold text in it is synthesized. Fonts a user has not chosen are not downloaded on normal pages. Opening the appearance picker does fetch all four, because each option previews itself (about 0.4 MB once, then cached). Latin text and figures stay on Noto Sans in mixed UI text (`font-heading` lists `--font-sans` first).
+- **Approved by:** repository owner (2026-10-22, in conversation: "download and add font … ໃຫ້ user ສາມາດປ່ຽນ font ໄດ້").
+
+---
+
+## Dashboard redesign: CSS "banknote plate" hero, no WebGL, no new dependencies
+
+- **Date:** 2026-10-22.
+- **Context:** The owner asked for a dashboard (`/`) that is modern, impressive and "grand" instead of dull. Libraries were allowed, and 3D was allowed "only where it fits". Four design directions were scored by three judges (brief fit, platform constraints, implementability). The page is also the home screen of the Swan 1 terminal (RK3566, Android System WebView 101, 1920×1080), which keeps it open all day.
+- **Decision:**
+  - **Hero.** The revenue hero is a CSS-only "banknote plate". It is `bg-primary` with neutral `--dash-*` overlays, so all five `data-theme-color` presets work in light and dark. On top sit a generated guilloché SVG (`dashboard-engraving.ts`), an odometer that rolls each digit with `transform` only, a condensed Noto Sans numeral (`font-stretch`), and a skyline with one column per day (per week or month once the period passes 62 or 400 days, `bucketTrendRows`) in which the owed part is hatched.
+  - **Cards below the hero.** The ledger becomes a receipt with a gross-to-net bar per line. Channels become lanes that compare revenue share with order share. Tables become a seat grid. Insights become ticket stubs.
+  - **3D and motion libraries.** No three.js or WebGL on the dashboard, and `motion` is not imported on this route.
+  - **Motion tiers.** Motion is CSS/tw-animate, tiered by `visualEffectsTier()` (`src/lib/visual-effects-tier.ts`):
+    - *static* on Swan 1, on old Android WebViews and under reduced motion;
+    - *lite* on other Android devices, touch screens and Save-Data users;
+    - *full* on desktop and Electron.
+
+    A `[data-fx]` kill switch in `globals.css` stops entrances, odometer rolls and meter fills on Swan 1. The first-load skeleton still shimmers there as loading feedback, as POS spinners do.
+  - **recharts.** It is fetched only for a range longer than one day that has sales rows, so the default "today" view never loads it.
+  - **Tokens and utilities.** New tokens `--dash-sheen`, `--dash-shade`, `--dash-engrave`, `--dash-card-shadow` and `--dash-plate-shadow`. New `@utility` patterns `bg-dash-plate`, `bg-dash-notches`, `bg-perforation` and `bg-hatch`. `dashboard-platform-guard.test.ts` keeps WebView-101-breaking classes out of the dashboard: unguarded oklab gradients, the individual `translate`/`scale`/`rotate` properties, `color-mix()`, bare `dvh` and container queries.
+- **Why no 3D:**
+  - three@0.185 is about 188 KB gzip (`three.module.min.js` 87 KB plus `three.core.min.js` 101 KB, measured).
+  - The existing burger gate would let Swan 1 through: it reports 4 cores.
+  - The default "today" view has a single data row, so a data-true 3D chart would be empty on the routine open.
+  - Perspective distorts money comparisons.
+  - A WebGL lifecycle cannot be covered by the Vitest-only test gate.
+- **Trade-off:** There is no 3D "wow" moment. If the owner still wants it, it ships as its own change behind a separate gate:
+  - not on Capacitor Android or Swan 1;
+  - desktop only, with a fine pointer;
+  - at least 7 days in the period;
+  - `deviceMemory` and `hardwareConcurrency` of 8 or more, failing closed when unknown;
+  - a WebGL2 probe with `failIfMajorPerformanceCaveat`;
+  - render-on-demand, plus its own boundary test.
+- **Also changed, app-wide:** `.skeleton-shimmer` used a raw `color-mix()`, which WebView 101 drops, so skeletons were invisible on Capacitor Android. It now has `rgba()` fallbacks under `html.capacitor-android`. New `la` strings under `dashboard.*` still need native-speaker review.
+- **Approved by:** `TODO(owner): confirm`. The agent proposed this under the owner's "3D only where it fits" instruction (2026-10-22).
+
+---
+
 ## QR menu gets its own light/dark toggle, independent of the POS theme
 
 - **Date:** 2026-10-05.

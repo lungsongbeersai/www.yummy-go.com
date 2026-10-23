@@ -1,0 +1,98 @@
+<!doctype html>
+<html lang="lo">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <title>Yummy Go</title>
+    <style>
+      :root {
+        color-scheme: light dark;
+        --background: #ffffff;
+        --foreground: #111827;
+        --muted: #6b7280;
+        --primary: #16a34a;
+        --primary-foreground: #ffffff;
+        --track: #dcfce7;
+      }
+      @media (prefers-color-scheme: dark) {
+        :root {
+          --background: #0f131a;
+          --foreground: #f3f4f6;
+          --muted: #9ca3af;
+          --track: #14532d;
+        }
+      }
+      * { box-sizing: border-box; }
+      html, body { height: 100%; margin: 0; }
+      body {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: env(safe-area-inset-top) 24px env(safe-area-inset-bottom);
+        background: var(--background);
+        color: var(--foreground);
+        font-family: "Noto Sans Lao", "Phetsarath OT", system-ui, sans-serif;
+        text-align: center;
+      }
+      main { max-width: 360px; }
+      .spinner {
+        width: 48px;
+        height: 48px;
+        margin: 0 auto 24px;
+        border: 4px solid var(--track);
+        border-top-color: var(--primary);
+        border-radius: 50%;
+        animation: spin 0.9s linear infinite;
+      }
+      h1 { margin: 0 0 8px; font-size: 20px; font-weight: 600; }
+      p { margin: 0 0 24px; color: var(--muted); font-size: 14px; line-height: 1.6; }
+      button {
+        min-height: 44px;
+        padding: 0 24px;
+        border: 0;
+        border-radius: 8px;
+        background: var(--primary);
+        color: var(--primary-foreground);
+        font: inherit;
+        font-weight: 600;
+      }
+      @keyframes spin { to { transform: rotate(360deg); } }
+      @media (prefers-reduced-motion: reduce) { .spinner { animation-duration: 3s; } }
+    </style>
+  </head>
+  <body>
+    <main>
+      <div class="spinner" aria-hidden="true"></div>
+      <h1 role="status">ກຳລັງເຊື່ອມຕໍ່ ອິນເຕີເນັດ</h1>
+      <p>ກະລຸນາກວດສອບ Wi-Fi ຫຼື ຂໍ້ມູນມືຖື. ແອັບຈະເປີດເອງເມື່ອເຊື່ອມຕໍ່ໄດ້.</p>
+      <button type="button" id="retry">ລອງໃໝ່</button>
+    </main>
+    <script>
+      // Capacitor loads this page (server.errorPath) when server.url fails to load.
+      // The injected bridge exposes the configured server origin; fall back to production.
+      (function () {
+        var cap = window.Capacitor;
+        var target = (cap && typeof cap.getServerUrl === "function" && cap.getServerUrl()) || "https://yummy-go.com";
+        var checking = false;
+
+        function tryReconnect() {
+          if (checking || navigator.onLine === false) return;
+          checking = true;
+          // A connected-but-dead network never fails the request on its own; abort it so
+          // the next retry can run instead of waiting on the OS TCP timeout.
+          var controller = typeof AbortController === "function" ? new AbortController() : null;
+          var timeout = controller ? setTimeout(function () { controller.abort(); }, 8000) : null;
+          fetch(target, { mode: "no-cors", cache: "no-store", signal: controller ? controller.signal : undefined })
+            .then(function () { window.location.replace(target); })
+            .catch(function () { checking = false; })
+            .then(function () { if (timeout) clearTimeout(timeout); });
+        }
+
+        document.getElementById("retry").addEventListener("click", tryReconnect);
+        window.addEventListener("online", tryReconnect);
+        setInterval(tryReconnect, 5000);
+        tryReconnect();
+      })();
+    </script>
+  </body>
+</html>
