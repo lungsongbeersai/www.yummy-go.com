@@ -87,7 +87,7 @@ export function PrinterFormPage() {
         : t("printer.tcpPrinter");
 
   return (
-    <div className="mx-auto flex w-full max-w-5xl flex-col gap-5">
+    <div className="flex w-full flex-col gap-5">
       <BackButton
         fallbackHref="/printers"
         label={t("printer.title")}

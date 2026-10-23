@@ -46,8 +46,39 @@ const AGENT_DOT: Record<string, string> = {
   unchecked: "bg-muted-foreground",
 };
 
+// One colour per status tile, kept even when the count is 0, so the row reads as four distinct
+// filters: all (theme), active (success), inactive (neutral), needs attention (warning).
+type TileTone = "primary" | "success" | "neutral" | "warning";
+
+const TILE_TONES: Record<TileTone, { active: string; chip: string; count: string; label: string }> = {
+  neutral: {
+    active: "border-muted-foreground bg-muted",
+    chip: "bg-muted-foreground text-background",
+    count: "text-foreground",
+    label: "text-muted-foreground",
+  },
+  primary: {
+    active: "border-primary bg-primary/10",
+    chip: "bg-primary text-primary-foreground",
+    count: "text-primary-text",
+    label: "text-primary-text",
+  },
+  success: {
+    active: "border-success bg-success/10",
+    chip: "bg-success text-success-foreground",
+    count: "text-success-text",
+    label: "text-success-text",
+  },
+  warning: {
+    active: "border-warning bg-warning/10",
+    chip: "bg-warning text-warning-foreground",
+    count: "text-warning-text",
+    label: "text-warning-text",
+  },
+};
+
 const TOGGLE_ITEM_CLASS =
-  "h-8 flex-1 rounded-md px-3 text-xs font-semibold whitespace-nowrap data-[state=on]:bg-card data-[state=on]:text-foreground data-[state=on]:shadow-sm sm:flex-none";
+  "h-8 flex-1 rounded-md px-3 text-xs font-semibold whitespace-nowrap data-[state=on]:bg-primary data-[state=on]:text-primary-foreground data-[state=on]:shadow-sm sm:flex-none";
 
 export function PrinterPage() {
   const printer = usePrinterPage();
@@ -80,12 +111,12 @@ export function PrinterPage() {
     count: number;
     icon: ComponentType<{ className?: string }>;
     label: string;
-    tone?: "warning";
+    tone: TileTone;
     value: PrinterStatusFilter;
   }> = [
-    { value: STATUS_ALL, label: t("printer.summaryAll"), count: printer.summary.total, icon: PrinterIcon },
-    { value: STATUS_ACTIVE, label: printer.statusLabels.active, count: printer.summary.active, icon: Power },
-    { value: STATUS_INACTIVE, label: printer.statusLabels.inactive, count: printer.summary.inactive, icon: PowerOff },
+    { value: STATUS_ALL, label: t("printer.summaryAll"), count: printer.summary.total, icon: PrinterIcon, tone: "primary" },
+    { value: STATUS_ACTIVE, label: printer.statusLabels.active, count: printer.summary.active, icon: Power, tone: "success" },
+    { value: STATUS_INACTIVE, label: printer.statusLabels.inactive, count: printer.summary.inactive, icon: PowerOff, tone: "neutral" },
     {
       value: STATUS_ATTENTION,
       label: t("printer.summaryAttention"),
@@ -103,17 +134,19 @@ export function PrinterPage() {
   return (
     // เต็มหน้าจอแบบ sales-list: หัวหน้า → ไทล์สถานะ → แถบค้นหา → รายการ ที่เลื่อนเฉพาะส่วนรายการ
     <div className="flex h-full min-h-0 flex-col overflow-hidden bg-muted/20">
-      <header className="flex shrink-0 items-center gap-3 border-b border-border bg-card px-3 py-2.5 sm:px-4 lg:px-5">
-        <span className="hidden size-10 shrink-0 place-items-center rounded-xl bg-primary/10 text-primary sm:grid">
+      {/* Same theme banner as the printer form, so list and form read as one place. */}
+      <header className="relative isolate flex shrink-0 items-center gap-3 overflow-hidden bg-primary px-3 py-3 text-primary-foreground sm:px-4 lg:px-5">
+        <span aria-hidden="true" className="pointer-events-none absolute -top-20 -right-10 -z-10 size-56 rounded-full bg-(--dash-sheen)" />
+        <span className="hidden size-11 shrink-0 place-items-center rounded-xl bg-(--dash-shade) sm:grid">
           <PrinterIcon className="size-5" />
         </span>
         <div className="min-w-0 flex-1">
-          <h1 className="truncate text-base font-black leading-6 text-foreground">{t("printer.subtitle")}</h1>
+          <h1 className="truncate text-lg font-black leading-6">{t("printer.subtitle")}</h1>
           {/* สถานะ Agent เป็นจุดสี + ข้อความ — เดิมเป็นข้อความเทาเล็ก ๆ ท้ายชื่อหน้า มองไม่ออกว่าเชื่อมต่ออยู่หรือไม่ */}
-          <p className="flex min-w-0 items-center gap-1.5 text-xs text-muted-foreground" title={printer.agentStatusLabel}>
+          <p className="mt-1 inline-flex max-w-full min-w-0 items-center gap-1.5 rounded-full bg-(--dash-shade) px-2.5 py-0.5 text-xs" title={printer.agentStatusLabel}>
             <span aria-hidden="true" className={cn("size-2 shrink-0 rounded-full", AGENT_DOT[printer.agentStatus] ?? AGENT_DOT.unchecked)} />
             <span className="shrink-0">{t("printer.agentStatus")}:</span>
-            <span className="truncate font-semibold text-foreground">{printer.agentStatusLabel}</span>
+            <span className="truncate font-semibold">{printer.agentStatusLabel}</span>
           </p>
         </div>
 
@@ -128,7 +161,7 @@ export function PrinterPage() {
             onLaoFontDownload={printer.showLaoFontDownloadToast}
             onPrinterSetupDownload={printer.showPrinterSetupDownloadToast}
           />
-          <Link className={cn(buttonVariants(), "h-10 sm:h-9")} href="/printers/form">
+          <Link className={cn(buttonVariants({ variant: "secondary" }), "h-10 font-bold sm:h-9")} href="/printers/form">
             <Plus data-icon="inline-start" />
             <span className="hidden sm:inline">{t("printer.add")}</span>
             <span className="sm:hidden">{t("actions.add")}</span>
@@ -142,8 +175,8 @@ export function PrinterPage() {
         <div className="flex shrink-0 flex-col gap-3 px-3 pt-3 sm:px-4 lg:px-5">
           {/* Agent ไม่เชื่อมต่อ = ทดสอบพิมพ์/เครื่อง USB ใช้ไม่ได้ทั้งหน้า — บอกไว้บนสุดพร้อมทางแก้ แทนให้ไปเจอปุ่มที่กดไม่ได้เอง */}
           {printer.agentStatus === "offline" ? (
-            <Alert className="border-warning/30 bg-warning/5 pr-28">
-              <AlertTriangle className="text-warning" />
+            <Alert className="border-warning/40 bg-warning/10 pr-28">
+              <AlertTriangle className="text-warning-text" />
               <AlertTitle>{t("printer.agentOfflineTitle")}</AlertTitle>
               <AlertDescription>{t("printer.agentOfflineDescription")}</AlertDescription>
               <AlertAction>
@@ -160,29 +193,24 @@ export function PrinterPage() {
             {statusTiles.map((tile) => {
               const Icon = tile.icon;
               const active = printer.statusFilter === tile.value;
-              const warn = tile.tone === "warning" && tile.count > 0;
+              const tone = TILE_TONES[tile.tone];
               return (
                 <button
                   key={tile.value}
                   type="button"
                   aria-pressed={active}
                   className={cn(
-                    "flex min-w-0 items-center gap-3 rounded-xl border bg-card px-3 py-2.5 text-left shadow-xs transition-colors outline-none focus-visible:ring-2 focus-visible:ring-ring",
-                    active ? "border-primary ring-1 ring-primary" : "border-border hover:border-primary/30 hover:bg-primary/5",
+                    "flex min-w-0 items-center gap-3 rounded-xl border-2 bg-card px-3 py-2.5 text-left shadow-dash-card transition-colors outline-none focus-visible:ring-2 focus-visible:ring-ring",
+                    active ? tone.active : "border-transparent hover:bg-muted",
                   )}
                   onClick={() => printer.setStatusFilter(active && tile.value !== STATUS_ALL ? STATUS_ALL : tile.value)}
                 >
-                  <span
-                    className={cn(
-                      "grid size-9 shrink-0 place-items-center rounded-lg",
-                      warn ? "bg-warning/15 text-warning" : active ? "bg-primary/10 text-primary" : "bg-muted text-muted-foreground",
-                    )}
-                  >
-                    <Icon className="size-4" />
+                  <span className={cn("grid size-10 shrink-0 place-items-center rounded-xl shadow-sm", tone.chip)}>
+                    <Icon className="size-5" />
                   </span>
                   <span className="flex min-w-0 flex-col">
-                    <span className="truncate text-xs font-semibold text-muted-foreground">{tile.label}</span>
-                    <span className={cn("text-xl leading-6 font-black tabular-nums", warn ? "text-warning" : "text-foreground")}>
+                    <span className={cn("truncate text-xs font-semibold", tone.label)}>{tile.label}</span>
+                    <span className={cn("text-2xl leading-7 font-black tabular-nums", tone.count)}>
                       {tile.count}
                     </span>
                   </span>

@@ -9,6 +9,16 @@ import { cn } from "@/lib/utils";
 
 const BADGE_LIST_MAX = 4;
 
+// Same colour meaning as the printer form steps: roles in the theme colour, zones/categories
+// (menu mapping) in warning. "neutral" keeps the table view's quiet look.
+export type BadgeListTone = "neutral" | "primary" | "warning";
+
+const BADGE_TONES: Record<BadgeListTone, string> = {
+  neutral: "bg-muted/40 font-medium",
+  primary: "border-primary/30 bg-primary/10 font-semibold text-primary-text",
+  warning: "border-warning/40 bg-warning/10 font-semibold text-warning-text",
+};
+
 // เดิมโชว์ badge ทุกตัวไม่จำกัด — เครื่องพิมพ์ที่มีหลาย role/category ทำให้ cell เดียวมี badge เล็กๆ
 // เรียงกัน 8-10 ใบ ล้นเป็น 2-3 บรรทัด ทำให้ตารางดูรกและแถวสูงไม่เท่ากัน ตัดโชว์แค่ N ใบแรก
 // ที่เหลือพับเข้า popover "+N" กดดูได้ครบ ไม่เสียข้อมูล แค่ไม่บังคับแสดงพร้อมกันทั้งหมด
@@ -16,10 +26,12 @@ export function BadgeList({
   emptyLabel,
   items,
   max = BADGE_LIST_MAX,
+  tone = "neutral",
 }: {
   emptyLabel: string;
   items: Array<{ label: string; value: string }>;
   max?: number;
+  tone?: BadgeListTone;
 }) {
   if (!items.length) {
     return <span className="text-xs text-muted-foreground">{emptyLabel}</span>;
@@ -34,7 +46,7 @@ export function BadgeList({
         <Badge
           key={item.value}
           variant="outline"
-          className="max-w-32 truncate bg-muted/40 font-medium"
+          className={cn("max-w-32 truncate", BADGE_TONES[tone])}
         >
           {item.label}
         </Badge>
@@ -61,7 +73,7 @@ export function BadgeList({
                 <Badge
                   key={item.value}
                   variant="outline"
-                  className="max-w-full truncate bg-muted/40 font-medium"
+                  className={cn("max-w-full truncate", BADGE_TONES[tone])}
                 >
                   {item.label}
                 </Badge>
@@ -90,7 +102,7 @@ export function PrinterStatusBadge({
       className={cn(
         "gap-1.5 rounded-full px-2.5 py-1 font-black whitespace-nowrap",
         active
-          ? "border-primary/30 bg-primary/10 text-primary"
+          ? "border-success/40 bg-success/15 text-success-text"
           : "border-transparent bg-secondary text-secondary-foreground",
       )}
     >
@@ -138,7 +150,7 @@ export function PrinterOwnershipBadge({
     <Badge
       variant="outline"
       className={cn(
-        "gap-1 rounded-full border-info/30 bg-info/10 font-bold text-info",
+        "gap-1 rounded-full border-info/30 bg-info/10 font-bold text-info-text",
         className,
       )}
       title={ownerDeviceCode || undefined}
@@ -165,8 +177,8 @@ export function PrinterAvailabilityBadge({
       className={cn(
         "gap-1 rounded-full font-bold whitespace-nowrap",
         online
-          ? "border-success/30 bg-success/10 text-success"
-          : "border-warning/30 bg-warning/10 text-warning",
+          ? "border-success/30 bg-success/10 text-success-text"
+          : "border-warning/30 bg-warning/10 text-warning-text",
       )}
     >
       <Icon className="size-3" />
