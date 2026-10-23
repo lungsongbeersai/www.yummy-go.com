@@ -2689,6 +2689,8 @@
     "selectBillsToPrint": "Select bill(s) before printing.",
     "dailyPrint": {
       "billCount": "Completed bills",
+      "bills": "bills",
+      "salesSummary": "Sales summary",
       "cancelledBills": "Cancelled bills",
       "cash": "Cash",
       "dateTotal": "Total sales",

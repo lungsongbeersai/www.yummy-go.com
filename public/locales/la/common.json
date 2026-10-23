@@ -2692,6 +2692,8 @@
     "selectBillsToPrint": "ກະລຸນາເລືອກບິນກ່ອນພິມ",
     "dailyPrint": {
       "billCount": "ຈຳນວນບິນສຳເລັດ",
+      "bills": "ບິນ",
+      "salesSummary": "ສະຫຼຸບຍອດຂາຍ",
       "cancelledBills": "ບິນຍົກເລີກ",
       "cash": "ເງິນສົດ",
       "dateTotal": "ລວມຍອດຂາຍ",
