@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import axios from "axios";
-import type { SavePrinterInput } from "@/services/printer";
+import type { PrintJob, SavePrinterInput } from "@/services/printer";
+import { getPrinterDeliveryState } from "@/services/printer/helpers";
 
 const apiMocks = vi.hoisted(() => ({ apiRequest: vi.fn() }));
 vi.mock("@/lib/api", () => ({
@@ -8,7 +9,7 @@ vi.mock("@/lib/api", () => ({
   ServiceError: class extends Error {},
 }));
 
-import { getPrinterEmployeeRoles, savePrinter, searchPrinters } from "@/services/printer/config-api";
+import { getPrinterEmployeeRoles, renderMobileEscpos, savePrinter, searchPrinters } from "@/services/printer/config-api";
 
 describe("printer configuration API", () => {
   const input: SavePrinterInput = {
@@ -18,8 +19,30 @@ describe("printer configuration API", () => {
     sharing_mode: "DEDICATED", agent_url: "http://127.0.0.1:7777",
     agent_id: "agent", agent_name: "Counter", device_code: "device",
   };
+  const renderJob: PrintJob = {
+    lang: "la", paper_width_mm: 80, printer_type: "receipt", ops: [],
+    interface_value: "tcp://192.168.1.20:9100",
+  };
 
   beforeEach(() => vi.clearAllMocks());
+
+  it.each([
+    new Error("Renderer response lost"),
+    Object.freeze(new Error("Renderer unavailable")),
+    "Renderer failed",
+  ])("keeps a failed render safe to retry before printer transport starts: %s", async (failure) => {
+    apiMocks.apiRequest.mockRejectedValueOnce(failure);
+    const error: unknown = await renderMobileEscpos(renderJob)
+      .catch((caught: unknown) => caught);
+    expect(getPrinterDeliveryState(error)).toBe("not_sent");
+    expect(error).toBeInstanceOf(Error);
+  });
+
+  it("keeps a malformed render response safe to retry", async () => {
+    apiMocks.apiRequest.mockResolvedValueOnce({ data: {} });
+    await expect(renderMobileEscpos(renderJob))
+      .rejects.toMatchObject({ delivery_state: "not_sent" });
+  });
 
   it("allows bounded native discovery to finish without a five-second false failure", async () => {
     const request = vi.spyOn(axios, "get").mockResolvedValueOnce({ data: { ok: true, data: [] } });

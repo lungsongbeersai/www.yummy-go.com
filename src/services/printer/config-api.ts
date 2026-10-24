@@ -252,14 +252,31 @@ export const buildTestJob = (data: BuildTestJobRequest) =>
   apiRequest<BuildTestJobResponse>("post", "/api/v1/printer/build-test-job", { data });
 
 export async function renderMobileEscpos(job: PrintJob) {
-  const result = await apiRequest<MobileEscposRenderResponse>(
-    "post",
-    "/api/v1/printer/mobile/render-escpos",
-    { data: job }
-  );
-  const escposBase64 = textValue(result.data?.escpos_base64);
-  if (!escposBase64) throw new ServiceError("Mobile render response missing escpos_base64", 500);
-  return escposBase64;
+  try {
+    const result = await apiRequest<MobileEscposRenderResponse>(
+      "post",
+      "/api/v1/printer/mobile/render-escpos",
+      { data: job }
+    );
+    const escposBase64 = textValue(result.data?.escpos_base64);
+    if (!escposBase64) throw new ServiceError("Mobile render response missing escpos_base64", 500);
+    return escposBase64;
+  } catch (error) {
+    // This endpoint only renders bytes. Even a lost response cannot have
+    // delivered anything to the printer, so a later retry remains safe.
+    const wrapped = error instanceof Error
+      ? error
+      : new ServiceError(String(error || "Mobile render failed"), 500);
+    try {
+      Object.assign(wrapped, { delivery_state: "not_sent" });
+    } catch {
+      throw Object.assign(new ServiceError(wrapped.message, 500), {
+        cause: error,
+        delivery_state: "not_sent",
+      });
+    }
+    throw wrapped;
+  }
 }
 
 export async function sendMobileBackendPrintJob(job: PrintJob) {

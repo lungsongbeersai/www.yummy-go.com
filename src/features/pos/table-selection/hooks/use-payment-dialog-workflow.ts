@@ -43,7 +43,6 @@ import { usePaymentCustomers } from "./use-payment-customers";
 import type { PaymentDialogProps } from "../payment-dialog-types";
 import {
   checkoutDocumentActionGuard,
-  canRestartReceiptPrint,
   committedReceiptOrderUuid,
   createCommittedReceiptRetry,
   finishCommittedPayment,
@@ -860,7 +859,7 @@ export function usePaymentDialogWorkflow({
     );
   }
 
-  async function retryCommittedReceipt(context: QueuedDocumentContext, newPrintRound = false) {
+  async function retryCommittedReceipt(context: QueuedDocumentContext, newPrintRound = true) {
     const receipt = context.receipt;
     if (!receipt?.orderUuid) return;
     const releaseAction = checkoutDocumentActionGuard.acquire(
@@ -871,7 +870,7 @@ export function usePaymentDialogWorkflow({
     setInvoicePrinting(true);
     try {
       // The financial mutation is committed. Rebuild only this paid order's
-      // missing receipt; reuse its operation/job identity after an uncertain read.
+      // receipt as a new manual print, without submitting payment again.
       await receipt.retry(newPrintRound);
     } catch (error) {
       showQueuedPrintError(
@@ -1015,12 +1014,9 @@ export function usePaymentDialogWorkflow({
     context: QueuedDocumentContext,
     failureTitle: string,
   ): Promise<QueuedDocumentPrintOutcome> {
-    const retry = () =>
-      void executeQueuedInvoice(
-        response,
-        context,
-        failureTitle,
-      );
+    const retry = context.receipt
+      ? () => void retryCommittedReceipt(context, true)
+      : context.retryDocument;
     setInvoicePrinting(true);
     try {
       const printResult = await executeInvoice({
@@ -1036,14 +1032,6 @@ export function usePaymentDialogWorkflow({
           title: t("pos.documentPrintQueued"),
           ...(context.receipt ? {
             title: t("pos.paymentReceiptPrintQueued"),
-            duration: Infinity,
-            action: {
-              label: t("actions.tryAgain"),
-              onClick: (event) => {
-                event.preventDefault();
-                retry();
-              },
-            },
           } : {}),
           description: context.label,
           tone: "info",
@@ -1056,15 +1044,10 @@ export function usePaymentDialogWorkflow({
         return outcome;
       }
 
-      const retryDefiniteFailure = context.receipt
-        ? () => void retryCommittedReceipt(context, true)
-        : context.retryDocument;
       showQueuedPrintError(
         failureTitle,
         printResult.errorMessage,
-        canRestartReceiptPrint(printResult)
-          ? retryDefiniteFailure ?? retry
-          : retry,
+        retry,
         context,
       );
       return outcome;
@@ -1084,7 +1067,7 @@ export function usePaymentDialogWorkflow({
   function showQueuedPrintError(
     title: string,
     description: string | undefined,
-    retry: () => void,
+    retry: (() => void) | undefined,
     context?: QueuedDocumentContext,
   ) {
     const retryDescription = context?.receipt
@@ -1098,13 +1081,15 @@ export function usePaymentDialogWorkflow({
         .filter(Boolean)
         .join(" "),
       tone: "error",
-      action: {
-        label: t("actions.tryAgain"),
-        onClick: (event) => {
-          if (context?.receipt) event.preventDefault();
-          retry();
+      ...(retry ? {
+        action: {
+          label: t("pos.manualReprint"),
+          onClick: (event) => {
+            if (context?.receipt) event.preventDefault();
+            retry();
+          },
         },
-      },
+      } : {}),
     });
   }
 

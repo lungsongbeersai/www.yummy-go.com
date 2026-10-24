@@ -39,14 +39,6 @@ export function committedReceiptOrderUuid(
     committedOrderUuid;
 }
 
-export function canRestartReceiptPrint(
-  result: Pick<KitchenPrintResult, "failedCount" | "successCount" | "pending">,
-): boolean {
-  return result.failedCount > 0 &&
-    result.successCount === 0 &&
-    result.pending !== true;
-}
-
 export function createCommittedReceiptRetry({
   receipt,
   requestReceipt,
@@ -66,8 +58,10 @@ export function createCommittedReceiptRetry({
 
   return {
     orderUuid: committedReceipt.order_uuid,
-    async retry(newPrintRound = false): Promise<QueuedDocumentPrintOutcome> {
-      if (newPrintRound) {
+    async retry(newPrintRound = true): Promise<QueuedDocumentPrintOutcome> {
+      // A manual click starts a fresh print after a known job. A lost enqueue
+      // response still reuses its operation ID until its job can be identified.
+      if (newPrintRound && pendingQuery) {
         operationUuid = createOperationUuid();
         pendingQuery = undefined;
       }
@@ -171,8 +165,8 @@ export function queuedDocumentPrintOutcome(
   > & Partial<Pick<KitchenPrintResult, "total" | "errorMessage">>,
 ): QueuedDocumentPrintOutcome {
   if (result.failedCount > 0) return "error";
-  if (result.pending) return "pending";
   if (result.errorMessage) return "error";
+  if (result.pending) return "pending";
   if (result.successCount > 0 && result.successCount >= (result.total ?? 0)) return "success";
   return "error";
 }

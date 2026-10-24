@@ -106,6 +106,58 @@ describe("remote Shared print-result observation", () => {
     expect(vi.getTimerCount()).toBe(0);
   });
 
+  it.each([
+    ["kitchen", executeKitchenPrintJobs],
+    ["invoice/receipt", executeInvoicePrintJobs],
+    ["report", executeReportPrintJobs],
+  ] as const)("stops a cleared %s job before stale payload dispatch or ACK", async (kind, execute) => {
+    const response = pendingResponse({
+      requested_job_status: "skipped",
+      requested_job_skipped_total: 2,
+      print_queue_cleared: true,
+      manual_reprint_required: true,
+    });
+    vi.spyOn(apiClient, "get").mockResolvedValue({
+      ...response,
+      data: {
+        ...response.data,
+        print_batch_payloads: [{
+          cut_mode: "per_ticket", agent_id: "owner-agent", device_code: "owner-device",
+          jobs: [{ job_id: "stale-physical-job" }], job_total: 3,
+        }],
+      },
+    });
+    const post = vi.spyOn(apiClient, "post");
+    const onProgress = vi.fn();
+    const original = sharedInput(`cleared-${kind}`);
+    const input = {
+      ...original,
+      pending_query: { ...original.pending_query!, remote_shared_print: false },
+      onProgress,
+    };
+    await expect(execute(input)).resolves.toEqual({
+      successCount: 1, failedCount: 2, total: 3,
+      errorMessage: "Print job was cleared. Use a new manual print request.",
+    });
+    expect(post).not.toHaveBeenCalled();
+    expect(transportMocks.getLocalAgentInfo).not.toHaveBeenCalled();
+    expect(transportMocks.dispatchPrintJob).not.toHaveBeenCalled();
+    expect(transportMocks.printBatchWithLocalAgent).not.toHaveBeenCalled();
+    expect(onProgress).toHaveBeenLastCalledWith(expect.objectContaining({ phase: "done" }));
+  });
+
+  it("reports a remote cleared job as manual-reprint failure while preserving real printed rows", async () => {
+    vi.spyOn(apiClient, "get").mockResolvedValue(pendingResponse({
+      requested_job_status: "skipped",
+      requested_job_skipped_total: 2,
+      print_queue_cleared: true,
+    }));
+    await expect(executeInvoicePrintJobs(sharedInput("remote-cleared-job"))).resolves.toMatchObject({
+      successCount: 1, failedCount: 2, total: 3,
+      errorMessage: expect.stringContaining("new manual print"),
+    });
+  });
+
   it("stops rapid pending polls without reporting completion or sending another job", async () => {
     const get = vi.spyOn(apiClient, "get").mockResolvedValue(pendingResponse());
     const post = vi.spyOn(apiClient, "post");

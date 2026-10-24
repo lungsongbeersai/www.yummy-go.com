@@ -76,7 +76,11 @@ export interface PrintSummary extends ApiEntity {
   requested_job_found?: boolean;
   requested_job_status?: string | null;
   requested_job_success_total?: number;
+  requested_job_skipped_total?: number;
   requested_job_total?: number;
+  print_queue_cleared?: boolean;
+  manual_reprint_required?: boolean;
+  print_retry_policy?: string;
   uncertain_item_total?: number;
 }
 export interface InternetPrintSettings {

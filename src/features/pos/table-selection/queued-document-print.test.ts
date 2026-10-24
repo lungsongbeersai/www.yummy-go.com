@@ -1,7 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import {
   createCheckoutDocumentActionGuard,
-  canRestartReceiptPrint,
   committedReceiptOrderUuid,
   createCommittedReceiptRetry,
   type QueuedDocumentPrintOutcome,
@@ -199,22 +198,6 @@ describe("committedReceiptOrderUuid", () => {
   });
 });
 
-describe("canRestartReceiptPrint", () => {
-  it("allows an explicit new receipt-only print after definitive failure of every item", () => {
-    expect(canRestartReceiptPrint({ failedCount: 1, successCount: 0 })).toBe(true);
-  });
-
-  it.each([
-    { failedCount: 1, successCount: 1 },
-    { failedCount: 1, successCount: 0, pending: true },
-    { failedCount: 0, successCount: 0, pending: true },
-    { failedCount: 0, successCount: 0 },
-    { failedCount: 0, successCount: 1 },
-  ])("does not duplicate successful, partial, or uncertain delivery: %j", (result) => {
-    expect(canRestartReceiptPrint(result)).toBe(false);
-  });
-});
-
 describe("queued document preparation errors", () => {
   it("surfaces the authoritative printer routing error instead of a generic missing-job message", () => {
     expect(queuedDocumentPrintFailureMessage({
@@ -265,8 +248,8 @@ describe("committed receipt recovery", () => {
     // A different bill can become visible before the cashier retries printing.
     receipt.order_uuid = "next-unpaid-order";
     receipt.payment_uuid = "different-payment";
-    expect(await recovery.retry()).toBe("pending");
-    expect(await recovery.retry()).toBe("pending");
+    expect(await recovery.retry(false)).toBe("pending");
+    expect(await recovery.retry(false)).toBe("pending");
     expect(requestReceipt).toHaveBeenCalledExactlyOnceWith({
       order_uuid: "paid-split-order",
       payment_uuid: "committed-payment",
@@ -329,6 +312,27 @@ describe("committed receipt recovery", () => {
       operation_uuid: "explicit-retry-operation",
     });
     expect(execute).toHaveBeenNthCalledWith(2, { print_job_uuid: "retry-receipt-job" });
+  });
+
+  it("defaults each explicit manual receipt reprint to a new job without replaying payment", async () => {
+    const requestReceipt = vi.fn()
+      .mockResolvedValueOnce({ print_job_uuid: "old-failed-receipt" })
+      .mockResolvedValueOnce({ print_job_uuid: "manual-new-receipt" });
+    const execute = vi.fn().mockResolvedValue("error");
+    const recovery = createCommittedReceiptRetry({
+      receipt: { order_uuid: "paid-order", payment_uuid: "same-payment", login_uuid_fk: "cashier" },
+      requestReceipt,
+      execute,
+      createOperationUuid: vi.fn().mockReturnValueOnce("original-operation").mockReturnValueOnce("manual-operation"),
+      missingJobMessage: "No receipt job",
+    });
+    await recovery.retry();
+    await recovery.retry();
+    expect(requestReceipt.mock.calls.map(([request]) => request.operation_uuid)).toEqual([
+      "original-operation", "manual-operation",
+    ]);
+    expect(requestReceipt.mock.calls.every(([request]) => request.payment_uuid === "same-payment")).toBe(true);
+    expect(execute).toHaveBeenNthCalledWith(2, { print_job_uuid: "manual-new-receipt" });
   });
 
   it("keeps missing receipt jobs as recoverable errors and never reports print success", async () => {
@@ -426,6 +430,13 @@ describe("queuedDocumentPrintOutcome", () => {
       failedCount: 0,
       total: 1,
       errorMessage: "Receipt delivery was incomplete",
+    })).toBe("error");
+  });
+
+  it("requires manual action for uncertain delivery instead of showing an endlessly queued receipt", () => {
+    expect(queuedDocumentPrintOutcome({
+      successCount: 0, failedCount: 0, pending: true,
+      errorMessage: "Delivery is uncertain; create a fresh manual print",
     })).toBe("error");
   });
 });

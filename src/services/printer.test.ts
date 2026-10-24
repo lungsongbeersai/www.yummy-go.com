@@ -748,7 +748,7 @@ describe("printer service dispatch", () => {
       const message = fixture.failDrinks();
 
       await expect(executeKitchenPrintJobs(fixture.input)).resolves.toEqual({
-        successCount: 1, failedCount: 0, total: 2, pending: true, errorMessage: message,
+        successCount: 1, failedCount: 1, total: 2, errorMessage: message,
       });
 
       expect(fixture.ackPayloads[0].results).toEqual([
@@ -758,6 +758,32 @@ describe("printer service dispatch", () => {
           status: "failed",
           delivery_state: "unknown",
           reason: message,
+        },
+      ]);
+    });
+
+    it.each([
+      ["kitchen", executeKitchenPrintJobs],
+      ["invoice/receipt", executeInvoicePrintJobs],
+    ] as const)("preserves native partial %s delivery when the shared owner has no UI progress callback", async (kind, execute) => {
+      const fixture = prepareGroupBatch(`groups-background-${kind}`, true);
+      mobileTcpMocks.printMobileEscposOverTcp.mockImplementationOnce(async ({ on_ticket_delivered }) => {
+        on_ticket_delivered?.(1, 2);
+        throw Object.assign(new Error("Printer disconnected after food"), {
+          delivery_state: "unknown",
+        });
+      });
+
+      await expect(execute(fixture.input)).resolves.toMatchObject({
+        successCount: 1, failedCount: 1, total: 2,
+      });
+      expect(fixture.ackPayloads[0].results).toEqual([
+        ...fixture.printedResults.slice(0, 2),
+        {
+          ...fixture.printedResults[2],
+          status: "failed",
+          delivery_state: "unknown",
+          reason: "Printer disconnected after food",
         },
       ]);
     });
@@ -775,13 +801,36 @@ describe("printer service dispatch", () => {
       expect(native ? mobileTcpMocks.printMobileEscposOverTcp : axiosMocks.post).toHaveBeenCalledTimes(1);
     });
 
+    it.each([false, true])("never retries a failed unsent UUID after ACK, and accepts a fresh manual job (native=%s)", async (native) => {
+      const fixture = prepareGroupBatch(`manual-only-unsent-${native}`, native);
+      const failure = Object.assign(new Error("Printer is offline"), { delivery_state: "not_sent" });
+      const transport = native ? mobileTcpMocks.printMobileEscposOverTcp : axiosMocks.post;
+      transport.mockRejectedValueOnce(failure);
+
+      await expect(executeKitchenPrintJobs(fixture.input)).resolves.toMatchObject({
+        successCount: 0, failedCount: 2, total: 2,
+      });
+      await expect(executeKitchenPrintJobs(fixture.input)).resolves.toMatchObject({
+        successCount: 0, failedCount: 2, total: 2,
+      });
+      expect(transport).toHaveBeenCalledTimes(1);
+      expect(fixture.ackPayloads).toHaveLength(2);
+      expect(fixture.ackPayloads[1].results.every((item) => item.delivery_state === "not_sent")).toBe(true);
+
+      const fresh = prepareGroupBatch(`manual-fresh-unsent-${native}`, native);
+      await expect(executeKitchenPrintJobs(fresh.input)).resolves.toEqual({
+        successCount: 2, failedCount: 0, total: 2,
+      });
+      expect(transport).toHaveBeenCalledTimes(2);
+    });
+
     it.each([false, true])("preserves food delivery when retrying a lost partial ACK (native=%s)", async (native) => {
       const fixture = prepareGroupBatch(`groups-partial-ack-retry-${native}`, native, true);
       const message = fixture.failDrinks();
 
       await executeKitchenPrintJobs(fixture.input);
       await expect(executeKitchenPrintJobs(fixture.input)).resolves.toEqual({
-        successCount: 1, failedCount: 0, total: 2, pending: true, errorMessage: message,
+        successCount: 1, failedCount: 1, total: 2, errorMessage: message,
       });
 
       expect(fixture.ackPayloads).toHaveLength(2);
@@ -802,7 +851,7 @@ describe("printer service dispatch", () => {
       });
 
       await expect(executeKitchenPrintJobs(fixture.input)).resolves.toEqual({
-        successCount: 1, failedCount: 0, total: 2, pending: true,
+        successCount: 1, failedCount: 1, total: 2,
         errorMessage: "Drinks delivery is uncertain",
       });
 
@@ -831,7 +880,7 @@ describe("printer service dispatch", () => {
       });
 
       await expect(executeKitchenPrintJobs(fixture.input)).resolves.toEqual({
-        successCount: 0, failedCount: 0, total: 2, pending: true,
+        successCount: 0, failedCount: 2, total: 2,
       });
 
       expect(fixture.ackPayloads[0].results).toHaveLength(3);
@@ -1263,7 +1312,8 @@ describe("printer service dispatch", () => {
 
     expect(mobileTcpMocks.printMobileEscposOverTcp).toHaveBeenCalledWith({
       interface_value: "tcp://192.168.1.20:9100",
-      escpos_base64: "BASE64"
+      escpos_base64: "BASE64",
+      on_ticket_delivered: expect.any(Function),
     });
     expect(axiosMocks.post).not.toHaveBeenCalled();
   });
@@ -1364,14 +1414,14 @@ describe("printer service dispatch", () => {
       }
     });
 
-    it("keeps uncertain LAN delivery pending and never resends it while remote work remains", async () => {
+    it("stops uncertain LAN delivery and never resends it while remote work is cleared", async () => {
       const fixture = prepareMixedJob("mixed-lan-unknown");
       mobileTcpMocks.printMobileEscposOverTcp.mockRejectedValueOnce(Object.assign(
         new Error("LAN delivery is uncertain"),
         { delivery_state: "unknown" },
       ));
       await expect(executeKitchenPrintJobs(fixture.input)).resolves.toEqual({
-        successCount: 0, failedCount: 0, total: 1, pending: true,
+        successCount: 0, failedCount: 1, total: 1,
         errorMessage: "LAN delivery is uncertain",
       });
 
@@ -1379,7 +1429,7 @@ describe("printer service dispatch", () => {
       fixture.response.print_summary.uncertain_item_total = 1;
       await Promise.resolve();
       await expect(executeKitchenPrintJobs(fixture.input)).resolves.toMatchObject({
-        successCount: 0, failedCount: 0, total: 1, pending: true,
+        successCount: 0, failedCount: 1, total: 1,
       });
       expect(mobileTcpMocks.printMobileEscposOverTcp).toHaveBeenCalledOnce();
       expect(fixture.ackPayloads[0].results).toEqual([{
@@ -1391,14 +1441,14 @@ describe("printer service dispatch", () => {
       }]);
     });
 
-    it("preserves a real LAN failure and remote pending without ACKing the other printer", async () => {
+    it("preserves a real LAN failure without claiming delivery for the other printer", async () => {
       const fixture = prepareMixedJob("mixed-lan-failure");
       mobileTcpMocks.printMobileEscposOverTcp.mockRejectedValueOnce(Object.assign(
         new Error("LAN printer unreachable"),
         { delivery_state: "not_sent" },
       ));
       await expect(executeKitchenPrintJobs(fixture.input)).resolves.toEqual({
-        successCount: 0, failedCount: 1, total: 1, pending: true,
+        successCount: 0, failedCount: 1, total: 1,
         errorMessage: "LAN printer unreachable",
       });
       expect(fixture.ackPayloads[0].results).toEqual([{
@@ -1707,9 +1757,8 @@ describe("printer service dispatch", () => {
       }),
     ).resolves.toEqual({
       successCount: 2,
-      failedCount: 0,
+      failedCount: 1,
       total: 3,
-      pending: true,
       errorMessage: "printer reported paper out before ticket completion",
     });
 
@@ -2324,7 +2373,7 @@ describe("printer service dispatch", () => {
     expect(axiosMocks.post).not.toHaveBeenCalled();
   });
 
-  it("keeps an uncertain backend delivery pending without sending duplicate bytes", async () => {
+  it("stops an uncertain backend delivery and requires a new manual print", async () => {
     apiMocks.apiRequest.mockImplementation(async (method, url) => {
       if (method === "get" && url === "/api/v1/printer/jobs/pending") {
         return {
@@ -2351,15 +2400,53 @@ describe("printer service dispatch", () => {
       })
     ).resolves.toEqual({
       successCount: 0,
-      failedCount: 0,
+      failedCount: 2,
       total: 2,
-      pending: true,
       errorMessage:
-        "Printer delivery is uncertain; automatic retry was stopped to prevent a duplicate.",
+        "Printer delivery is uncertain. Automatic retry was stopped; use a new manual print request.",
     });
 
     expect(axiosMocks.get).not.toHaveBeenCalled();
     expect(axiosMocks.post).not.toHaveBeenCalled();
+  });
+
+  it.each([false, true])("never replays a failed legacy payload on another owner poll (native=%s)", async (native) => {
+    const jobUuid = `legacy-failed-manual-only-${native}`;
+    const itemUuid = `${jobUuid}-item`;
+    const job = printJob({
+      job_id: `${jobUuid}-physical`,
+      print_job_item_uuid: itemUuid,
+      agent_id: native ? BROWSER_PRINTER_AGENT_ID : "agent-1",
+      device_code: native ? "android-native-legacy-test" : "device-1",
+    });
+    const failure = Object.assign(new Error("Printer unavailable"), { delivery_state: "not_sent" });
+    capacitorMocks.isNativePlatform.mockReturnValue(native);
+    const transport = native ? mobileTcpMocks.printMobileEscposOverTcp : axiosMocks.post;
+    transport.mockRejectedValueOnce(failure);
+    axiosMocks.get.mockResolvedValue({
+      data: { agent_id: "agent-1", agent_name: "Local", device_code: "device-1" },
+    });
+    apiMocks.apiRequest.mockImplementation(async (method, url) => {
+      if (method === "get" && url === "/api/v1/printer/jobs/pending") return {
+        data: [{
+          print_job_uuid: jobUuid,
+          print_items: [{
+            print_job_item_uuid: itemUuid, can_print: true, job,
+            ack_success_payload: { print_job_uuid: jobUuid, results: [{ print_job_item_uuid: itemUuid, status: "success" }] },
+            ack_failed_payload: { print_job_uuid: jobUuid, results: [{ print_job_item_uuid: itemUuid, status: "failed" }] },
+          }],
+        }],
+      };
+      if (method === "post" && url === "/api/v1/printer/mobile/render-escpos") return { data: { escpos_base64: "RASTER" } };
+      if (method === "post" && url === "/api/v1/printer/jobs/ack") return {};
+      throw new Error(`Unexpected request ${method} ${url}`);
+    });
+    const input = { pending_query: {
+      print_job_uuid: jobUuid, login_uuid_fk: "login-1", device_code: job.device_code!, agent_id: job.agent_id!,
+    } };
+    await expect(executeKitchenPrintJobs(input)).resolves.toMatchObject({ successCount: 0, failedCount: 1 });
+    await expect(executeKitchenPrintJobs(input)).resolves.toMatchObject({ successCount: 0, failedCount: 1 });
+    expect(transport).toHaveBeenCalledTimes(1);
   });
 
   it("uses confirm pending_query directly without resolving printer context again", async () => {
@@ -2456,9 +2543,8 @@ describe("printer service dispatch", () => {
       })
     ).resolves.toEqual({
       successCount: 0,
-      failedCount: 0,
+      failedCount: 2,
       total: 2,
-      pending: true,
       errorMessage: "batch failed"
     });
 
@@ -2822,11 +2908,11 @@ describe("printer service dispatch", () => {
       ops: [{ type: "text", text: "Local" }]
     });
     const localSuccessAck: AckPayload = {
-      print_job_uuid: "job-1",
+      print_job_uuid: "fresh-mixed-job",
       results: [{ print_job_item_uuid: "item-2", status: "success" }]
     };
     const localFailedAck: AckPayload = {
-      print_job_uuid: "job-1",
+      print_job_uuid: "fresh-mixed-job",
       results: [{ print_job_item_uuid: "item-2", status: "failed" }]
     };
     axiosMocks.get.mockResolvedValue({
@@ -2841,7 +2927,7 @@ describe("printer service dispatch", () => {
         return {
           data: [
             {
-              print_job_uuid: "job-1",
+              print_job_uuid: "fresh-mixed-job",
               print_items: [
                 {
                   ack_failed_payload: failedAck,
@@ -2874,7 +2960,7 @@ describe("printer service dispatch", () => {
 
     await expect(
       executeKitchenPrintJobs({
-        pending_query: { print_job_uuid: "job-1", login_uuid_fk: "login-1" }
+        pending_query: { print_job_uuid: "fresh-mixed-job", login_uuid_fk: "login-1" }
       })
     ).resolves.toEqual({ successCount: 2, failedCount: 0, total: 2 });
 

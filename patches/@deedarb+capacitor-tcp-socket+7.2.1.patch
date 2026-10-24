@@ -12,20 +12,30 @@ index 3d335a6..4062c71 100644
      }
      lintOptions {
 diff --git a/node_modules/@deedarb/capacitor-tcp-socket/android/src/main/java/com/svend/plugins/tcp/socket/TcpSocketPlugin.java b/node_modules/@deedarb/capacitor-tcp-socket/android/src/main/java/com/svend/plugins/tcp/socket/TcpSocketPlugin.java
-index 78ec7c8..551a98a 100644
+index 78ec7c8..9a35791 100644
 --- a/node_modules/@deedarb/capacitor-tcp-socket/android/src/main/java/com/svend/plugins/tcp/socket/TcpSocketPlugin.java
 +++ b/node_modules/@deedarb/capacitor-tcp-socket/android/src/main/java/com/svend/plugins/tcp/socket/TcpSocketPlugin.java
-@@ -19,7 +19,9 @@ import java.io.IOException;
+@@ -1,8 +1,8 @@
+ package com.svend.plugins.tcp.socket;
+ 
+ import android.Manifest;
+-import android.os.Build;
+ import android.util.Log;
++import android.util.Base64;
+ 
+ import com.getcapacitor.JSObject;
+ import com.getcapacitor.Plugin;
+@@ -19,7 +19,8 @@ import java.io.IOException;
  import java.net.Socket;
  import java.net.InetSocketAddress;
  import java.util.ArrayList;
+-import java.util.Base64;
 +import java.util.Arrays;
- import java.util.Base64;
 +import java.util.Collections;
  import java.util.List;
  
  @CapacitorPlugin(name = "TcpSocket", permissions = {
-@@ -30,9 +32,26 @@ import java.util.List;
+@@ -30,9 +31,26 @@ import java.util.List;
  })
  public class TcpSocketPlugin extends Plugin {
  
@@ -55,7 +65,7 @@ index 78ec7c8..551a98a 100644
  
      @PluginMethod()
      public void connect(PluginCall call) {
-@@ -45,22 +64,34 @@ public class TcpSocketPlugin extends Plugin {
+@@ -45,22 +63,34 @@ public class TcpSocketPlugin extends Plugin {
          Integer port = call.getInt("port", 9100);
          Integer timeout = call.getInt("timeout", 10); // Default 10 second timeout (in seconds)
  
@@ -104,7 +114,7 @@ index 78ec7c8..551a98a 100644
      }
  
      @PluginMethod()
-@@ -73,30 +104,29 @@ public class TcpSocketPlugin extends Plugin {
+@@ -73,30 +103,29 @@ public class TcpSocketPlugin extends Plugin {
              return;
          }
  
@@ -117,17 +127,20 @@ index 78ec7c8..551a98a 100644
 +
          Runnable runnable = () -> {
              try {
-                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
 -                    final Socket socket = clients.get(client);
 -                    mBufferOut = new DataOutputStream(new BufferedOutputStream(socket.getOutputStream()));
-                     byte[] decoded = Base64.getDecoder().decode(msg);
+-                    byte[] decoded = Base64.getDecoder().decode(msg);
 -                    if (mBufferOut != null) {
 -                        mBufferOut.write(decoded);
 -                        mBufferOut.flush();
-+                    synchronized (output) {
-+                        output.write(decoded);
-+                        output.flush();
-                     }
+-                    }
++                // android.util.Base64 also supports Android 7 (API 24/25),
++                // which is within the app's supported minimum SDK.
++                byte[] decoded = Base64.decode(msg, Base64.DEFAULT);
++                synchronized (output) {
++                    output.write(decoded);
++                    output.flush();
                  }
                  call.resolve();
 -            } catch (IOException e) {
@@ -147,7 +160,7 @@ index 78ec7c8..551a98a 100644
              call.reject("Socket not connected");
              return;
          }
-@@ -108,22 +138,34 @@ public class TcpSocketPlugin extends Plugin {
+@@ -108,43 +137,38 @@ public class TcpSocketPlugin extends Plugin {
      public void read(final PluginCall call) {
          final Integer client = call.getInt("client", -1);
          final Integer length = call.getInt("expectLen", 1024);
@@ -166,28 +179,34 @@ index 78ec7c8..551a98a 100644
 +
          Runnable runnable = () -> {
              try {
-                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
 -                    final Socket socket = clients.get(client);
 -                    DataInputStream mBufferIn = new DataInputStream(new BufferedInputStream(socket.getInputStream()));
-+                    socket.setSoTimeout(Math.max(1, timeout) * 1000);
-+                    // Do not wrap each one-byte status read in a fresh buffered
-+                    // stream: it can prefetch later ticket acknowledgements and
-+                    // discard them when this call returns.
-+                    DataInputStream mBufferIn = new DataInputStream(socket.getInputStream());
-                     byte[] bytes = new byte[length];
-                     int read = mBufferIn.read(bytes, 0, length);
+-                    byte[] bytes = new byte[length];
+-                    int read = mBufferIn.read(bytes, 0, length);
 -                    Base64.getEncoder().encodeToString(bytes);
-+                    if (read < 0) {
-+                        call.reject("Socket closed before data was received");
-+                        return;
-+                    }
-                     JSObject ret = new JSObject();
+-                    JSObject ret = new JSObject();
 -                    ret.put("result", new String(bytes, 0, read));
-+                    ret.put("result", Base64.getEncoder().encodeToString(Arrays.copyOf(bytes, read)));
-                     call.resolve(ret);
-                 } else {
-                     JSObject ret = new JSObject();
-@@ -135,16 +177,6 @@ public class TcpSocketPlugin extends Plugin {
+-                    call.resolve(ret);
+-                } else {
+-                    JSObject ret = new JSObject();
+-                    ret.put("result", "");
+-                    call.resolve(ret);
++                socket.setSoTimeout(Math.max(1, timeout) * 1000);
++                // A new buffered stream can prefetch and discard later ticket
++                // acknowledgements when this one-byte read returns.
++                DataInputStream mBufferIn = new DataInputStream(socket.getInputStream());
++                byte[] bytes = new byte[length];
++                int read = mBufferIn.read(bytes, 0, length);
++                if (read < 0) {
++                    call.reject("Socket closed before data was received");
++                    return;
+                 }
++                JSObject ret = new JSObject();
++                ret.put("result", Base64.encodeToString(Arrays.copyOf(bytes, read), Base64.NO_WRAP));
++                call.resolve(ret);
+             } catch (IOException e) {
+                 call.reject(e.getMessage());
              }
          };
  
@@ -204,7 +223,7 @@ index 78ec7c8..551a98a 100644
          Thread thread = new Thread(runnable);
          thread.start();
      }
-@@ -156,19 +188,36 @@ public class TcpSocketPlugin extends Plugin {
+@@ -156,19 +180,36 @@ public class TcpSocketPlugin extends Plugin {
              call.reject("No client specified");
              return;
          }
