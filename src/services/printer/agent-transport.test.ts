@@ -108,6 +108,49 @@ describe("safe Agent identity preflight", () => {
     expect(mocks.post).not.toHaveBeenCalled();
   });
 
+  it.each(["read", "write", "no-op"])("keeps a successful physical Agent discovery when identity storage has a %s failure", async (failure) => {
+    const storage = browserStorage();
+    if (failure === "read") storage.getItem.mockImplementation(() => { throw new Error("Storage access denied"); });
+    if (failure === "write") storage.setItem.mockImplementation(() => { throw new Error("Storage quota exceeded"); });
+    if (failure === "no-op") storage.setItem.mockImplementation(() => {});
+    mocks.get.mockResolvedValue({ data: agent });
+    await expect(checkPrinterAgentConnection()).resolves.toMatchObject({ ok: true, agent });
+    await expect(getLocalAgentInfo()).resolves.toMatchObject(agent);
+
+    // A subsequent failed read may mark the Agent disconnected, but cannot
+    // replace the PC's known device/Agent tuple with a generated browser id.
+    mocks.get.mockRejectedValue(new Error("Agent temporarily unavailable"));
+    await expect(resolvePrinterDeviceIdentity()).resolves.toMatchObject({
+      ok: true, connected: false, agent, error: "Agent temporarily unavailable",
+    });
+  });
+
+  it("does not borrow a cached identity from another explicit Agent URL", async () => {
+    mocks.get.mockResolvedValueOnce({ data: agent });
+    await getLocalAgentInfo("http://192.0.2.10:7777");
+    mocks.get.mockRejectedValue(new Error("Other Agent unavailable"));
+    const result = await resolvePrinterDeviceIdentity("http://192.0.2.11:7777");
+    expect(result).toMatchObject({ ok: true, connected: false, agent: { agent_id: "desktop" } });
+  });
+
+  it("preserves an actual authorization denial after a trusted discovery with broken persistence", async () => {
+    const storage = browserStorage();
+    storage.setItem.mockImplementation(() => { throw new Error("Storage full"); });
+    mocks.get.mockResolvedValueOnce({ data: agent });
+    await getLocalAgentInfo();
+    mocks.get.mockRejectedValue(Object.assign(new AxiosError("Forbidden", "ERR_BAD_REQUEST"), {
+      response: { status: 403, data: { error: "Invalid Agent secret" } },
+    }));
+    await expect(resolvePrinterDeviceIdentity()).resolves.toMatchObject({
+      ok: true, connected: false, authorizationFailed: true, agent,
+    });
+    await expect(resolvePosPrinterContext({ login_uuid_fk: "denied-after-cache" })).rejects.toMatchObject({
+      payload: { error_code: "PRINTER_AGENT_AUTHORIZATION_FAILED" },
+    });
+    expect(mocks.get).toHaveBeenCalledTimes(3);
+    expect(mocks.post).not.toHaveBeenCalled();
+  });
+
   it("never repeats a print POST or claims not-sent when its response is lost", async () => {
     mocks.get.mockResolvedValueOnce({ data: agent });
     mocks.post.mockRejectedValueOnce(new AxiosError("Print response timed out", "ECONNABORTED"));
@@ -121,7 +164,7 @@ describe("safe Agent identity preflight", () => {
 vi.mock("@/lib/api", () => ({
   apiRequest: mocks.apiRequest,
   ServiceError: class ServiceError extends Error {
-    constructor(message: string, public statusCode = 500) {
+    constructor(message: string, public statusCode = 500, public originalError?: unknown, public payload?: unknown) {
       super(message);
     }
   },

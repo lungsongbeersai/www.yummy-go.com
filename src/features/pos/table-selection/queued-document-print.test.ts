@@ -3,12 +3,30 @@ import {
   createCheckoutDocumentActionGuard,
   committedReceiptOrderUuid,
   createCommittedReceiptRetry,
+  documentPrinterFailureKind,
   type QueuedDocumentPrintOutcome,
   finishCommittedPayment,
   isInvoicePrintPreparationError,
   queuedDocumentPrintOutcome,
   queuedDocumentPrintFailureMessage,
 } from "./queued-document-print";
+
+describe("document printer availability errors", () => {
+  it.each([
+    { payload: { error_code: "DOCUMENT_PRINTER_UNAVAILABLE", role_code: "invoice", retryable: true } },
+    { payment_committed: true, print_queue_error: { error_code: "DOCUMENT_PRINTER_UNAVAILABLE", role_code: "receipt" } },
+    new Error("DOCUMENT_PRINTER_UNAVAILABLE: receipt is unreachable"),
+    "no active printer config for role_code invoice",
+  ])("recognizes the exact unavailable-printer contract without changing a committed payment: %j", (failure) => {
+    expect(documentPrinterFailureKind(failure)).toBe("unavailable");
+  });
+  it("distinguishes authorization and registration from an unavailable document route", () => {
+    expect(documentPrinterFailureKind({ payload: { error_code: "PRINTER_AGENT_AUTHORIZATION_FAILED" } })).toBe("authorization");
+    expect(documentPrinterFailureKind({ payload: { error_code: "PRINTER_AGENT_REGISTRATION_FAILED" } })).toBe("registration");
+    expect(documentPrinterFailureKind(new Error("Printer paper out"))).toBeNull();
+    expect(documentPrinterFailureKind({ payload: { error_code: "INVOICE_PRINT_PREPARATION_FAILED" } })).toBeNull();
+  });
+});
 
 function deferred() {
   let resolve: (outcome?: QueuedDocumentPrintOutcome) => void = () => {};

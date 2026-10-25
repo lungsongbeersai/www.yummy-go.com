@@ -45,6 +45,7 @@ import {
   checkoutDocumentActionGuard,
   committedReceiptOrderUuid,
   createCommittedReceiptRetry,
+  documentPrinterFailureKind,
   finishCommittedPayment,
   isInvoicePrintPreparationError,
   queuedDocumentPrintFailureMessage,
@@ -795,7 +796,7 @@ export function usePaymentDialogWorkflow({
         refresh: onCompleted,
         onPrintError: (error) => showQueuedPrintError(
           t("pos.paymentReceiptPrintFailed"),
-          error instanceof Error ? error.message : "",
+          documentPrinterFailureDescription(error),
           () => void retryCommittedReceipt(context),
           context,
         ),
@@ -812,7 +813,7 @@ export function usePaymentDialogWorkflow({
         title: t(paymentCommitted
           ? "pos.paymentRefreshFailed"
           : isSplitPayment ? "pos.splitPaymentFailed" : "pos.paymentFailed"),
-        description: error instanceof Error ? error.message : "",
+        description: documentPrinterFailureDescription(error),
         tone: "error",
       });
     } finally {
@@ -849,7 +850,9 @@ export function usePaymentDialogWorkflow({
         ? response.print_job.print_job_uuid
         : "");
     if (!pendingJobUuid) {
-      throw new Error(queuedDocumentPrintFailureMessage(response, t("pos.invoicePrintMissingJob")));
+      throw new Error(documentPrinterFailureKind(response)
+        ? documentPrinterFailureDescription(response)
+        : queuedDocumentPrintFailureMessage(response, t("pos.invoicePrintMissingJob")));
     }
 
     return executeQueuedInvoice(
@@ -875,7 +878,7 @@ export function usePaymentDialogWorkflow({
     } catch (error) {
       showQueuedPrintError(
         t("pos.paymentReceiptPrintFailed"),
-        error instanceof Error ? error.message : "",
+        documentPrinterFailureDescription(error),
         () => void retryCommittedReceipt(context),
         context,
       );
@@ -989,6 +992,15 @@ export function usePaymentDialogWorkflow({
         t("pos.invoicePrintFailed"),
       );
     } catch (error) {
+      if (documentPrinterFailureKind(error)) {
+        showToast({
+          title: t("pos.invoicePrintFailed"),
+          description: documentPrinterFailureDescription(error),
+          tone: "error",
+          action: { label: t("actions.tryAgain"), onClick: () => void handlePrintInvoice(operationUuid) },
+        });
+        return;
+      }
       // This failure means Backend could not read the bill's actual items.
       // A cached cart is not a safe substitute for that invoice snapshot.
       if (isInvoicePrintPreparationError(error)) {
@@ -1051,7 +1063,7 @@ export function usePaymentDialogWorkflow({
 
       showQueuedPrintError(
         failureTitle,
-        printResult.errorMessage,
+        documentPrinterFailureDescription(printResult.errorMessage),
         retry,
         context,
       );
@@ -1059,7 +1071,7 @@ export function usePaymentDialogWorkflow({
     } catch (error) {
       showQueuedPrintError(
         failureTitle,
-        error instanceof Error ? error.message : "",
+        documentPrinterFailureDescription(error),
         retry,
         context,
       );
@@ -1067,6 +1079,14 @@ export function usePaymentDialogWorkflow({
     } finally {
       setInvoicePrinting(false);
     }
+  }
+
+  function documentPrinterFailureDescription(error: unknown): string {
+    const kind = documentPrinterFailureKind(error);
+    if (kind === "unavailable") return t("pos.documentPrinterUnavailable");
+    if (kind === "authorization") return t("pos.printerAgentAuthorizationFailed");
+    if (kind === "registration") return t("pos.printerAgentRegistrationFailed");
+    return error instanceof Error ? error.message : typeof error === "string" ? error : "";
   }
 
   function showQueuedPrintError(

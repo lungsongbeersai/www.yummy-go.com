@@ -20,9 +20,10 @@ vi.mock("./use-payment-customers", () => ({
   }),
 }));
 
+const platform = vi.hoisted(() => ({ native: true }));
 vi.mock("@/lib/capacitor-platform", async (importOriginal) => ({
   ...await importOriginal<typeof import("@/lib/capacitor-platform")>(),
-  isCapacitorMobileApp: () => true,
+  isCapacitorMobileApp: () => platform.native,
 }));
 
 import { useAppStore } from "@/stores/app-store";
@@ -72,6 +73,7 @@ describe("payment dialog workflow", () => {
   const originalExecuteInvoice = usePrinterStore.getState().executeInvoice;
   const originalShowToast = useToastStore.getState().show;
   beforeEach(() => {
+    platform.native = true;
     useAppStore.setState({ language: "la" });
     useAuthStore.setState({ user: null });
     useReferenceStore.setState({
@@ -88,34 +90,12 @@ describe("payment dialog workflow", () => {
     useToastStore.setState({ show: originalShowToast });
   });
 
-  it("prefills cash received with the amount due on the first open", () => {
-    const html = renderToString(
-      createElement(WorkflowHarness, {
-        onCompleted: async () => undefined,
-        onOpenChange: () => undefined,
-        open: true,
-        orders,
-        summary,
-        table,
-      }),
-    );
-
-    expect(html).toBe("<output>5,461,500</output>");
-  });
-
-  it.each(["full", "split"] as const)("uses a new operation for each %s invoice click and retains it after a lost enqueue response", async (paymentKind) => {
+  function renderActionWorkflow(paymentKind: "full" | "split") {
     useAuthStore.setState({ user: {
       uuid: "cashier-1", email: "", status: 1, profile: "",
       branch_uuid: "branch-1", branch_name: "", branch_tel: "", branch_address: "",
       store_uuid: "store-1", store_name: "", store_logo: "", store_table_status: 1,
     } });
-    const enqueue = vi.fn().mockRejectedValueOnce(new Error("Enqueue response lost")).mockResolvedValue({
-      pending_query: { print_job_uuid: "invoice-job", login_uuid_fk: "cashier-1" },
-    });
-    usePosStore.setState({ printInvoice: enqueue, splitBill: enqueue });
-    usePrinterStore.setState({ executeInvoice: vi.fn().mockResolvedValue({ successCount: 1, failedCount: 0, total: 1 }) });
-    const show = vi.fn<typeof originalShowToast>();
-    useToastStore.setState({ show });
     // SSR reads each Zustand store's initial snapshot. Expose this test's
     // current state while exercising the hook's actions without mounting UI.
     function exposeCurrentSnapshot<T extends object>(store: { getInitialState(): T; getState(): T }) {
@@ -140,6 +120,33 @@ describe("payment dialog workflow", () => {
     renderToString(createElement(ActionHarness, { onReady: capture }));
     const workflow = capture.mock.calls.at(-1)?.[0];
     if (!workflow) throw new Error("Workflow was not rendered");
+    return workflow;
+  }
+
+  it("prefills cash received with the amount due on the first open", () => {
+    const html = renderToString(
+      createElement(WorkflowHarness, {
+        onCompleted: async () => undefined,
+        onOpenChange: () => undefined,
+        open: true,
+        orders,
+        summary,
+        table,
+      }),
+    );
+
+    expect(html).toBe("<output>5,461,500</output>");
+  });
+
+  it.each(["full", "split"] as const)("uses a new operation for each %s invoice click and retains it after a lost enqueue response", async (paymentKind) => {
+    const enqueue = vi.fn().mockRejectedValueOnce(new Error("Enqueue response lost")).mockResolvedValue({
+      pending_query: { print_job_uuid: "invoice-job", login_uuid_fk: "cashier-1" },
+    });
+    usePosStore.setState({ printInvoice: enqueue, splitBill: enqueue });
+    usePrinterStore.setState({ executeInvoice: vi.fn().mockResolvedValue({ successCount: 1, failedCount: 0, total: 1 }) });
+    const show = vi.fn<typeof originalShowToast>();
+    useToastStore.setState({ show });
+    const workflow = renderActionWorkflow(paymentKind);
     await workflow.handlePrintInvoice();
     expect(enqueue).toHaveBeenCalledOnce();
     const firstOperation = enqueue.mock.calls[0][0].operation_uuid;
@@ -155,4 +162,30 @@ describe("payment dialog workflow", () => {
     expect(enqueue.mock.calls[2][0].operation_uuid).not.toBe(firstOperation);
     if (paymentKind === "split") expect(enqueue.mock.calls[2][0].document_type).toBe("invoice");
   });
+
+  it.each(["full", "split"] as const)("shows an actionable %s invoice availability error without opening a browser fallback", async (paymentKind) => {
+    platform.native = false;
+    const unavailable = Object.assign(new Error("DOCUMENT_PRINTER_UNAVAILABLE: invoice"), {
+      payload: { error_code: "DOCUMENT_PRINTER_UNAVAILABLE", role_code: "invoice", retryable: true },
+    });
+    const enqueue = vi.fn().mockRejectedValue(unavailable);
+    const execute = vi.fn();
+    const show = vi.fn<typeof originalShowToast>();
+    usePosStore.setState({ printInvoice: enqueue, splitBill: enqueue });
+    usePrinterStore.setState({ executeInvoice: execute });
+    useToastStore.setState({ show });
+    const workflow = renderActionWorkflow(paymentKind);
+    await workflow.handlePrintInvoice();
+    expect(execute).not.toHaveBeenCalled();
+    expect(show).toHaveBeenLastCalledWith(expect.objectContaining({
+      title: "pos.invoicePrintFailed", description: "pos.documentPrinterUnavailable", tone: "error",
+      action: expect.objectContaining({ label: "actions.tryAgain" }),
+    }));
+    expect(show.mock.calls.every(([toast]) => toast.title !== "pos.invoicePrintFallback")).toBe(true);
+    const firstOperation = enqueue.mock.calls[0][0].operation_uuid;
+    show.mock.calls.at(-1)?.[0].action?.onClick({ preventDefault() {} });
+    await vi.waitFor(() => expect(enqueue).toHaveBeenCalledTimes(2));
+    expect(enqueue.mock.calls[1][0].operation_uuid).toBe(firstOperation);
+  });
+
 });

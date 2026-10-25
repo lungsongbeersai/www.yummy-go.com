@@ -3,7 +3,7 @@
 // the import graph — agent-transport.ts depends on this module (getPrinters,
 // sendMobileBackendPrintJob), not the other way around.
 import axios from "axios";
-import { apiRequest, ServiceError } from "@/lib/api";
+import { apiRequest, ServiceError, type RequestOptions } from "@/lib/api";
 import { toApiLanguage } from "@/lib/language";
 import { AGENT_URL } from "@/config/printer-agent";
 import {
@@ -130,11 +130,14 @@ export async function getPrinters(params: FetchPrintersParams) {
     });
 }
 
-export async function registerPrinterAgent(input: RegisterPrinterAgentInput) {
+export async function registerPrinterAgent(
+  input: RegisterPrinterAgentInput,
+  options?: Pick<RequestOptions, "timeout">,
+) {
   const result = await apiRequest<{ data?: RegisterPrinterAgentResult }>(
     "post",
     "/api/v1/printer/agent/register",
-    { data: input },
+    { ...options, data: input },
   );
   return result.data;
 }

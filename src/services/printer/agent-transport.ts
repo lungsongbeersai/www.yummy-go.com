@@ -42,6 +42,19 @@ const PRINTER_IDENTITY_MISSING = "Printer device identity missing";
 const LOCAL_AGENT_IDENTITY_KEY = "yummy_local_printer_agent_identity";
 const BATCH_PROGRESS_POLL_INTERVAL_MS = 200;
 const agentInfoRequests = new Map<string, Promise<AgentInfo>>();
+const trustedAgentIdentities = new WeakMap<object, Map<string, AgentInfo>>();
+
+function trustedAgentCache() {
+  // Each browser window has its own trusted discovery history. A blocked or
+  // full localStorage must not turn a freshly discovered PC into a web device.
+  const scope = typeof window === "undefined" ? globalThis : window;
+  let cache = trustedAgentIdentities.get(scope);
+  if (!cache) {
+    cache = new Map();
+    trustedAgentIdentities.set(scope, cache);
+  }
+  return cache;
+}
 
 function retryableAgentInfoError(error: unknown) {
   if (!isAxiosError(error)) return false;
@@ -166,17 +179,23 @@ function networkAddresses(value: unknown) {
   ];
 }
 
-function readCachedLocalAgentInfo(): AgentInfo | null {
-  const raw = textValue(localAgentStorage()?.getItem(LOCAL_AGENT_IDENTITY_KEY));
-  if (!raw) return null;
-
+function readCachedLocalAgentInfo(agentUrl = AGENT_URL): AgentInfo | null {
+  const base = printerAgentBase(AGENT_URL, agentUrl);
+  const cached = trustedAgentCache().get(base);
+  if (cached) return cached;
   try {
-    const record = JSON.parse(raw) as Partial<AgentInfo>;
+    const raw = textValue(localAgentStorage()?.getItem(LOCAL_AGENT_IDENTITY_KEY));
+    if (!raw) return null;
+    const record = JSON.parse(raw) as Partial<AgentInfo> & { identity_source_base?: string };
+    const savedBase = textValue(record.identity_source_base);
+    // Legacy records belong only to the configured default Agent endpoint.
+    // Never lend a trusted identity to another explicit URL after it fails.
+    if ((savedBase || printerAgentBase(AGENT_URL)) !== base) return null;
     const agentId = textValue(record.agent_id);
     const deviceCode = textValue(record.device_code);
     if (!agentId || !deviceCode) return null;
 
-    return {
+    const identity: AgentInfo = {
       ...record,
       agent_id: agentId,
       agent_name: textValue(record.agent_name) || agentId,
@@ -192,28 +211,39 @@ function readCachedLocalAgentInfo(): AgentInfo | null {
         ? { network_addresses: networkAddresses(record.network_addresses) }
         : {}),
     };
+    delete identity.identity_source_base;
+    trustedAgentCache().set(base, identity);
+    return identity;
   } catch {
     return null;
   }
 }
 
-function saveCachedLocalAgentInfo(agent: AgentInfo) {
+function saveCachedLocalAgentInfo(agent: AgentInfo, agentUrl = AGENT_URL) {
   const agentId = textValue(agent.agent_id);
   const deviceCode = textValue(agent.device_code);
   if (!agentId || !deviceCode) return;
 
-  localAgentStorage()?.setItem(
-    LOCAL_AGENT_IDENTITY_KEY,
-    JSON.stringify({
-      agent_id: agentId,
-      agent_name: textValue(agent.agent_name) || agentId,
-      device_code: deviceCode,
-      platform: textValue(agent.platform) || undefined,
-      agent_url: textValue(agent.agent_url) || undefined,
-      agent_secret_hash: textValue(agent.agent_secret_hash) || undefined,
-      network_addresses: networkAddresses(agent.network_addresses),
-    })
-  );
+  const base = printerAgentBase(AGENT_URL, agentUrl);
+  const identity: AgentInfo = {
+    agent_id: agentId,
+    agent_name: textValue(agent.agent_name) || agentId,
+    device_code: deviceCode,
+    platform: textValue(agent.platform) || undefined,
+    agent_url: textValue(agent.agent_url) || undefined,
+    agent_secret_hash: textValue(agent.agent_secret_hash) || undefined,
+    network_addresses: networkAddresses(agent.network_addresses),
+  };
+  trustedAgentCache().set(base, identity);
+  try {
+    localAgentStorage()?.setItem(
+      LOCAL_AGENT_IDENTITY_KEY,
+      JSON.stringify({ ...identity, identity_source_base: base }),
+    );
+  } catch {
+    // Discovery succeeded. Persistence is best effort; the in-memory identity
+    // still prevents a false browser fallback during this page session.
+  }
 }
 
 function getAgentFromPayload(payload: AgentInfoResponse | AgentInfo | null | undefined): AgentInfo | null {
@@ -244,12 +274,12 @@ function getAgentFromPayload(payload: AgentInfoResponse | AgentInfo | null | und
 export async function getLocalAgentInfo(agentUrl = AGENT_URL) {
   if (isCapacitorMobileApp()) throw new ServiceError("Capacitor uses native printing, not a Local Agent", 503);
   const agent = await requestAgentInfo(agentUrl);
-  const cached = readCachedLocalAgentInfo();
+  const cached = readCachedLocalAgentInfo(agentUrl);
   const merged = {
     ...agent,
     device_code: textValue(agent.device_code) || textValue(cached?.device_code) || undefined
   };
-  saveCachedLocalAgentInfo(merged);
+  saveCachedLocalAgentInfo(merged, agentUrl);
   return merged;
 }
 
@@ -257,7 +287,7 @@ export async function getLocalPrinterAgentInfo(agentUrl = AGENT_URL) {
   try {
     return await getLocalAgentInfo(agentUrl);
   } catch (error) {
-    const cached = readCachedLocalAgentInfo();
+    const cached = readCachedLocalAgentInfo(agentUrl);
     if (cached) return cached;
     throw error;
   }
@@ -300,7 +330,7 @@ export async function checkPrinterAgentConnection(agentUrl = AGENT_URL): Promise
   if (isCapacitorMobileApp()) return { ok: false, error: "Capacitor uses native printing, not a Local Agent" };
   try {
     const agent = await requestAgentInfo(agentUrl);
-    if (hasPrinterDeviceIdentity(agent)) saveCachedLocalAgentInfo(agent);
+    if (hasPrinterDeviceIdentity(agent)) saveCachedLocalAgentInfo(agent, agentUrl);
     return { ok: true, agent };
   } catch (error) {
     const authorizationFailed = isAxiosError(error) && [401, 403].includes(error.response?.status ?? 0);
@@ -337,13 +367,13 @@ export async function resolvePrinterDeviceIdentity(agentUrl = AGENT_URL): Promis
     if (
       isMobileBrowserPrinterDevice() &&
       isLoopbackAgentUrl(agentUrl) &&
-      !readCachedLocalAgentInfo()
+      !readCachedLocalAgentInfo(agentUrl)
     ) {
       return { ok: true, agent: await getBrowserPrinterIdentity() };
     }
     const result = await checkPrinterAgentConnection(agentUrl);
     if (!result.ok) {
-      const cachedAgent = readCachedLocalAgentInfo();
+      const cachedAgent = readCachedLocalAgentInfo(agentUrl);
       if (cachedAgent) {
         return {
           ok: true,

@@ -3235,6 +3235,8 @@ describe("printer device identity", () => {
 
 describe("printer API payloads", () => {
   beforeEach(() => {
+    mockLocalStorage();
+    capacitorMocks.isNativePlatform.mockReturnValue(false);
     apiMocks.apiRequest.mockReset();
     axiosMocks.get.mockReset();
     axiosMocks.post.mockReset();

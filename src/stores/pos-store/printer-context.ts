@@ -1,10 +1,15 @@
 import { isCapacitorMobileApp } from "@/lib/capacitor-platform";
+import { ServiceError } from "@/lib/api";
 import { printerPrintModeForPlatform } from "@/lib/printer-platform";
+import { registerSessionStoreReset } from "@/stores/session-store-registry";
 import {
   getBrowserPrinterIdentity,
+  isBrowserPrinterAgentId,
   migrateMobilePrinterDevice,
   rememberNativePrinterDeviceCode,
   resolvePrinterDeviceIdentity,
+  registerPrinterAgent,
+  type AgentInfo,
   type PrinterDeviceContextParams,
 } from "@/services/printer";
 
@@ -13,6 +18,51 @@ function textValue(value: unknown) {
 }
 
 const nativeMigrationAttempts = new Map<string, Promise<void>>();
+const agentRegistrations = new Map<string, Promise<void>>();
+registerSessionStoreReset("pos-printer-agent-registration", () => { agentRegistrations.clear(); });
+
+async function ensurePosAgentRegistered(loginUuid: string, agent: AgentInfo) {
+  const agentUrl = textValue(agent.agent_url);
+  if (!agentUrl || !textValue(agent.agent_id) || !textValue(agent.device_code) || isBrowserPrinterAgentId(agent.agent_id)) return;
+  try {
+    const url = new URL(agentUrl);
+    const octets = url.hostname.split(".");
+    // Backend registers reachable IPv4 owners only. Loopback/hostname/IPv6
+    // discovery can still serve direct local USB and must not block checkout.
+    if (
+      !["http:", "https:"].includes(url.protocol) || octets.length !== 4 ||
+      !octets.every((value) => /^\d{1,3}$/.test(value) && Number(value) <= 255) ||
+      Number(octets[0]) === 127
+    ) return;
+  } catch {
+    return;
+  }
+  const registration = {
+    login_uuid_fk: loginUuid,
+    agent_id: textValue(agent.agent_id),
+    agent_name: textValue(agent.agent_name),
+    agent_url: agentUrl,
+    agent_secret_hash: textValue(agent.agent_secret_hash),
+    device_code: textValue(agent.device_code),
+    platform: textValue(agent.platform),
+  };
+  const key = JSON.stringify(registration);
+  const existing = agentRegistrations.get(key);
+  if (existing) return existing;
+  // Rebind only this connected physical device before a POS mutation. Concurrent
+  // kitchen/invoice/payment calls share one bounded registration per identity.
+  const request = registerPrinterAgent(registration, { timeout: 5000 }).then(() => undefined).catch((error: unknown) => {
+    if (agentRegistrations.get(key) === request) agentRegistrations.delete(key);
+    throw new ServiceError(
+      "Printer Agent registration could not be completed. Please try again.",
+      503,
+      error,
+      { error_code: "PRINTER_AGENT_REGISTRATION_FAILED", retryable: true },
+    );
+  });
+  agentRegistrations.set(key, request);
+  return request;
+}
 
 async function ensureNativeMobilePrinterMigration({
   deviceCode,
@@ -58,8 +108,14 @@ export async function resolvePosPrinterContext(
   const native = isCapacitorMobileApp();
   const identity = native
     ? await getBrowserPrinterIdentity()
-    : await resolvePrinterDeviceIdentity().then((result) => {
+    : await resolvePrinterDeviceIdentity().then(async (result) => {
+        if (result.authorizationFailed) {
+          throw new ServiceError(result.error || "Printer Agent authorization failed", 403, undefined, {
+            error_code: "PRINTER_AGENT_AUTHORIZATION_FAILED", retryable: true,
+          });
+        }
         if (!result.ok) throw new Error(result.error);
+        if (result.connected !== false) await ensurePosAgentRegistered(input.login_uuid_fk, result.agent);
         return result.agent;
       });
   const deviceCode = textValue(identity.device_code);

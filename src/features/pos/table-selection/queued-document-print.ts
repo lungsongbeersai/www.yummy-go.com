@@ -3,6 +3,27 @@ import type { ConfirmToKitchenPendingQuery, ReprintReceiptRequest } from "@/serv
 
 export type QueuedDocumentPrintOutcome = "success" | "pending" | "error";
 
+export function documentPrinterFailureKind(error: unknown): "unavailable" | "authorization" | "registration" | null {
+  if (typeof error === "string") {
+    if (error.startsWith("DOCUMENT_PRINTER_UNAVAILABLE") || /^no active printer config for role_code (invoice|receipt)\b/i.test(error)) return "unavailable";
+    return null;
+  }
+  if (!error || typeof error !== "object") return null;
+  if ("error_code" in error) {
+    if (error.error_code === "DOCUMENT_PRINTER_UNAVAILABLE") return "unavailable";
+    if (error.error_code === "PRINTER_AGENT_AUTHORIZATION_FAILED") return "authorization";
+    if (error.error_code === "PRINTER_AGENT_REGISTRATION_FAILED") return "registration";
+  }
+  const record = error as Record<string, unknown>;
+  for (const key of ["payload", "print_queue_error", "message"] as const) {
+    if (key in record) {
+      const kind = documentPrinterFailureKind(record[key]);
+      if (kind) return kind;
+    }
+  }
+  return null;
+}
+
 export function queuedDocumentPrintFailureMessage(
   response: {
     print_queue_error?: { message?: unknown } | null;
