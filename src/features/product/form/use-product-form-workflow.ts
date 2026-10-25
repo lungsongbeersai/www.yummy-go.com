@@ -11,6 +11,7 @@ import {
 import {
   buildCategoryPayload,
   categoryValue,
+  categoryVisibilityFromFormData,
   groupLabel,
   missingCategoryField,
 } from "@/features/settings/category/category-utils";
@@ -484,6 +485,7 @@ export function useProductFormWorkflow() {
     if (field === "group") return t("settings.categoryGroupRequired");
     if (field === "name") return t("settings.categoryNameRequired");
     if (field === "icon") return t("settings.categoryIconRequired");
+    if (field === "visibility_roles") return t("settings.categoryVisibilityRoleRequired");
     return t("toasts.pleaseTryAgain");
   }
 
@@ -492,7 +494,8 @@ export function useProductFormWorkflow() {
     const nameLa = String(formData.get("cate_name_la") ?? "").trim();
     const nameEng = String(formData.get("cate_name_eng") ?? "").trim();
     const icon = String(formData.get("cate_icon") ?? "").trim();
-    const missing = missingCategoryField({ storeUuid, groupUuid, nameLa, icon });
+    const visibility = categoryVisibilityFromFormData(formData);
+    const missing = missingCategoryField({ storeUuid, groupUuid, nameLa, icon, visibility });
 
     if (missing) {
       showToast({ title: t("settings.saveFailed"), description: missingCategoryDescription(missing), tone: "error" });
@@ -500,7 +503,7 @@ export function useProductFormWorkflow() {
     }
 
     try {
-      const saved = await saveCategoryRow(buildCategoryPayload({ editing: null, storeUuid, groupUuid, nameLa, nameEng, icon }));
+      const saved = await saveCategoryRow(buildCategoryPayload({ editing: null, storeUuid, groupUuid, nameLa, nameEng, icon, visibility }));
       const refreshed = await loadCategories(language, storeUuid);
       const savedUuid =
         categoryUuid(saved) ||

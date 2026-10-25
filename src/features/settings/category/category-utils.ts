@@ -1,4 +1,4 @@
-import type { Category, SaveCategoryInput } from "@/services/category";
+import type { Category, CategoryVisibility, CategoryVisibilityRole, SaveCategoryInput } from "@/services/category";
 import type { Group } from "@/services/group";
 
 export interface GroupOption {
@@ -32,23 +32,47 @@ export function rowStoreUuid(rows: Category[]) {
   return categoryValue(rows[0] ?? null, "store_uuid_fk");
 }
 
-export type CategoryMissingField = "store" | "group" | "name" | "icon" | null;
+export function categoryVisibility(row: Category | null): CategoryVisibility {
+  return {
+    visibility_all_roles: row?.visibility_all_roles !== false,
+    visibility_role_ids: [...new Set(row?.visibility_role_ids ?? [])],
+  };
+}
+
+export function categoryVisibilityFromFormData(formData: FormData): CategoryVisibility | undefined {
+  if (!formData.has("visibility_all_roles")) return undefined;
+  const allRoles = formData.get("visibility_all_roles") === "true";
+  return {
+    visibility_all_roles: allRoles,
+    visibility_role_ids: allRoles ? [] : [...new Set(formData.getAll("visibility_role_ids").map(Number))],
+  };
+}
+
+export function categoryVisibilityRoleLabel(role: CategoryVisibilityRole, language: string) {
+  return (language.startsWith("en") ? role.roles_name_eng : role.roles_name_la) ||
+    role.roles_name || role.roles_name_la || role.roles_name_eng || String(role.roles_id);
+}
+
+export type CategoryMissingField = "store" | "group" | "name" | "icon" | "visibility_roles" | null;
 
 export function missingCategoryField({
   groupUuid,
   icon,
   nameLa,
-  storeUuid
+  storeUuid,
+  visibility,
 }: {
   groupUuid: string;
   icon: string;
   nameLa: string;
   storeUuid: string;
+  visibility?: CategoryVisibility;
 }): CategoryMissingField {
   if (!storeUuid.trim()) return "store";
   if (!groupUuid.trim()) return "group";
   if (!nameLa.trim()) return "name";
   if (!icon.trim()) return "icon";
+  if (visibility?.visibility_all_roles === false && !visibility.visibility_role_ids.length) return "visibility_roles";
   return null;
 }
 
@@ -58,7 +82,8 @@ export function buildCategoryPayload({
   icon,
   nameEng,
   nameLa,
-  storeUuid
+  storeUuid,
+  visibility,
 }: {
   editing: Category | null;
   groupUuid: string;
@@ -66,6 +91,7 @@ export function buildCategoryPayload({
   nameEng: string;
   nameLa: string;
   storeUuid: string;
+  visibility?: CategoryVisibility;
 }): SaveCategoryInput {
   const payload: SaveCategoryInput = {
     store_uuid_fk: storeUuid,
@@ -76,5 +102,9 @@ export function buildCategoryPayload({
   };
   const id = categoryId(editing);
   if (id) payload.cate_uuid = id;
+  if (visibility) {
+    payload.visibility_all_roles = visibility.visibility_all_roles;
+    payload.visibility_role_ids = visibility.visibility_all_roles ? [] : visibility.visibility_role_ids;
+  }
   return payload;
 }

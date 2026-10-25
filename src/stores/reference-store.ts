@@ -3,7 +3,7 @@
 import { create } from "zustand";
 import { getProductImageUrl, getStoreLogoUrl, getUserProfileUrl } from "@/lib/image";
 import { getBranchOptions, getStoreUuid, setStoreUuid, type Branch } from "@/services/branch";
-import { getCategoryOptions, sortCategories, type Category, type SortCategoryInput } from "@/services/category";
+import { getCategoryOptions, getProductCategoryOptions, getCategoryVisibilityRoles, sortCategories, type Category, type CategoryVisibilityRole, type SortCategoryInput } from "@/services/category";
 import { getColorOptions, type Color } from "@/services/color";
 import { getCurrencyOptions, type Currency } from "@/services/currency";
 import { getDeportmentOptions, type Deportment } from "@/services/deportment";
@@ -42,6 +42,8 @@ type ReferenceKey =
   | "provinces"
   | "groups"
   | "categories"
+  | "productCategories"
+  | "categoryVisibilityRoles"
   | "toppings"
   | "tastes"
   | "colors"
@@ -79,6 +81,8 @@ interface ReferenceState {
   loadProvinces: (lang?: string) => Promise<Province[]>;
   loadGroups: (lang?: string, storeUuid?: string) => Promise<Group[]>;
   loadCategories: (lang?: string, storeUuid?: string) => Promise<Category[]>;
+  loadProductCategories: (lang?: string, storeUuid?: string) => Promise<Category[]>;
+  loadCategoryVisibilityRoles: (storeUuid: string, lang?: string) => Promise<CategoryVisibilityRole[]>;
   loadToppings: (lang?: string, storeUuid?: string) => Promise<Topping[]>;
   loadTastes: (lang?: string, storeUuid?: string) => Promise<Taste[]>;
   loadColors: () => Promise<Color[]>;
@@ -168,6 +172,10 @@ export const useReferenceStore = create<ReferenceState>((set) => {
     loadProvinces: (lang) => loadOption("provinces", () => getProvinceOptions(lang)),
     loadGroups: (lang, storeUuid) => loadOption("groups", () => getGroupOptions(lang, storeUuid ?? activeStoreUuid())),
     loadCategories: (lang, storeUuid) => loadOption("categories", () => getCategoryOptions(lang, storeUuid)),
+    loadProductCategories: (lang, storeUuid) =>
+      loadOption("productCategories", () => getProductCategoryOptions(lang, storeUuid)),
+    loadCategoryVisibilityRoles: (storeUuid, lang) =>
+      loadOption("categoryVisibilityRoles", () => getCategoryVisibilityRoles(storeUuid, lang)),
     loadToppings: (lang, storeUuid) =>
       loadOption("toppings", () => getToppingOptions(lang, storeUuid ?? activeStoreUuid())),
     loadTastes: (lang, storeUuid) =>

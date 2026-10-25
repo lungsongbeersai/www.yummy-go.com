@@ -11,6 +11,7 @@ import {
   buildCategoryPayload,
   categoryId,
   categoryValue,
+  categoryVisibilityFromFormData,
   groupLabel,
   missingCategoryField,
   rowStoreUuid,
@@ -76,23 +77,24 @@ export function CategorySettingsPage({ initialPagination }: { initialPagination:
       const nameLa = String(formData.get("cate_name_la") ?? "").trim();
       const nameEng = String(formData.get("cate_name_eng") ?? "").trim();
       const icon = String(formData.get("cate_icon") ?? "").trim();
-      return buildCategoryPayload({ editing: editingRow, storeUuid: scopedStoreUuid, groupUuid, nameLa, nameEng, icon });
+      return buildCategoryPayload({ editing: editingRow, storeUuid: scopedStoreUuid, groupUuid, nameLa, nameEng, icon, visibility: categoryVisibilityFromFormData(formData) });
     },
     idKey: "cate_uuid",
     initialOrderBy: "1",
     initialPagination,
-    scope: (scopedStoreUuid) => ({ store_uuid_fk: scopedStoreUuid }),
+    scope: (scopedStoreUuid) => ({ store_uuid_fk: scopedStoreUuid, management_view: true }),
     store: useCategoryStore,
     title,
     validateInput: ({ formData, storeUuid: scopedStoreUuid }) => {
       const groupUuid = String(formData.get("group_uuid_fk") ?? "").trim();
       const nameLa = String(formData.get("cate_name_la") ?? "").trim();
       const icon = String(formData.get("cate_icon") ?? "").trim();
-      const missing = missingCategoryField({ storeUuid: scopedStoreUuid, groupUuid, nameLa, icon });
+      const missing = missingCategoryField({ storeUuid: scopedStoreUuid, groupUuid, nameLa, icon, visibility: categoryVisibilityFromFormData(formData) });
       if (missing === "store") return t("settings.storeRequired");
       if (missing === "group") return t("settings.categoryGroupRequired");
       if (missing === "name") return t("settings.categoryNameRequired");
       if (missing === "icon") return t("settings.categoryIconRequired");
+      if (missing === "visibility_roles") return t("settings.categoryVisibilityRoleRequired");
       return null;
     }
   });
@@ -234,6 +236,7 @@ export function CategorySettingsPage({ initialPagination }: { initialPagination:
         groupOptions={groupOptions}
         open={dialogOpen}
         saving={saving}
+        storeUuid={storeUuid}
         title={title}
         onOpenChange={onDialogOpenChange}
         onSubmit={save}

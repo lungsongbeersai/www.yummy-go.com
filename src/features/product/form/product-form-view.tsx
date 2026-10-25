@@ -404,6 +404,7 @@ export function ProductFormView({ form }: { form: ProductFormWorkflow }) {
         groupOptions={groupOptions}
         open={categoryDialogOpen}
         saving={categorySaving}
+        storeUuid={form.storeUuid}
         title={t("settings.modules.category.title")}
         onOpenChange={(open) => {
           if (!categorySaving) setCategoryDialogOpen(open);

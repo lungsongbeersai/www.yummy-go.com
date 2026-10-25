@@ -23,6 +23,7 @@ import { CSS } from "@dnd-kit/utilities";
 import { GripVertical } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
   Item,
@@ -59,9 +60,17 @@ function CategoryName({ row }: { row: Category }) {
       <div className="flex min-w-0 flex-col gap-0.5">
         <span className="truncate font-medium">{la}</span>
         {en ? <span className="truncate text-muted-foreground">{en}</span> : null}
+        <CategoryVisibilityBadge row={row} />
       </div>
     </div>
   );
+}
+
+function CategoryVisibilityBadge({ row }: { row: Category }) {
+  const { t } = useTranslation();
+  return row.visibility_all_roles === false ? (
+    <Badge variant="secondary">{t("settings.categoryVisibilityRestricted", { count: row.visibility_role_ids?.length ?? 0 })}</Badge>
+  ) : null;
 }
 
 // Drag to reorder only works when the whole list is on one page (the order is saved as a whole).
@@ -212,6 +221,7 @@ export function CategoryMobileList({ rows, selectedRows, onDelete, onEdit, onTog
             <ItemContent>
               <ItemTitle>{la}</ItemTitle>
               {en ? <ItemDescription>{en}</ItemDescription> : null}
+              <CategoryVisibilityBadge row={row} />
             </ItemContent>
             <ItemActions>
               <SettingsRowActions row={row} onEdit={onEdit} onDelete={onDelete} />

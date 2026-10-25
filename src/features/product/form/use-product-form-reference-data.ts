@@ -53,14 +53,14 @@ export function useProductFormReferenceData({
   const createSizeForStatus = useProductStore((state) => state.createSizeForStatus);
   const deleteSizeForStatus = useProductStore((state) => state.deleteSizeForStatus);
   const updateDetailsStock = useProductStore((state) => state.updateDetailsStock);
-  const categories = (useReferenceStore((state) => state.options.categories) ?? EMPTY_CATEGORIES) as Category[];
+  const categories = (useReferenceStore((state) => state.options.productCategories) ?? EMPTY_CATEGORIES) as Category[];
   const colors = (useReferenceStore((state) => state.options.colors) ?? EMPTY_COLORS) as Color[];
   const groups = (useReferenceStore((state) => state.options.groups) ?? EMPTY_GROUPS) as Group[];
   const units = (useReferenceStore((state) => state.options.units) ?? EMPTY_UNITS) as Unit[];
   const sizes = (useReferenceStore((state) => state.options.sizes) ?? EMPTY_SIZES) as Size[];
   const toppings = (useReferenceStore((state) => state.options.toppings) ?? EMPTY_TOPPINGS) as Topping[];
   const tastes = (useReferenceStore((state) => state.options.tastes) ?? EMPTY_TASTES) as Taste[];
-  const loadCategories = useReferenceStore((state) => state.loadCategories);
+  const loadCategories = useReferenceStore((state) => state.loadProductCategories);
   const loadColors = useReferenceStore((state) => state.loadColors);
   const loadGroups = useReferenceStore((state) => state.loadGroups);
   const loadUnits = useReferenceStore((state) => state.loadUnits);
