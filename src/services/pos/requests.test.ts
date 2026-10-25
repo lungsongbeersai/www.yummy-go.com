@@ -561,6 +561,7 @@ describe("pos requests", () => {
     });
 
     await splitBill({
+      operation_uuid: "2058f774-f40b-4ab5-9d1d-a306394578c6",
       order_uuid: "532f836f-d580-4244-b2fa-615526292b73",
       order_item_uuids: [{ "221aa39e-a6b7-4fcb-be26-dc0255bc10d2": 2 }],
       document_type: "invoice",
@@ -581,6 +582,7 @@ describe("pos requests", () => {
 
     expect(apiMocks.apiRequest).toHaveBeenCalledWith("post", "/api/v1/posAll/split_bill", {
       data: {
+        operation_uuid: "2058f774-f40b-4ab5-9d1d-a306394578c6",
         order_uuid: "532f836f-d580-4244-b2fa-615526292b73",
         order_item_uuids: [{ "221aa39e-a6b7-4fcb-be26-dc0255bc10d2": 2 }],
         document_type: "invoice",

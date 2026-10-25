@@ -885,7 +885,9 @@ export function usePaymentDialogWorkflow({
     }
   }
 
-  async function handlePrintInvoice() {
+  // A button click starts a new print round. A lost enqueue response retries
+  // this operation UUID so Backend can return the job it already created.
+  async function handlePrintInvoice(operationUuid = createMutationUuid()) {
     if (!orderUuid || !user?.uuid || processing || invoicePrinting) return;
     if (isSplitPayment && !splitBillItemUuids.length) {
       showToast({ title: t("pos.splitPaymentSelectRequired"), tone: "error" });
@@ -921,6 +923,7 @@ export function usePaymentDialogWorkflow({
       const response = isSplitPayment
         ? await splitBill({
             order_uuid: orderUuid,
+            operation_uuid: operationUuid,
             order_item_uuids: splitBillItemUuids,
             document_type: "invoice",
             ...(typeof documentLogo.showLogo === "boolean" ? { show_logo: documentLogo.showLogo } : {}),
@@ -955,7 +958,7 @@ export function usePaymentDialogWorkflow({
         : await printInvoice({
             ...(typeof documentLogo.showLogo === "boolean" ? { show_logo: documentLogo.showLogo } : {}),
             order_uuid: orderUuid,
-            operation_uuid: createMutationUuid(),
+            operation_uuid: operationUuid,
             ...(requiresTransferAccount && selectedTransferAccountUuid
               ? { account_uuid_fk: selectedTransferAccountUuid }
               : {}),
@@ -972,6 +975,7 @@ export function usePaymentDialogWorkflow({
         await showInvoicePrintFallback(
           invoicePrintData(),
           queuedDocumentPrintFailureMessage(response, t("pos.invoicePrintMissingJob")),
+          () => void handlePrintInvoice(operationUuid),
         );
         return;
       }
@@ -994,7 +998,7 @@ export function usePaymentDialogWorkflow({
           tone: "error",
           action: {
             label: t("actions.tryAgain"),
-            onClick: () => void handlePrintInvoice(),
+            onClick: () => void handlePrintInvoice(operationUuid),
           },
         });
         return;
@@ -1002,6 +1006,7 @@ export function usePaymentDialogWorkflow({
       await showInvoicePrintFallback(
         invoicePrintData(),
         error instanceof Error ? error.message : "",
+        () => void handlePrintInvoice(operationUuid),
       );
     } finally {
       releaseAction();
@@ -1096,12 +1101,13 @@ export function usePaymentDialogWorkflow({
   async function showInvoicePrintFallback(
     data: InvoicePrintData,
     description: string,
+    retry: () => void,
   ) {
     if (isCapacitorMobileApp()) {
       showQueuedPrintError(
         t("pos.invoicePrintFailed"),
         description || t("pos.invoicePrintMissingJob"),
-        () => void handlePrintInvoice(),
+        retry,
       );
       return;
     }

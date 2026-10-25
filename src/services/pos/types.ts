@@ -803,6 +803,7 @@ export type SplitBillItemQuantity = Record<string, number>;
 
 export interface SplitBillInput extends ApiEntity {
   show_logo?: boolean;
+  operation_uuid?: string;
   sync_event_uuid?: string;
   new_order_uuid?: string;
   payment_uuid?: string;

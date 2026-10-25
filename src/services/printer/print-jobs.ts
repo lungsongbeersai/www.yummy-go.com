@@ -146,13 +146,36 @@ function readStoredDelivery(key: string, batch: PrintOpsBatchPayload): StoredDel
   }
 }
 
-function storeDelivery(key: string, delivery: StoredDelivery) {
-  deliveryLedgerMemory.set(key, delivery);
+function storeDelivery(key: string, delivery: StoredDelivery, requireDurable = false) {
+  const serialized = JSON.stringify(delivery);
   try {
-    deliveryStorage()?.setItem(key, JSON.stringify(delivery));
+    const storage = deliveryStorage();
+    if (requireDurable && !storage) throw new Error("Printer delivery storage is unavailable");
+    storage?.setItem(key, serialized);
+    if (requireDurable && storage?.getItem(key) !== serialized) {
+      throw new Error("Printer delivery storage could not be verified");
+    }
   } catch {
+    if (requireDurable) {
+      throw Object.assign(new ServiceError(
+        "Cannot safely save printer delivery state. No print data was sent.",
+        503,
+      ), { delivery_state: "not_sent" as const });
+    }
     // Memory still protects duplicate requests in the current app session.
   }
+  deliveryLedgerMemory.set(key, delivery);
+}
+
+function reserveNativeDelivery(key: string) {
+  // Native TCP has no Agent journal. Save uncertainty before sending so a
+  // killed/reloaded WebView cannot replay bytes that may already be on paper.
+  storeDelivery(key, {
+    deliveryState: "unknown",
+    deliveredJobs: 0,
+    deliveredItemUuids: [],
+    errorMessage: "Printer delivery was interrupted. Use a new manual print request.",
+  }, true);
 }
 
 function clearStoredDelivery(key: string) {
@@ -334,6 +357,9 @@ async function runLegacyPrintAttempt(
     });
   }
   try {
+    if (Capacitor.isNativePlatform() && firstJob && isBrowserDevicePrintJob(firstJob)) {
+      reserveNativeDelivery(key);
+    }
     await send();
     storeDelivery(key, { deliveryState: "printed" });
     return key;
@@ -1185,11 +1211,25 @@ async function executePrintJobs(
 
           try {
             if (mobileBatch) {
+              if (options.idempotent) reserveNativeDelivery(ledgerKey);
               await printKitchenMobileBatch(
                 batch,
                 // Shared-owner execution has no UI observer. Keep confirmed
                 // tickets so a later failure only ACKs the remaining sheets.
-                reportDeliveredTickets,
+                (completed) => {
+                  const deliveredJobs = Math.min(printBatchJobTotal(batch), Math.max(0, Math.floor(completed)));
+                  if (options.idempotent) {
+                    // Persist the confirmed prefix while later tickets remain
+                    // in flight; a restart can ACK it without sending it again.
+                    storeDelivery(ledgerKey, {
+                      deliveryState: "unknown",
+                      deliveredJobs,
+                      deliveredItemUuids: deliveredBatchItemUuids(batch, deliveredJobs),
+                      errorMessage: "Printer delivery was interrupted. Use a new manual print request.",
+                    });
+                  }
+                  reportDeliveredTickets(completed);
+                },
               );
             } else {
               await printKitchenBatchJob(

@@ -174,7 +174,10 @@ describe("printer service dispatch", () => {
     axiosMocks.get.mockReset();
     axiosMocks.post.mockReset();
     capacitorMocks.isNativePlatform.mockReset().mockReturnValue(false);
+    // Transport fixtures opt into native TCP independently of device discovery.
+    capacitorMocks.getPlatform.mockReturnValue("web");
     mobileTcpMocks.printMobileEscposOverTcp.mockReset().mockResolvedValue(undefined);
+    mockLocalStorage();
   });
 
   function cashDrawerJob(overrides: Partial<PrintJob> = {}) {
