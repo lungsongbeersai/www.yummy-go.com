@@ -71,7 +71,7 @@ const Toaster = ({ ...props }: ToasterProps) => {
           "--info-border": "color-mix(in oklch, var(--info) 45%, var(--border))",
           "--info-text": "var(--info)",
           "--border-radius": "var(--radius)",
-          fontFamily: "var(--font-sans), var(--font-noto-sans-lao)",
+          fontFamily: "var(--font-sans), var(--font-lao-ui)",
         } as React.CSSProperties
       }
       toastOptions={{

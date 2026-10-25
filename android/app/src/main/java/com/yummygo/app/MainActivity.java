@@ -2,6 +2,9 @@ package com.yummygo.app;
 
 import android.graphics.Color;
 import android.graphics.drawable.ColorDrawable;
+import android.net.ConnectivityManager;
+import android.net.Network;
+import android.net.NetworkCapabilities;
 import android.os.Build;
 import android.os.Bundle;
 import android.view.View;
@@ -37,6 +40,7 @@ public class MainActivity extends BridgeActivity {
     super.onCreate(savedInstanceState);
 
     hardenWebViewRendering();
+    showOfflinePageWithoutValidatedNetwork();
 
     Window window = getWindow();
 
@@ -87,6 +91,31 @@ public class MainActivity extends BridgeActivity {
 
     controller.setAppearanceLightStatusBars(!isDark);
     controller.setAppearanceLightNavigationBars(!isDark);
+  }
+
+  // A connected-but-unusable network (no data balance, captive portal) makes the WebView
+  // wait for a TCP timeout before server.errorPath kicks in, leaving the green background
+  // on screen for a long time. Skip straight to the offline page when Android has not
+  // validated internet access; that page probes the server and returns as soon as it answers.
+  private void showOfflinePageWithoutValidatedNetwork() {
+    if (getBridge() == null || getBridge().getErrorUrl() == null) {
+      return;
+    }
+
+    ConnectivityManager connectivity = getSystemService(ConnectivityManager.class);
+    if (connectivity == null) {
+      return;
+    }
+
+    Network network = connectivity.getActiveNetwork();
+    NetworkCapabilities capabilities = network != null ? connectivity.getNetworkCapabilities(network) : null;
+    boolean validated = capabilities != null
+      && capabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)
+      && capabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_VALIDATED);
+
+    if (!validated) {
+      getBridge().getWebView().loadUrl(getBridge().getErrorUrl());
+    }
   }
 
   private void hardenWebViewRendering() {

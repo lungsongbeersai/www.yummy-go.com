@@ -9,6 +9,7 @@ import {
   mergeUsbPrinterOptions,
   printerFormValues,
   printerSelfTestTarget,
+  printerRoleKind,
   requiresZoneMapping,
   shouldResolveCurrentPrinterIdentity,
   sharingModeOf,
@@ -528,5 +529,17 @@ describe("employee role print permissions", () => {
     expect(printRoleSettingsValidation(2, "CATEGORY", printer.cate_uuid_fk, next, {
       loaded: true, loading: false, error: null,
     })).toEqual({ roleOptionsStatus: "ready", invalidCategoryUuids: ["drinks"] });
+  });
+});
+
+describe("printerRoleKind", () => {
+  it("groups numbered stations and fixed role codes by kind", () => {
+    expect(printerRoleKind("k-003")).toBe("kitchen");
+    expect(printerRoleKind("b-001")).toBe("bar");
+    expect(printerRoleKind("q-001")).toBe("qr");
+    expect(printerRoleKind("invoice")).toBe("bill");
+    expect(printerRoleKind("receipt")).toBe("bill");
+    expect(printerRoleKind("report")).toBe("report");
+    expect(printerRoleKind("label")).toBe("other");
   });
 });

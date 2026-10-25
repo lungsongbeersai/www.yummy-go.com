@@ -3,6 +3,9 @@ import { businessDateInputValue } from "@/lib/format";
 
 export type Row = Record<string, unknown>;
 
+/** Translated `dashboard.*` strings, resolved once per language by the page. */
+export type DashboardCopy = Record<string, string>;
+
 export const DASHBOARD_PERIOD_TYPES = ["daily", "monthly", "yearly"] as const;
 export type DashboardPeriodType = (typeof DASHBOARD_PERIOD_TYPES)[number];
 
@@ -417,6 +420,338 @@ function normalizeTrendRows(rows: Row[]): TrendPoint[] {
     revenue: numberFrom(row, "revenue_total"),
     transfer: numberFrom(row, "transfer_total")
   }));
+}
+
+// ---------------------------------------------------------------------------
+// Presentation helpers for the redesigned dashboard. Pure, so every branch is unit-tested
+// without mounting React.
+
+const moneyUnits = new Set(["k", "kip", "kib", "lak", "₭", "ກີບ"]);
+
+/** The API's main total carries its own unit; Kip spellings all print as ₭. */
+export function formatApiMoney(value: unknown, unit: string) {
+  if (!unit || moneyUnits.has(unit.trim().toLowerCase())) return formatKip(value);
+  return `${formatNumber(value)} ${unit}`;
+}
+
+export function share(value: number, total: number) {
+  return total > 0 ? (value / total) * 100 : 0;
+}
+
+/** "25,480,000 ₭" → { number: "25,480,000", unit: "₭" }; null when it is not a plain figure. */
+export function splitMoneyString(value: string): { number: string; unit: string } | null {
+  const match = /^(-?\d[\d,]*(?:\.\d+)?)(?:\s+(.+))?$/.exec(value.trim());
+  if (!match) return null;
+  return { number: match[1], unit: match[2] ?? "" };
+}
+
+/**
+ * Figures past `digitLimit` digits (a yearly total in Kip) step down one size to stay unbroken;
+ * the plate allows 11, the narrower KPI tiles 9.
+ */
+export function kipFigureSize(figure: string, digitLimit = 11): "default" | "long" {
+  return figure.replace(/\D/g, "").length > digitLimit ? "long" : "default";
+}
+
+/** What the daily sales bars measure. */
+export type TrendMetric = "orders" | "revenue";
+
+export type TrendBucketKind = "day" | "week" | "month";
+
+export type TrendBucket = {
+  balance: number;
+  cash: number;
+  /** First business date in the bucket. */
+  date: string;
+  debt: number;
+  dates: string[];
+  /** Days summed into this bucket; an edge week or month of the range can hold fewer. */
+  days: number;
+  key: string;
+  label: string;
+  mixed: number;
+  orders: number;
+  paid: number;
+  revenue: number;
+  transfer: number;
+};
+
+/** Past this many days the chart switches to weekly totals; past MONTH_BUCKET_LIMIT, monthly. */
+export const DAY_BUCKET_LIMIT = 62;
+export const MONTH_BUCKET_LIMIT = 400;
+
+function parseBusinessDate(value: string) {
+  const match = /^(\d{4})-(\d{2})-(\d{2})/.exec(value);
+  if (!match) return null;
+  return new Date(Number(match[1]), Number(match[2]) - 1, Number(match[3]));
+}
+
+function weekStartKey(date: Date) {
+  // ISO weeks start on Monday.
+  const monday = new Date(date);
+  monday.setDate(date.getDate() - ((date.getDay() + 6) % 7));
+  return `${monday.getFullYear()}-${pad2(monday.getMonth() + 1)}-${pad2(monday.getDate())}`;
+}
+
+function bucketOf(row: TrendPoint, kind: TrendBucketKind, index: number) {
+  const parsed = parseBusinessDate(row.date);
+  if (kind === "day" || !parsed) {
+    return { key: row.date !== "-" ? row.date : String(index), label: row.day !== "-" ? row.day : row.date };
+  }
+  if (kind === "week") {
+    // Keyed by the ISO week, labelled by its first day inside the range, so a range that starts
+    // mid-week never shows a date it does not cover.
+    return { key: weekStartKey(parsed), label: `${row.date.slice(8, 10)}/${row.date.slice(5, 7)}` };
+  }
+  return { key: row.date.slice(0, 7), label: `${row.date.slice(5, 7)}/${row.date.slice(0, 4)}` };
+}
+
+export function trendBucketKind(rowCount: number): TrendBucketKind {
+  if (rowCount > MONTH_BUCKET_LIMIT) return "month";
+  if (rowCount > DAY_BUCKET_LIMIT) return "week";
+  return "day";
+}
+
+type PaymentParts = Pick<TrendPoint, "cash" | "debt" | "revenue" | "transfer">;
+
+/** Revenue the cash/transfer/debt split does not cover (mixed payments the API could not split). */
+export function unsplitRevenue(row: PaymentParts) {
+  return Math.max(0, row.revenue - (row.cash + row.transfer + row.debt));
+}
+
+/**
+ * Height of a stacked revenue bar: cash + transfer + debt plus the unsplit remainder, i.e. the
+ * day's revenue, or the split's sum when the payment rows carry no revenue figure.
+ */
+export function plottedRevenue(row: PaymentParts) {
+  return Math.max(row.revenue, row.cash + row.transfer + row.debt);
+}
+
+/** Sums daily rows into at most ~62 bars so a yearly range stays readable. */
+export function bucketTrendRows(rows: TrendPoint[]): { kind: TrendBucketKind; rows: TrendBucket[] } {
+  const kind = trendBucketKind(rows.length);
+  const buckets = new Map<string, TrendBucket>();
+
+  rows.forEach((row, index) => {
+    const { key, label } = bucketOf(row, kind, index);
+    const bucket = buckets.get(key) ?? {
+      balance: 0, cash: 0, date: row.date, dates: [], days: 0, debt: 0, key, label,
+      mixed: 0, orders: 0, paid: 0, revenue: 0, transfer: 0,
+    };
+    bucket.balance += row.balance;
+    bucket.cash += row.cash;
+    bucket.debt += row.debt;
+    bucket.mixed += row.mixed;
+    bucket.orders += row.orders;
+    bucket.paid += row.paid;
+    bucket.revenue += row.revenue;
+    bucket.transfer += row.transfer;
+    bucket.dates.push(row.date);
+    bucket.days += 1;
+    buckets.set(key, bucket);
+  });
+
+  return { kind, rows: Array.from(buckets.values()) };
+}
+
+export type SkylineColumn = {
+  /** Column height as a share of the tallest column, 0-100. */
+  height: number;
+  isPeak: boolean;
+  key: string;
+  /** Share of the column that is still owed, 0-100. */
+  owedPercent: number;
+};
+
+/**
+ * One column per day (or week/month once bucketed) for the plate's skyline: height is revenue,
+ * the hatched cap is what is still owed. Revenue comes from the sales rows and the owed amount
+ * from the payment rows of the same date, because the API may split them across two charts.
+ */
+export function skylineColumns(
+  trendRows: TrendPoint[],
+  paymentTrendRows: TrendPoint[],
+  peakDate: string | null,
+): SkylineColumn[] {
+  const payments = new Map(paymentTrendRows.map((row) => [row.date, row]));
+  const source = trendRows.length ? trendRows : paymentTrendRows;
+  const merged = source.map((row) => {
+    const payment = payments.get(row.date);
+    const revenue = row.revenue || (payment ? payment.revenue || payment.cash + payment.transfer + payment.debt : 0);
+    const owedSource = row.balance || row.debt || payment?.balance || payment?.debt || 0;
+    return { ...row, balance: Math.min(Math.max(owedSource, 0), revenue), revenue };
+  });
+  const { rows } = bucketTrendRows(merged);
+  const max = Math.max(0, ...rows.map((row) => row.revenue));
+
+  return rows.map((row) => ({
+    height: max > 0 ? (row.revenue / max) * 100 : 0,
+    isPeak: Boolean(peakDate) && row.revenue > 0 && row.dates.includes(peakDate ?? ""),
+    key: row.key,
+    owedPercent: row.revenue > 0 ? (row.balance / row.revenue) * 100 : 0,
+  }));
+}
+
+export type PaymentSplitKey = "cash" | "transfer" | "debt" | "unallocated";
+
+export type PaymentSplitSegment = {
+  key: PaymentSplitKey;
+  /** The API's own label when it sent one. */
+  label: string;
+  share: number;
+  value: number;
+};
+
+const paymentSplitKeys = ["cash", "transfer", "debt"] as const;
+
+/**
+ * Cash / transfer / debt for the whole period, in that fixed order so a method keeps its colour.
+ * Whatever the period total holds beyond the three (mixed payments the API could not split) is
+ * shown as its own neutral segment instead of being silently dropped.
+ */
+export function paymentSplit(cards: PaymentSummaryCard[]): { segments: PaymentSplitSegment[]; total: number } {
+  const methods = paymentSplitKeys.map((key) => {
+    const card = cards.find((item) => item.key === key);
+    return { key, label: card?.label ?? "", value: Math.max(0, card?.value ?? 0) };
+  });
+  const methodTotal = methods.reduce((sum, method) => sum + method.value, 0);
+  // The period total is the card the API marks important (or keys "total"). Without one it is
+  // every payment line, so methods beyond the three (e.g. "mixed") still count in the shares.
+  const totalCard = cards.find((card) => card.important) ?? cards.find((card) => card.key === "total");
+  const reported = totalCard
+    ? Math.max(0, totalCard.value)
+    : cards.reduce((sum, card) => sum + Math.max(0, card.value), 0);
+  const total = Math.max(reported, methodTotal);
+  const unallocated = total - methodTotal;
+  const segments: Omit<PaymentSplitSegment, "share">[] =
+    unallocated >= 1 ? [...methods, { key: "unallocated", label: "", value: unallocated }] : methods;
+
+  return { segments: segments.map((segment) => ({ ...segment, share: share(segment.value, total) })), total };
+}
+
+/** Running share of the total after each item, in the given order. */
+export function cumulativeShares(values: number[]) {
+  const total = values.reduce((sum, value) => sum + value, 0);
+  let running = 0;
+  return values.map((value) => {
+    running += value;
+    return share(running, total);
+  });
+}
+
+/** How many items (in the given order) it takes to reach 80% of the total. */
+export function paretoCount(values: number[]) {
+  const reached = cumulativeShares(values).findIndex((value) => value >= 80 - 1e-9);
+  return reached === -1 ? values.length : reached + 1;
+}
+
+export type LedgerStep = {
+  /** Bar start and end as a share of the widest amount, 0-100. */
+  from: number;
+  key: string;
+  kind: "step" | "total";
+  to: number;
+};
+
+/** A 1 ₭ rounding difference is noted; past 1% the rows are not a gross-to-net walk at all. */
+export const LEDGER_GAP_TOLERANCE = 0.01;
+
+/**
+ * Gross-to-net waterfall for the accounting card. The first row and every `important` row are
+ * totals drawn from zero; the rows between them move the running total (negative rows down).
+ * The walk must end on a reported total (rows after the last one, or a list with no total, are
+ * unchecked and may not be increments at all) and land on every total within
+ * LEDGER_GAP_TOLERANCE; otherwise no bars are drawn — the receipt still lists every row.
+ */
+export function buildLedgerSteps(rows: AccountingRow[]): { gap: number; reconciles: boolean; steps: LedgerStep[] } {
+  if (rows.length < 2 || !rows[rows.length - 1].important) return { gap: 0, reconciles: false, steps: [] };
+
+  let running = 0;
+  let gap = 0;
+  let reconciles = true;
+  const spans = rows.map((row, index) => {
+    const isTotal = index === 0 || row.important;
+    if (isTotal) {
+      if (index > 0) {
+        const difference = Math.abs(running - row.value);
+        gap = Math.max(gap, difference);
+        if (difference > Math.max(1, Math.abs(row.value) * LEDGER_GAP_TOLERANCE)) reconciles = false;
+      }
+      running = row.value;
+      return { from: 0, key: row.key, kind: "total" as const, to: row.value };
+    }
+    const start = running;
+    running += row.negative ? -Math.abs(row.value) : row.value;
+    return { from: Math.min(start, running), key: row.key, kind: "step" as const, to: Math.max(start, running) };
+  });
+
+  const max = Math.max(0, ...spans.map((span) => span.to));
+  if (!reconciles || max <= 0 || spans.some((span) => span.from < 0)) {
+    return { gap, reconciles: false, steps: [] };
+  }
+
+  return {
+    gap,
+    reconciles,
+    steps: spans.map((span) => ({ ...span, from: (span.from / max) * 100, to: (span.to / max) * 100 })),
+  };
+}
+
+export type SeatState = "occupied" | "waiting" | "available" | "unknown";
+
+/** Up to this many tables are drawn one cell each; more become a single segmented bar. */
+export const SEAT_GRID_LIMIT = 60;
+
+export function seatSummary(summary: Row) {
+  const total = Math.max(0, numberFrom(summary, "total_tables"));
+  const occupied = Math.max(0, numberFrom(summary, "occupied_tables"));
+  const waiting = Math.max(0, numberFrom(summary, "waiting_tables"));
+  const available = Math.max(0, numberFrom(summary, "available_tables"));
+  const counted = occupied + waiting + available;
+  // Counts that do not add up to the table total leave the remainder visibly unknown.
+  const unknown = Math.max(0, total - counted);
+  const cells: SeatState[] | null =
+    total > 0 && total <= SEAT_GRID_LIMIT
+      ? [
+          ...Array<SeatState>(Math.min(occupied, total)).fill("occupied"),
+          ...Array<SeatState>(Math.min(waiting, Math.max(0, total - occupied))).fill("waiting"),
+          ...Array<SeatState>(Math.min(available, Math.max(0, total - occupied - waiting))).fill("available"),
+          ...Array<SeatState>(unknown).fill("unknown"),
+        ]
+      : null;
+
+  return {
+    available,
+    cells,
+    occupancy: Math.min(100, Math.max(0, numberFrom(summary, "occupancy_rate"))),
+    occupied,
+    total,
+    unknown,
+    waiting,
+  };
+}
+
+/** Per-day values for a KPI sparkline; null when there are too few days to draw a line. */
+export function sparklineValues(rows: TrendPoint[], metric: "orders" | "avgBill"): number[] | null {
+  if (rows.length < 3) return null;
+  if (metric === "orders") return rows.map((row) => row.orders);
+  const values = rows.filter((row) => row.orders > 0).map((row) => row.revenue / row.orders);
+  return values.length >= 3 ? values : null;
+}
+
+/** SVG path for a sparkline in a 100 x 32 viewBox, with 2 units of vertical breathing room. */
+export function sparklinePath(values: number[]) {
+  if (values.length < 2) return "";
+  const min = Math.min(...values);
+  const max = Math.max(...values);
+  const range = max - min || 1;
+  return values
+    .map((value, index) => {
+      const x = (index / (values.length - 1)) * 100;
+      const y = 30 - ((value - min) / range) * 28;
+      return `${index === 0 ? "M" : "L"}${x.toFixed(2)} ${y.toFixed(2)}`;
+    })
+    .join(" ");
 }
 
 export function createDashboardModel(data: unknown, _filters: DashboardFilters, top = "10"): DashboardModel {

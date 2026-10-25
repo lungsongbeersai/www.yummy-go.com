@@ -221,7 +221,7 @@ export function usePrinterForm() {
   const [selectedRoles, setSelectedRoles] = useState<string[]>(
     initialForm.selectedRoles,
   );
-  const [mappingType, setMappingType] = useState<MappingTypeSelection>(
+  const [selectedMappingType, setMappingType] = useState<MappingTypeSelection>(
     initialForm.mappingType,
   );
   const [accessMode, setAccessMode] = useState<PrinterAccessMode>(
@@ -310,6 +310,11 @@ export function usePrinterForm() {
       return current === "ZONE" ? "OFF" : current;
     });
   });
+  // ขั้นที่ 3 (ผูกโซน/หมวดหมู่) แสดงเฉพาะตอนมี role ครัว/บาร์ — ไม่มีก็ถือว่า "ปิด" เสมอ ทั้งตอน
+  // ตรวจความครบถ้วนและตอนบันทึก เพื่อไม่ให้หมวดหมู่ที่มองไม่เห็นแล้วถูกส่งไปค้างที่ backend
+  // (เช่นเครื่องเดิมที่เคยตั้ง CATEGORY ไว้กับใบเสร็จ) ส่วนค่าที่ผู้ใช้เลือกยังเก็บไว้ ถ้าติ๊ก role
+  // ครัว/บาร์กลับมา ขั้นที่ 3 จะแสดงค่าเดิม
+  const mappingType: MappingTypeSelection = zoneMappingRequired ? selectedMappingType : "OFF";
 
   const fillAgent = useCallback((nextAgent: AgentInfo, nextAgentUrl?: string) => {
     setAgentUrl(
@@ -509,7 +514,7 @@ export function usePrinterForm() {
     printShowLogo !== baseline.printShowLogo ||
     buzzerOnCut !== baseline.buzzerOnCut ||
     cutFeedLines !== baseline.cutFeedLines ||
-    mappingType !== baseline.mappingType ||
+    selectedMappingType !== baseline.mappingType ||
     accessMode !== baseline.accessMode ||
     selectedDevice !== baseline.selectedDevice ||
     !arraysHaveSameValues(selectedRoles, baseline.selectedRoles) ||

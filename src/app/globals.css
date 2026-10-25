@@ -78,6 +78,22 @@
   --chart-cat-3: #1baf7a;
   --chart-cat-4: #eda100;
   --chart-cat-5: #e87ba4;
+  /* Text shades of the first three categories and of --success: the fills above are 2.8-4.6:1 on
+     white, these are >=4.7:1 on --card and on the /10 category tints (WCAG AA for small text). */
+  --chart-cat-1-text: #1f62b8;
+  --chart-cat-2-text: #b8461a;
+  --chart-cat-3-text: #0b7a52;
+  --success-text: #13714c;
+  /* Dashboard "banknote plate" (revenue hero). Neutral white/black overlays with their own
+     alpha, so they tint whatever --primary resolves to (every data-theme-color preset, light
+     and dark, and the sRGB Capacitor blocks) and parse on Android WebView 101 (hex8, no
+     color-mix). The shade sits under the plate's small text and only ever raises contrast
+     against --primary-foreground; the sheen and engraving stay in the text-free corner. */
+  --dash-sheen: #ffffff1a;
+  --dash-shade: #0000003d;
+  --dash-engrave: #ffffff1f;
+  --dash-card-shadow: 0 1px 2px #0f172a0f, 0 12px 32px -20px #0f172a47;
+  --dash-plate-shadow: 0 24px 48px -28px #0f172a8c;
   --radius: 0.625rem;
 }
 
@@ -133,6 +149,15 @@
   --chart-cat-3: #199e70;
   --chart-cat-4: #c98500;
   --chart-cat-5: #d55181;
+  --chart-cat-1-text: #6aa6f0;
+  --chart-cat-2-text: #f28b5e;
+  --chart-cat-3-text: #3cc896;
+  --success-text: #5fd3a4;
+  --dash-sheen: #ffffff14;
+  --dash-shade: #00000059;
+  --dash-engrave: #ffffff17;
+  --dash-card-shadow: inset 0 1px 0 #ffffff0d, 0 1px 2px #00000080, 0 16px 32px -24px #000000cc;
+  --dash-plate-shadow: 0 24px 48px -28px #000000b3;
 }
 
 /* ธีมสี accent เลือกได้จากเมนูตั้งค่าการแสดงผลใน header (display-settings-menu) — ค่าเริ่มต้น
@@ -453,6 +478,24 @@ html[data-font-scale="xl"] {
   font-size: 125%; /* 20px */
 }
 
+/* The Lao face the whole UI uses (Appearance → Lao font, app-store laoFont, set on <html> by the
+   theme bootstrap script before first paint). Printed/exported surfaces keep their own faces. */
+html {
+  --font-lao-ui: var(--font-noto-sans-lao);
+}
+
+html[data-lao-font="noto-serif"] {
+  --font-lao-ui: var(--font-noto-serif-lao);
+}
+
+html[data-lao-font="phetsarath"] {
+  --font-lao-ui: var(--font-phetsarath);
+}
+
+html[data-lao-font="saysettha"] {
+  --font-lao-ui: var(--font-saysettha);
+}
+
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
@@ -493,10 +536,15 @@ html[data-font-scale="xl"] {
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-ring: var(--sidebar-ring);
   --color-app: hsl(var(--app));
-  --font-heading: var(--font-sans), var(--font-noto-sans-lao);
+  --font-heading: var(--font-sans), var(--font-lao-ui);
   --font-sans: var(--font-sans);
-  --font-lao: var(--font-noto-sans-lao);
-  --font-mono: ui-monospace, var(--font-noto-sans-lao), monospace;
+  --font-lao: var(--font-lao-ui);
+  --font-mono: ui-monospace, var(--font-lao-ui), monospace;
+  /* Fixed faces for previews in the Lao font picker (appearance-controls.tsx). */
+  --font-lao-noto-sans: var(--font-noto-sans-lao);
+  --font-lao-noto-serif: var(--font-noto-serif-lao);
+  --font-lao-phetsarath: var(--font-phetsarath);
+  --font-lao-saysettha: var(--font-saysettha);
   --color-chart-5: var(--chart-5);
   --color-chart-4: var(--chart-4);
   --color-chart-3: var(--chart-3);
@@ -507,6 +555,10 @@ html[data-font-scale="xl"] {
   --color-chart-cat-3: var(--chart-cat-3);
   --color-chart-cat-4: var(--chart-cat-4);
   --color-chart-cat-5: var(--chart-cat-5);
+  --color-chart-cat-1-text: var(--chart-cat-1-text);
+  --color-chart-cat-2-text: var(--chart-cat-2-text);
+  --color-chart-cat-3-text: var(--chart-cat-3-text);
+  --color-success-text: var(--success-text);
   --radius-sm: calc(var(--radius) * 0.6);
   --radius-md: calc(var(--radius) * 0.8);
   --radius-lg: var(--radius);
@@ -514,6 +566,8 @@ html[data-font-scale="xl"] {
   --radius-2xl: calc(var(--radius) * 1.8);
   --radius-3xl: calc(var(--radius) * 2.2);
   --radius-4xl: calc(var(--radius) * 2.6);
+  --shadow-dash-card: var(--dash-card-shadow);
+  --shadow-dash-plate: var(--dash-plate-shadow);
 
   /* สเกลตัวอักษรของระบบ — ขั้นบันไดเดียวใช้ทั้งแอป ห้ามใช้ text-[Npx] ที่ไหนอีก
      เพราะค่า px ไม่ขยาย/หดตาม html[data-font-scale] (ตัวเลือกขนาดตัวอักษรของผู้ใช้)
@@ -532,6 +586,42 @@ html[data-font-scale="xl"] {
      เครื่องหมายจะทับกันจนอ่านไม่ออก (ต่างจากอักษรละตินที่ 9-10px ยังพอไหว) */
   --text-2xs: 0.6875rem;
   --text-2xs--line-height: 1rem;
+}
+
+/* Dashboard surface patterns. Utilities rather than tokens so their var() references resolve on
+   the element that uses them (a per-element --primary or currentColor). Raw gradients with no
+   interpolation method paint on Android WebView 101, unlike Tailwind's bg-radial/bg-conic
+   which emit an unguarded `in oklab`. */
+@utility bg-dash-plate {
+  background-image:
+    radial-gradient(55% 80% at 100% 0%, var(--dash-sheen), transparent 70%),
+    linear-gradient(170deg, transparent 45%, var(--dash-shade));
+}
+
+/* Coin milling over a progress track: the 2px gaps take the plate colour. */
+@utility bg-dash-notches {
+  background-image: repeating-linear-gradient(
+    90deg,
+    transparent 0 calc(10% - 2px),
+    var(--primary) calc(10% - 2px) 10%
+  );
+}
+
+@utility bg-perforation {
+  background-image: radial-gradient(circle, var(--muted-foreground) 1px, transparent 1.5px);
+  background-size: 8px 6px;
+  background-repeat: repeat-x;
+  background-position: center;
+}
+
+/* "Owed / waiting" everywhere on the dashboard; the hue comes from text-* (currentColor), so
+   the meaning never rides on colour alone. */
+@utility bg-hatch {
+  background-image: repeating-linear-gradient(
+    135deg,
+    currentColor 0 2px,
+    transparent 2px 5px
+  );
 }
 
 * {
@@ -753,6 +843,31 @@ html {
 
 .android-webview-compat .app-header {
   background: var(--card);
+}
+
+/* WebView 101 drops color-mix(), so the decorative wash uses the sRGB channels from the opacity
+   plugin there. Old WebViews also repaint fixed backgrounds on the main thread, so each box gets
+   its own slice instead (the join does not line up there, by design). */
+html.android-webview-compat:not([data-decor-background="off"]) .app-header,
+html.android-webview-compat:not([data-decor-background="off"]) .app-sidebar-panel,
+html.android-webview-compat:not([data-decor-background="off"]) [data-slot="sidebar-inner"] {
+  background-color: var(--primary);
+  background-image: linear-gradient(
+      rgba(var(--legacy-primary-rgb), 0.3),
+      rgba(var(--legacy-primary-rgb), 0.3)
+    ),
+    url("/posAll/background_wide.webp");
+  background-attachment: scroll;
+}
+
+html.android-webview-compat.dark:not([data-decor-background="off"]) .app-header,
+html.android-webview-compat.dark:not([data-decor-background="off"]) .app-sidebar-panel,
+html.android-webview-compat.dark:not([data-decor-background="off"]) [data-slot="sidebar-inner"] {
+  background-image: linear-gradient(
+      rgba(var(--legacy-primary-rgb), 0.4),
+      rgba(var(--legacy-primary-rgb), 0.4)
+    ),
+    url("/posAll/background_wide_dark.webp");
 }
 
 .android-webview-compat .app-sidebar-panel {
@@ -1424,7 +1539,7 @@ body {
   background-attachment: fixed;
   color: var(--foreground);
   overscroll-behavior: none;
-  font-family: var(--font-noto-sans-lao), "Aptos", "Segoe UI", sans-serif;
+  font-family: var(--font-lao-ui), "Aptos", "Segoe UI", sans-serif;
 }
 
 /* iOS (iPhone/iPad, incl. the Capacitor WKWebView) renders text with subpixel
@@ -1713,6 +1828,13 @@ html.swan1-legacy-colors
   height: 88px;
   margin-left: 16rem;
   border-bottom: 1px solid var(--border);
+}
+
+/* With the decorative background off, Swan 1's home top bar is plain (otherwise it shares the
+   floral .app-header). */
+html.swan1-legacy-colors[data-decor-background="off"]
+  .app-shell[data-desktop-home-layout="true"]
+  .swan1-home-top-bar {
   background: var(--background);
 }
 
@@ -1733,22 +1855,48 @@ html.swan1-legacy-colors
   padding-top: 32px;
 }
 
+/* Tailwind's composed ring + shadow box-shadow does not paint on WebView 101, so the
+   dashboard cards get their outline and depth from plain declarations here. */
 html.swan1-legacy-colors
   .app-shell[data-desktop-home-layout="true"]
   [data-slot="card"] {
   border: 1px solid var(--border);
+  box-shadow: var(--dash-card-shadow);
 }
 
+/* The plate paints its own bg-primary + bg-dash-plate on Chromium 101; an extra white
+   wash here would sit under the footer text and drop it to ~3.4:1. */
 html.swan1-legacy-colors
   .app-shell[data-desktop-home-layout="true"]
   [data-dashboard-revenue-card] {
   border-color: transparent;
-  background-color: var(--primary);
-  background-image: linear-gradient(
-    135deg,
-    rgba(255, 255, 255, 0),
-    rgba(255, 255, 255, 0.22)
-  );
+  box-shadow: var(--dash-plate-shadow);
+}
+
+/* Same static-terminal policy as the POS layout above, for the dashboard home screen the
+   terminal sits on all day: entrances, odometer rolls and meter fills land immediately. */
+html.swan1-legacy-colors
+  .app-shell[data-desktop-home-layout="true"]
+  [data-fx]:not([data-slot="spinner"]),
+html.swan1-legacy-colors
+  .app-shell[data-desktop-home-layout="true"]
+  [data-fx]
+  *:not([data-slot="spinner"]),
+html.swan1-legacy-colors .app-shell[data-desktop-home-layout="true"] [data-fx] *::before,
+html.swan1-legacy-colors .app-shell[data-desktop-home-layout="true"] [data-fx] *::after {
+  animation: none !important;
+  transition-duration: 0.01ms !important;
+  transition-delay: 0ms !important;
+  scroll-behavior: auto !important;
+}
+
+/* Ring utilities do not paint on WebView 101; keep a visible keyboard focus. --foreground, not
+   --ring: the ring grey is ~2.4:1 on a white card, under the 3:1 a focus indicator needs. */
+html.swan1-legacy-colors
+  .app-shell[data-desktop-home-layout="true"]
+  :focus-visible {
+  outline: 2px solid var(--foreground);
+  outline-offset: 2px;
 }
 
 .app-shell-body {
@@ -1858,6 +2006,65 @@ html.swan1-legacy-colors
 
 .dark .app-header {
   background: hsl(var(--app) / 0.85);
+  box-shadow: none;
+}
+
+/* Decorative background (Display settings → Background image, app-store decorBackground,
+   html[data-decor-background]; on unless set to "off"). The top bar and the sidebar wear the
+   green floral artwork of the POS tables screen (table-selection-page.tsx) under a theme wash;
+   the solid --primary underneath shows if the image or color-mix() is unavailable. Everything
+   inside them is token-driven, so the tokens are re-pointed to light values for these subtrees
+   instead of restyling each control. Menus and tooltips portal out and keep the normal theme. */
+html:not([data-decor-background="off"]) .app-header,
+html:not([data-decor-background="off"]) .app-shell [data-slot="sidebar-inner"],
+html:not([data-decor-background="off"]) [data-slot="sidebar"][data-mobile="true"],
+html:not([data-decor-background="off"]) .app-sidebar-panel {
+  --foreground: #ffffff;
+  --muted-foreground: #e3f3ea;
+  --muted: #ffffff26;
+  --accent: #ffffff26;
+  --accent-foreground: #ffffff;
+  --border: #ffffff33;
+  --sidebar: transparent;
+  --sidebar-foreground: #ffffff;
+  --sidebar-accent: #ffffff2e;
+  --sidebar-accent-foreground: #ffffff;
+  --sidebar-border: #ffffff33;
+  --sidebar-ring: #ffffff;
+  --sidebar-primary: #ffffff;
+  color: var(--foreground);
+  background-color: var(--primary);
+  background-image: linear-gradient(
+      color-mix(in oklch, var(--primary) 30%, transparent),
+      color-mix(in oklch, var(--primary) 30%, transparent)
+    ),
+    url("/posAll/background_wide.webp");
+  /* One picture for the whole shell: anchored to the viewport, the top bar and the sidebar each
+     show their own slice of the same image, so the leaves run on across the corner where they
+     meet instead of restarting in each box. Both are fixed/sticky, so nothing scrolls under it. */
+  background-attachment: fixed;
+  background-position: top left;
+  background-size: cover;
+  backdrop-filter: none;
+}
+
+html:not([data-decor-background="off"]) .app-header {
+  box-shadow: 0 10px 30px -24px rgb(15 23 42 / 0.6);
+  border-bottom: 1px solid var(--border);
+}
+
+html.dark:not([data-decor-background="off"]) .app-header,
+html.dark:not([data-decor-background="off"]) .app-shell [data-slot="sidebar-inner"],
+html.dark:not([data-decor-background="off"]) [data-slot="sidebar"][data-mobile="true"],
+html.dark:not([data-decor-background="off"]) .app-sidebar-panel {
+  background-image: linear-gradient(
+      color-mix(in oklch, var(--primary) 40%, transparent),
+      color-mix(in oklch, var(--primary) 40%, transparent)
+    ),
+    url("/posAll/background_wide_dark.webp");
+}
+
+html.dark:not([data-decor-background="off"]) .app-header {
   box-shadow: none;
 }
 
@@ -2492,6 +2699,43 @@ html.swan1-legacy-colors
     color-mix(in oklch, var(--foreground) 10%, transparent) 42%,
     color-mix(in oklch, var(--foreground) 18%, transparent) 50%,
     color-mix(in oklch, var(--foreground) 10%, transparent) 58%,
+    transparent 80%
+  );
+}
+
+/* Placeholder bars that sit on a filled --primary surface (the dashboard plate skeleton). */
+.skeleton-shimmer[data-skeleton-tone="inverse"] {
+  background-color: color-mix(in oklch, var(--primary-foreground) 22%, transparent);
+}
+
+/* color-mix() above is dropped by Android WebView 101, which left skeletons invisible on
+   Capacitor Android; the rgba() channels come from the legacy opacity postcss plugin. */
+html.capacitor-android .skeleton-shimmer {
+  background-color: rgba(var(--legacy-foreground-rgb), 0.09);
+}
+
+html.capacitor-android .skeleton-shimmer[data-skeleton-tone="inverse"] {
+  background-color: rgba(var(--legacy-primary-foreground-rgb), 0.22);
+}
+
+html.capacitor-android .skeleton-shimmer::after {
+  background: linear-gradient(
+    100deg,
+    transparent 20%,
+    rgba(var(--legacy-background-rgb), 0.7) 42%,
+    rgba(var(--legacy-background-rgb), 0.95) 50%,
+    rgba(var(--legacy-background-rgb), 0.7) 58%,
+    transparent 80%
+  );
+}
+
+html.capacitor-android.dark .skeleton-shimmer::after {
+  background: linear-gradient(
+    100deg,
+    transparent 20%,
+    rgba(var(--legacy-foreground-rgb), 0.1) 42%,
+    rgba(var(--legacy-foreground-rgb), 0.18) 50%,
+    rgba(var(--legacy-foreground-rgb), 0.1) 58%,
     transparent 80%
   );
 }

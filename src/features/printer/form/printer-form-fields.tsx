@@ -28,6 +28,7 @@ export function IndeterminateCheckbox({
 }
 
 export function CheckboxOptionList({
+  bare = false,
   description,
   disabled = false,
   emptyLabel,
@@ -38,9 +39,12 @@ export function CheckboxOptionList({
   selectAllLabel,
   selected,
   renderOptionDetails,
+  renderOptionIcon,
   onToggle,
   onToggleAll,
 }: {
+  /** Inside a FormSection: no frame of its own, and the section title stands in for the legend. */
+  bare?: boolean;
   description: string;
   disabled?: boolean;
   emptyLabel: string;
@@ -51,6 +55,8 @@ export function CheckboxOptionList({
   selectAllLabel: string;
   selected: string[];
   renderOptionDetails?: (option: CheckboxOption) => ReactNode;
+  /** Decorative badge between the checkbox and the label, e.g. the kind of print role. */
+  renderOptionIcon?: (option: CheckboxOption) => ReactNode;
   onToggle: (value: string) => void;
   onToggleAll: (checked: boolean) => void;
 }) {
@@ -65,14 +71,14 @@ export function CheckboxOptionList({
   const missingRequired = required && selectedCount === 0;
 
   return (
-    <FieldSet className="gap-4 rounded-lg border border-border bg-card p-4">
+    <FieldSet className={cn("gap-4", !bare && "rounded-lg border border-border bg-card p-4")}>
       <div className="flex flex-wrap items-start justify-between gap-2">
-        <div>
-          <FieldLegend className="mb-1 text-sm font-black">
+        <div className={cn(bare && "min-w-0 flex-1")}>
+          <FieldLegend className={cn("mb-1 text-sm font-black", bare && "sr-only")}>
             {legend}
             {required ? <span className="text-destructive"> *</span> : null}
           </FieldLegend>
-          <FieldDescription>{description}</FieldDescription>
+          {bare ? null : <FieldDescription>{description}</FieldDescription>}
         </div>
         {options.length ? (
           <span
@@ -80,7 +86,9 @@ export function CheckboxOptionList({
               "shrink-0 rounded-full px-2.5 py-1 text-xs font-semibold tabular-nums",
               missingRequired
                 ? "bg-destructive/10 text-destructive"
-                : "bg-muted text-muted-foreground",
+                : selectedCount > 0
+                  ? "bg-success/15 text-success-text"
+                  : "bg-muted text-muted-foreground",
             )}
           >
             {t("printer.selectedCount", {
@@ -131,6 +139,7 @@ export function CheckboxOptionList({
                   disabled={disabled}
                   onCheckedChange={() => onToggle(option.value)}
                 />
+                {renderOptionIcon?.(option)}
                 <div className="min-w-0 flex-1">
                   <FieldLabel htmlFor={id}>{option.label}</FieldLabel>
                   {option.assignedTo?.length ? (

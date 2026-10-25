@@ -11,6 +11,8 @@ interface DashboardState {
   loading: boolean;
   error: string | null;
   lastParams: FetchExecutiveDashboardParams | null;
+  /** Params of the request whose answer is in `data`; `lastParams` may still be in flight. */
+  loadedParams: FetchExecutiveDashboardParams | null;
   load: (params: FetchExecutiveDashboardParams) => Promise<ApiEntity | null>;
   reset: () => void;
 }
@@ -33,6 +35,7 @@ export const useDashboardStore = create<DashboardState>((set) => ({
   loading: false,
   error: null,
   lastParams: null,
+  loadedParams: null,
   load: async (params) => {
     const isCurrentSession = createSessionGuard();
     const key = dashboardParamsKey(params);
@@ -43,7 +46,7 @@ export const useDashboardStore = create<DashboardState>((set) => ({
     const promise = getExecutiveDashboard(params)
       .then((result) => {
         const data = result.data ?? result;
-        if (requestId === requestSeq && isCurrentSession()) set({ data, loading: false });
+        if (requestId === requestSeq && isCurrentSession()) set({ data, loadedParams: params, loading: false });
         return data;
       })
       .catch((error) => {
@@ -62,7 +65,7 @@ export const useDashboardStore = create<DashboardState>((set) => ({
   reset: () => {
     requestSeq += 1;
     inFlight = null;
-    set({ data: null, error: null, lastParams: null, loading: false });
+    set({ data: null, error: null, lastParams: null, loadedParams: null, loading: false });
   }
 }));
 

@@ -724,6 +724,7 @@ export function useDailySalesReportWorkflow(
 
       const labels = {
         billCount: t("report.dailyPrint.billCount"),
+        bills: t("report.dailyPrint.bills"),
         cancelledBills: t("report.dailyPrint.cancelledBills"),
         cashReceived: t("report.dailyPrint.cash"),
         dateTotal: t("report.dailyPrint.dateTotal"),
@@ -736,6 +737,7 @@ export function useDailySalesReportWorkflow(
         printedAt: t("report.dailyPrint.printedAt"),
         printedBy: t("report.dailyPrint.printedBy"),
         revenueSummary: t("report.dailyPrint.revenueSummary"),
+        salesSummary: t("report.dailyPrint.salesSummary"),
         saleDate: t("report.dailyPrint.saleDate"),
         serviceCharge: t("report.columns.serviceCharge"),
         subtotal: t("report.dailyPrint.subtotal"),
@@ -757,6 +759,9 @@ export function useDailySalesReportWorkflow(
 
       // แยก try ของการพิมพ์ผ่าน agent ออกจากแผนสำรอง กันไม่ให้ fallback ที่พังซ้ำถูกจับแล้วเรียกซ้ำสอง
       let agentPrintOutcome: "success" | "fallback" | "failed" = "failed";
+      // Backend's reason when the job never reached a printer (e.g. no printer holds the report role),
+      // so the toast says why instead of the generic "no print data".
+      let agentFailureReason = "";
       try {
         const resolvedContext = await resolveDeviceIdentity();
         const response = await submitReportPrint({
@@ -791,6 +796,7 @@ export function useDailySalesReportWorkflow(
             },
           });
 
+          agentFailureReason = printResult.errorMessage ?? "";
           if (printResult.successCount > 0 && printResult.failedCount === 0) {
             agentPrintOutcome = "success";
           } else if (printResult.failedCount > 0 && printStarted && !isCapacitorNativeApp()) {
@@ -813,7 +819,7 @@ export function useDailySalesReportWorkflow(
 
       showToast({
         title: t("report.printFailed"),
-        description: t("report.printMissingJob"),
+        description: agentFailureReason || t("report.printMissingJob"),
         tone: "error",
       });
     } catch (error) {

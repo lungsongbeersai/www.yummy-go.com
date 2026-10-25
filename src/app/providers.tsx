@@ -19,7 +19,7 @@ import {
 } from "@/lib/capacitor-platform";
 import { LANGUAGE_COOKIE, type Language } from "@/lib/language";
 import { syncNativeStatusBarTheme } from "@/lib/native-theme-bridge";
-import { useAppStore, type FontScale, type ThemeColor, type ThemeMode } from "@/stores/app-store";
+import { useAppStore, type FontScale, type LaoFont, type ThemeColor, type ThemeMode } from "@/stores/app-store";
 import { OrderAlertPopup } from "@/components/layout/order-alert-popup";
 import { Toaster } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -52,6 +52,14 @@ function applyDocumentTheme(theme: ThemeMode) {
 
 function applyDocumentThemeColor(themeColor: ThemeColor) {
   document.documentElement.dataset.themeColor = themeColor;
+}
+
+function applyDocumentLaoFont(laoFont: LaoFont) {
+  document.documentElement.dataset.laoFont = laoFont;
+}
+
+function applyDocumentDecorBackground(decorBackground: boolean) {
+  document.documentElement.dataset.decorBackground = decorBackground ? "on" : "off";
 }
 
 function applyDocumentFontScale(fontScale: FontScale) {
@@ -129,6 +137,8 @@ export function Providers({ children, initialLanguage }: ProvidersProps) {
   const theme = useAppStore((state) => state.theme);
   const themeColor = useAppStore((state) => state.themeColor);
   const fontScale = useAppStore((state) => state.fontScale);
+  const decorBackground = useAppStore((state) => state.decorBackground);
+  const laoFont = useAppStore((state) => state.laoFont);
   const language = useAppStore((state) => state.language);
   const hydrated = useAppStore((state) => state.hydrated);
 
@@ -222,6 +232,16 @@ export function Providers({ children, initialLanguage }: ProvidersProps) {
     if (!mounted || !hydrated) return;
     applyDocumentFontScale(fontScale);
   }, [fontScale, hydrated, mounted]);
+
+  useEffect(() => {
+    if (!mounted || !hydrated) return;
+    applyDocumentDecorBackground(decorBackground);
+  }, [decorBackground, hydrated, mounted]);
+
+  useEffect(() => {
+    if (!mounted || !hydrated) return;
+    applyDocumentLaoFont(laoFont);
+  }, [hydrated, laoFont, mounted]);
 
   useEffect(() => {
     if (!mounted || !hydrated) return;

@@ -26,7 +26,8 @@ describe("DESIGN_SYSTEM", () => {
   it("maps the Lao font into a semantic Tailwind token", () => {
     const stylesheet = readFileSync(resolve(process.cwd(), DESIGN_SYSTEM.tokens.stylesheet), "utf8");
 
-    expect(stylesheet).toContain("--font-lao: var(--font-noto-sans-lao);");
+    expect(stylesheet).toContain("--font-lao: var(--font-lao-ui);");
+    expect(stylesheet).toContain("--font-lao-ui: var(--font-noto-sans-lao);");
   });
 
   it("applies shared font variables from the root layout", () => {

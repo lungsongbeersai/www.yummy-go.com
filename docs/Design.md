@@ -43,6 +43,8 @@ Verified in active use across `src/features/`:
 
 Fonts load through `next/font` in `src/design-system/fonts.ts`. `font-sans` is the default typeface; `font-lao` is required wherever Lao text must render explicitly (Lao is the app's primary language — do not assume Latin-only fallback is acceptable).
 
+The Lao face behind `font-lao` is user-selectable (Appearance → Lao font): Noto Sans Lao (default), Noto Serif Lao, Phetsarath OT or Saysettha OT, through `--font-lao-ui` in `globals.css`. Use `font-lao`/`font-heading`, never one of those faces directly, so the choice applies everywhere; see `Decisions.md`.
+
 ## Theme tokens
 
 Use semantic tokens: `bg-primary`, `text-muted-foreground`, `border-border`, `bg-destructive`, etc. To change the visual theme, edit the light/dark CSS variables in `globals.css` — never hard-code a color in a feature component. `--warning`, `--success`, `--info`, `--pending` (plus their `-foreground` pairs) exist alongside the standard shadcn palette for POS-specific status states (order/table/print states); prefer them over ad hoc color choices for status badges.
@@ -53,7 +55,7 @@ Design and build for the smallest target first, then layer up — never the reve
 
 Concretely:
 
-- Write unprefixed Tailwind utilities for the mobile/base layout, then override upward with `sm:`/`md:`/`lg:` for more space — never the other way around (e.g. `grid-cols-1 md:grid-cols-2`, `flex-col md:flex-row`), matching the existing pattern in `src/features/dashboard/overview/dashboard-widgets.tsx`, `src/features/auth/login/login-client.tsx`, and the report components under `src/features/report/`.
+- Write unprefixed Tailwind utilities for the mobile/base layout, then override upward with `sm:`/`md:`/`lg:` for more space — never the other way around (e.g. `grid-cols-1 md:grid-cols-2`, `flex-col md:flex-row`), matching the existing pattern in `src/features/dashboard/overview/components/dashboard-widgets.tsx`, `src/features/auth/login/login-client.tsx`, and the report components under `src/features/report/`.
 - Don't gate layout on `useIsMobile()` (`src/hooks/use-mobile.ts`) as the default way to branch mobile vs. desktop — that hook exists for genuine structural forks (e.g. table view vs. card view in `src/features/pos/order-queue/order-queue-page.tsx`), not as a substitute for responsive utilities. Prefer CSS breakpoints; reach for the hook only when the two layouts are different component trees, not just different spacing/columns.
 - Verify touch targets and tap spacing at mobile width first (see Accessibility floor below) — a control that's comfortable with a mouse at desktop width is frequently too small once the same markup renders on a phone or the customer-display window.
 - When adding a new page or feature, check it in a narrow viewport before checking it wide. Desktop screen real estate hides layout bugs (overflow, cramped touch targets, truncated text) that only surface once the same markup runs at phone width.

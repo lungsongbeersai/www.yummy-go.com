@@ -155,13 +155,14 @@ describe("renderDailySalesPrintHtml", () => {
 
     expect(html).toContain("@page { size: 80mm auto");
     expect(html).toContain("html, body { width: 74mm");
-    expect(html).toContain("saleDate: 2026-07-13");
+    expect(html).toContain("<span>13/07/2026</span>");
     expect(html).toContain("&lt;script&gt;0011&lt;/script&gt;");
-    expect(html).toContain('class="total-row grand-total"');
+    expect(html).toContain('class="total-row grand-total bold"');
     expect(html).toContain(`href="${WINDOW_OPEN_FONT_STYLESHEET_HREF}"`);
     expect(html).toContain(`body class="${WINDOW_OPEN_FONT_CLASS_NAME}"`);
     expect(html).toContain("document.fonts?.ready");
-    expect(html.indexOf('<div class="total-row grand-total">')).toBeLessThan(html.indexOf('<h2 class="section-title">revenueSummary</h2>'));
+    expect(html.indexOf('<h2 class="section-title bold">salesSummary</h2>')).toBeLessThan(html.indexOf('<div class="total-row grand-total bold">'));
+    expect(html.indexOf('<div class="total-row grand-total bold">')).toBeLessThan(html.indexOf('<h2 class="section-title bold">revenueSummary</h2>'));
   });
 
   it("separates each major section with a full-width CSS divider, matching auto print's { type: \"line\" } (auto print and window.open must always match)", () => {
@@ -175,12 +176,12 @@ describe("renderDailySalesPrintHtml", () => {
     const html = renderDailySalesPrintHtml(data);
 
     expect(html.match(/<div class="divider"><\/div>/g)?.length).toBeGreaterThanOrEqual(3);
-    expect(html).toContain(".divider { border-top: 1px solid #111; }");
+    expect(html).toContain(".divider { border-top: 1px solid #000; }");
   });
 
-  it("shows the item count (not table) on the main invoice row, as one two-column row", () => {
+  it("prints each bill as 'table · invoice' with the amount, and the item count on a lighter line below", () => {
     const data = buildDailySalesPrintData({
-      bills: [bill({ invoiceNumber: "120826-0011", qtyTotal: 5, lineTotal: 150000 })],
+      bills: [bill({ invoiceNumber: "120826-0011", tableName: "T01", qtyTotal: 5, lineTotal: 150000 })],
       dateFrom: "2026-07-13",
       dateTo: "2026-07-13",
       labels,
@@ -188,13 +189,18 @@ describe("renderDailySalesPrintHtml", () => {
     });
     const html = renderDailySalesPrintHtml(data);
 
-    expect(html).toContain("1./ 120826-0011 (5 items)");
-    expect(html).toContain("150,000");
+    expect(html).toContain('<div class="total-row"><span>T01 · 120826-0011</span><span>150,000</span></div>');
+    expect(html).toContain('<p class="sub">5 items</p>');
+    expect(html).not.toContain("1./");
   });
 
-  it("prints the table name on an indented line below the main invoice row", () => {
+  it("keeps a table's bills together, tables in order of their first bill", () => {
     const data = buildDailySalesPrintData({
-      bills: [bill({ invoiceNumber: "120826-0011", tableName: "4" })],
+      bills: [
+        bill({ invoiceNumber: "120826-0011", tableName: "T04" }),
+        bill({ id: "bill-2", invoiceNumber: "120826-0012", tableName: "T07" }),
+        bill({ id: "bill-3", invoiceNumber: "120826-0013", tableName: "T04" }),
+      ],
       dateFrom: "2026-07-13",
       dateTo: "2026-07-13",
       labels,
@@ -202,16 +208,16 @@ describe("renderDailySalesPrintHtml", () => {
     });
     const html = renderDailySalesPrintHtml(data);
 
-    expect(html).toContain('class="invoice-items"');
-    expect(html).toContain("table 4");
-    expect(html.indexOf("1./ 120826-0011 (")).toBeLessThan(html.indexOf("table 4"));
+    expect(html.indexOf("T04 · 120826-0011")).toBeLessThan(html.indexOf("T04 · 120826-0013"));
+    expect(html.indexOf("T04 · 120826-0013")).toBeLessThan(html.indexOf("T07 · 120826-0012"));
   });
 
-  it("prints the Invoice No. / Amount header row exactly once, above every date group instead of repeating it per date", () => {
+  it("heads each date group with the date and its bill count, and no Invoice No. / Amount header row", () => {
     const data = buildDailySalesPrintData({
       bills: [
         bill(),
-        bill({ id: "bill-2", invoiceNumber: "080826-0001", saleDate: "2026-07-14" }),
+        bill({ id: "bill-2", invoiceNumber: "120826-0010" }),
+        bill({ id: "bill-3", invoiceNumber: "080826-0001", saleDate: "2026-07-14" }),
       ],
       dateFrom: "2026-07-13",
       dateTo: "2026-07-14",
@@ -220,11 +226,9 @@ describe("renderDailySalesPrintHtml", () => {
     });
     const html = renderDailySalesPrintHtml(data);
 
-    const headerOccurrences = html.split('<span>invoiceNumber</span><span>totalAmount</span>').length - 1;
-    const headerIndex = html.indexOf("invoiceNumber</span><span>totalAmount");
-    expect(headerOccurrences).toBe(1);
-    expect(headerIndex).toBeLessThan(html.indexOf("saleDate: 2026-07-13"));
-    expect(headerIndex).toBeLessThan(html.indexOf("120826-0011"));
+    expect(html).toContain('<div class="date-head bold"><span>13/07/2026</span><span class="count">2 bills</span></div>');
+    expect(html).toContain('<div class="date-head bold"><span>14/07/2026</span><span class="count">1 bills</span></div>');
+    expect(html).not.toContain("invoiceNumber");
   });
 
   it("draws a separator line between date groups, right after the previous date's total", () => {
@@ -240,18 +244,16 @@ describe("renderDailySalesPrintHtml", () => {
     });
     const html = renderDailySalesPrintHtml(data);
 
-    const firstDateTotalIndex = html.indexOf('<span>dateTotal</span><span>100,000</span>');
-    const secondDateHeaderIndex = html.indexOf("<h2>saleDate: 2026-07-14");
-    const dividerIndex = html.indexOf('<div class="divider divider-section"></div>', firstDateTotalIndex);
+    const firstDateTotalIndex = html.indexOf("<span>dateTotal</span><span>100,000</span>");
+    const secondDateHeaderIndex = html.indexOf("<span>14/07/2026</span>");
+    const dividerIndex = html.indexOf('<div class="divider"></div>', firstDateTotalIndex);
 
     expect(firstDateTotalIndex).toBeGreaterThanOrEqual(0);
     expect(dividerIndex).toBeGreaterThan(firstDateTotalIndex);
     expect(dividerIndex).toBeLessThan(secondDateHeaderIndex);
-    // เว้นระยะเพิ่มหลังเส้นคั่นนี้ (margin-bottom) แทนการเพิ่มเส้นคั่นซ้อน — ให้วันที่ถัดไปหายใจ
-    expect(html).toContain(".divider-section { margin-bottom: 2mm; }");
   });
 
-  it("prints a total-for-the-date row after each date group's invoices", () => {
+  it("prints a bold total-for-the-date row after each date group's invoices", () => {
     const data = buildDailySalesPrintData({
       bills: [
         bill({ invoiceNumber: "120826-0011", lineTotal: 100000 }),
@@ -264,8 +266,24 @@ describe("renderDailySalesPrintHtml", () => {
     });
     const html = renderDailySalesPrintHtml(data);
 
-    expect(html).toContain('class="total-row strong"><span>dateTotal</span><span>150,000</span>');
+    expect(html).toContain('class="total-row date-total bold"><span>dateTotal</span><span>150,000</span>');
     expect(html.indexOf("120826-0010")).toBeLessThan(html.indexOf("dateTotal"));
+  });
+
+  it("keeps bill rows and the sales-summary rows at normal weight; only headings and totals are bold", () => {
+    const data = buildDailySalesPrintData({
+      bills: [bill()],
+      dateFrom: "2026-07-13",
+      dateTo: "2026-07-13",
+      labels,
+      user,
+    });
+    const html = renderDailySalesPrintHtml(data);
+
+    expect(html).toContain('<div class="total-row"><span>A1 · 120826-0011</span>');
+    expect(html).toContain('<div class="total-row"><span>billCount</span><span>1</span></div>');
+    expect(html).toContain('<div class="total-row"><span>subtotal</span>');
+    expect(html).not.toContain('class="total-row strong"');
   });
 
   it("does not append a currency symbol to any printed amount", () => {
@@ -341,9 +359,9 @@ describe("daily sales revenue summary placement", () => {
     expect(ops[headingIndex - 1]).toEqual({ type: "spacer", px: 12 });
     expect(ops[headingIndex + 1]).toEqual({ type: "spacer", px: 12 });
 
-    expect(body.indexOf('<div class="total-row grand-total">')).toBeLessThan(body.indexOf('<section class="revenue-summary">'));
-    expect(body.match(/<h2 class="section-title">revenueSummary<\/h2>/g)).toHaveLength(1);
-    expect(Array.from(section.matchAll(/<div class="total-row[^\"]*"><span>([^<]*)<\/span><span>([^<]*)<\/span><\/div>/g), (match) => [match[1], match[2]])).toEqual(expectedRows);
+    expect(body.indexOf('<div class="total-row grand-total bold">')).toBeLessThan(body.indexOf('<section class="revenue-summary">'));
+    expect(body.match(/<h2 class="section-title bold">revenueSummary<\/h2>/g)).toHaveLength(1);
+    expect(Array.from(section.matchAll(/<div class="total-row[^"]*"><span>([^<]*)<\/span><span>([^<]*)<\/span><\/div>/g), (match) => [match[1], match[2]])).toEqual(expectedRows);
     for (const label of ["billCount", "subtotal", "discount", "serviceCharge", "vat", "grandTotal"]) {
       expect(ops.findIndex((op) => op.type === "lr" && op.left === label)).toBeLessThan(headingIndex);
       expect(section).not.toContain(`<span>${label}</span>`);
@@ -370,7 +388,7 @@ describe("buildDailySalesReportOps", () => {
     });
   });
 
-  it("sizes every text/lr op 4pt larger than the previous baseline", () => {
+  it("keeps the header and total sizes", () => {
     const data = buildDailySalesPrintData({
       bills: [bill()],
       dateFrom: "2026-07-13",
@@ -386,7 +404,7 @@ describe("buildDailySalesReportOps", () => {
     const grandTotalOp = ops.find((op) => op.left === "grandTotal");
 
     expect(titleOp?.size).toBe(36);
-    expect(storeOp?.size).toBe(28);
+    expect(storeOp?.size).toBe(32);
     expect(regularLrOp?.size).toBe(28);
     expect(grandTotalOp?.size).toBe(34);
   });
@@ -409,6 +427,21 @@ describe("buildDailySalesReportOps", () => {
     });
   });
 
+  it("does not send text_role, which this report's print job does not accept", () => {
+    const data = buildDailySalesPrintData({
+      bills: [bill()],
+      dateFrom: "2026-07-13",
+      dateTo: "2026-07-13",
+      labels,
+      user,
+    });
+
+    buildDailySalesReportOps(data).forEach((op) => {
+      expect(op).not.toHaveProperty("text_role");
+      expect(op).not.toHaveProperty("right_size");
+    });
+  });
+
   it("orders the header like receiptHeaderHtml: store name, then branch, then title", () => {
     const data = buildDailySalesPrintData({
       bills: [bill()],
@@ -428,7 +461,7 @@ describe("buildDailySalesReportOps", () => {
     expect(titleIndex).toBeGreaterThan(branchIndex);
   });
 
-  it("prints bill count as a plain number, not money-formatted, and no longer prints a total item count", () => {
+  it("prints bill count as a plain, normal-weight number under the sales-summary heading", () => {
     const data = buildDailySalesPrintData({
       bills: [bill()],
       dateFrom: "2026-07-13",
@@ -438,26 +471,13 @@ describe("buildDailySalesReportOps", () => {
     });
 
     const ops = buildDailySalesReportOps(data);
-    const billCountOp = ops.find((op) => op.left === "billCount");
-    const totalQuantityOp = ops.find((op) => op.left === "totalQuantity");
+    const headingIndex = ops.findIndex((op) => op.text === "salesSummary");
+    const billCountIndex = ops.findIndex((op) => op.left === "billCount");
 
-    expect(billCountOp?.right).toBe(String(data.summary.activeBillCount));
-    expect(totalQuantityOp).toBeUndefined();
-  });
-
-  it('bolds the bill-count row, matching window.open\'s class="total-row strong" (auto print and window.open must always match)', () => {
-    const data = buildDailySalesPrintData({
-      bills: [bill()],
-      dateFrom: "2026-07-13",
-      dateTo: "2026-07-13",
-      labels,
-      user,
-    });
-
-    const ops = buildDailySalesReportOps(data);
-    const billCountOp = ops.find((op) => op.left === "billCount");
-
-    expect(billCountOp?.bold).toBe(true);
+    expect(ops[headingIndex]).toMatchObject({ type: "text", bold: true });
+    expect(billCountIndex).toBe(headingIndex + 2);
+    expect(ops[billCountIndex]).toMatchObject({ right: String(data.summary.activeBillCount), bold: false });
+    expect(ops.find((op) => op.left === "totalQuantity")).toBeUndefined();
   });
 
   it("does not append a currency symbol to any op's right-hand value", () => {
@@ -475,9 +495,9 @@ describe("buildDailySalesReportOps", () => {
     });
   });
 
-  it("shows the item count on the main invoice row, and the table name on a separate indented text line", () => {
+  it("prints each bill as a normal-weight 'table · invoice' row, then its item count, then a small spacer", () => {
     const data = buildDailySalesPrintData({
-      bills: [bill({ invoiceNumber: "120826-0011", tableName: "4", qtyTotal: 5, lineTotal: 150000 })],
+      bills: [bill({ invoiceNumber: "120826-0011", tableName: "T01", qtyTotal: 5, lineTotal: 150000 })],
       dateFrom: "2026-07-13",
       dateTo: "2026-07-13",
       labels,
@@ -485,44 +505,19 @@ describe("buildDailySalesReportOps", () => {
     });
 
     const ops = buildDailySalesReportOps(data);
-    const invoiceOp = ops.find((op) => op.left === "1./ 120826-0011 (5 items)");
-    const invoiceIndex = ops.indexOf(invoiceOp!);
-    const tableOp = ops[invoiceIndex + 1];
+    const invoiceIndex = ops.findIndex((op) => op.left === "T01 · 120826-0011");
 
-    expect(invoiceOp?.right).toBe("150,000");
-    expect(tableOp?.type).toBe("text");
-    expect(tableOp?.text).toBe("  table 4");
+    expect(ops[invoiceIndex]).toMatchObject({ type: "lr", right: "150,000", bold: false });
+    expect(ops[invoiceIndex + 1]).toMatchObject({ type: "text", text: "5 items", bold: false });
+    expect(ops[invoiceIndex + 2]).toEqual({ type: "spacer", px: 4 });
   });
 
-  it("numbers invoices starting at 1 within each date, resetting for the next date, in both outputs", () => {
+  it("keeps a table's bills together, tables in order of their first bill", () => {
     const data = buildDailySalesPrintData({
       bills: [
-        bill({ invoiceNumber: "120826-0011", saleDate: "2026-07-13" }),
-        bill({ id: "bill-2", invoiceNumber: "120826-0010", saleDate: "2026-07-13" }),
-        bill({ id: "bill-3", invoiceNumber: "080826-0001", saleDate: "2026-07-14" }),
-      ],
-      dateFrom: "2026-07-13",
-      dateTo: "2026-07-14",
-      labels,
-      user,
-    });
-
-    const ops = buildDailySalesReportOps(data);
-    const html = renderDailySalesPrintHtml(data);
-
-    expect(ops.find((op) => op.left === "1./ 120826-0011 (2 items)")).toBeDefined();
-    expect(ops.find((op) => op.left === "2./ 120826-0010 (2 items)")).toBeDefined();
-    expect(ops.find((op) => op.left === "1./ 080826-0001 (2 items)")).toBeDefined();
-    expect(html).toContain("1./ 120826-0011 (2 items)");
-    expect(html).toContain("2./ 120826-0010 (2 items)");
-    expect(html).toContain("1./ 080826-0001 (2 items)");
-  });
-
-  it("prints a total-for-the-date lr row right after each date group's invoices", () => {
-    const data = buildDailySalesPrintData({
-      bills: [
-        bill({ invoiceNumber: "120826-0011", lineTotal: 100000 }),
-        bill({ id: "bill-2", invoiceNumber: "120826-0010", lineTotal: 50000 }),
+        bill({ invoiceNumber: "120826-0011", tableName: "T04" }),
+        bill({ id: "bill-2", invoiceNumber: "120826-0012", tableName: "T07" }),
+        bill({ id: "bill-3", invoiceNumber: "120826-0013", tableName: "T04" }),
       ],
       dateFrom: "2026-07-13",
       dateTo: "2026-07-13",
@@ -530,15 +525,33 @@ describe("buildDailySalesReportOps", () => {
       user,
     });
 
-    const ops = buildDailySalesReportOps(data);
-    const dateTotalOp = ops.find((op) => op.left === "dateTotal");
-    const lastInvoiceIndex = ops.findIndex((op) => op.left === "2./ 120826-0010 (2 items)");
+    const invoiceRows = buildDailySalesReportOps(data)
+      .filter((op) => op.left?.includes(" · "))
+      .map((op) => op.left);
 
-    expect(dateTotalOp?.right).toBe("150,000");
-    expect(ops.indexOf(dateTotalOp!)).toBeGreaterThan(lastInvoiceIndex);
+    expect(invoiceRows).toEqual(["T04 · 120826-0011", "T04 · 120826-0013", "T07 · 120826-0012"]);
   });
 
-  it("draws a divider right before the date-total row, matching window.open's divider before that row (auto print and window.open must always match)", () => {
+  it("heads each date with a bold date / bill-count row followed by a divider", () => {
+    const data = buildDailySalesPrintData({
+      bills: [bill(), bill({ id: "bill-2", invoiceNumber: "120826-0010" })],
+      dateFrom: "2026-07-01",
+      dateTo: "2026-07-20",
+      labels,
+      user,
+    });
+
+    const ops = buildDailySalesReportOps(data);
+    const dateIndex = ops.findIndex((op) => op.left === "13/07/2026");
+
+    expect(ops[dateIndex]).toMatchObject({ type: "lr", right: "2 bills", bold: true });
+    expect(ops[dateIndex - 1]).toEqual({ type: "line" });
+    expect(ops[dateIndex + 1]).toEqual({ type: "line" });
+    expect(ops[dateIndex + 2]?.left).toBe("A1 · 120826-0011");
+    expect(ops.find((op) => op.left === "invoiceNumber")).toBeUndefined();
+  });
+
+  it("prints a bold total-for-the-date lr row after each date group's invoices, with a divider before it", () => {
     const data = buildDailySalesPrintData({
       bills: [
         bill({ invoiceNumber: "120826-0011", lineTotal: 100000 }),
@@ -552,46 +565,11 @@ describe("buildDailySalesReportOps", () => {
 
     const ops = buildDailySalesReportOps(data);
     const dateTotalIndex = ops.findIndex((op) => op.left === "dateTotal");
+    const lastInvoiceIndex = ops.findIndex((op) => op.left === "A1 · 120826-0010");
 
+    expect(ops[dateTotalIndex]).toMatchObject({ right: "150,000", bold: true });
+    expect(dateTotalIndex).toBeGreaterThan(lastInvoiceIndex);
     expect(ops[dateTotalIndex - 1]).toEqual({ type: "line" });
-  });
-
-  it("orders the header row, then the date line, then the first invoice row — each pair separated by a divider", () => {
-    const data = buildDailySalesPrintData({
-      bills: [bill({ invoiceNumber: "120826-0011", saleDate: "2026-07-13" })],
-      dateFrom: "2026-07-01",
-      dateTo: "2026-07-20",
-      labels,
-      user,
-    });
-
-    const ops = buildDailySalesReportOps(data);
-    const headerIndex = ops.findIndex((op) => op.left === "invoiceNumber" && op.right === "totalAmount");
-    const dividerAfterHeaderIndex = headerIndex + 1;
-    const dateIndex = ops.findIndex((op) => op.text === "saleDate: 2026-07-13");
-    const dividerAfterDateIndex = dateIndex + 1;
-    const invoiceIndex = ops.findIndex((op) => op.left === "1./ 120826-0011 (2 items)");
-
-    expect(headerIndex).toBeGreaterThanOrEqual(0);
-    expect(ops[dividerAfterHeaderIndex]?.type).toBe("line");
-    expect(dateIndex).toBe(dividerAfterHeaderIndex + 1);
-    expect(ops[dividerAfterDateIndex]?.type).toBe("line");
-    expect(invoiceIndex).toBe(dividerAfterDateIndex + 1);
-  });
-
-  it('does not bold the Invoice No. / Amount header row, matching window.open\'s unstyled .invoice-table-header (auto print and window.open must always match)', () => {
-    const data = buildDailySalesPrintData({
-      bills: [bill({ invoiceNumber: "120826-0011", saleDate: "2026-07-13" })],
-      dateFrom: "2026-07-13",
-      dateTo: "2026-07-13",
-      labels,
-      user,
-    });
-
-    const ops = buildDailySalesReportOps(data);
-    const headerOp = ops.find((op) => op.left === "invoiceNumber" && op.right === "totalAmount");
-
-    expect(headerOp?.bold).toBe(false);
   });
 
   it("draws a separator line between date groups, right after the previous date's total", () => {
@@ -608,15 +586,15 @@ describe("buildDailySalesReportOps", () => {
 
     const ops = buildDailySalesReportOps(data);
     const firstDateTotalIndex = ops.findIndex((op) => op.left === "dateTotal");
-    const secondDateHeaderIndex = ops.findIndex((op) => op.text === "saleDate: 2026-07-14");
+    const secondDateHeaderIndex = ops.findIndex((op) => op.left === "14/07/2026");
 
-    // เส้นคั่นตามด้วยบรรทัดว่าง (ไม่ใช่เส้นคั่นซ้อน) ให้วันที่ถัดไปหายใจ ตรงกับฝั่ง window.open
+    // เส้นคั่นตามด้วยบรรทัดว่าง (ไม่ใช่เส้นคั่นซ้อน) ให้วันที่ถัดไปหายใจ
     expect(ops[firstDateTotalIndex + 1]).toEqual({ type: "line" });
     expect(ops[firstDateTotalIndex + 2]).toMatchObject({ type: "blank", n: 1 });
     expect(secondDateHeaderIndex).toBe(firstDateTotalIndex + 3);
   });
 
-  it("prints the exact same invoice left-label and table sub-line text as the window.open HTML, so both outputs match", () => {
+  it("prints the exact same bill row and item-count text as the window.open HTML, so both outputs match", () => {
     const data = buildDailySalesPrintData({
       bills: [bill({ invoiceNumber: "080826-0002", tableName: "12", qtyTotal: 52, lineTotal: 9260636 })],
       dateFrom: "2026-07-13",
@@ -627,41 +605,12 @@ describe("buildDailySalesReportOps", () => {
 
     const ops = buildDailySalesReportOps(data);
     const html = renderDailySalesPrintHtml(data);
-    const invoiceOp = ops.find((op) => op.left?.includes("080826-0002"));
+    const invoiceIndex = ops.findIndex((op) => op.left?.includes("080826-0002"));
 
-    expect(invoiceOp?.left).toBe("1./ 080826-0002 (52 items)");
-    expect(html).toContain("1./ 080826-0002 (52 items)");
-    expect(invoiceOp?.right).toBe("9,260,636");
-    expect(html).toContain("9,260,636");
-    expect(html).toContain("table 12");
-  });
-
-  it("draws the Invoice No. / Amount header exactly once, with a divider before and after it, in both outputs (auto print and window.open must always match)", () => {
-    const data = buildDailySalesPrintData({
-      bills: [
-        bill({ invoiceNumber: "120826-0011", saleDate: "2026-07-13" }),
-        bill({ id: "bill-2", invoiceNumber: "080826-0001", saleDate: "2026-07-14" }),
-      ],
-      dateFrom: "2026-07-13",
-      dateTo: "2026-07-14",
-      labels,
-      user,
-    });
-
-    const ops = buildDailySalesReportOps(data);
-    const html = renderDailySalesPrintHtml(data);
-
-    // window.open: the header row now appears once, above every date group, with its own border-bottom.
-    expect(html.match(/class="total-row invoice-table-header"/g)?.length).toBe(1);
-    expect(html.match(/<h2>saleDate:/g)?.length).toBe(data.dateGroups.length);
-
-    // auto print: the header lr op appears once, with a divider both before and after it.
-    const headerIndexes = ops
-      .map((op, index) => (op.left === "invoiceNumber" && op.right === "totalAmount" ? index : -1))
-      .filter((index) => index >= 0);
-    expect(headerIndexes).toHaveLength(1);
-    const headerIndex = headerIndexes[0];
-    expect(ops[headerIndex - 1]?.type).toBe("line");
-    expect(ops[headerIndex + 1]?.type).toBe("line");
+    expect(ops[invoiceIndex]?.left).toBe("12 · 080826-0002");
+    expect(html).toContain("<span>12 · 080826-0002</span><span>9,260,636</span>");
+    expect(ops[invoiceIndex]?.right).toBe("9,260,636");
+    expect(ops[invoiceIndex + 1]?.text).toBe("52 items");
+    expect(html).toContain('<p class="sub">52 items</p>');
   });
 });

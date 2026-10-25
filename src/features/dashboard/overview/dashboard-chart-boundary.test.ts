@@ -5,12 +5,14 @@ import { describe, expect, it } from "vitest";
 
 const overviewDir = dirname(fileURLToPath(import.meta.url));
 
-function tsxFiles(directory: string): string[] {
+// Every non-test source file of the dashboard, .ts included: a static import from the page or
+// from a pure helper would pull recharts into the eager chunk just the same.
+function sourceFiles(directory: string): string[] {
   return readdirSync(directory, { withFileTypes: true }).flatMap((entry) => {
     const fullPath = join(directory, entry.name);
 
-    if (entry.isDirectory()) return tsxFiles(fullPath);
-    return entry.isFile() && entry.name.endsWith(".tsx") ? [fullPath] : [];
+    if (entry.isDirectory()) return sourceFiles(fullPath);
+    return entry.isFile() && /\.tsx?$/.test(entry.name) && !/\.test\.tsx?$/.test(entry.name) ? [fullPath] : [];
   });
 }
 
@@ -18,19 +20,37 @@ function normalizedRelativePath(path: string) {
   return relative(overviewDir, path).split(sep).join("/");
 }
 
+function source(path: string) {
+  return readFileSync(join(overviewDir, path), "utf8");
+}
+
+// Direct imports only: a module that re-exported recharts would slip through, so keep chart code
+// in the one module below rather than adding a barrel.
 describe("dashboard chart bundle boundary", () => {
-  it("keeps dashboard recharts imports inside the chart widgets module", () => {
-    const filesWithRecharts = tsxFiles(overviewDir)
-      .filter((path) => readFileSync(path, "utf8").includes("from \"recharts\""))
+  it("keeps recharts and the chart primitives inside the chart widgets module", () => {
+    const filesWithChartImports = sourceFiles(overviewDir)
+      .filter((path) => /from\s+["'](?:recharts|@\/components\/ui\/chart)["']/.test(readFileSync(path, "utf8")))
       .map(normalizedRelativePath);
 
-    expect(filesWithRecharts).toEqual(["dashboard-chart-widgets.tsx"]);
+    expect(filesWithChartImports).toEqual(["components/dashboard-chart-widgets.tsx"]);
   });
 
-  it("keeps lightweight dashboard widgets free from chart primitives", () => {
-    const widgets = readFileSync(join(overviewDir, "dashboard-widgets.tsx"), "utf8");
+  // "Today" is one day with no trend to draw, so the default view must never fetch recharts.
+  it("reaches the chart module only through a dynamic import", () => {
+    const staticImports = sourceFiles(overviewDir)
+      .filter((path) => /from\s+["'][^"']*dashboard-chart-widgets["']/.test(readFileSync(path, "utf8")))
+      .map(normalizedRelativePath);
 
-    expect(widgets).not.toContain("from \"recharts\"");
-    expect(widgets).not.toContain("@/components/ui/chart");
+    expect(staticImports).toEqual([]);
+    expect(source("components/dashboard-detail-widgets.tsx")).toContain("import(\"./dashboard-chart-widgets\")");
+  });
+
+  it("keeps the detail rows out of the page's eager chunk", () => {
+    const staticImports = sourceFiles(overviewDir)
+      .filter((path) => /from\s+["'][^"']*dashboard-detail-widgets["']/.test(readFileSync(path, "utf8")))
+      .map(normalizedRelativePath);
+
+    expect(staticImports).toEqual([]);
+    expect(source("dashboard-page.tsx")).toContain("import(\"./components/dashboard-detail-widgets\")");
   });
 });

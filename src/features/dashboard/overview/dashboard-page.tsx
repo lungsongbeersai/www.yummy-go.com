@@ -3,22 +3,23 @@
 import dynamic from "next/dynamic";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Lock } from "lucide-react";
+import { Lock, RefreshCw } from "lucide-react";
 import { useShallow } from "zustand/react/shallow";
+import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { Empty, EmptyHeader, EmptyTitle } from "@/components/ui/empty";
+import { Empty, EmptyContent, EmptyHeader, EmptyTitle } from "@/components/ui/empty";
 import { menuGrantsPath } from "@/components/layout/shell-menu-helpers";
 import { useSidebarPermissionAccess } from "@/hooks/use-sidebar-permission-access";
+import { useVisualEffectsTier } from "@/hooks/use-visual-effects-tier";
 import { cn } from "@/lib/utils";
 import {
   DashboardAlerts,
-  DashboardChartGridFallback,
+  DashboardDetailFallback,
   DashboardFilterBar,
   DashboardHeader,
-  DashboardKpiGrid,
+  DashboardHeroRow,
   DashboardPageSkeleton,
-  type DashboardCopy,
-} from "@/features/dashboard/overview/dashboard-widgets";
+} from "@/features/dashboard/overview/components/dashboard-widgets";
 import {
   applyPeriodMonth,
   applyPeriodMonthEnd,
@@ -31,8 +32,11 @@ import {
   createDefaultFilters,
   DASHBOARD_PERIOD_TYPES,
   optionList,
+  skylineColumns,
+  sparklineValues,
   text,
   yearSelectOptions,
+  type DashboardCopy,
   type DashboardFilters,
   type DashboardPeriodType,
   type SelectOption,
@@ -46,15 +50,13 @@ import { useResetOnDeps } from "@/hooks/use-reset-on-change";
 
 const dashboardCopyKeys = [
   "accounting",
-  "activeQuery",
-  "amount",
   "apply",
   "available",
   "avgBill",
-  "billCount",
-  "billUnit",
   "balance",
   "bestProduct",
+  "billCount",
+  "billUnit",
   "branch",
   "byQty",
   "byRevenue",
@@ -63,74 +65,64 @@ const dashboardCopyKeys = [
   "cash",
   "channels",
   "collectionRate",
-  "copied",
-  "copyQuery",
   "cumulativePercent",
-  "cutoff",
   "daily",
   "dailyAverage",
   "dailySales",
   "dailySalesSubtitle",
+  "dailyTable",
   "days",
   "debt",
   "discount",
   "discountRate",
   "driveRevenue",
   "endDate",
-  "export",
   "highestRevenueProduct",
   "insights",
-  "lang",
   "ledger",
   "mainChannel",
-  "mixed",
   "mixedPayment",
-  "month",
   "monthFrom",
   "monthTo",
   "monthly",
+  "monthlyTotals",
   "noData",
-  "occupied",
+  "now",
   "occupancy",
+  "occupied",
   "orderChannels",
   "orderShare",
   "orders",
-  "paid",
   "paidTotal",
-  "pareto",
-  "paretoHint",
   "paymentSplitWarning",
-  "paymentSplit",
-  "payments",
   "peakDay",
   "periodType",
   "products",
   "productsSold",
   "qty",
-  "reportMonth",
-  "reset",
+  "refresh",
+  "retry",
   "revenue",
   "revenueShare",
   "shareOfQty",
+  "singleDayHint",
   "startDate",
-  "serviceCharge",
   "tableLoad",
-  "tables",
   "tableStatus",
   "thisMonth",
   "title",
+  "today",
   "top",
   "topProducts",
-  "topShare",
   "totalBills",
   "trackedTotal",
   "transfer",
   "unallocatedMixedPayment",
-  "unpaidRate",
-  "vat",
+  "unappliedChanges",
   "waiting",
   "warnings",
   "watchProduct",
+  "weeklyTotals",
   "year",
   "yearFrom",
   "yearTo",
@@ -156,19 +148,24 @@ function filtersKey(filters: Pick<DashboardFilters, "end_date" | "start_date">) 
   return [filters.start_date, filters.end_date].join("|");
 }
 
-const DashboardSalesGrid = dynamic(
-  () => import("./dashboard-chart-widgets").then((module) => module.DashboardSalesGrid),
-  { loading: () => <DashboardChartGridFallback variant="sales" />, ssr: false },
+// What the user has picked, as opposed to filtersKey (dates only) which matches responses.
+function scopeKey(filters: Pick<DashboardFilters, "end_date" | "periodType" | "start_date">) {
+  return [filters.periodType, filters.start_date, filters.end_date].join("|");
+}
+
+function rangeLabel(start: string, end: string) {
+  if (!start && !end) return "";
+  return start === end ? start : `${start} – ${end}`;
+}
+
+const DashboardSalesRow = dynamic(
+  () => import("./components/dashboard-detail-widgets").then((module) => module.DashboardSalesRow),
+  { loading: () => <DashboardDetailFallback variant="sales" />, ssr: false },
 );
 
-const DashboardProductsGrid = dynamic(
-  () => import("./dashboard-chart-widgets").then((module) => module.DashboardProductsGrid),
-  { loading: () => <DashboardChartGridFallback variant="products" />, ssr: false },
-);
-
-const DashboardHealthGrid = dynamic(
-  () => import("./dashboard-chart-widgets").then((module) => module.DashboardHealthGrid),
-  { loading: () => <DashboardChartGridFallback variant="health" />, ssr: false },
+const DashboardProductsRow = dynamic(
+  () => import("./components/dashboard-detail-widgets").then((module) => module.DashboardProductsRow),
+  { loading: () => <DashboardDetailFallback variant="products" />, ssr: false },
 );
 
 // Dashboard ("/") ก็เป็นแค่ MenuItem ตัวหนึ่งที่แอดมินให้สิทธิ์ได้เหมือนเมนูอื่น (ผ่านจัดการเมนู/
@@ -196,11 +193,12 @@ export function DashboardPage() {
 // จริงยาวเกินจอได้ตามดีไซน์) ส่วนนี้เนื้อหามีแค่การ์ดข้อความสั้น ๆ จึงต้องกำหนดความสูงให้พอดี
 // กับพื้นที่ที่เหลือใต้ header เอง (คำนวณจาก --app-shell-header-height เดียวกับที่ AppShell ใช้)
 // ไม่ใช้ skeleton เต็มหน้าแบบ DashboardPageSkeleton เพราะสูงเกินพื้นที่ที่มีจริง
+// vh ก่อนแล้วค่อยเป็น dvh เมื่อรองรับ: WebView 101 ของ Swan 1 ไม่รู้จัก dvh เลย
 function DashboardAccessRestricted() {
   const { t } = useTranslation();
 
   return (
-    <div className="mx-auto flex h-[calc(100dvh-var(--app-shell-header-height)-2rem)] w-full max-w-3xl items-center justify-center overflow-hidden lg:h-[calc(100dvh-var(--app-shell-header-height)-3rem)]">
+    <div className="mx-auto flex h-[calc(100vh-var(--app-shell-header-height)-2rem)] w-full max-w-3xl items-center justify-center overflow-hidden supports-[height:100dvh]:h-[calc(100dvh-var(--app-shell-header-height)-2rem)] lg:h-[calc(100vh-var(--app-shell-header-height)-3rem)] lg:supports-[height:100dvh]:h-[calc(100dvh-var(--app-shell-header-height)-3rem)]">
       <Card className="w-full max-w-sm border-border/80 text-center shadow-lg">
         <CardContent className="flex flex-col items-center gap-3 p-8">
           <div className="flex size-14 items-center justify-center rounded-full bg-destructive/10 text-destructive">
@@ -220,13 +218,15 @@ function DashboardAccessRestricted() {
 
 function DashboardPageContent() {
   const { t } = useTranslation();
+  const tier = useVisualEffectsTier();
   const user = useAuthStore((state) => state.user);
   const language = useAppStore((state) => state.language);
-  const { data, error, loadDashboard, loading } = useDashboardStore(
+  const { data, error, loadDashboard, loadedParams, loading } = useDashboardStore(
     useShallow((state) => ({
       data: state.data,
       error: state.error,
       loadDashboard: state.load,
+      loadedParams: state.loadedParams,
       loading: state.loading,
     })),
   );
@@ -323,15 +323,16 @@ function DashboardPageContent() {
 
     return options;
   }, [branches, language, userBranchName, userBranchUuid]);
-  const periodLabel = useMemo(() => {
-    const start = text(
-      model.requestParams.start_date,
-      appliedFilters.start_date,
-    );
-    const end = text(model.requestParams.end_date, appliedFilters.end_date);
-    if (!start && !end) return "";
-    return start === end ? start : `${start} - ${end}`;
-  }, [appliedFilters.end_date, appliedFilters.start_date, model.requestParams]);
+  const activeBranchLabel =
+    branchOptions.find((option) => option.value === activeBranchUuid)?.label ?? "";
+  const periodLabel = useMemo(
+    () =>
+      rangeLabel(
+        text(model.requestParams.start_date, appliedFilters.start_date),
+        text(model.requestParams.end_date, appliedFilters.end_date),
+      ),
+    [appliedFilters.end_date, appliedFilters.start_date, model.requestParams],
+  );
   const productSummary = useMemo(
     () => asRow(model.dashboard.product_summary),
     [model.dashboard],
@@ -341,6 +342,43 @@ function DashboardPageContent() {
     [model.requestParams],
   );
   const responseFilterKey = filtersKey(responseFilters);
+  const skyline = useMemo(
+    () => skylineColumns(model.trendRows, model.paymentTrendRows, model.peakRevenueDay?.date ?? null),
+    [model.paymentTrendRows, model.peakRevenueDay, model.trendRows],
+  );
+  const dailyRows = model.trendRows.length ? model.trendRows : model.paymentTrendRows;
+  const ordersSparkline = useMemo(() => sparklineValues(dailyRows, "orders"), [dailyRows]);
+  const avgBillSparkline = useMemo(() => sparklineValues(dailyRows, "avgBill"), [dailyRows]);
+
+  // Compare what was asked for with the request whose numbers are on screen. Another branch or
+  // period dims the page — while it loads, and also after it failed, when the old numbers are
+  // all there is. The header then names the branch the numbers belong to, so a cashier never
+  // reads one branch's money under another's name. A Top-N-only change dims just the product
+  // list; a same-scope refresh dims nothing.
+  const scopeMismatch =
+    loadedParams !== null &&
+    [loadedParams.branch_uuid_fk, loadedParams.start_date, loadedParams.end_date].join("|") !==
+      [activeBranchUuid, appliedFilters.start_date, appliedFilters.end_date].join("|");
+  const topChanging = loading && loadedParams !== null && !scopeMismatch && String(loadedParams.top ?? "") !== top;
+  const shownBranchUuid = loadedParams?.branch_uuid_fk ?? activeBranchUuid;
+  const shownBranchLabel =
+    branchOptions.find((option) => option.value === shownBranchUuid)?.label ?? activeBranchLabel;
+  // The data's own range decides whether there is a daily trend to draw.
+  const shownStart = text(model.requestParams.start_date, loadedParams?.start_date ?? appliedFilters.start_date);
+  const shownEnd = text(model.requestParams.end_date, loadedParams?.end_date ?? appliedFilters.end_date);
+  const isSingleDay = shownStart === shownEnd;
+  // The staged fields differ from both what was applied and what the backend answered with
+  // (the response may normalise dates), so Apply has something to do.
+  const isDirty =
+    scopeKey(filters) !== scopeKey(appliedFilters) &&
+    scopeKey(filters) !== scopeKey({ ...appliedFilters, ...responseFilters });
+  const today = createDefaultFilters().start_date;
+  const periodSummary =
+    appliedFilters.periodType === "daily" &&
+    appliedFilters.start_date === today &&
+    appliedFilters.end_date === today
+      ? copy.today
+      : rangeLabel(appliedFilters.start_date, appliedFilters.end_date);
 
   const load = useCallback(
     async (targetFilters: DashboardFilters, targetTop: string) => {
@@ -396,12 +434,33 @@ function DashboardPageContent() {
     setAppliedFilters({ ...filters });
   }, [filters]);
 
-  const handleReset = useCallback(() => {
+  // "Today" is the untouched default, so the business-day rollover may advance it again.
+  const handleToday = useCallback(() => {
     isAutoTodayRef.current = true;
     const nextFilters = createDefaultFilters();
     setFilters(nextFilters);
     setAppliedFilters(nextFilters);
   }, []);
+
+  // The flag must drop before the state changes, or the rollover effect below would put the
+  // view back to today on the next focus or 5-minute tick.
+  const handleThisMonth = useCallback(() => {
+    isAutoTodayRef.current = false;
+    const nextFilters = applyPeriodType(createDefaultFilters(), "monthly");
+    setFilters(nextFilters);
+    setAppliedFilters(nextFilters);
+  }, []);
+
+  const handleReload = useCallback(() => {
+    void load(appliedFilters, top);
+  }, [appliedFilters, load, top]);
+
+  // One retry for whatever failed: the branch list error and the dashboard error can share a
+  // message (e.g. "Network Error") and be shown as a single alert.
+  const handleRetry = useCallback(() => {
+    if (branchError && storeUuid) void loadBranches(storeUuid, user?.branch_uuid).catch(() => undefined);
+    void load(appliedFilters, top);
+  }, [appliedFilters, branchError, load, loadBranches, storeUuid, top, user?.branch_uuid]);
 
   const handleTopChange = useCallback((value: string) => {
     setTop(value);
@@ -468,17 +527,31 @@ function DashboardPageContent() {
     (message, index, all): message is string => Boolean(message) && all.indexOf(message) === index,
   );
 
-  // Reading order = priority: filters → the four headline KPIs → how sales moved and how
-  // they were paid → what sold and where → accounting detail and things to watch.
+  // Reading order = priority: filters → the plate and the four numbers that explain it → how
+  // sales moved and how they were paid → what sold and where → tables and things to watch.
   return (
-    <div className="flex flex-col gap-4 tabular-nums">
-      <DashboardHeader copy={copy} filtersMeta={model.filters} section={model.section} />
+    <div data-fx={tier} className="flex flex-col gap-4 tabular-nums xl:gap-5">
+      <DashboardHeader
+        branchLabel={shownBranchLabel}
+        copy={copy}
+        filtersMeta={model.filters}
+        loading={loading}
+        onRefresh={handleReload}
+        scopeLoadingLabel={
+          loading && scopeMismatch
+            ? [activeBranchLabel, rangeLabel(appliedFilters.start_date, appliedFilters.end_date)].filter(Boolean).join(" · ")
+            : null
+        }
+        section={model.section}
+      />
       <DashboardFilterBar
         activeBranchUuid={activeBranchUuid}
+        branchLabel={activeBranchLabel}
         branchLoading={branchLoading}
         branchOptions={branchOptions}
         copy={copy}
         filters={filters}
+        isDirty={isDirty}
         loading={loading}
         monthOptions={monthOptions}
         onApply={handleApply}
@@ -489,52 +562,75 @@ function DashboardPageContent() {
         onPeriodTypeChange={handlePeriodTypeChange}
         onPeriodYearChange={handlePeriodYearChange}
         onPeriodYearEndChange={handlePeriodYearEndChange}
-        onReset={handleReset}
+        onThisMonth={handleThisMonth}
+        onToday={handleToday}
+        periodSummary={periodSummary}
         periodTypeOptions={periodTypeOptions}
         yearOptions={yearOptions}
       />
-      <DashboardAlerts copy={copy} errors={errors} warnings={model.warnings} />
+      <DashboardAlerts copy={copy} errors={errors} onRetry={handleRetry} warnings={model.warnings} />
 
       {!data && !loading ? (
-        <Card>
+        <Card className="shadow-dash-card">
           <CardContent>
             <Empty>
               <EmptyHeader>
                 <EmptyTitle>{copy.noData}</EmptyTitle>
               </EmptyHeader>
+              <EmptyContent>
+                <Button type="button" variant="outline" className="pointer-coarse:h-10" onClick={handleRetry}>
+                  <RefreshCw data-icon="inline-start" />
+                  {copy.retry}
+                </Button>
+              </EmptyContent>
             </Empty>
           </CardContent>
         </Card>
       ) : (
         <div
           aria-busy={loading}
-          className={cn("flex flex-col gap-4 transition-opacity", loading && "pointer-events-none opacity-60")}
+          className={cn(
+            "flex flex-col gap-4 transition-opacity xl:gap-5",
+            scopeMismatch && "opacity-60",
+            scopeMismatch && loading && "pointer-events-none",
+          )}
         >
-          <DashboardKpiGrid copy={copy} kpis={model.kpis} periodLabel={periodLabel} section={model.section} />
-          <DashboardSalesGrid
+          <DashboardHeroRow
+            avgBillSparkline={avgBillSparkline}
+            copy={copy}
+            kpis={model.kpis}
+            ordersSparkline={ordersSparkline}
+            periodLabel={periodLabel}
+            section={model.section}
+            skyline={skyline}
+            tier={tier}
+          />
+          <DashboardSalesRow
             accountingRows={model.accountingRows}
             channelRows={model.channelRows}
             copy={copy}
+            isSingleDay={isSingleDay}
+            mainOrderChannel={model.mainOrderChannel}
+            onThisMonth={handleThisMonth}
             paymentSummary={model.paymentSummary}
             paymentSummaryCards={model.paymentSummaryCards}
             paymentTrendRows={model.paymentTrendRows}
-            peakRevenueDay={model.peakRevenueDay}
+            tier={tier}
             trendRows={model.trendRows}
           />
-          <DashboardProductsGrid
-            copy={copy}
-            loading={loading}
-            products={model.productRows}
-            tableSummary={model.tableSummary}
-            top={top}
-            topOptions={topOptions}
-            onTopChange={handleTopChange}
-          />
-          <DashboardHealthGrid
+          <DashboardProductsRow
             copy={copy}
             highestRevenueProduct={model.highestRevenueProduct}
             insights={model.insights}
+            loading={loading}
+            onTopChange={handleTopChange}
             productSummary={productSummary}
+            products={model.productRows}
+            productsDimmed={topChanging}
+            tableSummary={model.tableSummary}
+            tier={tier}
+            top={top}
+            topOptions={topOptions}
           />
         </div>
       )}
