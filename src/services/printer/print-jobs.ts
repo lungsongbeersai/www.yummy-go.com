@@ -38,18 +38,41 @@ import type {
   PendingPrintJobsResult,
   PrintJob,
   PrintOpsBatchPayload,
+  PrintProgress,
   PrinterDeliveryState,
 } from "@/services/printer/types";
 
 const printerQueues = new Map<string, Promise<void>>();
 const printExecutions = new Map<string, Promise<KitchenPrintResult>>();
 const printAcknowledgements = new Map<string, Promise<void>>();
+const printExecutionProgress = new Map<string, {
+  latest?: PrintProgress;
+  observers: Set<(progress: PrintProgress) => void>;
+  settled: boolean;
+}>();
 const deliveryLedgerMemory = new Map<string, StoredDelivery>();
 const DELIVERY_LEDGER_PREFIX = "yummy_kitchen_printer_delivery:";
 const REMOTE_SHARED_STATUS_POLL_INTERVAL_MS = 500;
 const REMOTE_SHARED_STATUS_MAX_POLLS = 20;
 const REMOTE_SHARED_STATUS_OBSERVATION_MS =
   REMOTE_SHARED_STATUS_POLL_INTERVAL_MS * REMOTE_SHARED_STATUS_MAX_POLLS;
+
+function observePrintExecution(jobUuid: string, onProgress?: (progress: PrintProgress) => void) {
+  let progress = printExecutionProgress.get(jobUuid);
+  if (!progress) {
+    progress = { observers: new Set(), settled: false };
+    printExecutionProgress.set(jobUuid, progress);
+  }
+  if (onProgress) {
+    if (!progress.settled) progress.observers.add(onProgress);
+    if (progress.latest) onProgress(progress.latest);
+  }
+  const observed = progress;
+  return (latest: PrintProgress) => {
+    observed.latest = latest;
+    for (const observer of observed.observers) observer(latest);
+  };
+}
 
 interface StoredDelivery {
   deliveryState: PrinterDeliveryState;
@@ -1082,6 +1105,10 @@ async function executePrintJobs(
     // Mixed kitchen jobs can assign LAN and Internet printers to different
     // executors. Finishing this device's batches cannot complete the whole job.
     const hasPendingDelivery = hasDeferredRemoteDelivery;
+    const canConfirmDelivery = !hasPendingDelivery &&
+      pendingFailedBeforePrintTotal(pendingResult) === 0 &&
+      pendingUncertainItemTotal(pendingResult) === 0 &&
+      batchPayloads.every(isMobilePrintBatch);
     let lastErrorMessage: string | undefined;
     let localAgentPromise: Promise<AgentInfo> | null = null;
     const sharedLocalAgent = () => {
@@ -1143,6 +1170,9 @@ async function executePrintJobs(
             successCount: deliveredTotal,
             failedCount,
             phase: "printing",
+            ...(canConfirmDelivery && total > 0 && deliveredTotal === total && failedCount === 0
+              ? { deliveryComplete: true }
+              : {}),
           });
         };
         const reportOutcome = (outcome: BatchPrintOutcome) => {
@@ -1235,7 +1265,11 @@ async function executePrintJobs(
               await printKitchenBatchJob(
                 batch,
                 await sharedLocalAgent(),
-                input.onProgress ? reportDeliveredTickets : undefined,
+                // Recording native completion must not add Agent polling to
+                // background workers that have no screen observing progress.
+                printExecutionProgress.get(jobUuid)?.observers.size
+                  ? reportDeliveredTickets
+                  : undefined,
               );
             }
 
@@ -1587,10 +1621,11 @@ export async function executeKitchenPrintJobs(input: ExecuteKitchenPrintInput): 
     });
   }
 
+  const onProgress = observePrintExecution(jobUuid, input.onProgress);
   const existing = printExecutions.get(jobUuid);
   if (existing) return existing;
 
-  const execution = executePrintJobs(input, {
+  const execution = executePrintJobs({ ...input, onProgress }, {
     ack: true,
     idempotent: true,
     kitchenSemantics: true,
@@ -1605,9 +1640,15 @@ function trackPrintExecution(jobUuid: string, execution: Promise<KitchenPrintRes
   const cleanup = () => {
     if (printExecutions.get(jobUuid) === execution) {
       printExecutions.delete(jobUuid);
+      printExecutionProgress.delete(jobUuid);
     }
   };
   void execution.then(() => {
+    const progress = printExecutionProgress.get(jobUuid);
+    if (progress) {
+      progress.settled = true;
+      progress.observers.clear();
+    }
     const acknowledgement = printAcknowledgements.get(jobUuid);
     if (acknowledgement) void acknowledgement.then(cleanup);
     else cleanup();
@@ -1624,10 +1665,11 @@ function executeDocumentPrintJobs(
     return executePrintJobs(input, { ack: true, idempotent: true });
   }
 
+  const onProgress = observePrintExecution(jobUuid, input.onProgress);
   const existing = printExecutions.get(jobUuid);
   if (existing) return existing;
 
-  const execution = executePrintJobs(input, { ack: true, idempotent: true });
+  const execution = executePrintJobs({ ...input, onProgress }, { ack: true, idempotent: true });
   trackPrintExecution(jobUuid, execution);
   return execution;
 }

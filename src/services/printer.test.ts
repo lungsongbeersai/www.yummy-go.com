@@ -746,6 +746,222 @@ describe("printer service dispatch", () => {
       await vi.waitFor(() => expect(storage.getItem(fixture.ledgerKey)).toBeNull());
     });
 
+    it.each([
+      ["kitchen", executeKitchenPrintJobs],
+      ["invoice", executeInvoicePrintJobs],
+    ] as const)("reports full mobile %s delivery before transport cleanup settles", async (kind, execute) => {
+      const fixture = prepareGroupBatch(`mobile-delivered-before-cleanup-${kind}`, true);
+      let finishTransport!: () => void;
+      const transportCleanup = new Promise<void>((resolve) => { finishTransport = resolve; });
+      let reportDelivery: ((completed: number, total: number) => void) | undefined;
+      mobileTcpMocks.printMobileEscposOverTcp.mockImplementationOnce(
+        ({ on_ticket_delivered }: { on_ticket_delivered?: typeof reportDelivery }) => {
+          reportDelivery = on_ticket_delivered;
+          return transportCleanup;
+        },
+      );
+      const onProgress = vi.fn<(progress: PrintProgress) => void>();
+      const settled = vi.fn();
+      const execution = execute({ ...fixture.input, onProgress });
+      void execution.then(settled);
+
+      try {
+        await vi.waitFor(() => expect(mobileTcpMocks.printMobileEscposOverTcp).toHaveBeenCalledOnce());
+        expect(reportDelivery).toBeTypeOf("function");
+        reportDelivery?.(1, 2);
+        expect(onProgress).toHaveBeenLastCalledWith(expect.objectContaining({
+          successCount: 1, total: 2,
+        }));
+        expect(onProgress).not.toHaveBeenCalledWith(expect.objectContaining({ deliveryComplete: true }));
+
+        reportDelivery?.(2, 2);
+        expect(onProgress).toHaveBeenLastCalledWith(expect.objectContaining({
+          successCount: 2, failedCount: 0, total: 2, deliveryComplete: true,
+        }));
+        expect(settled).not.toHaveBeenCalled();
+        expect(fixture.ackPayloads).toHaveLength(0);
+      } finally {
+        finishTransport();
+        await execution;
+      }
+      expect(fixture.ackPayloads).toHaveLength(1);
+      expect(mobileTcpMocks.printMobileEscposOverTcp).toHaveBeenCalledOnce();
+    });
+
+    it("waits for every physical printer before reporting complete mobile delivery", async () => {
+      const fixture = prepareGroupBatch("mobile-all-physical-printers", true);
+      const secondItemUuids = ["second-rice", "second-pork", "second-beer"];
+      const secondBatch: PrintOpsBatchPayload = {
+        ...fixture.batch,
+        interface_value: "tcp://192.168.1.21:9100",
+        print_config_uuid: "second-printer",
+        print_job_item_uuids: secondItemUuids,
+        jobs: fixture.jobs.map((job, index) => ({
+          ...job,
+          job_id: `second-physical-${index}`,
+          print_config_uuid: "second-printer",
+          interface_value: "tcp://192.168.1.21:9100",
+          meta: {
+            ...job.meta,
+            print_job_item_uuid: secondItemUuids[index === 0 ? 0 : 2],
+            print_job_item_uuids: index === 0 ? secondItemUuids.slice(0, 2) : secondItemUuids.slice(2),
+          },
+        })),
+        mobile_escpos: {
+          interface_value: "tcp://192.168.1.21:9100",
+          escpos_base64: "SECOND_PRINTER_TWO_CUTS",
+        },
+      };
+      const results = [
+        ...fixture.printedResults,
+        ...secondItemUuids.map((print_job_item_uuid) => ({ print_job_item_uuid, status: "success" })),
+      ];
+      const request = apiMocks.apiRequest.getMockImplementation()!;
+      apiMocks.apiRequest.mockImplementation((method, url, options) => {
+        if (method === "get" && url === "/api/v1/printer/jobs/pending") {
+          return Promise.resolve({
+            print_batch_payloads: [fixture.batch, secondBatch],
+            ack_success_payload: { print_job_uuid: "mobile-all-physical-printers", results },
+            ack_failed_payload: {
+              print_job_uuid: "mobile-all-physical-printers",
+              results: results.map((result) => ({ ...result, status: "failed" })),
+            },
+          });
+        }
+        return request(method, url, options);
+      });
+      let finishTransport!: () => void;
+      const transportCleanup = new Promise<void>((resolve) => { finishTransport = resolve; });
+      const callbacks = new Map<string, (completed: number, total: number) => void>();
+      mobileTcpMocks.printMobileEscposOverTcp.mockImplementation(
+        ({ interface_value, on_ticket_delivered }: {
+          interface_value: string;
+          on_ticket_delivered?: (completed: number, total: number) => void;
+        }) => {
+          if (on_ticket_delivered) callbacks.set(interface_value, on_ticket_delivered);
+          return transportCleanup;
+        },
+      );
+      const onProgress = vi.fn<(progress: PrintProgress) => void>();
+      const execution = executeKitchenPrintJobs({ ...fixture.input, onProgress });
+
+      try {
+        await vi.waitFor(() => expect(callbacks.size).toBe(2));
+        callbacks.get("tcp://192.168.1.20:9100")?.(2, 2);
+        expect(onProgress).toHaveBeenLastCalledWith(expect.objectContaining({ successCount: 2, total: 4 }));
+        expect(onProgress).not.toHaveBeenCalledWith(expect.objectContaining({ deliveryComplete: true }));
+        callbacks.get("tcp://192.168.1.21:9100")?.(1, 2);
+        expect(onProgress).toHaveBeenLastCalledWith(expect.objectContaining({ successCount: 3, total: 4 }));
+        expect(onProgress).not.toHaveBeenCalledWith(expect.objectContaining({ deliveryComplete: true }));
+        callbacks.get("tcp://192.168.1.21:9100")?.(2, 2);
+        expect(onProgress).toHaveBeenLastCalledWith(expect.objectContaining({
+          successCount: 4, failedCount: 0, total: 4, deliveryComplete: true,
+        }));
+        expect(fixture.ackPayloads).toHaveLength(0);
+      } finally {
+        finishTransport();
+        await execution;
+      }
+      expect(mobileTcpMocks.printMobileEscposOverTcp).toHaveBeenCalledTimes(2);
+    });
+
+    it("replays current delivery progress and notifies observers joining an existing execution", async () => {
+      const fixture = prepareGroupBatch("mobile-joining-progress-observers", true);
+      let finishTransport!: () => void;
+      const transportCleanup = new Promise<void>((resolve) => { finishTransport = resolve; });
+      let reportDelivery: ((completed: number, total: number) => void) | undefined;
+      mobileTcpMocks.printMobileEscposOverTcp.mockImplementationOnce(
+        ({ on_ticket_delivered }: { on_ticket_delivered?: typeof reportDelivery }) => {
+          reportDelivery = on_ticket_delivered;
+          return transportCleanup;
+        },
+      );
+      const execution = executeKitchenPrintJobs(fixture.input);
+      const joinedExecutions = [execution];
+
+      try {
+        await vi.waitFor(() => expect(mobileTcpMocks.printMobileEscposOverTcp).toHaveBeenCalledOnce());
+        reportDelivery?.(1, 2);
+        const kitchenProgress = vi.fn<(progress: PrintProgress) => void>();
+        const invoiceProgress = vi.fn<(progress: PrintProgress) => void>();
+        joinedExecutions.push(executeKitchenPrintJobs({ ...fixture.input, onProgress: kitchenProgress }));
+        joinedExecutions.push(executeInvoicePrintJobs({ ...fixture.input, onProgress: invoiceProgress }));
+        for (const observer of [kitchenProgress, invoiceProgress]) {
+          expect(observer).toHaveBeenLastCalledWith(expect.objectContaining({ successCount: 1, total: 2 }));
+          expect(observer).not.toHaveBeenCalledWith(expect.objectContaining({ deliveryComplete: true }));
+        }
+
+        reportDelivery?.(2, 2);
+        for (const observer of [kitchenProgress, invoiceProgress]) {
+          expect(observer).toHaveBeenLastCalledWith(expect.objectContaining({
+            successCount: 2, failedCount: 0, total: 2, deliveryComplete: true,
+          }));
+        }
+
+        const lateProgress = vi.fn<(progress: PrintProgress) => void>();
+        joinedExecutions.push(executeKitchenPrintJobs({ ...fixture.input, onProgress: lateProgress }));
+        expect(lateProgress).toHaveBeenLastCalledWith(expect.objectContaining({ deliveryComplete: true }));
+        expect(mobileTcpMocks.printMobileEscposOverTcp).toHaveBeenCalledOnce();
+        expect(apiMocks.apiRequest.mock.calls.filter(([, url]) => url === "/api/v1/printer/jobs/pending"))
+          .toHaveLength(1);
+      } finally {
+        finishTransport();
+        await Promise.all(joinedExecutions);
+      }
+    });
+
+    it("does not report complete physical delivery when a mobile sheet fails", async () => {
+      const fixture = prepareGroupBatch("mobile-partial-delivery-progress", true);
+      mobileTcpMocks.printMobileEscposOverTcp.mockImplementationOnce(async ({ on_ticket_delivered }: {
+        on_ticket_delivered?: (completed: number, total: number) => void;
+      }) => {
+        on_ticket_delivered?.(1, 2);
+        throw Object.assign(new Error("Second sheet was not confirmed"), { delivery_state: "unknown" });
+      });
+      const onProgress = vi.fn<(progress: PrintProgress) => void>();
+
+      await expect(executeKitchenPrintJobs({ ...fixture.input, onProgress })).resolves.toMatchObject({
+        successCount: 1, failedCount: 1, total: 2,
+      });
+      expect(onProgress).not.toHaveBeenCalledWith(expect.objectContaining({ deliveryComplete: true }));
+    });
+
+    it.each([
+      ["uncertain delivery", { uncertain_item_total: 1, has_uncertain_delivery: true }],
+      ["failure before printing", { failed_before_print_total: 1 }],
+    ] as const)("does not mark printable sheets as the complete job when another sheet has %s", async (kind, summary) => {
+      const fixture = prepareGroupBatch(`mobile-incomplete-companion-${kind}`, true);
+      const request = apiMocks.apiRequest.getMockImplementation()!;
+      apiMocks.apiRequest.mockImplementation(async (method, url, options) => {
+        const response = await request(method, url, options);
+        return method === "get" && url === "/api/v1/printer/jobs/pending"
+          ? { ...response, print_summary: summary }
+          : response;
+      });
+      let finishTransport!: () => void;
+      const transportCleanup = new Promise<void>((resolve) => { finishTransport = resolve; });
+      let reportDelivery: ((completed: number, total: number) => void) | undefined;
+      mobileTcpMocks.printMobileEscposOverTcp.mockImplementationOnce(
+        ({ on_ticket_delivered }: { on_ticket_delivered?: typeof reportDelivery }) => {
+          reportDelivery = on_ticket_delivered;
+          return transportCleanup;
+        },
+      );
+      const onProgress = vi.fn<(progress: PrintProgress) => void>();
+      const execution = executeKitchenPrintJobs({ ...fixture.input, onProgress });
+
+      try {
+        await vi.waitFor(() => expect(mobileTcpMocks.printMobileEscposOverTcp).toHaveBeenCalledOnce());
+        reportDelivery?.(2, 2);
+        expect(onProgress).toHaveBeenLastCalledWith(expect.objectContaining({ successCount: 2, total: 2 }));
+        expect(onProgress).not.toHaveBeenCalledWith(expect.objectContaining({ deliveryComplete: true }));
+      } finally {
+        finishTransport();
+        await execution;
+      }
+      expect(onProgress).not.toHaveBeenCalledWith(expect.objectContaining({ deliveryComplete: true }));
+    });
+
     it.each([false, true])("ACKs both food items as printed when the drinks sheet fails (native=%s)", async (native) => {
       const fixture = prepareGroupBatch(`groups-partial-${native}`, native);
       const message = fixture.failDrinks();
@@ -1415,6 +1631,35 @@ describe("printer service dispatch", () => {
         finishAck();
         await execution;
       }
+    });
+
+    it("keeps fully delivered LAN progress incomplete while a remote printer is still assigned", async () => {
+      const fixture = prepareMixedJob("mixed-lan-delivery-progress");
+      let finishTransport!: () => void;
+      const transportCleanup = new Promise<void>((resolve) => { finishTransport = resolve; });
+      let reportDelivery: ((completed: number, total: number) => void) | undefined;
+      mobileTcpMocks.printMobileEscposOverTcp.mockImplementationOnce(
+        ({ on_ticket_delivered }: { on_ticket_delivered?: typeof reportDelivery }) => {
+          reportDelivery = on_ticket_delivered;
+          return transportCleanup;
+        },
+      );
+      const onProgress = vi.fn<(progress: PrintProgress) => void>();
+      const execution = executeKitchenPrintJobs({ ...fixture.input, onProgress });
+
+      try {
+        await vi.waitFor(() => expect(mobileTcpMocks.printMobileEscposOverTcp).toHaveBeenCalledOnce());
+        reportDelivery?.(1, 1);
+        expect(onProgress).toHaveBeenLastCalledWith(expect.objectContaining({
+          successCount: 1, failedCount: 0, total: 1,
+        }));
+        expect(onProgress).not.toHaveBeenCalledWith(expect.objectContaining({ deliveryComplete: true }));
+      } finally {
+        finishTransport();
+        await execution;
+      }
+      await expect(execution).resolves.toEqual({ successCount: 1, failedCount: 0, total: 1, pending: true });
+      expect(onProgress).not.toHaveBeenCalledWith(expect.objectContaining({ deliveryComplete: true }));
     });
 
     it("stops uncertain LAN delivery and never resends it while remote work is cleared", async () => {

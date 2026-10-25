@@ -32,7 +32,7 @@ import type {
 import { finishCommittedCartItemAction } from "../committed-cart-item-action";
 import { CartItemActionUnavailableError, currentCartItemAction, isMissingCartItemError } from "../cart-item-action-state";
 import { kitchenConfirmPrintOutcome } from "../kitchen-confirm-print-outcome";
-import { runKitchenConfirmation } from "../kitchen-confirmation-workflow";
+import { createKitchenPrintProgressHandler, runKitchenConfirmation } from "../kitchen-confirmation-workflow";
 import {
   billDiscountButtonValue,
   buildCustomerDisplayPayload,
@@ -778,7 +778,7 @@ export function useSelectedTableCartPanelWorkflow({
     setConfirming(true);
     beginKitchenConfirmation();
     await runKitchenConfirmation({
-      confirmAndPrint: async () => {
+      confirmAndPrint: async (closeLoading) => {
         const printResult: {
           successCount: number;
           failedCount: number;
@@ -839,29 +839,39 @@ export function useSelectedTableCartPanelWorkflow({
             response,
             user.uuid,
             activePrinterContext,
-            (progress) => {
-              const label =
-                progress.phase === "fetching"
-                  ? t("pos.confirmAllFetchingPrintJobs")
-                  : t("pos.confirmAllPrinting");
+            createKitchenPrintProgressHandler({
+              onProgress: (progress) => {
+                const label =
+                  progress.phase === "fetching"
+                    ? t("pos.confirmAllFetchingPrintJobs")
+                    : t("pos.confirmAllPrinting");
 
-              setProgress(
-                confirmOrderProgressStep({
-                  groupCount: confirmGroups.length,
-                  groupIndex,
-                  phase:
-                    progress.phase === "fetching" ? "fetching" : "printing",
-                  printingCompleted: progress.completed,
-                  printingTotal: progress.total,
-                }),
-                label,
-                {
-                  successCount:
-                    printResult.successCount + progress.successCount,
-                  total: printResult.total + progress.total,
-                },
-              );
-            },
+                setProgress(
+                  confirmOrderProgressStep({
+                    groupCount: confirmGroups.length,
+                    groupIndex,
+                    phase:
+                      progress.phase === "fetching" ? "fetching" : "printing",
+                    printingCompleted: progress.completed,
+                    printingTotal: progress.total,
+                  }),
+                  label,
+                  {
+                    successCount:
+                      printResult.successCount + progress.successCount,
+                    total: printResult.total + progress.total,
+                  },
+                );
+              },
+              onDeliveryComplete:
+                groupIndex === confirmGroups.length - 1 &&
+                printResult.successCount === printResult.total &&
+                printResult.failedCount === 0 &&
+                !printResult.pending &&
+                !printResult.errorMessage
+                  ? closeLoading
+                  : undefined,
+            }),
           );
           printResult.successCount += result.successCount;
           printResult.failedCount += result.failedCount;
@@ -923,7 +933,7 @@ export function useSelectedTableCartPanelWorkflow({
     setConfirmingItemStage("confirming");
     beginKitchenConfirmation();
     await runKitchenConfirmation({
-      confirmAndPrint: async () => {
+      confirmAndPrint: async (closeLoading) => {
         const response = await confirmKitchen({
           order_uuid: orderUuid,
           login_uuid_fk: user.uuid,
@@ -936,10 +946,12 @@ export function useSelectedTableCartPanelWorkflow({
           response,
           user.uuid,
           activePrinterContext,
-          (progress) =>
-            setConfirmingItemStage(
+          createKitchenPrintProgressHandler({
+            onProgress: (progress) => setConfirmingItemStage(
               progress.phase === "fetching" ? "fetching" : "printing",
             ),
+            onDeliveryComplete: closeLoading,
+          }),
         );
         showKitchenConfirmResult(result);
       },

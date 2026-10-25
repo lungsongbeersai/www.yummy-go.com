@@ -532,7 +532,15 @@ export interface DefaultCategoryByRoleData extends ApiEntity {
   groups: DefaultCategoryGroup[];
 }
 export type DefaultCategoryByRoleResponse = ApiDataResponse<DefaultCategoryByRoleData>;
-export interface PrintProgress { total: number; completed: number; successCount: number; failedCount: number; phase: "fetching" | "printing" | "done" }
+export interface PrintProgress {
+  total: number;
+  completed: number;
+  successCount: number;
+  failedCount: number;
+  phase: "fetching" | "printing" | "done";
+  /** Every assigned printer has confirmed delivery, before transport cleanup. */
+  deliveryComplete?: boolean;
+}
 export interface ExecuteKitchenPrintInput {
   print_job?: ConfirmToKitchenPrintJob;
   pending_query?: ConfirmToKitchenPendingQuery;
