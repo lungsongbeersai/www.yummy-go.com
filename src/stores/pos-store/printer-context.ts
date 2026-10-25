@@ -18,7 +18,14 @@ function textValue(value: unknown) {
 }
 
 const nativeMigrationAttempts = new Map<string, Promise<void>>();
-const agentRegistrations = new Map<string, Promise<void>>();
+interface PosAgentRegistration {
+  request: Promise<void>;
+  registeredAt: number | null;
+}
+// Renew before Backend's 120-second SHARED presence window, including the
+// first POS action after a background tab resumes without its poll heartbeat.
+const POS_AGENT_REGISTRATION_FRESH_MS = 90_000;
+const agentRegistrations = new Map<string, PosAgentRegistration>();
 registerSessionStoreReset("pos-printer-agent-registration", () => { agentRegistrations.clear(); });
 
 async function ensurePosAgentRegistered(loginUuid: string, agent: AgentInfo) {
@@ -48,20 +55,29 @@ async function ensurePosAgentRegistered(loginUuid: string, agent: AgentInfo) {
   };
   const key = JSON.stringify(registration);
   const existing = agentRegistrations.get(key);
-  if (existing) return existing;
+  if (existing) {
+    if (existing.registeredAt === null) return existing.request;
+    const age = Date.now() - existing.registeredAt;
+    if (age >= 0 && age < POS_AGENT_REGISTRATION_FRESH_MS) return existing.request;
+  }
   // Rebind only this connected physical device before a POS mutation. Concurrent
   // kitchen/invoice/payment calls share one bounded registration per identity.
-  const request = registerPrinterAgent(registration, { timeout: 5000 }).then(() => undefined).catch((error: unknown) => {
-    if (agentRegistrations.get(key) === request) agentRegistrations.delete(key);
-    throw new ServiceError(
-      "Printer Agent registration could not be completed. Please try again.",
-      503,
-      error,
-      { error_code: "PRINTER_AGENT_REGISTRATION_FAILED", retryable: true },
-    );
-  });
-  agentRegistrations.set(key, request);
-  return request;
+  const renewal: PosAgentRegistration = {
+    registeredAt: null,
+    request: registerPrinterAgent(registration, { timeout: 5000 }).then(() => {
+      renewal.registeredAt = Date.now();
+    }).catch((error: unknown) => {
+      if (agentRegistrations.get(key) === renewal) agentRegistrations.delete(key);
+      throw new ServiceError(
+        "Printer Agent registration could not be completed. Please try again.",
+        503,
+        error,
+        { error_code: "PRINTER_AGENT_REGISTRATION_FAILED", retryable: true },
+      );
+    }),
+  };
+  agentRegistrations.set(key, renewal);
+  return renewal.request;
 }
 
 async function ensureNativeMobilePrinterMigration({

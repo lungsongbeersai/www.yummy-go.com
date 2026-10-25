@@ -86,7 +86,7 @@ describe("POS printer context", () => {
     mocks.resolvePrinterDeviceIdentity.mockResolvedValue({ ok: true, agent: physicalAgent });
   }
 
-  it("coalesces registration before returning concurrent POS contexts and caches it for the session", async () => {
+  it("coalesces registration and reuses fresh presence for less than 90 seconds", async () => {
     vi.useFakeTimers();
     connectedAgent();
     let finish!: () => void;
@@ -100,12 +100,55 @@ describe("POS printer context", () => {
     finish();
     await expect(first).resolves.toMatchObject({ device_code: "DESKTOP-SUSHC94", agent_id: "cashier-agent", print_mode: "windows_agent" });
     await second;
-    await vi.advanceTimersByTimeAsync(600_000);
+    await vi.advanceTimersByTimeAsync(89_999);
     await resolvePosPrinterContext({ login_uuid_fk: "cashier" });
     expect(mocks.registerPrinterAgent).toHaveBeenCalledOnce();
+    await vi.advanceTimersByTimeAsync(1);
+    await Promise.all([
+      resolvePosPrinterContext({ login_uuid_fk: "cashier" }),
+      resolvePosPrinterContext({ login_uuid_fk: "cashier" }),
+    ]);
+    expect(mocks.registerPrinterAgent).toHaveBeenCalledTimes(2);
     resetSessionStores();
     await resolvePosPrinterContext({ login_uuid_fk: "cashier" });
+    expect(mocks.registerPrinterAgent).toHaveBeenCalledTimes(3);
+  });
+
+  it("awaits renewed presence after a long idle period once the physical Agent reconnects", async () => {
+    vi.useFakeTimers();
+    connectedAgent();
+    await resolvePosPrinterContext({ login_uuid_fk: "cashier" });
+    await vi.advanceTimersByTimeAsync(600_000);
+    mocks.resolvePrinterDeviceIdentity.mockResolvedValue({ ok: true, connected: false, agent: physicalAgent });
+    await resolvePosPrinterContext({ login_uuid_fk: "cashier" });
+    expect(mocks.registerPrinterAgent).toHaveBeenCalledOnce();
+
+    connectedAgent();
+    let finish!: () => void;
+    mocks.registerPrinterAgent.mockImplementationOnce(() => new Promise<void>((resolve) => { finish = resolve; }));
+    const returned = vi.fn();
+    const resumed = resolvePosPrinterContext({ login_uuid_fk: "cashier" }).then(returned);
+    const concurrent = resolvePosPrinterContext({ login_uuid_fk: "cashier" });
+    await vi.advanceTimersByTimeAsync(0);
     expect(mocks.registerPrinterAgent).toHaveBeenCalledTimes(2);
+    expect(returned).not.toHaveBeenCalled();
+    finish();
+    await resumed;
+    await concurrent;
+    expect(returned).toHaveBeenCalledWith(expect.objectContaining({ agent_id: physicalAgent.agent_id }));
+  });
+
+  it("does not keep expired presence fresh after a failed renewal", async () => {
+    vi.useFakeTimers();
+    connectedAgent();
+    await resolvePosPrinterContext({ login_uuid_fk: "cashier" });
+    await vi.advanceTimersByTimeAsync(90_000);
+    mocks.registerPrinterAgent.mockRejectedValueOnce(new Error("Registration unavailable"));
+    await expect(resolvePosPrinterContext({ login_uuid_fk: "cashier" })).rejects.toMatchObject({
+      payload: { error_code: "PRINTER_AGENT_REGISTRATION_FAILED", retryable: true },
+    });
+    await expect(resolvePosPrinterContext({ login_uuid_fk: "cashier" })).resolves.toMatchObject({ agent_id: physicalAgent.agent_id });
+    expect(mocks.registerPrinterAgent).toHaveBeenCalledTimes(3);
   });
 
   it("registers again when the login or physical Agent identity changes", async () => {
