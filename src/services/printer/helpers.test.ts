@@ -1,14 +1,39 @@
 import { describe, expect, it } from "vitest";
+import { AxiosError } from "axios";
 import {
   agentBase,
   failPayload,
   getPrinterErrorMessage,
+  isPrinterJobInProgress,
   mapPrinter,
   parseInterfaceValue,
   printerRequestTimeoutMs
 } from "@/services/printer/helpers";
 
 describe("printer helpers", () => {
+  it.each([
+    [409, "PRINT_JOB_PRINTING"], [409, "PRINT_JOB_PENDING"],
+    [503, "PRINT_JOB_PRINTING"], [503, "PRINT_JOB_PENDING"],
+  ])("recognizes an old Agent's active HTTP%s %s conflict", (status, error) => {
+    const conflict = Object.assign(new AxiosError("Conflict"), { response: { status, data: { error, delivery_state: "unknown" } } });
+    expect(isPrinterJobInProgress(conflict)).toBe(true);
+    Object.assign(conflict.response.data, { in_progress: false });
+    expect(isPrinterJobInProgress(conflict)).toBe(false);
+  });
+
+  it.each([
+    { status: 409, error: "PRINT_JOB_UNCERTAIN" },
+    { status: 409, error: "PRINT_JOB_CLEARED" },
+    { status: 503, error: "PRINT_JOB_UNCERTAIN" },
+    { status: 503, error: "Agent unavailable" },
+    { status: 500, error: "PRINT_JOB_PRINTING" },
+    { status: 409, error: "PRINT_JOB_PRINTING extra" },
+    { status: 409, error: " PRINT_JOB_PRINTING " },
+  ])("does not suppress a terminal or unrelated conflict: %j", ({ status, error }) => {
+    expect(isPrinterJobInProgress(Object.assign(new AxiosError("Conflict"), { response: { status, data: { error } } }))).toBe(false);
+    expect(isPrinterJobInProgress({ response: { status: 409, data: { error: "PRINT_JOB_PRINTING" } } })).toBe(false);
+  });
+
   it("normalizes agent base URLs", () => {
     expect(agentBase("http://127.0.0.1:7777/", " http://printer.local/ ")).toBe("http://printer.local");
     expect(agentBase("http://127.0.0.1:7777/")).toBe("http://127.0.0.1:7777");

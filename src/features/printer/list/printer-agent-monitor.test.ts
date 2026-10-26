@@ -78,6 +78,16 @@ describe("printer Agent connection monitoring", () => {
     expect(refresh).toHaveBeenCalledTimes(2);
   });
 
+  it("checks again after a backward wall-clock correction instead of throttling for the full shift", async () => {
+    const refresh = vi.fn().mockResolvedValue(undefined);
+    const monitor = monitorPrinterAgentConnection(refresh);
+    stop = monitor.stop;
+    await monitor.refresh();
+    vi.setSystemTime(Date.now() - 3_600_000);
+    await monitor.refresh();
+    expect(refresh).toHaveBeenCalledTimes(2);
+  });
+
   it("does not start a queued read after the page unmounts", async () => {
     const refresh = vi.fn().mockResolvedValue(undefined);
     const monitor = monitorPrinterAgentConnection(refresh);

@@ -4,11 +4,13 @@
 import { isAxiosError, isCancel } from "axios";
 import { apiRequest, ServiceError, type RequestOptions } from "@/lib/api";
 import { Capacitor } from "@capacitor/core";
+import { registerSessionStoreReset } from "@/stores/session-store-registry";
 import {
   deliveredPayload,
   failPayload,
   getPrinterDeliveryState,
   getPrinterErrorMessage,
+  isPrinterJobInProgress,
   textValue
 } from "@/services/printer/helpers";
 import {
@@ -52,6 +54,8 @@ const printExecutionProgress = new Map<string, {
 }>();
 const deliveryLedgerMemory = new Map<string, StoredDelivery>();
 const DELIVERY_LEDGER_PREFIX = "yummy_kitchen_printer_delivery:";
+const PRINT_OBSERVATION_PREFIX = "yummy_printer_observation:";
+const observedPrintJobs = new Set<string>();
 const REMOTE_SHARED_STATUS_POLL_INTERVAL_MS = 500;
 const REMOTE_SHARED_STATUS_MAX_POLLS = 20;
 const REMOTE_SHARED_STATUS_OBSERVATION_MS =
@@ -121,6 +125,43 @@ function deliveryStorage() {
     return null;
   }
 }
+
+function printObservationKey(loginUuid: string, jobUuid: string) {
+  return `${PRINT_OBSERVATION_PREFIX}${loginUuid}:${jobUuid}`;
+}
+
+function mustObservePrintJob(loginUuid: string, jobUuid: string) {
+  const key = printObservationKey(loginUuid, jobUuid);
+  if (observedPrintJobs.has(key)) return true;
+  try {
+    return deliveryStorage()?.getItem(key) === "1";
+  } catch {
+    return false;
+  }
+}
+
+function markPrintJobForObservation(loginUuid: string, jobUuid: string) {
+  const key = printObservationKey(loginUuid, jobUuid);
+  observedPrintJobs.add(key);
+  try {
+    deliveryStorage()?.setItem(key, "1");
+  } catch {
+    // Keep this exact round in memory when persistent storage is blocked.
+  }
+}
+
+function clearPrintJobObservation(loginUuid: string, jobUuid: string) {
+  observedPrintJobs.delete(printObservationKey(loginUuid, jobUuid));
+  try {
+    deliveryStorage()?.removeItem(printObservationKey(loginUuid, jobUuid));
+  } catch {
+    // A retained marker only causes another status read, never another send.
+  }
+}
+
+registerSessionStoreReset("printer-job-observation", () => {
+  observedPrintJobs.clear();
+});
 
 function readStoredDelivery(key: string, batch: PrintOpsBatchPayload): StoredDelivery | null {
   try {
@@ -387,6 +428,7 @@ async function runLegacyPrintAttempt(
     storeDelivery(key, { deliveryState: "printed" });
     return key;
   } catch (error) {
+    if (isPrinterJobInProgress(error)) throw error;
     storeDelivery(key, {
       deliveryState: getPrinterDeliveryState(error),
       errorMessage: getPrinterErrorMessage(error),
@@ -542,6 +584,9 @@ function batchAckPayload({
 
   const unmappedOutcome = acknowledgedOutcomes.find((outcome) => !outcome.itemUuids.length);
   if (unmappedOutcome) {
+    // A legacy global ACK includes every required printer. It cannot describe
+    // only the batches that finished while another executor is still active.
+    if (outcomes.some((outcome) => !outcome.acknowledge)) return null;
     // Older backends did not expose queue-item IDs on each physical-printer
     // batch. Preserve the former all-or-nothing ACK for that response because
     // guessing an item/printer relationship could confirm the wrong order.
@@ -750,25 +795,53 @@ async function waitForRemoteSharedPrintCompletion({
   input,
   jobUuid,
   loginUuid,
+  initialResult,
+  observingActivePrint = false,
 }: {
   input: ExecuteKitchenPrintInput;
   jobUuid: string;
   loginUuid: string;
+  initialResult?: KitchenPrintResult;
+  observingActivePrint?: boolean;
 }): Promise<KitchenPrintResult> {
-  input.onProgress?.({
-    total: 0,
-    completed: 0,
+  let latestPendingResult: KitchenPrintResult = {
     successCount: 0,
     failedCount: 0,
-    phase: "fetching",
+    total: 0,
+    ...initialResult,
+    pending: true,
+  };
+  input.onProgress?.({
+    total: initialResult?.total ?? 0,
+    completed: (initialResult?.successCount ?? 0) + (initialResult?.failedCount ?? 0),
+    successCount: initialResult?.successCount ?? 0,
+    failedCount: initialResult?.failedCount ?? 0,
+    phase: initialResult ? "printing" : "fetching",
   });
 
   // Resolve the requester itself. The pending query stored on a remote Shared
   // job intentionally points at the owner, so reusing it here could expose the
   // owner's payload to the requester. This loop only observes the stable job
   // summary; the owner remains the sole consumer that fetches, prints and ACKs.
-  const requesterIdentity = await resolvePrinterDeviceIdentity();
+  const knownDeviceCode = observingActivePrint
+    ? textValue(input.pending_query?.device_code || input.device_code)
+    : "";
+  let requesterIdentity:
+    | { ok: true; agent: Pick<AgentInfo, "agent_id" | "device_code"> }
+    | { ok: false; error: string };
+  try {
+    requesterIdentity = knownDeviceCode
+      ? { ok: true as const, agent: {
+        device_code: knownDeviceCode,
+        agent_id: textValue(input.pending_query?.agent_id || input.agent_id),
+      } }
+      : await resolvePrinterDeviceIdentity();
+  } catch (error) {
+    if (observingActivePrint) return latestPendingResult;
+    throw error;
+  }
   if (!requesterIdentity.ok) {
+    if (observingActivePrint) return latestPendingResult;
     throw new ServiceError(requesterIdentity.error, 503);
   }
 
@@ -777,17 +850,17 @@ async function waitForRemoteSharedPrintCompletion({
   // Cancel only the observation GET; the owner's durable job keeps running.
   const observationDeadline = Date.now() + REMOTE_SHARED_STATUS_OBSERVATION_MS;
   const observationController = new AbortController();
+  let endObservation!: () => void;
+  const observationEnded = new Promise<null>((resolve) => {
+    endObservation = () => {
+      resolve(null);
+      observationController.abort();
+    };
+  });
   const observationTimer = globalThis.setTimeout(
-    () => observationController.abort(),
+    endObservation,
     REMOTE_SHARED_STATUS_OBSERVATION_MS,
   );
-  let latestPendingResult: KitchenPrintResult = {
-    successCount: 0,
-    failedCount: 0,
-    total: 0,
-    pending: true,
-  };
-
   try {
     for (
       let pollIndex = 0;
@@ -797,20 +870,30 @@ async function waitForRemoteSharedPrintCompletion({
       const remainingMs = observationDeadline - Date.now();
       if (remainingMs <= 0) return latestPendingResult;
 
-      const pendingResult = await getPendingPrintJobs({
-        print_job_uuid: jobUuid,
-        login_uuid_fk: loginUuid,
-        device_code: textValue(requester.device_code),
-        agent_id: textValue(requester.agent_id),
-        // Observe committed delivery without running the owner's queue repair,
-        // routing or rendering again after the paper has already printed.
-        status_only: true,
-      }, {
-        timeout: remainingMs,
-        signal: observationController.signal,
-      });
+      // An adapter may ignore timeout/abort. Race every GET against the same
+      // total budget so its late response cannot hold or complete this observer.
+      const pendingResult = await Promise.race([
+        getPendingPrintJobs({
+          print_job_uuid: jobUuid,
+          login_uuid_fk: loginUuid,
+          device_code: textValue(requester.device_code),
+          agent_id: textValue(requester.agent_id),
+          // Observe committed delivery without running the owner's queue repair,
+          // routing or rendering again after the paper has already printed.
+          status_only: true,
+        }, {
+          timeout: remainingMs,
+          signal: observationController.signal,
+        }),
+        observationEnded,
+      ]);
+      if (!pendingResult || Date.now() >= observationDeadline) {
+        endObservation();
+        return latestPendingResult;
+      }
       const terminalResult = requestedPrintJobResult(pendingResult);
       if (terminalResult) {
+        clearPrintJobObservation(loginUuid, jobUuid);
         input.onProgress?.({
           total: terminalResult.total,
           completed: terminalResult.total,
@@ -827,17 +910,20 @@ async function waitForRemoteSharedPrintCompletion({
 
       const total = Math.max(
         1,
+        latestPendingResult.total,
         Number(pendingResult.printSummary.requested_job_total ?? 0),
       );
       const successCount = Math.max(
         0,
+        latestPendingResult.successCount,
         Number(pendingResult.printSummary.requested_job_success_total ?? 0),
       );
       const failedCount = Math.max(
         0,
+        latestPendingResult.failedCount,
         Number(pendingResult.printSummary.requested_job_failed_total ?? 0),
       );
-      latestPendingResult = { successCount, failedCount, total, pending: true };
+      latestPendingResult = { ...latestPendingResult, successCount, failedCount, total, pending: true };
       input.onProgress?.({
         total,
         completed: Math.min(total, successCount + failedCount),
@@ -863,7 +949,7 @@ async function waitForRemoteSharedPrintCompletion({
       isAxiosError(originalError) && originalError.code === "ECONNABORTED" && Date.now() >= observationDeadline;
     // Only stop observing the owner's durable job. Never dispatch or ACK from
     // this requester when the result is still unknown, including a stalled GET.
-    if (observationAborted || observationTimedOut) return latestPendingResult;
+    if (observingActivePrint || observationAborted || observationTimedOut) return latestPendingResult;
     throw error;
   } finally {
     globalThis.clearTimeout(observationTimer);
@@ -904,6 +990,10 @@ async function executePrintJobs(
     };
   }
 
+  if (mustObservePrintJob(loginUuid, jobUuid)) {
+    return waitForRemoteSharedPrintCompletion({ input, jobUuid, loginUuid, observingActivePrint: true });
+  }
+
   if (shouldDeferSharedPrintToOwner({
     pendingRemoteShared: input.pending_query?.remote_shared_print,
     queuedRemoteShared: input.print_job?.remote_shared_print,
@@ -942,6 +1032,7 @@ async function executePrintJobs(
   if (isClearedPrintJob(pendingResult)) {
     const cleared = requestedPrintJobResult(pendingResult);
     if (cleared) {
+      clearPrintJobObservation(loginUuid, jobUuid);
       input.onProgress?.({
         ...cleared,
         completed: cleared.total,
@@ -1034,6 +1125,7 @@ async function executePrintJobs(
     // result tied to the current print round.
     const requestedResult = requestedPrintJobResult(pendingResult);
     if (requestedResult) {
+      clearPrintJobObservation(loginUuid, jobUuid);
       input.onProgress?.({
         total: requestedResult.total,
         completed: requestedResult.total,
@@ -1104,7 +1196,7 @@ async function executePrintJobs(
     let reportedFailedCount = 0;
     // Mixed kitchen jobs can assign LAN and Internet printers to different
     // executors. Finishing this device's batches cannot complete the whole job.
-    const hasPendingDelivery = hasDeferredRemoteDelivery;
+    let hasPendingDelivery = hasDeferredRemoteDelivery;
     const canConfirmDelivery = !hasPendingDelivery &&
       pendingFailedBeforePrintTotal(pendingResult) === 0 &&
       pendingUncertainItemTotal(pendingResult) === 0 &&
@@ -1176,6 +1268,10 @@ async function executePrintJobs(
           });
         };
         const reportOutcome = (outcome: BatchPrintOutcome) => {
+          if (!outcome.acknowledge) {
+            hasPendingDelivery = true;
+            return outcome;
+          }
           const batchTotal = printBatchJobTotal(batch);
           if (outcome.success) {
             successCount += batchTotal;
@@ -1285,6 +1381,17 @@ async function executePrintJobs(
               success: true,
             };
           } catch (error) {
+            if (isPrinterJobInProgress(error)) {
+              markPrintJobForObservation(loginUuid, jobUuid);
+              return {
+                acknowledge: false,
+                deliveryState: "unknown" as const,
+                itemUuids: batchPrintJobItemUuids(batch),
+                ledgerKey,
+                printConfigUuid,
+                success: false,
+              };
+            }
             const errorMessage = getPrinterErrorMessage(error);
             const deliveryState = getPrinterDeliveryState(error);
             const batchTotal = printBatchJobTotal(batch);
@@ -1365,6 +1472,13 @@ async function executePrintJobs(
       }
     }
 
+    if (mustObservePrintJob(loginUuid, jobUuid)) {
+      return waitForRemoteSharedPrintCompletion({
+        input, jobUuid, loginUuid, observingActivePrint: true,
+        initialResult: { successCount, failedCount, total, ...(lastErrorMessage ? { errorMessage: lastErrorMessage } : {}) },
+      });
+    }
+
     input.onProgress?.({
       total,
       completed: total,
@@ -1396,7 +1510,7 @@ async function executePrintJobs(
   let successCount = 0;
   let failedCount = 0;
   let skippedCount = 0;
-  const hasPendingDelivery = hasDeferredRemoteDelivery;
+  let hasPendingDelivery = hasDeferredRemoteDelivery;
   let lastErrorMessage: string | undefined;
   const batchItems: PendingPrintItem[] = [];
 
@@ -1488,6 +1602,11 @@ async function executePrintJobs(
         console.error("[printer] legacy print ACK failed", error);
         continue;
       }
+      if (isPrinterJobInProgress(error)) {
+        markPrintJobForObservation(loginUuid, jobUuid);
+        hasPendingDelivery = true;
+        continue;
+      }
       lastErrorMessage = getPrinterErrorMessage(error);
       if (!options.ack || !item.ack_failed_payload) {
         failedCount++;
@@ -1558,6 +1677,11 @@ async function executePrintJobs(
         console.error("[printer] legacy batch ACK failed", error);
         continue;
       }
+      if (isPrinterJobInProgress(error)) {
+        markPrintJobForObservation(loginUuid, jobUuid);
+        hasPendingDelivery = true;
+        continue;
+      }
       lastErrorMessage = getPrinterErrorMessage(error);
       const deliveryState = getPrinterDeliveryState(error);
       for (const item of batchGroup.items) {
@@ -1590,6 +1714,13 @@ async function executePrintJobs(
       skippedCount
     );
 
+  }
+
+  if (mustObservePrintJob(loginUuid, jobUuid)) {
+    return waitForRemoteSharedPrintCompletion({
+      input, jobUuid, loginUuid, observingActivePrint: true,
+      initialResult: { successCount, failedCount, total: items.length, ...(lastErrorMessage ? { errorMessage: lastErrorMessage } : {}) },
+    });
   }
 
   input.onProgress?.({

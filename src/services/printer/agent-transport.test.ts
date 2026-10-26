@@ -159,6 +159,60 @@ describe("safe Agent identity preflight", () => {
     expect(mocks.get).toHaveBeenCalledTimes(1);
     expect(mocks.post).toHaveBeenCalledTimes(1);
   });
+
+  it("bounds a never-settling identity adapter and starts a fresh read without accepting its late identity", async () => {
+    let finishOld!: (value: { data: typeof agent }) => void;
+    mocks.get.mockReturnValueOnce(new Promise((resolve) => { finishOld = resolve; }));
+    const first = getLocalAgentInfo();
+    const rejected = expect(first).rejects.toMatchObject({ delivery_state: "not_sent" });
+    await vi.advanceTimersByTimeAsync(12_000);
+    await rejected;
+    expect(mocks.get.mock.calls[0]?.[1].signal.aborted).toBe(true);
+    const newAgent = { ...agent, agent_id: "new-agent", device_code: "new-device" };
+    mocks.get.mockResolvedValueOnce({ data: newAgent });
+    await expect(getLocalAgentInfo()).resolves.toEqual(newAgent);
+    finishOld({ data: agent });
+    await vi.advanceTimersByTimeAsync(0);
+    mocks.get.mockRejectedValueOnce(new Error("Agent unavailable"));
+    await expect(resolvePrinterDeviceIdentity()).resolves.toMatchObject({ ok: true, connected: false, agent: newAgent });
+    expect(mocks.post).not.toHaveBeenCalled();
+    expect(vi.getTimerCount()).toBe(0);
+  });
+
+  it.each([120_000, -3_600_000])("replaces a stale shared identity read on wake after clock change %s without old cleanup deleting the fresh read", async (change) => {
+    let finishOld!: (value: { data: typeof agent }) => void;
+    let finishNew!: (value: { data: typeof agent }) => void;
+    mocks.get.mockReturnValueOnce(new Promise((resolve) => { finishOld = resolve; }))
+      .mockReturnValueOnce(new Promise((resolve) => { finishNew = resolve; }));
+    const first = getLocalAgentInfo();
+    const rejected = expect(first).rejects.toMatchObject({ delivery_state: "not_sent" });
+    await vi.advanceTimersByTimeAsync(0);
+    vi.setSystemTime(Date.now() + change);
+    const fresh = getLocalAgentInfo();
+    await rejected;
+    finishOld({ data: agent });
+    await vi.advanceTimersByTimeAsync(0);
+    const observer = checkPrinterAgentConnection();
+    await vi.advanceTimersByTimeAsync(0);
+    expect(mocks.get).toHaveBeenCalledTimes(2);
+    finishNew({ data: agent });
+    await expect(fresh).resolves.toEqual(agent);
+    await expect(observer).resolves.toMatchObject({ ok: true, agent });
+    expect(vi.getTimerCount()).toBe(0);
+  });
+
+  it("rejects a buffered identity response after sleep even when the deadline timer has not run", async () => {
+    let finish!: (value: { data: typeof agent }) => void;
+    mocks.get.mockReturnValueOnce(new Promise((resolve) => { finish = resolve; }));
+    const first = getLocalAgentInfo();
+    const rejected = expect(first).rejects.toMatchObject({ delivery_state: "not_sent" });
+    await vi.advanceTimersByTimeAsync(0);
+    vi.setSystemTime(Date.now() + 120_000);
+    finish({ data: agent });
+    await rejected;
+    expect(mocks.post).not.toHaveBeenCalled();
+    expect(vi.getTimerCount()).toBe(0);
+  });
 });
 
 vi.mock("@/lib/api", () => ({

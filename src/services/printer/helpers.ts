@@ -1,3 +1,4 @@
+import { isAxiosError } from "axios";
 import { ServiceError } from "@/lib/api";
 // Import from types.ts (not the printer.ts barrel) to avoid a circular import:
 // printer.ts re-exports from this file, so importing back from printer.ts here
@@ -54,6 +55,15 @@ export function getPrinterErrorMessage(error: unknown) {
   if (agentMessage) return agentMessage;
   if (error instanceof Error) return error.message;
   return nonEmptyString(error) || "Unknown printer error";
+}
+
+export function isPrinterJobInProgress(error: unknown) {
+  // Older LAN relays wrap the owner's active 409 as 503. Only its exact
+  // active-state codes allow observation; unrelated failures stay terminal.
+  if (!isAxiosError<unknown>(error) || ![409, 503].includes(error.response?.status ?? 0)) return false;
+  const payload = objectValue(error.response?.data);
+  return payload?.in_progress !== false &&
+    (payload?.error === "PRINT_JOB_PRINTING" || payload?.error === "PRINT_JOB_PENDING");
 }
 
 export function getPrinterDeliveryState(error: unknown): Exclude<PrinterDeliveryState, "printed"> {

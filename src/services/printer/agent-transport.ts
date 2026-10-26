@@ -41,7 +41,12 @@ import type {
 const PRINTER_IDENTITY_MISSING = "Printer device identity missing";
 const LOCAL_AGENT_IDENTITY_KEY = "yummy_local_printer_agent_identity";
 const BATCH_PROGRESS_POLL_INTERVAL_MS = 200;
-const agentInfoRequests = new Map<string, Promise<AgentInfo>>();
+const AGENT_INFO_READ_TIMEOUT_MS = 12_000;
+const agentInfoRequests = new Map<string, {
+  request: Promise<AgentInfo>;
+  isFresh: () => boolean;
+  expire: () => void;
+}>();
 const trustedAgentIdentities = new WeakMap<object, Map<string, AgentInfo>>();
 
 function trustedAgentCache() {
@@ -66,41 +71,67 @@ function retryableAgentInfoError(error: unknown) {
 function requestAgentInfo(agentUrl: string) {
   const base = printerAgentBase(AGENT_URL, agentUrl);
   const existing = agentInfoRequests.get(base);
-  if (existing) return existing;
+  if (existing?.isFresh()) return existing.request;
+  existing?.expire();
 
-  const request = Promise.resolve().then(async () => {
-    try {
-      for (let attempt = 0; ; attempt++) {
-        try {
-          const { data } = await axios.get<AgentInfoResponse | AgentInfo>(`${base}/agent/info`, {
-            headers: { "x-agent-secret": AGENT_SECRET },
-            timeout: 5000,
-          });
-          assertAgentOk(data as AgentInfoResponse, "Printer agent not ready");
-          const agent = getAgentFromPayload(data);
-          if (!agent) throw new ServiceError("Local printer agent identity missing", 500);
-          return agent;
-        } catch (error) {
-          // An Agent that is starting or waking may briefly refuse a read.
-          // Only identity GETs are retried; print POSTs remain single-attempt.
-          if (attempt > 0 || !retryableAgentInfoError(error)) throw error;
-          await new Promise<void>((resolve) => setTimeout(resolve, 300));
-        }
+  const controller = new AbortController();
+  const startedAt = Date.now();
+  let expired = false;
+  let rejectDeadline: (error: Error) => void;
+  const deadline = new Promise<never>((_resolve, reject) => { rejectDeadline = reject; });
+  const timeoutError = () => Object.assign(
+    new ServiceError("Printer Agent identity read timed out. Please try again.", 503),
+    { delivery_state: "not_sent" },
+  );
+  const isFresh = () => {
+    const age = Date.now() - startedAt;
+    return !expired && age >= 0 && age < AGENT_INFO_READ_TIMEOUT_MS;
+  };
+  const expire = () => {
+    if (expired) return;
+    expired = true;
+    rejectDeadline(timeoutError());
+    controller.abort();
+  };
+  const assertFresh = () => {
+    // Buffered HTTP completions may run before a delayed timer after sleep.
+    if (!isFresh()) { expire(); throw timeoutError(); }
+  };
+  const timer = setTimeout(expire, AGENT_INFO_READ_TIMEOUT_MS);
+  const operation = Promise.resolve().then(async () => {
+    for (let attempt = 0; ; attempt++) {
+      assertFresh();
+      try {
+        const { data } = await axios.get<AgentInfoResponse | AgentInfo>(`${base}/agent/info`, {
+          headers: { "x-agent-secret": AGENT_SECRET },
+          timeout: 5000,
+          signal: controller.signal,
+        });
+        assertFresh();
+        assertAgentOk(data as AgentInfoResponse, "Printer agent not ready");
+        const agent = getAgentFromPayload(data);
+        if (!agent) throw new ServiceError("Local printer agent identity missing", 500);
+        return agent;
+      } catch (error) {
+        // An Agent that is starting or waking may briefly refuse a read.
+        // Only identity GETs are retried; print POSTs remain single-attempt.
+        if (attempt > 0 || !isFresh() || !retryableAgentInfoError(error)) throw error;
+        await new Promise<void>((resolve) => setTimeout(resolve, 300));
       }
-    } catch (error) {
-      // No print endpoint was called, even when the browser reports a timeout.
-      if (error && typeof error === "object") {
-        (error as { delivery_state?: string }).delivery_state = "not_sent";
-        throw error;
-      }
-      const wrapped = new ServiceError(getPrinterErrorMessage(error), 503);
-      (wrapped as ServiceError & { delivery_state?: string }).delivery_state = "not_sent";
-      throw wrapped;
-    } finally {
-      agentInfoRequests.delete(base);
     }
   });
-  agentInfoRequests.set(base, request);
+  const request = Promise.race([operation, deadline]).catch((error: unknown) => {
+    // No print endpoint was called, even when the browser reports a timeout.
+    if (error && typeof error === "object") {
+      (error as { delivery_state?: string }).delivery_state = "not_sent";
+      throw error;
+    }
+    throw Object.assign(new ServiceError(getPrinterErrorMessage(error), 503), { delivery_state: "not_sent" });
+  }).finally(() => {
+    clearTimeout(timer);
+    if (agentInfoRequests.get(base)?.request === request) agentInfoRequests.delete(base);
+  });
+  agentInfoRequests.set(base, { request, isFresh, expire });
   return request;
 }
 

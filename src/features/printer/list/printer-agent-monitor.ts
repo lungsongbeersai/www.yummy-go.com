@@ -11,7 +11,8 @@ export function monitorPrinterAgentConnection(refresh: () => Promise<unknown>) {
   const check = () => {
     if (stopped || document.visibilityState === "hidden") return Promise.resolve();
     if (pending) return pending;
-    if (Date.now() - lastStarted < REFRESH_THROTTLE_MS) return Promise.resolve();
+    const age = Date.now() - lastStarted;
+    if (age >= 0 && age < REFRESH_THROTTLE_MS) return Promise.resolve();
     lastStarted = Date.now();
     pending = Promise.resolve().then(() => stopped ? undefined : refresh()).then(() => undefined, () => undefined).finally(() => {
       pending = null;
