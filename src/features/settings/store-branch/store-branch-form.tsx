@@ -40,6 +40,7 @@ import { BranchTransferAccounts } from "./branch-transfer-accounts";
 export function StoreBranchFormDialog({
   activeStoreUuid,
   canEdit,
+  canEditBranchEmail = true,
   editing,
   imageUrl,
   kind,
@@ -54,6 +55,7 @@ export function StoreBranchFormDialog({
 }: {
   activeStoreUuid: string;
   canEdit: boolean;
+  canEditBranchEmail?: boolean;
   editing: StoreBranchSettingsRow | null;
   imageUrl: (row: StoreBranchSettingsRow, rowKind: StoreBranchKind) => string;
   kind: StoreBranchKind;
@@ -77,6 +79,7 @@ export function StoreBranchFormDialog({
         <EntityForm
           activeStoreUuid={activeStoreUuid}
           canEdit={canEdit}
+          canEditBranchEmail={canEditBranchEmail}
           editing={editing}
           imageUrl={imageUrl}
           kind={kind}
@@ -162,6 +165,7 @@ function FormSelectField({
 function EntityForm({
   activeStoreUuid,
   canEdit,
+  canEditBranchEmail,
   editing,
   imageUrl,
   kind,
@@ -175,6 +179,7 @@ function EntityForm({
 }: {
   activeStoreUuid: string;
   canEdit: boolean;
+  canEditBranchEmail: boolean;
   editing: StoreBranchSettingsRow | null;
   imageUrl: (row: StoreBranchSettingsRow, rowKind: StoreBranchKind) => string;
   kind: StoreBranchKind;
@@ -385,6 +390,7 @@ function EntityForm({
                     <Input
                       id={`${recordKey}-branch-email`}
                       name="branch_email"
+                      readOnly={!canEditBranchEmail}
                       autoComplete="email"
                       disabled={disabled}
                       placeholder={labels.emailPlaceholder}

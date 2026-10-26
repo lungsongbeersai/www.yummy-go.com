@@ -13,7 +13,7 @@ import { useOptionRowSelection } from "@/features/settings/shared/use-option-row
 import { useSettingsCrudController } from "@/features/settings/shared/use-settings-crud-controller";
 import { SettingsPageHeader } from "@/features/settings/shared/settings-page-header";
 import { useResetOnDeps } from "@/hooks/use-reset-on-change";
-import { canCreateStoreBranch, canDeleteStoreBranch, canEditStoreBranch } from "@/lib/permissions";
+import { canCreateStoreBranch, canDeleteStoreBranch, canEditStoreBranch, canEditBranchSettings, canEditBranchSettingsRow } from "@/lib/permissions";
 import type { UrlPaginationState } from "@/lib/url-pagination";
 import type { Branch, BranchManagementStoreOptions, FetchBranchesParams, SaveBranchInput } from "@/services/branch";
 import type { FetchStoresParams, SaveStoreInput, Store } from "@/services/store";
@@ -585,7 +585,7 @@ function ScopedBranchSettingsPage({ initialPagination, managedStoreUuid, canSele
   const allStores = storeUuid === BRANCH_ALL_STORES;
   const canCreate = canCreateStoreBranch(user?.status) && !allStores;
   const canDelete = canDeleteStoreBranch(user?.status);
-  const canEdit = canEditStoreBranch(user?.status);
+  const canEdit = canEditBranchSettings(user?.status);
   const activeId = user?.branch_uuid ?? "";
   const showStoreBranches = canCreate || canSelectStore;
   // The authenticated list can include stores created after the option list
@@ -654,7 +654,7 @@ function ScopedBranchSettingsPage({ initialPagination, managedStoreUuid, canSele
   }
 
   function openEdit(row: Branch) {
-    if (!canEdit || !branchManagementMutationStoreUuid(managementOptions, storeUuid, String(row.store_uuid_fk ?? ""))) return;
+    if (!canEditBranchSettingsRow(user?.status, activeId, storeBranchId(row, "branch")) || !branchManagementMutationStoreUuid(managementOptions, storeUuid, String(row.store_uuid_fk ?? ""))) return;
     catalogSourceGeneration.current += 1;
     setCatalogSourcesLoading(false);
     controllerOpenEdit(row);
@@ -665,7 +665,7 @@ function ScopedBranchSettingsPage({ initialPagination, managedStoreUuid, canSele
     const isCurrent = () => mounted.current && isCurrentSession();
     const id = editing ? storeBranchId(editing, "branch") : "";
     if (!id && !canCreate) return;
-    if (id && !canEdit) return;
+    if (id && !canEditBranchSettingsRow(user?.status, activeId, id)) return;
     if (!mutationStoreUuid) return;
 
     const input = buildBranchPayload({
@@ -742,7 +742,7 @@ function ScopedBranchSettingsPage({ initialPagination, managedStoreUuid, canSele
     return (
       <SettingsRowActions
         row={row}
-        editDisabled={!canEdit || !knownStore || saving}
+        editDisabled={!canEditBranchSettingsRow(user?.status, activeId, id) || !knownStore || saving}
         deleteDisabled={!canDelete || !knownStore || id === activeId || saving}
         onEdit={(nextRow) => openEdit(nextRow as Branch)}
         onDelete={(nextRow) => setDeleteTarget(nextRow as Branch)}
@@ -802,6 +802,7 @@ function ScopedBranchSettingsPage({ initialPagination, managedStoreUuid, canSele
       <StoreBranchFormDialog
         activeStoreUuid={mutationStoreUuid}
         canEdit={canEdit}
+        canEditBranchEmail={canEditStoreBranch(user?.status)}
         editing={editing}
         imageUrl={imageUrl}
         kind="branch"

@@ -36,11 +36,13 @@ import {
   type CropState,
 } from "@/features/settings/shared/settings-image-crop";
 import { getAccountQrUrl } from "@/lib/image";
+import { canManageBankMaster } from "@/lib/permissions";
 import {
   type Bank,
   type BranchAccount,
 } from "@/services/bank-account";
 import { useBankAccountStore } from "@/stores/bank-account-store";
+import { useAuthStore } from "@/stores/auth-store";
 import { createSessionGuard } from "@/stores/session-store-registry";
 import { useToastStore } from "@/stores/toast-store";
 
@@ -55,6 +57,8 @@ export function BranchTransferAccounts({
   disabled: boolean;
 }) {
   const { t, i18n } = useTranslation();
+  const role = useAuthStore((state) => state.user?.status);
+  const canAddBank = canManageBankMaster(role);
   const showToast = useToastStore((state) => state.show);
   const fetchBanks = useBankAccountStore((state) => state.fetchBanks);
   const fetchBranchAccounts = useBankAccountStore(
@@ -165,7 +169,7 @@ export function BranchTransferAccounts({
   }
 
   async function handleSaveBank() {
-    if (disabled || saving || !bankNameLa.trim()) return;
+    if (!canAddBank || disabled || saving || !bankNameLa.trim()) return;
     const isCurrent = currentScopeGuard();
     if (!isCurrent()) return;
     setSaving(true);
@@ -377,7 +381,7 @@ export function BranchTransferAccounts({
             <FieldLabel htmlFor="branch-transfer-bank">
               {t("settings.storeBranch.bank")}
             </FieldLabel>
-            <Button
+            {canAddBank ? <Button
               type="button"
               size="sm"
               variant="ghost"
@@ -386,7 +390,7 @@ export function BranchTransferAccounts({
             >
               <Plus data-icon="inline-start" />
               {t("settings.storeBranch.addBank")}
-            </Button>
+            </Button> : null}
           </div>
           <Select
             disabled={disabled || saving || !activeBanks.length}
@@ -503,7 +507,7 @@ export function BranchTransferAccounts({
         </div>
       </FieldGroup>
 
-      {showBankForm ? (
+      {canAddBank && showBankForm ? (
         <FieldGroup className="grid gap-3 rounded-lg border border-dashed border-border p-3 sm:grid-cols-2">
           <Field>
             <FieldLabel htmlFor="new-bank-name-la">

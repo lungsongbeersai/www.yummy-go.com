@@ -12,7 +12,8 @@ export const STORE_BRANCH_VIEW_STATUSES: number[] = [
   ROLE_STATUS.SUPER_ADMIN,
   ROLE_STATUS.HEAD_OFFICE_ADMIN
 ];
-const STORE_PERMISSION_MANAGE_STATUSES: number[] = Object.values(ROLE_STATUS);
+const BRANCH_SETTINGS_STATUSES = [...STORE_BRANCH_VIEW_STATUSES, ROLE_STATUS.BRANCH_ADMIN];
+const STORE_PERMISSION_MANAGE_STATUSES = STORE_BRANCH_VIEW_STATUSES;
 
 function roleStatus(status: number | null | undefined) {
   return Number(status ?? 0);
@@ -23,6 +24,27 @@ export function canViewStoreBranch(status: number | null | undefined) {
 }
 
 export function canEditStoreBranch(status: number | null | undefined) {
+  return canViewStoreBranch(status);
+}
+
+export function canViewBranchSettings(status: number | null | undefined) {
+  return BRANCH_SETTINGS_STATUSES.includes(roleStatus(status));
+}
+
+export function canEditBranchSettings(status: number | null | undefined) {
+  return canViewBranchSettings(status);
+}
+
+export function canEditBranchSettingsRow(status: number | null | undefined, ownBranchUuid: string, branchUuid: string) {
+  if (!branchUuid || !canEditBranchSettings(status)) return false;
+  return roleStatus(status) !== ROLE_STATUS.BRANCH_ADMIN || Boolean(ownBranchUuid && ownBranchUuid === branchUuid);
+}
+
+export function canManageBranchAccounts(status: number | null | undefined) {
+  return canViewBranchSettings(status);
+}
+
+export function canManageBankMaster(status: number | null | undefined) {
   return canViewStoreBranch(status);
 }
 
@@ -47,7 +69,8 @@ export function canManageStorePermissions(status: number | null | undefined) {
 }
 
 export function canViewSettingModule(slug: string, status: number | null | undefined) {
-  if (["store", "branch", "bank", "account"].includes(slug)) return canViewStoreBranch(status);
+  if (["branch", "account"].includes(slug)) return canViewBranchSettings(status);
+  if (["store", "bank"].includes(slug)) return canViewStoreBranch(status);
   return true;
 }
 

@@ -2,7 +2,7 @@
 
 import Image from "next/image";
 import type { ReactNode } from "react";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
   DndContext,
   KeyboardSensor,
@@ -39,7 +39,10 @@ import { authStoreUuid, useAuthStore } from "@/stores/auth-store";
 import { useBankAccountStore } from "@/stores/bank-account-store";
 import { useToastStore } from "@/stores/toast-store";
 import { cn } from "@/lib/utils";
+import { canManageBranchAccounts, ROLE_STATUS } from "@/lib/permissions";
+import { createSessionGuard } from "@/stores/session-store-registry";
 import { AccountFormDialog } from "./bank-account-form-dialogs";
+import { accountBelongsToBranch, accountBranchOptions, accountBranchUuid } from "./account-branch-scope";
 import { useClientSettingsList } from "./use-client-settings-list";
 
 const accountId = (account: BranchAccount) => account.account_uuid;
@@ -276,6 +279,12 @@ function SortableAccountRow({
 }
 
 export function AccountSettingsPage() {
+  const user = useAuthStore((state) => state.user);
+  const token = useAuthStore((state) => state.token);
+  return <ScopedAccountSettingsPage key={`${token}:${user?.uuid}:${user?.status}:${user?.branch_uuid}:${authStoreUuid(user)}`} />;
+}
+
+function ScopedAccountSettingsPage() {
   const { t, i18n } = useTranslation();
   const user = useAuthStore((state) => state.user);
   const showToast = useToastStore((state) => state.show);
@@ -287,7 +296,9 @@ export function AccountSettingsPage() {
   const sortBranchAccounts = useBankAccountStore((state) => state.sortBranchAccounts);
   const [banks, setBanks] = useState<Bank[]>([]);
   const [branches, setBranches] = useState<Branch[]>([]);
-  const [branchUuid, setBranchUuid] = useState("");
+  const [selectedBranchUuid, setBranchUuid] = useState(user?.branch_uuid ?? "");
+  const branchUuid = accountBranchUuid(user?.status, user?.branch_uuid ?? "", selectedBranchUuid);
+  const canManage = canManageBranchAccounts(user?.status);
   const [rows, setRows] = useState<BranchAccount[]>([]);
   const [referencesReady, setReferencesReady] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -298,12 +309,32 @@ export function AccountSettingsPage() {
   const [editing, setEditing] = useState<BranchAccount | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<BranchAccount | null>(null);
   const [deleting, setDeleting] = useState(false);
-  const list = useClientSettingsList(rows, accountId, accountSearchText);
+  const scopedRows = rows.filter((row) => accountBelongsToBranch(row.branch_uuid_fk, branchUuid));
+  const list = useClientSettingsList(scopedRows, accountId, accountSearchText);
   const clearSelection = list.clearSelection;
   const language = i18n.resolvedLanguage || i18n.language;
   const title = t("settings.modules.account.title");
+  const mounted = useRef(true);
+  const loadGeneration = useRef(0);
+
+  useEffect(() => {
+    mounted.current = true;
+    return () => {
+      mounted.current = false;
+      loadGeneration.current += 1;
+    };
+  }, []);
+
+  const currentScopeGuard = useCallback(() => {
+    const isCurrentSession = createSessionGuard();
+    return () => mounted.current && isCurrentSession();
+  }, []);
 
   const loadAccounts = useCallback(async (targetBranch: string, background = false) => {
+    const generation = ++loadGeneration.current;
+    const isCurrentScope = currentScopeGuard();
+    const isCurrent = () => isCurrentScope() && generation === loadGeneration.current;
+    if (!isCurrent()) return;
     if (!targetBranch) {
       setRows([]);
       setLoading(false);
@@ -312,15 +343,19 @@ export function AccountSettingsPage() {
     if (background) setRefreshing(true);
     else setLoading(true);
     try {
-      setRows(await fetchBranchAccounts(targetBranch));
+      const nextRows = await fetchBranchAccounts(targetBranch);
+      if (isCurrent()) setRows(nextRows.filter((row) => accountBelongsToBranch(row.branch_uuid_fk, targetBranch)));
     } catch (error) {
+      if (!isCurrent()) return;
       setRows([]);
       showToast({ title: t("settings.storeBranch.transferAccountsLoadFailed"), description: error instanceof Error ? error.message : "", tone: "error" });
     } finally {
-      setLoading(false);
-      setRefreshing(false);
+      if (isCurrent()) {
+        setLoading(false);
+        setRefreshing(false);
+      }
     }
-  }, [fetchBranchAccounts, showToast, t]);
+  }, [currentScopeGuard, fetchBranchAccounts, setLoading, setRefreshing, setRows, showToast, t]);
 
   useEffect(() => {
     let active = true;
@@ -332,9 +367,10 @@ export function AccountSettingsPage() {
         ]);
         if (!active) return;
         setBanks(nextBanks);
-        setBranches(nextBranches);
-        const ownBranch = nextBranches.find((branch) => branch.branch_uuid === user?.branch_uuid);
-        setBranchUuid(ownBranch?.branch_uuid || nextBranches[0]?.branch_uuid || "");
+        const scopedBranches = accountBranchOptions(nextBranches, user?.status, user?.branch_uuid ?? "");
+        setBranches(scopedBranches);
+        const ownBranch = scopedBranches.find((branch) => branch.branch_uuid === user?.branch_uuid);
+        setBranchUuid(ownBranch?.branch_uuid || scopedBranches[0]?.branch_uuid || "");
       } catch (error) {
         if (!active) return;
         showToast({ title: t("settings.bankAccount.loadReferencesFailed"), description: error instanceof Error ? error.message : "", tone: "error" });
@@ -359,59 +395,76 @@ export function AccountSettingsPage() {
   }, [branchUuid, clearSelection, loadAccounts, referencesReady]);
 
   function openCreate() {
+    if (!canManage || !branchUuid) return;
     setEditing(null);
     setDialogOpen(true);
   }
 
   function openEdit(row: BranchAccount) {
+    if (!canManage || !accountBelongsToBranch(row.branch_uuid_fk, branchUuid)) return;
     setEditing(row);
     setDialogOpen(true);
   }
 
   async function handleSave(input: SaveBranchAccountInput) {
-    if (!input.bank_uuid_fk || !input.account_name || !input.account_number || saving) return;
+    if (!canManage || !accountBelongsToBranch(input.branch_uuid_fk, branchUuid) || !input.bank_uuid_fk || !input.account_name || !input.account_number || saving) return;
+    if (editing && !accountBelongsToBranch(editing.branch_uuid_fk, branchUuid)) return;
+    const isCurrent = currentScopeGuard();
+    if (!isCurrent()) return;
     setSaving(true);
     try {
       await saveBranchAccount(input);
+      if (!isCurrent()) return;
       setDialogOpen(false);
       await loadAccounts(branchUuid, true);
+      if (!isCurrent()) return;
       showToast({ title: t("settings.storeBranch.transferAccountSaved"), tone: "success" });
     } catch (error) {
+      if (!isCurrent()) return;
       showToast({ title: t("settings.saveFailed"), description: error instanceof Error ? error.message : "", tone: "error" });
     } finally {
-      setSaving(false);
+      if (isCurrent()) setSaving(false);
     }
   }
 
   async function handleDelete() {
-    if (!deleteTarget || deleting) return;
+    if (!canManage || !deleteTarget || !accountBelongsToBranch(deleteTarget.branch_uuid_fk, branchUuid) || deleting) return;
+    const isCurrent = currentScopeGuard();
+    if (!isCurrent()) return;
     setDeleting(true);
     try {
       await deleteBranchAccount(deleteTarget.account_uuid, branchUuid);
+      if (!isCurrent()) return;
       setDeleteTarget(null);
       await loadAccounts(branchUuid, true);
+      if (!isCurrent()) return;
       showToast({ title: t("settings.bankAccount.accountDeleted"), tone: "success" });
     } catch (error) {
+      if (!isCurrent()) return;
       showToast({ title: t("settings.storeBranch.deleteFailed"), description: error instanceof Error ? error.message : "", tone: "error" });
     } finally {
-      setDeleting(false);
+      if (isCurrent()) setDeleting(false);
     }
   }
 
   async function handleReorder(nextRows: BranchAccount[]) {
-    if (!branchUuid || sorting) return;
+    if (!canManage || !branchUuid || sorting || nextRows.some((row) => !accountBelongsToBranch(row.branch_uuid_fk, branchUuid))) return;
+    const isCurrent = currentScopeGuard();
+    if (!isCurrent()) return;
     const previousRows = rows;
     const persistedRows = list.orderBy === "DESC" ? [...nextRows].reverse() : nextRows;
     setRows(persistedRows);
     setSorting(true);
     try {
       await sortBranchAccounts(branchUuid, persistedRows);
+      if (!isCurrent()) return;
       showToast({
         title: t("settings.bankAccount.orderSaved"),
         tone: "success",
       });
       await loadAccounts(branchUuid, true);
     } catch (error) {
+      if (!isCurrent()) return;
       setRows(previousRows);
       showToast({
         title: t("settings.bankAccount.orderSaveFailed"),
@@ -419,12 +472,12 @@ export function AccountSettingsPage() {
         tone: "error",
       });
     } finally {
-      setSorting(false);
+      if (isCurrent()) setSorting(false);
     }
   }
 
-  const branchSelector = branches.length > 1 ? (
-    <Select disabled={sorting} value={branchUuid} onValueChange={(value) => { setBranchUuid(value); list.setPage(1); }}>
+  const branchSelector = Number(user?.status) !== ROLE_STATUS.BRANCH_ADMIN && branches.length > 1 ? (
+    <Select disabled={sorting || saving || deleting} value={branchUuid} onValueChange={(value) => { if (branches.some((branch) => branch.branch_uuid === value)) { setBranchUuid(value); list.setPage(1); } }}>
       <SelectTrigger aria-label={t("nav.branch")} className="w-full @xl:w-64"><SelectValue placeholder={t("settings.storeBranch.noBranch")} /></SelectTrigger>
       <SelectContent position="popper"><SelectGroup>
         {branches.map((branch) => <SelectItem key={branch.branch_uuid} value={branch.branch_uuid}>{branchName(branch, language)}</SelectItem>)}
@@ -433,10 +486,11 @@ export function AccountSettingsPage() {
   ) : null;
 
   const dragEnabled =
+    canManage &&
     !sorting &&
     !refreshing &&
     list.visibleRows.length > 1 &&
-    list.visibleRows.length === rows.length;
+    list.visibleRows.length === scopedRows.length;
 
   const table = (
     <AccountTable
@@ -477,7 +531,7 @@ export function AccountSettingsPage() {
       description={t("settings.modules.account.description")}
       icon={CreditCard}
       addLabel={t("settings.storeBranch.addAccount")}
-      onAdd={branchUuid && hasActiveBank && !sorting ? openCreate : undefined}
+      onAdd={canManage && branchUuid && hasActiveBank && !sorting ? openCreate : undefined}
       loading={loading}
       loadingLabel={t("settings.loading", { title })}
       search={list.search}
