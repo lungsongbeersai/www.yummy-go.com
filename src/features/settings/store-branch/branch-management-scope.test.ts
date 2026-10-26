@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { BranchManagementStoreOptions } from "@/services/branch";
-import { branchManagementStores, branchManagementStoreLabel, branchManagementStoreUuid } from "./branch-management-scope";
+import { BRANCH_ALL_STORES, branchManagementStores, branchManagementStoreLabel, branchManagementStoreUuid, branchManagementMutationStoreUuid } from "./branch-management-scope";
 
 function options(canSelectStore: boolean): BranchManagementStoreOptions {
   return {
@@ -15,10 +15,33 @@ function options(canSelectStore: boolean): BranchManagementStoreOptions {
 }
 
 describe("branch management store selection", () => {
-  it("requires an explicit store selection for PLC management", () => {
-    expect(branchManagementStoreUuid(options(true), "")).toBe("");
+  it("selects the authenticated own store by default before any PLC selection", () => {
+    expect(branchManagementStoreUuid(options(true), "")).toBe("own-store");
     expect(branchManagementStoreUuid(options(true), "customer-store")).toBe("customer-store");
     expect(branchManagementStoreUuid(options(true), "unknown-store")).toBe("");
+  });
+
+  it("places the own store first without disturbing other stores' order", () => {
+    const source = options(true);
+    source.data.reverse();
+    expect(branchManagementStores(source).map((store) => store.store_uuid)).toEqual(["own-store", "customer-store"]);
+    expect(source.data[0].store_uuid).toBe("customer-store");
+  });
+
+  it("allows All only for a verified PLC list scope", () => {
+    expect(branchManagementStoreUuid(options(true), BRANCH_ALL_STORES)).toBe(BRANCH_ALL_STORES);
+    expect(branchManagementStoreUuid(options(false), BRANCH_ALL_STORES)).toBe("own-store");
+    expect(branchManagementStoreUuid(null, BRANCH_ALL_STORES)).toBe("");
+  });
+
+  it("never uses All as a mutation target and resolves edits to a known row store", () => {
+    expect(branchManagementMutationStoreUuid(options(true), BRANCH_ALL_STORES)).toBe("");
+    expect(branchManagementMutationStoreUuid(options(true), BRANCH_ALL_STORES, BRANCH_ALL_STORES)).toBe("");
+    expect(branchManagementMutationStoreUuid(options(true), BRANCH_ALL_STORES, "customer-store")).toBe("customer-store");
+    expect(branchManagementMutationStoreUuid(options(true), BRANCH_ALL_STORES, "unknown-store")).toBe("");
+    expect(branchManagementMutationStoreUuid(options(true), "own-store", "customer-store")).toBe("");
+    expect(branchManagementMutationStoreUuid(options(false), BRANCH_ALL_STORES, "customer-store")).toBe("");
+    expect(branchManagementMutationStoreUuid(options(true), "customer-store")).toBe("customer-store");
   });
 
   it("fixes non-PLC scope to the user's own store even with a foreign selection", () => {

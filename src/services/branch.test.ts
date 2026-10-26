@@ -30,6 +30,14 @@ describe("branch management scope requests", () => {
     });
   });
 
+  it("keeps the PLC all-store scope on the paginated management list", async () => {
+    mocks.request.mockResolvedValue({ data: [] });
+    await getBranches({ store_uuid_fk: "all", page: 2, limit: 20, search: "Customer" });
+    expect(mocks.request).toHaveBeenCalledWith("get", "/api/v1/branch/fetch_limit", {
+      params: expect.objectContaining({ store_uuid_fk: "all", page: 2, limit: 20, search: "Customer" })
+    });
+  });
+
   it("keeps the chosen store in a new branch payload", async () => {
     await saveBranch({ store_uuid_fk: "customer-store", branch_name: "New customer branch" });
     expect(mocks.request.mock.calls[0][2].data.store_uuid_fk).toBe("customer-store");

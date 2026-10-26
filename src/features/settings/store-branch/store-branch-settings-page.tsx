@@ -44,7 +44,7 @@ import {
   type StoreCardFilter
 } from "./store-branch-utils";
 import { useStoreBranchLabels } from "./use-store-branch-labels";
-import { branchManagementStores, branchManagementStoreUuid } from "./branch-management-scope";
+import { BRANCH_ALL_STORES, branchManagementStores, branchManagementStoreUuid, branchManagementMutationStoreUuid, branchManagementStoreLabel } from "./branch-management-scope";
 import { BranchManagementStorePicker } from "./branch-management-store-picker";
 
 // ร้าน/สาขาเป็นสโตร์คนละตัว (useStoreSettingsStore / useBranchSettingsStore) — kind ผูกกับเราท์
@@ -454,7 +454,7 @@ function BranchSettingsPage({ initialPagination }: { initialPagination: UrlPagin
   const managedStoreUuid = branchManagementStoreUuid(options, selectedStoreUuid);
 
   function changeStore(nextStoreUuid: string) {
-    if (saving || !storeOptions.some((store) => store.store_uuid === nextStoreUuid)) return;
+    if (saving || !branchManagementStoreUuid(options, nextStoreUuid)) return;
     // Reset also invalidates pending list requests before mounting the next store's form/list.
     resetBranches();
     setSelectedStoreUuid(nextStoreUuid);
@@ -464,12 +464,12 @@ function BranchSettingsPage({ initialPagination }: { initialPagination: UrlPagin
     <div className="flex h-full min-h-0 min-w-0 flex-col">
       {options?.scope.can_select_store ? (
         <div className="shrink-0 px-4 pt-4">
-          <BranchManagementStorePicker disabled={saving} onChange={changeStore} stores={storeOptions} value={selectedStoreUuid} />
+          <BranchManagementStorePicker disabled={saving} includeAll onChange={changeStore} stores={storeOptions} value={managedStoreUuid} />
         </div>
       ) : null}
       <div className="min-h-0 flex-1">
-        {managedStoreUuid ? (
-          <ScopedBranchSettingsPage key={managedStoreUuid} initialPagination={options?.scope.can_select_store ? { ...initialPagination, page: 1 } : initialPagination} managedStoreUuid={managedStoreUuid} canSelectStore={Boolean(options?.scope.can_select_store)} />
+        {managedStoreUuid && options ? (
+          <ScopedBranchSettingsPage key={managedStoreUuid} initialPagination={options.scope.can_select_store ? { ...initialPagination, page: 1 } : initialPagination} managedStoreUuid={managedStoreUuid} canSelectStore={options.scope.can_select_store} managementOptions={options} />
         ) : (
           <div className="flex h-full min-h-0 flex-col gap-4 overflow-y-auto p-4">
             <SettingsPageHeader icon={Building2} title={labels.branch} description={labels.branchHint} />
@@ -493,8 +493,8 @@ function BranchSettingsPage({ initialPagination }: { initialPagination: UrlPagin
   );
 }
 
-function ScopedBranchSettingsPage({ initialPagination, managedStoreUuid, canSelectStore }: { initialPagination: UrlPaginationState; managedStoreUuid: string; canSelectStore: boolean }) {
-  const { t } = useTranslation();
+function ScopedBranchSettingsPage({ initialPagination, managedStoreUuid, canSelectStore, managementOptions }: { initialPagination: UrlPaginationState; managedStoreUuid: string; canSelectStore: boolean; managementOptions: BranchManagementStoreOptions }) {
+  const { t, i18n } = useTranslation();
   const labels = useStoreBranchLabels();
   const updateUser = useAuthStore((state) => state.updateUser);
   const saveBranchRow = useBranchSettingsStore((state) => state.save);
@@ -555,7 +555,7 @@ function ScopedBranchSettingsPage({ initialPagination, managedStoreUuid, canSele
         editing: editingRow,
         email: String(formData.get("branch_email") ?? ""),
         name: String(formData.get("branch_name") ?? ""),
-        storeUuid: scopedStoreUuid,
+        storeUuid: branchManagementMutationStoreUuid(managementOptions, scopedStoreUuid, editingRow ? String(editingRow.store_uuid_fk ?? "") : undefined),
         sourceBranchUuid: String(formData.get("source_branch_uuid") ?? ""),
         tel: String(formData.get("branch_tel") ?? ""),
         vatPercent: String(formData.get("vat_name") ?? ""),
@@ -570,10 +570,10 @@ function ScopedBranchSettingsPage({ initialPagination, managedStoreUuid, canSele
     requiredScopeMessage: labels.storeRequired,
     store: useBranchSettingsStore,
     title,
-    validateInput: ({ formData, storeUuid: scopedStoreUuid }) => {
+    validateInput: ({ editing: editingRow, formData, storeUuid: scopedStoreUuid }) => {
       const missing = missingBranchField({
         name: String(formData.get("branch_name") ?? ""),
-        storeUuid: scopedStoreUuid
+        storeUuid: branchManagementMutationStoreUuid(managementOptions, scopedStoreUuid, editingRow ? String(editingRow.store_uuid_fk ?? "") : undefined)
       });
       if (missing === "store") return labels.storeRequired;
       if (missing === "name") return labels.branchNameRequired;
@@ -582,12 +582,17 @@ function ScopedBranchSettingsPage({ initialPagination, managedStoreUuid, canSele
   });
 
   const user = useAuthStore((state) => state.user);
-  const canCreate = canCreateStoreBranch(user?.status);
+  const allStores = storeUuid === BRANCH_ALL_STORES;
+  const canCreate = canCreateStoreBranch(user?.status) && !allStores;
   const canDelete = canDeleteStoreBranch(user?.status);
   const canEdit = canEditStoreBranch(user?.status);
   const activeId = user?.branch_uuid ?? "";
   const showStoreBranches = canCreate || canSelectStore;
-  const scopedRows = rows.filter((row) => row.store_uuid_fk === storeUuid);
+  // The authenticated list can include stores created after the option list
+  // loaded. Display them in All; mutation guards still require a known target.
+  const scopedRows = allStores
+    ? rows.filter((row) => row.store_uuid_fk && row.store_uuid_fk !== BRANCH_ALL_STORES)
+    : rows.filter((row) => row.store_uuid_fk === storeUuid);
   const visibleRows = showStoreBranches ? scopedRows : scopedRows.filter((row) => storeBranchValue(row, "branch_uuid") === activeId);
   const { allSelected, removeSelected, selectedRows, toggleAll, toggleSelected } = useOptionRowSelection(
     visibleRows,
@@ -597,6 +602,16 @@ function ScopedBranchSettingsPage({ initialPagination, managedStoreUuid, canSele
   const total = showStoreBranches ? controllerTotal : visibleRows.length;
   const totalPages = showStoreBranches ? controllerTotalPages : 1;
   const { start: pageStart, end: pageEnd } = optionPageRange(visibleRows.length, page, pageSize);
+  const mutationStoreUuid = branchManagementMutationStoreUuid(managementOptions, storeUuid, editing ? String(editing.store_uuid_fk ?? "") : undefined);
+  const language = i18n.resolvedLanguage || i18n.language;
+  const editingStore = branchManagementStores(managementOptions).find((store) => store.store_uuid === mutationStoreUuid);
+  const formLabels = allStores && editing && editingStore
+    ? { ...labels, branchInfo: `${labels.branchInfo} · ${branchManagementStoreLabel(editingStore, language)}` }
+    : labels;
+  const deleteStore = deleteTarget ? branchManagementStores(managementOptions).find((store) => store.store_uuid === deleteTarget.store_uuid_fk) : null;
+  const deleteDescription = allStores && deleteTarget && deleteStore
+    ? `${labels.deleteConfirm} (${branchManagementStoreLabel(deleteStore, language)} · ${storeBranchName(deleteTarget, "branch")})`
+    : labels.deleteConfirm;
 
   function imageUrl(row: StoreBranchSettingsRow, rowKind: StoreBranchKind) {
     void row;
@@ -639,7 +654,7 @@ function ScopedBranchSettingsPage({ initialPagination, managedStoreUuid, canSele
   }
 
   function openEdit(row: Branch) {
-    if (!canEdit || row.store_uuid_fk !== storeUuid) return;
+    if (!canEdit || !branchManagementMutationStoreUuid(managementOptions, storeUuid, String(row.store_uuid_fk ?? ""))) return;
     catalogSourceGeneration.current += 1;
     setCatalogSourcesLoading(false);
     controllerOpenEdit(row);
@@ -651,7 +666,7 @@ function ScopedBranchSettingsPage({ initialPagination, managedStoreUuid, canSele
     const id = editing ? storeBranchId(editing, "branch") : "";
     if (!id && !canCreate) return;
     if (id && !canEdit) return;
-    if (editing && editing.store_uuid_fk !== storeUuid) return;
+    if (!mutationStoreUuid) return;
 
     const input = buildBranchPayload({
       address: String(formData.get("branch_address") ?? ""),
@@ -660,7 +675,7 @@ function ScopedBranchSettingsPage({ initialPagination, managedStoreUuid, canSele
       editing,
       email: String(formData.get("branch_email") ?? ""),
       name: String(formData.get("branch_name") ?? ""),
-      storeUuid,
+      storeUuid: mutationStoreUuid,
       sourceBranchUuid: String(formData.get("source_branch_uuid") ?? ""),
       tel: String(formData.get("branch_tel") ?? ""),
       vatPercent: String(formData.get("vat_name") ?? ""),
@@ -701,7 +716,7 @@ function ScopedBranchSettingsPage({ initialPagination, managedStoreUuid, canSele
     const isCurrentSession = createSessionGuard();
     const isCurrent = () => mounted.current && isCurrentSession();
     const id = storeBranchId(row, "branch");
-    if (!canDelete || !id || id === activeId || row.store_uuid_fk !== storeUuid) return;
+    if (!canDelete || !id || id === activeId || !branchManagementMutationStoreUuid(managementOptions, storeUuid, String(row.store_uuid_fk ?? ""))) return;
     try {
       await removeBranchRow(id);
       if (!isCurrent()) return;
@@ -723,11 +738,12 @@ function ScopedBranchSettingsPage({ initialPagination, managedStoreUuid, canSele
 
   function rowActions(row: StoreBranchSettingsRow) {
     const id = storeBranchId(row, "branch");
+    const knownStore = Boolean(branchManagementMutationStoreUuid(managementOptions, storeUuid, String(row.store_uuid_fk ?? "")));
     return (
       <SettingsRowActions
         row={row}
-        editDisabled={!canEdit || saving}
-        deleteDisabled={!canDelete || id === activeId || saving}
+        editDisabled={!canEdit || !knownStore || saving}
+        deleteDisabled={!canDelete || !knownStore || id === activeId || saving}
         onEdit={(nextRow) => openEdit(nextRow as Branch)}
         onDelete={(nextRow) => setDeleteTarget(nextRow as Branch)}
       />
@@ -742,6 +758,7 @@ function ScopedBranchSettingsPage({ initialPagination, managedStoreUuid, canSele
     rowActions,
     rows: visibleRows,
     selectedRows,
+    showStoreName: allStores,
     onToggleSelected: toggleSelected
   };
 
@@ -783,13 +800,13 @@ function ScopedBranchSettingsPage({ initialPagination, managedStoreUuid, canSele
       onPageChange={setPage}
     >
       <StoreBranchFormDialog
-        activeStoreUuid={storeUuid}
+        activeStoreUuid={mutationStoreUuid}
         canEdit={canEdit}
         editing={editing}
         imageUrl={imageUrl}
         kind="branch"
-        labels={labels}
-        catalogSources={branchCatalogSourceOptions(catalogSourceBranches, storeUuid)}
+        labels={formLabels}
+        catalogSources={branchCatalogSourceOptions(catalogSourceBranches, mutationStoreUuid)}
         catalogSourcesLoading={catalogSourcesLoading}
         catalogSourcesUnavailable={catalogSourcesUnavailable}
         open={dialogOpen}
@@ -801,7 +818,7 @@ function ScopedBranchSettingsPage({ initialPagination, managedStoreUuid, canSele
         cancelLabel={labels.cancel}
         confirmLabel={labels.delete}
         confirmPending={saving}
-        description={labels.deleteConfirm}
+        description={deleteDescription}
         open={Boolean(deleteTarget)}
         title={labels.delete}
         onConfirm={() => {

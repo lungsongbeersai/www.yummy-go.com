@@ -3497,6 +3497,7 @@
       "branchHint": "Manage branch profile, contact details, VAT, service charge, and receiving accounts.",
       "selectStore": "Select a store",
       "selectStoreHint": "Choose a store to view its branches or add a new branch for it.",
+      "allStoresHint": "Showing branches from all stores. Select a store to add a new branch.",
       "loadingStores": "Loading stores...",
       "storeOptionsLoadFailed": "Unable to load stores",
       "branchDetails": "Branch details",

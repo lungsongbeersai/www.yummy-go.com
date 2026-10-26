@@ -1,7 +1,7 @@
 "use client";
 
 import Image from "next/image";
-import { MapPin, QrCode } from "lucide-react";
+import { MapPin, QrCode, Store as StoreIcon } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import type { ReactNode } from "react";
 import { Badge } from "@/components/ui/badge";
@@ -18,6 +18,7 @@ import {
 } from "@/components/ui/item";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import type { StoreBranchLabels, StoreBranchSettingsRow } from "./store-branch-types";
+import { branchManagementStoreLabel } from "./branch-management-scope";
 import {
   VAT_EXEMPT,
   VAT_INCLUDED,
@@ -36,6 +37,7 @@ type BranchListProps = {
   rowActions: (row: StoreBranchSettingsRow) => ReactNode;
   rows: StoreBranchSettingsRow[];
   selectedRows: Set<string>;
+  showStoreName?: boolean;
   onToggleSelected: (id: string, checked: boolean) => void;
 };
 
@@ -89,12 +91,29 @@ function BranchAddress({ row }: { row: StoreBranchSettingsRow }) {
   );
 }
 
+function BranchStoreName({ row }: { row: StoreBranchSettingsRow }) {
+  const { t, i18n } = useTranslation();
+  const name = branchManagementStoreLabel({
+    store_uuid: storeBranchValue(row, "store_uuid_fk", "-"),
+    store_name_la: storeBranchValue(row, "store_name_la"),
+    store_name_eng: storeBranchValue(row, "store_name_eng")
+  }, i18n.resolvedLanguage || i18n.language);
+
+  return (
+    <span className="flex min-w-0 max-w-72 items-center gap-1.5 text-muted-foreground" title={name}>
+      <StoreIcon aria-hidden className="size-3.5 shrink-0" />
+      <span className="sr-only">{t("nav.store")}: </span>
+      <span className="truncate">{name}</span>
+    </span>
+  );
+}
+
 export function BranchTable({
   allSelected,
   onToggleAllSelected,
   ...props
 }: BranchListProps & { allSelected: boolean; onToggleAllSelected: (checked: boolean) => void }) {
-  const { activeId, imageUrl, labels, pageStart, rowActions, rows, selectedRows, onToggleSelected } = props;
+  const { activeId, imageUrl, labels, pageStart, rowActions, rows, selectedRows, showStoreName, onToggleSelected } = props;
   const { t } = useTranslation();
 
   return (
@@ -136,6 +155,7 @@ export function BranchTable({
                       <span className="truncate font-medium">{name}</span>
                       {id === activeId ? <Badge variant="secondary">{labels.current}</Badge> : null}
                     </span>
+                    {showStoreName ? <BranchStoreName row={row} /> : null}
                     <span className="truncate text-muted-foreground tabular-nums" translate="no">
                       {storeBranchValue(row, "branch_tel", "-")}
                     </span>
@@ -165,7 +185,7 @@ export function BranchTable({
 
 // Narrow pages: one Item per branch — QR, name and phone, the address, then VAT/charge badges.
 // Two columns once there is room for them.
-export function BranchMobileList({ activeId, imageUrl, labels, rowActions, rows, selectedRows, onToggleSelected }: BranchListProps) {
+export function BranchMobileList({ activeId, imageUrl, labels, rowActions, rows, selectedRows, showStoreName, onToggleSelected }: BranchListProps) {
   const { t } = useTranslation();
 
   return (
@@ -187,6 +207,7 @@ export function BranchMobileList({ activeId, imageUrl, labels, rowActions, rows,
                 {name}
                 {id === activeId ? <Badge variant="secondary">{labels.current}</Badge> : null}
               </ItemTitle>
+              {showStoreName ? <ItemDescription><BranchStoreName row={row} /></ItemDescription> : null}
               <ItemDescription className="tabular-nums" translate="no">
                 {storeBranchValue(row, "branch_tel", "-")}
               </ItemDescription>

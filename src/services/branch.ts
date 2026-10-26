@@ -18,6 +18,8 @@ export interface Branch extends ApiEntity {
   charge_status?: number;
   charge_name?: number;
   store_uuid_fk?: string;
+  store_name_la?: string;
+  store_name_eng?: string;
 }
 export type BranchResponse = ApiListResponse<Branch>;
 export interface SaveBranchInput extends ApiEntity {

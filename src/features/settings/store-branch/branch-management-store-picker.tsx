@@ -4,16 +4,17 @@ import { useTranslation } from "react-i18next";
 import { Field, FieldDescription, FieldLabel } from "@/components/ui/field";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import type { BranchManagementStore } from "@/services/branch";
-import { branchManagementStoreLabel } from "./branch-management-scope";
+import { BRANCH_ALL_STORES, branchManagementStoreLabel } from "./branch-management-scope";
 
 interface BranchManagementStorePickerProps {
   disabled: boolean;
+  includeAll?: boolean;
   onChange: (storeUuid: string) => void;
   stores: BranchManagementStore[];
   value: string;
 }
 
-export function BranchManagementStorePicker({ disabled, onChange, stores, value }: BranchManagementStorePickerProps) {
+export function BranchManagementStorePicker({ disabled, includeAll = false, onChange, stores, value }: BranchManagementStorePickerProps) {
   const { t, i18n } = useTranslation();
   const language = i18n.resolvedLanguage || i18n.language;
 
@@ -25,6 +26,7 @@ export function BranchManagementStorePicker({ disabled, onChange, stores, value 
           <SelectValue placeholder={t("settings.storeBranch.selectStore")} />
         </SelectTrigger>
         <SelectContent position="popper">
+          {includeAll ? <SelectItem value={BRANCH_ALL_STORES}>{t("common.all")}</SelectItem> : null}
           {stores.map((store) => (
             <SelectItem key={store.store_uuid} value={store.store_uuid}>
               {branchManagementStoreLabel(store, language)}
@@ -32,7 +34,7 @@ export function BranchManagementStorePicker({ disabled, onChange, stores, value 
           ))}
         </SelectContent>
       </Select>
-      <FieldDescription>{t("settings.storeBranch.selectStoreHint")}</FieldDescription>
+      <FieldDescription>{t(value === BRANCH_ALL_STORES ? "settings.storeBranch.allStoresHint" : "settings.storeBranch.selectStoreHint")}</FieldDescription>
     </Field>
   );
 }
