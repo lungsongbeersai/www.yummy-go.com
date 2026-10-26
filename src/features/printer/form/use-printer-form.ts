@@ -666,8 +666,10 @@ export function usePrinterForm() {
         interfaceValue,
         savedInterfaceValue: baseline.interfaceValue,
       });
+      // The saved/advertised LAN URL is for sharing. Resolve this terminal
+      // through its configured Agent endpoint, as the initial discovery does.
       const identity: AgentInfo = shouldResolveCurrentIdentity
-        ? await resolveDeviceIdentity(agentUrl.trim() || AGENT_URL)
+        ? await resolveDeviceIdentity()
         : {
             agent_id: agentId.trim(),
             agent_name: agentName.trim(),
