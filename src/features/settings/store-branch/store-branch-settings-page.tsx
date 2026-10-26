@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Building2, KeyRound, Store as StoreIcon, X } from "lucide-react";
 import { ConfirmDialog } from "@/components/common/confirm-dialog";
@@ -17,6 +17,7 @@ import { authStoreUuid, useAuthStore } from "@/stores/auth-store";
 import { useBranchSettingsStore } from "@/stores/branch-settings-store";
 import { useReferenceStore } from "@/stores/reference-store";
 import { useStoreSettingsStore } from "@/stores/store-settings-store";
+import { createSessionGuard } from "@/stores/session-store-registry";
 import { StoreBranchFormDialog } from "./store-branch-form";
 import { BranchMobileList, BranchTable } from "./branch-list";
 import { SettingsListPageLayout } from "@/features/settings/shared/settings-list-page-layout";
@@ -25,6 +26,7 @@ import { StoreReportSummaryCards } from "./store-report-summary";
 import type { StoreBranchSettingsRow } from "./store-branch-types";
 import {
   buildBranchPayload,
+  branchCatalogSourceOptions,
   buildStorePayload,
   missingBranchField,
   missingStoreField,
@@ -406,6 +408,11 @@ function BranchSettingsPage({ initialPagination }: { initialPagination: UrlPagin
   const saveBranchRow = useBranchSettingsStore((state) => state.save);
   const loadBranchRows = useBranchSettingsStore((state) => state.load);
   const removeBranchRow = useBranchSettingsStore((state) => state.remove);
+  const loadCatalogSourceBranches = useReferenceStore((state) => state.loadBranches);
+  const [catalogSourceBranches, setCatalogSourceBranches] = useState<Branch[]>([]);
+  const [catalogSourcesLoading, setCatalogSourcesLoading] = useState(false);
+  const [catalogSourcesUnavailable, setCatalogSourcesUnavailable] = useState(false);
+  const catalogSourceGeneration = useRef(0);
 
   const title = labels.branch;
   const description = labels.branchHint;
@@ -448,6 +455,7 @@ function BranchSettingsPage({ initialPagination }: { initialPagination: UrlPagin
         email: String(formData.get("branch_email") ?? ""),
         name: String(formData.get("branch_name") ?? ""),
         storeUuid: authStoreUuid(currentUser),
+        sourceBranchUuid: String(formData.get("source_branch_uuid") ?? ""),
         tel: String(formData.get("branch_tel") ?? ""),
         vatPercent: String(formData.get("vat_name") ?? ""),
         vatStatus: String(formData.get("vat_status") ?? "2")
@@ -498,17 +506,36 @@ function BranchSettingsPage({ initialPagination }: { initialPagination: UrlPagin
   }
 
   function resetForm() {
+    catalogSourceGeneration.current += 1;
+    setCatalogSourcesLoading(false);
     setEditing(null);
     setDialogOpen(false);
   }
 
   function openCreate() {
     if (!canCreate) return;
+    const generation = ++catalogSourceGeneration.current;
+    const isCurrentSession = createSessionGuard();
+    const requestedStore = storeUuid;
+    const isCurrent = () => generation === catalogSourceGeneration.current && isCurrentSession() &&
+      authStoreUuid(useAuthStore.getState().user) === requestedStore;
+    setCatalogSourceBranches([]);
+    setCatalogSourcesLoading(true);
+    setCatalogSourcesUnavailable(false);
     controllerOpenCreate();
+    void loadCatalogSourceBranches(requestedStore).then((branches) => {
+      if (isCurrent()) setCatalogSourceBranches(branches);
+    }).catch(() => {
+      if (isCurrent()) setCatalogSourcesUnavailable(true);
+    }).finally(() => {
+      if (isCurrent()) setCatalogSourcesLoading(false);
+    });
   }
 
   function openEdit(row: Branch) {
     if (!canEdit) return;
+    catalogSourceGeneration.current += 1;
+    setCatalogSourcesLoading(false);
     controllerOpenEdit(row);
   }
 
@@ -525,6 +552,7 @@ function BranchSettingsPage({ initialPagination }: { initialPagination: UrlPagin
       email: String(formData.get("branch_email") ?? ""),
       name: String(formData.get("branch_name") ?? ""),
       storeUuid,
+      sourceBranchUuid: String(formData.get("source_branch_uuid") ?? ""),
       tel: String(formData.get("branch_tel") ?? ""),
       vatPercent: String(formData.get("vat_name") ?? ""),
       vatStatus: String(formData.get("vat_status") ?? "2")
@@ -644,6 +672,9 @@ function BranchSettingsPage({ initialPagination }: { initialPagination: UrlPagin
         imageUrl={imageUrl}
         kind="branch"
         labels={labels}
+        catalogSources={branchCatalogSourceOptions(catalogSourceBranches, storeUuid)}
+        catalogSourcesLoading={catalogSourcesLoading}
+        catalogSourcesUnavailable={catalogSourcesUnavailable}
         open={dialogOpen}
         saving={saving}
         onCancel={resetForm}

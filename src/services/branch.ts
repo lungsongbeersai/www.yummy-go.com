@@ -22,6 +22,7 @@ export interface Branch extends ApiEntity {
 export type BranchResponse = ApiListResponse<Branch>;
 export interface SaveBranchInput extends ApiEntity {
   branch_uuid?: string;
+  source_branch_uuid?: string;
   branch_name?: string | FormDataEntryValue;
   branch_tel?: string | FormDataEntryValue;
   branch_address?: string | FormDataEntryValue;
@@ -79,7 +80,12 @@ export const saveBranch = (input: SaveBranchInput) => {
     charge_status: Number(input.charge_status ?? 2),
     charge_name: Number(input.charge_name ?? 0)
   };
+  if (!String(payload.branch_uuid ?? "").trim() && input.source_branch_uuid?.trim()) {
+    payload.source_branch_uuid = input.source_branch_uuid.trim();
+  }
 
-  return crud.save(payload);
+  // Creation includes the bounded catalog/photo copy. Ordinary edits retain
+  // the default HTTP budget and never clone the menu again.
+  return crud.save(payload, !String(payload.branch_uuid ?? "").trim() ? { timeout: 90_000 } : undefined);
 };
 export const deleteBranch = (branch_uuid: string) => crud.delete(branch_uuid);

@@ -7,6 +7,7 @@ import {
   branchVatStatusValue,
   branchVatSummary,
   buildBranchPayload,
+  branchCatalogSourceOptions,
   buildStorePayload,
   annualDaysRemaining,
   isStoreActive,
@@ -196,6 +197,31 @@ describe("store branch utils", () => {
       vat_name: 7500.25,
       charge_name: 1234.5
     });
+  });
+
+  it("copies the selected source only during creation and ignores it on branch edits", () => {
+    const input = {
+      address: "", chargePercent: "0", chargeStatus: "2", email: "branch@example.com",
+      name: "Branch", storeUuid: "store-1", tel: "", vatPercent: "0", vatStatus: "1",
+      sourceBranchUuid: " source-branch ",
+    };
+    expect(buildBranchPayload({ ...input, editing: null }).source_branch_uuid).toBe("source-branch");
+    expect(buildBranchPayload({ ...input, editing: { branch_uuid: "existing-branch" } })).not.toHaveProperty("source_branch_uuid");
+    expect(buildBranchPayload({ ...input, editing: null, sourceBranchUuid: "  " })).not.toHaveProperty("source_branch_uuid");
+  });
+
+  it("offers only same-store source branches in backend creation order without duplicates", () => {
+    expect(branchCatalogSourceOptions([
+      { branch_uuid: "first", branch_name: "Branch 1", store_uuid_fk: "store-1" },
+      { branch_uuid: "foreign", branch_name: "Other store", store_uuid_fk: "store-2" },
+      { branch_uuid: "second", branch_name_eng: "Branch 2", store_uuid_fk: "store-1" },
+      { branch_uuid: "first", branch_name: "Duplicate", store_uuid_fk: "store-1" },
+      { branch_uuid: "", branch_name: "Missing identity", store_uuid_fk: "store-1" },
+    ], "store-1")).toEqual([
+      { value: "first", label: "Branch 1" },
+      { value: "second", label: "Branch 2" },
+    ]);
+    expect(branchCatalogSourceOptions([], "store-1")).toEqual([]);
   });
 
   it("detects missing required fields", () => {

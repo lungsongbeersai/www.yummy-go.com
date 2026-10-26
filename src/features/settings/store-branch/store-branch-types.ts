@@ -12,6 +12,11 @@ export interface StoreBranchLabels {
   branchInfo: string;
   branchList: string;
   branchNameRequired: string;
+  catalogSource: string;
+  catalogCopyHint: string;
+  catalogCopyFirstBranch: string;
+  catalogSourceUnavailable: string;
+  catalogSourceLoading: string;
   annualDue: string;
   activeStores: string;
   cancel: string;

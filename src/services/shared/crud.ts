@@ -1,4 +1,4 @@
-import { apiRequest } from "@/lib/api";
+import { apiRequest, type RequestOptions } from "@/lib/api";
 import { toFormData } from "@/lib/form-data";
 import { toApiLanguage } from "@/lib/language";
 import { requiredText } from "@/services/shared/validators";
@@ -63,10 +63,11 @@ export async function saveEntity<T extends ApiEntity>(
   endpoint: string,
   input: Record<string, unknown>,
   fallback = "Failed to save data",
-  multipart = false
+  multipart = false,
+  options?: Pick<RequestOptions, "timeout" | "signal">
 ) {
   const data = multipart ? toFormData(input) : input;
-  const result = await apiRequest<ApiDataResponse<T>>("post", endpoint, { data }, fallback);
+  const result = await apiRequest<ApiDataResponse<T>>("post", endpoint, { data, ...options }, fallback);
   return result.data;
 }
 
@@ -87,7 +88,8 @@ export function createCrud<T extends ApiEntity>(
   return {
     list: (params?: FetchParams) => fetchList<T>(endpoints.fetch!, params),
     options: (params?: Record<string, unknown>) => fetchAll<T>(endpoints.fetchAll!, params),
-    save: (input: Record<string, unknown>) => saveEntity<T>(endpoints.create!, input, undefined, multipart),
+    save: (input: Record<string, unknown>, options?: Pick<RequestOptions, "timeout" | "signal">) =>
+      saveEntity<T>(endpoints.create!, input, undefined, multipart, options),
     delete: (id: string) => deleteEntity(endpoints.delete!, idKey, id)
   };
 }

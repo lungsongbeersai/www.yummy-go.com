@@ -1,5 +1,5 @@
 import { stripNumberFormat } from "@/lib/number-format";
-import type { SaveBranchInput } from "@/services/branch";
+import type { Branch, SaveBranchInput } from "@/services/branch";
 import type { ApiEntity } from "@/services/shared/types";
 import type { SaveStoreInput, StoreReportSummary } from "@/services/store";
 
@@ -174,6 +174,16 @@ export function missingBranchField({ name, storeUuid }: { name: string; storeUui
   return null;
 }
 
+export function branchCatalogSourceOptions(branches: Branch[], storeUuid: string) {
+  const seen = new Set<string>();
+  return branches.flatMap((branch) => {
+    const value = String(branch.branch_uuid ?? "").trim();
+    if (!value || branch.store_uuid_fk !== storeUuid || seen.has(value)) return [];
+    seen.add(value);
+    return [{ value, label: storeBranchName(branch, "branch") }];
+  });
+}
+
 export function buildStorePayload({
   active,
   depositExpireDays,
@@ -222,6 +232,7 @@ export function buildBranchPayload({
   email,
   name,
   storeUuid,
+  sourceBranchUuid = "",
   tel,
   vatPercent,
   vatStatus
@@ -233,6 +244,7 @@ export function buildBranchPayload({
   email: string;
   name: string;
   storeUuid: string;
+  sourceBranchUuid?: string;
   tel: string;
   vatPercent: string;
   vatStatus: string;
@@ -249,6 +261,9 @@ export function buildBranchPayload({
     charge_status: Number(chargeStatus || 2),
     charge_name: Number(percentOrZero(chargePercent))
   };
+  if (!payload.branch_uuid && sourceBranchUuid.trim()) {
+    payload.source_branch_uuid = sourceBranchUuid.trim();
+  }
   return payload;
 }
 

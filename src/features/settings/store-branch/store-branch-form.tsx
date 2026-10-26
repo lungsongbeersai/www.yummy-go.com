@@ -47,7 +47,10 @@ export function StoreBranchFormDialog({
   onCancel,
   onSubmit,
   open,
-  saving
+  saving,
+  catalogSources = [],
+  catalogSourcesLoading = false,
+  catalogSourcesUnavailable = false
 }: {
   activeStoreUuid: string;
   canEdit: boolean;
@@ -59,6 +62,9 @@ export function StoreBranchFormDialog({
   onSubmit: (formData: FormData) => Promise<void>;
   open: boolean;
   saving: boolean;
+  catalogSources?: Array<{ label: string; value: string }>;
+  catalogSourcesLoading?: boolean;
+  catalogSourcesUnavailable?: boolean;
 }) {
   return (
     <Dialog
@@ -76,6 +82,9 @@ export function StoreBranchFormDialog({
           kind={kind}
           labels={labels}
           saving={saving}
+          catalogSources={catalogSources}
+          catalogSourcesLoading={catalogSourcesLoading}
+          catalogSourcesUnavailable={catalogSourcesUnavailable}
           onCancel={onCancel}
           onSubmit={onSubmit}
         />
@@ -159,7 +168,10 @@ function EntityForm({
   labels,
   onCancel,
   onSubmit,
-  saving
+  saving,
+  catalogSources,
+  catalogSourcesLoading,
+  catalogSourcesUnavailable
 }: {
   activeStoreUuid: string;
   canEdit: boolean;
@@ -170,6 +182,9 @@ function EntityForm({
   onCancel: () => void;
   onSubmit: (formData: FormData) => Promise<void>;
   saving: boolean;
+  catalogSources: Array<{ label: string; value: string }>;
+  catalogSourcesLoading: boolean;
+  catalogSourcesUnavailable: boolean;
 }) {
   const recordKey = `${kind}-${editing ? storeBranchId(editing, kind) : "new"}`;
   const imageFieldName = "store_logo";
@@ -183,6 +198,9 @@ function EntityForm({
   const [branchTel, setBranchTel] = useState("");
   const [branchEmail, setBranchEmail] = useState("");
   const [branchAddress, setBranchAddress] = useState("");
+  const [sourceBranchUuid, setSourceBranchUuid] = useState("");
+  const catalogSourceValue = catalogSources.some((source) => source.value === sourceBranchUuid)
+    ? sourceBranchUuid : catalogSources[0]?.value ?? "";
   const [storeStatus, setStoreStatus] = useState("2");
   const [storeActive, setStoreActive] = useState("1");
   const [storeTableStatus, setStoreTableStatus] = useState("1");
@@ -196,12 +214,13 @@ function EntityForm({
   const existingSrc = kind === "store" && editing ? imageUrl(editing, kind) : "";
   const canSubmit =
     !disabled &&
+    !(kind === "branch" && !editing && catalogSourcesLoading) &&
     (kind === "store"
       ? !missingStoreField({ email: storeEmail, nameLa: storeNameLa })
       : !missingBranchField({ name: branchName, storeUuid: activeStoreUuid }));
 
   // สลับเรคคอร์ด/เปิดฟอร์มใหม่ = โหลดค่าตั้งต้นของทุกช่องใหม่
-  useResetOnDeps([editing, recordKey], () => {
+  useResetOnDeps([editing, recordKey, activeStoreUuid], () => {
     setSelectedImage(null);
     setCrop(DEFAULT_CROP);
     setStoreNameLa(storeBranchValue(editing, "store_name_la", storeBranchValue(editing, "store_name")));
@@ -211,6 +230,7 @@ function EntityForm({
     setBranchTel(storeBranchValue(editing, "branch_tel"));
     setBranchEmail(storeBranchValue(editing, "branch_email"));
     setBranchAddress(storeBranchValue(editing, "branch_address"));
+    setSourceBranchUuid("");
     setStoreStatus(String(storeBranchNumber(editing, "store_status", 2)));
     setStoreActive(String(storeBranchNumber(editing, "store_active", 1)));
     setStoreTableStatus(String(storeTableStatusValue(storeBranchValue(editing, "store_table_status", "1"))));
@@ -378,6 +398,35 @@ function EntityForm({
                 </FieldGroup>
               )}
             </FieldSet>
+
+            {kind === "branch" && !editing ? (
+              <FieldSet className="min-w-0 gap-4 rounded-lg border border-border bg-card p-4">
+                <Field>
+                  <FieldLegend>{labels.catalogSource}</FieldLegend>
+                  <FieldDescription className="text-foreground">{labels.catalogCopyHint}</FieldDescription>
+                </Field>
+                {catalogSourcesLoading ? (
+                  <div role="status" className="flex items-center gap-2 text-sm text-muted-foreground">
+                    <Spinner />{labels.catalogSourceLoading}
+                  </div>
+                ) : catalogSources.length ? (
+                  <FormSelectField
+                    className="min-w-0"
+                    disabled={disabled}
+                    id={`${recordKey}-catalog-source`}
+                    label={labels.branch}
+                    name="source_branch_uuid"
+                    value={catalogSourceValue}
+                    onValueChange={setSourceBranchUuid}
+                    options={catalogSources}
+                  />
+                ) : (
+                  <FieldDescription className="text-foreground" role={catalogSourcesUnavailable ? "alert" : undefined}>
+                    {catalogSourcesUnavailable ? labels.catalogSourceUnavailable : labels.catalogCopyFirstBranch}
+                  </FieldDescription>
+                )}
+              </FieldSet>
+            ) : null}
 
             {kind === "store" ? (
               <FieldSet className="gap-4 rounded-lg border border-border bg-card p-4">
