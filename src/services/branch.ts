@@ -35,6 +35,21 @@ export interface SaveBranchInput extends ApiEntity {
 }
 export interface FetchBranchesParams extends FetchParams {}
 
+export interface BranchManagementStore extends ApiEntity {
+  store_uuid: string;
+  store_name_la?: string;
+  store_name_eng?: string;
+  store_status?: number;
+  store_active?: number;
+}
+
+export interface BranchManagementStoreOptions extends ApiDataResponse<BranchManagementStore[]> {
+  scope: {
+    can_select_store: boolean;
+    store_uuid: string;
+  };
+}
+
 const crud = createCrud<Branch>(
   {
     fetch: "/api/v1/branch/fetch_limit",
@@ -65,6 +80,14 @@ export async function getBranchOptions(store_uuid_fk = getStoreUuid()) {
     params: { store_uuid_fk }
   });
   return result.data ?? [];
+}
+
+export async function getBranchManagementStoreOptions() {
+  const result = await apiRequest<BranchManagementStoreOptions>("get", "/api/v1/branch/store_options");
+  if (!result.scope || typeof result.scope.can_select_store !== "boolean" || typeof result.scope.store_uuid !== "string" || !result.scope.store_uuid.trim()) {
+    throw new ServiceError("Unable to determine branch management access", 403);
+  }
+  return { ...result, data: Array.isArray(result.data) ? result.data : [] };
 }
 
 export const saveBranch = (input: SaveBranchInput) => {

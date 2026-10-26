@@ -11,11 +11,13 @@ interface TestParams extends FetchParams {
 }
 
 const listMock = vi.fn<(params?: TestParams) => Promise<ApiListResponse<TestRow>>>();
+const saveMock = vi.fn<(input: TestRow) => Promise<TestRow>>(async (input) => input);
+const removeMock = vi.fn<(id: string) => Promise<void>>(async () => undefined);
 const testStore = createCrudListStore<TestRow, TestRow, TestParams>({
   idKey: "test_uuid",
   list: listMock,
-  remove: vi.fn(async () => undefined),
-  save: vi.fn(async (input) => input)
+  remove: removeMock,
+  save: saveMock
 });
 
 function deferred<T>() {
@@ -67,5 +69,43 @@ describe("CRUD list store request ordering", () => {
       total: 1,
       totalPages: 1
     });
+  });
+
+  it("clears old-store rows and ignores their pending response after a scope reset", async () => {
+    const oldRequest = deferred<ApiListResponse<TestRow>>();
+    listMock.mockReturnValueOnce(oldRequest.promise);
+    const pending = testStore.getState().load({ scope: "old-store" });
+    testStore.getState().reset();
+    expect(testStore.getState()).toMatchObject({ rows: [], hasLoaded: false, loading: false });
+    oldRequest.resolve({ status: "success", message: "ok", data: [{ test_uuid: "old-store-branch" }] });
+    await pending;
+    expect(testStore.getState()).toMatchObject({ rows: [], total: 0, hasLoaded: false, loading: false });
+  });
+
+  it("does not let an old-store save clear the new store's pending save state", async () => {
+    const old = deferred<TestRow>();
+    const current = deferred<TestRow>();
+    saveMock.mockReturnValueOnce(old.promise).mockReturnValueOnce(current.promise);
+    const oldSave = testStore.getState().save({ test_uuid: "old" });
+    testStore.getState().reset();
+    const currentSave = testStore.getState().save({ test_uuid: "current" });
+    old.resolve({ test_uuid: "old" });
+    await oldSave;
+    expect(testStore.getState().saving).toBe(true);
+    current.resolve({ test_uuid: "current" });
+    await currentSave;
+    expect(testStore.getState().saving).toBe(false);
+  });
+
+  it("does not apply a pending delete to rows loaded after a reset", async () => {
+    const pending = deferred<void>();
+    removeMock.mockReturnValueOnce(pending.promise);
+    const removing = testStore.getState().remove("shared-id");
+    testStore.getState().reset();
+    listMock.mockResolvedValueOnce({ status: "success", message: "ok", data: [{ test_uuid: "shared-id" }] });
+    await testStore.getState().load({ scope: "current-store" });
+    pending.resolve();
+    await removing;
+    expect(testStore.getState().rows).toEqual([{ test_uuid: "shared-id" }]);
   });
 });

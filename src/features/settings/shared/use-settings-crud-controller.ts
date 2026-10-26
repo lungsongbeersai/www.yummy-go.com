@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import type { StoreApi, UseBoundStore } from "zustand";
 import {
@@ -18,6 +18,7 @@ import type { ApiEntity, FetchParams, SortOrder } from "@/services/shared/types"
 import { useAppStore } from "@/stores/app-store";
 import { authStoreUuid, useAuthStore, type AuthUser } from "@/stores/auth-store";
 import type { CrudListState } from "@/stores/crud-list-store";
+import { createSessionGuard } from "@/stores/session-store-registry";
 import { useToastStore } from "@/stores/toast-store";
 
 export type SettingsCrudStore<Row extends ApiEntity, SaveInput extends ApiEntity, Params extends FetchParams> =
@@ -43,6 +44,8 @@ export interface UseSettingsCrudControllerArgs<
   requiredScopeKey?: string;
   requiredScopeMessage?: string;
   scope?: (storeUuid: string, user: AuthUser | null) => Record<string, unknown>;
+  /** Local management scope; never changes the authenticated/POS store. */
+  scopeStoreUuid?: string;
   store: SettingsCrudStore<Row, SaveInput, Params>;
   title: string;
   validateInput?: (args: SettingsCrudSaveArgs<Row>) => string | null;
@@ -63,6 +66,7 @@ export function useSettingsCrudController<
   requiredScopeKey,
   requiredScopeMessage,
   scope: getScope,
+  scopeStoreUuid,
   store,
   title,
   validateInput
@@ -70,7 +74,7 @@ export function useSettingsCrudController<
   const { t } = useTranslation();
   const language = useAppStore((state) => state.language);
   const user = useAuthStore((state) => state.user);
-  const storeUuid = authStoreUuid(user);
+  const storeUuid = scopeStoreUuid ?? authStoreUuid(user);
   const showToast = useToastStore((state) => state.show);
   const rows = store((state) => state.rows);
   const total = store((state) => state.total);
@@ -89,6 +93,16 @@ export function useSettingsCrudController<
   const [editing, setEditing] = useState<Row | null>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<Row | null>(null);
+  const mounted = useRef(true);
+  const loadGeneration = useRef(0);
+
+  useEffect(() => {
+    mounted.current = true;
+    return () => {
+      mounted.current = false;
+      loadGeneration.current += 1;
+    };
+  }, []);
 
   const scope = getScope?.(storeUuid, user) ?? {};
   const missingRequiredScope = Boolean(requiredScopeKey && !String(scope[requiredScopeKey] ?? "").trim());
@@ -117,6 +131,9 @@ export function useSettingsCrudController<
   const { allSelected, ids, removeSelected, selectedRows, toggleAll, toggleSelected } = useOptionRowSelection(rows, rowId);
 
   const load = useCallback(async () => {
+    if (!mounted.current) return;
+    const generation = ++loadGeneration.current;
+    const isCurrentSession = createSessionGuard();
     if (missingRequiredScope) {
       showToast({ title: t("settings.loadFailed", { title }), description: requiredScopeDescription, tone: "error" });
       return;
@@ -125,6 +142,8 @@ export function useSettingsCrudController<
     try {
       await loadRows(requestParams, { background: hasLoadedRef.current });
     } catch (error) {
+      // List state already ignores stale requests; its error toast needs the same boundary.
+      if (!mounted.current || generation !== loadGeneration.current || !isCurrentSession()) return;
       showToast({
         title: t("settings.loadFailed", { title }),
         description: error instanceof Error ? error.message : t("toasts.pleaseTryAgain"),

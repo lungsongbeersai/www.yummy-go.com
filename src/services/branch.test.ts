@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { saveBranch } from "@/services/branch";
+import { getBranchManagementStoreOptions, getBranches, saveBranch } from "@/services/branch";
 
 const mocks = vi.hoisted(() => ({ request: vi.fn() }));
 vi.mock("@/lib/api", () => ({ apiRequest: mocks.request, ServiceError: class extends Error {} }));
@@ -7,6 +7,33 @@ vi.mock("@/lib/api", () => ({ apiRequest: mocks.request, ServiceError: class ext
 beforeEach(() => {
   mocks.request.mockReset();
   mocks.request.mockResolvedValue({ data: { branch_uuid: "new-branch" } });
+});
+
+describe("branch management scope requests", () => {
+  it("loads store choices from the authenticated branch management endpoint", async () => {
+    const result = { status: "success", data: [{ store_uuid: "customer-store" }], scope: { can_select_store: true, store_uuid: "plc-store" } };
+    mocks.request.mockResolvedValue(result);
+    await expect(getBranchManagementStoreOptions()).resolves.toEqual(result);
+    expect(mocks.request).toHaveBeenCalledWith("get", "/api/v1/branch/store_options");
+  });
+
+  it.each([undefined, { store_uuid: "own-store" }, { can_select_store: true, store_uuid: "" }])("rejects missing or incomplete authority metadata: %j", async (scope) => {
+    mocks.request.mockResolvedValue({ data: [{ store_uuid: "other-store" }], scope });
+    await expect(getBranchManagementStoreOptions()).rejects.toThrow("Unable to determine branch management access");
+  });
+
+  it("sends the selected customer store when loading branches", async () => {
+    mocks.request.mockResolvedValue({ data: [] });
+    await getBranches({ store_uuid_fk: "customer-store", page: 2 });
+    expect(mocks.request).toHaveBeenCalledWith("get", "/api/v1/branch/fetch_limit", {
+      params: expect.objectContaining({ store_uuid_fk: "customer-store", page: 2 })
+    });
+  });
+
+  it("keeps the chosen store in a new branch payload", async () => {
+    await saveBranch({ store_uuid_fk: "customer-store", branch_name: "New customer branch" });
+    expect(mocks.request.mock.calls[0][2].data.store_uuid_fk).toBe("customer-store");
+  });
 });
 
 describe("branch catalog source payload", () => {

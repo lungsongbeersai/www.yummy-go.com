@@ -1,17 +1,21 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Building2, KeyRound, Store as StoreIcon, X } from "lucide-react";
 import { ConfirmDialog } from "@/components/common/confirm-dialog";
 import { Button } from "@/components/ui/button";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { LoadingState } from "@/components/common/loading-state";
 import { SettingsEmptyRecords, SettingsRowActions } from "@/features/settings/shared/settings-shell";
 import { optionPageRange, optionPageSize } from "@/features/settings/shared/option-settings-utils";
 import { useOptionRowSelection } from "@/features/settings/shared/use-option-row-selection";
 import { useSettingsCrudController } from "@/features/settings/shared/use-settings-crud-controller";
+import { SettingsPageHeader } from "@/features/settings/shared/settings-page-header";
+import { useResetOnDeps } from "@/hooks/use-reset-on-change";
 import { canCreateStoreBranch, canDeleteStoreBranch, canEditStoreBranch } from "@/lib/permissions";
 import type { UrlPaginationState } from "@/lib/url-pagination";
-import type { Branch, FetchBranchesParams, SaveBranchInput } from "@/services/branch";
+import type { Branch, BranchManagementStoreOptions, FetchBranchesParams, SaveBranchInput } from "@/services/branch";
 import type { FetchStoresParams, SaveStoreInput, Store } from "@/services/store";
 import { authStoreUuid, useAuthStore } from "@/stores/auth-store";
 import { useBranchSettingsStore } from "@/stores/branch-settings-store";
@@ -40,6 +44,8 @@ import {
   type StoreCardFilter
 } from "./store-branch-utils";
 import { useStoreBranchLabels } from "./use-store-branch-labels";
+import { branchManagementStores, branchManagementStoreUuid } from "./branch-management-scope";
+import { BranchManagementStorePicker } from "./branch-management-store-picker";
 
 // ร้าน/สาขาเป็นสโตร์คนละตัว (useStoreSettingsStore / useBranchSettingsStore) — kind ผูกกับเราท์
 // (settings/store, settings/branch) จึงคงที่ตลอดอายุของอินสแตนซ์ที่ mount แต่ละครั้ง แยกเป็น 2
@@ -404,15 +410,110 @@ function StoreSettingsPage({ initialPagination }: { initialPagination: UrlPagina
 function BranchSettingsPage({ initialPagination }: { initialPagination: UrlPaginationState }) {
   const { t } = useTranslation();
   const labels = useStoreBranchLabels();
+  const user = useAuthStore((state) => state.user);
+  const token = useAuthStore((state) => state.token);
+  const loadStoreOptions = useReferenceStore((state) => state.loadBranchManagementStores);
+  const resetBranches = useBranchSettingsStore((state) => state.reset);
+  const saving = useBranchSettingsStore((state) => state.saving);
+  const [options, setOptions] = useState<BranchManagementStoreOptions | null>(null);
+  const [selectedStoreUuid, setSelectedStoreUuid] = useState("");
+  const [scopeError, setScopeError] = useState<string | null>(null);
+  const [retry, setRetry] = useState(0);
+  const scopeGeneration = useRef(0);
+  const ownStoreUuid = authStoreUuid(user);
+
+  useResetOnDeps([token, user?.uuid, ownStoreUuid, retry], () => {
+    setOptions(null);
+    setSelectedStoreUuid("");
+    setScopeError(null);
+  });
+
+  useEffect(() => {
+    const generation = ++scopeGeneration.current;
+    const isCurrentSession = createSessionGuard();
+    let active = true;
+    resetBranches();
+    queueMicrotask(() => {
+      if (!active) return;
+      void loadStoreOptions().then((result) => {
+        if (active && generation === scopeGeneration.current && isCurrentSession()) setOptions(result);
+      }).catch((error: unknown) => {
+        if (active && generation === scopeGeneration.current && isCurrentSession()) {
+          setScopeError(error instanceof Error ? error.message : "");
+        }
+      });
+    });
+    return () => {
+      active = false;
+      scopeGeneration.current += 1;
+      resetBranches();
+    };
+  }, [loadStoreOptions, ownStoreUuid, resetBranches, retry, token, user?.uuid]);
+
+  const storeOptions = branchManagementStores(options);
+  const managedStoreUuid = branchManagementStoreUuid(options, selectedStoreUuid);
+
+  function changeStore(nextStoreUuid: string) {
+    if (saving || !storeOptions.some((store) => store.store_uuid === nextStoreUuid)) return;
+    // Reset also invalidates pending list requests before mounting the next store's form/list.
+    resetBranches();
+    setSelectedStoreUuid(nextStoreUuid);
+  }
+
+  return (
+    <div className="flex h-full min-h-0 min-w-0 flex-col">
+      {options?.scope.can_select_store ? (
+        <div className="shrink-0 px-4 pt-4">
+          <BranchManagementStorePicker disabled={saving} onChange={changeStore} stores={storeOptions} value={selectedStoreUuid} />
+        </div>
+      ) : null}
+      <div className="min-h-0 flex-1">
+        {managedStoreUuid ? (
+          <ScopedBranchSettingsPage key={managedStoreUuid} initialPagination={options?.scope.can_select_store ? { ...initialPagination, page: 1 } : initialPagination} managedStoreUuid={managedStoreUuid} canSelectStore={Boolean(options?.scope.can_select_store)} />
+        ) : (
+          <div className="flex h-full min-h-0 flex-col gap-4 overflow-y-auto p-4">
+            <SettingsPageHeader icon={Building2} title={labels.branch} description={labels.branchHint} />
+            {scopeError !== null ? (
+              <Alert variant="destructive">
+                <AlertTitle>{t("settings.storeBranch.storeOptionsLoadFailed")}</AlertTitle>
+                <AlertDescription className="flex flex-col items-start gap-3">
+                  {scopeError || t("toasts.pleaseTryAgain")}
+                  <Button variant="outline" onClick={() => setRetry((current) => current + 1)}>{t("dashboard.retry")}</Button>
+                </AlertDescription>
+              </Alert>
+            ) : !options ? (
+              <LoadingState label={t("settings.storeBranch.loadingStores")} variant="settingsTable" />
+            ) : (
+              <SettingsEmptyRecords icon={<StoreIcon aria-hidden />} titleText={t("settings.storeBranch.selectStore")} description={t("settings.storeBranch.selectStoreHint")} />
+            )}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function ScopedBranchSettingsPage({ initialPagination, managedStoreUuid, canSelectStore }: { initialPagination: UrlPaginationState; managedStoreUuid: string; canSelectStore: boolean }) {
+  const { t } = useTranslation();
+  const labels = useStoreBranchLabels();
   const updateUser = useAuthStore((state) => state.updateUser);
   const saveBranchRow = useBranchSettingsStore((state) => state.save);
   const loadBranchRows = useBranchSettingsStore((state) => state.load);
   const removeBranchRow = useBranchSettingsStore((state) => state.remove);
-  const loadCatalogSourceBranches = useReferenceStore((state) => state.loadBranches);
+  const loadCatalogSourceBranches = useReferenceStore((state) => state.loadBranchCatalogSources);
   const [catalogSourceBranches, setCatalogSourceBranches] = useState<Branch[]>([]);
   const [catalogSourcesLoading, setCatalogSourcesLoading] = useState(false);
   const [catalogSourcesUnavailable, setCatalogSourcesUnavailable] = useState(false);
   const catalogSourceGeneration = useRef(0);
+  const mounted = useRef(true);
+
+  useEffect(() => {
+    mounted.current = true;
+    return () => {
+      mounted.current = false;
+      catalogSourceGeneration.current += 1;
+    };
+  }, []);
 
   const title = labels.branch;
   const description = labels.branchHint;
@@ -446,7 +547,7 @@ function BranchSettingsPage({ initialPagination }: { initialPagination: UrlPagin
   } = useSettingsCrudController<Branch, SaveBranchInput, FetchBranchesParams>({
     // buildInput ให้ครบตามชนิดที่ controller ต้องการ แต่การบันทึกจริงยังเดินตรงผ่านสโตร์ใน
     // handleSave ด้านล่าง (ดูคอมเมนต์ที่ saveBranchRow) เพื่อคงพฤติกรรม "ซิงก์ auth state หลังบันทึก" เดิม
-    buildInput: ({ editing: editingRow, formData, user: currentUser }) =>
+    buildInput: ({ editing: editingRow, formData, storeUuid: scopedStoreUuid }) =>
       buildBranchPayload({
         address: String(formData.get("branch_address") ?? ""),
         chargePercent: String(formData.get("charge_name") ?? ""),
@@ -454,7 +555,7 @@ function BranchSettingsPage({ initialPagination }: { initialPagination: UrlPagin
         editing: editingRow,
         email: String(formData.get("branch_email") ?? ""),
         name: String(formData.get("branch_name") ?? ""),
-        storeUuid: authStoreUuid(currentUser),
+        storeUuid: scopedStoreUuid,
         sourceBranchUuid: String(formData.get("source_branch_uuid") ?? ""),
         tel: String(formData.get("branch_tel") ?? ""),
         vatPercent: String(formData.get("vat_name") ?? ""),
@@ -462,14 +563,17 @@ function BranchSettingsPage({ initialPagination }: { initialPagination: UrlPagin
       }),
     idKey: "branch_uuid",
     initialPagination,
-    // สโตร์เดียวมีหลายสาขา ต้อง scope รายการสาขาด้วย store_uuid_fk ของผู้ใช้เสมอ
+    // This local management selection must never switch the cashier's authenticated store.
     scope: (scopedStoreUuid) => ({ store_uuid_fk: scopedStoreUuid }),
+    scopeStoreUuid: managedStoreUuid,
+    requiredScopeKey: "store_uuid_fk",
+    requiredScopeMessage: labels.storeRequired,
     store: useBranchSettingsStore,
     title,
-    validateInput: ({ formData, user: currentUser }) => {
+    validateInput: ({ formData, storeUuid: scopedStoreUuid }) => {
       const missing = missingBranchField({
         name: String(formData.get("branch_name") ?? ""),
-        storeUuid: authStoreUuid(currentUser)
+        storeUuid: scopedStoreUuid
       });
       if (missing === "store") return labels.storeRequired;
       if (missing === "name") return labels.branchNameRequired;
@@ -482,15 +586,16 @@ function BranchSettingsPage({ initialPagination }: { initialPagination: UrlPagin
   const canDelete = canDeleteStoreBranch(user?.status);
   const canEdit = canEditStoreBranch(user?.status);
   const activeId = user?.branch_uuid ?? "";
-  // ผู้ใช้ที่สร้างสาขาไม่ได้ (เช่น พนักงานสาขา) เห็นได้แค่สาขาตัวเอง — กรองฝั่ง client จากรายการที่โหลดมา
-  const visibleRows = canCreate ? rows : rows.filter((row) => storeBranchValue(row, "branch_uuid") === activeId);
+  const showStoreBranches = canCreate || canSelectStore;
+  const scopedRows = rows.filter((row) => row.store_uuid_fk === storeUuid);
+  const visibleRows = showStoreBranches ? scopedRows : scopedRows.filter((row) => storeBranchValue(row, "branch_uuid") === activeId);
   const { allSelected, removeSelected, selectedRows, toggleAll, toggleSelected } = useOptionRowSelection(
     visibleRows,
     (row) => storeBranchId(row, "branch")
   );
   const pageSize = optionPageSize(limit, visibleRows.length);
-  const total = canCreate ? controllerTotal : visibleRows.length;
-  const totalPages = canCreate ? controllerTotalPages : 1;
+  const total = showStoreBranches ? controllerTotal : visibleRows.length;
+  const totalPages = showStoreBranches ? controllerTotalPages : 1;
   const { start: pageStart, end: pageEnd } = optionPageRange(visibleRows.length, page, pageSize);
 
   function imageUrl(row: StoreBranchSettingsRow, rowKind: StoreBranchKind) {
@@ -507,7 +612,9 @@ function BranchSettingsPage({ initialPagination }: { initialPagination: UrlPagin
 
   function resetForm() {
     catalogSourceGeneration.current += 1;
+    setCatalogSourceBranches([]);
     setCatalogSourcesLoading(false);
+    setCatalogSourcesUnavailable(false);
     setEditing(null);
     setDialogOpen(false);
   }
@@ -517,8 +624,7 @@ function BranchSettingsPage({ initialPagination }: { initialPagination: UrlPagin
     const generation = ++catalogSourceGeneration.current;
     const isCurrentSession = createSessionGuard();
     const requestedStore = storeUuid;
-    const isCurrent = () => generation === catalogSourceGeneration.current && isCurrentSession() &&
-      authStoreUuid(useAuthStore.getState().user) === requestedStore;
+    const isCurrent = () => mounted.current && generation === catalogSourceGeneration.current && isCurrentSession();
     setCatalogSourceBranches([]);
     setCatalogSourcesLoading(true);
     setCatalogSourcesUnavailable(false);
@@ -533,16 +639,19 @@ function BranchSettingsPage({ initialPagination }: { initialPagination: UrlPagin
   }
 
   function openEdit(row: Branch) {
-    if (!canEdit) return;
+    if (!canEdit || row.store_uuid_fk !== storeUuid) return;
     catalogSourceGeneration.current += 1;
     setCatalogSourcesLoading(false);
     controllerOpenEdit(row);
   }
 
   async function handleSave(formData: FormData) {
+    const isCurrentSession = createSessionGuard();
+    const isCurrent = () => mounted.current && isCurrentSession();
     const id = editing ? storeBranchId(editing, "branch") : "";
     if (!id && !canCreate) return;
     if (id && !canEdit) return;
+    if (editing && editing.store_uuid_fk !== storeUuid) return;
 
     const input = buildBranchPayload({
       address: String(formData.get("branch_address") ?? ""),
@@ -565,7 +674,9 @@ function BranchSettingsPage({ initialPagination }: { initialPagination: UrlPagin
 
     try {
       await saveBranchRow(input);
+      if (!isCurrent()) return;
       const nextRows = await loadBranchRows(requestParams, { background: true });
+      if (!isCurrent()) return;
       const updated = id ? nextRows.find((row) => storeBranchId(row, "branch") === id) : null;
       if (updated && id === activeId) {
         updateUser({
@@ -577,6 +688,7 @@ function BranchSettingsPage({ initialPagination }: { initialPagination: UrlPagin
       showToast({ title: labels.saved, tone: "success" });
       resetForm();
     } catch (error) {
+      if (!isCurrent()) return;
       showToast({
         title: labels.saveFailed,
         description: error instanceof Error ? error.message : t("toasts.pleaseTryAgain"),
@@ -586,16 +698,21 @@ function BranchSettingsPage({ initialPagination }: { initialPagination: UrlPagin
   }
 
   async function handleDelete(row: Branch) {
+    const isCurrentSession = createSessionGuard();
+    const isCurrent = () => mounted.current && isCurrentSession();
     const id = storeBranchId(row, "branch");
-    if (!canDelete || !id || id === activeId) return;
+    if (!canDelete || !id || id === activeId || row.store_uuid_fk !== storeUuid) return;
     try {
       await removeBranchRow(id);
+      if (!isCurrent()) return;
       await loadBranchRows(requestParams, { background: true });
+      if (!isCurrent()) return;
       if (editing && storeBranchId(editing, "branch") === id) resetForm();
       setDeleteTarget(null);
       removeSelected(id);
       showToast({ title: t("settings.deleted"), tone: "success" });
     } catch (error) {
+      if (!isCurrent()) return;
       showToast({
         title: labels.deleteFailed,
         description: error instanceof Error ? error.message : t("toasts.pleaseTryAgain"),

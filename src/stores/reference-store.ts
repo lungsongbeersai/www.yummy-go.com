@@ -2,7 +2,7 @@
 
 import { create } from "zustand";
 import { getProductImageUrl, getStoreLogoUrl, getUserProfileUrl } from "@/lib/image";
-import { getBranchOptions, getStoreUuid, setStoreUuid, type Branch } from "@/services/branch";
+import { getBranchManagementStoreOptions, getBranchOptions, getStoreUuid, setStoreUuid, type Branch, type BranchManagementStoreOptions } from "@/services/branch";
 import { getCategoryOptions, getProductCategoryOptions, getCategoryVisibilityRoles, sortCategories, type Category, type CategoryVisibilityRole, type SortCategoryInput } from "@/services/category";
 import { getColorOptions, type Color } from "@/services/color";
 import { getCurrencyOptions, type Currency } from "@/services/currency";
@@ -39,6 +39,8 @@ import { errorMessage } from "@/stores/store-utils";
 type ReferenceKey =
   | "stores"
   | "branches"
+  | "branchManagementStores"
+  | "branchCatalogSources"
   | "provinces"
   | "groups"
   | "categories"
@@ -73,11 +75,14 @@ interface ReferenceState {
   storeUuid: string;
   options: Partial<Record<ReferenceKey, ApiEntity[]>>;
   selectedUser: User | null;
+  branchManagementStores: BranchManagementStoreOptions | null;
   loadingKeys: Partial<Record<ReferenceKey | "user" | "password" | "profileImage" | "sort", boolean>>;
   error: string | null;
   setActiveStore: (storeUuid: string) => void;
   loadStores: (lang?: string) => Promise<Store[]>;
   loadBranches: (storeUuid?: string, lang?: string) => Promise<Branch[]>;
+  loadBranchManagementStores: () => Promise<BranchManagementStoreOptions>;
+  loadBranchCatalogSources: (storeUuid: string) => Promise<Branch[]>;
   loadProvinces: (lang?: string) => Promise<Province[]>;
   loadGroups: (lang?: string, storeUuid?: string) => Promise<Group[]>;
   loadCategories: (lang?: string, storeUuid?: string) => Promise<Category[]>;
@@ -161,6 +166,7 @@ export const useReferenceStore = create<ReferenceState>((set) => {
     storeUuid: activeStoreUuid(),
     options: {},
     selectedUser: null,
+    branchManagementStores: null,
     loadingKeys: {},
     error: null,
     setActiveStore: (storeUuid) => {
@@ -169,6 +175,34 @@ export const useReferenceStore = create<ReferenceState>((set) => {
     },
     loadStores: (lang) => loadOption("stores", () => getStoreOptions(lang)),
     loadBranches: (storeUuid) => loadOption("branches", () => getBranchOptions(storeUuid ?? activeStoreUuid())),
+    // Management choices must not replace the cashier's operational branch options.
+    loadBranchCatalogSources: (storeUuid) => loadOption("branchCatalogSources", () => getBranchOptions(storeUuid)),
+    loadBranchManagementStores: async () => {
+      const isCurrentRequest = createReferenceRequestGuard("branchManagementStores");
+      set((state) => ({
+        branchManagementStores: null,
+        loadingKeys: { ...state.loadingKeys, branchManagementStores: true },
+        error: null
+      }));
+      try {
+        const branchManagementStores = await getBranchManagementStoreOptions();
+        if (isCurrentRequest()) {
+          set((state) => ({
+            branchManagementStores,
+            loadingKeys: { ...state.loadingKeys, branchManagementStores: false }
+          }));
+        }
+        return branchManagementStores;
+      } catch (error) {
+        if (isCurrentRequest()) {
+          set((state) => ({
+            loadingKeys: { ...state.loadingKeys, branchManagementStores: false },
+            error: errorMessage(error)
+          }));
+        }
+        throw error;
+      }
+    },
     loadProvinces: (lang) => loadOption("provinces", () => getProvinceOptions(lang)),
     loadGroups: (lang, storeUuid) => loadOption("groups", () => getGroupOptions(lang, storeUuid ?? activeStoreUuid())),
     loadCategories: (lang, storeUuid) => loadOption("categories", () => getCategoryOptions(lang, storeUuid)),
@@ -253,6 +287,7 @@ export const useReferenceStore = create<ReferenceState>((set) => {
         storeUuid: "",
         options: {},
         selectedUser: null,
+        branchManagementStores: null,
         loadingKeys: {},
         error: null
       });

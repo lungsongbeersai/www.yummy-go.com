@@ -45,6 +45,7 @@ export function createCrudListStore<
   Params extends FetchParams
 >({ idKey, list, save, remove }: CrudListStoreConfig<Row, SaveInput, Params>) {
   let loadRequestId = 0;
+  let mutationGeneration = 0;
   const store = create<CrudListState<Row, SaveInput, Params>>((set, get) => ({
     rows: [],
     total: 0,
@@ -85,35 +86,38 @@ export function createCrudListStore<
       }
     },
     save: async (input) => {
+      const generation = mutationGeneration;
       const isCurrentSession = createSessionGuard();
       set({ saving: true, error: null });
       try {
         const row = await save(input);
-        if (isCurrentSession()) set({ saving: false });
+        if (generation === mutationGeneration && isCurrentSession()) set({ saving: false });
         return row;
       } catch (error) {
-        if (isCurrentSession()) set({ error: errorMessage(error), saving: false });
+        if (generation === mutationGeneration && isCurrentSession()) set({ error: errorMessage(error), saving: false });
         throw error;
       }
     },
     remove: async (id) => {
+      const generation = mutationGeneration;
       const isCurrentSession = createSessionGuard();
       set({ saving: true, error: null });
       try {
         await remove(id);
-        if (isCurrentSession()) {
+        if (generation === mutationGeneration && isCurrentSession()) {
           set((state) => ({
             rows: state.rows.filter((row) => String(row[idKey] ?? "") !== id),
             saving: false
           }));
         }
       } catch (error) {
-        if (isCurrentSession()) set({ error: errorMessage(error), saving: false });
+        if (generation === mutationGeneration && isCurrentSession()) set({ error: errorMessage(error), saving: false });
         throw error;
       }
     },
     reset: () => {
       loadRequestId += 1;
+      mutationGeneration += 1;
       set({
         rows: [],
         total: 0,

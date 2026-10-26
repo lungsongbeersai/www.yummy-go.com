@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import Image from "next/image";
 import { Landmark, Pencil, Plus, RefreshCw } from "lucide-react";
 import { useTranslation } from "react-i18next";
@@ -41,6 +41,7 @@ import {
   type BranchAccount,
 } from "@/services/bank-account";
 import { useBankAccountStore } from "@/stores/bank-account-store";
+import { createSessionGuard } from "@/stores/session-store-registry";
 import { useToastStore } from "@/stores/toast-store";
 
 const ACTIVE = 1;
@@ -77,15 +78,38 @@ export function BranchTransferAccounts({
   const [accountStatus, setAccountStatus] = useState(String(ACTIVE));
   const [selectedAccountQr, setSelectedAccountQr] = useState<File | null>(null);
   const [accountQrCrop, setAccountQrCrop] = useState<CropState>(DEFAULT_CROP);
+  const mounted = useRef(true);
+  const scopeGeneration = useRef(0);
+  const loadGeneration = useRef(0);
+
+  useEffect(() => {
+    mounted.current = true;
+    scopeGeneration.current += 1;
+    return () => {
+      mounted.current = false;
+      scopeGeneration.current += 1;
+      loadGeneration.current += 1;
+    };
+  }, [branchUuid]);
+
+  const currentScopeGuard = useCallback(() => {
+    const generation = scopeGeneration.current;
+    const isCurrentSession = createSessionGuard();
+    return () => mounted.current && generation === scopeGeneration.current && isCurrentSession();
+  }, []);
 
   const load = useCallback(async () => {
-    if (!branchUuid) return;
+    if (!branchUuid || !mounted.current) return;
+    const generation = ++loadGeneration.current;
+    const isCurrentScope = currentScopeGuard();
+    const isCurrent = () => isCurrentScope() && generation === loadGeneration.current;
     setLoading(true);
     try {
       const [nextBanks, nextAccounts] = await Promise.all([
         fetchBanks(),
         fetchBranchAccounts(branchUuid),
       ]);
+      if (!isCurrent()) return;
       setBanks(nextBanks);
       setAccounts(nextAccounts);
       setBankUuid((current) =>
@@ -95,15 +119,16 @@ export function BranchTransferAccounts({
               ?.bank_uuid ?? ""),
       );
     } catch (error) {
+      if (!isCurrent()) return;
       showToast({
         title: t("settings.storeBranch.transferAccountsLoadFailed"),
         description: error instanceof Error ? error.message : "",
         tone: "error",
       });
     } finally {
-      setLoading(false);
+      if (isCurrent()) setLoading(false);
     }
-  }, [branchUuid, fetchBanks, fetchBranchAccounts, showToast, t]);
+  }, [branchUuid, currentScopeGuard, fetchBanks, fetchBranchAccounts, showToast, t]);
 
   useEffect(() => {
     let active = true;
@@ -141,6 +166,8 @@ export function BranchTransferAccounts({
 
   async function handleSaveBank() {
     if (disabled || saving || !bankNameLa.trim()) return;
+    const isCurrent = currentScopeGuard();
+    if (!isCurrent()) return;
     setSaving(true);
     try {
       const saved = await saveBank({
@@ -148,23 +175,26 @@ export function BranchTransferAccounts({
         bank_name_eng: bankNameEng.trim(),
         bank_status: ACTIVE,
       });
+      if (!isCurrent()) return;
       setBankNameLa("");
       setBankNameEng("");
       setShowBankForm(false);
       await load();
+      if (!isCurrent()) return;
       setBankUuid(saved.bank_uuid);
       showToast({
         title: t("settings.storeBranch.bankSaved"),
         tone: "success",
       });
     } catch (error) {
+      if (!isCurrent()) return;
       showToast({
         title: t("settings.saveFailed"),
         description: error instanceof Error ? error.message : "",
         tone: "error",
       });
     } finally {
-      setSaving(false);
+      if (isCurrent()) setSaving(false);
     }
   }
 
@@ -179,6 +209,8 @@ export function BranchTransferAccounts({
     )
       return;
 
+    const isCurrent = currentScopeGuard();
+    if (!isCurrent()) return;
     setSaving(true);
     try {
       const accountQr = selectedAccountQr
@@ -194,6 +226,7 @@ export function BranchTransferAccounts({
           )
         : undefined;
 
+      if (!isCurrent()) return;
       await saveBranchAccount({
         account_uuid: accountUuid || undefined,
         bank_uuid_fk: bankUuid,
@@ -203,20 +236,23 @@ export function BranchTransferAccounts({
         account_qr: accountQr,
         account_status: Number(accountStatus),
       });
+      if (!isCurrent()) return;
       resetAccountForm();
       await load();
+      if (!isCurrent()) return;
       showToast({
         title: t("settings.storeBranch.transferAccountSaved"),
         tone: "success",
       });
     } catch (error) {
+      if (!isCurrent()) return;
       showToast({
         title: t("settings.saveFailed"),
         description: error instanceof Error ? error.message : "",
         tone: "error",
       });
     } finally {
-      setSaving(false);
+      if (isCurrent()) setSaving(false);
     }
   }
 
