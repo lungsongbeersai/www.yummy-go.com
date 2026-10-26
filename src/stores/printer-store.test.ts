@@ -8,6 +8,7 @@ import {
   printPrinterSelfTest,
   completePrinterSelfTest,
   getPrinterSelfTestStatus,
+  getPrinterReadiness,
   getPrinters,
   getPendingPrintJobs,
   getInternetPrintSettings,
@@ -35,6 +36,7 @@ vi.mock("@/services/printer", () => ({
   printPrinterSelfTest: vi.fn(),
   completePrinterSelfTest: vi.fn(),
   getPrinterSelfTestStatus: vi.fn(),
+  getPrinterReadiness: vi.fn(),
   executeInvoicePrintJobs: vi.fn(),
   executeKitchenPrintJobs: vi.fn(),
   fetchPrinterCategoryRole: vi.fn(),
@@ -93,6 +95,9 @@ describe("printer store", () => {
       agent: null,
       agentStatus: "unchecked",
       agentError: null,
+      agentConnectionUrl: null,
+      printerDiagnostics: [],
+      loadingPrinterDiagnostics: false,
       error: null,
       printing: false,
       pendingSelfTest: null,
@@ -980,5 +985,91 @@ describe("printer store", () => {
 
     await expect(test).resolves.toBeNull();
     expect(dispatchPrintJobMock).not.toHaveBeenCalled();
+  });
+});
+
+describe("printer diagnostics store", () => {
+  const agent = { agent_id: "local", agent_name: "Cashier", device_code: "MAC1", supports_printer_readiness: true };
+  const printer: Printer = {
+    print_config_uuid: "receipt", printer_name: "Receipt", agent_id: "local", device_code: "MAC1",
+    interface_value: "cups:Receipt", connect_type: "usb", paper_width_mm: 80, is_active: true, role_codes: ["INVOICE"], cate_uuid_fk: [],
+  };
+  beforeEach(() => {
+    resetSessionStores();
+    vi.clearAllMocks();
+    vi.mocked(getPrinterReadiness).mockReset();
+    usePrinterStore.setState({ agent, agentStatus: "connected", printers: [printer] });
+  });
+
+  it("checks the full local owner tuple once even when multiple saved rows share a queue", async () => {
+    usePrinterStore.setState({ agentConnectionUrl: "http://127.0.0.1:8888", printers: [
+      printer, { ...printer, print_config_uuid: "same-queue" }, { ...printer, print_config_uuid: "remote", agent_id: "remote" },
+    ] });
+    vi.mocked(getPrinterReadiness).mockResolvedValue({ state: "blocked", reason: "printer_paused" });
+    await usePrinterStore.getState().refreshPrinterDiagnostics();
+    expect(getPrinterReadiness).toHaveBeenCalledExactlyOnceWith({
+      interface_value: "cups:Receipt", expected_agent_id: "local", expected_device_code: "MAC1",
+    }, { agentUrl: "http://127.0.0.1:8888", signal: expect.any(AbortSignal) });
+    expect(usePrinterStore.getState().printerDiagnostics).toHaveLength(2);
+    expect(usePrinterStore.getState().printerDiagnostics[0].status.reason).toBe("printer_paused");
+    expect(usePrinterStore.getState().loadingPrinterDiagnostics).toBe(false);
+  });
+
+  it("coalesces overlapping refreshes without issuing a second queue query", async () => {
+    const pending = deferred<{ state: "unknown"; reason: string }>();
+    vi.mocked(getPrinterReadiness).mockReturnValue(pending.promise);
+    const first = usePrinterStore.getState().refreshPrinterDiagnostics();
+    const second = usePrinterStore.getState().refreshPrinterDiagnostics();
+    expect(first).toBe(second);
+    await Promise.resolve();
+    pending.resolve({ state: "unknown", reason: "printer_offline_reported" });
+    await first;
+    expect(getPrinterReadiness).toHaveBeenCalledTimes(1);
+  });
+
+  it("aborts on logout and ignores a late diagnostics response", async () => {
+    const pending = deferred<{ state: "blocked"; reason: string }>();
+    vi.mocked(getPrinterReadiness).mockReturnValue(pending.promise);
+    const check = usePrinterStore.getState().refreshPrinterDiagnostics();
+    await Promise.resolve();
+    resetSessionStores();
+    expect(vi.mocked(getPrinterReadiness).mock.calls[0][1]?.signal?.aborted).toBe(true);
+    pending.resolve({ state: "blocked", reason: "printer_paused" });
+    await check;
+    expect(usePrinterStore.getState()).toMatchObject({ agent: null, printerDiagnostics: [], loadingPrinterDiagnostics: false });
+  });
+
+  it("does not attach an old read to a changed printer owner or saved interface", async () => {
+    const pending = deferred<{ state: "blocked"; reason: string }>();
+    vi.mocked(getPrinterReadiness).mockReturnValue(pending.promise);
+    const check = usePrinterStore.getState().refreshPrinterDiagnostics();
+    await Promise.resolve();
+    usePrinterStore.setState({ printers: [{ ...printer, interface_value: "cups:New" }] });
+    pending.resolve({ state: "blocked", reason: "printer_paused" });
+    await check;
+    expect(usePrinterStore.getState().printerDiagnostics).toEqual([]);
+  });
+
+  it("does not overwrite a reconnected Agent's newer diagnostics", async () => {
+    const pending = deferred<{ state: "blocked"; reason: string }>();
+    vi.mocked(getPrinterReadiness).mockReturnValueOnce(pending.promise).mockResolvedValueOnce({ state: "unknown", reason: "printer_offline_reported" });
+    const old = usePrinterStore.getState().refreshPrinterDiagnostics();
+    await Promise.resolve();
+    resolvePrinterDeviceIdentityMock.mockResolvedValueOnce({ ok: true, agent });
+    await usePrinterStore.getState().checkAgent();
+    await usePrinterStore.getState().refreshPrinterDiagnostics();
+    pending.resolve({ state: "blocked", reason: "printer_paused" });
+    await old;
+    expect(usePrinterStore.getState().printerDiagnostics[0].status.reason).toBe("printer_offline_reported");
+  });
+
+  it("keeps old Agents compatible and failed reads unknown without marking them ready", async () => {
+    usePrinterStore.setState({ agent: { ...agent, supports_printer_readiness: undefined } });
+    await usePrinterStore.getState().refreshPrinterDiagnostics();
+    expect(getPrinterReadiness).not.toHaveBeenCalled();
+    usePrinterStore.setState({ agent });
+    vi.mocked(getPrinterReadiness).mockRejectedValueOnce(new Error("offline"));
+    await usePrinterStore.getState().refreshPrinterDiagnostics();
+    expect(usePrinterStore.getState().printerDiagnostics[0].status.state).toBe("unknown");
   });
 });

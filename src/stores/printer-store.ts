@@ -20,6 +20,7 @@ import {
   printPrinterSelfTest,
   completePrinterSelfTest,
   getPrinterSelfTestStatus,
+  getPrinterReadiness,
   getPrinterDeliveryState,
   isBrowserPrinterAgentId,
   rememberNativePrinterDeviceCode,
@@ -72,13 +73,16 @@ import { printMobileEscposOverTcp } from "@/services/printer/mobile-tcp";
 import { Capacitor } from "@capacitor/core";
 import { isCapacitorMobileApp } from "@/lib/capacitor-platform";
 import { printReport, type ReportPrintInput, type ReportPrintResponse } from "@/services/report";
+import { localPrinterDiagnosticTargets, type SavedPrinterDiagnostic } from "@/stores/printer-diagnostics";
 
 type AgentStatus = "unchecked" | "connected" | "offline" | "unauthorized";
 export type PrinterSelfTestPhase = "idle" | "dispatching" | "restored" | "checking" | "manual" | "error" | "completing";
 
 let agentConnectionGeneration = 0;
+let diagnosticsGeneration = 0;
+let pendingDiagnostics: { key: string; controller: AbortController; request: Promise<void> } | null = null;
 
-function agentConnectionState(result: CheckPrinterAgentConnectionResult) {
+function agentConnectionState(result: CheckPrinterAgentConnectionResult, agentUrl?: string) {
   const resolvedAgent = result.ok ? result.agent : null;
   const browserIdentity = isBrowserPrinterAgentId(resolvedAgent?.agent_id);
   const available = Boolean(
@@ -91,6 +95,8 @@ function agentConnectionState(result: CheckPrinterAgentConnectionResult) {
     agent: available ? resolvedAgent : null,
     agentStatus,
     agentError: result.error ?? null,
+    agentConnectionUrl: agentUrl?.trim() || null,
+    printerDiagnostics: [] as SavedPrinterDiagnostic[],
   };
 }
 
@@ -198,6 +204,10 @@ interface PrinterState {
   agent: AgentInfo | null;
   agentStatus: AgentStatus;
   agentError: string | null;
+  agentConnectionUrl: string | null;
+  printerDiagnostics: SavedPrinterDiagnostic[];
+  loadingPrinterDiagnostics: boolean;
+  refreshPrinterDiagnostics: () => Promise<void>;
   loading: boolean;
   loadingAgentFiles: boolean;
   searching: boolean;
@@ -275,6 +285,62 @@ export const usePrinterStore = create<PrinterState>((set, get) => ({
   agent: null,
   agentStatus: "unchecked",
   agentError: null,
+  agentConnectionUrl: null,
+  printerDiagnostics: [],
+  loadingPrinterDiagnostics: false,
+  refreshPrinterDiagnostics: () => {
+    const state = get();
+    const agent = state.agent;
+    if (state.agentStatus !== "connected" || !agent?.agent_id || !agent.device_code ||
+        agent.supports_printer_readiness !== true || isBrowserPrinterAgentId(agent.agent_id) || isCapacitorMobileApp()) {
+      diagnosticsGeneration += 1;
+      pendingDiagnostics?.controller.abort();
+      pendingDiagnostics = null;
+      set({ printerDiagnostics: [], loadingPrinterDiagnostics: false });
+      return Promise.resolve();
+    }
+    const deviceCode = agent.device_code;
+    const targets = localPrinterDiagnosticTargets(state.printers, agent);
+    const queueTargets = [...new Map(targets.map((printer) => [printer.interface_value, printer])).values()];
+    const connectionGeneration = agentConnectionGeneration;
+    const agentUrl = state.agentConnectionUrl ?? undefined;
+    const key = JSON.stringify([connectionGeneration, agent.agent_id, agent.device_code, agentUrl, targets.map((target) => [target.print_config_uuid, target.interface_value])]);
+    if (pendingDiagnostics?.key === key) return pendingDiagnostics.request;
+    pendingDiagnostics?.controller.abort();
+    const controller = new AbortController();
+    const generation = ++diagnosticsGeneration;
+    const isCurrentSession = createSessionGuard();
+    const isCurrent = () => isCurrentSession() && generation === diagnosticsGeneration &&
+      connectionGeneration === agentConnectionGeneration && get().agentStatus === "connected" &&
+      get().agent?.agent_id === agent.agent_id && get().agent?.device_code === agent.device_code;
+    set({ loadingPrinterDiagnostics: true });
+    const request = Promise.resolve().then(async () => {
+      const statuses = new Map<string, SavedPrinterDiagnostic["status"]>();
+      // Limit native status processes even in branches with many saved rows.
+      // Queue state is advisory; a failed read never becomes a successful print.
+      for (let offset = 0; offset < queueTargets.length && isCurrent(); offset += 4) {
+        const batch = await Promise.all(queueTargets.slice(offset, offset + 4).map(async (printer) => {
+          const status = await getPrinterReadiness({
+            interface_value: printer.interface_value,
+            expected_agent_id: agent.agent_id,
+            expected_device_code: deviceCode,
+          }, { agentUrl, signal: controller.signal }).catch(() => ({ state: "unknown" as const, reason: "printer_status_unavailable" }));
+          return { interface_value: printer.interface_value, status };
+        }));
+        for (const result of batch) statuses.set(result.interface_value, result.status);
+      }
+      if (isCurrent()) {
+        const results = targets.map((printer) => ({ print_config_uuid: printer.print_config_uuid, printer_name: printer.printer_name, interface_value: printer.interface_value, status: statuses.get(printer.interface_value) ?? { state: "unknown" as const } }));
+        const currentTargets = new Map(localPrinterDiagnosticTargets(get().printers, get().agent).map((printer) => [printer.print_config_uuid, printer.interface_value]));
+        set({ printerDiagnostics: results.filter((result) => currentTargets.get(result.print_config_uuid) === result.interface_value) });
+      }
+    }).finally(() => {
+      if (isCurrentSession() && generation === diagnosticsGeneration) set({ loadingPrinterDiagnostics: false });
+      if (pendingDiagnostics?.request === request) pendingDiagnostics = null;
+    });
+    pendingDiagnostics = { key, controller, request };
+    return request;
+  },
   loading: false,
   loadingAgentFiles: false,
   searching: false,
@@ -449,6 +515,8 @@ export const usePrinterStore = create<PrinterState>((set, get) => ({
             agent: result.agent,
             agentStatus: result.agent ? "connected" : "unchecked",
             agentError: null,
+            agentConnectionUrl: null,
+            printerDiagnostics: [],
           } : {}),
           searching: false
         });
@@ -467,7 +535,7 @@ export const usePrinterStore = create<PrinterState>((set, get) => ({
     const isCurrentSession = createSessionGuard();
     const connectionGeneration = ++agentConnectionGeneration;
     const result = await resolvePrinterDeviceIdentity(agentUrl);
-    const connection = agentConnectionState(result);
+    const connection = agentConnectionState(result, agentUrl);
     if (isCurrentSession() && connectionGeneration === agentConnectionGeneration) set(connection);
     return connection.agentStatus === "connected";
   },
@@ -475,7 +543,7 @@ export const usePrinterStore = create<PrinterState>((set, get) => ({
     const isCurrentSession = createSessionGuard();
     const connectionGeneration = ++agentConnectionGeneration;
     const result = await resolvePrinterDeviceIdentity(agentUrl);
-    if (isCurrentSession() && connectionGeneration === agentConnectionGeneration) set(agentConnectionState(result));
+    if (isCurrentSession() && connectionGeneration === agentConnectionGeneration) set(agentConnectionState(result, agentUrl));
     if (!result.ok) throw new Error(result.error);
     return result.agent;
   },
@@ -888,7 +956,11 @@ export const usePrinterStore = create<PrinterState>((set, get) => ({
   executeInvoice: (input) => executeInvoicePrintJobs(input),
   executeReport: (input) => executeReportPrintJobs(input),
   submitReportPrint: (input) => printReport(input),
-  reset: () =>
+  reset: () => {
+    agentConnectionGeneration += 1;
+    diagnosticsGeneration += 1;
+    pendingDiagnostics?.controller.abort();
+    pendingDiagnostics = null;
     set({
       internetPrintSettings: null,
       loadingInternetPrintSettings: false,
@@ -909,6 +981,9 @@ export const usePrinterStore = create<PrinterState>((set, get) => ({
       agent: null,
       agentStatus: "unchecked",
       agentError: null,
+      agentConnectionUrl: null,
+      printerDiagnostics: [],
+      loadingPrinterDiagnostics: false,
       loading: false,
       loadingAgentFiles: false,
       searching: false,
@@ -917,7 +992,8 @@ export const usePrinterStore = create<PrinterState>((set, get) => ({
       pendingSelfTest: null,
       selfTestPhase: "idle",
       error: null
-    })
+    });
+  }
 }));
 
 registerSessionStoreReset("printer", () => usePrinterStore.getState().reset());

@@ -189,6 +189,33 @@ export function PrinterPage() {
             </Alert>
           ) : null}
 
+          {printer.storageWarning ? (
+            <Alert className="border-warning/40 bg-warning/10">
+              <AlertTriangle className="size-4" />
+              <AlertTitle>{t("printer.diagnostics.storageTitle")}</AlertTitle>
+              <AlertDescription className="text-foreground">{t(`printer.diagnostics.storage.${printer.storageWarning}`)}</AlertDescription>
+            </Alert>
+          ) : null}
+          {printer.diagnosticWarnings.length ? (
+            <Alert className="border-warning/40 bg-warning/10">
+              <AlertTriangle className="size-4" />
+              <AlertTitle>{t("printer.diagnostics.title")}</AlertTitle>
+              <AlertDescription className="min-w-0 text-foreground">
+                <ul className="flex flex-col gap-1 break-words">
+                  {printer.diagnosticWarnings.map((diagnostic) => (
+                    <li key={diagnostic.print_config_uuid}>
+                      <span className="font-semibold">{diagnostic.printer_name}: </span>{diagnostic.message}
+                      {(diagnostic.status.queued_job_count ?? 0) > 0 ? (
+                        <span> {t("printer.diagnostics.pendingJobs", { count: diagnostic.status.queued_job_count })}</span>
+                      ) : null}
+                    </li>
+                  ))}
+                </ul>
+                <p>{t("printer.diagnostics.queueOnly")}</p>
+              </AlertDescription>
+            </Alert>
+          ) : null}
+
           {/* ไทล์สถานะ = ตัวกรองสถานะ (แทน dropdown เดิม) เห็นตัวเลขของทุกสถานะพร้อมกัน กดครั้งเดียวกรองได้เลย */}
           <div role="group" aria-label={t("common.status")} className="grid grid-cols-2 gap-2 lg:grid-cols-4">
             {statusTiles.map((tile) => {

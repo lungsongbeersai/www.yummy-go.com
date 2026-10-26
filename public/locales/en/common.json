@@ -1578,6 +1578,26 @@
     "tryDifferentIconSearch": "Try a different icon search."
   },
   "printer": {
+      "diagnostics": {
+        "title": "Printer needs attention",
+        "paused": "The printer queue is paused. Check pending jobs before resuming it in system printer settings.",
+        "notAccepting": "The printer queue is not accepting jobs. Check system printer settings.",
+        "offline": "The printer is offline. Check its power and connection.",
+        "offlineReported": "The printer reports an offline signal. Check the connection; the reported status may be stale.",
+        "paperOut": "The printer reports missing paper. Check and refill the paper.",
+        "paperJam": "The printer reports a paper jam. Check and clear the paper path.",
+        "coverOpen": "The printer reports an open cover. Check that the cover is closed.",
+      "manualFeed": "The printer is waiting for manual paper feed. Load the required paper.",
+        "error": "The printer reports an error. Check the printer and system queue.",
+        "unknown": "Printer queue status could not be confirmed. Check the printer.",
+        "queueOnly": "Queue status does not confirm that paper has physically printed.",
+        "pendingJobs": "{{count}} existing job(s) are in the queue. Check the output before printing again.",
+        "storageTitle": "Agent computer storage needs attention",
+        "storage": {
+          "low": "Storage is running low on the Agent computer. Free up space before printing.",
+          "critical": "There is not enough free space to safely record new print jobs. Free up space on the Agent computer."
+        }
+      },
     "documentLogoMode": "Invoice and receipt logo",
     "documentLogoModeHint": "Use the logo saved in the store and branch settings. You can change this for each bill before printing.",
     "showDocumentLogo": "Show logo on invoices and receipts",

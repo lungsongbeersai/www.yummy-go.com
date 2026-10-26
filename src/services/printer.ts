@@ -26,6 +26,9 @@ export type {
   AgentFile,
   AgentFilesResponse,
   AgentInfo,
+  AgentStorageStatus,
+  PrinterReadinessInput,
+  PrinterReadinessStatus,
   BuildTestJobRequest,
   BuildTestJobResponse,
   CategoryRole,
@@ -95,6 +98,7 @@ export type {
 } from "@/services/printer/types";
 
 export { completePrinterSelfTest, getPrinterSelfTestStatus, printPrinterSelfTest } from "@/services/printer/self-test";
+export { getPrinterReadiness } from "@/services/printer/diagnostics";
 
 export {
   buildTestJob,

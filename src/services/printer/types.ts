@@ -34,10 +34,30 @@ export interface PrinterSelfTestCompletionResult {
   ok: true;
   status: "ready";
 }
+export interface AgentStorageStatus {
+  state: "ok" | "low" | "critical" | "unknown";
+  available_bytes?: number | null;
+  checked_at?: number | null;
+}
+export interface PrinterReadinessInput {
+  interface_value: string;
+  expected_agent_id: string;
+  expected_device_code: string;
+}
+export interface PrinterReadinessStatus {
+  state: "ready" | "blocked" | "unknown" | "not_applicable";
+  reason?: string;
+  kind?: "cups" | "win";
+  printer_name?: string;
+  reasons?: string[];
+  queued_job_count?: number;
+}
 export interface AgentInfo extends ApiEntity {
   version?: string;
   self_test_profiles?: PrinterSelfTestCommandProfile[];
   supports_self_test_status?: boolean;
+  supports_printer_readiness?: boolean;
+  storage_status?: AgentStorageStatus;
   agent_id: string;
   agent_name: string;
   store_code?: string | null;

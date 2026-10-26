@@ -8,6 +8,7 @@ import type { Printer } from "@/services/printer";
 import type { Zone } from "@/services/zone";
 import { authStoreUuid, useAuthStore } from "@/stores/auth-store";
 import { usePrinterStore } from "@/stores/printer-store";
+import { printerDiagnosticReasonKey } from "@/stores/printer-diagnostics";
 import { useReferenceStore } from "@/stores/reference-store";
 import { useToastStore } from "@/stores/toast-store";
 import { usePrinterSelfTest } from "@/features/printer/use-printer-self-test";
@@ -44,6 +45,14 @@ export function usePrinterPage() {
   const loadingAgentFiles = usePrinterStore((state) => state.loadingAgentFiles);
   const agent = usePrinterStore((state) => state.agent);
   const checkAgent = usePrinterStore((state) => state.checkAgent);
+  const refreshPrinterDiagnostics = usePrinterStore((state) => state.refreshPrinterDiagnostics);
+  const printerDiagnostics = usePrinterStore((state) => state.printerDiagnostics);
+  const diagnosticWarnings = useMemo(() => printerDiagnostics.filter((diagnostic) =>
+    diagnostic.status.state === "blocked" ||
+    (diagnostic.status.state === "unknown" && diagnostic.status.reason?.endsWith("_reported")),
+  ).map((diagnostic) => ({ ...diagnostic, message: t(printerDiagnosticReasonKey(diagnostic.status)) })), [printerDiagnostics, t]);
+  const storageWarning = agentStatus === "connected" && (agent?.storage_status?.state === "low" || agent?.storage_status?.state === "critical")
+    ? agent.storage_status.state : null;
   const {
     printing, pendingSelfTest, runSelfTest, completeSelfTest,
     selfTestSelection, selfTestProfile, setSelfTestProfile, confirmSelfTest, cancelSelfTest,
@@ -176,6 +185,7 @@ export function usePrinterPage() {
         storeUuid ? loadCategories(language, storeUuid) : Promise.resolve([]),
         loadZones(language, branchUuid),
       ]);
+      await refreshPrinterDiagnostics();
     } catch (error) {
       showToast({
         title: t("printer.loadFailed"),
@@ -188,6 +198,7 @@ export function usePrinterPage() {
     language,
     loadCategories,
     loadPrintersForLocalAgent,
+    refreshPrinterDiagnostics,
     loadRoles,
     loadZones,
     loginUuid,
@@ -202,7 +213,10 @@ export function usePrinterPage() {
 
   useEffect(() => {
     if (!loginUuid) return;
-    const monitor = monitorPrinterAgentConnection(() => checkAgent());
+    const monitor = monitorPrinterAgentConnection(async () => {
+      await checkAgent();
+      await refreshPrinterDiagnostics();
+    });
     const nativeListener = isCapacitorMobileApp()
       ? import("@capacitor/app").then(({ App }) => App.addListener("appStateChange", ({ isActive }) => {
           if (isActive) void monitor.refresh();
@@ -212,7 +226,7 @@ export function usePrinterPage() {
       monitor.stop();
       void nativeListener.then((listener) => listener?.remove()).catch(() => undefined);
     };
-  }, [checkAgent, loginUuid]);
+  }, [checkAgent, refreshPrinterDiagnostics, loginUuid]);
 
   const loadAgentFilesOnOpen = useCallback(
     (open: boolean) => {
@@ -379,6 +393,8 @@ export function usePrinterPage() {
     pageEnd,
     agentStatus,
     agentStatusLabel,
+    diagnosticWarnings,
+    storageWarning,
     summary,
     loading,
     deleteTarget,
