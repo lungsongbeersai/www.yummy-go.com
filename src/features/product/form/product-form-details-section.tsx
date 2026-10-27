@@ -285,7 +285,7 @@ export function ProductFormDetailsSection({ form }: { form: ProductFormWorkflow 
                               id={fieldId("sprice")}
                               aria-invalid={invalid("sprice")}
                               placeholder="0"
-                              min={1}
+                              min={0}
                               value={row.pro_detail_sprice}
                               onValueChange={(value) => updateDetail(row.id, { pro_detail_sprice: value })}
                             />

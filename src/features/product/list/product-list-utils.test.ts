@@ -122,7 +122,10 @@ describe("product list utils", () => {
   it("formats price labels for set products and detail price ranges", () => {
     expect(productPriceLabel(product({ status_sort_fk: "2", prod_set_price: "50000" }))).toBe("50.000 ₭");
     expect(productPriceLabel(product({ details: [detail({ pro_detail_sprice: "12000" }), detail({ pro_detail_uuid: "detail-2", pro_detail_sprice: "15000" })] }))).toBe("12.000 ₭ - 15.000 ₭");
-    expect(productPriceLabel(product({ details: [detail({ pro_detail_sprice: "0" })] }))).toBe("-");
+    expect(productPriceLabel(product({ details: [detail({ pro_detail_sprice: "0" })] }))).toBe("0 ₭");
+    expect(productPriceLabel(product({ status_sort_fk: "2", prod_set_price: 0 }))).toBe("0 ₭");
+    expect(productPriceLabel(product({ details: [detail({ pro_detail_sprice: "0" }), detail({ pro_detail_uuid: "paid", pro_detail_sprice: "12000" })] }))).toBe("0 ₭ - 12.000 ₭");
+    expect(productPriceLabel(product({ details: [detail({ pro_detail_sprice: "" }), detail({ pro_detail_uuid: "bad", pro_detail_sprice: -10 })] }))).toBe("-");
   });
 
   it("summarizes stock quantities, order point, and stock mode state", () => {

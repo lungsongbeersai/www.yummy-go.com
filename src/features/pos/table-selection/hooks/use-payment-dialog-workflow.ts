@@ -55,6 +55,7 @@ import {
 } from "../queued-document-print";
 import {
   cartOrdersBelongToTable,
+  canSettleZeroTotalBill,
   cartOrderInvoice,
   cartOrders,
   primaryCartOrder,
@@ -153,7 +154,7 @@ export function usePaymentDialogWorkflow({
   const splitPaymentUuidRef = useRef("");
   const splitItemUuidMapRef = useRef<Record<string, string>>({});
   const customers = usePaymentCustomers({ language, open, user });
-  const [activeTab, setActiveTab] = useState<PaymentTab>("cash");
+  const [selectedPaymentTab, setActiveTab] = useState<PaymentTab>("cash");
   const [activeSplitField, setActiveSplitField] =
     useState<SplitTenderField>("cash");
   const [cashInput, setCashInput] = useState("");
@@ -176,7 +177,12 @@ export function usePaymentDialogWorkflow({
   const [processing, setProcessing] = useState(false);
   const [invoicePrinting, setInvoicePrinting] = useState(false);
   const isSplitPayment = paymentKind === "split";
-  const totalAmount = Math.max(0, Number(summary.grandTotal ?? 0));
+  const totalAmount = summary.grandTotal;
+  const isZeroTotalPayment = totalAmount === 0;
+  const activeTab = isZeroTotalPayment ? "cash" : selectedPaymentTab;
+  const paymentCashInput = isZeroTotalPayment ? "0" : cashInput;
+  const paymentSplitCashInput = isZeroTotalPayment ? "0" : splitCashInput;
+  const paymentSplitTransferInput = isZeroTotalPayment ? "0" : splitTransferInput;
   const invoice = cartOrderInvoice(orders);
   const orderUuid = firstOrderUuid(orders);
   const documentActionKey = JSON.stringify([user?.uuid, orderUuid]);
@@ -185,9 +191,10 @@ export function usePaymentDialogWorkflow({
     () => exchangeCurrencyOptions(exchanges),
     [exchanges],
   );
-  const selectedCurrency =
-    currencyOptions.find((option) => option.value === currencyValue) ??
-    LAK_CURRENCY_OPTION;
+  const selectedCurrency = isZeroTotalPayment
+    ? LAK_CURRENCY_OPTION
+    : currencyOptions.find((option) => option.value === currencyValue) ??
+      LAK_CURRENCY_OPTION;
   const allowDecimalAmount = currencyAllowsDecimal(selectedCurrency);
   const activeTenderField = activeAmountField(activeTab, activeSplitField);
   const settleExact = useMemo(
@@ -195,17 +202,17 @@ export function usePaymentDialogWorkflow({
       paymentIsExactSettlement(
         activeTab,
         totalAmount,
-        cashInput,
-        splitCashInput,
-        splitTransferInput,
+        paymentCashInput,
+        paymentSplitCashInput,
+        paymentSplitTransferInput,
         selectedCurrency,
       ),
     [
       activeTab,
-      cashInput,
+      paymentCashInput,
       selectedCurrency,
-      splitCashInput,
-      splitTransferInput,
+      paymentSplitCashInput,
+      paymentSplitTransferInput,
       totalAmount,
     ],
   );
@@ -214,19 +221,19 @@ export function usePaymentDialogWorkflow({
       paymentAmounts(
         activeTab,
         totalAmount,
-        cashInput,
-        splitCashInput,
-        splitTransferInput,
+        paymentCashInput,
+        paymentSplitCashInput,
+        paymentSplitTransferInput,
         selectedCurrency.rate,
         settleExact,
       ),
     [
       activeTab,
-      cashInput,
+      paymentCashInput,
       selectedCurrency.rate,
       settleExact,
-      splitCashInput,
-      splitTransferInput,
+      paymentSplitCashInput,
+      paymentSplitTransferInput,
       totalAmount,
     ],
   );
@@ -235,17 +242,17 @@ export function usePaymentDialogWorkflow({
       paymentCurrencyAmounts(
         activeTab,
         totalAmount,
-        cashInput,
-        splitCashInput,
-        splitTransferInput,
+        paymentCashInput,
+        paymentSplitCashInput,
+        paymentSplitTransferInput,
         selectedCurrency,
       ),
     [
       activeTab,
-      cashInput,
+      paymentCashInput,
       selectedCurrency,
-      splitCashInput,
-      splitTransferInput,
+      paymentSplitCashInput,
+      paymentSplitTransferInput,
       totalAmount,
     ],
   );
@@ -263,6 +270,7 @@ export function usePaymentDialogWorkflow({
     payment,
     customers.customerUuid,
     isSplitPayment ? splitBillItemUuids : undefined,
+    canSettleZeroTotalBill(orders),
   );
   const requiresTransferAccount = payment.transfer > 0;
   const validation =
@@ -315,9 +323,9 @@ export function usePaymentDialogWorkflow({
   const activeInputValue = activeTenderField
     ? tenderInputValue(
         activeTenderField,
-        cashInput,
-        splitCashInput,
-        splitTransferInput,
+        paymentCashInput,
+        paymentSplitCashInput,
+        paymentSplitTransferInput,
       )
     : "";
   const activeInputDisplayValue = formatAmountInputDisplay(
@@ -459,6 +467,7 @@ export function usePaymentDialogWorkflow({
   });
 
   function handleCurrencyChange(value: string) {
+    if (isZeroTotalPayment) return;
     const option =
       currencyOptions.find((item) => item.value === value) ??
       LAK_CURRENCY_OPTION;
@@ -470,6 +479,7 @@ export function usePaymentDialogWorkflow({
   }
 
   function handlePaymentTabChange(value: string) {
+    if (isZeroTotalPayment) return;
     const nextTab = value as PaymentTab;
     setActiveTab(nextTab);
     if (nextTab === "cash_transfer") {
@@ -484,6 +494,7 @@ export function usePaymentDialogWorkflow({
   }
 
   function setTenderFieldInput(field: TenderField | null, value: string) {
+    if (isZeroTotalPayment) return "0";
     if (!field) return "";
     const nextValue = amountInput(value, allowDecimalAmount);
     if (field === "cash") setCashInput(nextValue);
@@ -1208,6 +1219,7 @@ export function usePaymentDialogWorkflow({
     invoice,
     invoicePrinting,
     isSplitPayment,
+    isZeroTotalPayment,
     note,
     open,
     onOpenChange,

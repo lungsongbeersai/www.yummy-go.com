@@ -1,5 +1,6 @@
 import { type CateProductItem, type ProdDetail, type ProdItem } from "@/services/pos";
 import { optionalNumber } from "@/lib/values";
+import { readProductPrice } from "@/lib/product-price";
 import {
   ProductSortStatus,
   type ProductCardPrice,
@@ -9,11 +10,10 @@ import { toppingPrice, type SelectedTopping } from "./topping-selection";
 
 export function productPrice(product: CateProductItem | ProdItem) {
   return (
-    optionalNumber(
+    readProductPrice(
       product.proDetailSprice,
-      product.prodSetPrice,
       product.prodPrice,
-    ) ?? 0
+    ) ?? Number.NaN
   );
 }
 
@@ -39,33 +39,33 @@ export function productCardPrice(
     optionalNumber(product.statusSortFk) ?? activeSort;
   const exactPrice =
     productStatusSort === ProductSortStatus.SET
-      ? optionalNumber(
+      ? readProductPrice(
           product.prodSetPrice,
           product.prodPrice,
           product.proDetailSprice,
-        ) ?? 0
+        ) ?? Number.NaN
       : productPrice(product);
 
   if (
     productStatusSort === ProductSortStatus.SET ||
     productOptionCount(product) <= 1
   ) {
-    return exactPrice > 0
+    return Number.isFinite(exactPrice) && exactPrice >= 0
       ? { kind: "exact", value: exactPrice }
       : { kind: "unavailable", value: null };
   }
 
   // The menu endpoint must provide branch-aware aggregates. Fetching every
   // product detail here would turn menu loading into an N+1 request pattern.
-  const minPrice = optionalNumber(product.minPrice);
-  const maxPrice = optionalNumber(product.maxPrice);
-  if (minPrice === null || minPrice <= 0) {
+  const minPrice = readProductPrice(product.minPrice);
+  const maxPrice = readProductPrice(product.maxPrice);
+  if (minPrice === null) {
     return { kind: "variable", value: null };
   }
-  if (maxPrice !== null && maxPrice > 0 && maxPrice === minPrice) {
+  if (maxPrice !== null && maxPrice === minPrice) {
     return { kind: "exact", value: minPrice };
   }
-  if (maxPrice !== null && maxPrice > 0 && maxPrice < minPrice) {
+  if (maxPrice !== null && maxPrice < minPrice) {
     return { kind: "variable", value: null };
   }
   return { kind: "starting", value: minPrice };
@@ -74,17 +74,13 @@ export function productCardPrice(
 // P3.3: NOT merged with public-pos/order/product-domain.ts's
 // identically-named productPriceFromDetail/getModalBasePrice, despite the
 // name collision — diffing found genuine, revenue-affecting divergence:
-// - productPriceFromDetail: optionalNumber() here skips an empty-string
-//   proDetailSprice and falls through to `price`; the public version's
-//   `?? ` only skips null/undefined, so an empty string there short-circuits
-//   to 0 instead of falling back.
 // - getModalBasePrice's "set" branch here only reads prodSetPrice
-//   (defaulting to 0 if absent); the public version falls back through
+//   (rejecting an absent price); the public version falls back through
 //   prodPrice and the detail price when prodSetPrice is missing.
 // Unifying either would silently change a displayed/charged price on one
 // surface, so both stay separate.
 export function productPriceFromDetail(detail?: ProdDetail | null) {
-  return optionalNumber(detail?.proDetailSprice, detail?.price) ?? 0;
+  return readProductPrice(detail?.proDetailSprice, detail?.price) ?? Number.NaN;
 }
 
 export function getModalBasePrice(
@@ -93,7 +89,7 @@ export function getModalBasePrice(
   mode: ProductModalMode,
 ) {
   return mode === "set"
-    ? (optionalNumber(product?.prodSetPrice) ?? 0)
+    ? (readProductPrice(product?.prodSetPrice) ?? Number.NaN)
     : productPriceFromDetail(detail);
 }
 

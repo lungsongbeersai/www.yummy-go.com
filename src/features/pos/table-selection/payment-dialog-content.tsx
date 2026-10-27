@@ -360,6 +360,7 @@ export function PaymentDialogContent({
     invoice,
     invoicePrinting,
     isSplitPayment,
+    isZeroTotalPayment,
     note,
     onOpenChange,
     orderChannel,
@@ -495,6 +496,7 @@ export function PaymentDialogContent({
                       <TabsTrigger
                         key={tab.value}
                         value={tab.value}
+                        disabled={isZeroTotalPayment && tab.value !== "cash"}
                         aria-label={t(tab.labelKey)}
                         className="h-11 min-w-0 gap-1.5 rounded-md px-1 text-xs font-semibold min-[430px]:px-2 min-[430px]:text-sm md:h-12 md:justify-start md:gap-2.5 md:px-3"
                       >
@@ -679,6 +681,7 @@ export function PaymentDialogContent({
                       <Select
                         value={selectedCurrency.value}
                         onValueChange={handleCurrencyChange}
+                        disabled={isZeroTotalPayment}
                       >
                         <SelectTrigger
                           aria-label={t("pos.paymentCurrency")}
@@ -752,7 +755,12 @@ export function PaymentDialogContent({
 
             <section className="min-h-0 overflow-y-auto overscroll-contain p-1.5 sm:p-3 lg:p-4">
               <div className="h-full min-h-0">
-                {activeTenderField ? (
+                {isZeroTotalPayment ? (
+                  <div className="grid h-full min-h-0 place-content-center gap-3 rounded-lg border border-border bg-card p-6 text-center">
+                    <p className="text-4xl font-bold text-primary-text tabular-nums">{money(0)}</p>
+                    <p className="max-w-md text-sm text-muted-foreground">{t("pos.zeroTotalNoPaymentRequired")}</p>
+                  </div>
+                ) : activeTenderField ? (
                   <div className="grid h-full min-h-0 grid-rows-[auto_auto_minmax(196px,1fr)] gap-1.5 min-[430px]:gap-2 sm:grid-rows-[auto_auto_minmax(0,1fr)] sm:gap-3 lg:mx-auto lg:h-auto lg:max-w-xl lg:grid-rows-none lg:content-start">
                     {/* คอลัมน์นี้ต้องมีลูกตรงกับ grid-rows 3 แถวเสมอ (ยอด / ปุ่มยอดด่วน / numpad) —
                         อย่าเพิ่มกล่องตามโหมดชำระที่นี่ ไม่งั้น numpad ตกไปอยู่แถว implicit แล้วถูกดันลงล่าง

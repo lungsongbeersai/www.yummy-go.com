@@ -390,7 +390,7 @@ describe("order customer helpers", () => {
         product({ countOptionEnabled: 2, minPrice: 0, maxPrice: 15000 }),
         ProductSortStatus.NORMAL,
       ),
-    ).toEqual({ kind: "variable", value: null });
+    ).toEqual({ kind: "starting", value: 0 });
     expect(
       productCardPrice(
         product({
@@ -422,7 +422,22 @@ describe("order customer helpers", () => {
         product({ proDetailSprice: 0, prodPrice: 0 }),
         ProductSortStatus.NORMAL,
       ),
-    ).toEqual({ kind: "unavailable", value: null });
+    ).toEqual({ kind: "exact", value: 0 });
+  });
+
+  it("does not use an unused zero set price for a paid normal item", () => {
+    const normalProduct = product({
+      proDetailSprice: undefined,
+      prodSetPrice: 0,
+      prodPrice: 25_000,
+    });
+    expect(productCardPrice(normalProduct, ProductSortStatus.NORMAL))
+      .toEqual({ kind: "exact", value: 25_000 });
+    expect(canDirectAddFromList(normalProduct, ProductSortStatus.NORMAL)).toBe(true);
+    const normalized = normalizeProdItem(null, normalProduct);
+    expect(getModalBasePrice(normalized, normalized.details[0], "normal")).toBe(25_000);
+    expect(productCardPrice({ ...normalProduct, statusSortFk: ProductSortStatus.SET }, ProductSortStatus.SET))
+      .toEqual({ kind: "exact", value: 0 });
   });
 
   it("normalizes product item fallback details and modal mode", () => {
@@ -535,7 +550,7 @@ describe("order customer helpers", () => {
     expect(
       getProductModalMode(ProductSortStatus.NORMAL, normalProduct),
     ).toBe("normal");
-    expect(getModalBasePrice(normalProduct, detail(), "set")).toBe(0);
+    expect(getModalBasePrice(normalProduct, detail(), "set")).toBeNaN();
     expect(
       getOrderSelectionIssue({
         detail: detail(),
@@ -550,7 +565,7 @@ describe("order customer helpers", () => {
   it("validates price, stock, quantity, and toppings before building payload", () => {
     expect(
       getOrderSelectionIssue({
-        detail: detail({ price: 0, proDetailSprice: 0 }),
+        detail: detail({ price: -1, proDetailSprice: -1 }),
         mode: "normal",
         quantity: 1,
         toppings: [],
@@ -630,12 +645,64 @@ describe("order customer helpers", () => {
     ).toBe(null);
     expect(() =>
       buildStaffOrderItems({
-        detail: detail({ price: 0, proDetailSprice: 0 }),
+        detail: detail({ price: -1, proDetailSprice: -1 }),
         noteText: "",
         quantity: 1,
         toppings: [],
       }),
     ).toThrow("price-invalid");
+  });
+
+  it.each([0, "0"])("orders an explicitly free product (%j) with paid toppings", (price) => {
+    const freeProduct = product({ proDetailSprice: price, prodPrice: 12_000 });
+    const freeDetail = detail({ proDetailSprice: price, price: 12_000 });
+    expect(canDirectAddFromList(freeProduct, ProductSortStatus.NORMAL)).toBe(true);
+    expect(getProductActionState(freeProduct, ProductSortStatus.NORMAL)).toBe("add");
+    expect(productCardPrice(freeProduct, ProductSortStatus.NORMAL)).toEqual({
+      kind: "exact", value: 0,
+    });
+    expect(getOrderSelectionIssue({
+      detail: freeDetail, mode: "normal", quantity: 2, toppings: [],
+    })).toBeNull();
+    expect(getModalUnitPrice(null, freeDetail, [{ topping: topping(), qty: 3 }], "normal"))
+      .toBe(6_000);
+    expect(buildStaffOrderInput({
+      branchUuid: "branch-1", detail: freeDetail, lang: "en", noteText: "Free gift",
+      quantity: 2, tableUuid: "table-1", toppings: [{ topping: topping(), qty: 3 }],
+      userUuid: "staff-1",
+    }).items).toEqual([{
+      prod_detail_uuid_fk: "detail-1", order_it_qty: 2, order_it_status: 1,
+      order_it_note: "Free gift", toppings: [{ prod_topping_uuid_fk: "top-1", topping_qty: 3 }],
+    }]);
+  });
+
+  it.each([undefined, "", " ", "invalid", -1, "-1", Number.NaN, Number.POSITIVE_INFINITY])(
+    "rejects absent or invalid prices instead of treating them as free (%j)",
+    (price) => {
+      const invalidProduct = product({ proDetailSprice: price, prodPrice: undefined });
+      const invalidDetail = detail({ proDetailSprice: price, price: undefined });
+      expect(canDirectAddFromList(invalidProduct, ProductSortStatus.NORMAL)).toBe(false);
+      expect(productCardPrice(invalidProduct, ProductSortStatus.NORMAL)).toEqual({
+        kind: "unavailable", value: null,
+      });
+      expect(getOrderSelectionIssue({
+        detail: invalidDetail, mode: "normal", quantity: 1, toppings: [],
+      })).toBe("price-invalid");
+      expect(() => buildStaffOrderItems({
+        detail: invalidDetail, noteText: "", quantity: 1, toppings: [],
+      })).toThrow("price-invalid");
+    },
+  );
+
+  it("accepts an explicit zero fixed set price while requiring its selections", () => {
+    const freeSet = {
+      ...normalizeProdItem(null, product()), prodSetPrice: 0,
+      details: [detail({ proDetailSprice: 0, price: 0 })],
+    };
+    expect(getModalBasePrice(freeSet, freeSet.details[0], "set")).toBe(0);
+    expect(getOrderSelectionIssue({
+      detail: freeSet.details[0], mode: "set", product: freeSet, quantity: 1, toppings: [],
+    })).toBeNull();
   });
 
   it("limits tastes and includes them in the staff order payload", () => {

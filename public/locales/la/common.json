@@ -1156,6 +1156,7 @@
     "changeAmount": "ເງິນທອນ",
     "paymentMissingOrder": "ບໍ່ມີອໍເດີສຳລັບຊຳລະ.",
     "paymentNoAmount": "ບໍ່ມີຍອດທີ່ຕ້ອງຊຳລະ.",
+    "zeroTotalNoPaymentRequired": "ບິນຍອດ 0 ບໍ່ຈຳເປັນຕ້ອງຮັບເງິນ. ຢືນຢັນເພື່ອປິດບິນ.",
     "paymentCashInsufficient": "ເງິນສົດທີ່ຮັບນ້ອຍກວ່າຍອດຕ້ອງຊຳລະ.",
     "paymentTransferInsufficient": "ຈຳນວນໂອນນ້ອຍກວ່າຍອດທີ່ຕ້ອງຊຳລະ.",
     "paymentMixedRequired": "ໃສ່ທັງຈຳນວນເງິນສົດ ແລະ ໂອນ.",
@@ -3702,7 +3703,8 @@
   "toasts": {
     "pleaseTryAgain": "ກະລຸນາລອງໃໝ່",
     "completeRequiredFields": "ກະລຸນາປ້ອນຂໍ້ມູນໃຫ້ຄົບຖ້ວນ",
-    "priceMustBePositive": "{{field}} ຕ້ອງຫຼາຍກວ່າ 0"
+    "priceMustBePositive": "{{field}} ຕ້ອງຫຼາຍກວ່າ 0",
+    "priceMustBeNonNegative": "ກະລຸນາປ້ອນ {{field}} ເປັນ 0 ຫຼືຫຼາຍກວ່າ. ໃຊ້ 0 ສຳລັບຂອງແຖມຟຣີ."
   },
   "policy": {
     "badge": "ລະບົບ POS ຮ້ານອາຫານ Yummy Go",

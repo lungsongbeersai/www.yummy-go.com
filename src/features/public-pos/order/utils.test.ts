@@ -25,11 +25,13 @@ import {
   getCartReceiptTotals,
   getConfirmableOrderPayload,
   getDirectAddListPayload,
+  formatProductPrice,
   formatMoney,
   filterVisiblePublicMenuCategories,
   getProductActionState,
   getProductBlockedState,
   getProductModalMode,
+  getModalBasePrice,
   getPublicOrderPriceTotals,
   getRenderedMenuSections,
   isRequiredTasteSelectionMissing,
@@ -43,6 +45,7 @@ import {
   normalizePublicSearchHistory,
   promotionQuantity,
   productNeedsModal,
+  productPriceFromDetail,
   publicProductCardPrice,
   statusSectionLabel,
   totalCartQty,
@@ -279,17 +282,52 @@ describe("public POS product helpers", () => {
       publicProductCardPrice(
         product({ proDetailSprice: 0, prodPrice: "18000" }),
       ),
-    ).toEqual({ kind: "exact", value: 18000 });
+    ).toEqual({ kind: "exact", value: 0 });
     expect(
       publicProductCardPrice(
         product({ proDetailSprice: 0, prodPrice: 0, minPrice: 15000 }),
       ),
-    ).toEqual({ kind: "exact", value: 15000 });
+    ).toEqual({ kind: "exact", value: 0 });
     expect(
       publicProductCardPrice(
         product({ proDetailSprice: 0, prodPrice: 0, minPrice: 0 }),
       ),
-    ).toEqual({ kind: "variable", value: null });
+    ).toEqual({ kind: "exact", value: 0 });
+  });
+
+  it.each([0, "0"])("shows and directly orders a free item without falling back to a paid price (%j)", (price) => {
+    const freeProduct = product({ proDetailSprice: price, prodPrice: 18_000 });
+    expect(formatProductPrice(freeProduct, "en")).toBe("0 ₭");
+    expect(getProductActionState(freeProduct, normalStatus)).toBe("add");
+    const result = getDirectAddListPayload(freeProduct, normalStatus, []);
+    expect(result.ok).toBe(true);
+    if (!result.ok) throw new Error("Expected a free product to be orderable");
+    expect(productPriceFromDetail(result.payload.detail)).toBe(0);
+    expect(getModalBasePrice(result.item, result.payload.detail, "normal")).toBe(0);
+    expect(result.payload).toMatchObject({ qty: 1, toppings: [], tastes: [] });
+  });
+
+  it.each([undefined, "", " ", "invalid", -1, "-1", Number.NaN, Number.POSITIVE_INFINITY])(
+    "does not expose absent or invalid prices as free products (%j)",
+    (price) => {
+      const invalidProduct = product({ proDetailSprice: price, prodPrice: undefined });
+      expect(formatProductPrice(invalidProduct, "en")).toBe("");
+      expect(publicProductCardPrice(invalidProduct)).toEqual({ kind: "variable", value: null });
+      expect(getDirectAddListPayload(invalidProduct, normalStatus, [])).toEqual({
+        ok: false, reason: "needs-modal",
+      });
+      expect(getModalBasePrice(prodItem(), { proDetailUuid: "detail-1", proDetailSprice: price }, "normal"))
+        .toBeNaN();
+    },
+  );
+
+  it("shows a zero minimum in mixed-price sizes and zero fixed set price", () => {
+    expect(publicProductCardPrice(product({ countOptionEnabled: 2, minPrice: 0, maxPrice: 25_000 })))
+      .toEqual({ kind: "starting", value: 0 });
+    expect(publicProductCardPrice(product({ countOptionEnabled: 2, minPrice: 0, maxPrice: "0" })))
+      .toEqual({ kind: "exact", value: 0 });
+    expect(publicProductCardPrice(product({ prodSetPrice: 0, proDetailSprice: 25_000 }), true))
+      .toEqual({ kind: "exact", value: 0 });
   });
 
   it("always shows the set's fixed price, ignoring its unrelated countOptionEnabled", () => {
@@ -566,6 +604,15 @@ describe("public POS quantity helpers", () => {
 });
 
 describe("public POS order payload helper", () => {
+  it("keeps free bases free while charging selected toppings", () => {
+    expect(getPublicOrderPriceTotals({ basePrice: 0, productQty: 3, toppings: [] }))
+      .toEqual({ productSubtotal: 0, toppingTotal: 0, total: 0 });
+    expect(getPublicOrderPriceTotals({
+      basePrice: 0, productQty: 2,
+      toppings: [{ topping: { prodToppingUuid: "top-1", toppingPrice: 2_000 }, qty: 3 }],
+    })).toEqual({ productSubtotal: 0, toppingTotal: 12_000, total: 12_000 });
+  });
+
   it("extends the per-product topping price by the product quantity", () => {
     expect(
       getPublicOrderPriceTotals({
@@ -669,10 +716,10 @@ describe("public POS order payload helper", () => {
           qr_enabled: true,
           branch_uuid_fk: "branch-1",
         },
-        detail: { proDetailUuid: "detail-1" },
+        detail: { proDetailUuid: "detail-1", proDetailSprice: 0 },
         qty: 2,
         tastes: [{ tasteUuid: "taste-1", tasteName: "Spicy" }],
-        toppings: [{ topping: { prodToppingUuid: "top-1" }, qty: 3 }],
+        toppings: [{ topping: { prodToppingUuid: "top-1", toppingPrice: 2_000 }, qty: 3 }],
         note: "less spicy",
         lang: "en",
       }),
@@ -705,7 +752,7 @@ describe("public POS order payload helper", () => {
         qr_enabled: true,
         branch_uuid_fk: "branch-1",
       },
-      detail: { proDetailUuid: "detail-1" },
+      detail: { proDetailUuid: "detail-1", proDetailSprice: "0" },
       qty: 1,
       toppings: [],
       note: "",
@@ -713,6 +760,8 @@ describe("public POS order payload helper", () => {
     }).items[0];
 
     expect(legacyItem).not.toHaveProperty("tastes");
+    expect(legacyItem).not.toHaveProperty("price");
+    expect(legacyItem).not.toHaveProperty("pro_detail_sprice");
   });
 });
 

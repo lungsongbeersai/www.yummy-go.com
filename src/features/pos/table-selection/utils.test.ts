@@ -5,11 +5,13 @@ import {
   billDiscountButtonValue,
   buildCustomerDisplayPayload,
   canPayFullBill,
+  canSettleZeroTotalBill,
   cartDisplayQuantityCount,
   cartDisplaySummary,
   cartForTable,
   cartItemBaseUnitPrice,
   cartItemRemovalActions,
+  cartItemTotal,
   cartItemsQty,
   cartOrderBelongsToTable,
   cartOrdersBelongToTable,
@@ -464,7 +466,75 @@ describe("table selection utils", () => {
     ).toBe(false);
   });
 
-  it("blocks full payment without payable items or total", () => {
+  it("preserves zero snapshot prices and paid toppings in mixed carts", () => {
+    const freeItem: CartItem = {
+      order_it_uuid: "free-1", prod_price: 25_000,
+      detail: { order_it_qty: 2, order_it_status: 2, unit_price: 0,
+        base_line_total: 0, topping_unit_total: 0, topping_line_total: 0,
+        gross_total: 0, net_total: 0 },
+    };
+    const addonItem: CartItem = {
+      ...freeItem, order_it_uuid: "addon-1",
+      detail: { ...freeItem.detail, topping_unit_total: 6_000,
+        topping_line_total: 12_000, gross_total: 12_000, net_total: 12_000 },
+    };
+    expect(cartItemBaseUnitPrice(freeItem)).toBe(0);
+    expect(cartItemTotal(freeItem)).toBe(0);
+    expect(cartItemBaseUnitPrice(addonItem)).toBe(0);
+    expect(cartItemTotal(addonItem)).toBe(12_000);
+    expect(cartSummary({ order_uuid: "order-1", items: [freeItem, addonItem] }).grandTotal)
+      .toBe(12_000);
+    expect(cartToppingDisplay({ topping_line_total: 0, topping_price: 5_000 }).total)
+      .toBeNull();
+  });
+
+  it("only enables a zero-total bill after its server items qualify for free settlement", () => {
+    const freeOrder: CartOrder = {
+      order_uuid: "order-1", totals: { order_grand_total: 0 },
+      items: [{ order_it_uuid: "item-1", detail: {
+        order_it_qty: 2, order_it_status: 2, unit_price: 0,
+        topping_unit_total: 0, gross_total: 0, net_total: 0,
+      } }],
+    };
+    expect(canSettleZeroTotalBill([freeOrder])).toBe(true);
+    expect(canPayFullBill({
+      currentOrderUuid: "order-1", grandTotal: 0, historyItemCount: 1,
+      newOrderItemCount: 0, waitingItemCount: 0,
+      zeroTotalPayable: canSettleZeroTotalBill([freeOrder]),
+    })).toBe(true);
+    expect(canSettleZeroTotalBill([])).toBe(false);
+    expect(canSettleZeroTotalBill([{ ...freeOrder, order_uuid: "" }])).toBe(false);
+    expect(canSettleZeroTotalBill([{ ...freeOrder, items: [] }])).toBe(false);
+    expect(canSettleZeroTotalBill([{ ...freeOrder, totals: undefined }])).toBe(false);
+    for (const total of [-1, 1, Number.NaN, Number.POSITIVE_INFINITY]) {
+      expect(canSettleZeroTotalBill([{ ...freeOrder, totals: { order_grand_total: total } }])).toBe(false);
+      expect(canPayFullBill({
+        currentOrderUuid: "order-1", grandTotal: total, historyItemCount: 1,
+        newOrderItemCount: 0, waitingItemCount: 0, zeroTotalPayable: true,
+      })).toBe(total === 1);
+    }
+    const freeItem = freeOrder.items?.[0];
+    if (!freeItem) throw new Error("Expected a free item fixture");
+    for (const status of [0, 1, 9]) {
+      expect(canSettleZeroTotalBill([{ ...freeOrder, items: [{
+        ...freeItem, detail: { ...freeItem.detail, order_it_status: status },
+      }] }])).toBe(false);
+    }
+    for (const detail of [
+      { unit_price: 1, gross_total: 1 },
+      { unit_price: 0.01 },
+      { topping_unit_total: 1, gross_total: 1 },
+      { unit_price: undefined },
+      { gross_total: undefined },
+      { order_it_qty: 0 },
+    ]) {
+      expect(canSettleZeroTotalBill([{ ...freeOrder, items: [{
+        ...freeItem, detail: { ...freeItem.detail, ...detail },
+      }] }])).toBe(false);
+    }
+  });
+
+  it("blocks full payment without payable items or an eligible total", () => {
     expect(
       canPayFullBill({
         currentOrderUuid: "order-1",

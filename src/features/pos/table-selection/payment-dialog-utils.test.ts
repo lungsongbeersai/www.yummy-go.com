@@ -227,6 +227,32 @@ describe("payment dialog helpers", () => {
     );
   });
 
+  it("settles an eligible free bill without recording money, change, or debt", () => {
+    const payment = paymentAmounts("cash", 0, "0", "0", "0", 1);
+    expect(payment).toEqual({ cash: 0, transfer: 0, received: 0, change: 0, balance: 0 });
+    expect(paymentCurrencyAmounts("cash", 0, "0", "0", "0", LAK_CURRENCY_OPTION))
+      .toEqual({ foreignCashPaid: 0, foreignTransferPaid: 0, foreignPaid: 0 });
+    expect(paymentValidation("cash", "order-1", 0, payment, "customer-1", undefined, true))
+      .toBeNull();
+    expect(paymentValidation("cash", "order-1", 0, payment, "customer-1"))
+      .toBe("pos.paymentNoAmount");
+    expect(paymentValidation("cash", "order-1", 12_000, payment, "customer-1", undefined, true))
+      .toBe("pos.paymentCashInsufficient");
+    for (const tab of ["transfer", "cash_transfer", "arrears"] as const) {
+      expect(paymentValidation(tab, "order-1", 0, payment, "customer-1", undefined, true))
+        .toBe("pos.paymentNoAmount");
+    }
+    for (const total of [-1, Number.NaN, Number.POSITIVE_INFINITY]) {
+      expect(paymentValidation("cash", "order-1", total, payment, "customer-1", undefined, true))
+        .toBe("pos.paymentNoAmount");
+    }
+    const fakeCash = paymentAmounts("cash", 0, "100", "", "", 1);
+    expect(paymentValidation("cash", "order-1", 0, fakeCash, "customer-1", undefined, true))
+      .toBe("pos.paymentNoAmount");
+    expect(paymentValidation("cash", "order-1", 0, payment, "customer-1", [], true))
+      .toBe("pos.splitPaymentSelectRequired");
+  });
+
   it("requires a branch receiving account whenever the payment includes a transfer", () => {
     expect(transferAccountValidation(0, "", false)).toBeNull();
     expect(transferAccountValidation(50000, "", true)).toBe(

@@ -1,5 +1,6 @@
 import { type CateProductItem, type ProdDetail, type ProdItem } from "@/services/pos";
 import { optionalNumber, optionalString } from "@/lib/values";
+import { readProductPrice } from "@/lib/product-price";
 import {
   getProductBlockedStateCore,
   isKnownModalProductCore,
@@ -92,7 +93,7 @@ export function canDirectAddFromList(
   activeSort: ProductSortStatus,
 ) {
   const detailUuid = optionalString(product.proDetailUuid);
-  const price = optionalNumber(product.proDetailSprice, product.prodPrice);
+  const price = readProductPrice(product.proDetailSprice, product.prodPrice);
   const productStatusSort =
     optionalNumber(product.statusSortFk) ?? activeSort;
   const enabledOptionCount = optionalNumber(product.countOptionEnabled) ?? 1;
@@ -101,7 +102,6 @@ export function canDirectAddFromList(
   return (
     Boolean(detailUuid) &&
     price !== null &&
-    price > 0 &&
     product.hasOptions !== true &&
     enabledOptionCount <= 1 &&
     allOptionCount <= 1 &&

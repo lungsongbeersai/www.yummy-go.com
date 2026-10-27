@@ -37,6 +37,7 @@ import {
   billDiscountButtonValue,
   buildCustomerDisplayPayload,
   canPayFullBill,
+  canSettleZeroTotalBill,
   cartDisplayQuantityCount,
   cartDisplaySummary,
   cartItemActionUuid,
@@ -326,6 +327,7 @@ export function useSelectedTableCartPanelWorkflow({
       historyItemCount: historyItems.length,
       newOrderItemCount: newOrderItems.length,
       waitingItemCount: waitingItems.length,
+      zeroTotalPayable: canSettleZeroTotalBill(orders),
     }) &&
     !cartActionsLocked,
   );

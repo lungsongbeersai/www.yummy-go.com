@@ -1157,6 +1157,7 @@
     "changeAmount": "Change",
     "paymentMissingOrder": "No order is available for payment.",
     "paymentNoAmount": "No payable amount.",
+    "zeroTotalNoPaymentRequired": "No payment is required. Confirm to close this zero-total bill.",
     "paymentCashInsufficient": "Cash received is less than the amount due.",
     "paymentTransferInsufficient": "Transfer received is less than the amount due.",
     "paymentMixedRequired": "Enter both cash and transfer amounts.",
@@ -3701,7 +3702,8 @@
   "toasts": {
     "pleaseTryAgain": "Please try again",
     "completeRequiredFields": "Please complete all required fields",
-    "priceMustBePositive": "{{field}} must be greater than 0"
+    "priceMustBePositive": "{{field}} must be greater than 0",
+    "priceMustBeNonNegative": "Enter {{field}} as 0 or greater. Use 0 for a complimentary item."
   },
   "policy": {
     "badge": "Yummy Go Restaurant POS",

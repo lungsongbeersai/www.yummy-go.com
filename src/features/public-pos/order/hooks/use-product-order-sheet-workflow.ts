@@ -146,7 +146,7 @@ export function useProductOrderSheetWorkflow({
   let selectionIssue: PublicProductSelectionIssue | null = null;
   if (!product || !selectedDetail || !isDetailAvailable(selectedDetail)) {
     selectionIssue = "noAvailableOptions";
-  } else if (!Number.isFinite(basePrice) || basePrice <= 0) {
+  } else if (!Number.isFinite(basePrice) || basePrice < 0) {
     selectionIssue = "invalidProductPrice";
   } else if (maxQty < minQty) {
     selectionIssue = "insufficientStock";

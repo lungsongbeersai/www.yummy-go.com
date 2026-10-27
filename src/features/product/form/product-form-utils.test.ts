@@ -221,6 +221,13 @@ describe("product form saved defaults helpers", () => {
 });
 
 describe("product form detail helpers", () => {
+  it("preserves explicit free prices without turning an unspecified edit price into zero", () => {
+    expect(detailFromProduct({}, "1").pro_detail_sprice).toBe("");
+    for (const price of [0, "0", "0.00"]) {
+      expect(detailFromProduct({ pro_detail_sprice: price }, "1").pro_detail_sprice).toBe(String(price));
+    }
+  });
+
   it("hydrates detail rows and resets promotion fields when leaving promotion", () => {
     const row = detailFromProduct(
       {
@@ -389,7 +396,7 @@ describe("product form validation and payload helpers", () => {
     ).toEqual(["pos.product"]);
   });
 
-  it("rejects an empty or zero sale price and set price", () => {
+  it("accepts explicit zero prices but rejects missing, negative and malformed sale prices", () => {
     const base = {
       prodNameLa: "Pho",
       cateUuidFk: "cate-1",
@@ -400,20 +407,27 @@ describe("product form validation and payload helpers", () => {
     const translate = (key: string, options?: Record<string, string>) =>
       options ? `${key}:${options.field}` : key;
 
-    for (const price of ["", "0", "0.00"]) {
+    for (const price of ["", " ", "-1", "invalid", "2,50", "Infinity"]) {
       expect(
         requiredFieldErrors(
           { ...base, statusSortFk: "1", details: [detail({ pro_detail_sprice: price })] },
           translate,
         ),
-      ).toEqual(["toasts.priceMustBePositive:fields.sprice"]);
+      ).toEqual(["toasts.priceMustBeNonNegative:fields.sprice"]);
     }
-    expect(
-      requiredFieldErrors(
-        { ...base, statusSortFk: "2", prodSetPrice: "0", details: [detail()] },
-        translate,
-      ),
-    ).toEqual(["toasts.priceMustBePositive:product.setPrice"]);
+    for (const price of ["0", "0.00", "25,000"]) {
+      expect(requiredFieldErrors(
+        { ...base, statusSortFk: "1", details: [detail({ pro_detail_sprice: price })] }, translate,
+      )).toEqual([]);
+      expect(requiredFieldErrors(
+        { ...base, statusSortFk: "2", prodSetPrice: price, details: [detail()] }, translate,
+      )).toEqual([]);
+    }
+    for (const price of ["", "-1", "invalid"]) {
+      expect(requiredFieldErrors(
+        { ...base, statusSortFk: "2", prodSetPrice: price, details: [detail()] }, translate,
+      )).toEqual(["toasts.priceMustBeNonNegative:product.setPrice"]);
+    }
     expect(
       requiredFieldErrors(
         { ...base, statusSortFk: "2", prodSetPrice: "25,000", details: [detail()] },
@@ -434,7 +448,7 @@ describe("product form validation and payload helpers", () => {
       colorValue: "not-a-color",
       details: [
         detail({ id: "row-a" }),
-        detail({ id: "row-b", size_uuid_fk: "", pro_detail_sprice: "0" }),
+        detail({ id: "row-b", size_uuid_fk: "", pro_detail_sprice: "" }),
       ],
     });
 

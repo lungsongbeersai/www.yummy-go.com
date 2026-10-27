@@ -1,6 +1,7 @@
 import type { TFunction } from "i18next";
 import { OrderChannelEnum, OrderSourceEnum } from "@/config/pos-constants";
 import { formatMoney, formatShortDate } from "@/lib/format";
+import { readProductPrice } from "@/lib/product-price";
 import {
   getProductBlockedStateCore,
   isKnownModalProductCore,
@@ -55,16 +56,10 @@ export {
 export { formatMoney, formatShortDate };
 
 export function formatProductPrice(product: CateProductItem, lang: string) {
-  const rawPrice = product.proDetailSprice ?? product.prodPrice;
-  const price = Number(rawPrice);
-  if (!Number.isFinite(price) || price <= 0) return "";
+  const price = readProductPrice(product.proDetailSprice, product.prodPrice);
+  if (price === null) return "";
 
   return formatMoney(price, lang);
-}
-
-function positivePrice(value: unknown) {
-  const price = Number(value);
-  return Number.isFinite(price) && price > 0 ? price : null;
 }
 
 function hasPriceValue(value: unknown) {
@@ -82,14 +77,14 @@ export function publicProductCardPrice(
   | { kind: "exact" | "starting"; value: number }
   | { kind: "variable"; value: null } {
   if (!isSet && Number(product.countOptionEnabled ?? 0) > 1) {
-    const minPrice = positivePrice(product.minPrice);
+    const minPrice = readProductPrice(product.minPrice);
     if (minPrice === null) return { kind: "variable", value: null };
 
     if (!hasPriceValue(product.maxPrice)) {
       return { kind: "starting", value: minPrice };
     }
 
-    const maxPrice = positivePrice(product.maxPrice);
+    const maxPrice = readProductPrice(product.maxPrice);
     if (maxPrice === null || maxPrice < minPrice) {
       return { kind: "variable", value: null };
     }
@@ -99,15 +94,14 @@ export function publicProductCardPrice(
       : { kind: "starting", value: minPrice };
   }
 
-  const exactPrice =
-    positivePrice(product.proDetailSprice) ??
-    positivePrice(product.prodPrice);
+  const exactPrice = readProductPrice(
+    isSet ? product.prodSetPrice : undefined,
+    product.proDetailSprice,
+    product.prodPrice,
+    product.minPrice,
+  );
   if (exactPrice !== null) return { kind: "exact", value: exactPrice };
-
-  const minPrice = positivePrice(product.minPrice);
-  return minPrice === null
-    ? { kind: "variable", value: null }
-    : { kind: "exact", value: minPrice };
+  return { kind: "variable", value: null };
 }
 
 export function getPublicOrderPriceTotals({
@@ -180,11 +174,12 @@ export function getModalBasePrice(
   mode: ProductModalMode,
 ) {
   if (mode === "set") {
-    return numeric(
-      product?.prodSetPrice ??
-        product?.prodPrice ??
-        productPriceFromDetail(detail),
-    );
+    return readProductPrice(
+      product?.prodSetPrice,
+      product?.prodPrice,
+      detail?.proDetailSprice,
+      detail?.price,
+    ) ?? Number.NaN;
   }
 
   return productPriceFromDetail(detail);
@@ -385,8 +380,7 @@ export function productNeedsModal(
 }
 
 // P3.3: NOT merged with pos/order-customer's identically-named
-// canDirectAddFromList — this version accepts any finite price (including
-// 0 or negative), lacks the staff version's extra countOptionAll<=1
+// canDirectAddFromList — this version lacks the staff version's countOptionAll<=1
 // guard, and doesn't gate on getProductBlockedState. Real divergence, not
 // style — see product-classification.ts over there.
 export function canDirectAddFromList(
@@ -394,14 +388,14 @@ export function canDirectAddFromList(
   activeStatusSortFk: number,
 ) {
   const detailUuid = String(product.proDetailUuid ?? "").trim();
-  const price = Number(product.proDetailSprice ?? product.prodPrice);
+  const price = readProductPrice(product.proDetailSprice, product.prodPrice);
   const productStatusSort = publicProductStatusSort(
     product,
     activeStatusSortFk,
   );
   return (
     Boolean(detailUuid) &&
-    Number.isFinite(price) &&
+    price !== null &&
     product.hasOptions !== true &&
     Number(product.countOptionEnabled ?? 1) <= 1 &&
     Number(product.countToppingEnabled ?? 0) <= 0 &&
@@ -414,7 +408,7 @@ export function canDirectAddFromList(
 }
 
 export function productListItemToProdItem(product: CateProductItem): ProdItem {
-  const price = product.proDetailSprice ?? product.prodPrice ?? 0;
+  const price = readProductPrice(product.proDetailSprice, product.prodPrice) ?? Number.NaN;
   return {
     prodUuid: product.prodUuid,
     prodName: product.prodName,
@@ -469,7 +463,7 @@ export function defaultOrderQty(detail?: ProdDetail | null) {
 export { positiveQuantity, promotionQuantity } from "@/lib/pos/cart-quantity";
 
 export function productPriceFromDetail(detail?: ProdDetail | null) {
-  return numeric(detail?.proDetailSprice ?? detail?.price);
+  return readProductPrice(detail?.proDetailSprice, detail?.price) ?? Number.NaN;
 }
 
 export function maxAvailableQty(

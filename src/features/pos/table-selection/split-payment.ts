@@ -1,6 +1,7 @@
 import { optionalBoolean, optionalNumber, optionalString } from "@/lib/values";
 import { roundLakForVersion } from "@/lib/pos/lak-money";
 import { calculateVat, normalizeVatStatus } from "@/lib/pos/vat";
+import { readProductPrice } from "@/lib/product-price";
 import type { CartItem, CartOrder, SplitBillItemQuantity } from "@/services/pos";
 import {
   cartItemActionUuid,
@@ -8,6 +9,8 @@ import {
   cartItemStatus,
   cartItemTotal,
   cartSummary,
+  chargeableCartItems,
+  isCanceledCartItem,
 } from "./cart-readers";
 
 // uuid ของรายการ -> จำนวนที่เลือกแยกจ่าย (1..จำนวนเต็มของรายการนั้น)
@@ -19,6 +22,7 @@ export interface FullBillPaymentEligibilityInput {
   historyItemCount: number;
   newOrderItemCount: number;
   waitingItemCount: number;
+  zeroTotalPayable?: boolean;
 }
 
 export function canPayFullBill({
@@ -27,13 +31,37 @@ export function canPayFullBill({
   historyItemCount,
   newOrderItemCount,
   waitingItemCount,
+  zeroTotalPayable = false,
 }: FullBillPaymentEligibilityInput) {
   return Boolean(
     currentOrderUuid &&
       (historyItemCount > 0 || waitingItemCount > 0) &&
       newOrderItemCount === 0 &&
-      grandTotal > 0,
+      Number.isFinite(grandTotal) &&
+      (grandTotal > 0 || (grandTotal === 0 && zeroTotalPayable)),
   );
+}
+
+export function canSettleZeroTotalBill(orders: CartOrder[]) {
+  if (orders.length !== 1) return false;
+  const order = orders[0];
+  if (!optionalString(order.order_uuid)) return false;
+  const total = readProductPrice(order.totals?.order_grand_total, order.sum_grand_total);
+  if (total !== 0) return false;
+
+  const items = chargeableCartItems(order).filter((item) => !isCanceledCartItem(item));
+  return items.length > 0 && items.every((item) => {
+    const status = cartItemStatus(item);
+    const quantity = cartItemQty(item);
+    return Boolean(
+      cartItemActionUuid(item) &&
+      status !== null && status >= 2 && status <= 4 &&
+      Number.isInteger(quantity) && quantity > 0 &&
+      readProductPrice(item.detail?.unit_price) === 0 &&
+      readProductPrice(item.detail?.topping_unit_total) === 0 &&
+      readProductPrice(item.detail?.gross_total) === 0,
+    );
+  });
 }
 
 export function isSplitPaymentEligibleItem(item: CartItem) {

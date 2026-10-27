@@ -431,7 +431,7 @@ export function useProductFormWorkflow() {
     const status = String(editing.status_sort_fk ?? "1");
     const nextStatus: StatusSortFk = status === "2" || status === "3" ? status : "1";
     setStatusSortFk(nextStatus);
-    setProdSetPrice(String(editing.prod_set_price ?? 0));
+    setProdSetPrice(String(editing.prod_set_price ?? ""));
     setProdStatusImge(productImageStatus(editing));
     const savedColor = productColorValue(editing);
     if (savedColor) {

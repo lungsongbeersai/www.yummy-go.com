@@ -1,4 +1,5 @@
 import { numberFromFormatted } from "@/lib/number-format";
+import { parseProductPrice } from "@/lib/product-price";
 import type { Category } from "@/services/category";
 import type { Color } from "@/services/color";
 import type { Group } from "@/services/group";
@@ -827,7 +828,7 @@ export function detailFromProduct(
     pro_detail_uuid: productDetailUuid(detail),
     size_uuid_fk: detailSizeUuid(detail),
     pro_detail_bprice: String(detail.pro_detail_bprice ?? 0),
-    pro_detail_sprice: String(detail.pro_detail_sprice ?? 0),
+    pro_detail_sprice: String(detail.pro_detail_sprice ?? ""),
     pro_detail_qty_stock: String(
       detail.pro_detail_qty_stock ?? detail.qty_stock ?? 0,
     ),
@@ -1076,12 +1077,12 @@ export function detailGroupFieldId(rowId: string, groupId: string, name: string)
 export interface ProductFormIssue {
   fieldId: string;
   labelKey: string;
-  // "positivePrice" = empty or 0 is rejected: a POS item must never ring up for free by accident.
-  kind: "required" | "positivePrice";
+  // A free item needs an explicit zero; a missing price is still invalid.
+  kind: "required" | "nonNegativePrice";
 }
 
-export function isPositivePrice(value: string | undefined) {
-  return Number(numberFromFormatted(value ?? "")) > 0;
+export function isValidSalePrice(value: string | undefined) {
+  return parseProductPrice(value) !== null;
 }
 
 // Issues in on-screen order (image → general → tastes → details → toppings), so the
@@ -1091,8 +1092,8 @@ export function productFormIssues(state: RequiredProductFormState): ProductFormI
   const issues: ProductFormIssue[] = [];
   const required = (fieldId: string, labelKey: string) =>
     issues.push({ fieldId, labelKey, kind: "required" });
-  const positivePrice = (fieldId: string, labelKey: string) =>
-    issues.push({ fieldId, labelKey, kind: "positivePrice" });
+  const nonNegativePrice = (fieldId: string, labelKey: string) =>
+    issues.push({ fieldId, labelKey, kind: "nonNegativePrice" });
   const isSet = state.statusSortFk === "2";
   const availableTasteUuids = state.availableTasteUuids
     ? new Set(state.availableTasteUuids)
@@ -1118,8 +1119,8 @@ export function productFormIssues(state: RequiredProductFormState): ProductFormI
   if (!state.prodNameLa.trim()) required(ids.nameLa, "fields.prod_name");
   if (!state.cateUuidFk) required(ids.category, "nav.category");
   if (!state.uniteUuidFk) required(ids.unit, "nav.unit");
-  if (isSet && state.prodSetPrice !== undefined && !isPositivePrice(state.prodSetPrice)) {
-    positivePrice(ids.setPrice, "product.setPrice");
+  if (isSet && state.prodSetPrice !== undefined && !isValidSalePrice(state.prodSetPrice)) {
+    nonNegativePrice(ids.setPrice, "product.setPrice");
   }
   if (
     !isSet &&
@@ -1134,7 +1135,7 @@ export function productFormIssues(state: RequiredProductFormState): ProductFormI
     const field = (name: string) => detailFieldId(row.id, name);
     if (!row.size_uuid_fk) required(field("size"), isSet ? "pos.product" : "fields.size");
     if (row.pro_detail_bprice.trim() === "") required(field("bprice"), "fields.bprice");
-    if (!isSet && !isPositivePrice(row.pro_detail_sprice)) positivePrice(field("sprice"), "fields.sprice");
+    if (!isSet && !isValidSalePrice(row.pro_detail_sprice)) nonNegativePrice(field("sprice"), "fields.sprice");
     if (
       isSet &&
       row.pro_detail_stock === "1" &&
@@ -1188,8 +1189,8 @@ export function productFormIssueMessage(
   translate: (key: string, options?: Record<string, string>) => string,
 ) {
   const label = translate(issue.labelKey);
-  return issue.kind === "positivePrice"
-    ? translate("toasts.priceMustBePositive", { field: label })
+  return issue.kind === "nonNegativePrice"
+    ? translate("toasts.priceMustBeNonNegative", { field: label })
     : label;
 }
 

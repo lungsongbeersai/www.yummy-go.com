@@ -369,7 +369,7 @@ export function ProductFormView({ form }: { form: ProductFormWorkflow }) {
                     id={FIELD_IDS.setPrice}
                     aria-invalid={setPriceInvalid}
                     placeholder="0"
-                    min={1}
+                    min={0}
                     value={prodSetPrice}
                     onValueChange={setProdSetPrice}
                   />

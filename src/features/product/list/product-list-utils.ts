@@ -1,4 +1,5 @@
 import { money } from "@/lib/format";
+import { parseProductPrice } from "@/lib/product-price";
 import type { Category } from "@/services/category";
 import { getProductImageUrl } from "@/lib/image";
 import type { Product, ProductDetail, StatusSort } from "@/services/product";
@@ -104,13 +105,14 @@ export function numberValue(value: unknown) {
 }
 
 export function productPriceLabel(row: Product) {
-  if (String(row.status_sort_fk ?? "") === "2" && numberValue(row.prod_set_price) > 0) {
-    return money(row.prod_set_price);
+  if (String(row.status_sort_fk ?? "") === "2") {
+    const setPrice = parseProductPrice(row.prod_set_price);
+    return setPrice === null ? "-" : money(setPrice);
   }
 
   const prices = productDetails(row)
-    .map((detail) => numberValue(detail.pro_detail_sprice))
-    .filter((price) => price > 0);
+    .map((detail) => parseProductPrice(detail.pro_detail_sprice))
+    .filter((price): price is number => price !== null);
 
   if (!prices.length) return "-";
   const min = Math.min(...prices);

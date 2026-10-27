@@ -45,7 +45,7 @@ export function getOrderSelectionIssue({
   }
 
   const basePrice = getModalBasePrice(product ?? null, detail, mode);
-  if (!Number.isFinite(basePrice) || basePrice <= 0) return "price-invalid";
+  if (!Number.isFinite(basePrice) || basePrice < 0) return "price-invalid";
 
   const rules = orderQuantityRules(detail, mode, product);
   // rules.canOrder=false คือของหมดจริง (ไม่มีจำนวนใดสั่งได้เลย) ต่างจากกรณีถัดไปที่ยังสั่งได้

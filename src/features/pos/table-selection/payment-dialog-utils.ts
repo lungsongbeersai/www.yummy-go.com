@@ -504,12 +504,20 @@ export function paymentValidation(
   payment: ReturnType<typeof paymentAmounts>,
   customerUuid: string,
   splitBillItemUuids?: SplitBillItemQuantity[],
+  zeroTotalPayable = false,
 ) {
   if (!orderUuid) return "pos.paymentMissingOrder";
   if (splitBillItemUuids && splitBillItemUuids.length === 0)
     return "pos.splitPaymentSelectRequired";
   if (!customerUuid) return "pos.paymentCustomerRequired";
-  if (total <= 0) return "pos.paymentNoAmount";
+  if (!Number.isFinite(total) || total < 0) return "pos.paymentNoAmount";
+  if (total === 0) {
+    return zeroTotalPayable && tab === "cash" &&
+      payment.cash === 0 && payment.transfer === 0 &&
+      payment.received === 0 && payment.change === 0 && payment.balance === 0
+      ? null
+      : "pos.paymentNoAmount";
+  }
   if (tab === "cash" && payment.cash < total)
     return "pos.paymentCashInsufficient";
   if (tab === "cash_transfer" && (payment.cash <= 0 || payment.transfer <= 0))
