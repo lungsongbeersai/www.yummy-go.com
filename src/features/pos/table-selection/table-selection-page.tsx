@@ -20,6 +20,7 @@ import { TableListSection } from "./table-list-section";
 import type { TableStatusFilter } from "./types";
 import { formatClock } from "./utils";
 import { useTableAlerts } from "./hooks/use-table-alerts";
+import { SimulatorLauncher } from "@/features/simulator/simulator-launcher";
 
 const headerIconButtonClass = "relative size-[40px] rounded-full border border-primary-foreground/20 bg-primary-foreground/10 px-0 text-primary-foreground shadow-sm backdrop-blur-sm hover:bg-primary-foreground/20 hover:text-primary-foreground dark:border-white/20 dark:bg-white/10 dark:text-white dark:hover:bg-white/20 dark:hover:text-white";
 
@@ -144,6 +145,7 @@ export function TableSelectionPage() {
           </Button>
           <TableClock />
           <div data-pos-table-header-actions="true" className="relative flex min-w-0 items-center gap-1.5">
+            <SimulatorLauncher />
             <NotificationMenu triggerClassName={headerIconButtonClass} triggerVariant="ghost" />
             <LanguageSwitch className={cn(headerIconButtonClass, "hidden min-[500px]:inline-flex")} compact size="icon" variant="ghost" />
             <ThemeToggle className={headerIconButtonClass} size="icon" variant="ghost" />

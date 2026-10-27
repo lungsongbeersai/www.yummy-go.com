@@ -14,6 +14,7 @@ import {
 } from "@/components/ui/empty";
 import { LanguageSwitch } from "@/components/layout/language-switch";
 import { ThemeToggle } from "@/components/layout/theme-toggle";
+import { SimulatorLauncher } from "@/features/simulator/simulator-launcher";
 import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
 import { Spinner } from "@/components/ui/spinner";
 import { useIsNativeShellActive } from "@/hooks/use-native-shell-active";
@@ -321,10 +322,13 @@ export function OrderCustomerView({
                 />
 
                 {!nativeShellActive ? (
+                  <>
+                  <SimulatorLauncher />
                   <EmployeeMobileHeaderActions
                     loading={loadingTables || loadingMenu}
                     onRefresh={() => void refreshAll()}
                   />
+                  </>
                 ) : null}
               </div>
 
@@ -375,6 +379,7 @@ export function OrderCustomerView({
 
               {!nativeShellActive ? (
                 <div className="ml-auto flex shrink-0 items-center gap-2">
+                  <SimulatorLauncher />
                   {/* lg–xl (ประมาณ iPad landscape) แถวนี้ไม่พอที่ใส่ปุ่มภาษา/ธีม/รีเฟรช
                     แยก 3 ปุ่มพร้อมกับ sort tabs + search ที่กว้างคงที่ — คำนวณแล้ว
                     ล้นแน่นอนที่ 1024px (เห็นเป็นแถวปุ่มบีบ/ตกบรรทัดในภาพจริงบน iPad)
