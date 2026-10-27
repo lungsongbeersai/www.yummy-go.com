@@ -17,21 +17,15 @@ import {
   ItemTitle
 } from "@/components/ui/item";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { formatShortDate } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import type { StoreBranchLabels, StoreBranchSettingsRow } from "./store-branch-types";
 import {
-  annualDaysRemaining,
   isStoreActive,
   storeBranchId,
   storeBranchName,
   storeBranchValue,
   storeType
 } from "./store-branch-utils";
-
-// The annual renewal is the one date on this page that needs acting on, so it gets a tone:
-// overdue = red, due within a month = amber, otherwise quiet.
-const RENEWAL_WARNING_DAYS = 30;
 
 type StoreListProps = {
   activeId: string;
@@ -43,11 +37,6 @@ type StoreListProps = {
   selectedRows: Set<string>;
   onToggleSelected: (id: string, checked: boolean) => void;
 };
-
-function storeDateLabel(row: StoreBranchSettingsRow, key: string, language: string, labels: StoreBranchLabels) {
-  const value = storeBranchValue(row, key, "");
-  return value ? formatShortDate(value, language) || value : labels.dateUnavailable;
-}
 
 function StoreLogo({ name, src }: { name: string; src: string }) {
   return (
@@ -91,37 +80,13 @@ function StoreStatus({ labels, row }: { labels: StoreBranchLabels; row: StoreBra
   );
 }
 
-function StoreRenewal({ labels, language, row }: { labels: StoreBranchLabels; language: string; row: StoreBranchSettingsRow }) {
-  const days = annualDaysRemaining(row);
-  if (days === null) return <span className="text-muted-foreground">{labels.dateUnavailable}</span>;
-
-  const status = days === 0
-    ? labels.dueToday
-    : days > 0
-      ? `${days.toLocaleString("en-US")} ${labels.daysRemaining}`
-      : `${Math.abs(days).toLocaleString("en-US")} ${labels.daysOverdue}`;
-
-  return (
-    <span className="flex flex-col items-start gap-1">
-      <span className="tabular-nums">{storeDateLabel(row, "annual_due_on", language, labels)}</span>
-      {days < 0 ? (
-        <Badge variant="destructive">{status}</Badge>
-      ) : days <= RENEWAL_WARNING_DAYS ? (
-        <Badge className="bg-warning/15 text-warning-text">{status}</Badge>
-      ) : (
-        <span className="text-muted-foreground tabular-nums">{status}</span>
-      )}
-    </span>
-  );
-}
-
 export function StoreTable({
   allSelected,
   onToggleAllSelected,
   ...props
 }: StoreListProps & { allSelected: boolean; onToggleAllSelected: (checked: boolean) => void }) {
   const { activeId, imageUrl, labels, pageStart, rowActions, rows, selectedRows, onToggleSelected } = props;
-  const { i18n, t } = useTranslation();
+  const { t } = useTranslation();
 
   return (
     <Table containerClassName="min-h-0 flex-1 overflow-auto">
@@ -135,8 +100,6 @@ export function StoreTable({
           <TableHead className="min-w-72">{labels.store}</TableHead>
           <TableHead>{labels.type}</TableHead>
           <TableHead>{labels.active}</TableHead>
-          <TableHead>{labels.openedOn}</TableHead>
-          <TableHead>{labels.annualDue}</TableHead>
           <TableHead className="w-px">
             <span className="sr-only">{labels.actions}</span>
           </TableHead>
@@ -174,12 +137,6 @@ export function StoreTable({
               <TableCell>
                 <StoreStatus labels={labels} row={row} />
               </TableCell>
-              <TableCell className="text-muted-foreground tabular-nums">
-                {storeDateLabel(row, "store_opened_on", i18n.language, labels)}
-              </TableCell>
-              <TableCell>
-                <StoreRenewal labels={labels} language={i18n.language} row={row} />
-              </TableCell>
               <TableCell className="text-right">{rowActions(row)}</TableCell>
             </TableRow>
           );
@@ -192,7 +149,7 @@ export function StoreTable({
 // Narrow pages: one Item per store — logo, name and email, then the badges underneath.
 // Two columns once there is room for them (e.g. a tablet with the sidebar open).
 export function StoreMobileList({ activeId, imageUrl, labels, rowActions, rows, selectedRows, onToggleSelected }: StoreListProps) {
-  const { i18n, t } = useTranslation();
+  const { t } = useTranslation();
 
   return (
     <ItemGroup className="@xl:grid @xl:grid-cols-2">
@@ -223,7 +180,6 @@ export function StoreMobileList({ activeId, imageUrl, labels, rowActions, rows, 
                 <StoreTypeBadge labels={labels} row={row} />
                 <StoreStatus labels={labels} row={row} />
               </span>
-              <StoreRenewal labels={labels} language={i18n.language} row={row} />
             </ItemFooter>
           </Item>
         );

@@ -26,6 +26,18 @@ export interface StoreBranchLabels {
   closed: string;
   contactDetails: string;
   contactHint: string;
+  contractDetails: string;
+  contractHint: string;
+  contractStartOn: string;
+  contractEndOn: string;
+  contractPackage: string;
+  contractMonthly: string;
+  contractThreeMonths: string;
+  contractSixMonths: string;
+  contractYearly: string;
+  contractDatesInvalid: string;
+  contractRangeInvalid: string;
+  contractPackageRequired: string;
   cropHint: string;
   cropImage: string;
   current: string;

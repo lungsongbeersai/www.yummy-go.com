@@ -36,6 +36,7 @@ export interface AuthUser {
   store_uuid_fk?: string;
   store_name: string;
   store_logo: string;
+  store_status?: number;
   store_table_status: number;
   lak_rounding_version?: number;
   deposit_expire_days?: number | null;
@@ -200,8 +201,9 @@ export const useAuthStore = create<AuthState>()(
             if (!current.isLoggedIn || current.token !== token || !current.user) return false;
 
             const displayName = String(session.login_name ?? "").trim();
-            if (current.user.name !== displayName) {
-              set({ user: normalizeAuthUser({ ...current.user, name: displayName }) });
+            const storeStatus = [1, 2, 3].includes(Number(session.store_status)) ? Number(session.store_status) : 2;
+            if (current.user.name !== displayName || current.user.store_status !== storeStatus) {
+              set({ user: normalizeAuthUser({ ...current.user, name: displayName, store_status: storeStatus }) });
             }
 
             return true;

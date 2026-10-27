@@ -36,11 +36,14 @@ import {
 } from "./store-branch-utils";
 import type { StoreBranchLabels, StoreBranchSettingsRow } from "./store-branch-types";
 import { BranchTransferAccounts } from "./branch-transfer-accounts";
+import { BranchContractFields } from "./branch-contract-fields";
 
 export function StoreBranchFormDialog({
   activeStoreUuid,
   canEdit,
   canEditBranchEmail = true,
+  canEditContract = false,
+  showContract = false,
   editing,
   imageUrl,
   kind,
@@ -56,6 +59,8 @@ export function StoreBranchFormDialog({
   activeStoreUuid: string;
   canEdit: boolean;
   canEditBranchEmail?: boolean;
+  canEditContract?: boolean;
+  showContract?: boolean;
   editing: StoreBranchSettingsRow | null;
   imageUrl: (row: StoreBranchSettingsRow, rowKind: StoreBranchKind) => string;
   kind: StoreBranchKind;
@@ -80,6 +85,8 @@ export function StoreBranchFormDialog({
           activeStoreUuid={activeStoreUuid}
           canEdit={canEdit}
           canEditBranchEmail={canEditBranchEmail}
+          canEditContract={canEditContract}
+          showContract={showContract}
           editing={editing}
           imageUrl={imageUrl}
           kind={kind}
@@ -166,6 +173,8 @@ function EntityForm({
   activeStoreUuid,
   canEdit,
   canEditBranchEmail,
+  canEditContract,
+  showContract,
   editing,
   imageUrl,
   kind,
@@ -180,6 +189,8 @@ function EntityForm({
   activeStoreUuid: string;
   canEdit: boolean;
   canEditBranchEmail: boolean;
+  canEditContract: boolean;
+  showContract: boolean;
   editing: StoreBranchSettingsRow | null;
   imageUrl: (row: StoreBranchSettingsRow, rowKind: StoreBranchKind) => string;
   kind: StoreBranchKind;
@@ -404,6 +415,16 @@ function EntityForm({
                 </FieldGroup>
               )}
             </FieldSet>
+
+            {kind === "branch" && showContract ? (
+              <BranchContractFields
+                disabled={disabled}
+                editing={editing}
+                editable={canEditContract}
+                labels={labels}
+                recordKey={recordKey}
+              />
+            ) : null}
 
             {kind === "branch" && !editing ? (
               <FieldSet className="min-w-0 gap-4 rounded-lg border border-border bg-card p-4">

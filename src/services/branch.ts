@@ -1,6 +1,7 @@
 import { createCrud, listParams } from "@/services/shared/crud";
 import { apiRequest, ServiceError } from "@/lib/api";
 import type { ApiDataResponse, ApiEntity, ApiListResponse, FetchParams } from "@/services/shared/types";
+import type { ContractPackageMonths } from "@/lib/branch-contract";
 
 let explicitStoreUuid = "";
 
@@ -13,6 +14,10 @@ export interface Branch extends ApiEntity {
   branch_address?: string;
   branch_email?: string;
   branch_opened_on?: string | null;
+  contract_start_on?: string | null;
+  contract_end_on?: string | null;
+  contract_package_months?: ContractPackageMonths;
+  contract_days_remaining?: number | null;
   vat_status?: number;
   vat_name?: number;
   charge_status?: number;
@@ -34,6 +39,9 @@ export interface SaveBranchInput extends ApiEntity {
   vat_name?: number | string;
   charge_status?: number | string;
   charge_name?: number | string;
+  contract_start_on?: string | null;
+  contract_end_on?: string | null;
+  contract_package_months?: ContractPackageMonths;
 }
 export interface FetchBranchesParams extends FetchParams {}
 
@@ -108,6 +116,10 @@ export const saveBranch = (input: SaveBranchInput) => {
   if (!String(payload.branch_uuid ?? "").trim() && input.source_branch_uuid?.trim()) {
     payload.source_branch_uuid = input.source_branch_uuid.trim();
   }
+
+  if (input.contract_start_on !== undefined) payload.contract_start_on = input.contract_start_on;
+  if (input.contract_end_on !== undefined) payload.contract_end_on = input.contract_end_on;
+  if (input.contract_package_months !== undefined) payload.contract_package_months = input.contract_package_months;
 
   // Creation includes the bounded catalog/photo copy. Ordinary edits retain
   // the default HTTP budget and never clone the menu again.

@@ -19,6 +19,7 @@ import {
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import type { StoreBranchLabels, StoreBranchSettingsRow } from "./store-branch-types";
 import { branchManagementStoreLabel } from "./branch-management-scope";
+import { BranchContractDate, BranchContractEnd, BranchContractPackage } from "./branch-contract-display";
 import {
   VAT_EXEMPT,
   VAT_INCLUDED,
@@ -38,6 +39,7 @@ type BranchListProps = {
   rows: StoreBranchSettingsRow[];
   selectedRows: Set<string>;
   showStoreName?: boolean;
+  showContract?: boolean;
   onToggleSelected: (id: string, checked: boolean) => void;
 };
 
@@ -113,8 +115,8 @@ export function BranchTable({
   onToggleAllSelected,
   ...props
 }: BranchListProps & { allSelected: boolean; onToggleAllSelected: (checked: boolean) => void }) {
-  const { activeId, imageUrl, labels, pageStart, rowActions, rows, selectedRows, showStoreName, onToggleSelected } = props;
-  const { t } = useTranslation();
+  const { activeId, imageUrl, labels, pageStart, rowActions, rows, selectedRows, showStoreName, showContract, onToggleSelected } = props;
+  const { i18n, t } = useTranslation();
 
   return (
     <Table containerClassName="min-h-0 flex-1 overflow-auto">
@@ -130,6 +132,11 @@ export function BranchTable({
           <TableHead>{labels.address}</TableHead>
           <TableHead>{labels.vat}</TableHead>
           <TableHead>{labels.charge}</TableHead>
+          {showContract ? <>
+            <TableHead>{labels.contractPackage}</TableHead>
+            <TableHead>{labels.contractStartOn}</TableHead>
+            <TableHead>{labels.contractEndOn}</TableHead>
+          </> : null}
           <TableHead className="w-px">
             <span className="sr-only">{labels.actions}</span>
           </TableHead>
@@ -174,6 +181,11 @@ export function BranchTable({
               <TableCell>
                 <BranchCharge labels={labels} row={row} />
               </TableCell>
+              {showContract ? <>
+                <TableCell><BranchContractPackage row={row} labels={labels} /></TableCell>
+                <TableCell className="text-muted-foreground"><BranchContractDate row={row} field="contract_start_on" language={i18n.language} labels={labels} /></TableCell>
+                <TableCell><BranchContractEnd row={row} language={i18n.language} labels={labels} /></TableCell>
+              </> : null}
               <TableCell className="text-right">{rowActions(row)}</TableCell>
             </TableRow>
           );
@@ -185,8 +197,8 @@ export function BranchTable({
 
 // Narrow pages: one Item per branch — QR, name and phone, the address, then VAT/charge badges.
 // Two columns once there is room for them.
-export function BranchMobileList({ activeId, imageUrl, labels, rowActions, rows, selectedRows, showStoreName, onToggleSelected }: BranchListProps) {
-  const { t } = useTranslation();
+export function BranchMobileList({ activeId, imageUrl, labels, rowActions, rows, selectedRows, showStoreName, showContract, onToggleSelected }: BranchListProps) {
+  const { i18n, t } = useTranslation();
 
   return (
     <ItemGroup className="@xl:grid @xl:grid-cols-2">
@@ -219,6 +231,24 @@ export function BranchMobileList({ activeId, imageUrl, labels, rowActions, rows,
                 <BranchVat labels={labels} row={row} />
                 <BranchCharge labels={labels} row={row} />
               </span>
+              {showContract ? (
+                <div className="flex w-full flex-col gap-3 border-t border-border pt-3">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <span className="text-muted-foreground">{labels.contractPackage}</span>
+                    <BranchContractPackage row={row} labels={labels} />
+                  </div>
+                  <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                    <div className="flex flex-col gap-1">
+                      <span className="text-muted-foreground">{labels.contractStartOn}</span>
+                      <BranchContractDate row={row} field="contract_start_on" language={i18n.language} labels={labels} />
+                    </div>
+                    <div className="flex flex-col gap-1">
+                      <span className="text-muted-foreground">{labels.contractEndOn}</span>
+                      <BranchContractEnd row={row} language={i18n.language} labels={labels} />
+                    </div>
+                  </div>
+                </div>
+              ) : null}
             </ItemFooter>
           </Item>
         );

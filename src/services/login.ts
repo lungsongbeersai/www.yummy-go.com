@@ -26,6 +26,7 @@ interface LoginApiResponse {
   store_uuid_fk?: string;
   store_name?: string;
   store_logo?: string;
+  store_status?: number;
   store_table_status?: number;
   lak_rounding_version?: number;
   deposit_expire_days?: number | null;
@@ -44,6 +45,7 @@ export interface LoginSession {
   branch_uuid: string;
   store_uuid_fk: string;
   login_status: number;
+  store_status?: number;
 }
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -77,6 +79,7 @@ function mapLoginResponse(data: LoginApiResponse): LoginResult {
       store_uuid_fk: data.store_uuid_fk ?? "",
       store_name: data.store_name ?? "",
       store_logo: data.store_logo ?? "",
+      store_status: [1, 2, 3].includes(Number(data.store_status)) ? Number(data.store_status) : 2,
       store_table_status: Number(data.store_table_status) === 2 ? 2 : 1,
       lak_rounding_version: Number(data.lak_rounding_version) === 2 ? 2 : 1,
       deposit_expire_days: data.deposit_expire_days ?? null,

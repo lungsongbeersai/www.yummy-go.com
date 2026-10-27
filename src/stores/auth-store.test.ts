@@ -158,6 +158,38 @@ describe("auth store session isolation", () => {
     expect(usePermissionsSidebarStore.getState().requestKey).toBe("");
   });
 
+  it.each([1, 2, 3])("refreshes live store classification %s even when the display name is unchanged", async (store_status) => {
+    useAuthStore.getState().login("token-1", { ...authUser("user-1"), name: "Noy", store_status: 2 });
+    validateLoginSessionMock.mockResolvedValueOnce({
+      uuid: "user-1", login_email: "user-1@example.com", login_name: "Noy",
+      branch_uuid: "user-1-branch", store_uuid_fk: "user-1-store", login_status: 1, store_status,
+    });
+    await expect(useAuthStore.getState().validateSession()).resolves.toBe(true);
+    expect(useAuthStore.getState().user?.store_status).toBe(store_status);
+  });
+
+  it("revokes cached PLC visibility when session metadata does not confirm PLC access", async () => {
+    useAuthStore.getState().login("token-1", { ...authUser("user-1"), name: "Noy", store_status: 1 });
+    validateLoginSessionMock.mockResolvedValueOnce({
+      uuid: "user-1", login_email: "user-1@example.com", login_name: "Noy",
+      branch_uuid: "user-1-branch", store_uuid_fk: "user-1-store", login_status: 1,
+    });
+    await useAuthStore.getState().validateSession();
+    expect(useAuthStore.getState().user?.store_status).toBe(2);
+  });
+
+  it("does not apply an older session's PLC classification to a new login", async () => {
+    const pending = deferred<Awaited<ReturnType<typeof validateLoginSession>>>();
+    useAuthStore.getState().login("token-1", authUser("user-1"));
+    validateLoginSessionMock.mockReturnValueOnce(pending.promise);
+    const validation = useAuthStore.getState().validateSession();
+    useAuthStore.getState().login("token-2", { ...authUser("user-2"), store_status: 2 });
+    pending.resolve({ uuid: "user-1", login_email: "user-1@example.com", login_name: "Noy",
+      branch_uuid: "user-1-branch", store_uuid_fk: "user-1-store", login_status: 1, store_status: 1 });
+    await expect(validation).resolves.toBe(false);
+    expect(useAuthStore.getState().user).toMatchObject({ uuid: "user-2", store_status: 2 });
+  });
+
   it("defaults a legacy session without table status to a store with tables", () => {
     const legacyUser: Partial<AuthUser> = { ...authUser("legacy-user") };
     delete legacyUser.store_table_status;

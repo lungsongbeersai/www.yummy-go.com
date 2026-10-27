@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import {
   VAT_EXCLUDED,
   VAT_EXEMPT,
@@ -9,7 +9,8 @@ import {
   buildBranchPayload,
   branchCatalogSourceOptions,
   buildStorePayload,
-  annualDaysRemaining,
+  branchContractDaysRemaining,
+  branchContractDateLabel,
   isStoreActive,
   isStorePlc,
   isStoreTest,
@@ -127,6 +128,7 @@ describe("store branch utils", () => {
       storeAuthUserUpdate({
         store_logo: "logo.jpg",
         store_name_la: "Store LA",
+        store_status: 1,
         store_table_status: 2,
         lak_rounding_version: 2,
         deposit_expire_days: 14
@@ -134,6 +136,7 @@ describe("store branch utils", () => {
     ).toEqual({
       store_logo: "logo.jpg",
       store_name: "Store LA",
+      store_status: 1,
       store_table_status: 2,
       lak_rounding_version: 2,
       deposit_expire_days: 14
@@ -146,6 +149,7 @@ describe("store branch utils", () => {
         store_table_status: 3
       })
     ).toMatchObject({
+      store_status: 2,
       store_table_status: 1,
       lak_rounding_version: 1,
       deposit_expire_days: null
@@ -245,7 +249,7 @@ describe("store branch utils", () => {
     expect(branchChargeSummary({ charge_status: 1, charge_name: 2.5 }).percentLabel).toBe("2.5%");
   });
 
-  it("normalizes the all-store report summary and annual countdown", () => {
+  it("normalizes the all-store report summary and branch contract countdown", () => {
     expect(
       normalizeStoreReportSummary({
         total: "12",
@@ -264,9 +268,20 @@ describe("store branch utils", () => {
       active: 0,
       inactive: 0
     });
-    expect(annualDaysRemaining({ annual_days_remaining: "14" })).toBe(14);
-    expect(annualDaysRemaining({ annual_days_remaining: -3 })).toBe(-3);
-    expect(annualDaysRemaining({ annual_days_remaining: null })).toBeNull();
+    expect(branchContractDaysRemaining({ contract_days_remaining: "14" })).toBe(14);
+    expect(branchContractDaysRemaining({ contract_days_remaining: -3 })).toBe(-3);
+    expect(branchContractDaysRemaining({ contract_days_remaining: null })).toBeNull();
+  });
+
+  it("keeps the contract calendar date when viewed west of UTC", () => {
+    vi.stubEnv("TZ", "America/Los_Angeles");
+    try {
+      expect(branchContractDateLabel("2026-01-31", "en")).toBe("Jan 31, 2026");
+      expect(branchContractDateLabel("2026-01-31T00:00:00.000Z", "en")).toBe("Jan 31, 2026");
+      expect(branchContractDateLabel("2026-02-30", "en")).toBe("");
+    } finally {
+      vi.unstubAllEnvs();
+    }
   });
 
   it("keeps the three VAT types apart", () => {

@@ -22,6 +22,7 @@ import { useBranchSettingsStore } from "@/stores/branch-settings-store";
 import { useReferenceStore } from "@/stores/reference-store";
 import { useStoreSettingsStore } from "@/stores/store-settings-store";
 import { createSessionGuard } from "@/stores/session-store-registry";
+import { canEditBranchContract, canViewBranchContractPackage } from "@/lib/branch-contract";
 import { StoreBranchFormDialog } from "./store-branch-form";
 import { BranchMobileList, BranchTable } from "./branch-list";
 import { SettingsListPageLayout } from "@/features/settings/shared/settings-list-page-layout";
@@ -46,6 +47,7 @@ import {
 import { useStoreBranchLabels } from "./use-store-branch-labels";
 import { BRANCH_ALL_STORES, branchManagementStores, branchManagementStoreUuid, branchManagementMutationStoreUuid, branchManagementStoreLabel } from "./branch-management-scope";
 import { BranchManagementStorePicker } from "./branch-management-store-picker";
+import { branchContractFormError, branchContractFormValues, type BranchContractFormError } from "./branch-contract-form";
 
 // ร้าน/สาขาเป็นสโตร์คนละตัว (useStoreSettingsStore / useBranchSettingsStore) — kind ผูกกับเราท์
 // (settings/store, settings/branch) จึงคงที่ตลอดอายุของอินสแตนซ์ที่ mount แต่ละครั้ง แยกเป็น 2
@@ -422,7 +424,7 @@ function BranchSettingsPage({ initialPagination }: { initialPagination: UrlPagin
   const scopeGeneration = useRef(0);
   const ownStoreUuid = authStoreUuid(user);
 
-  useResetOnDeps([token, user?.uuid, ownStoreUuid, retry], () => {
+  useResetOnDeps([token, user?.uuid, user?.store_status, ownStoreUuid, retry], () => {
     setOptions(null);
     setSelectedStoreUuid("");
     setScopeError(null);
@@ -448,7 +450,7 @@ function BranchSettingsPage({ initialPagination }: { initialPagination: UrlPagin
       scopeGeneration.current += 1;
       resetBranches();
     };
-  }, [loadStoreOptions, ownStoreUuid, resetBranches, retry, token, user?.uuid]);
+  }, [loadStoreOptions, ownStoreUuid, resetBranches, retry, token, user?.uuid, user?.store_status]);
 
   const storeOptions = branchManagementStores(options);
   const managedStoreUuid = branchManagementStoreUuid(options, selectedStoreUuid);
@@ -496,6 +498,9 @@ function BranchSettingsPage({ initialPagination }: { initialPagination: UrlPagin
 function ScopedBranchSettingsPage({ initialPagination, managedStoreUuid, canSelectStore, managementOptions }: { initialPagination: UrlPaginationState; managedStoreUuid: string; canSelectStore: boolean; managementOptions: BranchManagementStoreOptions }) {
   const { t, i18n } = useTranslation();
   const labels = useStoreBranchLabels();
+  const user = useAuthStore((state) => state.user);
+  const canEditContract = canEditBranchContract(user);
+  const showContract = canViewBranchContractPackage(user);
   const updateUser = useAuthStore((state) => state.updateUser);
   const saveBranchRow = useBranchSettingsStore((state) => state.save);
   const loadBranchRows = useBranchSettingsStore((state) => state.load);
@@ -552,6 +557,8 @@ function ScopedBranchSettingsPage({ initialPagination, managedStoreUuid, canSele
         address: String(formData.get("branch_address") ?? ""),
         chargePercent: String(formData.get("charge_name") ?? ""),
         chargeStatus: String(formData.get("charge_status") ?? "2"),
+        contract: branchContractFormValues(formData),
+        canEditContract,
         editing: editingRow,
         email: String(formData.get("branch_email") ?? ""),
         name: String(formData.get("branch_name") ?? ""),
@@ -577,11 +584,10 @@ function ScopedBranchSettingsPage({ initialPagination, managedStoreUuid, canSele
       });
       if (missing === "store") return labels.storeRequired;
       if (missing === "name") return labels.branchNameRequired;
-      return null;
+      return contractErrorDescription(branchContractFormError(editingRow, branchContractFormValues(formData), canEditContract));
     }
   });
 
-  const user = useAuthStore((state) => state.user);
   const allStores = storeUuid === BRANCH_ALL_STORES;
   const canCreate = canCreateStoreBranch(user?.status) && !allStores;
   const canDelete = canDeleteStoreBranch(user?.status);
@@ -623,6 +629,13 @@ function ScopedBranchSettingsPage({ initialPagination, managedStoreUuid, canSele
     if (field === "store") return labels.storeRequired;
     if (field === "name") return labels.branchNameRequired;
     return t("toasts.pleaseTryAgain");
+  }
+
+  function contractErrorDescription(error: BranchContractFormError) {
+    if (error === "package") return labels.contractPackageRequired;
+    if (error === "dates") return labels.contractDatesInvalid;
+    if (error === "range") return labels.contractRangeInvalid;
+    return null;
   }
 
   function resetForm() {
@@ -668,10 +681,18 @@ function ScopedBranchSettingsPage({ initialPagination, managedStoreUuid, canSele
     if (id && !canEditBranchSettingsRow(user?.status, activeId, id)) return;
     if (!mutationStoreUuid) return;
 
+    const contract = branchContractFormValues(formData);
+    const contractError = contractErrorDescription(branchContractFormError(editing, contract, canEditContract));
+    if (contractError) {
+      showToast({ title: labels.saveFailed, description: contractError, tone: "error" });
+      return;
+    }
     const input = buildBranchPayload({
       address: String(formData.get("branch_address") ?? ""),
       chargePercent: String(formData.get("charge_name") ?? ""),
       chargeStatus: String(formData.get("charge_status") ?? "2"),
+      contract,
+      canEditContract,
       editing,
       email: String(formData.get("branch_email") ?? ""),
       name: String(formData.get("branch_name") ?? ""),
@@ -759,6 +780,7 @@ function ScopedBranchSettingsPage({ initialPagination, managedStoreUuid, canSele
     rows: visibleRows,
     selectedRows,
     showStoreName: allStores,
+    showContract,
     onToggleSelected: toggleSelected
   };
 
@@ -803,6 +825,8 @@ function ScopedBranchSettingsPage({ initialPagination, managedStoreUuid, canSele
         activeStoreUuid={mutationStoreUuid}
         canEdit={canEdit}
         canEditBranchEmail={canEditStoreBranch(user?.status)}
+        canEditContract={canEditContract}
+        showContract={showContract}
         editing={editing}
         imageUrl={imageUrl}
         kind="branch"

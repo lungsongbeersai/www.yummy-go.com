@@ -1,7 +1,9 @@
 import { stripNumberFormat } from "@/lib/number-format";
+import { branchContractPackageMonths } from "@/lib/branch-contract";
 import type { Branch, SaveBranchInput } from "@/services/branch";
 import type { ApiEntity } from "@/services/shared/types";
 import type { SaveStoreInput, StoreReportSummary } from "@/services/store";
+import { hasBranchContractChanges, type BranchContractFormValues } from "./branch-contract-form";
 
 export type StoreBranchKind = "store" | "branch";
 export type StoreBranchRow = ApiEntity | null | undefined;
@@ -50,6 +52,7 @@ export function storeAuthUserUpdate(row: StoreBranchRow) {
   return {
     store_logo: storeBranchValue(row, "store_logo"),
     store_name: storeBranchName(row, "store"),
+    store_status: storeBranchNumber(row, "store_status", STORE_STATUS.GENERAL),
     store_table_status: storeTableStatusValue(row?.store_table_status),
     lak_rounding_version: lakRoundingVersionValue(row?.lak_rounding_version),
     deposit_expire_days: depositExpireDaysValue(row?.deposit_expire_days)
@@ -112,11 +115,22 @@ export function normalizeStoreReportSummary(value: unknown): StoreReportSummary 
   };
 }
 
-export function annualDaysRemaining(row: StoreBranchRow) {
-  const raw = row?.annual_days_remaining;
+export function branchContractDaysRemaining(row: StoreBranchRow) {
+  const raw = row?.contract_days_remaining;
   if (raw === null || raw === undefined || raw === "") return null;
   const days = Number(raw);
   return Number.isFinite(days) ? Math.trunc(days) : null;
+}
+
+export function branchContractDateLabel(value: string, language: string) {
+  const calendarDate = value.slice(0, 10);
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(calendarDate)) return "";
+  const date = new Date(`${calendarDate}T00:00:00Z`);
+  if (Number.isNaN(date.getTime()) || date.toISOString().slice(0, 10) !== calendarDate) return "";
+  // A contract's calendar date must not move when viewed from another timezone.
+  return new Intl.DateTimeFormat(language === "en" ? "en-US" : "lo-LA", {
+    day: "2-digit", month: "short", year: "numeric", timeZone: "UTC"
+  }).format(date);
 }
 
 export function formatPercent(value: number) {
@@ -228,6 +242,8 @@ export function buildBranchPayload({
   address,
   chargePercent,
   chargeStatus,
+  contract,
+  canEditContract = false,
   editing,
   email,
   name,
@@ -240,6 +256,8 @@ export function buildBranchPayload({
   address: string;
   chargePercent: string;
   chargeStatus: string;
+  contract?: BranchContractFormValues;
+  canEditContract?: boolean;
   editing: StoreBranchRow;
   email: string;
   name: string;
@@ -263,6 +281,12 @@ export function buildBranchPayload({
   };
   if (!payload.branch_uuid && sourceBranchUuid.trim()) {
     payload.source_branch_uuid = sourceBranchUuid.trim();
+  }
+  if (canEditContract && contract && hasBranchContractChanges(editing, contract)) {
+    const months = branchContractPackageMonths(contract.packageMonths);
+    payload.contract_start_on = contract.startOn;
+    payload.contract_end_on = contract.endOn;
+    if (months) payload.contract_package_months = months;
   }
   return payload;
 }

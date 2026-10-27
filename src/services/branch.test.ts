@@ -73,3 +73,28 @@ describe("branch catalog source payload", () => {
     expect(mocks.request).toHaveBeenCalledTimes(1);
   });
 });
+
+describe("branch contract save requests", () => {
+  it("forwards the explicitly edited package and its branch-specific dates", async () => {
+    await saveBranch({ branch_uuid: "customer-branch", contract_start_on: "2026-10-27",
+      contract_end_on: "2027-01-27", contract_package_months: 3 });
+    expect(mocks.request.mock.calls[0][2].data).toMatchObject({
+      branch_uuid: "customer-branch", contract_start_on: "2026-10-27",
+      contract_end_on: "2027-01-27", contract_package_months: 3,
+    });
+  });
+
+  it("omits all contract fields from an ordinary profile edit", async () => {
+    await saveBranch({ branch_uuid: "customer-branch", branch_name: "New branch name" });
+    const payload = mocks.request.mock.calls[0][2].data;
+    expect(payload).not.toHaveProperty("contract_start_on");
+    expect(payload).not.toHaveProperty("contract_end_on");
+    expect(payload).not.toHaveProperty("contract_package_months");
+  });
+
+  it("preserves a deliberate unknown-date edit without inventing the current date", async () => {
+    await saveBranch({ branch_uuid: "customer-branch", contract_start_on: null, contract_end_on: null });
+    expect(mocks.request.mock.calls[0][2].data).toMatchObject({ contract_start_on: null, contract_end_on: null });
+    expect(mocks.request.mock.calls[0][2].data).not.toHaveProperty("contract_package_months");
+  });
+});

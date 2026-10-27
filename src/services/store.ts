@@ -15,9 +15,6 @@ export interface Store extends ApiEntity {
   store_table_status?: number;
   lak_rounding_version?: number;
   deposit_expire_days?: number | null;
-  store_opened_on?: string | null;
-  annual_due_on?: string | null;
-  annual_days_remaining?: number | null;
 }
 export interface StoreReportSummary extends ApiEntity {
   total: number;
