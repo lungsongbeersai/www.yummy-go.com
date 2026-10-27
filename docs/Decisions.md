@@ -1,5 +1,14 @@
 # Decisions
 
+## Online restaurant simulator and browser verification
+
+- **Date:** 2026-10-27.
+- **Decision:** The simulator is a separate `/simulator` window with its own non-persistent Zustand domain, an Axios service under `/api/v1/simulator`, and an additive PostgreSQL session/operation store in the Node backend. Existing POSAll pure calculation, status, category, stock, currency, modifier, and printer-policy helpers remain authoritative. Simulation code never invokes production transaction routers or printer/payment transports.
+- **3D:** React Three Fiber 9 and Drei 10 use the existing React 19/Three.js installation. Only the simulator route dynamically imports the renderer. Procedural models require no external assets or paid services.
+- **Localization:** A scoped i18next instance supports Lao, Thai, and English inside the simulator; the main application's Lao/English API-language and preference contracts remain unchanged.
+- **Verification:** Playwright is a development dependency for the user-requested end-to-end tests. `npm run test:simulator:e2e` launches a temporary Next checkout and a real Express simulator router with PostgreSQL-compatible PGlite fixtures. It uses synthetic authentication, rejects external requests, never imports production DB configuration, and never contacts production. Existing Vitest remains the pure-logic runner; no component test environment is added.
+- **Authorization:** The user explicitly requested this isolated online simulator, its named feature branch, the specified open-source 3D libraries, and automated/end-to-end verification. No production deployment or live migration is part of these local implementation checks.
+
 Append-only. Add an entry whenever a Non-negotiable in `CLAUDE.md` (or a rule in `Rules.md`/`Architecture.md`) is deliberately overridden, or a real trade-off gets settled instead of relitigated every time it comes up. Newest first.
 
 Entries below dated from git history are backfilled from existing code comments at doc-generation time (2026-09-01) — `date` is the file's last-touched date in git, not necessarily when the decision was first made, and `approved by` is unrecorded. Both are marked `TODO(owner): confirm` where the original author/date isn't recoverable from the repo.
