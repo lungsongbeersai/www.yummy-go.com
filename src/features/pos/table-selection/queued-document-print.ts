@@ -1,7 +1,22 @@
 import type { KitchenPrintResult } from "@/services/printer";
-import type { ConfirmToKitchenPendingQuery, ReprintReceiptRequest } from "@/services/pos";
+import type { ConfirmToKitchenPendingQuery, PaymentResponse, ReprintReceiptRequest } from "@/services/pos";
 
-export type QueuedDocumentPrintOutcome = "success" | "pending" | "error";
+export type QueuedDocumentPrintOutcome = "success" | "pending" | "error" | "skipped";
+
+export function isReceiptPrintSkipped(
+  response: Pick<PaymentResponse, "print_job" | "pending_query" | "print_queue_error" | "fallback_print"> & {
+    print_skipped?: unknown;
+  },
+): boolean {
+  // A receipt skip can accompany queued kitchen tickets. Those jobs and any
+  // real preparation failure still need the normal document workflow.
+  if (response.pending_query?.print_job_uuid || response.print_job?.print_job_uuid ||
+    response.print_queue_error || response.fallback_print) return false;
+  const skipped = response.print_skipped;
+  return Boolean(skipped && typeof skipped === "object" &&
+    "reason" in skipped && skipped.reason === "DOCUMENT_PRINT_ROLE_NOT_CONFIGURED" &&
+    "role_code" in skipped && skipped.role_code === "receipt");
+}
 
 export function documentPrinterFailureKind(error: unknown): "unavailable" | "authorization" | "registration" | null {
   if (typeof error === "string") {

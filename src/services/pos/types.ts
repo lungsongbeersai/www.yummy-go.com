@@ -778,6 +778,11 @@ export interface PaymentTotals extends ApiEntity {
   change?: number;
 }
 
+export interface AutomaticReceiptPrintSkip {
+  reason: "DOCUMENT_PRINT_ROLE_NOT_CONFIGURED";
+  role_code: "receipt";
+}
+
 export interface PaymentResponse extends ApiEntity {
   status?: string;
   message?: string;
@@ -785,6 +790,7 @@ export interface PaymentResponse extends ApiEntity {
   order_invoice?: string;
   payment?: PaymentRecord;
   payment_committed?: boolean;
+  print_skipped?: AutomaticReceiptPrintSkip | null;
   print_queue_error?: PrintQueueError | null;
   totals?: PaymentTotals;
   is_fully_paid?: boolean;
@@ -856,6 +862,7 @@ export interface SplitBillResponse extends ApiEntity {
   order_invoice?: string;
   payment?: PaymentRecord;
   payment_committed?: boolean;
+  print_skipped?: AutomaticReceiptPrintSkip | null;
   print_queue_error?: PrintQueueError | null;
   fallback_print?: ApiEntity | null;
   print_job?: ConfirmToKitchenPrintJob;

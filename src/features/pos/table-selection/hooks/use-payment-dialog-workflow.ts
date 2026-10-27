@@ -48,6 +48,7 @@ import {
   documentPrinterFailureKind,
   finishCommittedPayment,
   isInvoicePrintPreparationError,
+  isReceiptPrintSkipped,
   queuedDocumentPrintFailureMessage,
   queuedDocumentPrintOutcome,
   type QueuedDocumentPrintOutcome,
@@ -785,7 +786,7 @@ export function usePaymentDialogWorkflow({
           if (firstOrderUuid(cartOrders(primaryCartOrder(store.cart))) === orderUuid) {
             store.invalidateCart();
           }
-          if (printOutcome === "success") {
+          if (printOutcome === "success" || printOutcome === "skipped") {
             showToast({
               title: t(isSplitPayment ? "pos.splitPaymentCreated" : "pos.paymentSuccess"),
               tone: "success",
@@ -844,6 +845,7 @@ export function usePaymentDialogWorkflow({
     response: PaymentResponse | SplitBillResponse,
     context: QueuedDocumentContext,
   ): Promise<QueuedDocumentPrintOutcome> {
+    if (isReceiptPrintSkipped(response)) return "skipped";
     const pendingJobUuid =
       response.pending_query?.print_job_uuid ??
       (typeof response.print_job?.print_job_uuid === "string"

@@ -7,6 +7,7 @@ import {
   type QueuedDocumentPrintOutcome,
   finishCommittedPayment,
   isInvoicePrintPreparationError,
+  isReceiptPrintSkipped,
   queuedDocumentPrintOutcome,
   queuedDocumentPrintFailureMessage,
 } from "./queued-document-print";
@@ -63,7 +64,7 @@ describe("checkout document action guard", () => {
 });
 
 describe("finishCommittedPayment", () => {
-  it.each(["pending", "error"] as const)(
+  it.each(["pending", "error", "skipped"] as const)(
     "preserves a %s receipt result when completing an already committed payment",
     async (printOutcome) => {
       const onCommitted = vi.fn();
@@ -186,6 +187,56 @@ describe("finishCommittedPayment", () => {
     expect(result.completionError).toBe(failure);
     expect(close).toHaveBeenCalledOnce();
     expect(refresh).toHaveBeenCalledOnce();
+  });
+});
+
+describe("automatic receipt printing without a configured role", () => {
+  const print_skipped = {
+    reason: "DOCUMENT_PRINT_ROLE_NOT_CONFIGURED",
+    role_code: "receipt",
+  } as const;
+
+  it("accepts an explicit receipt skip after full or split payment", () => {
+    expect(isReceiptPrintSkipped({ print_skipped })).toBe(true);
+    expect(isReceiptPrintSkipped({
+      print_skipped,
+      print_queue_error: null,
+      fallback_print: null,
+    })).toBe(true);
+  });
+
+  it("keeps missing jobs and unknown skip reasons as errors", () => {
+    for (const response of [
+      {},
+      { print_skipped: null },
+      { print_skipped: true },
+      { print_skipped: { reason: "DOCUMENT_PRINT_ROLE_NOT_CONFIGURED", role_code: "invoice" } },
+      { print_skipped: { reason: "PRINTER_OFFLINE", role_code: "receipt" } },
+    ]) {
+      expect(isReceiptPrintSkipped(response)).toBe(false);
+    }
+  });
+
+  it("preserves queued kitchen tickets and existing receipt jobs even when the receipt role is skipped", () => {
+    expect(isReceiptPrintSkipped({
+      print_skipped,
+      pending_query: { print_job_uuid: "kitchen-job", login_uuid_fk: "cashier" },
+    })).toBe(false);
+    expect(isReceiptPrintSkipped({
+      print_skipped,
+      print_job: { print_job_uuid: "existing-receipt-job" },
+    })).toBe(false);
+  });
+
+  it("keeps printer and preparation failures visible when they accompany a skip marker", () => {
+    expect(isReceiptPrintSkipped({
+      print_skipped,
+      print_queue_error: { message: "Receipt printer unavailable" },
+    })).toBe(false);
+    expect(isReceiptPrintSkipped({
+      print_skipped,
+      fallback_print: { reason: "Receipt preparation failed" },
+    })).toBe(false);
   });
 });
 
