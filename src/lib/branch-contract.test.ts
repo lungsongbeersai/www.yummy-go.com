@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   branchContractPackageMonths, canEditBranchContract, canViewBranchContractPackage,
   contractEndOn, contractToday,
+  contractDateLabel, currentBranchContractStatus,
 } from "./branch-contract";
 
 afterEach(() => { vi.useRealTimers(); });
@@ -26,6 +27,38 @@ describe("branch contract calendar", () => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date("2026-10-26T18:30:00Z"));
     expect(contractToday()).toBe("2026-10-27");
+  });
+});
+
+describe("current branch navbar contract", () => {
+  const ownBranch = { store_status: 1, branch_uuid: "logged-in-branch", contract_end_on: "2027-01-12" };
+  it.each([
+    [77, "normal"], [31, "normal"], [30, "warning"], [1, "warning"], [0, "warning"], [-1, "expired"],
+  ] as const)("classifies %i remaining days as %s", (daysRemaining, tone) => {
+    expect(currentBranchContractStatus({ ...ownBranch, contract_days_remaining: daysRemaining }))
+      .toEqual({ endOn: "2027-01-12", daysRemaining, tone });
+  });
+
+  it("requires known branch dates and hides contract metadata for non-PLC accounts", () => {
+    const branch = { ...ownBranch, contract_days_remaining: 12 };
+    for (const user of [null, { ...branch, store_status: 2 }, { ...branch, store_status: 3 },
+      { ...branch, branch_uuid: "" }, { ...branch, contract_end_on: null },
+      { ...branch, contract_end_on: "2026-02-30" }, { ...branch, contract_days_remaining: null },
+      { ...branch, contract_days_remaining: NaN }, { ...branch, contract_days_remaining: 1.5 }]) {
+      expect(currentBranchContractStatus(user)).toBeNull();
+    }
+  });
+
+  it("formats a contract date without moving it to the previous day in western timezones", () => {
+    const timezone = process.env.TZ;
+    process.env.TZ = "America/Los_Angeles";
+    try {
+      expect(contractDateLabel("2027-01-12", "en")).toBe("Jan 12, 2027");
+      expect(contractDateLabel("2026-02-30", "en")).toBe("");
+    } finally {
+      if (timezone === undefined) delete process.env.TZ;
+      else process.env.TZ = timezone;
+    }
   });
 });
 

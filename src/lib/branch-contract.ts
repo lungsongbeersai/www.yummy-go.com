@@ -5,6 +5,43 @@ interface BranchContractViewer {
   status?: unknown;
 }
 
+interface CurrentBranchContractViewer extends BranchContractViewer {
+  branch_uuid?: unknown;
+  contract_end_on?: unknown;
+  contract_days_remaining?: unknown;
+}
+
+export interface CurrentBranchContractStatus {
+  endOn: string;
+  daysRemaining: number;
+  tone: "normal" | "warning" | "expired";
+}
+
+function isContractCalendarDate(value: unknown): value is string {
+  if (typeof value !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(value) || value.startsWith("0000-")) return false;
+  const date = new Date(`${value}T00:00:00Z`);
+  return Number.isFinite(date.getTime()) && date.toISOString().slice(0, 10) === value;
+}
+
+export function currentBranchContractStatus(user?: CurrentBranchContractViewer | null): CurrentBranchContractStatus | null {
+  if (!canViewBranchContractPackage(user) || typeof user?.branch_uuid !== "string" || !user.branch_uuid.trim() ||
+    !isContractCalendarDate(user.contract_end_on) || typeof user.contract_days_remaining !== "number" ||
+    !Number.isSafeInteger(user.contract_days_remaining)) return null;
+  const daysRemaining = user.contract_days_remaining;
+  return {
+    endOn: user.contract_end_on,
+    daysRemaining,
+    tone: daysRemaining < 0 ? "expired" : daysRemaining <= 30 ? "warning" : "normal",
+  };
+}
+
+export function contractDateLabel(value: string, language: string): string {
+  if (!isContractCalendarDate(value)) return "";
+  return new Intl.DateTimeFormat(language.toLowerCase().startsWith("en") ? "en-US" : "lo-LA", {
+    day: "2-digit", month: "short", year: "numeric", timeZone: "UTC",
+  }).format(new Date(`${value}T00:00:00Z`));
+}
+
 export function canViewBranchContractPackage(user?: BranchContractViewer | null): boolean {
   return user?.store_status === 1 || user?.store_status === "1";
 }

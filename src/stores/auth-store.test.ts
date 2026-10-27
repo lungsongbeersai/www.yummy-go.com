@@ -190,6 +190,37 @@ describe("auth store session isolation", () => {
     expect(useAuthStore.getState().user).toMatchObject({ uuid: "user-2", store_status: 2 });
   });
 
+  it("refreshes the current branch expiry even when profile metadata is unchanged", async () => {
+    useAuthStore.getState().login("token-1", { ...authUser("user-1"), name: "Noy", store_status: 1,
+      contract_end_on: "2027-01-12", contract_days_remaining: 77 });
+    validateLoginSessionMock.mockResolvedValueOnce({ uuid: "user-1", login_email: "user-1@example.com", login_name: "Noy",
+      branch_uuid: "user-1-branch", store_uuid_fk: "user-1-store", login_status: 1, store_status: 1,
+      contract_end_on: "2026-11-01", contract_days_remaining: 5 });
+    await useAuthStore.getState().validateSession();
+    expect(useAuthStore.getState().user).toMatchObject({ contract_end_on: "2026-11-01", contract_days_remaining: 5 });
+  });
+
+  it.each([{}, { branch_uuid: "reassigned-branch" }, { store_uuid_fk: "reassigned-store" }])(
+    "clears obsolete expiry when live metadata does not match the saved branch: %j", async (changed) => {
+      useAuthStore.getState().login("token-1", { ...authUser("user-1"), name: "Noy", store_status: 1,
+        contract_end_on: "2027-01-12", contract_days_remaining: 77 });
+      validateLoginSessionMock.mockResolvedValueOnce({ uuid: "user-1", login_email: "user-1@example.com", login_name: "Noy",
+        branch_uuid: "user-1-branch", store_uuid_fk: "user-1-store", login_status: 1, store_status: 1,
+        ...(Object.keys(changed).length ? { contract_end_on: "2026-11-01", contract_days_remaining: 5 } : {}), ...changed });
+      await useAuthStore.getState().validateSession();
+      expect(useAuthStore.getState().user?.contract_end_on).toBeNull();
+      expect(useAuthStore.getState().user?.contract_days_remaining).toBeNull();
+    },
+  );
+
+  it("removes persisted contract metadata when PLC access is revoked", () => {
+    useAuthStore.getState().login("token-1", { ...authUser("user-1"), store_status: 1,
+      contract_end_on: "2027-01-12", contract_days_remaining: 77 });
+    useAuthStore.getState().updateUser({ store_status: 2 });
+    expect(useAuthStore.getState().user).not.toHaveProperty("contract_end_on");
+    expect(useAuthStore.getState().user).not.toHaveProperty("contract_days_remaining");
+  });
+
   it("defaults a legacy session without table status to a store with tables", () => {
     const legacyUser: Partial<AuthUser> = { ...authUser("legacy-user") };
     delete legacyUser.store_table_status;

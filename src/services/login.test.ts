@@ -53,6 +53,8 @@ describe("online-only login service", () => {
       status: 200,
       data: loginResponse({
         store_status: 1,
+        contract_end_on: "2027-01-12",
+        contract_days_remaining: 77,
         lak_rounding_version: 2,
         store_table_status: 2,
         deportment_uuid_fk: "deportment-1",
@@ -70,6 +72,8 @@ describe("online-only login service", () => {
       source: "online",
       user: {
         store_status: 1,
+        contract_end_on: "2027-01-12",
+        contract_days_remaining: 77,
         name: "Noy",
         deportment_uuid: "deportment-1",
         deportment_name: "Service",
@@ -111,6 +115,15 @@ describe("online-only login service", () => {
       code: "ERR_NETWORK",
     });
     expect(apiMocks.post).toHaveBeenCalledOnce();
+  });
+
+  it("does not retain contract fields supplied with a non-PLC login", async () => {
+    apiMocks.post.mockResolvedValue({ status: 200, data: loginResponse({
+      store_status: 2, contract_end_on: "2027-01-12", contract_days_remaining: 77,
+    }) });
+    const result = await checkLogin("cashier@example.com", "password");
+    expect(result.user).not.toHaveProperty("contract_end_on");
+    expect(result.user).not.toHaveProperty("contract_days_remaining");
   });
 
   it("validates a restored session with the authenticated endpoint", async () => {

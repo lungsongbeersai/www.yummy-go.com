@@ -718,7 +718,9 @@ function ScopedBranchSettingsPage({ initialPagination, managedStoreUuid, canSele
         updateUser({
           branch_address: storeBranchValue(updated, "branch_address"),
           branch_name: storeBranchName(updated, "branch"),
-          branch_tel: storeBranchValue(updated, "branch_tel")
+          branch_tel: storeBranchValue(updated, "branch_tel"),
+          contract_end_on: updated.contract_end_on ?? null,
+          contract_days_remaining: updated.contract_days_remaining ?? null,
         });
       }
       showToast({ title: labels.saved, tone: "success" });

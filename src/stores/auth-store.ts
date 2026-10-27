@@ -6,6 +6,7 @@ import { disconnectSocket } from "@/lib/socket";
 import { checkLogin, validateLoginSession } from "@/services/login";
 import { resetSessionStores } from "@/stores/session-store-registry";
 import { errorMessage } from "@/stores/store-utils";
+import { canViewBranchContractPackage } from "@/lib/branch-contract";
 
 export interface AuthZone {
   zone_uuid: string;
@@ -37,6 +38,8 @@ export interface AuthUser {
   store_name: string;
   store_logo: string;
   store_status?: number;
+  contract_end_on?: string | null;
+  contract_days_remaining?: number | null;
   store_table_status: number;
   lak_rounding_version?: number;
   deposit_expire_days?: number | null;
@@ -67,13 +70,18 @@ function normalizeAuthUser(user: NormalizableAuthUser | null): AuthUser | null {
   const storeUuid = authStoreUuid(user);
   const storeTableStatus = Number(user.store_table_status) === 2 ? 2 : 1;
   const lakRoundingVersion = Number(user.lak_rounding_version) === 2 ? 2 : 1;
-  return {
+  const normalized: AuthUser = {
     ...user,
     store_uuid: storeUuid,
     store_uuid_fk: storeUuid,
     store_table_status: storeTableStatus,
     lak_rounding_version: lakRoundingVersion
   };
+  if (!canViewBranchContractPackage(user)) {
+    delete normalized.contract_end_on;
+    delete normalized.contract_days_remaining;
+  }
+  return normalized;
 }
 
 function normalizePersistedAuthState(persistedState: unknown): PersistedAuthState {
@@ -202,8 +210,16 @@ export const useAuthStore = create<AuthState>()(
 
             const displayName = String(session.login_name ?? "").trim();
             const storeStatus = [1, 2, 3].includes(Number(session.store_status)) ? Number(session.store_status) : 2;
-            if (current.user.name !== displayName || current.user.store_status !== storeStatus) {
-              set({ user: normalizeAuthUser({ ...current.user, name: displayName, store_status: storeStatus }) });
+            // Session dates belong to the verified branch, regardless of any
+            // customer selected on the management screen or a later reassignment.
+            const sameBranch = session.branch_uuid === current.user.branch_uuid &&
+              session.store_uuid_fk === authStoreUuid(current.user);
+            const contractEndOn = storeStatus === 1 ? sameBranch ? session.contract_end_on ?? null : null : undefined;
+            const contractDaysRemaining = storeStatus === 1 ? sameBranch ? session.contract_days_remaining ?? null : null : undefined;
+            if (current.user.name !== displayName || current.user.store_status !== storeStatus ||
+              current.user.contract_end_on !== contractEndOn || current.user.contract_days_remaining !== contractDaysRemaining) {
+              set({ user: normalizeAuthUser({ ...current.user, name: displayName, store_status: storeStatus,
+                contract_end_on: contractEndOn, contract_days_remaining: contractDaysRemaining }) });
             }
 
             return true;

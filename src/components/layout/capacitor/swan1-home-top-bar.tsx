@@ -6,6 +6,7 @@ import { ChevronLeft, PanelLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { LanguageSwitch } from "@/components/layout/language-switch";
 import { NotificationMenu } from "@/components/layout/notification-menu";
+import { BranchContractStatus } from "@/components/layout/branch-contract-status";
 import { DisplaySettingsMenu } from "@/components/layout/web/display-settings-menu";
 import { menuItemLabel } from "@/components/layout/shell-menu-helpers";
 import type { BreadcrumbTrailItem } from "@/components/layout/shell-breadcrumbs";
@@ -19,7 +20,7 @@ export function Swan1HomeTopBar({ breadcrumbs }: { breadcrumbs: BreadcrumbTrailI
   const title = menuItemLabel(breadcrumbs[breadcrumbs.length - 1] ?? { title: "dashboard" }, t);
 
   return (
-    <header className="swan1-home-top-bar app-header sticky top-0 z-40 flex shrink-0 items-center gap-2 px-4">
+    <header className="swan1-home-top-bar app-header sticky top-0 z-40 flex shrink-0 items-center gap-1 px-2 sm:gap-2 sm:px-4">
       <Button
         type="button"
         variant="ghost"
@@ -43,6 +44,7 @@ export function Swan1HomeTopBar({ breadcrumbs }: { breadcrumbs: BreadcrumbTrailI
       </Button>
       <span className="min-w-0 truncate font-semibold">{title}</span>
       <div className="ml-auto flex shrink-0 items-center gap-1">
+        <BranchContractStatus className="h-11 sm:h-11" />
         <LanguageSwitch compact size="icon" className="size-11" />
         <NotificationMenu triggerClassName="size-11" />
         <DisplaySettingsMenu className="size-11" />

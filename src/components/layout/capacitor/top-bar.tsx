@@ -33,6 +33,7 @@ import {
 import { AppearanceControls } from "@/components/layout/appearance-controls";
 import { LanguageSwitch } from "@/components/layout/language-switch";
 import { NotificationMenu } from "@/components/layout/notification-menu";
+import { BranchContractStatus } from "@/components/layout/branch-contract-status";
 import { ThemeToggle } from "@/components/layout/theme-toggle";
 import { ProductSortStatus } from "@/config/pos-constants";
 import {
@@ -168,6 +169,7 @@ export function NativeTopBar({
         <NativeOrderSortTabs />
       ) : (
         <div className="flex shrink-0 items-center">
+          <BranchContractStatus compact className="size-12 sm:size-12" />
           {refreshAction ? (
             <Button
               type="button"

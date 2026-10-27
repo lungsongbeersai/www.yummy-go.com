@@ -36,6 +36,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { NotificationMenu } from "@/components/layout/notification-menu";
+import { BranchContractStatus } from "@/components/layout/branch-contract-status";
 import { menuItemLabel } from "@/components/layout/shell-menu-helpers";
 import { type BreadcrumbTrailItem } from "@/components/layout/shell-breadcrumbs";
 import { AppSidebar } from "@/components/layout/shell-sidebar-menu";
@@ -146,7 +147,7 @@ function AppHeader({ breadcrumbs }: { breadcrumbs: BreadcrumbTrailItem[] }) {
   const controlClassName = "size-11 sm:size-9";
 
   return (
-    <header className="app-header sticky top-0 z-40 flex h-(--app-shell-header-height) shrink-0 items-center gap-2 px-4">
+    <header className="app-header sticky top-0 z-40 flex h-(--app-shell-header-height) shrink-0 items-center gap-1 px-2 sm:gap-2 sm:px-4">
       <Tooltip>
         <TooltipTrigger asChild>
           <SidebarTrigger aria-label={t("app.toggleSidebar")} className={cn("-ml-1", controlClassName)} />
@@ -173,6 +174,7 @@ function AppHeader({ breadcrumbs }: { breadcrumbs: BreadcrumbTrailItem[] }) {
       <span className="min-w-0 truncate font-medium lg:hidden">{pageTitle}</span>
       <AppBreadcrumb breadcrumbs={breadcrumbs} />
       <div className="ml-auto flex shrink-0 items-center gap-1">
+        <BranchContractStatus />
         <LanguageSwitch compact size="icon" className={controlClassName} />
         <NotificationMenu triggerClassName={controlClassName} />
         <DisplaySettingsMenu className={controlClassName} />

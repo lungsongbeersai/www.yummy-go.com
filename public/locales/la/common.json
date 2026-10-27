@@ -207,6 +207,15 @@
     "more": "ເພີ່ມເຕີມ",
     "navigation": "ການນຳທາງຫຼັກ",
     "moreNavigation": "ເມນູເພີ່ມເຕີມ",
+    "branchContract": {
+      "title": "ສັນຍາຂອງສາຂາທີ່ໃຊ້ງານ",
+      "currentBranch": "ສາຂາທີ່ໃຊ້ງານ",
+      "endDate": "ວັນໝົດສັນຍາ",
+      "dueToday": "ໝົດສັນຍາມື້ນີ້",
+      "daysRemaining": "ເຫຼືອ {{count}} ວັນ",
+      "daysOverdue": "ເກີນກຳນົດ {{count}} ວັນ",
+      "details": "{{branch}} — ໝົດສັນຍາ {{date}} — {{status}}"
+    },
     "appearance": {
       "openSettings": "ຕັ້ງຄ່າການສະແດງຜົນ",
       "title": "ການສະແດງຜົນ",

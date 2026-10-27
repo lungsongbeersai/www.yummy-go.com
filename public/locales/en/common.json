@@ -207,6 +207,17 @@
     "more": "More",
     "navigation": "Main navigation",
     "moreNavigation": "More menu",
+    "branchContract": {
+      "title": "Current branch contract",
+      "currentBranch": "Current branch",
+      "endDate": "Contract end date",
+      "dueToday": "Expires today",
+      "daysRemaining_one": "{{count}} day remaining",
+      "daysRemaining_other": "{{count}} days remaining",
+      "daysOverdue_one": "{{count}} day overdue",
+      "daysOverdue_other": "{{count}} days overdue",
+      "details": "{{branch}} — expires {{date}} — {{status}}"
+    },
     "appearance": {
       "openSettings": "Appearance settings",
       "title": "Appearance",
