@@ -1,16 +1,24 @@
 import { apiRequest } from "@/lib/api";
 import { requiredText } from "@/services/shared/validators";
-import type { SimulatorAction, SimulatorBootstrap, SimulatorSession, SimulatorSessionSummary } from "./types";
+import type { SimulatorAction, SimulatorBootstrap, SimulatorLiveSnapshot, SimulatorSession, SimulatorSessionSummary } from "./types";
 
 export type * from "./types";
 
 interface SimulatorResponse<T> { status: "success"; data: T; }
 const base = "/api/v1/simulator";
 
-export async function getSimulatorBootstrap(branch_uuid: string) {
+export async function getSimulatorBootstrap(branch_uuid: string, signal?: AbortSignal) {
   requiredText(branch_uuid, "branch_uuid");
   const result = await apiRequest<SimulatorResponse<SimulatorBootstrap>>("get", `${base}/bootstrap`, {
-    params: { branch_uuid }, timeout: 15_000,
+    params: { branch_uuid }, timeout: 15_000, ...(signal ? { signal } : {}),
+  });
+  return result.data;
+}
+
+export async function getSimulatorLive(branch_uuid: string, lang: string, signal?: AbortSignal) {
+  requiredText(branch_uuid, "branch_uuid");
+  const result = await apiRequest<SimulatorResponse<SimulatorLiveSnapshot>>("get", `${base}/live`, {
+    params: { branch_uuid, lang }, timeout: 15_000, signal,
   });
   return result.data;
 }

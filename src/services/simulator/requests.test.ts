@@ -12,6 +12,7 @@ vi.mock("@/lib/api", () => ({
 import {
   createSimulatorSession,
   getSimulatorBootstrap,
+  getSimulatorLive,
   getSimulatorSession,
   listSimulatorSessions,
   runSimulatorAction,
@@ -26,6 +27,27 @@ beforeEach(() => {
 afterEach(() => vi.unstubAllGlobals());
 
 describe("authenticated online simulator transport", () => {
+  it("reads live orders only through the authenticated read-only endpoint and passes request cancellation", async () => {
+    const controller = new AbortController();
+    const snapshot = { mode: "live", read_only: true, orders: [] };
+    transport.authenticated.mockResolvedValueOnce({ status: "success", data: snapshot });
+    await expect(getSimulatorLive("branch-1", "la", controller.signal)).resolves.toEqual(snapshot);
+    expect(transport.authenticated).toHaveBeenCalledWith("get", "/api/v1/simulator/live", {
+      params: { branch_uuid: "branch-1", lang: "la" }, timeout: 15_000, signal: controller.signal,
+    });
+    await getSimulatorBootstrap("branch-1", controller.signal);
+    expect(transport.authenticated).toHaveBeenLastCalledWith("get", "/api/v1/simulator/bootstrap", {
+      params: { branch_uuid: "branch-1" }, timeout: 15_000, signal: controller.signal,
+    });
+    expect(transport.publicRequest).not.toHaveBeenCalled();
+  });
+
+  it("propagates live read failures and rejects an empty branch without returning invented orders", async () => {
+    transport.authenticated.mockRejectedValueOnce(new Error("Live data unavailable"));
+    await expect(getSimulatorLive("branch-1", "en")).rejects.toThrow("Live data unavailable");
+    await expect(getSimulatorLive(" ", "en")).rejects.toThrow("branch_uuid is required");
+    expect(transport.authenticated).toHaveBeenCalledOnce();
+  });
   it("reads branch configuration and session listings only through the authenticated simulator namespace", async () => {
     const bootstrap = { branch: { branch_uuid: "branch-1" }, catalog: [] };
     const sessions = [{ session_uuid: "session-1", version: 7 }];

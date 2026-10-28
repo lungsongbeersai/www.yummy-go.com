@@ -4,7 +4,7 @@ import { Component, Suspense, useEffect, useMemo, useRef, useState, type ReactNo
 import dynamic from "next/dynamic";
 import { useSearchParams } from "next/navigation";
 import { I18nextProvider, useTranslation } from "react-i18next";
-import { Box, ChevronRight, CirclePause, CirclePlay, Globe, LayoutGrid, LogOut, RotateCcw, Save, ShieldCheck, Users, Wifi, WifiOff } from "lucide-react";
+import { Box, ChevronRight, CirclePause, CirclePlay, Eye, Globe, LayoutGrid, LogOut, RotateCcw, Save, ShieldCheck, Users, Wifi, WifiOff } from "lucide-react";
 import { AuthGuard } from "@/components/layout/auth-guard";
 import { ThemeToggle } from "@/components/layout/theme-toggle";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -20,10 +20,11 @@ import { useAuthStore } from "@/stores/auth-store";
 import { useSimulatorStore } from "@/stores/simulator-store";
 import { SimConfirm } from "./confirmation";
 import { SimField, SimSelect } from "./fields";
-import { createSceneCharacters, formatSimMoney, orderName, tableStatusLabel } from "./helpers";
+import { createSceneCharacters, formatSimMoney, orderName, tableSceneStatus, tableStatusLabel, tableStatusTone } from "./helpers";
 import { simulatorI18n, type SimulatorLanguage } from "./i18n";
 import { OrderPanel } from "./order-panel";
 import { ServicePanels } from "./service-panels";
+import { LiveWorkspace } from "./live-workspace";
 
 const RestaurantScene = dynamic(() => import("./restaurant-scene"), { ssr: false,
   loading: () => <div className="absolute inset-0 grid place-content-center gap-4 p-8"><Skeleton className="h-48 w-64 rounded-3xl" /><Skeleton className="mx-auto h-4 w-40" /></div>,
@@ -36,14 +37,37 @@ class SceneBoundary extends Component<{ children: ReactNode; message: string }, 
 }
 
 export function SimulatorPage() {
-  return <AuthGuard><I18nextProvider i18n={simulatorI18n} defaultNS="simulator"><Suspense fallback={<WorkspaceLoading />}><SimulatorWorkspace /></Suspense></I18nextProvider></AuthGuard>;
+  return <AuthGuard><I18nextProvider i18n={simulatorI18n} defaultNS="simulator"><Suspense fallback={<WorkspaceLoading />}><WorkspaceMode /></Suspense></I18nextProvider></AuthGuard>;
+}
+
+function WorkspaceMode() {
+  const { t } = useTranslation("simulator");
+  const params = useSearchParams();
+  const [mode, setMode] = useState<"live" | "training">(() => params.get("mode") === "training" || (params.get("mode") !== "live" && params.has("session_uuid")) ? "training" : "live");
+  const saving = useSimulatorStore((state) => state.saving);
+  const pending = useSimulatorStore((state) => state.pending);
+  const changeMode = async (next: "live" | "training") => {
+    if (mode === next || saving || pending) return;
+    const current = useSimulatorStore.getState();
+    if (mode === "training" && current.connected && current.session?.status === "running" && !await current.command("pause")) return;
+    const query = new URLSearchParams(window.location.search);
+    query.set("mode", next);
+    if (next === "live") query.delete("session_uuid");
+    window.history.replaceState(null, "", internalRoute(`/simulator?${query}`));
+    setMode(next);
+  };
+  const controls = <div className="flex items-center gap-1 rounded-xl border bg-muted/50 p-1" aria-label={t("workspaceMode")}>
+    <Button className="h-10 gap-1.5 px-3 text-xs" variant={mode === "live" ? "default" : "ghost"} aria-pressed={mode === "live"} disabled={saving || Boolean(pending)} onClick={() => void changeMode("live")}><Eye className="size-4" />{t("liveMode")}</Button>
+    <Button className="h-10 gap-1.5 px-3 text-xs" variant={mode === "training" ? "default" : "ghost"} aria-pressed={mode === "training"} disabled={saving || Boolean(pending)} onClick={() => void changeMode("training")}><Box className="size-4" />{t("trainingMode")}</Button>
+  </div>;
+  return mode === "live" ? <LiveWorkspace modeControls={controls} /> : <SimulatorWorkspace modeControls={controls} />;
 }
 
 function WorkspaceLoading() {
   return <div className="grid min-h-dvh gap-4 bg-background p-6"><Skeleton className="h-16 w-full" /><Skeleton className="h-96 w-full" /></div>;
 }
 
-function SimulatorWorkspace() {
+function SimulatorWorkspace({ modeControls }: { modeControls: ReactNode }) {
   const { t, i18n } = useTranslation("simulator");
   const searchParams = useSearchParams();
   const user = useAuthStore((state) => state.user);
@@ -116,7 +140,7 @@ function SimulatorWorkspace() {
   const sessionBranch = session?.branch_uuid;
   useEffect(() => {
     if (!sessionUuid || !sessionBranch) return;
-    const url = internalRoute(`/simulator?${new URLSearchParams({ branch_uuid: sessionBranch, session_uuid: sessionUuid })}`);
+    const url = internalRoute(`/simulator?${new URLSearchParams({ branch_uuid: sessionBranch, session_uuid: sessionUuid, mode: "training" })}`);
     window.history.replaceState(null, "", url);
   }, [sessionUuid, sessionBranch]);
 
@@ -136,13 +160,14 @@ function SimulatorWorkspace() {
   const tableCount = session?.tables.length ?? bootstrap?.tables.length ?? 0;
   const busy = saving || loading;
 
-  return <main className="flex min-h-dvh flex-col bg-background text-foreground lg:h-dvh lg:overflow-hidden" lang={i18n.language}>
-    <header className="flex flex-wrap items-center justify-between gap-3 border-b bg-card px-4 py-3 sm:px-5">
+  return <main className="simulator-workspace flex min-h-dvh flex-col bg-background text-foreground lg:h-dvh lg:overflow-hidden" lang={i18n.language}>
+    <header className="flex flex-wrap items-center justify-between gap-3 border-b bg-linear-to-r from-primary/10 via-card to-info/10 px-4 py-3 sm:px-5">
       <div className="flex min-w-0 items-center gap-3"><div className="grid size-11 shrink-0 place-items-center rounded-xl bg-primary text-primary-foreground"><Box className="size-6" /></div><div><p className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">YUMMYGO / SIMULATION STUDIO</p><h1 className="text-base font-semibold sm:text-lg">{t("title")}</h1></div><Badge variant="outline" className="hidden gap-1.5 lg:flex">{connected ? <Wifi className="size-3 text-success" /> : <WifiOff className="size-3 text-destructive" />}{t(connected ? "online" : "disconnected")}</Badge></div>
+      {modeControls}
       <div className="flex flex-wrap items-center gap-2"><span className="hidden text-xs text-muted-foreground xl:inline">{bootstrap?.actor.name ?? user?.name ?? user?.email}</span><SimSelect label={t("language")} className="h-10 w-25" value={i18n.language} onChange={(value) => void i18n.changeLanguage(value as SimulatorLanguage)} options={[{ value: "la", label: "ລາວ" }, { value: "th", label: "ไทย" }, { value: "en", label: "English" }]} /><ThemeToggle size="icon" variant="outline" className="size-10" /><Button aria-label={t("close")} className="size-10" variant="outline" size="icon" onClick={() => { if (window.opener || window.history.length <= 1) window.close(); else window.location.assign(internalRoute("/posAll/tables")); }}><LogOut /></Button></div>
     </header>
     <div className="flex flex-wrap items-center justify-between gap-3 border-b bg-muted/25 px-4 py-3 sm:px-5">
-      <div className="flex min-w-0 flex-wrap items-center gap-2"><span className="text-sm font-medium">{bootstrap?.branch.store_name ?? user?.store_name}</span><ChevronRight className="size-3 text-muted-foreground" />{bootstrap ? <SimSelect label={t("branch")} value={bootstrap.branch.branch_uuid} disabled={busy || Boolean(state.pending)} className="h-10 w-44" onChange={(value) => { window.history.replaceState(null, "", internalRoute(`/simulator?${new URLSearchParams({ branch_uuid: value })}`)); setZone("all"); setActor(null); setBranch(value); }} options={bootstrap.branches.map((entry) => ({ value: entry.branch_uuid, label: entry.branch_name }))} /> : <span className="text-xs text-muted-foreground">{user?.branch_name}</span>}
+      <div className="flex min-w-0 flex-wrap items-center gap-2"><span className="text-sm font-medium">{bootstrap?.branch.store_name ?? user?.store_name}</span><ChevronRight className="size-3 text-muted-foreground" />{bootstrap ? <SimSelect label={t("branch")} value={bootstrap.branch.branch_uuid} disabled={busy || Boolean(state.pending)} className="h-10 w-44" onChange={(value) => { window.history.replaceState(null, "", internalRoute(`/simulator?${new URLSearchParams({ branch_uuid: value, mode: "training" })}`)); setZone("all"); setActor(null); setBranch(value); }} options={bootstrap.branches.map((entry) => ({ value: entry.branch_uuid, label: entry.branch_name }))} /> : <span className="text-xs text-muted-foreground">{user?.branch_name}</span>}
         {session && <><Badge variant="secondary">{t(session.status)}</Badge><span className="text-xs text-muted-foreground">{session.name} · v{session.version}</span></>}
       </div>
       {session && <div className="flex flex-wrap items-center gap-2"><Button className="h-10" variant="outline" disabled={busy || !connected} onClick={async () => { if (session.status === "running" && !await state.command("pause")) return; await state.initialize(branch); }}>{t("newSession")}</Button><SimSelect label={t("manual")} value={session.mode} disabled={busy || !connected} className="h-10 w-32" onChange={(mode) => void state.command("mode", { mode })} options={[{ value: "manual", label: t("manual") }, { value: "auto", label: t("auto") }]} />
@@ -160,12 +185,12 @@ function SimulatorWorkspace() {
     </div> : <>
       <div className="grid min-h-0 flex-1 lg:grid-cols-[13rem_minmax(0,1fr)_22rem] xl:grid-cols-[14rem_minmax(0,1fr)_24rem]">
         <aside className="flex flex-col gap-4 border-b bg-card p-4 lg:overflow-y-auto lg:border-b-0 lg:border-r"><div className="flex items-center justify-between"><h2 className="text-sm font-semibold">{t("tables")}</h2><Badge variant="secondary">{tableCount}</Badge></div><SimSelect label={t("allZones")} value={zone} onChange={setZone} options={[{ value: "all", label: t("allZones") }, ...zones.map(([value, label]) => ({ value, label }))]} /><div className="flex gap-1">{["all", "available", "occupied"].map((value) => <Button key={value} variant={filter === value ? "secondary" : "ghost"} className="h-10 flex-1 px-1 text-xs" onClick={() => setFilter(value)}>{t(value)}</Button>)}</div>
-          <div className="grid grid-cols-3 gap-2 sm:grid-cols-5 lg:grid-cols-2">{session.tables.filter((table) => (zone === "all" || table.zone_uuid === zone) && (filter === "all" || (filter === "available" ? table.status === 1 : table.status !== 1))).map((table) => <Button key={table.table_uuid} variant="outline" className={cn("h-auto min-h-20 flex-col items-start justify-center gap-1 rounded-xl px-3 py-2 text-left", table.table_uuid === state.selectedTableId && "border-primary bg-primary/5 ring-1 ring-primary", table.status !== 1 && "border-info/35")} onClick={() => state.selectTable(table.table_uuid)}><div className="flex w-full items-center justify-between gap-1"><span className="text-sm font-semibold">{table.name}</span><span className={cn("size-1.5 rounded-full", table.status === 1 ? "bg-success" : "bg-info")} /></div><span className="text-[10px] text-muted-foreground">{t(tableStatusLabel(table.status))}</span><span className="text-[10px] text-muted-foreground">{table.guests || table.seats} <Users className="ml-1 inline size-3" /></span></Button>)}</div>
+          <div className="grid grid-cols-3 gap-2 sm:grid-cols-5 lg:grid-cols-2">{session.tables.filter((table) => (zone === "all" || table.zone_uuid === zone) && (filter === "all" || (filter === "available" ? table.status === 1 : table.status !== 1))).map((table) => <Button key={table.table_uuid} variant="outline" className={cn("h-auto min-h-20 flex-col items-start justify-center gap-1 rounded-xl px-3 py-2 text-left", table.table_uuid === state.selectedTableId && "border-primary bg-primary/5 ring-1 ring-primary", table.status !== 1 && "border-info/35")} onClick={() => state.selectTable(table.table_uuid)}><div className="flex w-full items-center justify-between gap-1"><span className="text-sm font-semibold">{table.name}</span><span className={cn("size-1.5 rounded-full", tableStatusTone(table.status))} /></div><span className="text-[10px] text-muted-foreground">{t(tableStatusLabel(table.status))}</span><span className="text-[10px] text-muted-foreground">{table.guests || table.seats} <Users className="ml-1 inline size-3" /></span></Button>)}</div>
           {session.config.use_tables === false && <Button className="h-11 w-full" disabled={disabled} onClick={() => { state.selectOrder(""); }}><CirclePlay />{t("openCounter")}</Button>}
           {session.orders.some((order) => order.status === "open") && <div className="flex flex-col gap-2 border-t pt-3"><h3 className="text-xs font-medium text-muted-foreground">{t("activeBills")}</h3>{session.orders.filter((order) => order.status === "open").map((order) => <Button key={order.order_uuid} variant={state.selectedOrderId === order.order_uuid ? "secondary" : "outline"} className="h-11 w-full justify-between" onClick={() => state.selectOrder(order.order_uuid)}>{orderName(order, session)} · {order.order_uuid.slice(0, 5)}<ChevronRight /></Button>)}</div>}
           <div className="flex flex-col gap-2 border-t pt-3"><h3 className="text-xs font-medium text-muted-foreground">{t("actor")}</h3>{characters.map((entry) => <Button key={entry.id} variant={actor === entry.id ? "secondary" : "ghost"} className="h-auto min-h-10 w-full justify-between gap-2 whitespace-normal py-2 text-left" onClick={() => { setActor(entry.id); if (entry.tableId) state.selectTable(entry.tableId); }}><span className="truncate">{session.customers.find((customer) => customer.customer_uuid === entry.id)?.name ?? t(`roles.${entry.role}`)}</span><span className="text-[10px] text-muted-foreground">{t(`states.${entry.state}`, { defaultValue: entry.state })}</span></Button>)}</div>
         </aside>
-        <section aria-label={t("view3d")} className="relative min-h-96 overflow-hidden bg-muted/30 lg:min-h-0"><SceneBoundary message={t("webglError")}><RestaurantScene tables={session.tables.map((table) => ({ id: table.table_uuid, name: table.name, zone: table.zone_name, status: table.status === 1 ? "available" : table.status === 6 ? "billing" : "occupied", guests: table.guests }))} selectedTableId={state.selectedTableId} onSelectTable={state.selectTable} paused={session.status !== "running" || !connected || !visible} characters={characters} selectedCharacterId={actor} onStopFollowing={() => setActor(null)} onSelectCharacter={setActor} /></SceneBoundary>
+        <section aria-label={t("view3d")} className="relative min-h-96 overflow-hidden bg-muted/30 lg:min-h-0"><SceneBoundary message={t("webglError")}><RestaurantScene tables={session.tables.map((table) => ({ id: table.table_uuid, name: table.name, zone: table.zone_name, status: tableSceneStatus(table.status), guests: table.guests }))} selectedTableId={state.selectedTableId} onSelectTable={state.selectTable} paused={session.status !== "running" || !connected || !visible} characters={characters} selectedCharacterId={actor} onStopFollowing={() => setActor(null)} onSelectCharacter={setActor} /></SceneBoundary>
           <div className="pointer-events-none absolute left-4 top-4 rounded-xl border bg-card/95 px-3 py-2 shadow-sm"><p className="text-xs font-semibold">{bootstrap?.branch.branch_name}</p><p className="mt-1 text-[10px] text-muted-foreground">{t("onlineOnly")}</p></div>
           {session.status === "paused" && <div className="pointer-events-none absolute inset-x-0 top-20 flex justify-center"><Badge variant="secondary" className="gap-2 px-4 py-2 shadow-sm"><CirclePause className="size-4" />{t("paused")}</Badge></div>}
           {selectedActor && <div className="absolute bottom-12 left-4 right-4 flex items-center justify-between gap-3 rounded-xl border bg-card/95 p-3 shadow-sm"><div><p className="text-sm font-medium">{actorCustomer?.name ?? t(`roles.${selectedActor.role}`)}</p><p className="text-xs text-muted-foreground">{t(`states.${selectedActor.state}`, { defaultValue: selectedActor.state })}</p></div><Button variant="ghost" className="h-10" onClick={() => setActor(null)}>{t("close")}</Button></div>}

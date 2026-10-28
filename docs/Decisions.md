@@ -1,5 +1,14 @@
 # Decisions
 
+## Read-only live restaurant alongside isolated 3D training
+
+- **Date:** 2026-10-29.
+- **Decision:** The simulator window defaults to an authenticated live restaurant view; training remains an explicit separate mode. A dedicated SELECT-only backend read model returns current authorized table and open-order state. Its own Zustand slice has no command actions or browser persistence. Foreground polling every 10 seconds is bounded and cancelled on inactivity, scope changes and teardown.
+- **Reason:** The user requested that orders placed by real customers appear in the 3D restaurant. Combining production orders with the training command model would make data and action boundaries ambiguous. Dedicated reads preserve current branch/zone authorization and keep the existing training workflows isolated.
+- **Alternatives considered:** Existing POS readers have different manager/branch semantics, and the queue reader does not apply assigned-zone filtering. Existing branch Socket.IO subscriptions are unsuitable as the authority for this scoped data. Bounded authenticated polling provides predictable coverage without changing production realtime infrastructure.
+- **Limits:** Illustrative room/people, no physical tracking or fabricated guest count; 400 tables/orders and 4,000 lines per snapshot, visible truncation warning, up to 80 tables in the scene with selection retained. Live view has no order, kitchen, payment, stock or printer writes.
+- **Authorization:** User explicitly requested real customer orders to be mirrored and asked to continue implementation.
+
 ## Online restaurant simulator and browser verification
 
 - **Date:** 2026-10-27.

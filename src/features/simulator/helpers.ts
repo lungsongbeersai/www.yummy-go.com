@@ -12,6 +12,14 @@ export function tableStatusLabel(status: number) {
   return ({ 1: "available", 2: "occupied", 3: "draft", 4: "draft", 5: "callStaff", 6: "requestBill" } as Record<number, string>)[status] ?? String(status);
 }
 
+export function tableSceneStatus(status: number) {
+  return ({ 1: "available", 2: "occupied", 3: "draft", 4: "awaiting", 5: "calling", 6: "billing" } as const)[status as 1 | 2 | 3 | 4 | 5 | 6] ?? "occupied";
+}
+
+export function tableStatusTone(status: number) {
+  return ({ 1: "bg-success", 2: "bg-info", 3: "bg-pending", 4: "bg-warning", 5: "bg-destructive", 6: "bg-chart-cat-5" } as Record<number, string>)[status] ?? "bg-muted-foreground";
+}
+
 export function orderName(order: SimulatorOrder, session: SimulatorSession) {
   return session.tables.find((table) => table.table_uuid === order.table_uuid)?.name ?? `#${order.order_uuid.slice(0, 6)}`;
 }
