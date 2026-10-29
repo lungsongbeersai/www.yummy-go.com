@@ -11,6 +11,7 @@ import { useProductStore } from "@/stores/product-store";
 import { useReferenceStore } from "@/stores/reference-store";
 import { usePermissionsSidebarStore } from "@/stores/permissions-sidebar-store";
 import { usePermissionsAccessStore } from "@/stores/permissions-access-store";
+import { ServiceError } from "@/lib/api";
 
 vi.mock("@/lib/socket", () => ({
   disconnectSocket: vi.fn()
@@ -213,12 +214,109 @@ describe("auth store session isolation", () => {
     },
   );
 
-  it("removes persisted contract metadata when PLC access is revoked", () => {
+  it("retains current-branch expiry when PLC package-management access is revoked", () => {
     useAuthStore.getState().login("token-1", { ...authUser("user-1"), store_status: 1,
       contract_end_on: "2027-01-12", contract_days_remaining: 77 });
     useAuthStore.getState().updateUser({ store_status: 2 });
-    expect(useAuthStore.getState().user).not.toHaveProperty("contract_end_on");
-    expect(useAuthStore.getState().user).not.toHaveProperty("contract_days_remaining");
+    expect(useAuthStore.getState().user).toMatchObject({ store_status: 2, contract_end_on: "2027-01-12", contract_days_remaining: 77 });
+  });
+
+  it.each([1, 2, 3])("retains login and refreshed contract metadata for store classification %s", async (store_status) => {
+    useAuthStore.getState().login("token-1", { ...authUser("user-1"), store_status,
+      contract_end_on: "2027-01-12", contract_days_remaining: 77 });
+    expect(useAuthStore.getState().user?.contract_end_on).toBe("2027-01-12");
+    validateLoginSessionMock.mockResolvedValueOnce({ uuid: "user-1", login_email: "user-1@example.com", login_name: "Noy",
+      branch_uuid: "user-1-branch", store_uuid_fk: "user-1-store", login_status: 1, store_status,
+      contract_end_on: "2026-11-01", contract_days_remaining: 5 });
+    await expect(useAuthStore.getState().validateSession()).resolves.toBe(true);
+    expect(useAuthStore.getState().user).toMatchObject({ contract_end_on: "2026-11-01", contract_days_remaining: 5 });
+  });
+
+  it("clears authenticated data and scoped stores on an authoritative expired-session rejection", async () => {
+    useAuthStore.getState().login("token-1", authUser("user-1"), true);
+    useProductStore.setState({ search: "private products" });
+    validateLoginSessionMock.mockRejectedValueOnce(new ServiceError("Renew contract", 401, undefined, {
+      code: "BRANCH_CONTRACT_EXPIRED", contract_end_on: "2026-10-28", contract_days_remaining: -1,
+    }));
+    await expect(useAuthStore.getState().validateSession()).resolves.toBe(false);
+    expect(useAuthStore.getState()).toMatchObject({ token: null, user: null, isLoggedIn: false, rememberMe: false,
+      contractExpiry: { endOn: "2026-10-28", daysRemaining: -1 } });
+    expect(useProductStore.getState().search).toBe("");
+    expect(disconnectSocketMock).toHaveBeenCalled();
+  });
+
+  it("does not revoke a newer login when an older validation rejects with contract expiry", async () => {
+    const pending = deferred<Awaited<ReturnType<typeof validateLoginSession>>>();
+    useAuthStore.getState().login("token-1", authUser("user-1"));
+    validateLoginSessionMock.mockReturnValueOnce(pending.promise);
+    const validation = useAuthStore.getState().validateSession();
+    useAuthStore.getState().login("token-2", authUser("user-2"));
+    pending.reject(new ServiceError("Expired", 401, undefined, { code: "BRANCH_CONTRACT_EXPIRED" }));
+    await expect(validation).resolves.toBe(false);
+    expect(useAuthStore.getState()).toMatchObject({ token: "token-2", isLoggedIn: true, contractExpiry: null });
+  });
+
+  it("also discards a stale validation when the next login reuses the same token string", async () => {
+    const pending = deferred<Awaited<ReturnType<typeof validateLoginSession>>>();
+    useAuthStore.getState().login("same-token", authUser("user-1"));
+    validateLoginSessionMock.mockReturnValueOnce(pending.promise);
+    const validation = useAuthStore.getState().validateSession();
+    useAuthStore.getState().logout();
+    useAuthStore.getState().login("same-token", authUser("user-2"));
+    pending.reject(new ServiceError("Expired", 401, undefined, { code: "BRANCH_CONTRACT_EXPIRED" }));
+    await expect(validation).resolves.toBe(false);
+    expect(useAuthStore.getState()).toMatchObject({ token: "same-token", isLoggedIn: true, contractExpiry: null });
+  });
+
+  it("keeps a transport failure distinct from contract expiry", async () => {
+    useAuthStore.getState().login("token-1", authUser("user-1"));
+    validateLoginSessionMock.mockRejectedValueOnce(new ServiceError("Network unavailable", 0));
+    await expect(useAuthStore.getState().validateSession()).rejects.toThrow("Network unavailable");
+    expect(useAuthStore.getState()).toMatchObject({ token: "token-1", isLoggedIn: true, contractExpiry: null });
+  });
+
+  it("blocks expired password login and allows a renewed successful login to clear the reason", async () => {
+    const error = new ServiceError("Renew contract", 401, undefined, { code: "BRANCH_CONTRACT_EXPIRED", contract_end_on: "2026-10-28" });
+    checkLoginMock.mockRejectedValueOnce(error);
+    await expect(useAuthStore.getState().loginWithPassword("user-1@example.com", "password")).rejects.toBe(error);
+    expect(useAuthStore.getState()).toMatchObject({ token: null, user: null, isLoggedIn: false,
+      contractExpiry: { endOn: "2026-10-28" } });
+    const user = { ...authUser("user-1"), store_status: 2, contract_end_on: "2027-01-12", contract_days_remaining: 77 };
+    checkLoginMock.mockResolvedValueOnce({ token: "renewed-token", user });
+    await expect(useAuthStore.getState().loginWithPassword("user-1@example.com", "password")).resolves.toEqual(user);
+    expect(useAuthStore.getState()).toMatchObject({ token: "renewed-token", isLoggedIn: true, contractExpiry: null });
+  });
+
+  it("does not let an older expired password response clear a subsequent successful login", async () => {
+    const old = deferred<LoginResult>();
+    checkLoginMock.mockReturnValueOnce(old.promise).mockResolvedValueOnce({ token: "token-2", user: authUser("user-2") });
+    const first = useAuthStore.getState().loginWithPassword("user-1@example.com", "password");
+    await useAuthStore.getState().loginWithPassword("user-2@example.com", "password");
+    old.reject(new ServiceError("Expired", 401, undefined, { code: "BRANCH_CONTRACT_EXPIRED" }));
+    await expect(first).resolves.toBeNull();
+    expect(useAuthStore.getState()).toMatchObject({ token: "token-2", isLoggedIn: true, contractExpiry: null });
+  });
+
+  it("invalidates pending logins when expiry clears a live session", async () => {
+    const pending = deferred<LoginResult>();
+    checkLoginMock.mockReturnValueOnce(pending.promise);
+    const login = useAuthStore.getState().loginWithPassword("user-1@example.com", "password");
+    useAuthStore.getState().expireContract({ endOn: "2026-10-28" });
+    pending.resolve({ token: "late-token", user: authUser("user-1") });
+    await expect(login).resolves.toBeNull();
+    expect(useAuthStore.getState()).toMatchObject({ token: null, isLoggedIn: false, contractExpiry: { endOn: "2026-10-28" } });
+    useAuthStore.getState().clearContractExpiry();
+    expect(useAuthStore.getState().contractExpiry).toBeNull();
+  });
+
+  it("does not block a valid session with no configured expiry", async () => {
+    const user = authUser("user-1");
+    useAuthStore.getState().login("token-1", user);
+    validateLoginSessionMock.mockResolvedValueOnce({ uuid: user.uuid, login_email: user.email, login_name: "Noy",
+      branch_uuid: user.branch_uuid, store_uuid_fk: user.store_uuid, login_status: 1,
+      contract_end_on: null, contract_days_remaining: null });
+    await expect(useAuthStore.getState().validateSession()).resolves.toBe(true);
+    expect(useAuthStore.getState()).toMatchObject({ token: "token-1", isLoggedIn: true, contractExpiry: null });
   });
 
   it("defaults a legacy session without table status to a store with tables", () => {

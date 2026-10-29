@@ -6,7 +6,7 @@ import { disconnectSocket } from "@/lib/socket";
 import { checkLogin, validateLoginSession } from "@/services/login";
 import { resetSessionStores } from "@/stores/session-store-registry";
 import { errorMessage } from "@/stores/store-utils";
-import { canViewBranchContractPackage } from "@/lib/branch-contract";
+import { contractExpiryFromError, type ContractExpiryNotice } from "@/lib/contract-expiry";
 
 export interface AuthZone {
   zone_uuid: string;
@@ -77,10 +77,6 @@ function normalizeAuthUser(user: NormalizableAuthUser | null): AuthUser | null {
     store_table_status: storeTableStatus,
     lak_rounding_version: lakRoundingVersion
   };
-  if (!canViewBranchContractPackage(user)) {
-    delete normalized.contract_end_on;
-    delete normalized.contract_days_remaining;
-  }
   return normalized;
 }
 
@@ -111,10 +107,13 @@ interface AuthState {
   hydrated: boolean;
   loading: boolean;
   error: string | null;
+  contractExpiry: ContractExpiryNotice | null;
   login: (token: string, user: AuthUser, rememberMe?: boolean) => void;
   loginWithPassword: (email: string, password: string, rememberMe?: boolean) => Promise<AuthUser | null>;
   validateSession: () => Promise<boolean>;
   logout: () => void;
+  expireContract: (notice: ContractExpiryNotice) => void;
+  clearContractExpiry: () => void;
   updateUser: (updates: Partial<AuthUser>) => void;
   setHydrated: (hydrated: boolean) => void;
 }
@@ -132,7 +131,8 @@ function authenticatedState(token: string, user: AuthUser, rememberMe: boolean) 
     isLoggedIn: true,
     rememberMe,
     loading: false,
-    error: null
+    error: null,
+    contractExpiry: null,
   };
 }
 
@@ -169,6 +169,7 @@ export const useAuthStore = create<AuthState>()(
       hydrated: false,
       loading: false,
       error: null,
+      contractExpiry: null,
       login: (token, user, rememberMe = false) => {
         loginRequestId += 1;
         sessionValidationRequest = null;
@@ -178,7 +179,7 @@ export const useAuthStore = create<AuthState>()(
       },
       loginWithPassword: async (email, password, rememberMe = false) => {
         const requestId = ++loginRequestId;
-        set({ loading: true, error: null });
+        set({ loading: true, error: null, contractExpiry: null });
         try {
           const result = await checkLogin(email, password);
           if (requestId !== loginRequestId) return null;
@@ -191,7 +192,9 @@ export const useAuthStore = create<AuthState>()(
         } catch (error) {
           if (requestId !== loginRequestId) return null;
 
-          set({ loading: false, error: errorMessage(error) });
+          const expiry = contractExpiryFromError(error);
+          if (expiry) get().expireContract(expiry);
+          else set({ loading: false, error: errorMessage(error) });
           throw error;
         }
       },
@@ -203,10 +206,11 @@ export const useAuthStore = create<AuthState>()(
         }
 
         sessionValidationToken = token;
+        const validationLoginId = loginRequestId;
         const request = validateLoginSession()
           .then((session) => {
             const current = get();
-            if (!current.isLoggedIn || current.token !== token || !current.user) return false;
+            if (!current.isLoggedIn || current.token !== token || !current.user || validationLoginId !== loginRequestId) return false;
 
             const displayName = String(session.login_name ?? "").trim();
             const storeStatus = [1, 2, 3].includes(Number(session.store_status)) ? Number(session.store_status) : 2;
@@ -214,8 +218,8 @@ export const useAuthStore = create<AuthState>()(
             // customer selected on the management screen or a later reassignment.
             const sameBranch = session.branch_uuid === current.user.branch_uuid &&
               session.store_uuid_fk === authStoreUuid(current.user);
-            const contractEndOn = storeStatus === 1 ? sameBranch ? session.contract_end_on ?? null : null : undefined;
-            const contractDaysRemaining = storeStatus === 1 ? sameBranch ? session.contract_days_remaining ?? null : null : undefined;
+            const contractEndOn = sameBranch ? session.contract_end_on ?? null : null;
+            const contractDaysRemaining = sameBranch ? session.contract_days_remaining ?? null : null;
             if (current.user.name !== displayName || current.user.store_status !== storeStatus ||
               current.user.contract_end_on !== contractEndOn || current.user.contract_days_remaining !== contractDaysRemaining) {
               set({ user: normalizeAuthUser({ ...current.user, name: displayName, store_status: storeStatus,
@@ -223,6 +227,15 @@ export const useAuthStore = create<AuthState>()(
             }
 
             return true;
+          })
+          .catch((error: unknown) => {
+            const expiry = contractExpiryFromError(error);
+            if (!expiry) throw error;
+            const current = get();
+            if (current.isLoggedIn && current.token === token && validationLoginId === loginRequestId) {
+              current.expireContract(expiry);
+            }
+            return false;
           })
           .finally(() => {
             if (sessionValidationRequest === request) {
@@ -245,10 +258,21 @@ export const useAuthStore = create<AuthState>()(
           isLoggedIn: false,
           rememberMe: false,
           loading: false,
-          error: null
+          error: null,
+          contractExpiry: null,
         });
         dualStorage.removeItem(STORAGE_KEY);
       },
+      expireContract: (notice) => {
+        loginRequestId += 1;
+        sessionValidationRequest = null;
+        sessionValidationToken = null;
+        disconnectSocket();
+        resetSessionStores();
+        set({ token: null, user: null, isLoggedIn: false, rememberMe: false, loading: false, error: null, contractExpiry: notice });
+        dualStorage.removeItem(STORAGE_KEY);
+      },
+      clearContractExpiry: () => set({ contractExpiry: null }),
       updateUser: (updates) => {
         const user = get().user;
         if (user) set({ user: normalizeAuthUser({ ...user, ...updates }) });
@@ -260,6 +284,10 @@ export const useAuthStore = create<AuthState>()(
       storage: createJSONStorage(() => dualStorage),
       version: 3,
       migrate: (persistedState) => normalizePersistedAuthState(persistedState),
+      merge: (persistedState, currentState) => {
+        const normalized = normalizePersistedAuthState(persistedState);
+        return { ...currentState, ...normalized, user: normalizeAuthUser(normalized.user ?? null), contractExpiry: null };
+      },
       partialize: ({ token, user, isLoggedIn, rememberMe }) => ({
         token,
         user,

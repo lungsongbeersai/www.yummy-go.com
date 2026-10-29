@@ -251,6 +251,42 @@ export interface SimulatorSessionSummary {
   updated_at?: string;
 }
 
+export interface SimulatorLiveTable extends Omit<SimulatorTable, "guests"> {
+  guests: null;
+  customer_order_state: boolean;
+}
+
+export interface SimulatorLiveItem {
+  item_uuid: string;
+  detail_uuid: string;
+  name: string;
+  quantity: number;
+  status: number;
+  customer_order: boolean;
+}
+
+export interface SimulatorLiveOrder {
+  order_uuid: string;
+  table_uuid: string | null;
+  status: "open";
+  guests: null;
+  created_at: string;
+  items: SimulatorLiveItem[];
+  totals: Omit<SimulatorTotals, "paid" | "balance">;
+}
+
+export interface SimulatorLiveSnapshot {
+  mode: "live";
+  read_only: true;
+  fetched_at: string;
+  branch: SimulatorBranch;
+  tables: SimulatorLiveTable[];
+  orders: SimulatorLiveOrder[];
+  summary: { open_bills: number; guests: null; pending_items: number; preparing_items: number; served_items: number };
+  limits: { tables: number; orders: number; items: number };
+  truncated: boolean;
+}
+
 export type SimulatorActionType =
   | "start" | "pause" | "resume" | "reset" | "save" | "restore" | "mode" | "tick"
   | "open_table" | "guests" | "add_item" | "edit_item" | "cancel_item" | "confirm"

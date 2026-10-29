@@ -2,6 +2,40 @@
 
 This document records the code audit, the implementation boundary, and the verification evidence for the simulator. A production feature appearing in the inventory does not by itself mean that the simulator supports it. The matrix below distinguishes those claims.
 
+## Live restaurant view
+
+The window now opens in **Live restaurant** mode. Actual customer orders, table states and open bills appear through an authenticated, read-only endpoint. Staff can select tables or bills to inspect real item names, quantities, statuses and stored bill totals. The **Training** switch opens the isolated simulator. Existing URLs with `session_uuid` still restore training; `?mode=training` and `?mode=live` select a mode explicitly. Switching away from an active, connected training session pauses it first; an unresolved command must be reconciled before switching modes.
+
+`GET /api/v1/simulator/live?branch_uuid=…&lang=…` rechecks current employee, role, store, branch and assigned zones for every request. Zone-restricted staff see orders on their assigned tables and their own counter bills. It performs three authorization SELECTs and one bounded SQL statement for a consistent tables/orders/items snapshot. There are no production or simulation writes, print jobs, payment calls or notifications. Customer names, telephone numbers, notes, tender details and account details are omitted. Headcount is `null` because the POS does not store an actual guest count; seat capacity remains labeled as seats.
+
+Updates run every 10 seconds while the window is visible and focused, with immediate refresh on focus, online recovery and the refresh button. Requests never overlap, are cancelled on blur, branch/language switch and unmount, and late responses are rejected after a scope change or logout. A connection failure clearly marks the last successful snapshot as stale; permission denial clears it. No transaction data is persisted in the browser. Current changes are observed on the next successful fetch; this mode does not promise instantaneous delivery.
+
+The API returns at most 400 tables, 400 open orders and 4,000 item rows and flags truncation. To limit mobile WebGL/HTML overhead, the scene renders at most 80 tables and always includes a selected table. Zone/status filters apply to the table list; representative customer markers are limited to tables present in the scene. The complete returned table list remains available, and a visible notice explains scene limits. People and room layout are illustrations, not physical tracking. Persisted item statuses retain their actual codes: 0 customer draft, 1 awaiting confirmation, 2 sent to kitchen, 3 preparing, 4 served, 9 cancelled. Stored bill totals are displayed without recalculating or updating production bills.
+
+The restaurant scene uses scoped light/dark material tokens for warm timber, upholstered zone seating, plants, stainless kitchen furniture and a teal cashier. Six table states have distinct colors plus text: available green, occupied blue, staff draft orange, customer confirmation amber, staff call red and bill request pink. These tokens do not change the main POS theme. Furniture is instanced, actors are bounded, rendering uses adaptive DPR and demand frames, and inactive windows stop rendering.
+
+Language changes retain the authorized snapshot and scene while replacing the in-flight read. Preference synchronization uses the stable simulator i18n instance: react-i18next 17 changes its hook-returned wrapper identity when the language changes. Projected DOM labels use a small local `scene-label.tsx` helper with a fresh container per effect and deferred React-root disposal; this avoids the synchronous nested-root cleanup race observed in the pinned Drei Html component under React 19 StrictMode. StrictMode remains enabled.
+
+Added files: `live-workspace.tsx`, `live-i18n.ts`, `live-helpers.ts`, `scene-label.tsx` and tests under `src/features/simulator/`; `src/stores/simulator-live-store.ts` and tests; backend `api/v1/simulator/live.js`, `live.test.js`, `live-fixtures.js`. The existing simulator service/types, router, mode workspace, scene, translations and browser runner are extended. No new dependency, database column, table or migration is required for live mode.
+
+## Live enhancement verification — 2026-10-29
+
+All checks used the installed Node 22.22.3 runtime. Backend tests use synthetic PostgreSQL connection settings and disposable fixtures; browser tests never import production database configuration.
+
+| Check | Observed result |
+| --- | --- |
+| Frontend `npm run typecheck` | Passed. |
+| Frontend `npm run lint` | Zero errors; the same three existing warnings. |
+| Frontend `npm test` | **2,599/2,599 passed**, 231 files. |
+| Backend full suite, concurrency 2, timeout 120 seconds | **1,556/1,556 passed**; no skipped tests. |
+| Backend live/catalog/repository suites | **34/34 passed**, including real authorization, assigned zones, revocation, counter ownership, privacy and SELECT-only snapshots. |
+| Frontend `npm run build` | Passed with webpack, including `/simulator` and TypeScript validation. |
+| Chrome full `npm run test:simulator:e2e` | **22/22 scenarios passed**, 39 isolated command requests, zero uncaught page errors and zero external HTTP requests. |
+| Chrome focused live view | **7/7 passed**. Run with `SIMULATOR_E2E_LIVE_ONLY=1` to omit the older training scenarios. |
+| `git diff --check` | Passed in both repositories. |
+
+The browser scenarios cover actual order arrival and quantity/status changes without UI commands, actual bill closure/table release, stale state and reconnect, mobile/desktop layouts, Thai language switching, inactive-window polling/render suspension and training/live transitions. The full run also repeats training payments, printing simulations, deposits, QR ordering, automatic service, popup authentication, server recovery and SQL/HTTP isolation. Artifacts are under workspace `.work/simulator-live/`: `results.json`, `live-mobile.png`, `live-desktop.png`, `live-desktop-thai.png` and the training screenshots. These are local fixture observations; production latency and physical-device FPS have not been measured.
+
 ## Audited architecture
 
 The workspace contains separate Git repositories: `New-Yummy-go.com` (Next.js 16, React 19, TypeScript, Zustand, Axios), `back-end` (Express/Node.js, PostgreSQL, Socket.IO), and `printer-agent`. The simulator belongs to the existing frontend and backend. It must not call production transaction mutation endpoints, build real printer jobs, send notifications, deduct production stock, or write production reports.
@@ -35,7 +69,7 @@ API paths in this inventory are production evidence, **not simulator write desti
 
 | Existing feature | API/source evidence | Business rule and simulator consequence |
 | --- | --- | --- |
-| Branch zones/tables and tableless stores | `GET /posAll/fetch_table`; `getCreateOrderLoginScope` | Tables are scoped to the authenticated branch and assigned `tb_login_zone` rows. Empty assignments mean all zones in that branch. `tb_stores.store_table_status`: 1 with tables, 2 without tables. Copy configuration, never production occupancy/orders. |
+| Branch zones/tables and tableless stores | `GET /posAll/fetch_table`; `getCreateOrderLoginScope` | Tables are scoped to the authenticated branch and assigned `tb_login_zone` rows. Empty assignments mean all zones in that branch. `tb_stores.store_table_status`: 1 with tables, 2 without tables. Training copies configuration into isolated state; Live restaurant reads actual occupancy/orders without changing them. |
 | Manual table states and customer alerts | `POST /posAll/table_status`; `api/v1/table/table-status.js` | Available 1, active 2, cashier creating 3, awaiting customer confirmation 4, call staff 5, request check bill 6. Preserve alert states during normal derivation. Do not use the legacy numeric semantics in `posAll/table-status.js`. |
 | Menu categories, product search, product classes | `GET /posAll/fetch_cate_products`; `POST /posAll/get_prod_item` | Product classes are normal 1, SET 2, promotion 3. Prices/details belong to the selected branch. Category visibility is role/store policy, including anonymous QR restrictions. |
 | Product sizes/details, notes, toppings, tastes | `POST /posAll/get_prod_item`; `normalizeOrderItemsForCreate`; `src/features/pos/order-customer/{topping-selection,taste-selection,order-selection-validation}.ts` | Validate configured active choices, selection limits, duplicate choices, detail ownership, and server prices. Do not accept client-supplied prices. |
@@ -155,6 +189,7 @@ New authenticated endpoints, all under `/api/v1/simulator`:
 | Method/path | Contract |
 | --- | --- |
 | `GET /bootstrap?branch_uuid=…` | Current authorized actor, branches, branch settings, tables, catalog and permissions. |
+| `GET /live?branch_uuid=…&lang=…` | Read-only current authorized table/open-order/item snapshot, fetched timestamp, summary, limits and truncation flag. |
 | `GET /sessions?branch_uuid=…` | Up to 40 sessions owned by the authenticated employee for the authorized branch. |
 | `POST /sessions` | Create an isolated session from authorized current configuration; body `branch_uuid`, optional `name`. |
 | `GET /sessions/:id` | Authoritative session state, after current scope validation. |
@@ -163,7 +198,7 @@ New authenticated endpoints, all under `/api/v1/simulator`:
 
 Actions cover controls (`start`, `pause`, `resume`, `mode`, `reset`, `save`, `restore`), seating/orders (`open_table`, `guests`, `assign_customer`, `add_item`, `edit_item`, `cancel_item`, `cleanup`, `discount`, `confirm`, `transfer`, `merge`, `split`, `request_bill`, `pay`), kitchen (`kitchen_ready`, `serve`, `printer_fail`, `printer_retry`), autonomous progression (`tick`), customers/deposits (`customer_create`, `customer_update`, `deposit_create`, `deposit_withdraw`) and simulated guest visits (`visit_create`, `visit_revoke`, `visit_scan`, `visit_add_item`, `visit_edit_item`, `visit_delete_item`, `visit_submit`). Unsupported action names return errors.
 
-The additive migration creates only `public.simulator_sessions` (owner/store/branch scope, JSONB state and saved snapshot, monotonic version and timestamps) and `public.simulator_operations` (session/operation composite key, request hash and applied version). It does not alter production tables or install offline storage. Apply it in the intended development/staging backend environment with `npm run migrate:simulator-online` before launching the feature. The migration was exercised only in isolated test databases during this work; no production migration was run.
+The additive training migration creates only `public.simulator_sessions` (owner/store/branch scope, JSONB state and saved snapshot, monotonic version and timestamps) and `public.simulator_operations` (session/operation composite key, request hash and applied version). It does not alter production tables or install offline storage. The backend deployment workflow runs `npm run migrate:simulator-online` before restarting the API; the earlier training release already applied this migration. The live restaurant enhancement needs no additional migration, and its tests use disposable databases.
 
 Recorded focused verification:
 
@@ -176,7 +211,7 @@ Recorded focused verification:
 | `node --test --test-reporter=spec api/v1/simulator/domain.test.js api/v1/posAll/posall-printer-routing.test.js api/v1/printer/printer-mapping-policy.test.js api/v1/printer/printer-mapping-routes.test.js` | 113/113 passed; the new simulator regression retains CATEGORY plus applicable ZONE destinations, excludes another zone and role-blocked configs, and preserves independent routing for another category. |
 | `node --test --test-reporter=spec --test-timeout=30000 api/v1/simulator/catalog.test.js` | 8/8 passed against PGlite after promotion and anonymous-menu integration. Covers SELECT-only configuration reads, scope/zone denial, hidden categories, current rates, printer policy, stock factors and real promotion fields. |
 
-Final repository checks on Node 22.22.3:
+Original training release checks (2026-10-27, Node 22.22.3):
 
 | Check | Actual observed result |
 | --- | --- |
@@ -196,7 +231,7 @@ Physical-device FPS/memory and deployed PostgreSQL/load testing remain separate 
 
 
 
-## Browser evidence and performance observations
+## Original training browser evidence and performance observations
 
 `npm run test:simulator:e2e` passed all 17 scenarios on local Chrome using the real isolated Express router, repository, calculation/domain engine and PostgreSQL-compatible SQL fixtures. Coverage includes authenticated start, table open, notes and quantities, kitchen confirmation/ready/serve, printer failure/retry, payment and receipts, table release, save/reset/restore, disconnected transaction blocking and reconnection, committed payment response failure and idempotent recovery, browser reload, fractional deposits/withdrawals, customer QR drafts/submission/staff confirmation, zero-value settlement, autonomous ticks, inactive-window pause/resume, a 390px Thai mobile layout without horizontal overflow, real POS popup authentication and independent close, and production SQL/HTTP isolation.
 
@@ -218,6 +253,7 @@ docs/Simulator.md
 package-lock.json
 package.json
 scripts/simulator-browser.e2e.mjs
+src/app/globals.css
 src/app/simulator/page.tsx
 src/features/pos/order-customer/order-customer-view.tsx
 src/features/pos/table-selection/table-selection-page.tsx
@@ -228,9 +264,14 @@ src/features/simulator/deposits-panel.tsx
 src/features/simulator/fields.tsx
 src/features/simulator/helpers.ts
 src/features/simulator/i18n.ts
+src/features/simulator/live-helpers.test.ts
+src/features/simulator/live-helpers.ts
+src/features/simulator/live-i18n.ts
+src/features/simulator/live-workspace.tsx
 src/features/simulator/order-panel.tsx
 src/features/simulator/product-dialog.tsx
 src/features/simulator/restaurant-scene.tsx
+src/features/simulator/scene-label.tsx
 src/features/simulator/service-panels.tsx
 src/features/simulator/simulator-launcher.tsx
 src/features/simulator/simulator-page.tsx
@@ -238,6 +279,8 @@ src/features/simulator/visit-dialog.tsx
 src/services/simulator/index.ts
 src/services/simulator/requests.test.ts
 src/services/simulator/types.ts
+src/stores/simulator-live-store.test.ts
+src/stores/simulator-live-store.ts
 src/stores/simulator-store.test.ts
 src/stores/simulator-store.ts
 ```
@@ -253,6 +296,9 @@ api/v1/simulator/deposits.test.js
 api/v1/simulator/domain.js
 api/v1/simulator/domain.test.js
 api/v1/simulator/fixtures.js
+api/v1/simulator/live-fixtures.js
+api/v1/simulator/live.js
+api/v1/simulator/live.test.js
 api/v1/simulator/repository.js
 api/v1/simulator/repository.test.js
 api/v1/simulator/router.js

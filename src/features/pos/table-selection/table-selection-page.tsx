@@ -7,6 +7,7 @@ import { useTranslation } from "react-i18next";
 import { LanguageSwitch } from "@/components/layout/language-switch";
 import { NotificationMenu } from "@/components/layout/notification-menu";
 import { ThemeToggle } from "@/components/layout/theme-toggle";
+import { BranchContractStatus } from "@/components/layout/branch-contract-status";
 import { Button } from "@/components/ui/button";
 import { useIsNativeShellActive } from "@/hooks/use-native-shell-active";
 import { cn } from "@/lib/utils";
@@ -154,6 +155,12 @@ export function TableSelectionPage() {
             </Button>
           </div>
         </header>
+        <div className="flex min-w-0 shrink-0 flex-col gap-1.5 border-b border-border bg-card px-3 py-2 text-foreground sm:flex-row sm:items-center sm:justify-between sm:px-4">
+          <p className="min-w-0 truncate text-xs text-muted-foreground">
+            {user?.branch_name || t("app.branchContract.currentBranch")}
+          </p>
+          <BranchContractStatus className="w-full sm:w-auto" />
+        </div>
         <TableListSection initialZoneUuid={initialZoneUuid} loading={loading} search={search} selectedTable={null} statusFilter={statusFilter} zoneOptions={zoneOptions} zones={zones} onSearchChange={setSearch} onRefresh={load} onSelectTable={selectTable} onStatusFilterChange={setStatusFilter} />
       </div>
     </div>

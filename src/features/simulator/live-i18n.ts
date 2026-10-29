@@ -1,0 +1,48 @@
+import { simulatorI18n } from "./i18n";
+
+const resources = {
+  en: {
+    sceneLimit: "3D displays {{shown}} of {{total}} tables. Select any table from the full list to view it.",
+    title: "Live restaurant", readOnly: "Read only", help: "Actual table and order data from this branch. Updates every 10 seconds while this window is active.",
+    branch: "Branch", language: "Language", close: "Close", refresh: "Refresh now", online: "Connected", disconnected: "Connection lost",
+    stale: "Updates unavailable — showing the last successful snapshot", reconnect: "Reconnect", lastUpdated: "Last updated", waiting: "Waiting for restaurant data",
+    tables: "Tables", allZones: "All zones", all: "All", available: "Available", occupied: "Occupied", seats: "seats", counter: "Counter bill", activeBills: "Open bills",
+    pending: "Awaiting staff", preparing: "In kitchen", served: "Served", order: "Order", customerOrder: "Customer order", total: "Stored bill total", emptyOrder: "No open order on this table",
+    choose: "Select a table or bill to see actual order items", noItems: "No order items", quantity: "Quantity", statuses: "Order status", loading: "Loading",
+    customerDraft: "Customer draft", staffDraft: "Awaiting confirmation", sentKitchen: "Sent to kitchen", inKitchen: "In kitchen", cancelled: "Cancelled", unknownStatus: "Status {{status}}",
+    illustrative: "Room layout and people are illustrations. Table and order statuses are actual POS data; headcount and physical locations are not tracked.",
+    inactive: "Automatic updates paused while this window is inactive", truncated: "This branch exceeds the display limit. Some tables or orders are omitted; use the POS for the full list.",
+    noData: "No restaurant data yet", webglError: "3D graphics are unavailable. Use the table and order lists to view actual data.",
+    kitchen: "Actual kitchen items", noKitchen: "No items currently sent to the kitchen", readonlyHelp: "Manage orders, payments and kitchen work in the main POS.",
+  },
+  th: {
+    sceneLimit: "ภาพ 3D แสดง {{shown}} จาก {{total}} โต๊ะ เลือกโต๊ะจากรายการทั้งหมดเพื่อแสดงในฉากได้",
+    title: "ร้านจริง", readOnly: "ดูข้อมูลอย่างเดียว", help: "โต๊ะและออเดอร์จริงของสาขานี้ อัปเดตทุก 10 วินาทีขณะใช้งานหน้าต่างนี้",
+    branch: "สาขา", language: "ภาษา", close: "ปิด", refresh: "อัปเดตตอนนี้", online: "เชื่อมต่อแล้ว", disconnected: "ขาดการเชื่อมต่อ",
+    stale: "อัปเดตไม่ได้ — กำลังแสดงข้อมูลครั้งล่าสุด", reconnect: "เชื่อมต่อใหม่", lastUpdated: "อัปเดตล่าสุด", waiting: "กำลังรอข้อมูลร้าน",
+    tables: "โต๊ะ", allZones: "ทุกโซน", all: "ทั้งหมด", available: "ว่าง", occupied: "ใช้งาน", seats: "ที่นั่ง", counter: "บิลหน้าเคาน์เตอร์", activeBills: "บิลที่เปิดอยู่",
+    pending: "รอพนักงาน", preparing: "อยู่ในครัว", served: "เสิร์ฟแล้ว", order: "ออเดอร์", customerOrder: "ลูกค้าสั่ง", total: "ยอดบิลที่บันทึกไว้", emptyOrder: "โต๊ะนี้ไม่มีบิลที่เปิดอยู่",
+    choose: "เลือกโต๊ะหรือบิลเพื่อดูรายการอาหารที่สั่งจริง", noItems: "ยังไม่มีรายการอาหาร", quantity: "จำนวน", statuses: "สถานะออเดอร์", loading: "กำลังโหลด",
+    customerDraft: "รายการร่างของลูกค้า", staffDraft: "รอยืนยัน", sentKitchen: "ส่งเข้าครัวแล้ว", inKitchen: "อยู่ในครัว", cancelled: "ยกเลิกแล้ว", unknownStatus: "สถานะ {{status}}",
+    illustrative: "ผังห้องและตัวละครเป็นภาพประกอบ สถานะโต๊ะและออเดอร์มาจาก POS จริง ระบบไม่ได้ติดตามจำนวนคนหรือตำแหน่งจริง",
+    inactive: "พักการอัปเดตอัตโนมัติขณะไม่ได้ใช้งานหน้าต่างนี้", truncated: "ข้อมูลสาขานี้เกินจำนวนที่แสดงได้ บางโต๊ะหรือออเดอร์อาจไม่ปรากฏ ดูรายการทั้งหมดได้ใน POS",
+    noData: "ยังไม่มีข้อมูลร้าน", webglError: "เปิดภาพ 3D ไม่ได้ ดูข้อมูลจริงจากรายการโต๊ะและออเดอร์ได้",
+    kitchen: "รายการครัวจริง", noKitchen: "ไม่มีรายการที่ส่งเข้าครัวอยู่", readonlyHelp: "จัดการออเดอร์ ชำระเงิน และงานครัวผ่าน POS หลัก",
+  },
+  la: {
+    sceneLimit: "ພາບ 3D ສະແດງ {{shown}} ຈາກ {{total}} ໂຕະ ເລືອກໂຕະຈາກລາຍການທັງໝົດເພື່ອສະແດງໃນສາກໄດ້",
+    title: "ຮ້ານຈິງ", readOnly: "ເບິ່ງຂໍ້ມູນເທົ່ານັ້ນ", help: "ໂຕະແລະອໍເດີຈິງຂອງສາຂານີ້ ອັບເດດທຸກ 10 ວິນາທີເມື່ອໃຊ້ໜ້າຕ່າງນີ້",
+    branch: "ສາຂາ", language: "ພາສາ", close: "ປິດ", refresh: "ອັບເດດຕອນນີ້", online: "ເຊື່ອມຕໍ່ແລ້ວ", disconnected: "ຂາດການເຊື່ອມຕໍ່",
+    stale: "ອັບເດດບໍ່ໄດ້ — ສະແດງຂໍ້ມູນຄັ້ງລ່າສຸດ", reconnect: "ເຊື່ອມຕໍ່ໃໝ່", lastUpdated: "ອັບເດດລ່າສຸດ", waiting: "ກຳລັງລໍຖ້າຂໍ້ມູນຮ້ານ",
+    tables: "ໂຕະ", allZones: "ທຸກໂຊນ", all: "ທັງໝົດ", available: "ວ່າງ", occupied: "ໃຊ້ງານ", seats: "ບ່ອນນັ່ງ", counter: "ບິນເຄົາເຕີ", activeBills: "ບິນທີ່ເປີດຢູ່",
+    pending: "ລໍຖ້າພະນັກງານ", preparing: "ຢູ່ໃນຄົວ", served: "ເສີບແລ້ວ", order: "ອໍເດີ", customerOrder: "ລູກຄ້າສັ່ງ", total: "ຍອດບິນທີ່ບັນທຶກໄວ້", emptyOrder: "ໂຕະນີ້ບໍ່ມີບິນທີ່ເປີດຢູ່",
+    choose: "ເລືອກໂຕະຫຼືບິນເພື່ອເບິ່ງລາຍການທີ່ສັ່ງຈິງ", noItems: "ຍັງບໍ່ມີລາຍການອາຫານ", quantity: "ຈຳນວນ", statuses: "ສະຖານະອໍເດີ", loading: "ກຳລັງໂຫຼດ",
+    customerDraft: "ລາຍການຮ່າງຂອງລູກຄ້າ", staffDraft: "ລໍຖ້າຢືນຢັນ", sentKitchen: "ສົ່ງເຂົ້າຄົວແລ້ວ", inKitchen: "ຢູ່ໃນຄົວ", cancelled: "ຍົກເລີກແລ້ວ", unknownStatus: "ສະຖານະ {{status}}",
+    illustrative: "ຜັງຫ້ອງແລະຕົວລະຄອນເປັນພາບປະກອບ ສະຖານະໂຕະແລະອໍເດີມາຈາກ POS ຈິງ ລະບົບບໍ່ໄດ້ຕິດຕາມຈຳນວນຄົນຫຼືຕຳແໜ່ງຈິງ",
+    inactive: "ພັກການອັບເດດເມື່ອບໍ່ໄດ້ໃຊ້ໜ້າຕ່າງນີ້", truncated: "ຂໍ້ມູນສາຂານີ້ເກີນຈຳນວນທີ່ສະແດງໄດ້ ບາງໂຕະຫຼືອໍເດີອາດບໍ່ປາກົດ ເບິ່ງລາຍການທັງໝົດໄດ້ໃນ POS",
+    noData: "ຍັງບໍ່ມີຂໍ້ມູນຮ້ານ", webglError: "ເປີດພາບ 3D ບໍ່ໄດ້ ເບິ່ງຂໍ້ມູນຈິງໄດ້ຈາກລາຍການໂຕະແລະອໍເດີ",
+    kitchen: "ລາຍການຄົວຈິງ", noKitchen: "ບໍ່ມີລາຍການທີ່ສົ່ງເຂົ້າຄົວຢູ່", readonlyHelp: "ຈັດການອໍເດີ ຊຳລະເງິນ ແລະວຽກຄົວຜ່ານ POS ຫຼັກ",
+  },
+};
+
+for (const [language, resource] of Object.entries(resources)) simulatorI18n.addResourceBundle(language, "simulatorLive", resource, true, true);

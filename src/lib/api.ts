@@ -1,8 +1,11 @@
 "use client";
 
-import axios, { AxiosError, type AxiosInstance } from "axios";
+import axios, { AxiosError, type AxiosInstance, type InternalAxiosRequestConfig } from "axios";
 import { shouldLogoutForUnauthorized } from "@/lib/unauthorized-session";
+import { contractExpiryFromPayload } from "@/lib/contract-expiry";
+import { internalRoute } from "@/lib/routes";
 import { useAuthStore } from "@/stores/auth-store";
+import { createSessionGuard } from "@/stores/session-store-registry";
 
 const baseURL =
   process.env.NEXT_PUBLIC_BASE_URL ??
@@ -42,7 +45,11 @@ function createClient(authenticated: boolean): AxiosInstance {
   });
 
   if (authenticated) {
+    // A login can receive the same JWT string again. Rejections must also
+    // belong to the same login generation before they can revoke credentials.
+    const requestSessions = new WeakMap<InternalAxiosRequestConfig, () => boolean>();
     client.interceptors.request.use((config) => {
+      requestSessions.set(config, createSessionGuard());
       const { token, isLoggedIn } = useAuthStore.getState();
       if (token && isLoggedIn) {
         config.headers.Authorization = `Bearer ${token}`;
@@ -53,12 +60,18 @@ function createClient(authenticated: boolean): AxiosInstance {
     });
 
     client.interceptors.response.use(
-      (response) => response,
+      (response) => {
+        requestSessions.delete(response.config);
+        return response;
+      },
       (error: AxiosError) => {
+        const belongsToCurrentSession = error.config ? requestSessions.get(error.config)?.() === true : false;
+        if (error.config) requestSessions.delete(error.config);
         const status = error.response?.status;
         const requestToken = String(error.config?.headers.get("x-access-token") ?? "");
-        const { isLoggedIn, logout, token } = useAuthStore.getState();
+        const { isLoggedIn, logout, expireContract, token } = useAuthStore.getState();
         if (
+          belongsToCurrentSession &&
           shouldLogoutForUnauthorized({
             currentToken: token,
             isLoggedIn,
@@ -66,8 +79,10 @@ function createClient(authenticated: boolean): AxiosInstance {
             status,
           })
         ) {
-          logout();
-          if (typeof window !== "undefined") window.location.assign("/login");
+          const expiry = contractExpiryFromPayload(error.response?.data);
+          if (expiry) expireContract(expiry); else logout();
+          const destination = internalRoute(expiry ? "/subscription-expired" : "/login");
+          if (typeof window !== "undefined") window.location.assign(destination);
         }
         return Promise.reject(error);
       },

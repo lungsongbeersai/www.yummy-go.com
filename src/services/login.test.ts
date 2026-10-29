@@ -8,7 +8,7 @@ vi.mock("@/lib/api", () => ({
   apiRequest: apiMocks.request,
   publicApiClient: { post: apiMocks.post },
   ServiceError: class ServiceError extends Error {
-    constructor(message: string, public statusCode = 500) {
+    constructor(message: string, public statusCode = 500, public originalError?: unknown, public payload?: unknown) {
       super(message);
       this.name = "ServiceError";
     }
@@ -117,13 +117,47 @@ describe("online-only login service", () => {
     expect(apiMocks.post).toHaveBeenCalledOnce();
   });
 
-  it("does not retain contract fields supplied with a non-PLC login", async () => {
+  it.each([1, 2, 3])("retains the signed-in branch contract for store classification %i and ordinary employee roles", async (store_status) => {
     apiMocks.post.mockResolvedValue({ status: 200, data: loginResponse({
-      store_status: 2, contract_end_on: "2027-01-12", contract_days_remaining: 77,
+      store_status, login_status: 4, contract_end_on: "2027-01-12", contract_days_remaining: 77,
     }) });
     const result = await checkLogin("cashier@example.com", "password");
-    expect(result.user).not.toHaveProperty("contract_end_on");
-    expect(result.user).not.toHaveProperty("contract_days_remaining");
+    expect(result.user).toMatchObject({ status: 4, store_status, contract_end_on: "2027-01-12", contract_days_remaining: 77 });
+  });
+
+  it("keeps an undated contract unknown rather than manufacturing an expiry", async () => {
+    apiMocks.post.mockResolvedValue({ status: 200, data: loginResponse({ store_status: 2 }) });
+    const result = await checkLogin("cashier@example.com", "password");
+    expect(result.user).toMatchObject({ contract_end_on: null, contract_days_remaining: null });
+  });
+
+  it("preserves authenticated expiry metadata when the login endpoint rejects with HTTP401", async () => {
+    const payload = { status: "error", auth: false, code: "BRANCH_CONTRACT_EXPIRED", message: "Renew your branch contract",
+      branch_uuid: "70000000-0000-4000-8000-000000000001", contract_end_on: "2026-10-01", contract_days_remaining: -28 };
+    const original = new axios.AxiosError("Request failed", "ERR_BAD_REQUEST", undefined, undefined,
+      { status: 401, statusText: "Unauthorized", data: payload, headers: {}, config: { headers: new axios.AxiosHeaders() } });
+    apiMocks.post.mockRejectedValue(original);
+
+    await expect(checkLogin("cashier@example.com", "password")).rejects.toMatchObject({
+      name: "ServiceError", statusCode: 401, message: payload.message, payload, originalError: original,
+    });
+  });
+
+  it("keeps a legacy business-error envelope intact without creating a login session", async () => {
+    const payload = { status: "error", code: "BRANCH_CONTRACT_EXPIRED", message: "Renew your branch contract" };
+    apiMocks.post.mockResolvedValue({ status: 200, data: payload });
+    await expect(checkLogin("cashier@example.com", "password")).rejects.toMatchObject({
+      name: "ServiceError", statusCode: 401, payload,
+    });
+  });
+
+  it("does not classify ordinary invalid credentials as an expired contract", async () => {
+    const payload = { status: "error", message: "Invalid email or password" };
+    apiMocks.post.mockRejectedValue(new axios.AxiosError("Request failed", "ERR_BAD_REQUEST", undefined, undefined,
+      { status: 401, statusText: "Unauthorized", data: payload, headers: {}, config: { headers: new axios.AxiosHeaders() } }));
+    await expect(checkLogin("cashier@example.com", "password")).rejects.toMatchObject({
+      name: "ServiceError", statusCode: 401, payload,
+    });
   });
 
   it("validates a restored session with the authenticated endpoint", async () => {

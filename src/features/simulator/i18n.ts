@@ -4,6 +4,7 @@ import { createInstance } from "i18next";
 import { initReactI18next } from "react-i18next";
 
 const en = {
+  workspaceMode: "Workspace mode", liveMode: "Live restaurant", trainingMode: "Training",
   title: "Restaurant simulator", subtitle: "YummyGo · POSAll training studio", online: "Connected", disconnected: "Connection interrupted",
   onlineOnly: "Online only · Isolated simulation", connectionHelp: "Transactions and automatic operations are paused. Reconnect to verify server state before continuing.",
   reconnect: "Reconnect", retry: "Retry", start: "Start simulation", pause: "Pause", resume: "Resume", reset: "Reset", save: "Save snapshot", restore: "Restore snapshot",
@@ -26,6 +27,7 @@ const en = {
 
 type Labels = Record<keyof typeof en, string>;
 const th: Labels = {
+  workspaceMode: "โหมดการใช้งาน", liveMode: "ร้านจริง", trainingMode: "ฝึกใช้งาน",
   title: "เครื่องจำลองร้านอาหาร", subtitle: "YummyGo · ฝึกใช้งาน POSAll", online: "เชื่อมต่อแล้ว", disconnected: "การเชื่อมต่อขัดข้อง",
   onlineOnly: "ออนไลน์เท่านั้น · ข้อมูลจำลองแยกอิสระ", connectionHelp: "หยุดธุรกรรมและการทำงานอัตโนมัติแล้ว เชื่อมต่อใหม่เพื่อตรวจสอบสถานะจากเซิร์ฟเวอร์ก่อนดำเนินการต่อ",
   reconnect: "เชื่อมต่อใหม่", retry: "ลองอีกครั้ง", start: "เริ่มจำลอง", pause: "หยุดชั่วคราว", resume: "ทำต่อ", reset: "เริ่มใหม่", save: "บันทึกสถานะ", restore: "กู้คืนสถานะ",
@@ -47,6 +49,7 @@ const th: Labels = {
 };
 
 const la: Labels = {
+  workspaceMode: "ຮູບແບບການໃຊ້ງານ", liveMode: "ຮ້ານຈິງ", trainingMode: "ຝຶກໃຊ້ງານ",
   title: "ຈຳລອງຮ້ານອາຫານ", subtitle: "YummyGo · ຝຶກໃຊ້ POSAll", online: "ເຊື່ອມຕໍ່ແລ້ວ", disconnected: "ການເຊື່ອມຕໍ່ຂັດຂ້ອງ",
   onlineOnly: "ອອນລາຍເທົ່ານັ້ນ · ຂໍ້ມູນຈຳລອງແຍກຕ່າງຫາກ", connectionHelp: "ຢຸດທຸລະກຳແລະການເຮັດວຽກອັດຕະໂນມັດແລ້ວ ເຊື່ອມຕໍ່ໃໝ່ເພື່ອກວດສອບສະຖານະຈາກເຊີບເວີ",
   reconnect: "ເຊື່ອມຕໍ່ໃໝ່", retry: "ລອງໃໝ່", start: "ເລີ່ມຈຳລອງ", pause: "ພັກຊົ່ວຄາວ", resume: "ສືບຕໍ່", reset: "ເລີ່ມໃໝ່", save: "ບັນທຶກສະຖານະ", restore: "ກູ້ຄືນສະຖານະ",

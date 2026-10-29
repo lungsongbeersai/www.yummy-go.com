@@ -18,6 +18,7 @@ const express = requireBackend("express");
 const { PGlite } = requireBackend("@electric-sql/pglite");
 const { createSimulatorRouter } = requireBackend("./api/v1/simulator/router.js");
 const { bootstrap: fixtureBootstrap, ids } = requireBackend("./api/v1/simulator/fixtures.js");
+const { liveFixtureSql, liveIds } = requireBackend("./api/v1/simulator/live-fixtures.js");
 assert(!Object.keys(requireBackend.cache).some((name) => name === join(backend, "config/db.js")), "Production database configuration must never be imported by browser tests");
 
 const frontendPort = Number(process.env.SIMULATOR_E2E_FRONTEND_PORT || 3109);
@@ -27,6 +28,16 @@ const backendOrigin = `http://127.0.0.1:${backendPort}`;
 const artifactDirectory = process.env.SIMULATOR_E2E_ARTIFACTS || join(tmpdir(), "yummygo-simulator-online-e2e");
 const chromePath = process.env.SIMULATOR_CHROME_PATH || (process.platform === "darwin" ? "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome" : chromium.executablePath());
 const fakeToken = "simulator-browser-fixture-token";
+const liveOnly = process.env.SIMULATOR_E2E_LIVE_ONLY === "1";
+const liveSteps = new Set([
+  "Start disposable PostgreSQL backend and isolated local frontend",
+  "Read actual orders in the default live view on a touch viewport",
+  "Mirror newly submitted customer orders automatically without commands",
+  "Mark stale live data offline and recover the actual paid/table state",
+  "Pause live polling and WebGL while another window is active",
+  "Switch modes and pause training before returning to actual restaurant data",
+  "Verify isolation and browser error safety",
+]);
 const actor = {
   uuid: ids.login, email: "fixture@example.test", name: "Employee", status: 1, profile: "",
   branch_uuid: ids.branch, branch_name: "Training", branch_tel: "", branch_address: "",
@@ -71,7 +82,7 @@ function bootstrap() {
 }
 const fixtureScope = async (_database, request, branch) => {
   if (request.uuid !== ids.login || branch !== ids.branch) throw Object.assign(new Error("Branch access denied"), { statusCode: 403 });
-  return bootstrap();
+  return { ...bootstrap(), zone_uuids: [], english: ["en", "eng"].includes(request.query?.lang) };
 };
 const loadBootstrap = async (db, request, branch) => { await fixtureScope(db, request, branch); return bootstrap(); };
 const auth = (request, response, next) => {
@@ -83,6 +94,7 @@ const auth = (request, response, next) => {
 };
 
 async function step(name, action) {
+  if (liveOnly && !liveSteps.has(name)) return;
   const start = Date.now();
   console.log(`RUN ${name}`);
   await action();
@@ -127,6 +139,7 @@ async function waitUntil(check, label, timeout = 45_000) {
 async function startFixtureServer() {
   pg = new PGlite();
   await pg.exec(await readFile(join(backend, "migrations/20261027_simulator_online.sql"), "utf8"));
+  await pg.exec(liveFixtureSql(ids));
   await pg.exec("CREATE TABLE production_sentinel (id integer PRIMARY KEY, value text); INSERT INTO production_sentinel VALUES (1,'untouched production order/payment/print/stock sentinel');");
   const app = express();
   app.use((request, response, next) => {
@@ -300,7 +313,7 @@ try {
   const context = await createBrowserContext();
   page = await context.newPage();
   await step("Authenticate and start an online server simulation", async () => {
-    await page.goto(`${frontendOrigin}/simulator?branch_uuid=${ids.branch}`, { waitUntil: "domcontentloaded" });
+    await page.goto(`${frontendOrigin}/simulator?branch_uuid=${ids.branch}&mode=training`, { waitUntil: "domcontentloaded" });
     const storage = await page.evaluate(() => ({ origin: location.origin, auth: Boolean(sessionStorage.getItem("yummy-go-auth")), preferences: Boolean(localStorage.getItem("yummy-go-app")) }));
     assert(storage.auth && storage.preferences, `Fixture authentication was not seeded: ${JSON.stringify(storage)}`);
     await fill(page.getByRole("textbox", { name: "Session name", exact: true }), "Browser operations");
@@ -529,21 +542,111 @@ try {
     const main = await context.newPage();
     const mainRequests = [];
     main.on("request", (request) => mainRequests.push(request.url()));
-    await main.goto(`${frontendOrigin}/posAll/tables`, { waitUntil: "domcontentloaded" });
+    await main.goto(`${frontendOrigin}/posAll/tables`, { waitUntil: "domcontentloaded", timeout: 120_000 });
     const launcher = main.getByRole("button", { name: "3D Simulator", exact: true });
     await unique(launcher);
     assert(!mainRequests.some((url) => url.includes("restaurant-scene")), "The main POS must not load simulator 3D chunks");
     const popupPromise = main.waitForEvent("popup");
     await click(launcher);
     const popup = await popupPromise;
-    await unique(popup.getByRole("heading", { name: "Restaurant simulator", exact: true }));
-    await unique(popup.getByRole("button", { name: "Start simulation", exact: true }));
+    await unique(popup.getByRole("heading", { name: "Live restaurant", exact: true }));
+    assert.equal(await popup.getByRole("button", { name: "Start simulation", exact: true }).count(), 0);
     assert.equal(new URL(popup.url()).searchParams.get("branch_uuid"), ids.branch);
     await popup.close();
     assert.equal(main.isClosed(), false);
     assert.equal(new URL(main.url()).pathname, "/posAll/tables");
     await main.close();
   });
+  const trainingPage = page;
+  let liveContext = await createBrowserContext({ width: 390, height: 844 }, true);
+  page = await liveContext.newPage();
+  const liveRequestsStart = uiRequests.length;
+  await step("Read actual orders in the default live view on a touch viewport", async () => {
+    await page.goto(`${frontendOrigin}/simulator?branch_uuid=${ids.branch}`, { waitUntil: "domcontentloaded" });
+    await unique(page.getByRole("heading", { name: "Live restaurant", exact: true }));
+    const tables = page.locator("aside").filter({ has: page.getByRole("heading", { name: "Tables", exact: true }) });
+    await click(tables.getByRole("button").filter({ hasText: "A1" }).filter({ hasText: "seats" }));
+    await unique(page.getByTestId("live-order-items").getByText("Ordered noodles", { exact: true }));
+    assert.equal(await page.getByRole("button", { name: "Start simulation", exact: true }).count(), 0);
+    assert.equal(await page.getByRole("button", { name: "Send to kitchen", exact: true }).count(), 0);
+    assert.equal(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth + 1), false);
+    await page.locator("canvas").waitFor({ state: "visible" });
+    await page.screenshot({ path: join(artifactDirectory, "live-mobile.png"), fullPage: true });
+  });
+  await step("Mirror newly submitted customer orders automatically without commands", async () => {
+    await pg.query("UPDATE tb_table SET table_status=4 WHERE table_uuid=$1", [ids.table]);
+    await pg.query("UPDATE tb_order_item SET order_it_qty=3,order_it_status=0,order_it_prod_name_eng='Fresh customer order' WHERE order_it_uuid=$1", [liveIds.item]);
+    await unique(page.getByTestId("live-order-items").getByText("Fresh customer order", { exact: true }));
+    assert.equal(await page.getByTestId("live-order-items").getByLabel("Quantity").innerText(), "× 3");
+    await unique(page.getByTestId("live-order-items").getByText("Customer draft", { exact: true }));
+    await pg.query("UPDATE tb_order_item SET order_it_status=2 WHERE order_it_uuid=$1", [liveIds.item]);
+    await click(page.getByRole("button", { name: "Refresh now", exact: true }));
+    await unique(page.getByTestId("live-order-items").getByText("Sent to kitchen", { exact: true }));
+    const writes = uiRequests.slice(liveRequestsStart).filter((request) => !["GET", "OPTIONS"].includes(request.method) && request.path !== "/api/v1/access-data");
+    assert.deepEqual(writes, [], "Live view must never create simulator or production commands");
+  });
+  await step("Mark stale live data offline and recover the actual paid/table state", async () => {
+    await liveContext.setOffline(true);
+    await unique(page.getByRole("alert").getByText("Updates unavailable — showing the last successful snapshot", { exact: true }));
+    await unique(page.getByTestId("live-order-items").getByText("Fresh customer order", { exact: true }));
+    await pg.query("UPDATE tb_orders SET order_check_bill=2 WHERE order_uuid=$1", [liveIds.order]);
+    await pg.query("UPDATE tb_table SET table_status=1 WHERE table_uuid=$1", [ids.table]);
+    await liveContext.setOffline(false);
+    await unique(page.getByText("No open order on this table", { exact: true }));
+    assert.equal(await page.getByTestId("live-order-items").count(), 0);
+    // Mobile emulation can reload during a viewport reset. Use a separate
+    // desktop context so that reload cannot race a subsequent language change.
+    const mobileContext = liveContext;
+    const liveUrl = page.url();
+    liveContext = await createBrowserContext();
+    page = await liveContext.newPage();
+    await page.goto(liveUrl, { waitUntil: "domcontentloaded" });
+    await page.locator("canvas").waitFor({ state: "visible" });
+    await mobileContext.close();
+    await page.screenshot({ path: join(artifactDirectory, "live-desktop.png"), fullPage: true });
+    await click(page.getByRole("combobox", { name: "Language", exact: true }));
+    await click(page.getByRole("option", { name: "ไทย", exact: true }));
+    await unique(page.getByRole("heading", { name: "ร้านจริง", exact: true }));
+    await page.screenshot({ path: join(artifactDirectory, "live-desktop-thai.png"), fullPage: true });
+  });
+  await step("Pause live polling and WebGL while another window is active", async () => {
+    const focus = await liveContext.newCDPSession(page);
+    await focus.send("Emulation.setFocusEmulationEnabled", { enabled: false });
+    const other = await liveContext.newPage();
+    const otherFocus = await liveContext.newCDPSession(other);
+    await otherFocus.send("Emulation.setFocusEmulationEnabled", { enabled: false });
+    await other.goto(`${frontendOrigin}/app-version.json`);
+    await other.bringToFront();
+    await waitUntil(async () => !await page.evaluate(() => document.hasFocus()), "live window loses focus");
+    await delay(400);
+    const reads = requests.filter((request) => request.path === "/api/v1/simulator/live").length;
+    const draws = await page.evaluate(() => window.__simulatorDraws);
+    await delay(10_500);
+    assert.equal(requests.filter((request) => request.path === "/api/v1/simulator/live").length, reads, "Inactive live windows must stop querying the backend");
+    assert.equal(await page.evaluate(() => window.__simulatorDraws), draws, "Inactive live windows must stop rendering");
+    await page.bringToFront();
+    await focus.send("Emulation.setFocusEmulationEnabled", { enabled: true });
+    await waitUntil(async () => requests.filter((request) => request.path === "/api/v1/simulator/live").length > reads, "live refresh after focus");
+    await otherFocus.detach(); await focus.detach(); await other.close();
+  });
+  await step("Switch modes and pause training before returning to actual restaurant data", async () => {
+    await click(page.getByRole("combobox", { name: "ภาษา", exact: true }));
+    await click(page.getByRole("option", { name: "English", exact: true }));
+    await click(page.getByRole("button", { name: "Training", exact: true }));
+    await unique(page.getByRole("heading", { name: "Restaurant simulator", exact: true }));
+    if (liveOnly) {
+      await fill(page.getByRole("textbox", { name: "Session name", exact: true }), "Browser operations");
+      await actionClick("start", page.getByRole("button", { name: "Start simulation", exact: true }));
+    } else await click(page.getByRole("button", { name: "Browser operations", exact: true }));
+    await unique(page.getByRole("button", { name: "Pause", exact: true }));
+    await actionClick("pause", page.getByRole("button", { name: "Live restaurant", exact: true }));
+    await unique(page.getByRole("heading", { name: "Live restaurant", exact: true }));
+    assert.equal((await state()).status, "paused");
+    assert.equal(new URL(page.url()).searchParams.get("session_uuid"), null);
+    assert.equal(new URL(page.url()).searchParams.get("mode"), "live");
+  });
+  await liveContext.close();
+  page = trainingPage;
   await step("Verify isolation and browser error safety", async () => {
     const sentinel = await pg.query("SELECT value FROM production_sentinel WHERE id=1");
     assert.equal(sentinel.rows[0].value, "untouched production order/payment/print/stock sentinel");
@@ -553,7 +656,7 @@ try {
     assert.deepEqual(pageErrors, [], "Browser must have no uncaught application errors");
   });
   console.log(JSON.stringify({ passed: true, steps: steps.length, artifacts: artifactDirectory, blocked_external_requests: blockedExternal.length, action_requests: requests.filter((request) => request.action).length }));
-  await writeFile(join(artifactDirectory, "results.json"), JSON.stringify({ passed: true, steps, pageErrors, blockedExternal }, null, 2));
+  await writeFile(join(artifactDirectory, "results.json"), JSON.stringify({ passed: true, scope: liveOnly ? "live" : "full", steps, pageErrors, blockedExternal }, null, 2));
 } catch (error) {
   if (page && !page.isClosed()) {
     await page.screenshot({ path: join(artifactDirectory, "failure.png"), fullPage: true }).catch(() => {});

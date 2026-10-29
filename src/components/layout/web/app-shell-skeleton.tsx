@@ -3,7 +3,6 @@
 import { usePathname } from "next/navigation";
 import { useTranslation } from "react-i18next";
 import { LoadingState } from "@/components/common/loading-state";
-import { Separator } from "@/components/ui/separator";
 import {
   Sidebar,
   SidebarContent,
@@ -88,13 +87,14 @@ export function AppShellSkeleton({ label }: { label?: string }) {
         {!immersive ? (
           <header
             aria-hidden="true"
-            className="app-header sticky top-0 z-40 flex h-(--app-shell-header-height) shrink-0 items-center gap-2 px-4"
+            className="app-header sticky top-0 z-40 grid shrink-0 grid-cols-[auto_auto_minmax(0,1fr)_auto] grid-rows-[4rem_auto] items-center gap-x-1 px-2 pb-2 lg:flex lg:h-(--app-shell-header-height) lg:gap-2 lg:px-4 lg:pb-0"
           >
             <Skeleton className={cn("-ml-1", controlClassName)} />
-            <Separator orientation="vertical" className="data-[orientation=vertical]:h-4" />
             <Skeleton className={controlClassName} />
-            <Skeleton className="h-4 w-40" />
-            <div className="ml-auto flex items-center gap-1">
+            <Skeleton className="h-4 w-full max-w-40" />
+            <Skeleton className="col-span-4 row-start-2 h-11 w-full rounded-xl lg:ml-auto lg:w-64" />
+            <div className="col-start-4 row-start-1 flex items-center gap-1">
+              <Skeleton className={controlClassName} />
               <Skeleton className={controlClassName} />
               <Skeleton className={controlClassName} />
             </div>

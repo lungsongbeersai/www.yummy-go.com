@@ -34,6 +34,7 @@ import {
 import { internalRoute } from "@/lib/routes";
 import { safeInternalRedirect } from "@/lib/safe-internal-redirect";
 import { normalizeLoginEmail } from "@/lib/login-email";
+import { isContractExpiredError } from "@/lib/contract-expiry";
 import { authStoreUuid, type AuthUser, useAuthStore } from "@/stores/auth-store";
 import { usePermissionsSidebarStore } from "@/stores/permissions-sidebar-store";
 import { useToastStore } from "@/stores/toast-store";
@@ -133,6 +134,11 @@ export function LoginClient() {
       // ถ้ามันเสร็จก่อนอีกรอบ) ทำให้บางครั้งอ่าน items ว่างแล้ว fallback ไป "/" ทั้งที่มีสิทธิ์จริง
       showToast({ title: t("auth.welcomeBack"), tone: "success" });
     } catch (error) {
+      if (isContractExpiredError(error)) {
+        setPassword("");
+        router.replace(internalRoute("/subscription-expired"));
+        return;
+      }
       showToast({
         title: t("auth.loginFailed"),
         description: error instanceof Error ? error.message : t("toasts.pleaseTryAgain"),
@@ -270,7 +276,7 @@ export function LoginClient() {
                   <Button
                     type="submit"
                     className="login-submit-button h-12 w-full rounded-xl text-sm font-semibold shadow-lg shadow-primary/20"
-                    disabled={loading}
+                    disabled={!hydrated || loading}
                   >
                     {loading ? <Spinner data-icon="inline-start" /> : null}
                     {loading ? t("auth.signingIn") : t("auth.signIn")}

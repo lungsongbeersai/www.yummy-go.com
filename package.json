@@ -17,6 +17,7 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:simulator:e2e": "node scripts/simulator-browser.e2e.mjs",
+    "test:contract-expiry:e2e": "node scripts/contract-expiry-browser.e2e.mjs",
     "typecheck": "tsc -p tsconfig.json --noEmit --incremental false",
     "lint": "eslint .",
     "electron:build": "tsc -p electron/tsconfig.json",

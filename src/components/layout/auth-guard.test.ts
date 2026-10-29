@@ -13,4 +13,8 @@ describe("unauthenticatedEntryPath", () => {
       "/home?redirect=%2Freport%2Fdaily-sales"
     );
   });
+
+  it.each([true, false])("sends expired contracts directly to renewal instead of the normal %s entry", (nativeApp) => {
+    expect(unauthenticatedEntryPath("/posAll/tables", nativeApp, true)).toBe("/subscription-expired");
+  });
 });

@@ -1,5 +1,23 @@
 # Decisions
 
+## Branch contract expiry applies to every staff branch
+
+- **Date:** 2026-10-29.
+- **Decision:** Own-branch navbar expiry is visible to every store classification and employee role. The backend rejects new staff logins and existing staff JWTs after the branch contract end date in `Asia/Vientiane`. Null contracts remain undated and the end date itself remains usable. Contract management permissions stay PLC-only.
+- **Reason:** The user requested expiry visibility for every branch and automatic sign-out until payment/renewal. The existing live session lookup is the authority, avoiding stale JWT claims or browser-clock decisions. Account activation remains a separate manually managed status so renewal can restore access without reactivating staff accounts.
+- **Renewal:** A public expired page uses existing YummyGo contact channels. No subscription payment gateway exists in the repository; access resumes only after an authorized manager records renewal and the server accepts credentials again.
+- **Scope:** Staff password login and JWT-protected APIs. Public customer QR and socket subscriptions use independent access paths. See `docs/BranchContractExpiry.md` for the contract and verification.
+- **Authorization:** Explicit user request to show expiry to all branches and block sign-in/expire existing sessions until renewal.
+
+## Read-only live restaurant alongside isolated 3D training
+
+- **Date:** 2026-10-29.
+- **Decision:** The simulator window defaults to an authenticated live restaurant view; training remains an explicit separate mode. A dedicated SELECT-only backend read model returns current authorized table and open-order state. Its own Zustand slice has no command actions or browser persistence. Foreground polling every 10 seconds is bounded and cancelled on inactivity, scope changes and teardown.
+- **Reason:** The user requested that orders placed by real customers appear in the 3D restaurant. Combining production orders with the training command model would make data and action boundaries ambiguous. Dedicated reads preserve current branch/zone authorization and keep the existing training workflows isolated.
+- **Alternatives considered:** Existing POS readers have different manager/branch semantics, and the queue reader does not apply assigned-zone filtering. Existing branch Socket.IO subscriptions are unsuitable as the authority for this scoped data. Bounded authenticated polling provides predictable coverage without changing production realtime infrastructure.
+- **Limits:** Illustrative room/people, no physical tracking or fabricated guest count; 400 tables/orders and 4,000 lines per snapshot, visible truncation warning, up to 80 tables in the scene with selection retained. Live view has no order, kitchen, payment, stock or printer writes.
+- **Authorization:** User explicitly requested real customer orders to be mirrored and asked to continue implementation.
+
 ## Online restaurant simulator and browser verification
 
 - **Date:** 2026-10-27.

@@ -160,6 +160,27 @@
   --dash-plate-shadow: 0 24px 48px -28px #000000b3;
 }
 
+/* Restaurant materials are scoped to the 3D workspace, independent of POS themes. */
+.simulator-workspace {
+  --simulator-floor: #eadcc8;
+  --simulator-wood: #b77945;
+  --simulator-plant: #3b8559;
+  --simulator-kitchen: #94a8b4;
+  --simulator-cashier: #31a99a;
+  --simulator-wall: #f5eee4;
+  --simulator-rug: #c98fa9;
+}
+
+.dark .simulator-workspace {
+  --simulator-floor: #414450;
+  --simulator-wood: #bd8c60;
+  --simulator-plant: #55a971;
+  --simulator-kitchen: #8295a8;
+  --simulator-cashier: #3cad9e;
+  --simulator-wall: #343c49;
+  --simulator-rug: #9974aa;
+}
+
 /* ธีมสี accent เลือกได้จากเมนูตั้งค่าการแสดงผลใน header (display-settings-menu) — ค่าเริ่มต้น
    (ไม่ใส่ data-theme-color หรือ ="emerald") ใช้ --primary ของ :root/.dark เดิมตรงๆ
    (เป็นค่า emerald-700/800 ของ Tailwind อยู่แล้ว) ส่วน preset อื่นดึงจากชุดสี
@@ -1642,6 +1663,13 @@ html.theme-transition-active[data-theme-transition-direction="ltr"]::view-transi
 /* Web shell header is sidebar-07's h-16 at every width; Capacitor overrides below. */
 .app-shell {
   --app-shell-header-height: 4rem;
+}
+
+/* Keep expiry details readable when phones or a tablet sidebar constrain navigation. */
+@media (max-width: 1023px) {
+  .app-shell:not([data-platform="capacitor"]) {
+    --app-shell-header-height: 7.25rem;
+  }
 }
 
 /* Swan 1's WebView 101 cannot parse dvh or the individual translate property.
