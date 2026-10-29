@@ -290,11 +290,10 @@ export function LoginClient() {
                   >
                     {t("auth.downloadAppsTitle")}
                   </h2>
-                  <div className="grid gap-2 sm:grid-cols-2">
+                  <div className="grid grid-cols-2 gap-2">
                     <Button
                       asChild
-                      variant="outline"
-                      className="h-12 justify-start rounded-xl border-foreground/15 bg-foreground px-3.5 text-background shadow-sm hover:bg-foreground/90 hover:text-background"
+                      className="h-auto min-h-12 min-w-0 w-full justify-start gap-1 rounded-xl border-primary/20 px-1.5 py-2 shadow-sm shadow-primary/15 hover:bg-primary hover:shadow-md sm:gap-2 sm:px-3.5"
                     >
                       <a
                         href={appVersionConfig.ios.storeUrl}
@@ -302,17 +301,16 @@ export function LoginClient() {
                         rel="noreferrer"
                         aria-label={t("auth.downloadFromAppStore")}
                       >
-                        <AppleIcon className="size-6" />
-                        <span className="flex flex-col items-start leading-none">
-                          <span className="text-[0.625rem] font-normal opacity-80">{t("auth.downloadOn")}</span>
-                          <span className="mt-1 text-sm font-semibold">App Store</span>
+                        <AppleIcon className="size-5 sm:size-6" />
+                        <span className="flex min-w-0 flex-col items-start leading-none">
+                          <span className="max-w-full whitespace-normal break-words text-[0.625rem] font-normal leading-tight">{t("auth.downloadOn")}</span>
+                          <span className="mt-1 max-w-full whitespace-normal break-words text-xs font-semibold leading-tight sm:text-sm">App Store</span>
                         </span>
                       </a>
                     </Button>
                     <Button
                       asChild
-                      variant="outline"
-                      className="h-12 justify-start rounded-xl border-foreground/15 bg-foreground px-3.5 text-background shadow-sm hover:bg-foreground/90 hover:text-background"
+                      className="h-auto min-h-12 min-w-0 w-full justify-start gap-1 rounded-xl border-primary/20 px-1.5 py-2 shadow-sm shadow-primary/15 hover:bg-primary hover:shadow-md sm:gap-2 sm:px-3.5"
                     >
                       <a
                         href={appVersionConfig.android.storeUrl}
@@ -320,10 +318,10 @@ export function LoginClient() {
                         rel="noreferrer"
                         aria-label={t("auth.downloadFromGooglePlay")}
                       >
-                        <GooglePlayIcon className="size-6" />
-                        <span className="flex flex-col items-start leading-none">
-                          <span className="text-[0.625rem] font-normal opacity-80">{t("auth.getItOn")}</span>
-                          <span className="mt-1 text-sm font-semibold">Google Play</span>
+                        <GooglePlayIcon className="size-5 sm:size-6" />
+                        <span className="flex min-w-0 flex-col items-start leading-none">
+                          <span className="max-w-full whitespace-normal break-words text-[0.625rem] font-normal leading-tight">{t("auth.getItOn")}</span>
+                          <span className="mt-1 max-w-full whitespace-normal break-words text-xs font-semibold leading-tight sm:text-sm">Google Play</span>
                         </span>
                       </a>
                     </Button>
