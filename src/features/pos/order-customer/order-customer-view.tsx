@@ -14,6 +14,7 @@ import {
 } from "@/components/ui/empty";
 import { LanguageSwitch } from "@/components/layout/language-switch";
 import { ThemeToggle } from "@/components/layout/theme-toggle";
+import { BranchContractStatus } from "@/components/layout/branch-contract-status";
 import { SimulatorLauncher } from "@/features/simulator/simulator-launcher";
 import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
 import { Spinner } from "@/components/ui/spinner";
@@ -22,6 +23,7 @@ import { useIsCapacitorNativeApp } from "@/hooks/use-capacitor-native-app";
 import { useLandscapeTablet } from "@/hooks/use-landscape-tablet";
 import { cn } from "@/lib/utils";
 import { useNativeHeaderStore } from "@/stores/native-header-store";
+import { useAuthStore } from "@/stores/auth-store";
 import { SelectedTableCartPanel } from "../table-selection/selected-table-cart-panel";
 import { DraftExitWarningDialog } from "./draft-exit-warning-dialog";
 import { productModeLabel } from "./order-customer-utils";
@@ -132,6 +134,7 @@ export function OrderCustomerView({
   } = workflow;
 
   const nativeShellActive = useIsNativeShellActive();
+  const branchName = useAuthStore((state) => state.user?.branch_name);
   const isNativeApp = useIsCapacitorNativeApp();
   const landscapeTablet = useLandscapeTablet();
   const horizontalNativeOrderLayout = nativeShellActive && landscapeTablet;
@@ -436,6 +439,12 @@ export function OrderCustomerView({
               />
             </div>
           ) : null}
+          <div className="relative mt-1 flex min-w-0 flex-col gap-1.5 rounded-lg border border-border bg-card px-2 py-2 text-foreground sm:flex-row sm:items-center sm:justify-between">
+            <p className="min-w-0 truncate text-xs text-muted-foreground">
+              {branchName || t("app.branchContract.currentBranch")}
+            </p>
+            <BranchContractStatus className="w-full sm:w-auto" />
+          </div>
         </header>
 
         <div

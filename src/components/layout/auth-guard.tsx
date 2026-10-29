@@ -11,7 +11,8 @@ import { internalRoute } from "@/lib/routes";
 import { useIsCapacitorNativeApp } from "@/hooks/use-capacitor-native-app";
 import { useAuthStore } from "@/stores/auth-store";
 
-export function unauthenticatedEntryPath(pathname: string, nativeApp: boolean) {
+export function unauthenticatedEntryPath(pathname: string, nativeApp: boolean, contractExpired = false) {
+  if (contractExpired) return "/subscription-expired";
   const entryPath = nativeApp ? "/login" : "/home";
   return `${entryPath}?redirect=${encodeURIComponent(pathname)}`;
 }
@@ -22,6 +23,7 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const hydrated = useAuthStore((state) => state.hydrated);
   const isLoggedIn = useAuthStore((state) => state.isLoggedIn);
+  const contractExpiry = useAuthStore((state) => state.contractExpiry);
   const token = useAuthStore((state) => state.token);
   const validateSession = useAuthStore((state) => state.validateSession);
   const isNativeApp = useIsCapacitorNativeApp();
@@ -31,9 +33,9 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
     if (!hydrated) return;
     if (!isLoggedIn) {
       // Native app ต้องเปิดฟังก์ชัน POS ให้ผู้ตรวจ/พนักงานเข้าถึงตรง ๆ; หน้าแนะนำบริษัทยังคงใช้บนเว็บ
-      router.replace(internalRoute(unauthenticatedEntryPath(pathname, isCapacitorNativeApp())));
+      router.replace(internalRoute(unauthenticatedEntryPath(pathname, isCapacitorNativeApp(), Boolean(contractExpiry))));
     }
-  }, [hydrated, isLoggedIn, pathname, router]);
+  }, [hydrated, isLoggedIn, pathname, router, contractExpiry]);
 
   useEffect(() => {
     if (!hydrated || !isLoggedIn || !token) {

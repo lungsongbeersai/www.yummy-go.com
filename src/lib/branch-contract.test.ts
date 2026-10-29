@@ -39,14 +39,31 @@ describe("current branch navbar contract", () => {
       .toEqual({ endOn: "2027-01-12", daysRemaining, tone });
   });
 
-  it("requires known branch dates and hides contract metadata for non-PLC accounts", () => {
+  it.each([1, 2, 3, "1", "2", "3"])("shows the signed-in branch expiry for store classification %s and all employee roles", (store_status) => {
+    for (const status of [1, 2, 3, 4, 5]) {
+      expect(currentBranchContractStatus({ ...ownBranch, store_status, status, contract_days_remaining: 12 }))
+        .toEqual({ endOn: "2027-01-12", daysRemaining: 12, tone: "warning" });
+    }
+  });
+
+  it("requires an authenticated branch and valid date/count metadata", () => {
     const branch = { ...ownBranch, contract_days_remaining: 12 };
-    for (const user of [null, { ...branch, store_status: 2 }, { ...branch, store_status: 3 },
-      { ...branch, branch_uuid: "" }, { ...branch, contract_end_on: null },
+    for (const user of [null, { ...branch, branch_uuid: "" }, { ...branch, branch_uuid: "  " },
       { ...branch, contract_end_on: "2026-02-30" }, { ...branch, contract_days_remaining: null },
       { ...branch, contract_days_remaining: NaN }, { ...branch, contract_days_remaining: 1.5 }]) {
       expect(currentBranchContractStatus(user)).toBeNull();
     }
+  });
+
+  it("shows an undated branch honestly without fabricating remaining days or an expiry", () => {
+    for (const store_status of [1, 2, 3]) {
+      for (const contract_end_on of [null, undefined]) {
+        expect(currentBranchContractStatus({ ...ownBranch, store_status, contract_end_on, contract_days_remaining: null }))
+          .toEqual({ endOn: null, daysRemaining: null, tone: "unknown" });
+      }
+    }
+    expect(currentBranchContractStatus({ branch_uuid: "signed-in-branch" }))
+      .toEqual({ endOn: null, daysRemaining: null, tone: "unknown" });
   });
 
   it("formats a contract date without moving it to the previous day in western timezones", () => {

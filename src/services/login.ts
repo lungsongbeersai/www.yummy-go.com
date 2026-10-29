@@ -1,3 +1,4 @@
+import axios from "axios";
 import { apiRequest, publicApiClient, ServiceError } from "@/lib/api";
 import { normalizeLoginEmail } from "@/lib/login-email";
 import type { AuthUser, AuthZone } from "@/stores/auth-store";
@@ -56,7 +57,7 @@ const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 function mapLoginResponse(data: LoginApiResponse): LoginResult {
   if (data.status !== "success" || !data.token) {
-    throw new ServiceError(data.message || "Login failed", 401);
+    throw new ServiceError(data.message || "Login failed", 401, undefined, data);
   }
   return {
     token: data.token,
@@ -84,10 +85,8 @@ function mapLoginResponse(data: LoginApiResponse): LoginResult {
       store_name: data.store_name ?? "",
       store_logo: data.store_logo ?? "",
       store_status: [1, 2, 3].includes(Number(data.store_status)) ? Number(data.store_status) : 2,
-      ...(Number(data.store_status) === 1 ? {
-        contract_end_on: data.contract_end_on ?? null,
-        contract_days_remaining: data.contract_days_remaining ?? null,
-      } : {}),
+      contract_end_on: data.contract_end_on ?? null,
+      contract_days_remaining: data.contract_days_remaining ?? null,
       store_table_status: Number(data.store_table_status) === 2 ? 2 : 1,
       lak_rounding_version: Number(data.lak_rounding_version) === 2 ? 2 : 1,
       deposit_expire_days: data.deposit_expire_days ?? null,
@@ -102,12 +101,22 @@ export async function checkLogin(login_email: string, login_password: string): P
   if (!login_password.trim()) throw new ServiceError("Password is required", 400);
   if (!EMAIL_RE.test(normalizedEmail)) throw new ServiceError("Invalid email", 400);
 
-  const response = await publicApiClient.post<LoginApiResponse>(
-    "/api/v1/login/check_login",
-    { login_email: normalizedEmail, login_password },
-    { timeout: 8000 },
-  );
-  return mapLoginResponse(response.data);
+  try {
+    const response = await publicApiClient.post<LoginApiResponse>(
+      "/api/v1/login/check_login",
+      { login_email: normalizedEmail, login_password },
+      { timeout: 8000 },
+    );
+    return mapLoginResponse(response.data);
+  } catch (error) {
+    if (axios.isAxiosError(error) && error.response) {
+      const data: unknown = error.response.data;
+      const message = data !== null && typeof data === "object" && "message" in data && typeof data.message === "string"
+        ? data.message : "Login failed";
+      throw new ServiceError(message, error.response.status, error, data);
+    }
+    throw error;
+  }
 }
 
 export function validateLoginSession() {

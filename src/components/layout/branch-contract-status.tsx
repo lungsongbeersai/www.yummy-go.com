@@ -21,41 +21,68 @@ export function BranchContractStatus({ className, compact = false }: BranchContr
   const contract = currentBranchContractStatus(user);
   if (!contract) return null;
 
-  const date = contractDateLabel(contract.endOn, i18n.resolvedLanguage || i18n.language);
+  const date = contract.endOn === null ? t("app.branchContract.expiryNotSet")
+    : contractDateLabel(contract.endOn, i18n.resolvedLanguage || i18n.language);
   const branchName = user?.branch_name || t("app.branchContract.currentBranch");
-  const status = contract.daysRemaining === 0 ? t("app.branchContract.dueToday")
+  const status = contract.daysRemaining === null ? t("app.branchContract.expiryNotSet")
+    : contract.daysRemaining === 0 ? t("app.branchContract.dueToday")
     : contract.daysRemaining < 0
       ? t("app.branchContract.daysOverdue", { count: Math.abs(contract.daysRemaining) })
       : t("app.branchContract.daysRemaining", { count: contract.daysRemaining });
-  const label = t("app.branchContract.details", { branch: branchName, date, status });
-  const Icon = contract.tone === "normal" ? CalendarClock : TriangleAlert;
+  const label = contract.daysRemaining === null ? t("app.branchContract.unknownDetails", { branch: branchName })
+    : t("app.branchContract.details", { branch: branchName, date, status });
+  const Icon = contract.tone === "warning" || contract.tone === "expired" ? TriangleAlert : CalendarClock;
+  const statusClassName = cn(
+    contract.tone === "normal" && "bg-primary text-primary-foreground",
+    contract.tone === "warning" && "bg-warning-text text-warning-foreground dark:bg-warning",
+    contract.tone === "expired" && "bg-destructive text-destructive-foreground dark:bg-destructive/15 dark:text-destructive",
+    contract.tone === "unknown" && "bg-secondary text-secondary-foreground"
+  );
 
   return (
     <Popover>
       <PopoverTrigger asChild>
         <Button
           type="button"
-          variant="outline"
+          variant="secondary"
           aria-label={label}
           data-testid="branch-contract-status"
           data-contract-tone={contract.tone}
           className={cn(
-            "size-11 flex-col gap-0.5 p-0 tabular-nums",
-            compact ? "sm:size-9" : "sm:h-9 sm:w-auto sm:flex-row sm:gap-1.5 sm:px-2",
-            contract.tone === "normal" && "border-secondary bg-secondary text-secondary-foreground hover:bg-secondary/90 hover:text-secondary-foreground",
-            contract.tone === "warning" && "border-warning/40 bg-background text-warning-text hover:bg-background hover:text-warning-text",
-            contract.tone === "expired" && "border-destructive/40 bg-background text-destructive hover:bg-background hover:text-destructive",
+            "h-11 min-w-0 gap-2 rounded-xl border bg-secondary px-2 text-secondary-foreground shadow-sm tabular-nums",
+            "hover:bg-secondary hover:text-secondary-foreground aria-expanded:bg-secondary aria-expanded:text-secondary-foreground",
+            compact ? "size-12 flex-col gap-0 p-1" : "w-auto justify-start",
+            contract.tone === "normal" && "border-primary/30",
+            contract.tone === "unknown" && "border-secondary-foreground/20",
+            contract.tone === "warning" && "border-warning/60",
+            contract.tone === "expired" && "border-destructive/60",
+            compact && statusClassName,
             className
           )}
         >
-          <Icon aria-hidden className="size-3.5" />
-          <span aria-hidden className={cn("max-w-full truncate text-xs leading-none", !compact && "sm:hidden")}>
-            {Math.abs(contract.daysRemaining).toLocaleString("en-US")}
-          </span>
-          {!compact ? <>
-            <time aria-hidden dateTime={contract.endOn} className="hidden sm:inline">{date}</time>
-            <span aria-hidden className="hidden border-l border-current/25 pl-1.5 lg:inline">{status}</span>
-          </> : null}
+          {compact ? <>
+            {contract.daysRemaining === null || contract.daysRemaining === 0
+              ? <Icon aria-hidden className="size-4" />
+              : <span aria-hidden className="max-w-full truncate text-base font-bold leading-tight">{contract.daysRemaining.toLocaleString("en-US")}</span>}
+            <span aria-hidden className="max-w-full truncate text-[10px] leading-tight">
+              {contract.daysRemaining === null ? t("app.branchContract.noDateShort")
+                : contract.daysRemaining === 0 ? t("app.branchContract.todayShort")
+                : contract.daysRemaining < 0 ? t("app.branchContract.overdueShort") : t("app.branchContract.daysShort")}
+            </span>
+          </> : <>
+            <span aria-hidden className={cn("grid size-8 shrink-0 place-items-center rounded-lg", statusClassName)}>
+              <Icon className="size-4" />
+            </span>
+            <span aria-hidden className="flex min-w-0 flex-col items-start gap-0.5 text-left leading-tight">
+              <span className="w-full truncate text-[10px] font-medium text-secondary-foreground/75">{t("app.branchContract.subscription")}</span>
+              {contract.endOn === null
+                ? <span className="max-w-full truncate text-xs font-semibold">{date}</span>
+                : <time dateTime={contract.endOn} className="text-xs font-semibold">{date}</time>}
+            </span>
+            {contract.daysRemaining !== null && <span aria-hidden className={cn(
+              "ml-auto rounded-lg px-2 py-1.5 text-xs font-semibold leading-tight", statusClassName
+            )}>{status}</span>}
+          </>}
         </Button>
       </PopoverTrigger>
       <PopoverContent align="end" side="bottom" aria-labelledby={titleId} className="max-w-[calc(100vw-2rem)] gap-3 p-4">
@@ -65,13 +92,10 @@ export function BranchContractStatus({ className, compact = false }: BranchContr
         </PopoverHeader>
         <div className="flex flex-col gap-1">
           <span className="text-muted-foreground">{t("app.branchContract.endDate")}</span>
-          <time dateTime={contract.endOn} className="text-sm font-medium tabular-nums">{date}</time>
-          <span className={cn(
-            "font-medium tabular-nums",
-            contract.tone === "normal" && "text-muted-foreground",
-            contract.tone === "warning" && "text-warning-text",
-            contract.tone === "expired" && "text-destructive"
-          )}>{status}</span>
+          {contract.endOn === null
+            ? <span className="text-sm font-medium">{date}</span>
+            : <time dateTime={contract.endOn} className="text-sm font-medium tabular-nums">{date}</time>}
+          {contract.daysRemaining !== null && <span className={cn("mt-2 w-fit rounded-lg px-3 py-2 font-semibold tabular-nums", statusClassName)}>{status}</span>}
         </div>
       </PopoverContent>
     </Popover>

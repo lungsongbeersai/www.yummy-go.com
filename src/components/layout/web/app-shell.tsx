@@ -147,7 +147,7 @@ function AppHeader({ breadcrumbs }: { breadcrumbs: BreadcrumbTrailItem[] }) {
   const controlClassName = "size-11 sm:size-9";
 
   return (
-    <header className="app-header sticky top-0 z-40 flex h-(--app-shell-header-height) shrink-0 items-center gap-1 px-2 sm:gap-2 sm:px-4">
+    <header className="app-header sticky top-0 z-40 grid shrink-0 grid-cols-[auto_auto_minmax(0,1fr)_auto] grid-rows-[4rem_auto] items-center gap-x-1 px-2 pb-2 lg:flex lg:h-(--app-shell-header-height) lg:gap-2 lg:px-4 lg:pb-0">
       <Tooltip>
         <TooltipTrigger asChild>
           <SidebarTrigger aria-label={t("app.toggleSidebar")} className={cn("-ml-1", controlClassName)} />
@@ -155,7 +155,6 @@ function AppHeader({ breadcrumbs }: { breadcrumbs: BreadcrumbTrailItem[] }) {
         {/* The shadcn sidebar already binds Ctrl/Cmd+B; surface it for keyboard-heavy cashiers. */}
         <TooltipContent side="bottom">{t("app.toggleSidebar")} (Ctrl+B)</TooltipContent>
       </Tooltip>
-      {/* <Separator orientation="vertical" className="data-[orientation=vertical]:h-4" /> */}
       <Tooltip>
         <TooltipTrigger asChild>
           <Button
@@ -173,8 +172,8 @@ function AppHeader({ breadcrumbs }: { breadcrumbs: BreadcrumbTrailItem[] }) {
       </Tooltip>
       <span className="min-w-0 truncate font-medium lg:hidden">{pageTitle}</span>
       <AppBreadcrumb breadcrumbs={breadcrumbs} />
-      <div className="ml-auto flex shrink-0 items-center gap-1">
-        <BranchContractStatus />
+      <BranchContractStatus className="col-span-4 row-start-2 w-full lg:ml-auto lg:w-auto" />
+      <div className="col-start-4 row-start-1 flex shrink-0 items-center gap-1">
         <LanguageSwitch compact size="icon" className={controlClassName} />
         <NotificationMenu triggerClassName={controlClassName} />
         <DisplaySettingsMenu className={controlClassName} />

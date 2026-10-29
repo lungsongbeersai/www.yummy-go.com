@@ -17,15 +17,26 @@ export interface CurrentBranchContractStatus {
   tone: "normal" | "warning" | "expired";
 }
 
+export interface UnknownCurrentBranchContractStatus {
+  endOn: null;
+  daysRemaining: null;
+  tone: "unknown";
+}
+
 function isContractCalendarDate(value: unknown): value is string {
   if (typeof value !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(value) || value.startsWith("0000-")) return false;
   const date = new Date(`${value}T00:00:00Z`);
   return Number.isFinite(date.getTime()) && date.toISOString().slice(0, 10) === value;
 }
 
-export function currentBranchContractStatus(user?: CurrentBranchContractViewer | null): CurrentBranchContractStatus | null {
-  if (!canViewBranchContractPackage(user) || typeof user?.branch_uuid !== "string" || !user.branch_uuid.trim() ||
-    !isContractCalendarDate(user.contract_end_on) || typeof user.contract_days_remaining !== "number" ||
+export function currentBranchContractStatus(user?: CurrentBranchContractViewer | null): CurrentBranchContractStatus | UnknownCurrentBranchContractStatus | null {
+  // Every authenticated branch can see its own expiry. Contract editing and
+  // customer package management retain their separate PLC permission checks.
+  if (typeof user?.branch_uuid !== "string" || !user.branch_uuid.trim()) return null;
+  if (user.contract_end_on === null || user.contract_end_on === undefined) {
+    return { endOn: null, daysRemaining: null, tone: "unknown" };
+  }
+  if (!isContractCalendarDate(user.contract_end_on) || typeof user.contract_days_remaining !== "number" ||
     !Number.isSafeInteger(user.contract_days_remaining)) return null;
   const daysRemaining = user.contract_days_remaining;
   return {

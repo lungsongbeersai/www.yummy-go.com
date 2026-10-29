@@ -1665,6 +1665,13 @@ html.theme-transition-active[data-theme-transition-direction="ltr"]::view-transi
   --app-shell-header-height: 4rem;
 }
 
+/* Keep expiry details readable when phones or a tablet sidebar constrain navigation. */
+@media (max-width: 1023px) {
+  .app-shell:not([data-platform="capacitor"]) {
+    --app-shell-header-height: 7.25rem;
+  }
+}
+
 /* Swan 1's WebView 101 cannot parse dvh or the individual translate property.
    Keep fixed screens bounded so their inner scroll areas work, and keep the
    keyboard skip link offscreen until focused without changing newer devices. */

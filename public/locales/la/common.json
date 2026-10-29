@@ -210,11 +210,18 @@
     "branchContract": {
       "title": "ສັນຍາຂອງສາຂາທີ່ໃຊ້ງານ",
       "currentBranch": "ສາຂາທີ່ໃຊ້ງານ",
+      "subscription": "ວັນໝົດອາຍຸໃຊ້ງານລະບົບ",
+      "daysShort": "ວັນທີ່ເຫຼືອ",
+      "overdueShort": "ເກີນກຳນົດ",
+      "todayShort": "ມື້ນີ້",
+      "noDateShort": "ບໍ່ກຳນົດ",
       "endDate": "ວັນໝົດສັນຍາ",
       "dueToday": "ໝົດສັນຍາມື້ນີ້",
       "daysRemaining": "ເຫຼືອ {{count}} ວັນ",
       "daysOverdue": "ເກີນກຳນົດ {{count}} ວັນ",
-      "details": "{{branch}} — ໝົດສັນຍາ {{date}} — {{status}}"
+      "details": "{{branch}} — ໝົດສັນຍາ {{date}} — {{status}}",
+      "expiryNotSet": "ຍັງບໍ່ກຳນົດວັນໝົດສັນຍາ",
+      "unknownDetails": "{{branch}} — ຍັງບໍ່ກຳນົດວັນໝົດສັນຍາ"
     },
     "appearance": {
       "openSettings": "ຕັ້ງຄ່າການສະແດງຜົນ",
@@ -291,7 +298,16 @@
     "welcomeBack": "YummyGo ຍິນດີຕ້ອນຮັບ",
     "orContinueWith": "ຫຼືເຂົ້າລະບົບດ້ວຍ",
     "loginWith": "ເຂົ້າລະບົບດ້ວຍ {{provider}}",
-    "agreeToPolicy": "ການເຂົ້າລະບົບຖືວ່າທ່ານຍອມຮັບ"
+    "agreeToPolicy": "ການເຂົ້າລະບົບຖືວ່າທ່ານຍອມຮັບ",
+    "contractExpired": {
+      "title": "ສັນຍາຂອງສາຂາໝົດອາຍຸແລ້ວ",
+      "description": "ໄລຍະໃຊ້ບໍລິການຂອງສາຂາໝົດແລ້ວ ພະນັກງານບໍ່ສາມາດເຂົ້າລະບົບໄດ້ຈົນກວ່າຈະຕໍ່ອາຍຸ",
+      "endDate": "ວັນໝົດອາຍຸ",
+      "paymentHelp": "ກະລຸນາຕິດຕໍ່ YummyGo ເພື່ອຊຳລະເງິນແລະຕໍ່ອາຍຸສາຂາ ຫຼັງຈາກຢືນຢັນການຕໍ່ອາຍຸແລ້ວ ໃຫ້ເຂົ້າລະບົບອີກຄັ້ງ",
+      "contact": "ຕິດຕໍ່ YummyGo ເພື່ອຕໍ່ອາຍຸ",
+      "call": "ໂທຫາ YummyGo",
+      "retry": "ເຂົ້າລະບົບຫຼັງຕໍ່ອາຍຸ"
+    }
   },
   "common": {
     "active": "ໃຊ້ງານ",

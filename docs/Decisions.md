@@ -1,5 +1,14 @@
 # Decisions
 
+## Branch contract expiry applies to every staff branch
+
+- **Date:** 2026-10-29.
+- **Decision:** Own-branch navbar expiry is visible to every store classification and employee role. The backend rejects new staff logins and existing staff JWTs after the branch contract end date in `Asia/Vientiane`. Null contracts remain undated and the end date itself remains usable. Contract management permissions stay PLC-only.
+- **Reason:** The user requested expiry visibility for every branch and automatic sign-out until payment/renewal. The existing live session lookup is the authority, avoiding stale JWT claims or browser-clock decisions. Account activation remains a separate manually managed status so renewal can restore access without reactivating staff accounts.
+- **Renewal:** A public expired page uses existing YummyGo contact channels. No subscription payment gateway exists in the repository; access resumes only after an authorized manager records renewal and the server accepts credentials again.
+- **Scope:** Staff password login and JWT-protected APIs. Public customer QR and socket subscriptions use independent access paths. See `docs/BranchContractExpiry.md` for the contract and verification.
+- **Authorization:** Explicit user request to show expiry to all branches and block sign-in/expire existing sessions until renewal.
+
 ## Read-only live restaurant alongside isolated 3D training
 
 - **Date:** 2026-10-29.
