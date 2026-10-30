@@ -307,7 +307,11 @@ try {
     assert((await badge.getAttribute("aria-label")).includes("20"));
     await expiry(branchB, null);
     await page.reload({ waitUntil: "domcontentloaded" });
-    await unique(page.getByTestId("branch-contract-status").getByText("Expiry not set", { exact: true }));
+    const undated = await unique(page.getByTestId("branch-contract-status"));
+    assert.equal(await undated.getAttribute("data-contract-tone"), "unknown");
+    await click(undated);
+    await unique(page.getByRole("dialog", { name: "Current branch contract", exact: true }).getByText("Expiry not set", { exact: true }));
+    await page.keyboard.press("Escape");
     await expiry(branchB, 20);
   });
   await step("Shared dashboard navbar visibly shows own expiry across mobile, Lao and color themes", sharedNavbarMatrix);

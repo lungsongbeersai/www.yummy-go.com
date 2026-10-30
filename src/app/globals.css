@@ -160,25 +160,33 @@
   --dash-plate-shadow: 0 24px 48px -28px #000000b3;
 }
 
-/* Restaurant materials are scoped to the 3D workspace, independent of POS themes. */
+/* Keep the restaurant workspace green and its materials independent of POS themes. */
 .simulator-workspace {
-  --simulator-floor: #eadcc8;
-  --simulator-wood: #b77945;
-  --simulator-plant: #3b8559;
-  --simulator-kitchen: #94a8b4;
-  --simulator-cashier: #31a99a;
-  --simulator-wall: #f5eee4;
-  --simulator-rug: #c98fa9;
+  --primary: #176b4b;
+  --primary-foreground: #ffffff;
+  --primary-text: #176b4b;
+  --ring: #176b4b;
+  --simulator-floor: #e7e4d9;
+  --simulator-wood: #b9a17c;
+  --simulator-plant: #486b4b;
+  --simulator-kitchen: #a9b6b1;
+  --simulator-cashier: #748b77;
+  --simulator-wall: #f7f7f0;
+  --simulator-rug: #d8ded2;
 }
 
 .dark .simulator-workspace {
-  --simulator-floor: #414450;
-  --simulator-wood: #bd8c60;
-  --simulator-plant: #55a971;
-  --simulator-kitchen: #8295a8;
-  --simulator-cashier: #3cad9e;
-  --simulator-wall: #343c49;
-  --simulator-rug: #9974aa;
+  --primary: #216b4e;
+  --primary-foreground: #ffffff;
+  --primary-text: #8ed7b4;
+  --ring: #8ed7b4;
+  --simulator-floor: #41483f;
+  --simulator-wood: #a38d6b;
+  --simulator-plant: #719771;
+  --simulator-kitchen: #7f9187;
+  --simulator-cashier: #7b9882;
+  --simulator-wall: #34413a;
+  --simulator-rug: #4d5b4c;
 }
 
 /* ธีมสี accent เลือกได้จากเมนูตั้งค่าการแสดงผลใน header (display-settings-menu) — ค่าเริ่มต้น

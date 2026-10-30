@@ -2,6 +2,9 @@ import { simulatorI18n } from "./i18n";
 
 const resources = {
   en: {
+    floorPlan: "Floor plan", floorPlanHelp: "Tables and service areas at a glance", searchTables: "Search tables...", noMatchingTables: "No matching tables",
+    tableDetails: "Table details", tableOverview: "Table overview", shownTables: "Showing {{shown}} of {{total}} tables", openBill: "Open bill", selectedTable: "Selected table",
+    orderItems: "Order items", selectTableHelp: "Select a table on the floor plan or from the list", viewOrder: "View order", kitchenCount: "{{count}} items", live: "Live", zoneLabel: "Zone", orderReference: "Bill reference",
     sceneLimit: "3D displays {{shown}} of {{total}} tables. Select any table from the full list to view it.",
     title: "Live restaurant", readOnly: "Read only", help: "Actual table and order data from this branch. Updates every 10 seconds while this window is active.",
     branch: "Branch", language: "Language", close: "Close", refresh: "Refresh now", online: "Connected", disconnected: "Connection lost",
@@ -16,6 +19,9 @@ const resources = {
     kitchen: "Actual kitchen items", noKitchen: "No items currently sent to the kitchen", readonlyHelp: "Manage orders, payments and kitchen work in the main POS.",
   },
   th: {
+    floorPlan: "ผังร้าน", floorPlanHelp: "ภาพรวมโต๊ะและพื้นที่ให้บริการ", searchTables: "ค้นหาโต๊ะ...", noMatchingTables: "ไม่พบโต๊ะที่ค้นหา",
+    tableDetails: "รายละเอียดโต๊ะ", tableOverview: "ภาพรวมโต๊ะ", shownTables: "แสดง {{shown}} จาก {{total}} โต๊ะ", openBill: "เปิดบิล", selectedTable: "โต๊ะที่เลือก",
+    orderItems: "รายการอาหาร", selectTableHelp: "เลือกโต๊ะจากผังร้านหรือรายการด้านซ้าย", viewOrder: "ดูรายการ", kitchenCount: "{{count}} รายการ", live: "สด", zoneLabel: "โซน", orderReference: "เลขที่บิล",
     sceneLimit: "ภาพ 3D แสดง {{shown}} จาก {{total}} โต๊ะ เลือกโต๊ะจากรายการทั้งหมดเพื่อแสดงในฉากได้",
     title: "ร้านจริง", readOnly: "ดูข้อมูลอย่างเดียว", help: "โต๊ะและออเดอร์จริงของสาขานี้ อัปเดตทุก 10 วินาทีขณะใช้งานหน้าต่างนี้",
     branch: "สาขา", language: "ภาษา", close: "ปิด", refresh: "อัปเดตตอนนี้", online: "เชื่อมต่อแล้ว", disconnected: "ขาดการเชื่อมต่อ",
@@ -30,6 +36,9 @@ const resources = {
     kitchen: "รายการครัวจริง", noKitchen: "ไม่มีรายการที่ส่งเข้าครัวอยู่", readonlyHelp: "จัดการออเดอร์ ชำระเงิน และงานครัวผ่าน POS หลัก",
   },
   la: {
+    floorPlan: "ຜັງຮ້ານ", floorPlanHelp: "ພາບລວມໂຕະແລະພື້ນທີ່ໃຫ້ບໍລິການ", searchTables: "ຄົ້ນຫາໂຕະ...", noMatchingTables: "ບໍ່ພົບໂຕະທີ່ຄົ້ນຫາ",
+    tableDetails: "ລາຍລະອຽດໂຕະ", tableOverview: "ພາບລວມໂຕະ", shownTables: "ສະແດງ {{shown}} ຈາກ {{total}} ໂຕະ", openBill: "ເປີດບິນ", selectedTable: "ໂຕະທີ່ເລືອກ",
+    orderItems: "ລາຍການອາຫານ", selectTableHelp: "ເລືອກໂຕະຈາກຜັງຮ້ານຫຼືລາຍການດ້ານຊ້າຍ", viewOrder: "ເບິ່ງລາຍການ", kitchenCount: "{{count}} ລາຍການ", live: "ສົດ", zoneLabel: "ໂຊນ", orderReference: "ເລກທີບິນ",
     sceneLimit: "ພາບ 3D ສະແດງ {{shown}} ຈາກ {{total}} ໂຕະ ເລືອກໂຕະຈາກລາຍການທັງໝົດເພື່ອສະແດງໃນສາກໄດ້",
     title: "ຮ້ານຈິງ", readOnly: "ເບິ່ງຂໍ້ມູນເທົ່ານັ້ນ", help: "ໂຕະແລະອໍເດີຈິງຂອງສາຂານີ້ ອັບເດດທຸກ 10 ວິນາທີເມື່ອໃຊ້ໜ້າຕ່າງນີ້",
     branch: "ສາຂາ", language: "ພາສາ", close: "ປິດ", refresh: "ອັບເດດຕອນນີ້", online: "ເຊື່ອມຕໍ່ແລ້ວ", disconnected: "ຂາດການເຊື່ອມຕໍ່",
