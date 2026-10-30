@@ -52,6 +52,13 @@ describe("validateDepositCreate", () => {
     items: [{ proDetailUuid: "detail-1", qty: 1 }]
   };
 
+  it("accepts thousandths without rounding an invalid over-precision amount", () => {
+    expect(validateDepositCreate({ ...base, items: [{ proDetailUuid: "detail-1", qty: 0.001 }] })).toBeNull();
+    for (const qty of [0.0001, 1.2345, Infinity, 100000000000]) {
+      expect(validateDepositCreate({ ...base, items: [{ proDetailUuid: "detail-1", qty }] })).toBe("qtyInvalid");
+    }
+  });
+
   it("requires a customer and at least one item", () => {
     expect(validateDepositCreate({ ...base, customerUuid: "" })).toBe("customerRequired");
     expect(validateDepositCreate({ ...base, items: [] })).toBe("itemsRequired");

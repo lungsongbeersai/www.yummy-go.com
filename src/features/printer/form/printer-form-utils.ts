@@ -84,7 +84,7 @@ export function printerRoleKind(roleCode: string): PrinterRoleKind {
   if (roleCode.startsWith("k-")) return "kitchen";
   if (roleCode.startsWith("b-")) return "bar";
   if (roleCode.startsWith("q-")) return "qr";
-  if (roleCode === "invoice" || roleCode === "receipt") return "bill";
+  if (roleCode === "invoice" || roleCode === "receipt" || roleCode === "deposit") return "bill";
   if (roleCode === "report") return "report";
   return "other";
 }

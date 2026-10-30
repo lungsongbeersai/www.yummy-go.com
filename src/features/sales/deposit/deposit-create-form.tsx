@@ -1,594 +1,181 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { useResetOnChange } from "@/hooks/use-reset-on-change";
-import {
-  CalendarClock,
-  CalendarDays,
-  Check,
-  ChevronsUpDown,
-  ClipboardList,
-  Info,
-  UserPlus,
-  UserRound
-} from "lucide-react";
+import { PackageOpen, Printer, RefreshCw } from "lucide-react";
 import { useTranslation } from "react-i18next";
-import {
-  AlertDialog,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle
-} from "@/components/ui/alert-dialog";
-import { Badge } from "@/components/ui/badge";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { AlertDialog, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
-import {
-  Command,
-  CommandEmpty,
-  CommandGroup,
-  CommandInput,
-  CommandItem,
-  CommandList
-} from "@/components/ui/command";
 import { DialogFooter } from "@/components/ui/dialog";
-import { Field, FieldDescription, FieldLabel, FieldLegend, FieldSet } from "@/components/ui/field";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { Spinner } from "@/components/ui/spinner";
+import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@/components/ui/empty";
+import { Label } from "@/components/ui/label";
+import { Skeleton } from "@/components/ui/skeleton";
 import { Textarea } from "@/components/ui/textarea";
-import { CustomerFormDialog } from "@/features/settings/customer/customer-form-dialog";
-import { customerFormInput } from "@/features/settings/customer/customer-utils";
-import {
-  cartItemDisplayName,
-  cartItemName,
-  cartItemQty,
-  cartItemStatus,
-  isCanceledCartItem,
-  optionalString
-} from "@/features/pos/table-selection/utils";
+import { useResetOnChange } from "@/hooks/use-reset-on-change";
 import { cn } from "@/lib/utils";
 import type { Customer } from "@/services/customer";
 import type { CartItem } from "@/services/pos";
 import { useAppStore } from "@/stores/app-store";
-import { authStoreUuid, useAuthStore } from "@/stores/auth-store";
-import { useCustomerStore } from "@/stores/customer-store";
+import { useAuthStore } from "@/stores/auth-store";
 import { useDepositStore } from "@/stores/deposit-store";
 import { useToastStore } from "@/stores/toast-store";
+import { DepositCustomerPicker } from "./components/deposit-customer-picker";
+import { depositableOrderItems, formatDepositDate, formatDepositQuantity } from "./deposit-order-items";
 import { DepositQtyStepper } from "./deposit-qty-stepper";
-import {
-  depositDateSchedule,
-  depositedQuantityByProduct,
-  remainingDepositQuantity,
-  toDepositQtyInput,
-  validateDepositCreate
-} from "./deposit-utils";
+import { depositDateSchedule, depositedQuantityByProduct, toDepositQtyInput, validateDepositCreate } from "./deposit-utils";
 
-const SEARCH_DEBOUNCE_MS = 300;
-const PICKER_LIMIT = 20;
-
-function customerUuidOf(customer: Customer) {
-  return String(customer.customer_uuid ?? "").trim();
-}
-
-function customerLabel(customer: Customer) {
-  return customer.customer_phone
-    ? `${customer.customer_name || "-"} · ${customer.customer_phone}`
-    : customer.customer_name || "-";
-}
-
-interface DepositableItem {
-  key: string;
-  proDetailUuid: string;
-  name: string;
-  orderedQty: number;
-  availableQty: number;
-}
-
-function depositableItems(
-  orderItems: CartItem[],
-  depositedQtyByProduct: ReadonlyMap<string, number>
-): DepositableItem[] {
-  const items = new Map<string, Omit<DepositableItem, "availableQty">>();
-  for (const item of orderItems) {
-    if (isCanceledCartItem(item)) continue;
-    if (![1, 2, 3, 4].includes(cartItemStatus(item) ?? -1)) continue;
-    // ฝากได้เฉพาะสินค้าที่ตัดสต๊อกจริง (เช่นขวดเครื่องดื่ม) ไม่ใช่รายการอาหารปรุงสด
-    if (Number(item.pro_detail_stock ?? 1) !== 1) continue;
-    const proDetailUuid = optionalString(item.pro_detail_uuid, item.pro_detail_uuid_fk);
-    const key = proDetailUuid;
-    if (!proDetailUuid || !key) continue;
-    const sizeName = optionalString(item.detail?.size_name);
-    const existing = items.get(proDetailUuid);
-    if (existing) {
-      existing.orderedQty += cartItemQty(item);
-    } else {
-      items.set(proDetailUuid, {
-        key,
-        proDetailUuid,
-        name: cartItemDisplayName(cartItemName(item), sizeName),
-        orderedQty: cartItemQty(item)
-      });
-    }
-  }
-
-  return [...items.values()]
-    .map((item) => ({
-      ...item,
-      availableQty: remainingDepositQuantity(
-        item.orderedQty,
-        depositedQtyByProduct.get(item.proDetailUuid) ?? 0
-      )
-    }))
-    .filter((item) => item.availableQty > 0);
-}
-
-function validationKey(error: string | null) {
-  return error ? `deposit.validation.create${error.charAt(0).toUpperCase()}${error.slice(1)}` : "";
-}
-
-export function DepositCreateForm({
-  open,
-  branchUuid,
-  onOpenChange,
-  orderItems,
-  orderUuid
-}: {
+interface DepositCreateFormProps {
   open: boolean;
   branchUuid?: string;
   onOpenChange: (open: boolean) => void;
   orderItems: CartItem[];
   orderUuid?: string;
-}) {
+}
+
+export function DepositCreateForm({ open, branchUuid, onOpenChange, orderItems, orderUuid }: DepositCreateFormProps) {
   const { t } = useTranslation();
   const language = useAppStore((state) => state.language);
   const user = useAuthStore((state) => state.user);
-  const storeUuid = authStoreUuid(user);
   const resolvedBranchUuid = branchUuid || user?.branch_uuid || "";
-
   const saving = useDepositStore((state) => state.saving);
   const orderDeposits = useDepositStore((state) => state.orderRows);
   const loadedOrderUuid = useDepositStore((state) => state.loadedOrderUuid);
   const availabilityLoading = useDepositStore((state) => state.orderLoading);
   const availabilityError = useDepositStore((state) => state.orderError);
   const loadOrderDeposits = useDepositStore((state) => state.loadOrderDeposits);
-  const createDepositAction = useDepositStore((state) => state.create);
+  const createDeposit = useDepositStore((state) => state.create);
   const showToast = useToastStore((state) => state.show);
-
-  const customerRows = useCustomerStore((state) => state.rows);
-  const customerLoading = useCustomerStore((state) => state.loading);
-  const loadCustomers = useCustomerStore((state) => state.load);
-  const saveCustomer = useCustomerStore((state) => state.save);
-
-  const [customerOpen, setCustomerOpen] = useState(false);
-  const [customerSearch, setCustomerSearch] = useState("");
-  const [customerUuid, setCustomerUuid] = useState("");
-  const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
-  const [customerCreateOpen, setCustomerCreateOpen] = useState(false);
-  const [customerCreateSaving, setCustomerCreateSaving] = useState(false);
-
+  const [customer, setCustomer] = useState<Customer | null>(null);
   const [selectedQty, setSelectedQty] = useState<Map<string, string>>(new Map());
-  const [datePreviewNow, setDatePreviewNow] = useState(() => new Date());
+  const [now, setNow] = useState(() => new Date());
   const [note, setNote] = useState("");
   const [confirmOpen, setConfirmOpen] = useState(false);
 
-  const depositedQtyByProduct = useMemo(
-    () => depositedQuantityByProduct(orderDeposits),
-    [orderDeposits]
-  );
-  const items = useMemo(
-    () => depositableItems(orderItems, depositedQtyByProduct),
-    [depositedQtyByProduct, orderItems]
-  );
-  const dateSchedule = useMemo(
-    () => depositDateSchedule(user?.deposit_expire_days, datePreviewNow),
-    [datePreviewNow, user?.deposit_expire_days]
-  );
-  const availabilityPending = Boolean(orderUuid) && (
-    loadedOrderUuid !== orderUuid || availabilityLoading
-  );
+  const deposited = useMemo(() => depositedQuantityByProduct(orderDeposits), [orderDeposits]);
+  const items = useMemo(() => depositableOrderItems(orderItems, deposited), [deposited, orderItems]);
+  const hasEligibleItems = useMemo(() => depositableOrderItems(orderItems, new Map()).length > 0, [orderItems]);
+  const schedule = useMemo(() => depositDateSchedule(user?.deposit_expire_days, now), [now, user?.deposit_expire_days]);
+  const availabilityPending = Boolean(orderUuid) && (loadedOrderUuid !== orderUuid || availabilityLoading);
+  const draftItems = useMemo(() => items.filter((item) => selectedQty.has(item.key)).map((item) => ({
+    ...item, qty: toDepositQtyInput(selectedQty.get(item.key))
+  })), [items, selectedQty]);
+  const validationError = validateDepositCreate({ customerUuid: customer?.customer_uuid || "", items: draftItems });
+  const exceedsAvailable = draftItems.some((item) => item.qty > item.availableQty);
+  const canSubmit = Boolean(orderUuid && resolvedBranchUuid && schedule.expireDate) &&
+    !availabilityPending && !availabilityError && !validationError && !exceedsAvailable && !saving;
 
-  const draftItems = useMemo(
-    () =>
-      items
-        .filter((item) => selectedQty.has(item.key))
-        .map((item) => ({
-          ...item,
-          qty: toDepositQtyInput(selectedQty.get(item.key))
-        })),
-    [items, selectedQty]
-  );
-
-  const validationError = validateDepositCreate({
-    customerUuid,
-    items: draftItems.map((item) => ({ proDetailUuid: item.proDetailUuid, qty: item.qty }))
-  });
-  // ฝากเกินจำนวนที่ลูกค้าสั่งจริงไม่ได้ — validateDepositCreate ใช้ร่วมกับหน้า
-  // back-office ที่ไม่มีแนวคิด "จำนวนที่สั่ง" จึงเช็คส่วนนี้แยกไว้ในฝั่ง POS เท่านั้น
-  const exceedsOrderedQty = draftItems.some((item) => item.qty > item.availableQty);
-
-  // Opening a new dialog starts a fresh deposit draft. Dates are derived above
-  // for display only; the backend persists its own authoritative schedule.
   useResetOnChange(open, () => {
-    setCustomerUuid("");
-    setSelectedCustomer(null);
-    setCustomerSearch("");
-    setSelectedQty(new Map());
-    setDatePreviewNow(new Date());
-    setNote("");
-    setConfirmOpen(false);
+    setCustomer(null); setSelectedQty(new Map()); setNow(new Date()); setNote(""); setConfirmOpen(false);
   });
 
   useEffect(() => {
     if (!open || !orderUuid || !resolvedBranchUuid) return;
-    void loadOrderDeposits({
-      branchUuid: resolvedBranchUuid,
-      orderUuid,
-      lang: language
-    }).catch(() => undefined);
+    void loadOrderDeposits({ branchUuid: resolvedBranchUuid, orderUuid, lang: language }).catch(() => undefined);
   }, [language, loadOrderDeposits, open, orderUuid, resolvedBranchUuid]);
 
-  useEffect(() => {
-    if (!storeUuid || !customerOpen) return;
-    const query = customerSearch.trim();
-    const timer = window.setTimeout(() => {
-      void loadCustomers({ store_uuid_fk: storeUuid, search: query, limit: PICKER_LIMIT, lang: language });
-    }, query ? SEARCH_DEBOUNCE_MS : 0);
-    return () => window.clearTimeout(timer);
-  }, [customerOpen, customerSearch, language, loadCustomers, storeUuid]);
-
-  function toggleItem(item: DepositableItem, checked: boolean) {
+  function toggleItem(key: string, max: number, checked: boolean) {
     setSelectedQty((current) => {
       const next = new Map(current);
-      if (checked) next.set(item.key, String(item.availableQty));
-      else next.delete(item.key);
+      if (checked) next.set(key, String(max)); else next.delete(key);
       return next;
     });
   }
 
-  function setItemQty(key: string, value: string) {
-    setSelectedQty((current) => new Map(current).set(key, value));
-  }
-
-  function openCustomerCreate() {
-    if (!storeUuid) return;
-    setCustomerOpen(false);
-    setCustomerCreateOpen(true);
-  }
-
-  async function submitCustomerCreate(formData: FormData) {
-    if (!storeUuid) return;
-    setCustomerCreateSaving(true);
+  async function submit() {
+    if (!canSubmit || !orderUuid || !customer) return;
     try {
-      const saved = await saveCustomer(customerFormInput(formData, storeUuid, null));
-      const uuid = customerUuidOf(saved);
-      if (uuid) {
-        setCustomerUuid(uuid);
-        setSelectedCustomer(saved);
-      }
-      setCustomerCreateOpen(false);
-      showToast({ title: t("settings.saved"), tone: "success" });
-    } catch (error) {
-      showToast({
-        title: t("settings.saveFailed"),
-        description: error instanceof Error ? error.message : "",
-        tone: "error"
-      });
-    } finally {
-      setCustomerCreateSaving(false);
-    }
-  }
-
-  function requestConfirmation() {
-    if (!orderUuid || availabilityPending || availabilityError) return;
-    if (validationError) {
-      showToast({ title: t(validationKey(validationError)), tone: "error" });
-      return;
-    }
-    if (exceedsOrderedQty) {
-      showToast({ title: t("deposit.validation.createQtyExceedsOrdered"), tone: "error" });
-      return;
-    }
-    setConfirmOpen(true);
-  }
-
-  async function submitCreate() {
-    if (
-      !orderUuid ||
-      availabilityPending ||
-      availabilityError ||
-      validationError ||
-      exceedsOrderedQty ||
-      saving
-    ) return;
-
-    try {
-      await createDepositAction({
-        branch_uuid: resolvedBranchUuid,
-        customer_uuid: customerUuid,
-        order_uuid: orderUuid,
-        items: draftItems.map((item) => ({ pro_detail_uuid: item.proDetailUuid, deposit_qty: item.qty })),
-        note: note.trim(),
-        lang: language
-      });
+      await createDeposit({ branch_uuid: resolvedBranchUuid, customer_uuid: customer.customer_uuid,
+        order_uuid: orderUuid, items: draftItems.map((item) => ({ pro_detail_uuid: item.proDetailUuid, deposit_qty: item.qty })),
+        note: note.trim(), lang: language });
       setConfirmOpen(false);
-      onOpenChange(false);
-      showToast({ title: t("deposit.createSuccess"), tone: "success" });
-    } catch (createError) {
-      showToast({
-        title: t("deposit.createFailed"),
-        description: createError instanceof Error ? createError.message : "",
-        tone: "error"
-      });
+    } catch (error) {
+      setConfirmOpen(false);
+      showToast({ title: t("deposit.createFailed"), description: error instanceof Error ? error.message : "", tone: "error" });
     }
   }
 
   return (
     <>
-      <div className="flex flex-col gap-4">
-        <FieldSet className="gap-4 rounded-lg border border-border bg-card p-4">
-          <Field>
-            <FieldLegend className="flex items-center gap-2 text-sm">
-              <UserRound className="size-4 text-primary" aria-hidden />
-              {t("deposit.customer")}
-            </FieldLegend>
-            <FieldDescription>{t("deposit.customerSectionHint")}</FieldDescription>
-          </Field>
-          <div className="flex gap-2">
-            <Popover open={customerOpen} onOpenChange={setCustomerOpen}>
-              <PopoverTrigger asChild>
-                <Button
-                  type="button"
-                  variant="outline"
-                  role="combobox"
-                  aria-expanded={customerOpen}
-                  disabled={saving}
-                  className="min-w-0 flex-1 justify-between font-normal"
-                >
-                  <span className="truncate">
-                    {selectedCustomer ? customerLabel(selectedCustomer) : t("deposit.selectCustomer")}
-                  </span>
-                  {customerLoading ? <Spinner /> : <ChevronsUpDown className="opacity-50" />}
-                </Button>
-              </PopoverTrigger>
-              <PopoverContent className="w-(--radix-popover-trigger-width) p-0">
-                <Command shouldFilter={false}>
-                  <CommandInput
-                    placeholder={t("deposit.searchCustomer")}
-                    value={customerSearch}
-                    onValueChange={setCustomerSearch}
-                  />
-                  <CommandList>
-                    <CommandEmpty>
-                      {customerLoading ? t("common.loading") : t("deposit.noCustomerResults")}
-                    </CommandEmpty>
-                    <CommandGroup>
-                      {customerRows.map((customer) => {
-                        const uuid = customerUuidOf(customer);
-                        return (
-                          <CommandItem
-                            key={uuid}
-                            value={uuid}
-                            onSelect={() => {
-                              setCustomerUuid(uuid);
-                              setSelectedCustomer(customer);
-                              setCustomerOpen(false);
-                            }}
-                          >
-                            {customerLabel(customer)}
-                            <Check className={uuid === customerUuid ? "ml-auto opacity-100" : "ml-auto opacity-0"} />
-                          </CommandItem>
-                        );
-                      })}
-                    </CommandGroup>
-                  </CommandList>
-                </Command>
-              </PopoverContent>
-            </Popover>
-            <Button
-              type="button"
-              variant="outline"
-              size="icon"
-              disabled={saving || !storeUuid}
-              aria-label={t("deposit.addCustomer")}
-              onClick={openCustomerCreate}
-            >
-              <UserPlus />
-            </Button>
-          </div>
-        </FieldSet>
-
-        <FieldSet className="gap-3 rounded-lg border border-border bg-card p-4">
-          <Field>
-            <FieldLegend className="flex items-center gap-2 text-sm">
-              <ClipboardList className="size-4 text-primary" aria-hidden />
-              {t("deposit.itemsFromOrder")}
-            </FieldLegend>
-            <FieldDescription>{t("deposit.itemsFromOrderHint")}</FieldDescription>
-          </Field>
-
-          {availabilityPending ? (
-            <div className="flex items-center gap-2 rounded-md border border-dashed border-border p-3 text-sm text-muted-foreground">
-              <Spinner />
-              {t("deposit.checkingAvailability")}
+      <div className="min-h-0 overflow-y-auto px-5 py-5 sm:px-6">
+        <DepositCustomerPicker allowCreate disabled={saving} value={customer} onChange={setCustomer} />
+        <div className="mt-5 grid gap-5 md:grid-cols-[minmax(0,1fr)_13rem] md:gap-6">
+          <section className="min-w-0 flex flex-col gap-3" aria-labelledby="deposit-order-items-title">
+            <div className="flex items-center justify-between gap-2">
+              <h3 id="deposit-order-items-title" className="text-sm font-semibold">{t("deposit.itemsFromOrder")}</h3>
+              {items.length ? <span className="text-xs tabular-nums text-muted-foreground">{t("deposit.selectionCount", { selected: draftItems.length, total: items.length })}</span> : null}
             </div>
-          ) : !orderUuid ? (
-            <div className="flex items-center gap-2 rounded-md border border-destructive/40 bg-destructive/5 p-3 text-sm text-destructive">
-              <Info className="size-4 shrink-0" aria-hidden />
-              {t("deposit.orderRequired")}
-            </div>
-          ) : availabilityError ? (
-            <div className="rounded-md border border-destructive/40 bg-destructive/5 p-3 text-sm text-destructive">
-              <p className="font-medium">{t("deposit.availabilityLoadFailed")}</p>
-              <p className="mt-1 text-xs">{availabilityError}</p>
-            </div>
-          ) : items.length ? (
-            <div className="flex flex-col gap-2">
-              {items.map((item) => {
-                const checked = selectedQty.has(item.key);
-                const qty = toDepositQtyInput(selectedQty.get(item.key));
-                const exceedsOrdered = checked && qty > item.availableQty;
-                return (
-                  <div key={item.key} className="flex flex-col gap-1">
-                    <div
-                      className={cn(
-                        "flex items-center gap-3 rounded-lg border px-3 py-2.5 transition-colors",
-                        checked
-                          ? "border-primary bg-primary/5"
-                          : "border-border bg-muted/25 hover:bg-muted/40"
-                      )}
-                    >
-                      <Checkbox
-                        checked={checked}
-                        disabled={saving || availabilityPending}
-                        onCheckedChange={(value) => toggleItem(item, value === true)}
-                        aria-label={item.name}
-                      />
+            {availabilityPending ? <div className="flex flex-col gap-2" role="status" aria-label={t("deposit.checkingAvailability")}>
+              <Skeleton className="h-16 w-full" /><Skeleton className="h-16 w-full" /><Skeleton className="h-16 w-full" />
+            </div> : availabilityError ? <Alert variant="destructive">
+              <AlertTitle>{t("deposit.availabilityLoadFailed")}</AlertTitle>
+              <AlertDescription>{availabilityError}<Button type="button" size="sm" variant="outline" className="mt-2"
+                onClick={() => { if (orderUuid) void loadOrderDeposits({ branchUuid: resolvedBranchUuid, orderUuid, lang: language }).catch(() => undefined); }}>
+                <RefreshCw className="size-3.5" />{t("deposit.retry")}</Button></AlertDescription>
+            </Alert> : items.length ? <div className="overflow-hidden rounded-lg border border-border">
+              <div className="flex items-center justify-between gap-3 bg-muted/40 px-3 py-2 text-xs text-muted-foreground">
+                <span>{t("deposit.product")}</span><span>{t("deposit.depositQuantity")}</span>
+              </div>
+              <div className="divide-y divide-border">
+                {items.map((item) => {
+                  const checked = selectedQty.has(item.key);
+                  const qty = toDepositQtyInput(selectedQty.get(item.key));
+                  const invalid = checked && (qty <= 0 || qty > item.availableQty || Boolean(validateDepositCreate({ customerUuid: "selected", items: [{ proDetailUuid: item.proDetailUuid, qty }] })));
+                  return <div key={item.key} className={cn("flex flex-col gap-2 px-3 py-3", checked && "bg-primary/5")}>
+                    <div className="flex flex-wrap items-start gap-3 sm:flex-nowrap">
+                      <Checkbox id={"deposit-item-" + item.key} className="mt-1" checked={checked} disabled={saving}
+                        onCheckedChange={(value) => toggleItem(item.key, item.availableQty, value === true)} aria-label={item.name} />
                       <div className="min-w-0 flex-1">
-                        <p className="truncate text-sm font-medium">{item.name}</p>
-                        <p className="text-xs text-muted-foreground">
-                          {t("deposit.availableToDeposit", { qty: item.availableQty })}
-                        </p>
+                        <Label htmlFor={"deposit-item-" + item.key} className="block leading-relaxed font-medium">{item.name}</Label>
+                        <p className="mt-0.5 text-xs text-muted-foreground">{t("deposit.productCode")}: <span className="font-mono text-foreground">{item.productCode || "—"}</span></p>
+                        <p className="mt-1 text-xs text-muted-foreground">{t("deposit.availableShort")}: <span className="tabular-nums">{formatDepositQuantity(item.availableQty)}</span> {item.unitName}</p>
                       </div>
-                      {checked ? (
-                        <DepositQtyStepper
-                          qty={qty}
-                          maxQty={item.availableQty}
-                          disabled={saving}
-                          invalid={exceedsOrdered}
-                          onChange={(next) => setItemQty(item.key, String(next))}
-                        />
-                      ) : null}
+                      {checked ? <DepositQtyStepper qty={qty} maxQty={item.availableQty} minQty={0.001} disabled={saving} invalid={invalid}
+                        rawValue={selectedQty.get(item.key) || ""} onRawChange={(value) => setSelectedQty((current) => new Map(current).set(item.key, value))}
+                        label={t("deposit.depositQuantity") + " " + item.name} onChange={(value) => setSelectedQty((current) => new Map(current).set(item.key, String(value)))} /> :
+                        <Button type="button" variant="ghost" size="sm" disabled={saving} className="shrink-0" onClick={() => toggleItem(item.key, item.availableQty, true)}>{t("deposit.selectItem")}</Button>}
                     </div>
-                    {exceedsOrdered ? (
-                      <p className="pl-1 text-xs font-medium text-destructive">
-                        {t("deposit.validation.createQtyExceedsOrdered")}
-                      </p>
-                    ) : null}
-                  </div>
-                );
-              })}
-            </div>
-          ) : (
-            <div className="flex items-center gap-2 rounded-md border border-dashed border-border p-3 text-sm text-muted-foreground">
-              <Info className="size-4 shrink-0" aria-hidden />
-              {t("deposit.noRemainingOrderItems")}
-            </div>
-          )}
-        </FieldSet>
-
-        <FieldSet className="gap-4 rounded-lg border border-border bg-card p-4">
-          <Field>
-            <FieldLegend className="flex items-center gap-2 text-sm">
-              <CalendarClock className="size-4 text-primary" aria-hidden />
-              {t("deposit.timingAndNote")}
-            </FieldLegend>
-          </Field>
-          <div className="grid gap-4 sm:grid-cols-3">
-            <Field>
-              <FieldLabel>{t("deposit.depositDate")}</FieldLabel>
-              <div className="flex h-9 items-center gap-2 rounded-md border border-border bg-muted/30 px-3">
-                <CalendarDays className="size-4 shrink-0 text-muted-foreground" aria-hidden />
-                <time className="text-sm font-semibold tabular-nums" dateTime={dateSchedule.depositDate}>
-                  {dateSchedule.depositDate}
-                </time>
+                    {invalid ? <p className="pl-7 text-xs text-destructive">{t(qty > item.availableQty ? "deposit.validation.createQtyExceedsOrdered" : "deposit.validation.createQtyInvalid")}</p> : null}
+                  </div>;
+                })}
               </div>
-              <FieldDescription>{t("deposit.depositDateTodayHint")}</FieldDescription>
-            </Field>
-            <Field>
-              <FieldLabel>{t("deposit.expireDate")}</FieldLabel>
-              <div className="flex h-9 items-center gap-2 rounded-md border border-border bg-muted/30 px-3">
-                <CalendarClock className="size-4 shrink-0 text-muted-foreground" aria-hidden />
-                {dateSchedule.expireDate ? (
-                  <time className="text-sm font-semibold tabular-nums" dateTime={dateSchedule.expireDate}>
-                    {dateSchedule.expireDate}
-                  </time>
-                ) : (
-                  <span className="text-sm font-semibold">{t("deposit.expireDateNotSet")}</span>
-                )}
-              </div>
-              <FieldDescription>
-                {user?.deposit_expire_days
-                  ? t("deposit.expireDateAutoHint", { days: user.deposit_expire_days })
-                  : t("deposit.expireDateNotSetHint")}
-              </FieldDescription>
-            </Field>
-            <Field>
-              <FieldLabel htmlFor="pos-deposit-note">{t("deposit.note")}</FieldLabel>
-              <Textarea
-                id="pos-deposit-note"
-                disabled={saving}
-                value={note}
-                onChange={(event) => setNote(event.target.value)}
-                placeholder={t("deposit.notePlaceholder")}
-              />
-            </Field>
-          </div>
-        </FieldSet>
+            </div> : <Empty className="min-h-44 border border-border bg-muted/15 px-4">
+              <EmptyHeader><EmptyMedia variant="icon"><PackageOpen /></EmptyMedia>
+                <EmptyTitle>{t(!orderUuid ? "deposit.orderRequired" : hasEligibleItems ? "deposit.noRemainingOrderItems" : "deposit.noEligibleOrderItems")}</EmptyTitle>
+                <EmptyDescription>{t("deposit.eligibleOrderHint")}</EmptyDescription></EmptyHeader>
+            </Empty>}
+            <p className="text-xs leading-relaxed text-muted-foreground">{t("deposit.itemsFromOrderHint")}</p>
+          </section>
 
-        {validationError ? (
-          <p className="text-sm font-medium text-destructive">{t(validationKey(validationError))}</p>
-        ) : null}
+          <aside className="min-w-0 flex flex-col gap-4 rounded-lg bg-muted/35 p-4 md:self-start" aria-label={t("deposit.depositDetails")}>
+            <h3 className="text-sm font-semibold">{t("deposit.depositDetails")}</h3>
+            <dl className="flex flex-col gap-3 text-xs">
+              <div><dt className="text-muted-foreground">{t("deposit.depositDate")}</dt><dd className="mt-1 text-sm font-medium tabular-nums"><time dateTime={schedule.depositDate}>{formatDepositDate(schedule.depositDate)}</time></dd></div>
+              <div><dt className="text-muted-foreground">{t("deposit.expireDate")}</dt><dd className="mt-1 text-sm font-medium tabular-nums">{schedule.expireDate ? <time dateTime={schedule.expireDate}>{formatDepositDate(schedule.expireDate)}</time> : t("deposit.expireDateNotSet")}</dd></div>
+            </dl>
+            <p className="text-xs leading-relaxed text-muted-foreground">{t(schedule.expireDate ? "deposit.expireDateHelp" : "deposit.expireDateNotSetHint")}</p>
+            <div className="flex flex-col gap-2"><Label htmlFor="pos-deposit-note">{t("deposit.note")} <span className="font-normal text-muted-foreground">{t("deposit.optional")}</span></Label>
+              <Textarea id="pos-deposit-note" rows={3} maxLength={1000} disabled={saving} value={note}
+                onChange={(event) => setNote(event.target.value)} placeholder={t("deposit.notePlaceholder")} className="min-h-20 resize-none bg-background" /></div>
+          </aside>
+        </div>
       </div>
 
-      <DialogFooter>
-        <Button type="button" variant="outline" disabled={saving} onClick={() => onOpenChange(false)}>
-          {t("actions.cancel")}
-        </Button>
-        <Button
-          type="button"
-          disabled={
-            saving ||
-            availabilityPending ||
-            Boolean(availabilityError) ||
-            !orderUuid ||
-            Boolean(validationError) ||
-            exceedsOrderedQty
-          }
-          onClick={requestConfirmation}
-        >
-          {saving
-            ? t("deposit.saving")
-            : draftItems.length
-              ? t("deposit.createSubmitCount", { count: draftItems.length })
-              : t("deposit.createSubmit")}
-        </Button>
+      <DialogFooter className="shrink-0 items-stretch border-t border-border bg-background px-5 py-4 sm:items-center sm:px-6">
+        <p className="mr-auto hidden text-xs text-muted-foreground sm:block">{t(!customer ? "deposit.selectCustomerToContinue" : !draftItems.length ? "deposit.selectItemsToContinue" : "deposit.receiptAfterSave")}</p>
+        <Button type="button" variant="outline" className="h-10" disabled={saving} onClick={() => onOpenChange(false)}>{t("actions.cancel")}</Button>
+        <Button type="button" className="h-10" disabled={!canSubmit} onClick={() => setConfirmOpen(true)}><Printer className="size-4" />{t(saving ? "deposit.saving" : "deposit.saveAndPrint")}</Button>
       </DialogFooter>
 
-      <CustomerFormDialog
-        editing={null}
-        open={customerCreateOpen}
-        saving={customerCreateSaving}
-        onOpenChange={setCustomerCreateOpen}
-        onSubmit={submitCustomerCreate}
-      />
-
-      <AlertDialog open={confirmOpen} onOpenChange={setConfirmOpen}>
-        <AlertDialogContent size="sm">
-          <AlertDialogHeader>
-            <AlertDialogTitle>{t("deposit.createConfirmTitle")}</AlertDialogTitle>
-            <AlertDialogDescription>
-              {t("deposit.createConfirmDescriptionMulti", {
-                customer: selectedCustomer ? customerLabel(selectedCustomer) : "",
-                count: draftItems.length
-              })}
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <div className="flex flex-col gap-1 text-sm">
-            {draftItems.map((item) => (
-              <div key={item.key} className="flex items-center justify-between gap-2">
-                <span className="min-w-0 truncate">{item.name}</span>
-                <Badge variant="outline">{item.qty}</Badge>
-              </div>
-            ))}
+      <AlertDialog open={confirmOpen} onOpenChange={(next) => !saving && setConfirmOpen(next)}>
+        <AlertDialogContent className="sm:max-w-md"><AlertDialogHeader>
+          <AlertDialogTitle>{t("deposit.createConfirmTitle")}</AlertDialogTitle>
+          <AlertDialogDescription>{t("deposit.createConfirmDescriptionMulti", { customer: customer?.customer_name || "", count: draftItems.length })}</AlertDialogDescription>
+        </AlertDialogHeader>
+          <div className="max-h-56 divide-y divide-border overflow-y-auto rounded-lg border px-3">
+            {draftItems.map((item) => <div key={item.key} className="flex items-start justify-between gap-3 py-3 text-sm"><span>{item.name}<span className="mt-1 block font-mono text-xs text-muted-foreground">{item.productCode || "—"}</span></span><span className="shrink-0 font-medium tabular-nums">{formatDepositQuantity(item.qty)} {item.unitName}</span></div>)}
           </div>
-          <AlertDialogFooter>
-            <AlertDialogCancel disabled={saving}>{t("actions.cancel")}</AlertDialogCancel>
-            <Button disabled={saving} onClick={() => void submitCreate()}>
-              {saving ? t("deposit.saving") : t("deposit.createSubmit")}
-            </Button>
-          </AlertDialogFooter>
+          <AlertDialogFooter><AlertDialogCancel disabled={saving}>{t("actions.cancel")}</AlertDialogCancel><Button disabled={!canSubmit} onClick={() => void submit()}>{t(saving ? "deposit.saving" : "deposit.saveAndPrint")}</Button></AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
     </>

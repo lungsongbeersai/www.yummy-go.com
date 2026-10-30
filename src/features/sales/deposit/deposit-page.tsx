@@ -26,6 +26,7 @@ import {
   CommandList
 } from "@/components/ui/command";
 import { Field, FieldDescription, FieldLabel } from "@/components/ui/field";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -44,6 +45,7 @@ import { useCustomerStore } from "@/stores/customer-store";
 import { useDepositStore } from "@/stores/deposit-store";
 import { useProductStore } from "@/stores/product-store";
 import { useToastStore } from "@/stores/toast-store";
+import { DepositReceiptStatus } from "./components/deposit-receipt-status";
 import {
   depositBadgeVariant,
   depositDateSchedule,
@@ -75,6 +77,7 @@ function productDetailUuid(detail: ProductDetail) {
 
 interface ProductDetailOption {
   key: string;
+  prod_code: string;
   productName: string;
   sizeName: string;
 }
@@ -86,19 +89,26 @@ function productDetailOptions(products: Product[], isEng: boolean): ProductDetai
       ? product.prod_name_eng || product.prod_name_la || "-"
       : product.prod_name_la || product.prod_name_eng || "-";
     for (const detail of product.details ?? []) {
+      if (Number(detail.pro_detail_stock) !== 1) continue;
       const key = productDetailUuid(detail);
       if (!key) continue;
       const sizeName = isEng
         ? detail.size_name_eng || detail.size_name_la || detail.size_name || ""
         : detail.size_name_la || detail.size_name_eng || detail.size_name || "";
-      options.push({ key, productName, sizeName });
+      options.push({ key, prod_code: product.prod_code?.trim() || "", productName, sizeName });
     }
   }
   return options;
 }
 
 function productDetailOptionLabel(option: ProductDetailOption) {
-  return option.sizeName ? `${option.productName} (${option.sizeName})` : option.productName;
+  const name = option.sizeName ? `${option.productName} (${option.sizeName})` : option.productName;
+  return option.prod_code ? `${option.prod_code} · ${name}` : name;
+}
+
+function depositProductCode(row: DepositRow) {
+  if (row.product_code?.trim()) return row.product_code.trim();
+  return "prod_code" in row && typeof row.prod_code === "string" ? row.prod_code.trim() : "";
 }
 
 function dateOnly(value?: string | null) {
@@ -123,6 +133,11 @@ export function DepositPage() {
   const loading = useDepositStore((state) => state.loading);
   const saving = useDepositStore((state) => state.saving);
   const withdrawing = useDepositStore((state) => state.withdrawing);
+  const printing = useDepositStore((state) => state.printing);
+  const reprinting = useDepositStore((state) => state.reprinting);
+  const lastReceipt = useDepositStore((state) => state.lastReceipt);
+  const clearReceipt = useDepositStore((state) => state.clearReceipt);
+  const reprint = useDepositStore((state) => state.reprint);
   const error = useDepositStore((state) => state.error);
   const loadList = useDepositStore((state) => state.loadList);
   const loadDetail = useDepositStore((state) => state.loadDetail);
@@ -161,6 +176,10 @@ export function DepositPage() {
   const [withdrawQtyInput, setWithdrawQtyInput] = useState("");
   const [withdrawNote, setWithdrawNote] = useState("");
   const [confirmWithdrawOpen, setConfirmWithdrawOpen] = useState(false);
+  // The domain store is shared with POS. Only a receipt requested by this
+  // mounted page may open its result dialog; old POS receipts stay hidden.
+  const [receiptOpen, setReceiptOpen] = useState(false);
+  const busy = saving || withdrawing || printing || reprinting;
 
   const depositQty = toDepositQtyInput(depositQtyInput);
   const withdrawQty = toDepositQtyInput(withdrawQtyInput);
@@ -234,6 +253,7 @@ export function DepositPage() {
   }, [branchUuid, language, loadProducts, productOpen, productSearch]);
 
   function selectRow(row: DepositRow) {
+    if (busy) return;
     setWithdrawQtyInput("");
     setWithdrawNote("");
     void loadDetail(row.deposit_uuid, language).catch((loadError: unknown) => {
@@ -258,6 +278,7 @@ export function DepositPage() {
   }
 
   function requestCreateConfirmation() {
+    if (busy || !branchUuid) return;
     if (createValidationError) {
       showToast({ title: t(validationKey("create", createValidationError)), tone: "error" });
       return;
@@ -266,8 +287,10 @@ export function DepositPage() {
   }
 
   async function submitCreate() {
-    if (createValidationError || saving) return;
+    if (createValidationError || busy || !branchUuid) return;
 
+    clearReceipt();
+    setReceiptOpen(true);
     try {
       await createDepositAction({
         branch_uuid: branchUuid,
@@ -281,6 +304,7 @@ export function DepositPage() {
       showToast({ title: t("deposit.createSuccess"), tone: "success" });
       loadRows(branchUuid, statusFilter, search);
     } catch (createError) {
+      setReceiptOpen(false);
       showToast({
         title: t("deposit.createFailed"),
         description: createError instanceof Error ? createError.message : "",
@@ -290,6 +314,7 @@ export function DepositPage() {
   }
 
   function requestWithdrawConfirmation() {
+    if (busy) return;
     if (withdrawValidationError) {
       showToast({ title: t(validationKey("withdraw", withdrawValidationError)), tone: "error" });
       return;
@@ -298,11 +323,12 @@ export function DepositPage() {
   }
 
   async function submitWithdraw() {
-    if (withdrawValidationError || withdrawing || !detail) return;
+    if (withdrawValidationError || busy || !detail) return;
 
+    clearReceipt();
+    setReceiptOpen(true);
     try {
       await withdrawAction({
-        request_uuid: crypto.randomUUID(),
         deposit_uuid: detail.deposit_uuid,
         qty_withdrawn: withdrawQty,
         note: withdrawNote.trim(),
@@ -312,7 +338,9 @@ export function DepositPage() {
       setWithdrawQtyInput("");
       setWithdrawNote("");
       showToast({ title: t("deposit.withdrawSuccess"), tone: "success" });
+      loadRows(branchUuid, statusFilter, search);
     } catch (withdrawError) {
+      setReceiptOpen(false);
       showToast({
         title: t("deposit.withdrawFailed"),
         description: withdrawError instanceof Error ? withdrawError.message : "",
@@ -323,6 +351,24 @@ export function DepositPage() {
 
   function refresh() {
     loadRows(branchUuid, statusFilter, search);
+  }
+
+  function closeReceipt() {
+    if (busy) return;
+    setReceiptOpen(false);
+    clearReceipt();
+  }
+
+  async function reprintSelectedDeposit() {
+    if (!detail || busy) return;
+    clearReceipt();
+    setReceiptOpen(true);
+    try {
+      await reprint({ kind: "deposit", deposit_uuid: detail.deposit_uuid, lang: language });
+    } catch (printError) {
+      setReceiptOpen(false);
+      showToast({ title: t("deposit.receiptPrintFailed"), description: printError instanceof Error ? printError.message : "", tone: "error" });
+    }
   }
 
   return (
@@ -401,12 +447,13 @@ export function DepositPage() {
               loading={detailLoading}
               withdrawQtyInput={withdrawQtyInput}
               withdrawNote={withdrawNote}
-              withdrawing={withdrawing}
+              withdrawing={busy}
               validationError={withdrawValidationError}
               onWithdrawQtyChange={setWithdrawQtyInput}
               onWithdrawNoteChange={setWithdrawNote}
               onWithdraw={requestWithdrawConfirmation}
               onClose={clearDetail}
+              onReprint={() => void reprintSelectedDeposit()}
               t={t}
             />
           ) : null}
@@ -430,6 +477,7 @@ export function DepositPage() {
                       variant="outline"
                       role="combobox"
                       aria-expanded={customerOpen}
+                      disabled={busy}
                       className="w-full justify-between font-normal"
                     >
                       <span className="truncate">
@@ -476,7 +524,7 @@ export function DepositPage() {
                       role="combobox"
                       aria-expanded={productOpen}
                       className="w-full justify-between font-normal"
-                      disabled={!branchUuid}
+                      disabled={!branchUuid || busy}
                     >
                       <span className="truncate">
                         {selectedProductOption
@@ -522,9 +570,10 @@ export function DepositPage() {
                 <Input
                   id="deposit-qty"
                   type="number"
-                  min="0"
-                  step="0.01"
+                  min="0.001"
+                  step="0.001"
                   inputMode="decimal"
+                  disabled={busy}
                   value={depositQtyInput}
                   onChange={(event) => setDepositQtyInput(event.target.value)}
                 />
@@ -565,6 +614,7 @@ export function DepositPage() {
                 <FieldLabel htmlFor="deposit-note">{t("deposit.note")}</FieldLabel>
                 <Textarea
                   id="deposit-note"
+                  disabled={busy}
                   value={note}
                   onChange={(event) => setNote(event.target.value)}
                   placeholder={t("deposit.notePlaceholder")}
@@ -575,7 +625,7 @@ export function DepositPage() {
                 <p className="text-sm font-medium text-destructive">{t(validationKey("create", createValidationError))}</p>
               ) : null}
 
-              <Button className="w-full" size="lg" disabled={saving || Boolean(createValidationError)} onClick={requestCreateConfirmation}>
+              <Button className="w-full" size="lg" disabled={busy || !branchUuid || Boolean(createValidationError)} onClick={requestCreateConfirmation}>
                 {saving ? t("deposit.saving") : t("deposit.createSubmit")}
               </Button>
             </CardContent>
@@ -583,7 +633,7 @@ export function DepositPage() {
         </aside>
       </main>
 
-      <AlertDialog open={confirmCreateOpen} onOpenChange={setConfirmCreateOpen}>
+      <AlertDialog open={confirmCreateOpen && !(receiptOpen && lastReceipt)} onOpenChange={(next) => !busy && setConfirmCreateOpen(next)}>
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>{t("deposit.createConfirmTitle")}</AlertDialogTitle>
@@ -596,15 +646,15 @@ export function DepositPage() {
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel disabled={saving}>{t("actions.cancel")}</AlertDialogCancel>
-            <Button disabled={saving} onClick={() => void submitCreate()}>
+            <AlertDialogCancel disabled={busy}>{t("actions.cancel")}</AlertDialogCancel>
+            <Button disabled={busy} onClick={() => void submitCreate()}>
               {saving ? t("deposit.saving") : t("deposit.createSubmit")}
             </Button>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
 
-      <AlertDialog open={confirmWithdrawOpen} onOpenChange={setConfirmWithdrawOpen}>
+      <AlertDialog open={confirmWithdrawOpen && !(receiptOpen && lastReceipt)} onOpenChange={(next) => !busy && setConfirmWithdrawOpen(next)}>
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>{t("deposit.withdrawConfirmTitle")}</AlertDialogTitle>
@@ -613,13 +663,23 @@ export function DepositPage() {
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel disabled={withdrawing}>{t("actions.cancel")}</AlertDialogCancel>
-            <Button disabled={withdrawing} onClick={() => void submitWithdraw()}>
+            <AlertDialogCancel disabled={busy}>{t("actions.cancel")}</AlertDialogCancel>
+            <Button disabled={busy} onClick={() => void submitWithdraw()}>
               {withdrawing ? t("deposit.saving") : t("deposit.withdrawSubmit")}
             </Button>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <Dialog open={receiptOpen && Boolean(lastReceipt)} onOpenChange={(next) => { if (!next) closeReceipt(); }}>
+        <DialogContent showCloseButton={!busy} className="flex max-h-[calc(100dvh-2rem)] flex-col gap-0 overflow-hidden p-0 font-lao sm:max-w-2xl">
+          <DialogHeader className="shrink-0 border-b px-5 py-4 sm:px-6">
+            <DialogTitle className="text-base">{t("deposit.dialogTitle")}</DialogTitle>
+            <DialogDescription className="text-xs">{t("deposit.receiptRetryHint")}</DialogDescription>
+          </DialogHeader>
+          {lastReceipt ? <DepositReceiptStatus receipt={lastReceipt} onClose={closeReceipt} /> : null}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
@@ -660,7 +720,9 @@ function DepositTable({ rows, selectedUuid, onSelect, t }: DepositTableProps) {
                   <div className="font-medium">{row.customer_name || "-"}</div>
                   <div className="text-xs text-muted-foreground">{row.customer_phone || "-"}</div>
                 </TableCell>
-                <TableCell>{row.product_name}</TableCell>
+                <TableCell><p>{row.product_name}</p>
+                  {depositProductCode(row) ? <p className="mt-1 text-xs text-muted-foreground">{t("deposit.productCode")}: {depositProductCode(row)}</p> : null}
+                </TableCell>
                 <TableCell className="text-right">
                   {row.deposit_qty} {row.unit_name}
                 </TableCell>
@@ -692,6 +754,7 @@ interface DepositDetailPanelProps {
   onWithdrawNoteChange: (value: string) => void;
   onWithdraw: () => void;
   onClose: () => void;
+  onReprint: () => void;
   t: (key: string, options?: Record<string, unknown>) => string;
 }
 
@@ -705,7 +768,9 @@ function DepositDetailPanel(props: DepositDetailPanelProps) {
       <CardHeader>
         <div className="flex flex-wrap items-center justify-between gap-2">
           <CardTitle>{props.t("deposit.detailTitle")} · {deposit.deposit_no}</CardTitle>
-          <Badge variant={depositBadgeVariant(deposit)}>{deposit.status_text}</Badge>
+          <div className="flex items-center gap-2"><Badge variant={depositBadgeVariant(deposit)}>{deposit.status_text}</Badge>
+            <Button type="button" variant="outline" className="h-10" disabled={props.withdrawing} onClick={props.onReprint}>{props.t("deposit.printReceipt")}</Button>
+          </div>
         </div>
       </CardHeader>
       <CardContent>
@@ -713,6 +778,7 @@ function DepositDetailPanel(props: DepositDetailPanelProps) {
           <DetailValue label={props.t("deposit.customer")} value={deposit.customer_name || "-"} />
           <DetailValue label={props.t("deposit.phone")} value={deposit.customer_phone || "-"} />
           <DetailValue label={props.t("deposit.product")} value={deposit.product_name} />
+          <DetailValue label={props.t("deposit.productCode")} value={depositProductCode(deposit) || "—"} />
           <DetailValue label={props.t("deposit.expireDate")} value={dateOnly(deposit.expire_date)} />
           <DetailValue label={props.t("deposit.deposited")} value={`${deposit.deposit_qty} ${deposit.unit_name}`} />
           <DetailValue label={props.t("deposit.remaining")} value={`${deposit.remaining_qty} ${deposit.unit_name}`} />
@@ -755,9 +821,12 @@ function DepositDetailPanel(props: DepositDetailPanelProps) {
               <Input
                 id="withdraw-qty"
                 type="number"
-                min="0"
-                step="0.01"
+                min="0.001"
+                max={deposit.remaining_qty}
+                step="0.001"
                 inputMode="decimal"
+                disabled={props.withdrawing}
+                aria-invalid={Boolean(props.validationError)}
                 value={props.withdrawQtyInput}
                 onChange={(event) => props.onWithdrawQtyChange(event.target.value)}
               />
@@ -766,6 +835,7 @@ function DepositDetailPanel(props: DepositDetailPanelProps) {
               <FieldLabel htmlFor="withdraw-note">{props.t("deposit.note")}</FieldLabel>
               <Input
                 id="withdraw-note"
+                disabled={props.withdrawing}
                 value={props.withdrawNote}
                 onChange={(event) => props.onWithdrawNoteChange(event.target.value)}
                 placeholder={props.t("deposit.withdrawNotePlaceholder")}

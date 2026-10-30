@@ -7,7 +7,7 @@ vi.mock("@/lib/api", () => ({
   ServiceError: class ServiceError extends Error {}
 }));
 
-import { createDeposit, fetchDepositList, fetchDepositOrderRedemptions, withdrawDeposit } from "@/services/deposit";
+import { createDeposit, fetchDepositList, fetchDepositOrderRedemptions, reprintDepositReceipt, withdrawDeposit } from "@/services/deposit";
 
 describe("deposit service", () => {
   beforeEach(() => {
@@ -67,6 +67,7 @@ describe("deposit service", () => {
 
     expect(apiMocks.apiRequest).toHaveBeenCalledWith("post", "/api/v1/posAll/deposit/create", {
       data: {
+        request_uuid: expect.stringMatching(/^[0-9a-f-]{36}$/),
         branch_uuid: "branch-1",
         customer_uuid: "customer-1",
         order_uuid: "order-1",
@@ -102,6 +103,34 @@ describe("deposit service", () => {
     expect(apiMocks.apiRequest).not.toHaveBeenCalled();
   });
 
+  it("keeps the provided operation identity and resolved printer when creating a deposit", async () => {
+    await createDeposit({
+      request_uuid: "same-operation", branch_uuid: "branch-1", customer_uuid: "customer-1",
+      items: [{ pro_detail_uuid: " detail-1 ", deposit_qty: 0.125 }],
+      device_code: " DESKTOP-1 ", agent_id: " agent-1 ", print_mode: "windows_agent", lang: "en",
+    });
+    expect(apiMocks.apiRequest).toHaveBeenCalledWith("post", "/api/v1/posAll/deposit/create", {
+      data: {
+        request_uuid: "same-operation", branch_uuid: "branch-1", customer_uuid: "customer-1",
+        items: [{ pro_detail_uuid: "detail-1", deposit_qty: 0.125 }],
+        device_code: "DESKTOP-1", agent_id: "agent-1", print_mode: "windows_agent", lang: "eng",
+      }
+    });
+  });
+
+  it.each([NaN, Infinity, -Infinity, 0.0001, 1.2345, 100_000_000_000])(
+    "rejects invalid or unsupported quantities (%s) before deposit and withdrawal writes", (quantity) => {
+      expect(() => createDeposit({
+        branch_uuid: "branch-1", customer_uuid: "customer-1",
+        items: [{ pro_detail_uuid: "detail-1", deposit_qty: quantity }],
+      })).toThrow();
+      expect(() => withdrawDeposit({
+        request_uuid: "request-1", deposit_uuid: "deposit-1", qty_withdrawn: quantity,
+      })).toThrow();
+      expect(apiMocks.apiRequest).not.toHaveBeenCalled();
+    },
+  );
+
   it("withdraws a quantity from a deposit", async () => {
     await withdrawDeposit({
       request_uuid: "request-2",
@@ -128,5 +157,37 @@ describe("deposit service", () => {
     expect(apiMocks.apiRequest).toHaveBeenCalledWith("get", "/api/v1/posAll/deposit/order-redemptions", {
       params: { order_uuid: "order-1", lang: "eng" }
     });
+  });
+
+  it("reprints a saved batch with a separate print operation without creating another deposit", async () => {
+    await reprintDepositReceipt({
+      request_uuid: "new-print-operation", kind: "deposit", deposit_request_uuid: "saved-deposit-operation",
+      device_code: "DESKTOP-1", lang: "la",
+    });
+    expect(apiMocks.apiRequest).toHaveBeenCalledWith("post", "/api/v1/posAll/deposit/reprint", {
+      data: {
+        request_uuid: "new-print-operation", kind: "deposit", deposit_request_uuid: "saved-deposit-operation",
+        device_code: "DESKTOP-1", lang: "la",
+      }
+    });
+    await reprintDepositReceipt({
+      request_uuid: "withdrawal-print", kind: "withdrawal", withdrawal_uuid: "saved-withdrawal", lang: "en",
+    });
+    expect(apiMocks.apiRequest).toHaveBeenLastCalledWith("post", "/api/v1/posAll/deposit/reprint", {
+      data: {
+        request_uuid: "withdrawal-print", kind: "withdrawal", withdrawal_uuid: "saved-withdrawal", lang: "eng",
+      }
+    });
+  });
+
+  it("requires one original receipt matching the requested reprint kind", () => {
+    expect(() => reprintDepositReceipt({ request_uuid: "print-1", kind: "deposit" })).toThrow();
+    expect(() => reprintDepositReceipt({
+      request_uuid: "print-1", kind: "withdrawal", deposit_uuid: "deposit-1",
+    })).toThrow();
+    expect(() => reprintDepositReceipt({
+      request_uuid: "print-1", kind: "deposit", deposit_uuid: "deposit-1", deposit_request_uuid: "batch-1",
+    })).toThrow();
+    expect(apiMocks.apiRequest).not.toHaveBeenCalled();
   });
 });

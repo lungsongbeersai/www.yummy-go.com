@@ -1,8 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useResetOnChange } from "@/hooks/use-reset-on-change";
-import { PackageOpen, Wine } from "lucide-react";
+import { Wine } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -10,6 +10,7 @@ import type { CartItem } from "@/services/pos";
 import { useDepositStore } from "@/stores/deposit-store";
 import { DepositCreateForm } from "./deposit-create-form";
 import { DepositWithdrawForm } from "./deposit-withdraw-form";
+import { DepositReceiptStatus } from "./components/deposit-receipt-status";
 
 export type DepositDialogTab = "create" | "withdraw";
 
@@ -33,6 +34,10 @@ export function DepositDialog({
   const { t } = useTranslation();
   const saving = useDepositStore((state) => state.saving);
   const withdrawing = useDepositStore((state) => state.withdrawing);
+  const printing = useDepositStore((state) => state.printing);
+  const reprinting = useDepositStore((state) => state.reprinting);
+  const lastReceipt = useDepositStore((state) => state.lastReceipt);
+  const clearReceipt = useDepositStore((state) => state.clearReceipt);
   const [activeTab, setActiveTab] = useState<DepositDialogTab>(defaultTab);
 
   // เปิด dialog ใหม่ทุกครั้ง = เริ่มที่ tab ที่ผู้ใช้ตั้งใจกด (ฝาก vs เบิก)
@@ -40,33 +45,31 @@ export function DepositDialog({
     if (open) setActiveTab(defaultTab);
   });
 
-  const busy = saving || withdrawing;
+  useEffect(() => { if (open) clearReceipt(); }, [clearReceipt, open]);
+
+  const busy = saving || withdrawing || printing || reprinting;
 
   return (
     <Dialog open={open} onOpenChange={(nextOpen) => !busy && onOpenChange(nextOpen)}>
-      <DialogContent showCloseButton={!busy} className="sm:max-w-xl">
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            <span className="grid size-8 place-items-center rounded-md bg-primary/10 text-primary">
-              <Wine className="size-4" aria-hidden />
-            </span>
+      <DialogContent showCloseButton={!busy} className="flex max-h-[calc(100dvh-2rem)] flex-col gap-0 overflow-hidden p-0 font-lao sm:max-w-4xl">
+        <DialogHeader className="shrink-0 border-b border-border px-5 py-4 sm:px-6">
+          <DialogTitle className="flex items-center gap-2 text-base font-semibold">
+            <Wine className="size-4 text-muted-foreground" aria-hidden />
             {t("deposit.dialogTitle")}
           </DialogTitle>
-          <DialogDescription>{t("deposit.subtitle")}</DialogDescription>
+          <DialogDescription className="mt-1 text-xs">{t("deposit.dialogHint")}</DialogDescription>
         </DialogHeader>
-
-        <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as DepositDialogTab)}>
-          <TabsList className="grid w-full grid-cols-2">
-            <TabsTrigger value="create">
-              <Wine data-icon="inline-start" />
+        {lastReceipt ? <DepositReceiptStatus receipt={lastReceipt} onClose={() => onOpenChange(false)} /> :
+        <Tabs className="min-h-0 gap-0" value={activeTab} onValueChange={(value) => { if (!busy && (value === "create" || value === "withdraw")) setActiveTab(value); }}>
+          <TabsList className="mx-5 mt-4 grid h-10 w-auto grid-cols-2 sm:mx-6">
+            <TabsTrigger value="create" disabled={busy}>
               {t("deposit.createTitle")}
             </TabsTrigger>
-            <TabsTrigger value="withdraw">
-              <PackageOpen data-icon="inline-start" />
+            <TabsTrigger value="withdraw" disabled={busy}>
               {t("deposit.withdrawTitle")}
             </TabsTrigger>
           </TabsList>
-          <TabsContent value="create">
+          <TabsContent value="create" className="flex min-h-0 flex-col">
             <DepositCreateForm
               branchUuid={branchUuid}
               open={open}
@@ -75,7 +78,7 @@ export function DepositDialog({
               onOpenChange={onOpenChange}
             />
           </TabsContent>
-          <TabsContent value="withdraw">
+          <TabsContent value="withdraw" className="flex min-h-0 flex-col">
             <DepositWithdrawForm
               branchUuid={branchUuid}
               open={open}
@@ -84,7 +87,7 @@ export function DepositDialog({
               onOpenChange={onOpenChange}
             />
           </TabsContent>
-        </Tabs>
+        </Tabs>}
       </DialogContent>
     </Dialog>
   );

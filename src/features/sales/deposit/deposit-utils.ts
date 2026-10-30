@@ -90,7 +90,7 @@ export function validateDepositCreate(input: {
 
   for (const item of input.items) {
     if (!item.proDetailUuid) return "productRequired";
-    if (!Number.isFinite(item.qty) || item.qty <= 0) return "qtyInvalid";
+    if (!validDepositQuantity(item.qty)) return "qtyInvalid";
   }
 
   return null;
@@ -100,12 +100,17 @@ export function validateDepositWithdraw(input: {
   qtyWithdrawn: number;
   deposit: DepositRow | null;
 }): DepositWithdrawValidationError | null {
-  if (!Number.isFinite(input.qtyWithdrawn) || input.qtyWithdrawn <= 0) return "qtyInvalid";
+  if (!validDepositQuantity(input.qtyWithdrawn)) return "qtyInvalid";
   if (!input.deposit || input.deposit.status !== "ACTIVE" || input.deposit.is_expired) {
     return "depositNotActive";
   }
   if (input.qtyWithdrawn > input.deposit.remaining_qty) return "qtyExceedsRemaining";
   return null;
+}
+
+export function validDepositQuantity(value: number) {
+  return Number.isFinite(value) && value > 0 && value <= 99999999999.999 &&
+    value === Math.round(value * 1000) / 1000;
 }
 
 export function depositBadgeVariant(row: Pick<DepositRow, "status" | "is_expired">): DepositBadgeVariant {
