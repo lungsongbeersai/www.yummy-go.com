@@ -426,6 +426,8 @@ export function SelectedTableCartPanelContent({
         open={workflow.depositDialogOpen}
         orderItems={workflow.displayItems}
         orderUuid={workflow.currentOrderUuid ?? undefined}
+        orderInvoice={workflow.invoice ?? undefined}
+        tableName={selectedTable?.table_name ?? undefined}
         onCompleted={onTableActionComplete}
         onOpenChange={workflow.setDepositDialogOpen}
       />

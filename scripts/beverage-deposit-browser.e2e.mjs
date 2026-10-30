@@ -13,7 +13,7 @@ import { chromium } from "playwright";
 const frontend = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const requireBackend = createRequire(resolve(frontend, "../back-end/package.json"));
 const express = requireBackend("express");
-const artifacts = process.env.DEPOSIT_E2E_ARTIFACTS || resolve(frontend, "../.work/beverage-deposit-20261030");
+const artifacts = process.env.DEPOSIT_E2E_ARTIFACTS || resolve(frontend, "../.work/beverage-deposit-ui-revision-20261030");
 const project = join(artifacts, "frontend-workspace");
 const apiPort = Number(process.env.DEPOSIT_E2E_API_PORT || 3140);
 const webPort = Number(process.env.DEPOSIT_E2E_WEB_PORT || 3141);
@@ -25,6 +25,8 @@ const ids = { store: id(1), branch: id(2), login: id(3), customer: id(4), order:
 const token = "beverage-deposit-isolated-fixture-token";
 const customer = { customer_uuid: ids.customer, customer_name: "ສົມພອນ ວົງສີ", customer_phone: "020 5555 0188", store_uuid_fk: ids.store };
 const dates = { deposit: "2026-10-30T06:00:00.000Z", expiry: "2026-11-06" };
+const depositNote = "ຝາກຂວດເປີດແລ້ວ · QA 0.75";
+const withdrawNote = "ຮັບຄືນ 0.5 ຂວດ · QA";
 const requests = [], blockedExternal = [], pageErrors = [], steps = [];
 let ledger, withdrawals, printEnabled, sequence, server, next, browser, nextOutput = "";
 
@@ -90,6 +92,7 @@ async function startFixtureApi() {
     assert.equal(body.order_uuid, ids.order);
     assert.match(body.request_uuid, /^[0-9a-f-]{36}$/);
     assert.equal(body.device_code, "DESKTOP-QA");
+    assert.equal(body.note, depositNote);
     assert(body.items.every((item) => [ids.detail, ids.variant].includes(item.pro_detail_uuid)));
     const existing = ledger.filter((row) => row.request_uuid === body.request_uuid);
     const deposits = existing.length ? existing : body.items.map((item) => ({
@@ -109,6 +112,7 @@ async function startFixtureApi() {
     assert.equal(body.order_uuid, ids.order);
     assert.match(body.request_uuid, /^[0-9a-f-]{36}$/);
     assert.equal(body.device_code, "DESKTOP-QA");
+    assert.equal(body.note, withdrawNote);
     const deposit = ledger.find((row) => row.deposit_uuid === body.deposit_uuid);
     const existing = withdrawals.find((row) => row.request_uuid === body.request_uuid);
     if (existing) return res.json({ status: "success", message: "success", lang: "la", idempotent_replay: true, deposit, withdrawal: existing, ...printResponse() });
@@ -205,7 +209,7 @@ export default function BeverageDepositQa() {
       <div className="mt-6 flex flex-wrap gap-3"><Button disabled={!ready} onClick={() => show("create")}>Open deposit</Button><Button disabled={!ready} variant="outline" onClick={() => show("withdraw")}>Open withdrawal</Button><Button variant="ghost" onClick={() => useAppStore.getState().setTheme(useAppStore.getState().theme === "dark" ? "light" : "dark")}>Toggle theme</Button></div>
       <div className="mt-6 grid gap-4 sm:grid-cols-3">{items.map((item) => <div key={String(item.pro_detail_uuid)} className="rounded-lg border bg-card p-5"><div className="mb-4 h-28 rounded-md bg-muted" /><p className="text-sm font-medium">{String(item.prod_name)}</p><p className="mt-2 text-xs text-muted-foreground">DR-001 · {String(item.detail?.size_name)}</p></div>)}</div>
     </div>
-    <DepositDialog branchUuid=${JSON.stringify(ids.branch)} orderUuid=${JSON.stringify(ids.order)} orderItems={items} open={open} defaultTab={tab} onOpenChange={setOpen} />
+    <DepositDialog branchUuid=${JSON.stringify(ids.branch)} orderUuid=${JSON.stringify(ids.order)} orderInvoice="INV-261030-0011" tableName="T11" orderItems={items} open={open} defaultTab={tab} onOpenChange={setOpen} />
   </main>;
 }
 `);
@@ -235,7 +239,11 @@ async function step(name, work) {
 async function runViewport(viewport, language = "la") {
   await fetch(`${apiOrigin}/fixture/reset`, { method: "POST" });
   const copy = JSON.parse(await readFile(join(frontend, "public/locales", language, "common.json"), "utf8"));
-  const t = (key) => key.split(".").reduce((value, part) => value?.[part], copy);
+  const t = (key) => {
+    const value = key.split(".").reduce((parent, part) => parent?.[part], copy);
+    assert.equal(typeof value, "string", `Translation required for UI regression: ${key}`);
+    return value;
+  };
   const context = await browser.newContext({ viewport, isMobile: viewport.width < 600, hasTouch: viewport.width < 600 });
   await context.route("**/*", (route) => {
     const url = new URL(route.request().url());
@@ -254,8 +262,8 @@ async function runViewport(viewport, language = "la") {
   const page = await context.newPage();
   page.on("pageerror", (error) => pageErrors.push(error.message));
   const prefix = `${viewport.width}-${language}`;
-  const screenshot = async (name) => {
-    const dialog = page.getByRole("dialog", { name: t("deposit.dialogTitle"), exact: true });
+  const screenshot = async (name, activeDialog) => {
+    const dialog = activeDialog || page.getByRole("dialog", { name: t("deposit.dialogTitle"), exact: true });
     await dialog.evaluate(async (element) => {
       await document.fonts.ready;
       await Promise.all(element.getAnimations().filter((animation) =>
@@ -271,7 +279,7 @@ async function runViewport(viewport, language = "la") {
     await page.screenshot({ path: join(artifacts, `${prefix}-${name}.png`), fullPage: false, animations: "disabled" });
   };
   const chooseCustomer = async () => {
-    await page.getByRole("combobox").filter({ visible: true }).click();
+    await page.getByRole("combobox", { name: t("deposit.customer"), exact: true }).click();
     await page.getByRole("option", { name: new RegExp(customer.customer_name) }).click();
   };
   const count = (path) => requests.filter((request) => request.method === "POST" && request.path === path).length;
@@ -280,16 +288,66 @@ async function runViewport(viewport, language = "la") {
     await page.goto(webOrigin + routePath, { waitUntil: "domcontentloaded", timeout: 120_000 });
     await page.getByRole("button", { name: "Open deposit", exact: true }).click();
     await page.getByText("Johnnie Walker Black Label (700 ml)", { exact: true }).waitFor();
-    await screenshot("deposit-empty");
-    await step(`${prefix}: create fractional deposit with real SKU and variant ID`, async () => {
+    await step(`${prefix}: quantities start empty and require a customer`, async () => {
+      const inputs = page.getByRole("spinbutton");
+      assert.equal(await inputs.count(), 2, "Both bill variants expose their own quantity");
+      for (const input of await inputs.all()) {
+        assert.equal(await input.inputValue(), "", "Opening a deposit never assumes all ordered drinks were received");
+        assert.equal(await input.isEnabled(), false, "Select a customer before entering received quantities");
+      }
+      assert.equal(await page.getByRole("button", { name: t("deposit.reviewDeposit"), exact: true }).isEnabled(), false);
+      assert.equal(await page.getByRole("checkbox").count(), 0, "Quantity entry replaces ambiguous item selection checkboxes");
+      await page.getByText("INV-261030-0011", { exact: true }).waitFor();
+      await screenshot("deposit-empty");
+    });
+    await step(`${prefix}: shared customer remains selected when switching deposit and collection`, async () => {
       await chooseCustomer();
-      await page.getByRole("checkbox", { name: "Johnnie Walker Black Label (700 ml)", exact: true }).check();
-      await page.getByRole("spinbutton", { name: t("deposit.depositQuantity") + " Johnnie Walker Black Label (700 ml)", exact: true }).fill("0.75");
+      await page.getByRole("tab", { name: t("deposit.withdrawTitle"), exact: true }).click();
+      await page.getByText("Hennessy VSOP (700 ml)", { exact: true }).waitFor();
+      assert((await page.getByRole("combobox", { name: t("deposit.customer"), exact: true }).innerText()).includes(customer.customer_name));
+      assert.equal(await page.getByRole("button", { name: t("deposit.reviewCollection"), exact: true }).isEnabled(), false);
+      await screenshot("withdraw-shared-customer");
+      await page.getByRole("tab", { name: t("deposit.createTitle"), exact: true }).click();
+      await page.getByText("Johnnie Walker Black Label (700 ml)", { exact: true }).waitFor();
+      assert((await page.getByRole("combobox", { name: t("deposit.customer"), exact: true }).innerText()).includes(customer.customer_name));
+      for (const input of await page.getByRole("spinbutton").all()) {
+        assert.equal(await input.inputValue(), "");
+        assert.equal(await input.isEnabled(), true);
+      }
+    });
+    await step(`${prefix}: enter actual fractional quantity, clear or zero it, then review SKU and variant`, async () => {
+      const search = page.getByRole("searchbox", { name: t("deposit.searchBillItems"), exact: true });
+      await search.fill("NO-SUCH-SKU");
+      assert.equal(await page.getByRole("spinbutton").count(), 0);
+      await search.fill("DR-001");
+      await page.getByText("Johnnie Walker Black Label (700 ml)", { exact: true }).waitFor();
+      assert.equal(await page.getByRole("spinbutton").count(), 2, "One master SKU can have two distinct size/variant UUIDs");
+      const input = page.getByRole("spinbutton", { name: t("deposit.receivedQuantity") + " Johnnie Walker Black Label (700 ml)", exact: true });
+      const review = page.getByRole("button", { name: t("deposit.reviewDeposit"), exact: true });
+      await input.fill("0.75");
+      assert.equal(await review.isEnabled(), true);
+      await input.fill("0");
+      assert.equal(await review.isEnabled(), false, "Zero quantity removes the item from this deposit");
+      await input.fill("");
+      assert.equal(await review.isEnabled(), false, "Cleared quantity never means the bill's maximum quantity");
+      await input.fill("0.75");
+      await search.fill("NO-SUCH-SKU");
+      assert.equal(await review.isEnabled(), true, "Filtering the ledger must retain quantities already entered for another SKU");
+      await search.fill("DR-001");
+      assert.equal(await input.inputValue(), "0.75");
+      await page.locator("#pos-deposit-note").fill(depositNote);
+      await search.scrollIntoViewIfNeeded();
       await screenshot("deposit-selected");
-      await page.getByRole("button", { name: t("deposit.saveAndPrint"), exact: true }).click();
+      await review.click();
       const confirmation = page.getByRole("alertdialog");
       await confirmation.getByText("DR-001", { exact: true }).waitFor();
-      await confirmation.getByRole("button", { name: t("deposit.saveAndPrint"), exact: true }).click();
+      const text = await confirmation.innerText();
+      for (const expected of [customer.customer_name, customer.customer_phone, "Johnnie Walker Black Label (700 ml)", "0.75", depositNote]) {
+        assert(text.includes(expected), `Deposit review must show ${expected}`);
+      }
+      assert.equal(count("/api/v1/posAll/deposit/create") - before.create, 0, "Reviewing does not save before explicit confirmation");
+      await screenshot("deposit-confirm", confirmation);
+      await confirmation.getByRole("button", { name: t("deposit.confirmAndPrint"), exact: true }).click();
       await page.getByText(t("deposit.receiptSavedPrintNeeded"), { exact: true }).waitFor();
       await screenshot("deposit-saved-printer-needed");
       const writes = requests.filter((request) => request.method === "POST" && request.path === "/api/v1/posAll/deposit/create").slice(before.create);
@@ -307,23 +365,45 @@ async function runViewport(viewport, language = "la") {
       assert.equal(ledger.find((row) => row.pro_detail_uuid_fk === ids.detail).deposit_qty, 0.75);
       await page.getByRole("button", { name: t("deposit.done"), exact: true }).click();
     });
-    await step(`${prefix}: search by SKU, preview withdrawal balances, and print the withdrawal receipt`, async () => {
+    await step(`${prefix}: choose a saved SKU and enter collection quantity explicitly`, async () => {
       await page.getByRole("button", { name: "Open withdrawal", exact: true }).click();
+      assert.equal(await page.getByRole("button", { name: t("deposit.reviewCollection"), exact: true }).isEnabled(), false);
       await chooseCustomer();
       const search = page.getByRole("searchbox", { name: t("deposit.withdrawSearchPlaceholder"), exact: true });
       await search.fill("DR-002");
       await page.getByText("Hennessy VSOP (700 ml)", { exact: true }).waitFor();
       assert.equal(await page.getByRole("radio").count(), 1);
       await page.getByRole("radio").check();
-      await page.getByRole("spinbutton", { name: t("deposit.withdrawQty"), exact: true }).fill("0.5");
+      const input = page.getByRole("spinbutton", { name: t("deposit.actualCollectQty"), exact: true });
+      const review = page.getByRole("button", { name: t("deposit.reviewCollection"), exact: true });
+      assert.equal(await input.inputValue(), "", "Selecting a deposit must not assume one unit or the whole remaining bottle");
+      assert.equal(await review.isEnabled(), false);
+      await page.getByRole("button", { name: t("deposit.collectAll"), exact: true }).click();
+      assert.equal(await input.inputValue(), "1.5", "Collect all is a deliberate shortcut, never an automatic default");
+      await input.fill("0");
+      assert.equal(await review.isEnabled(), false);
+      await input.fill("0.5");
+      const note = page.getByRole("textbox", { name: t("deposit.note"), exact: false });
+      await note.fill(withdrawNote);
+      await note.scrollIntoViewIfNeeded();
+      const noteBox = await note.boundingBox();
+      const footerBox = await page.getByRole("dialog", { name: t("deposit.dialogTitle"), exact: true })
+        .locator('[data-slot="dialog-footer"]').boundingBox();
+      assert(noteBox && footerBox && noteBox.y + noteBox.height <= footerBox.y + 1,
+        "The collection note must scroll fully above the fixed review controls");
       await screenshot("withdraw-selected");
-      await page.getByRole("button", { name: t("deposit.collectAndPrint"), exact: true }).click();
+      await review.click();
       const confirmation = page.getByRole("alertdialog");
       await confirmation.getByText("1.5 ຂວດ", { exact: true }).waitFor();
       await confirmation.getByText("0.5 ຂວດ", { exact: true }).waitFor();
       await confirmation.getByText("1 ຂວດ", { exact: true }).waitFor();
-      await page.screenshot({ path: join(artifacts, `${prefix}-withdraw-confirm.png`), fullPage: false });
-      await confirmation.getByRole("button", { name: t("deposit.collectAndPrint"), exact: true }).click();
+      const text = await confirmation.innerText();
+      for (const expected of [customer.customer_name, customer.customer_phone, "DR-002", "Hennessy VSOP (700 ml)", withdrawNote]) {
+        assert(text.includes(expected), `Collection review must show ${expected}`);
+      }
+      assert.equal(count("/api/v1/posAll/deposit/withdraw") - before.withdraw, 0, "Reviewing never withdraws before explicit confirmation");
+      await screenshot("withdraw-confirm", confirmation);
+      await confirmation.getByRole("button", { name: t("deposit.confirmAndPrint"), exact: true }).click();
       await page.getByText(t("deposit.receiptPrinted"), { exact: true }).waitFor();
       await screenshot("withdraw-receipt");
       assert.equal(count("/api/v1/posAll/deposit/withdraw") - before.withdraw, 1);
@@ -338,7 +418,7 @@ async function runViewport(viewport, language = "la") {
       await page.getByRole("button", { name: "Open deposit", exact: true }).click();
       await page.getByText("Johnnie Walker Black Label (700 ml)", { exact: true }).waitFor();
       await screenshot("deposit-dark");
-      const contrast = await page.getByRole("button", { name: t("deposit.selectItem"), exact: true }).evaluateAll((buttons) => {
+      const contrast = await page.getByText("Johnnie Walker Black Label (700 ml)", { exact: true }).evaluateAll((buttons) => {
         const canvas = document.createElement("canvas");
         canvas.width = 1; canvas.height = 1;
         const drawing = canvas.getContext("2d");
@@ -364,8 +444,8 @@ async function runViewport(viewport, language = "la") {
         });
       });
       assert(contrast.length > 0 && contrast.every((measurement) => measurement.ratio >= 4.5),
-        `Dark selection controls must meet text contrast: ${JSON.stringify(contrast)}`);
-      await writeFile(join(artifacts, "dark-selection-contrast.json"), JSON.stringify(contrast, null, 2));
+        `Dark product labels must meet text contrast: ${JSON.stringify(contrast)}`);
+      await writeFile(join(artifacts, "dark-product-contrast.json"), JSON.stringify(contrast, null, 2));
     });
   } catch (error) {
     await page.screenshot({ path: join(artifacts, `${prefix}-failure.png`), fullPage: true }).catch(() => {});
