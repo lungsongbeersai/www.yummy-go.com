@@ -151,18 +151,23 @@ export function SelectedTableCartPanelContent({
         className="relative z-10 flex min-h-0 flex-1 flex-col gap-0"
       >
         <CardHeader
-          data-pos-cart-sheet-header={variant === "sheet" ? "true" : undefined}
           className={cn(
             "relative block shrink-0 overflow-hidden border-b",
             neutral
               ? "border-white/15 bg-primary/25 text-primary-foreground dark:border-border dark:bg-card dark:text-foreground"
               : "border-white/10 text-white dark:bg-black/25",
-            variant === "side" ? "px-3 pb-2 pt-2.5" : "px-4 pb-2.5 pt-3 pr-12"
+            variant === "side" ? "px-3 pb-2 pt-2.5" : "px-4 pb-2.5 pt-3"
           )}
         >
           {/* min-h กันความสูงลดฮวบตอนไม่มีเลขบิล (ไม่งั้นจะเตี้ยกว่า header หลักฝั่งซ้าย
               ที่ยึดความสูงจากปุ่มไอคอน size-11 — ให้ตรงกับ md:h-11 ของ header ฝั่งนั้น) */}
-          <div className="relative flex min-h-9.5 min-w-0 items-center justify-between gap-3">
+          <div
+            data-pos-cart-sheet-heading={variant === "sheet" ? "true" : undefined}
+            className={cn(
+              "relative flex min-h-9.5 min-w-0 items-center justify-between gap-3",
+              variant === "sheet" && "pr-8"
+            )}
+          >
             <div className="flex min-w-0 flex-col gap-0.5">
               <p
                 className={cn(

@@ -3164,8 +3164,8 @@ textarea,
 }
 
 /* เว้นพื้นที่ให้วงกลมปิดของ cart sheet ไม่ทับ badge จำนวนรายการ */
-.capacitor-native [data-pos-cart-sheet-header="true"] {
-  padding-inline-end: 4.5rem;
+.capacitor-native [data-pos-cart-sheet-heading="true"] {
+  padding-inline-end: 3.5rem;
 }
 
 .capacitor-native button:not(:disabled):not([aria-disabled="true"]):active,
