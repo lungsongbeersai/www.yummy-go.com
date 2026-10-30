@@ -134,33 +134,28 @@ export function TableSelectionPage() {
     <div data-pos-pattern="true" className="relative h-full min-h-0 overflow-hidden bg-[url('/posAll/background_wide.webp')] bg-cover bg-top dark:bg-none dark:bg-background">
       <div aria-hidden="true" data-pos-pattern-overlay="true" className="pointer-events-none absolute inset-0 bg-primary/45 dark:hidden" />
       <div className="relative flex h-full min-h-0 flex-col overflow-hidden">
-        {/* min-h ไม่ใช่ h คงที่ + pt safe-area — header นี้เป็น header บนสุดของหน้าจริง ๆ เสมอ
-            (ไม่มี NativeTopBar/AppHeader ด้านบนให้บนหน้า immersive แบบนี้) ต้องกันพื้นที่
-            status bar เองตอนรันบน Capacitor จอกว้าง/แนวนอน — env() เป็น 0 อยู่แล้วบนจอที่ไม่มี
-            notch/status bar (เว็บเดสก์ท็อป) จึงไม่ต้องเช็ค platform เพิ่ม ปุ่ม/นาฬิกาที่ centered
-            ด้วย items-center/top-1/2 ยังอยู่กึ่งกลางของกล่องใหม่ที่สูงขึ้นให้เองอัตโนมัติ
-            (Swan 1 ใช้ grid สามช่องแทน absolute ผ่าน CSS เฉพาะเครื่อง) */}
-        <header data-pos-table-header="true" className="relative flex min-h-18 shrink-0 items-center justify-between overflow-hidden px-3 pt-[env(safe-area-inset-top,0px)] text-primary-foreground shadow-sm sm:min-h-20 sm:px-4">
-          <Button aria-label={t("actions.back")} className={headerIconButtonClass} size="icon" type="button" variant="ghost" onClick={() => router.replace("/")}>
+        {/* Keep these three children for Swan's grid fallback. Tool groups wrap
+            within the right track so the centered clock never overlaps them. */}
+        <header data-pos-table-header="true" className="relative grid min-h-18 shrink-0 grid-cols-[auto_minmax(0,1fr)] items-center gap-x-2 gap-y-2 overflow-hidden px-2 pb-2 pt-[calc(0.5rem+env(safe-area-inset-top,0px))] text-primary-foreground shadow-sm sm:px-4 md:min-h-20 md:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)]">
+          <Button aria-label={t("actions.back")} className={cn(headerIconButtonClass, "col-start-1 row-start-1 justify-self-start")} size="icon" type="button" variant="ghost" onClick={() => router.replace("/")}>
             <ChevronLeft />
           </Button>
           <TableClock />
-          <div data-pos-table-header-actions="true" className="relative flex min-w-0 items-center gap-1.5">
-            <SimulatorLauncher />
-            <NotificationMenu triggerClassName={headerIconButtonClass} triggerVariant="ghost" />
-            <LanguageSwitch className={cn(headerIconButtonClass, "hidden min-[500px]:inline-flex")} compact size="icon" variant="ghost" />
-            <ThemeToggle className={headerIconButtonClass} size="icon" variant="ghost" />
-            <Button aria-label={t("actions.refresh")} className={headerIconButtonClass} size="icon" type="button" variant="ghost" onClick={() => void load()}>
-              <RefreshCcw />
-            </Button>
+          <div data-pos-table-header-actions="true" className="relative col-span-2 col-start-1 row-start-2 flex min-w-0 max-w-full flex-wrap items-center justify-end gap-1 justify-self-end sm:gap-1.5 md:col-span-1 md:col-start-3 md:row-start-1">
+            <div className="flex shrink-0 items-center gap-1 sm:gap-1.5">
+              <BranchContractStatus responsiveCompact />
+              <SimulatorLauncher />
+            </div>
+            <div className="flex shrink-0 items-center gap-1 sm:gap-1.5">
+              <NotificationMenu triggerClassName={headerIconButtonClass} triggerVariant="ghost" />
+              <LanguageSwitch className={cn(headerIconButtonClass, "hidden min-[500px]:inline-flex")} compact size="icon" variant="ghost" />
+              <ThemeToggle className={headerIconButtonClass} size="icon" variant="ghost" />
+              <Button aria-label={t("actions.refresh")} className={headerIconButtonClass} size="icon" type="button" variant="ghost" onClick={() => void load()}>
+                <RefreshCcw />
+              </Button>
+            </div>
           </div>
         </header>
-        <div className="flex min-w-0 shrink-0 flex-col gap-1.5 border-b border-border bg-card px-3 py-2 text-foreground sm:flex-row sm:items-center sm:justify-between sm:px-4">
-          <p className="min-w-0 truncate text-xs text-muted-foreground">
-            {user?.branch_name || t("app.branchContract.currentBranch")}
-          </p>
-          <BranchContractStatus className="w-full sm:w-auto" />
-        </div>
         <TableListSection initialZoneUuid={initialZoneUuid} loading={loading} search={search} selectedTable={null} statusFilter={statusFilter} zoneOptions={zoneOptions} zones={zones} onSearchChange={setSearch} onRefresh={load} onSelectTable={selectTable} onStatusFilterChange={setStatusFilter} />
       </div>
     </div>
@@ -176,7 +171,7 @@ function TableClock() {
   }, []);
 
   return (
-    <p data-pos-table-clock="true" className="absolute left-1/2 top-1/2 max-w-55 -translate-x-1/2 -translate-y-1/2 whitespace-nowrap text-xl font-black leading-none tracking-wide tabular-nums text-primary-foreground dark:text-white sm:text-3xl">
+    <p data-pos-table-clock="true" className="col-span-2 col-start-1 row-start-1 max-w-55 justify-self-center whitespace-nowrap text-xl font-black leading-none tracking-wide tabular-nums text-primary-foreground dark:text-white md:col-span-1 md:col-start-2 2xl:text-3xl">
       {formatClock(now)}
     </p>
   );
