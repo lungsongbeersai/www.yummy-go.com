@@ -120,22 +120,48 @@ describe("daily closing payment time range", () => {
 
   it("uses all four visible fields for the initial payment query and receipt", () => {
     const initial = initialDailyClosingFilters("branch-1", new Date("2026-10-21T10:00:00Z"));
-    expect(initial).toEqual(filters);
-    expect(dailyClosingTimeParams(initial)).toEqual({ time_from: "00:00", time_to: "23:59" });
+    expect(initial).toEqual({
+      ...filters, dateTo: "2026-10-22", timeFrom: "05:00", timeTo: "04:59",
+    });
+    expect(dailyClosingTimeParams(initial)).toEqual({ time_from: "05:00", time_to: "04:59" });
     expect(dailyClosingFilterError(initial)).toBeNull();
-    expect(dailyClosingPeriodDisplay(initial)).toBe("21/10/2026 00:00 - 21/10/2026 23:59");
-    expect(dailyClosingPrintPeriod(initial)).toEqual({ from: "21/10/2026 00:00", to: "21/10/2026 23:59" });
+    expect(dailyClosingPeriodDisplay(initial)).toBe("21/10/2026 05:00 - 22/10/2026 04:59");
+    expect(dailyClosingPrintPeriod(initial)).toEqual({ from: "21/10/2026 05:00", to: "22/10/2026 04:59" });
   });
 
   it.each([
-    ["2026-10-21T16:59:59Z", "2026-10-21"],
-    ["2026-10-21T17:00:00Z", "2026-10-22"],
-    ["2026-10-21T20:00:00Z", "2026-10-22"],
-    ["2026-12-31T17:00:00Z", "2027-01-01"],
-  ])("defaults to the Laos calendar date even before the business-day cutoff: %s", (instant, expectedDate) => {
-    expect(initialDailyClosingFilters("branch-1", new Date(instant))).toMatchObject({
-      dateFrom: expectedDate, dateTo: expectedDate, timeFrom: "00:00", timeTo: "23:59",
+    ["2026-10-30T23:59:59+07:00", "2026-10-30", "2026-10-31"],
+    ["2026-10-31T00:00:00+07:00", "2026-10-30", "2026-10-31"],
+    ["2026-10-31T04:59:59.999+07:00", "2026-10-30", "2026-10-31"],
+    ["2026-10-31T05:00:00+07:00", "2026-10-31", "2026-11-01"],
+    ["2026-10-31T05:59:59+07:00", "2026-10-31", "2026-11-01"],
+    ["2026-11-01T00:00:00+07:00", "2026-10-31", "2026-11-01"],
+    ["2026-11-01T04:59:59.999+07:00", "2026-10-31", "2026-11-01"],
+    ["2026-11-01T05:00:00+07:00", "2026-11-01", "2026-11-02"],
+    ["2027-01-01T00:00:00+07:00", "2026-12-31", "2027-01-01"],
+    ["2027-01-01T05:00:00+07:00", "2027-01-01", "2027-01-02"],
+    ["2028-02-29T04:59:59.999+07:00", "2028-02-28", "2028-02-29"],
+    ["2028-03-01T04:59:59.999+07:00", "2028-02-29", "2028-03-01"],
+    ["2028-03-01T05:00:00+07:00", "2028-03-01", "2028-03-02"],
+  ])("keeps one closing day through 04:59 and rolls over at 05:00 in Laos: %s", (instant, dateFrom, dateTo) => {
+    const initial = initialDailyClosingFilters("branch-1", new Date(instant));
+    expect(initial).toEqual({
+      branchUuid: "branch-1", tableUuid: "all", zoneUuid: "all",
+      dateFrom, dateTo, timeFrom: "05:00", timeTo: "04:59",
     });
+    expect(dailyClosingFilterError(initial)).toBeNull();
+  });
+
+  it("uses the same payment window on both sides of midnight", () => {
+    const beforeMidnight = initialDailyClosingFilters("branch-1", new Date("2026-10-30T23:59:59+07:00"));
+    const afterMidnight = initialDailyClosingFilters("branch-1", new Date("2026-10-31T00:00:00+07:00"));
+    const beforeCutoff = initialDailyClosingFilters("branch-1", new Date("2026-10-31T04:59:59.999+07:00"));
+    const afterCutoff = initialDailyClosingFilters("branch-1", new Date("2026-10-31T05:00:00+07:00"));
+
+    expect(dailyClosingFiltersEqual(beforeMidnight, afterMidnight)).toBe(true);
+    expect(dailyClosingFiltersEqual(beforeMidnight, beforeCutoff)).toBe(true);
+    expect(dailyClosingFiltersEqual(beforeMidnight, afterCutoff)).toBe(false);
+    expect(dailyClosingPrintPeriod(beforeCutoff)).toEqual({ from: "30/10/2026 05:00", to: "31/10/2026 04:59" });
   });
 
   it("sends a continuous calendar window and shows both exact endpoints on the receipt", () => {
