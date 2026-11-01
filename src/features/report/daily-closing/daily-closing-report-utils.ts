@@ -5,11 +5,20 @@ import type { DailyClosingReportFilters } from "./daily-closing-report-types";
 export function initialDailyClosingFilters(branchUuid: string, now = new Date()): DailyClosingReportFilters {
   const parts = new Intl.DateTimeFormat("en-CA", {
     timeZone: "Asia/Vientiane", year: "numeric", month: "2-digit", day: "2-digit",
+    hour: "2-digit", hourCycle: "h23",
   }).formatToParts(now);
   const part = (type: Intl.DateTimeFormatPartTypes) => parts.find((item) => item.type === type)?.value ?? "";
-  const today = `${part("year")}-${part("month")}-${part("day")}`;
+  // Closing reports keep post-midnight payments in the same day until 05:00 Laos time.
+  const businessDate = new Date(Date.UTC(
+    Number(part("year")), Number(part("month")) - 1,
+    Number(part("day")) - (Number(part("hour")) < 5 ? 1 : 0),
+  ));
+  const dateFrom = businessDate.toISOString().slice(0, 10);
+  businessDate.setUTCDate(businessDate.getUTCDate() + 1);
+  const dateTo = businessDate.toISOString().slice(0, 10);
+
   return {
-    branchUuid, dateFrom: today, timeFrom: "00:00", dateTo: today, timeTo: "23:59",
+    branchUuid, dateFrom, timeFrom: "05:00", dateTo, timeTo: "04:59",
     tableUuid: "all", zoneUuid: "all",
   };
 }
