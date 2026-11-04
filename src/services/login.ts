@@ -1,6 +1,7 @@
 import axios from "axios";
-import { apiRequest, publicApiClient, ServiceError } from "@/lib/api";
+import { apiRequest, publicApiClient, publicApiRequest, ServiceError } from "@/lib/api";
 import { normalizeLoginEmail } from "@/lib/login-email";
+import { normalizeStoreCategory, type StoreCategory } from "@/lib/store-category";
 import type { AuthUser, AuthZone } from "@/stores/auth-store";
 
 interface LoginApiResponse {
@@ -51,6 +52,34 @@ export interface LoginSession {
   store_status?: number;
   contract_end_on?: string | null;
   contract_days_remaining?: number | null;
+}
+
+export interface TrialStore {
+  store_uuid: string;
+  store_name_la: string;
+  store_name_eng: string;
+  store_logo: string;
+  store_category: StoreCategory;
+  branch_uuid: string;
+  branch_name: string;
+}
+
+export async function getTrialStores(): Promise<TrialStore[]> {
+  const response = await publicApiRequest<{ data: TrialStore[] }>(
+    "get", "/api/v1/login/trial-stores", { timeout: 8000 }, "Unable to load trial stores",
+  );
+  return response.data.map((store) => ({
+    ...store,
+    store_category: normalizeStoreCategory(store.store_category),
+  }));
+}
+
+export async function loginToTrialStore(storeUuid: string): Promise<LoginResult> {
+  if (!storeUuid.trim()) throw new ServiceError("Store is required", 400);
+  const response = await publicApiRequest<LoginApiResponse>(
+    "post", "/api/v1/login/trial-login", { data: { store_uuid: storeUuid }, timeout: 8000 }, "Trial login failed",
+  );
+  return mapLoginResponse(response);
 }
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;

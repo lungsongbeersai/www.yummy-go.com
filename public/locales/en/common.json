@@ -270,6 +270,20 @@
     "updateNow": "Update now"
   },
   "auth": {
+    "trial": {
+      "title": "Try Yummy Go",
+      "description": "Choose a trial store to sign in instantly. No email or password needed. This is a shared demo workspace.",
+      "enter": "Try this store",
+      "enterStore": "Try {{name}}",
+      "welcome": "Welcome to the trial store",
+      "loginFailed": "Unable to enter this trial store",
+      "loading": "Loading trial stores",
+      "loadFailed": "Trial stores are unavailable",
+      "loadFailedHint": "Please try loading the trial stores again.",
+      "retry": "Try again",
+      "empty": "No trial stores available yet",
+      "emptyHint": "Please check back later, or sign in with your account above."
+    },
     "accessWorkspace": "Sign in to start managing your restaurant.",
     "backToHome": "Back to home",
     "cleanInterface": "Clean POS Pro interface",
@@ -1075,6 +1089,12 @@
     "draftExitContinue": "Continue ordering",
     "draftExitDiscard": "Leave and delete items",
     "allItemsSubmitted": "All current items have been sent.",
+    "cartRequestBill": "Request the bill",
+    "cartBillHint": "Review and send a bill request to restaurant staff.",
+    "cartBillPending": "Bill request in progress",
+    "publicRefreshing": "Updating…",
+    "publicRefreshed": "Updated",
+    "publicRefreshFailed": "Unable to update. Please try again.",
     "confirmOrderLoadingTitle": "Confirming order",
     "confirmAllTitle": "Confirming all orders",
     "confirmAllPreparing": "Preparing order confirmation.",
@@ -1318,13 +1338,7 @@
     "taxIncludedWithPercent": "VAT included ({{percent}}%)",
     "discountRemaining": "Remaining",
     "menuLink": "Menu link",
-    "currentQuantity": "Currently {{qty}}",
-    "cartRequestBill": "Request the bill",
-    "cartBillHint": "Review and send a bill request to restaurant staff.",
-    "cartBillPending": "Bill request in progress",
-    "publicRefreshing": "Updating…",
-    "publicRefreshed": "Updated",
-    "publicRefreshFailed": "Unable to update. Please try again."
+    "currentQuantity": "Currently {{qty}}"
   },
   "category": {
     "sorted": "Order saved",
@@ -1613,26 +1627,26 @@
     "tryDifferentIconSearch": "Try a different icon search."
   },
   "printer": {
-    "diagnostics": {
-      "title": "Printer needs attention",
-      "paused": "The printer queue is paused. Check pending jobs before resuming it in system printer settings.",
-      "notAccepting": "The printer queue is not accepting jobs. Check system printer settings.",
-      "offline": "The printer is offline. Check its power and connection.",
-      "offlineReported": "The printer reports an offline signal. Check the connection; the reported status may be stale.",
-      "paperOut": "The printer reports missing paper. Check and refill the paper.",
-      "paperJam": "The printer reports a paper jam. Check and clear the paper path.",
-      "coverOpen": "The printer reports an open cover. Check that the cover is closed.",
+      "diagnostics": {
+        "title": "Printer needs attention",
+        "paused": "The printer queue is paused. Check pending jobs before resuming it in system printer settings.",
+        "notAccepting": "The printer queue is not accepting jobs. Check system printer settings.",
+        "offline": "The printer is offline. Check its power and connection.",
+        "offlineReported": "The printer reports an offline signal. Check the connection; the reported status may be stale.",
+        "paperOut": "The printer reports missing paper. Check and refill the paper.",
+        "paperJam": "The printer reports a paper jam. Check and clear the paper path.",
+        "coverOpen": "The printer reports an open cover. Check that the cover is closed.",
       "manualFeed": "The printer is waiting for manual paper feed. Load the required paper.",
-      "error": "The printer reports an error. Check the printer and system queue.",
-      "unknown": "Printer queue status could not be confirmed. Check the printer.",
-      "queueOnly": "Queue status does not confirm that paper has physically printed.",
-      "pendingJobs": "{{count}} existing job(s) are in the queue. Check the output before printing again.",
-      "storageTitle": "Agent computer storage needs attention",
-      "storage": {
-        "low": "Storage is running low on the Agent computer. Free up space before printing.",
-        "critical": "There is not enough free space to safely record new print jobs. Free up space on the Agent computer."
-      }
-    },
+        "error": "The printer reports an error. Check the printer and system queue.",
+        "unknown": "Printer queue status could not be confirmed. Check the printer.",
+        "queueOnly": "Queue status does not confirm that paper has physically printed.",
+        "pendingJobs": "{{count}} existing job(s) are in the queue. Check the output before printing again.",
+        "storageTitle": "Agent computer storage needs attention",
+        "storage": {
+          "low": "Storage is running low on the Agent computer. Free up space before printing.",
+          "critical": "There is not enough free space to safely record new print jobs. Free up space on the Agent computer."
+        }
+      },
     "documentLogoMode": "Invoice and receipt logo",
     "documentLogoModeHint": "Use the logo saved in the store and branch settings. You can change this for each bill before printing.",
     "showDocumentLogo": "Show logo on invoices and receipts",
@@ -2102,50 +2116,17 @@
         }
       },
       "templates": {
-        "bistro": {
-          "name": "Green Bistro",
-          "description": "Two menu columns with a large round food photo."
-        },
-        "garden": {
-          "name": "Garden Fresh",
-          "description": "Three photo columns on a green background."
-        },
-        "sunny": {
-          "name": "Sunny Kitchen",
-          "description": "A large header photo above three menu columns."
-        },
-        "classic": {
-          "name": "Classic Bistro",
-          "description": "Two photo columns on a cream background."
-        },
-        "midnight": {
-          "name": "Midnight Dining",
-          "description": "Two photo columns with a dark background and gold borders."
-        },
-        "market": {
-          "name": "Street Market",
-          "description": "Four photo columns with red price labels."
-        },
-        "cafe": {
-          "name": "Cozy Café",
-          "description": "Three photo columns with rounded price labels."
-        },
-        "editorial": {
-          "name": "Bistro Gallery",
-          "description": "Menu and prices on the left, food photos on the right."
-        },
-        "promo": {
-          "name": "Bold Photo Catalog",
-          "description": "Six photo columns in red and orange."
-        },
-        "directory": {
-          "name": "Category Directory",
-          "description": "Three categorized menu columns with small photos."
-        },
-        "featured": {
-          "name": "Photo Showcase",
-          "description": "Three photo columns with yellow price labels."
-        }
+        "bistro": { "name": "Green Bistro", "description": "Two menu columns with a large round food photo." },
+        "garden": { "name": "Garden Fresh", "description": "Three photo columns on a green background." },
+        "sunny": { "name": "Sunny Kitchen", "description": "A large header photo above three menu columns." },
+        "classic": { "name": "Classic Bistro", "description": "Two photo columns on a cream background." },
+        "midnight": { "name": "Midnight Dining", "description": "Two photo columns with a dark background and gold borders." },
+        "market": { "name": "Street Market", "description": "Four photo columns with red price labels." },
+        "cafe": { "name": "Cozy Café", "description": "Three photo columns with rounded price labels." },
+        "editorial": { "name": "Bistro Gallery", "description": "Menu and prices on the left, food photos on the right." },
+        "promo": { "name": "Bold Photo Catalog", "description": "Six photo columns in red and orange." },
+        "directory": { "name": "Category Directory", "description": "Three categorized menu columns with small photos." },
+        "featured": { "name": "Photo Showcase", "description": "Three photo columns with yellow price labels." }
       },
       "errors": {
         "empty": "There are no active regular or set products to include in a menu.",
@@ -3726,6 +3707,16 @@
       "type": "Type",
       "test": "Test",
       "testStores": "Test stores",
+      "category": "Business category",
+      "categories": {
+        "restaurant": "Restaurant",
+        "cafe": "Café",
+        "mala": "Mala restaurant",
+        "pho": "Pho restaurant",
+        "pub": "Pub",
+        "bar": "Bar"
+      },
+      "testLoginHint": "Active trial stores appear publicly on the login page. Customers can enter this shared store without a password.",
       "uploadImage": "Upload image",
       "uploadAccountQr": "Upload account QR",
       "vertical": "Vertical",
@@ -4003,11 +3994,7 @@
     "tagline": "QR ordering & restaurant POS",
     "headline": "Easy ordering. Smoother restaurant service.",
     "description": "The digital menu you’re using is developed by YummyGo. Bring QR ordering, POS and table management together for your restaurant.",
-    "features": {
-      "qr": "QR ordering",
-      "pos": "Restaurant POS",
-      "tables": "Orders & tables"
-    },
+    "features": { "qr": "QR ordering", "pos": "Restaurant POS", "tables": "Orders & tables" },
     "contactLabel": "YummyGo team · WhatsApp",
     "contactAction": "Chat with YummyGo",
     "contactDescription": "Tell us about your restaurant. Our team can help you explore QR ordering and POS.",
@@ -4045,5 +4032,49 @@
     "order": "Your order has been confirmed successfully.",
     "waiter": "Your staff request has been sent successfully.",
     "close": "Close window"
+  },
+  "mySales": {
+    "title": "My sales",
+    "description": "Items you added in your current branch. Bill status applies to the table bill.",
+    "refresh": "Refresh",
+    "search": "Search",
+    "searchPlaceholder": "Bill, table or product",
+    "dateFrom": "From date",
+    "dateTo": "To date",
+    "kitchenLabel": "Kitchen status",
+    "paymentLabel": "Bill status",
+    "invalidDates": "The end date must be on or after the start date.",
+    "clearFilters": "Clear filters",
+    "applyFilters": "Apply filters",
+    "loadFailed": "Could not load your orders",
+    "retry": "Retry",
+    "orderCount": "Orders",
+    "pendingKitchen": "Waiting for kitchen",
+    "loading": "Loading your orders",
+    "empty": "No orders found",
+    "emptyDescription": "Your own items will appear here. Try changing or clearing the filters.",
+    "range": "{{start}}–{{end}} of {{total}} orders",
+    "noTable": "Counter order",
+    "itemCount_one": "{{count}} item",
+    "itemCount_other": "{{count}} items",
+    "myItems": "Items you added",
+    "ownTotal": "Your item total",
+    "checkedAt": "Bill checked at",
+    "totalDescription": "Item amount only. Shared bill discounts, service charge and VAT are excluded.",
+    "note": "Note",
+    "setMember": "Set component × {{count}}",
+    "kitchen": {
+      "all": "All kitchen statuses",
+      "pending": "Not sent to kitchen",
+      "partial": "Partly sent to kitchen",
+      "sent": "Sent to kitchen",
+      "cancelled": "Cancelled"
+    },
+    "payment": {
+      "all": "All bill statuses",
+      "unpaid": "Not checked yet",
+      "paid": "Bill checked",
+      "cancelled": "Cancelled"
+    }
   }
 }

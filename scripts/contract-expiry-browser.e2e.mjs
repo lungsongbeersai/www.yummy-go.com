@@ -69,15 +69,15 @@ async function auth(req, res, done) {
 async function startBackend() {
   pg = new PGlite();
   await pg.exec(`CREATE TABLE tb_stores(store_uuid uuid,store_logo text,store_active int,store_status int,deposit_expire_days int,lak_rounding_version int,store_table_status int);
-    CREATE TABLE tb_branch(branch_uuid uuid,branch_name text,branch_tel text,branch_address text,store_uuid_fk uuid,contract_end_on date);
-    CREATE TABLE tb_login(login_uuid uuid,login_email text,login_name text,login_password text,login_active int,roles_id_fk int,login_profile text,zone_uuid_fk uuid,position_uuid_fk uuid,deportment_uuid_fk uuid,branch_uuid_fk uuid);
+    CREATE TABLE tb_branch(branch_uuid uuid,branch_name text,branch_tel text,branch_address text,store_uuid_fk uuid,contract_end_on date,branch_id serial,branch_status int DEFAULT 1);
+    CREATE TABLE tb_login(login_uuid uuid,login_email text,login_name text,login_password text,login_active int,roles_id_fk int,login_profile text,zone_uuid_fk uuid,position_uuid_fk uuid,deportment_uuid_fk uuid,branch_uuid_fk uuid,login_id serial,login_primary int DEFAULT 1);
     CREATE TABLE tb_zone(zone_uuid uuid,zone_id int,zone_name_la text,zone_name_eng text);
     CREATE TABLE tb_login_zone(login_uuid_fk uuid,zone_uuid_fk uuid);
     CREATE TABLE tb_position(position_uuid uuid,position_name_la text,position_name_eng text);
     CREATE TABLE tb_deportment(deportment_uuid uuid,deportment_name_la text,deportment_name_eng text);
     INSERT INTO tb_stores VALUES('${store}','',1,2,7,1,1);
-    INSERT INTO tb_branch VALUES('${branchA}','Branch A','','','${store}',null),('${branchB}','Branch B','','','${store}',null);
-    INSERT INTO tb_login VALUES('${loginA}','a@example.test','Staff A','fixture-hash',1,3,'',null,null,null,'${branchA}'),
+    INSERT INTO tb_branch(branch_uuid,branch_name,branch_tel,branch_address,store_uuid_fk,contract_end_on) VALUES('${branchA}','Branch A','','','${store}',null),('${branchB}','Branch B','','','${store}',null);
+    INSERT INTO tb_login(login_uuid,login_email,login_name,login_password,login_active,roles_id_fk,login_profile,zone_uuid_fk,position_uuid_fk,deportment_uuid_fk,branch_uuid_fk) VALUES('${loginA}','a@example.test','Staff A','fixture-hash',1,3,'',null,null,null,'${branchA}'),
       ('${loginB}','b@example.test','Staff B','fixture-hash',1,3,'',null,null,null,'${branchB}');`);
   await expiry(branchA, 10); await expiry(branchB, 20);
   const routeFile = join(backend, "api/v1/login/login.js"), routeRequire = createRequire(routeFile);

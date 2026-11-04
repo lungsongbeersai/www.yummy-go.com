@@ -109,6 +109,7 @@ function StoreSettingsPage({ initialPagination }: { initialPagination: UrlPagina
     buildInput: ({ editing: editingRow, formData }) =>
       buildStorePayload({
         active: String(formData.get("store_active") ?? "1"),
+        category: String(formData.get("store_category") ?? "restaurant"),
         depositExpireDays: String(formData.get("deposit_expire_days") ?? ""),
         editing: editingRow,
         email: String(formData.get("store_email") ?? ""),
@@ -213,6 +214,7 @@ function StoreSettingsPage({ initialPagination }: { initialPagination: UrlPagina
     const logo = formData.get("store_logo");
     const input = buildStorePayload({
       active: String(formData.get("store_active") ?? "1"),
+      category: String(formData.get("store_category") ?? "restaurant"),
       depositExpireDays: String(formData.get("deposit_expire_days") ?? ""),
       editing,
       email: String(formData.get("store_email") ?? ""),

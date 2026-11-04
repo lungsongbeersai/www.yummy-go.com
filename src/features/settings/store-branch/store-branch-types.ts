@@ -1,3 +1,5 @@
+import type { StoreCategory } from "@/lib/store-category";
+
 export type StoreBranchSettingsRow = Record<string, unknown>;
 
 export interface StoreBranchLabels {
@@ -17,6 +19,8 @@ export interface StoreBranchLabels {
   catalogCopyFirstBranch: string;
   catalogSourceUnavailable: string;
   catalogSourceLoading: string;
+  category: string;
+  categories: Record<StoreCategory, string>;
   annualDue: string;
   activeStores: string;
   cancel: string;
@@ -101,6 +105,7 @@ export interface StoreBranchLabels {
   taxBillingHint: string;
   type: string;
   test: string;
+  testLoginHint: string;
   testStores: string;
   generalStores: string;
   uploadImage: string;

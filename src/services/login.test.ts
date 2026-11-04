@@ -2,10 +2,11 @@ import axios from "axios";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { normalizeLoginEmail } from "@/lib/login-email";
 
-const apiMocks = vi.hoisted(() => ({ post: vi.fn(), request: vi.fn() }));
+const apiMocks = vi.hoisted(() => ({ post: vi.fn(), request: vi.fn(), publicRequest: vi.fn() }));
 
 vi.mock("@/lib/api", () => ({
   apiRequest: apiMocks.request,
+  publicApiRequest: apiMocks.publicRequest,
   publicApiClient: { post: apiMocks.post },
   ServiceError: class ServiceError extends Error {
     constructor(message: string, public statusCode = 500, public originalError?: unknown, public payload?: unknown) {
@@ -15,7 +16,7 @@ vi.mock("@/lib/api", () => ({
   },
 }));
 
-import { checkLogin, validateLoginSession } from "@/services/login";
+import { checkLogin, getTrialStores, loginToTrialStore, validateLoginSession } from "@/services/login";
 
 function loginResponse(overrides: Record<string, unknown> = {}) {
   return {
@@ -41,6 +42,7 @@ describe("online-only login service", () => {
   beforeEach(() => {
     apiMocks.post.mockReset();
     apiMocks.request.mockReset();
+    apiMocks.publicRequest.mockReset();
   });
 
   afterEach(() => {
@@ -179,5 +181,38 @@ describe("online-only login service", () => {
       undefined,
       "Unable to validate session",
     );
+  });
+
+  it("loads public trial stores and normalizes legacy categories", async () => {
+    apiMocks.publicRequest.mockResolvedValue({ data: [
+      { store_uuid: "trial-cafe", store_category: "cafe" },
+      { store_uuid: "legacy-trial" },
+    ] });
+    await expect(getTrialStores()).resolves.toEqual([
+      { store_uuid: "trial-cafe", store_category: "cafe" },
+      { store_uuid: "legacy-trial", store_category: "restaurant" },
+    ]);
+    expect(apiMocks.publicRequest).toHaveBeenCalledWith(
+      "get", "/api/v1/login/trial-stores", { timeout: 8000 }, "Unable to load trial stores",
+    );
+  });
+
+  it("requests a trial session using only the chosen store, without credentials", async () => {
+    apiMocks.publicRequest.mockResolvedValue(loginResponse({ store_status: 3, login_status: 3 }));
+    await expect(loginToTrialStore("trial-cafe")).resolves.toMatchObject({
+      token: "token-1", source: "online", user: { store_status: 3, status: 3 },
+    });
+    expect(apiMocks.publicRequest).toHaveBeenCalledWith(
+      "post", "/api/v1/login/trial-login", { data: { store_uuid: "trial-cafe" }, timeout: 8000 }, "Trial login failed",
+    );
+  });
+
+  it("does not create a trial session when Backend rejects the selected store", async () => {
+    apiMocks.publicRequest.mockResolvedValue({ status: "error", message: "Trial store unavailable" });
+    await expect(loginToTrialStore("disabled-trial")).rejects.toMatchObject({
+      name: "ServiceError", message: "Trial store unavailable",
+    });
+    apiMocks.publicRequest.mockRejectedValue(new Error("Network unavailable"));
+    await expect(loginToTrialStore("trial-cafe")).rejects.toThrow("Network unavailable");
   });
 });

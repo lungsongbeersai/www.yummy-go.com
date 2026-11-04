@@ -1,6 +1,7 @@
 import { createCrud } from "@/services/shared/crud";
 import { apiRequest, ServiceError } from "@/lib/api";
 import type { ApiEntity, ApiListResponse, FetchParams } from "@/services/shared/types";
+import type { StoreCategory } from "@/lib/store-category";
 export { getStoreLogoUrl } from "@/lib/image";
 
 export interface Store extends ApiEntity {
@@ -11,6 +12,7 @@ export interface Store extends ApiEntity {
   store_email?: string;
   store_logo?: string;
   store_status?: number;
+  store_category?: StoreCategory;
   store_active?: number;
   store_table_status?: number;
   lak_rounding_version?: number;
@@ -28,6 +30,7 @@ export interface StoreResponse extends ApiListResponse<Store> {
   summary?: StoreReportSummary;
 }
 export interface SaveStoreInput extends ApiEntity {
+  store_category?: StoreCategory;
   store_table_status?: number;
   lak_rounding_version?: number;
   deposit_expire_days?: number | null;

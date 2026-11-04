@@ -1,5 +1,6 @@
 import { stripNumberFormat } from "@/lib/number-format";
 import { branchContractPackageMonths } from "@/lib/branch-contract";
+import { normalizeStoreCategory } from "@/lib/store-category";
 import type { Branch, SaveBranchInput } from "@/services/branch";
 import type { ApiEntity } from "@/services/shared/types";
 import type { SaveStoreInput, StoreReportSummary } from "@/services/store";
@@ -200,6 +201,7 @@ export function branchCatalogSourceOptions(branches: Branch[], storeUuid: string
 
 export function buildStorePayload({
   active,
+  category,
   depositExpireDays,
   editing,
   email,
@@ -211,6 +213,7 @@ export function buildStorePayload({
   tableStatus
 }: {
   active: string;
+  category?: string;
   depositExpireDays: string;
   editing: StoreBranchRow;
   email: string;
@@ -226,6 +229,7 @@ export function buildStorePayload({
     store_name_la: nameLa.trim(),
     store_name_eng: nameEng.trim(),
     store_email: email.trim(),
+    store_category: normalizeStoreCategory(category ?? editing?.store_category),
     store_status: Number(status || 2),
     store_active: Number(active || 1),
     store_table_status: storeTableStatusValue(tableStatus),
