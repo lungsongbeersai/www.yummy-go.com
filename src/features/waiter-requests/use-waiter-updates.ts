@@ -1,10 +1,11 @@
 "use client";
 import { useEffect } from "react";
-import { subscribeWaiterRequests } from "@/lib/socket";
+import { subscribeWaiterRequests, type BranchRealtimePayload } from "@/lib/socket";
 export function useWaiterUpdates(
   branch: string,
   refresh: () => void,
-  table?: string
+  table?: string,
+  onChange?: (payload: BranchRealtimePayload) => void
 ) {
   useEffect(() => {
     let timer: ReturnType<typeof setTimeout> | undefined;
@@ -18,6 +19,7 @@ export function useWaiterUpdates(
         (table && p.table_uuid && p.table_uuid !== table)
       )
         return;
+      onChange?.(p);
       schedule();
     });
     const visible = () => {
@@ -29,5 +31,5 @@ export function useWaiterUpdates(
       unsubscribe();
       document.removeEventListener("visibilitychange", visible);
     };
-  }, [branch, refresh, table]);
+  }, [branch, refresh, table, onChange]);
 }

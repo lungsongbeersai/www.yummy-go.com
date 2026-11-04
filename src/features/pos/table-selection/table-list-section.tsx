@@ -17,6 +17,7 @@ import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { menuGrantsPath } from "@/components/layout/shell-menu-helpers";
 import { useSidebarPermissionAccess } from "@/hooks/use-sidebar-permission-access";
 import { useWaiterRequestsStore } from "@/stores/waiter-requests-store";
+import { StaffWaiterChatButton } from "@/features/waiter-requests/staff-waiter-chat-button";
 import { cn } from "@/lib/utils";
 import { zoneOrderAlertCount } from "@/lib/pos/order-alerts";
 import type { PosTable, PosZone } from "@/services/pos";
@@ -263,7 +264,7 @@ export function TableListSection({
           {loading ? (
             <LoadingState label={t("pos.loadingTables")} variant="posGrid" />
           ) : hasVisibleTables ? (
-            <div className="flex min-w-0 flex-col gap-4">
+            <div className="flex min-w-0 flex-col gap-4 pb-20">
               {visibleZones.map((zone) => (
                 <TableZoneSection
                   key={zone.zone_uuid}
@@ -279,6 +280,7 @@ export function TableListSection({
             <EmptyState title={t("common.noData")} description={t("empty.adjustSearch")} />
           )}
         </div>
+        <StaffWaiterChatButton />
       </div>
       <StatusLegend />
     </div>

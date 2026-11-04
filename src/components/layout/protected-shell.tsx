@@ -3,6 +3,7 @@
 import { AppShell } from "@/components/layout/web/app-shell";
 import { NativeAppShell } from "@/components/layout/capacitor/app-shell";
 import { useIsCapacitorNativeApp } from "@/hooks/use-capacitor-native-app";
+import { StaffWaiterNotifications } from "@/features/waiter-requests/staff-waiter-notifications";
 
 // แยกเป็น client component เฉพาะจุดที่ต้องเรียก hook (useIsCapacitorNativeApp)
 // เพื่อให้ (protected)/layout.tsx ยังเป็น server component ตามธรรมเนียม route file
@@ -19,5 +20,10 @@ export function ProtectedShell({ children }: { children: React.ReactNode }) {
   const isCapacitorNativeApp = useIsCapacitorNativeApp();
   const Shell = isCapacitorNativeApp ? NativeAppShell : AppShell;
 
-  return <Shell>{children}</Shell>;
+  return (
+    <>
+      <StaffWaiterNotifications />
+      <Shell>{children}</Shell>
+    </>
+  );
 }
