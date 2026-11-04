@@ -30,8 +30,7 @@ export function PublicAboutYummyGoContent({ onBack }: PublicAboutYummyGoContentP
 
       <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto overscroll-contain px-5 py-4">
         <div className="flex flex-col items-start gap-2 rounded-2xl border border-yg-accent bg-yg-accent p-4 text-yg-on-accent">
-          <span className="lao-tone-text rounded-full border border-yg-on-accent/25 bg-yg-on-accent/10 px-2.5 py-1 text-xs font-medium">{t("publicCompany.developer", { name: company.name })}</span>
-          <h3 className="lao-tone-text text-lg font-bold leading-7">{t("publicCompany.headline")}</h3>
+          <h3 className="lao-tone-text text-lg font-bold leading-7">{t("publicCompany.headline", { name: company.name })}</h3>
           <p className="lao-tone-text text-sm leading-6">{t("publicCompany.description")}</p>
         </div>
         <div className="flex flex-wrap gap-2">

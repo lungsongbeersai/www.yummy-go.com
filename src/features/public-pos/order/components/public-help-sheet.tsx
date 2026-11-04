@@ -2,7 +2,7 @@
 
 import Image from "next/image";
 import { useEffect, useRef } from "react";
-import { Bell, ChevronRight, CircleHelp, Settings2, Utensils } from "lucide-react";
+import { ArrowUpRight, Bell, ChevronRight, CircleHelp, MessageCircle, Settings2, Utensils } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { Button } from "@/components/ui/button";
@@ -60,29 +60,31 @@ export function PublicHelpSheet({ open, view, viewOnly, onOpenChange, onViewChan
             </SheetHeader>
 
             <div className="flex min-h-0 flex-1 flex-col gap-5 overflow-y-auto overscroll-contain px-5 py-4">
-              <section aria-label={t("publicHelp.aboutSection")}>
-                <Button
-                  type="button"
-                  variant="default"
-                  aria-label={t("publicCompany.title", { name: YUMMY_GO_COMPANY.name })}
-                  className="group h-auto w-full flex-col items-stretch gap-3 whitespace-normal rounded-2xl border border-yg-accent bg-yg-accent p-4 text-left text-yg-on-accent shadow-sm hover:bg-yg-accent-strong hover:text-yg-on-accent focus-visible:ring-yg-accent"
-                  onClick={() => onViewChange("about")}
-                >
-                  <span className="flex items-center gap-3">
-                    <span className="grid size-12 shrink-0 place-items-center rounded-2xl bg-yg-bg2 p-2"><Image src={YUMMY_GO_COMPANY.logo} width={36} height={36} alt="" className="rounded-lg object-contain" /></span>
-                    <span className="flex min-w-0 flex-col gap-0.5">
-                      <span className="lao-tone-text text-xs font-medium">{t("publicHelp.aboutSection")}</span>
-                      <span className="font-yg-sans text-xl font-bold leading-7">{YUMMY_GO_COMPANY.name}</span>
+              <section aria-label={t("publicHelp.aboutSection")} className="flex flex-col gap-3 rounded-2xl border border-yg-accent bg-yg-accent p-4 text-yg-on-accent shadow-sm">
+                <div className="flex items-center gap-3">
+                  <span className="grid size-12 shrink-0 place-items-center rounded-2xl bg-yg-bg2 p-2"><Image src={YUMMY_GO_COMPANY.logo} width={36} height={36} alt="" className="rounded-lg object-contain" /></span>
+                  <span className="flex min-w-0 flex-col gap-0.5">
+                    <span className="lao-tone-text text-xs font-medium">{t("publicHelp.aboutSection")}</span>
+                    <span className="font-yg-sans text-xl font-bold leading-7">{YUMMY_GO_COMPANY.name}</span>
+                  </span>
+                </div>
+                <div className="flex flex-col gap-1">
+                  <h3 className="lao-tone-text text-base font-bold leading-6">{t("publicHelp.aboutHeadline", { name: YUMMY_GO_COMPANY.name })}</h3>
+                  <p className="lao-tone-text text-xs leading-5">{t("publicHelp.aboutDescription")}</p>
+                </div>
+                <Button asChild variant="outline" className="h-auto min-h-12 w-full justify-start gap-3 rounded-xl border-yg-line bg-yg-bg2 px-3 py-2 text-yg-ink hover:border-yg-accent-line hover:bg-yg-bg2 hover:text-yg-ink dark:border-yg-line dark:bg-yg-bg2 dark:text-yg-ink dark:hover:border-yg-accent-line dark:hover:bg-yg-bg2 dark:hover:text-yg-ink">
+                  <a href={YUMMY_GO_COMPANY.whatsappUrl} target="_blank" rel="noopener noreferrer" aria-label={t("publicCompany.contactAria", { name: YUMMY_GO_COMPANY.name, phone: YUMMY_GO_COMPANY.phone })}>
+                    <MessageCircle className="size-5 shrink-0 text-yg-accent-strong" aria-hidden="true" />
+                    <span className="flex min-w-0 flex-1 flex-col gap-0.5">
+                      <span className="lao-tone-text whitespace-normal text-xs leading-5 text-yg-muted">{t("publicCompany.contactLabel")}</span>
+                      <span className="font-yg-number text-base font-semibold text-yg-ink tabular-nums">{YUMMY_GO_COMPANY.phone}</span>
                     </span>
-                  </span>
-                  <span className="flex flex-col gap-1">
-                    <span className="lao-tone-text text-base font-bold leading-6">{t("publicHelp.aboutHeadline")}</span>
-                    <span className="lao-tone-text text-xs font-normal leading-5">{t("publicHelp.aboutDescription")}</span>
-                  </span>
-                  <span className="flex items-center justify-between gap-3 border-t border-yg-on-accent/25 pt-2">
-                    <span className="lao-tone-text text-sm font-semibold">{t("publicHelp.aboutAction")}</span>
-                    <span className="grid size-7 shrink-0 place-items-center rounded-full bg-yg-on-accent/15"><ChevronRight className="size-4" aria-hidden="true" /></span>
-                  </span>
+                    <ArrowUpRight className="size-4 shrink-0 text-yg-muted" aria-hidden="true" />
+                  </a>
+                </Button>
+                <Button type="button" variant="ghost" aria-label={t("publicCompany.title", { name: YUMMY_GO_COMPANY.name })} className="h-11 w-full justify-between gap-3 rounded-xl border-t border-yg-on-accent/25 px-2 text-yg-on-accent hover:bg-yg-on-accent/10 hover:text-yg-on-accent focus-visible:ring-yg-on-accent dark:text-yg-on-accent dark:hover:bg-yg-on-accent/10 dark:hover:text-yg-on-accent" onClick={() => onViewChange("about")}>
+                  <span className="lao-tone-text text-sm font-semibold">{t("publicHelp.aboutAction")}</span>
+                  <span className="grid size-7 shrink-0 place-items-center rounded-full bg-yg-on-accent/15"><ChevronRight className="size-4" aria-hidden="true" /></span>
                 </Button>
               </section>
 
