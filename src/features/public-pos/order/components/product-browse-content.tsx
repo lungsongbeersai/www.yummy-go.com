@@ -168,7 +168,7 @@ export function ProductBrowseContent({
     viewOnlyScanButtonRef.current?.focus({ preventScroll: true });
   }
 
-  function openService(initialIntent?: WaiterRequestType) {
+  function openService(initialIntent: WaiterRequestType = "staff") {
     setWaiterInitialIntent(initialIntent);
     setWaiterMounted(true);
     setWaiterOpen(true);

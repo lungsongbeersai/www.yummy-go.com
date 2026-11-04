@@ -90,6 +90,10 @@ export function CustomerWaiterSheet({ open, onOpenChange, token, branch, table, 
   const [sentType, setSentType] = useState<WaiterRequestType>("staff");
   const requestAttempt = useRef<CustomerWaiterAttempt | null>(null);
   const opener = useRef<HTMLElement | null>(null);
+  const initialFocusFrame = useRef<number | null>(null);
+  const sendTabRef = useRef<HTMLButtonElement | null>(null);
+  const historyTabRef = useRef<HTMLButtonElement | null>(null);
+  const requestTypeRefs = useRef<Record<WaiterRequestType, HTMLButtonElement | null>>({ staff: null, bill: null });
   const historyScrollRef = useRef<HTMLDivElement | null>(null);
 
   const storedRequests = useWaiterRequestsStore((s) => s.publicRequests);
@@ -179,15 +183,28 @@ export function CustomerWaiterSheet({ open, onOpenChange, token, branch, table, 
         <DrawerContent
           aria-busy={sending}
           className="mx-auto flex h-[min(740px,92dvh)] w-full max-w-lg flex-col gap-0 overflow-hidden rounded-t-3xl border border-b-0 border-yg-line bg-yg-bg2 p-0 font-yg-sans text-yg-ink shadow-xl before:hidden data-[vaul-drawer-direction=bottom]:max-h-[92dvh] [&>div:first-child]:hidden"
-          onOpenAutoFocus={() => {
+          onOpenAutoFocus={(event) => {
+            event.preventDefault();
             opener.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
-            if (initialRequestType) {
-              if (requestType !== initialRequestType) requestAttempt.current = null;
-              setRequestType(initialRequestType);
-              setTab(initialRequestType === "bill" && pendingBill ? "history" : "send");
-            }
+            const nextRequestType = initialRequestType ?? "staff";
+            const showPendingBill = nextRequestType === "bill" && Boolean(pendingBill);
+            if (requestType !== nextRequestType) requestAttempt.current = null;
+            setRequestType(nextRequestType);
+            setTab(showPendingBill ? "history" : "send");
+            initialFocusFrame.current = window.requestAnimationFrame(() => {
+              initialFocusFrame.current = null;
+              const choice = requestTypeRefs.current[nextRequestType];
+              const target = showPendingBill
+                ? historyTabRef.current
+                : choice && !choice.disabled ? choice : sendTabRef.current;
+              target?.focus({ preventScroll: true });
+            });
           }}
           onCloseAutoFocus={(event) => {
+            if (initialFocusFrame.current !== null) {
+              window.cancelAnimationFrame(initialFocusFrame.current);
+              initialFocusFrame.current = null;
+            }
             if (opener.current?.isConnected) {
               event.preventDefault();
               opener.current.focus();
@@ -245,11 +262,11 @@ export function CustomerWaiterSheet({ open, onOpenChange, token, branch, table, 
           >
             <div className="shrink-0 border-b border-yg-line px-4 pb-4 sm:px-5">
               <TabsList aria-label={t("waiter.serviceTitle")} className="grid h-13 w-full grid-cols-2 rounded-2xl border border-yg-line bg-yg-accent-soft p-1 group-data-horizontal/tabs:h-13">
-                <TabsTrigger value="send" className={TAB_TRIGGER_CLASS}>
+                <TabsTrigger ref={sendTabRef} value="send" className={TAB_TRIGGER_CLASS}>
                   <Send aria-hidden="true" className="size-4 shrink-0" />
                   <span className="min-w-0 whitespace-normal leading-tight">{t("waiter.sendTab")}</span>
                 </TabsTrigger>
-                <TabsTrigger value="history" className={TAB_TRIGGER_CLASS}>
+                <TabsTrigger ref={historyTabRef} value="history" className={TAB_TRIGGER_CLASS}>
                   <History aria-hidden="true" className="size-4 shrink-0" />
                   <span className="min-w-0 whitespace-normal leading-tight">{t("waiter.historyTab")}</span>
                   {pendingCount ? (
@@ -283,6 +300,7 @@ export function CustomerWaiterSheet({ open, onOpenChange, token, branch, table, 
                       return (
                         <ToggleGroupItem
                           key={type}
+                          ref={(element) => { requestTypeRefs.current[type] = element; }}
                           value={type}
                           aria-label={t(type === "bill" ? "waiter.requestBill" : "waiter.requestStaff")}
                           aria-describedby={`${choiceId}-${type}`}
