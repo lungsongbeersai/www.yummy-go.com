@@ -270,8 +270,8 @@ export function PublicPullToRefresh({
       aria-hidden={phase === "idle"}
       className={
         scrollRef
-          ? "yg-shell pointer-events-none sticky top-0 z-10 flex h-0 items-start justify-center"
-          : "yg-shell pointer-events-none fixed inset-x-0 top-[calc(var(--yg-header-height,4.5rem)+0.5rem)] z-45 flex items-start justify-center px-3"
+          ? "pointer-events-none sticky top-0 z-10 flex h-0 items-start justify-center"
+          : "pointer-events-none fixed inset-x-0 top-[calc(var(--yg-header-height,4.5rem)+0.5rem)] z-45 flex items-start justify-center px-3"
       }
     >
       <div
