@@ -18,7 +18,7 @@ import {
 // Same shape as the product cards: a soft filled card, no border.
 const SKELETON_CARD_CLASS = "overflow-hidden rounded-lg border border-yg-divider bg-yg-card p-2";
 
-export function ProductsSkeleton({ layoutMode = "grid" }: { layoutMode?: PublicProductLayoutMode }) {
+export function ProductsSkeleton({ layoutMode = "list" }: { layoutMode?: PublicProductLayoutMode }) {
   return (
     <div className="grid gap-2.5">
       <div className="flex items-center gap-2.5">
@@ -34,15 +34,15 @@ export function ProductsSkeleton({ layoutMode = "grid" }: { layoutMode?: PublicP
 
 export function RailSkeleton() {
   return (
-    <div className="-mx-(--yg-gutter) overflow-hidden px-(--yg-gutter) sm:mx-0 sm:px-0">
-      <div className="flex w-max gap-[clamp(12px,2vw,18px)] sm:grid sm:w-full sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
+    <div className="-mx-(--yg-gutter) overflow-hidden px-(--yg-gutter)">
+      <div className="flex w-max gap-3">
         {Array.from({ length: 5 }).map((_, index) => (
           <div
             key={index}
-            className={`${SKELETON_CARD_CLASS} w-44 flex-none sm:w-auto`}
+            className={`${SKELETON_CARD_CLASS} w-38 flex-none rounded-2xl sm:w-42`}
           >
             <Skeleton className="aspect-4/3 w-full rounded-lg" />
-            <div className="grid gap-2 px-1 pt-2 pb-1">
+            <div className="grid gap-1 px-1 pt-2 pb-1">
               <Skeleton className="h-5 w-4/5" />
               <Skeleton className="h-5 w-1/2" />
             </div>
@@ -99,15 +99,18 @@ export function MenuEmptyState() {
   );
 }
 
-function CategoryLoadingGrid({ layoutMode }: { layoutMode: PublicProductLayoutMode }) {
+function CategoryLoadingGrid({ layoutMode, count = 6 }: { layoutMode: PublicProductLayoutMode; count?: number }) {
   if (layoutMode === "list") return (
-    <div className="divide-y divide-yg-line/60">
-      {Array.from({ length: 6 }).map((_, index) => (
-        <div key={index} className="flex min-h-28 gap-2.5 py-2">
-          <Skeleton className="size-24 shrink-0 rounded-lg" />
-          <div className="grid flex-1 content-center gap-2">
+    <div className="flex flex-col gap-2.5">
+      {Array.from({ length: count }).map((_, index) => (
+        <div key={index} className="flex min-h-28 items-center gap-3 rounded-2xl border border-yg-divider bg-yg-card p-3">
+          <Skeleton className="size-20 shrink-0 rounded-xl sm:size-24" />
+          <div className="grid min-w-0 flex-1 content-center gap-2.5">
             <Skeleton className="h-6 w-3/4" />
-            <Skeleton className="h-5 w-1/2" />
+            <div className="flex items-center justify-between gap-2">
+              <Skeleton className="h-6 w-1/2" />
+              <Skeleton className="size-11 shrink-0 rounded-xl" />
+            </div>
           </div>
         </div>
       ))}

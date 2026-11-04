@@ -3,7 +3,7 @@
 import dynamic from "next/dynamic";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Check, Grid2X2, List, ListFilter, Loader2 } from "lucide-react";
+import { Check, ListFilter, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Popover,
@@ -11,7 +11,6 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
-import type { PublicProductLayoutMode } from "../types";
 import type { PublicPosCategoryTab } from "@/stores/public-pos-store/helpers";
 
 const PublicCategoryIcon = dynamic(
@@ -26,15 +25,11 @@ const PublicCategoryIcon = dynamic(
  *  จนต้องเลื่อนหาหมวดที่ต้องการ กดแล้วเห็นหมวดทั้งหมดในลิสต์เดียว เลือกแล้วกระโดดตรง
  *  ปุ่มนี้อยู่นอกพื้นที่เลื่อนของแถบ pill จึงกดถึงได้เสมอไม่ว่าจะเลื่อนไปสุดตรงไหน */
 export function PublicCategoryMenu({
-  layoutMode,
-  onLayoutModeChange,
   categories,
   activeCateUuid,
   jumpingCateUuid,
   onSelect,
 }: {
-  layoutMode: PublicProductLayoutMode;
-  onLayoutModeChange: (mode: PublicProductLayoutMode) => void;
   categories: PublicPosCategoryTab[];
   activeCateUuid: string;
   jumpingCateUuid: string;
@@ -53,9 +48,10 @@ export function PublicCategoryMenu({
           type="button"
           variant="ghost"
           aria-label={label}
-          className="h-8 shrink-0 gap-1 rounded-[8px] border border-transparent bg-transparent px-1.5 text-[11px] font-medium text-yg-accent-strong duration-150 ease-out hover:bg-yg-panel-hover hover:text-yg-accent-strong active:scale-95 active:duration-75 motion-reduce:transition-none"
+          title={label}
+          className="h-11 shrink-0 gap-1.5 rounded-xl border border-yg-accent-line bg-yg-accent-soft px-2.5 text-xs font-semibold text-yg-accent-strong duration-150 ease-out hover:bg-yg-panel-hover hover:text-yg-accent-strong motion-safe:active:scale-95 motion-reduce:transition-none"
         >
-          <ListFilter className="size-3.5" aria-hidden="true" />
+          <ListFilter className="size-4" aria-hidden="true" />
           <span className="lao-tone-text">{t("pos.categoriesButton")}</span>
         </Button>
       </PopoverTrigger>
@@ -65,32 +61,8 @@ export function PublicCategoryMenu({
       <PopoverContent
         align="end"
         sideOffset={10}
-        className="w-80 max-w-[calc(100vw-2rem)] rounded-[8px] border-yg-divider bg-yg-bg2 p-2 font-yg-sans text-yg-ink shadow-[0_24px_60px_-20px_rgb(0_0_0/0.35)] dark:shadow-[0_24px_60px_-20px_rgb(0_0_0/0.8)]"
+        className="w-80 max-w-[calc(100vw-2rem)] rounded-2xl border-yg-divider bg-yg-bg2 p-3 font-yg-sans text-yg-ink shadow-xl"
       >
-        <div className="mb-2 grid grid-cols-2 gap-2 border-b border-yg-divider px-1 pt-1 pb-3" role="group" aria-label={`${t("pos.publicGridView")} / ${t("pos.publicListView")}`}>
-          {(["grid", "list"] as const).map((mode) => (
-            <Button
-              key={mode}
-              type="button"
-              variant="ghost"
-              aria-pressed={layoutMode === mode}
-              // ปิดเมนูทันทีแบบเดียวกับตอนเลือกหมวด — ให้ลูกค้าเห็นผลของรูปแบบที่เลือกเลย ไม่ต้องกดปิดเอง
-              onClick={() => {
-                onLayoutModeChange(mode);
-                setOpen(false);
-              }}
-              className={cn(
-                "h-10 justify-center gap-1.5 rounded-[8px] border px-3 text-xs font-medium",
-                layoutMode === mode
-                  ? "border-yg-accent-line bg-yg-accent-soft text-yg-accent-strong hover:bg-yg-accent-soft"
-                  : "border-yg-line bg-yg-panel text-yg-muted hover:bg-yg-panel-hover",
-              )}
-            >
-              {mode === "grid" ? <Grid2X2 className="size-4" aria-hidden="true" /> : <List className="size-4" aria-hidden="true" />}
-              <span className="lao-tone-text">{t(mode === "grid" ? "pos.publicGridView" : "pos.publicListView")}</span>
-            </Button>
-          ))}
-        </div>
         <p className="lao-tone-text mb-2 border-b border-yg-divider px-3 pt-2 pb-3 text-base font-semibold text-yg-ink">
           {label}
         </p>

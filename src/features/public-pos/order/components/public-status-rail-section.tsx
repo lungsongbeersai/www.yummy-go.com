@@ -1,7 +1,8 @@
 "use client";
 
 import { memo, useEffect, useMemo, useRef } from "react";
-import { Plus, Sparkles } from "lucide-react";
+import { useTranslation } from "react-i18next";
+import { Plus, Sparkles, UtensilsCrossed } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import type { CateProductItem } from "@/services/pos";
@@ -49,9 +50,9 @@ export const StatusRailSection = memo(function StatusRailSection({
   // (ไม่มี choice meta, ราคาคงที่เสมอ) จึงไม่ reserve พื้นที่แบบเดียวกับ ProductCard
   cardKind?: "product" | "set";
 }) {
+  const { t } = useTranslation();
   const visibleProducts = products.slice(0, visibleCount);
   const promotionSection = products.some(({ statusKind }) => statusKind === PUBLIC_MENU_KIND.PROMOTION);
-  const useDesktopGrid = products.length <= 5;
   // การ์ดในแถวเดียวกันเรนเดอร์ขนาดเท่ากันหมด จึง "เสมอกัน" สำหรับ LCP — มาร์ค eager
   // ทุกใบในโควตานี้แทนที่จะเลือกแค่ใบแรก เพราะใบที่ชนะจริงไม่ใช่ใบแรกในลิสต์เสมอไป
   const priorityProductUuids = useMemo(() => {
@@ -99,32 +100,29 @@ export const StatusRailSection = memo(function StatusRailSection({
     // โหลด async ทำให้บาง section ค้าง placeholder ว่างไว้ไม่ยอม paint เนื้อหาจริงตามจริง
     <section className={cn(
       "border-b border-yg-divider pb-1",
-      promotionSection && "-mx-(--yg-gutter) bg-yg-bg px-(--yg-gutter) pt-3",
+      promotionSection && "-mx-(--yg-gutter) bg-yg-bg px-(--yg-gutter) pt-1",
     )}>
       <PublicSectionHeading
         title={title}
-        icon={<Sparkles className="size-4" aria-hidden="true" />}
+        className="mb-2"
+        icon={cardKind === "set"
+          ? <UtensilsCrossed className="size-5" aria-hidden="true" />
+          : <Sparkles className="size-5" aria-hidden="true" />}
+        action={visibleProducts.length ? (
+          <HorizontalScrollArrows scrollRef={railRef} variant="controls" />
+        ) : undefined}
       />
 
       {visibleProducts.length ? (
-        <div className="relative">
+        <div>
           <div
             ref={railRef}
-            className={cn(
-              "yg-rail -mx-(--yg-gutter) overflow-x-auto overflow-y-hidden overscroll-x-contain px-(--yg-gutter) pb-2",
-              useDesktopGrid
-                ? "sm:mx-0 sm:overflow-visible sm:px-0"
-                : "",
-            )}
+            role="region"
+            aria-label={title}
+            tabIndex={0}
+            className="yg-rail -mx-(--yg-gutter) snap-x snap-proximity scroll-px-(--yg-gutter) overflow-x-auto overflow-y-hidden overscroll-x-contain px-(--yg-gutter) pb-2 outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-yg-accent"
           >
-            <div
-              className={cn(
-                "flex w-max snap-x snap-mandatory gap-[clamp(12px,2vw,18px)]",
-                useDesktopGrid
-                  ? "sm:grid sm:w-full sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5"
-                  : "",
-              )}
-            >
+            <div className="flex w-max gap-3">
               {visibleProducts.map(({ product, cateUuid, statusKind }) =>
                 cardKind === "set" ? (
                   <SetProductCard
@@ -135,7 +133,7 @@ export const StatusRailSection = memo(function StatusRailSection({
                     loading={loadingProductUuid === product.prodUuid}
                     imagePreload={priorityProductUuids.has(product.prodUuid)}
                     onProductClick={onProductClick}
-                    variant={useDesktopGrid ? "railGrid" : "rail"}
+                    variant="rail"
                   />
                 ) : (
                   <ProductCard
@@ -147,7 +145,7 @@ export const StatusRailSection = memo(function StatusRailSection({
                     loading={loadingProductUuid === product.prodUuid}
                     imagePreload={priorityProductUuids.has(product.prodUuid)}
                     onProductClick={onProductClick}
-                    variant={useDesktopGrid ? "railGrid" : "rail"}
+                    variant="rail"
                   />
                 ),
               )}
@@ -155,24 +153,20 @@ export const StatusRailSection = memo(function StatusRailSection({
                 <Button
                   type="button"
                   variant="outline"
-                  className={cn(
-                    "grid h-auto w-14 flex-none snap-start place-items-center self-stretch rounded-[8px] border-yg-line bg-yg-panel text-yg-accent-strong backdrop-blur-md hover:border-yg-accent-line hover:bg-yg-panel-hover hover:text-yg-accent-strong",
-                    useDesktopGrid ? "sm:min-h-64 sm:w-full" : "",
-                  )}
+                  className="flex h-auto min-h-11 w-14 flex-none snap-start items-center justify-center rounded-xl border-yg-line bg-yg-panel text-yg-accent-strong hover:border-yg-accent-line hover:bg-yg-panel-hover hover:text-yg-accent-strong"
                   onClick={() =>
                     onRevealMore(
                       products[0]?.statusKind ?? PUBLIC_MENU_KIND.NORMAL,
                       products.length,
                     )
                   }
-                  aria-label={title}
+                  aria-label={`${t("app.more")} ${title}`}
                 >
                   <Plus aria-hidden="true" />
                 </Button>
               ) : null}
             </div>
           </div>
-          <HorizontalScrollArrows scrollRef={railRef} />
         </div>
       ) : (
         <RailSkeleton />

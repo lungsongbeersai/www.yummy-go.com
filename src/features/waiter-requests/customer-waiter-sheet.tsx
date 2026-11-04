@@ -7,6 +7,7 @@ import {
   Clock3,
   History,
   LoaderCircle,
+  MessageSquareText,
   Minus,
   Plus,
   RefreshCw,
@@ -34,30 +35,28 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
 import { useWaiterRequestsStore } from "@/stores/waiter-requests-store";
-import type { WaiterItemKind } from "@/services/waiter-requests";
 import { PublicPullToRefresh } from "@/features/public-pos/order/components/public-pull-to-refresh";
+import {
+  buildCustomerWaiterPayload,
+  CUSTOMER_WAITER_KINDS,
+  MAX_CUSTOMER_WAITER_MESSAGE,
+  MAX_CUSTOMER_WAITER_QTY,
+  resolveCustomerWaiterAttempt,
+  type CustomerWaiterAttempt,
+  type CustomerWaiterKind,
+} from "./customer-waiter-payload";
 import { useWaiterUpdates } from "./use-waiter-updates";
 
-// ลูกค้าเรียกพนักงานจากหน้าสั่งอาหาร (QR) — Drawer ขึ้นจากล่างทุกขนาดจอ (มือถือเป็นหลัก ปัดลงเพื่อปิดได้)
-// ของที่ขอเป็นปุ่ม −/+ แทน checkbox ที่เคยแทรกชื่อลงข้อความให้ลูกค้าพิมพ์จำนวนเอง แต่สัญญากับ API คงเดิม:
-// ส่ง items: [] + message ที่ประกอบจากสิ่งที่เลือก (หน้าพนักงานอ่าน message อยู่แล้ว ไม่ต้องแก้ Backend)
-
-const kinds = ["bowl", "spoon", "chopsticks"] as const satisfies readonly WaiterItemKind[];
-type RequestKind = (typeof kinds)[number];
 const itemIcons = { bowl: Soup, spoon: Utensils, chopsticks: UtensilsCrossed } satisfies Record<
-  RequestKind,
+  CustomerWaiterKind,
   typeof Soup
 >;
-const MAX_MESSAGE = 500;
 
-// หน้าเมนู QR บังคับธีมสว่างเสมอ (data-yg-theme="light") แต่ <html class="dark"> ของเครื่องที่ตั้งโหมดมืดยังทำให้
-// variant dark: ใน primitive ของ shadcn ทำงาน (แท็บโปร่ง ตัวอักษรจาง, switch/ช่องข้อความกลืนกับพื้นขาว) — ทับค่า dark:
-// ด้วย token yg-* ชุดเดียวกับโหมดสว่าง (cn/tailwind-merge ตัด dark: ของ primitive ทิ้งเพราะ variant ตรงกัน)
+// Customer-menu tokens also cover portals; the cashier's root .dark must not override them.
 const TAB_TRIGGER_CLASS =
-  "h-full gap-2 rounded-lg text-sm text-yg-muted hover:text-yg-ink data-active:bg-yg-panel data-active:text-yg-accent-strong data-active:shadow-sm dark:text-yg-muted dark:hover:text-yg-ink dark:data-active:border-transparent dark:data-active:bg-yg-panel dark:data-active:text-yg-accent-strong";
+  "h-11 min-w-0 gap-2 rounded-xl px-2 text-sm text-yg-muted hover:text-yg-ink data-active:bg-yg-bg2 data-active:text-yg-accent-strong data-active:shadow-sm dark:text-yg-muted dark:hover:text-yg-ink dark:data-active:border-transparent dark:data-active:bg-yg-bg2 dark:data-active:text-yg-accent-strong";
 const OUTLINE_ON_PANEL_CLASS =
-  "border-yg-line bg-yg-panel text-yg-ink hover:bg-yg-panel-hover dark:border-yg-line dark:bg-yg-panel dark:hover:bg-yg-panel-hover";
-const MAX_QTY = 9;
+  "border-yg-line bg-yg-bg2 text-yg-ink hover:bg-yg-panel-hover dark:border-yg-line dark:bg-yg-bg2 dark:hover:bg-yg-panel-hover";
 
 type Status = 0 | 1 | 2;
 const statusIcon: Record<Status, typeof Clock3> = { 0: Clock3, 1: Bell, 2: CheckCircle2 };
@@ -78,10 +77,11 @@ interface Props {
 export function CustomerWaiterSheet({ open, onOpenChange, token, branch, table }: Props) {
   const { t, i18n } = useTranslation();
   const [tab, setTab] = useState<"send" | "history">("send");
-  const [quantities, setQuantities] = useState<Partial<Record<RequestKind, number>>>({});
+  const [quantities, setQuantities] = useState<Partial<Record<CustomerWaiterKind, number>>>({});
   const [note, setNote] = useState("");
   const [sent, setSent] = useState(false);
-  const requestId = useRef<string | null>(null);
+  const requestAttempt = useRef<CustomerWaiterAttempt | null>(null);
+  const opener = useRef<HTMLElement | null>(null);
   const historyScrollRef = useRef<HTMLDivElement | null>(null);
 
   const storedRequests = useWaiterRequestsStore((s) => s.publicRequests);
@@ -100,49 +100,38 @@ export function CustomerWaiterSheet({ open, onOpenChange, token, branch, table }
   useEffect(refresh, [refresh]);
   useWaiterUpdates(branch, refresh, table);
 
-  // บรรทัดที่ประกอบจากสิ่งที่เลือก — นำหน้าโน้ตของลูกค้าใน message ที่ส่ง
-  const selectionLines = useMemo(
-    () =>
-      kinds.flatMap((kind) => {
-        const qty = quantities[kind] ?? 0;
-        return qty > 0 ? [`${t(`waiter.${kind}`)} × ${qty}`] : [];
-      }),
-    [quantities, t],
+  const payload = useMemo(
+    () => buildCustomerWaiterPayload(quantities, note, t("waiter.comeToTable")),
+    [quantities, note, t],
   );
-  const selectedCount = kinds.reduce((sum, kind) => sum + (quantities[kind] ?? 0), 0);
-  const prefix = selectionLines.join("\n");
-  // รวมแล้วต้องไม่เกินที่ API รับ — โน้ตได้พื้นที่ที่เหลือจากบรรทัดของที่เลือก
-  const noteLimit = Math.max(0, MAX_MESSAGE - (prefix ? prefix.length + 1 : 0));
-  const details = [prefix, note.trim()].filter(Boolean).join("\n");
-  // เปิดหน้านี้ = อยากให้พนักงานมาที่โต๊ะอยู่แล้ว จึงไม่มีตัวเลือก "ให้มาที่โต๊ะ" แยก — ไม่เลือกอะไรก็กดเรียกได้ทันที
-  // โดยส่งข้อความว่าให้มาที่โต๊ะ (API ต้องมี message ไม่ว่าง และหน้าพนักงานแสดง message)
-  const message = details || t("waiter.comeToTable");
+  const selectedCount = payload.items.reduce((sum, item) => sum + item.qty, 0);
+  const hasDetails = selectedCount > 0 || Boolean(note.trim());
   const canSend = !sending;
   const pendingCount = requests.filter((request) => request.status !== 2).length;
 
   // ค่าที่ส่งเปลี่ยน = คำขอใหม่ (client_request_uuid ใหม่) — กดส่งซ้ำค่าเดิมยังใช้ id เดิม กันคำขอซ้ำ
   const dirty = () => {
-    requestId.current = null;
+    requestAttempt.current = null;
   };
 
-  const changeQty = (kind: RequestKind, delta: number) => {
+  const changeQty = (kind: CustomerWaiterKind, delta: number) => {
     dirty();
     setQuantities((current) => ({
       ...current,
-      [kind]: Math.min(MAX_QTY, Math.max(0, (current[kind] ?? 0) + delta)),
+      [kind]: Math.min(MAX_CUSTOMER_WAITER_QTY, Math.max(0, (current[kind] ?? 0) + delta)),
     }));
   };
 
   const submit = async () => {
     if (!canSend) return;
-    requestId.current ??= crypto.randomUUID();
+    const attempt = resolveCustomerWaiterAttempt(payload, requestAttempt.current, () => crypto.randomUUID());
+    requestAttempt.current = attempt;
     const ok = await send(token, {
-      client_request_uuid: requestId.current,
-      items: [],
-      message,
+      client_request_uuid: attempt.id,
+      ...payload,
     });
     if (!ok) return;
-    requestId.current = null;
+    requestAttempt.current = null;
     setQuantities({});
     setNote("");
     setSent(true);
@@ -172,17 +161,27 @@ export function CustomerWaiterSheet({ open, onOpenChange, token, branch, table }
       >
         <DrawerContent
           aria-busy={sending}
-          className="yg-shell mx-auto flex h-[min(640px,90dvh)] w-full max-w-lg flex-col gap-0 overflow-hidden rounded-t-2xl border-t border-yg-line bg-yg-panel p-0 font-yg-sans text-yg-ink before:hidden data-[vaul-drawer-direction=bottom]:max-h-[90dvh] [&>div:first-child]:hidden"
+          className="mx-auto flex h-[min(740px,92dvh)] w-full max-w-lg flex-col gap-0 overflow-hidden rounded-t-3xl border border-b-0 border-yg-line bg-yg-bg2 p-0 font-yg-sans text-yg-ink shadow-xl before:hidden data-[vaul-drawer-direction=bottom]:max-h-[92dvh] [&>div:first-child]:hidden"
+          onOpenAutoFocus={() => {
+            opener.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+          }}
+          onCloseAutoFocus={(event) => {
+            if (opener.current?.isConnected) {
+              event.preventDefault();
+              opener.current.focus();
+            }
+          }}
         >
-          <DrawerHandle aria-label={t("actions.close")} className="bg-yg-divider" />
+          <DrawerHandle aria-label={t("actions.close")} className="my-0 grid h-11 w-full place-items-center rounded-none bg-transparent after:h-1 after:w-10 after:rounded-full after:bg-yg-divider" />
 
-          <header className="flex shrink-0 items-start gap-3 px-4 pb-3 sm:px-5">
-            <span className="flex size-10 shrink-0 items-center justify-center rounded-full bg-yg-accent-soft text-yg-accent">
-              <Bell aria-hidden="true" className="size-5" />
+          <header className="flex shrink-0 items-start gap-3 px-4 pb-4 sm:px-5">
+            <span className="grid size-12 shrink-0 place-items-center rounded-2xl border border-yg-accent-line bg-yg-accent-soft text-yg-accent-strong">
+              <Bell aria-hidden="true" className="size-6" />
             </span>
             <div className="min-w-0 flex-1">
-              <DrawerTitle className="text-base font-semibold text-yg-ink">{t("waiter.title")}</DrawerTitle>
-              <DrawerDescription className="text-sm leading-snug text-yg-muted">
+              <p className="mb-1 text-[10px] font-semibold tracking-wide text-yg-accent-strong">{t("waiter.panel.eyebrow")}</p>
+              <DrawerTitle className="text-xl font-bold leading-tight text-yg-ink">{t("waiter.title")}</DrawerTitle>
+              <DrawerDescription className="mt-1.5 text-sm leading-relaxed text-yg-muted">
                 {t("waiter.description")}
               </DrawerDescription>
             </div>
@@ -192,7 +191,7 @@ export function CustomerWaiterSheet({ open, onOpenChange, token, branch, table }
                 variant="ghost"
                 size="icon"
                 aria-label={t("actions.close")}
-                className="size-11 shrink-0 rounded-full text-yg-muted hover:bg-yg-panel-hover hover:text-yg-ink dark:hover:bg-yg-panel-hover"
+                className="size-11 shrink-0 rounded-xl border border-yg-line bg-yg-bg2 text-yg-muted hover:bg-yg-panel-hover hover:text-yg-ink dark:hover:bg-yg-panel-hover"
                 disabled={sending}
               >
                 <X aria-hidden="true" />
@@ -201,13 +200,13 @@ export function CustomerWaiterSheet({ open, onOpenChange, token, branch, table }
           </header>
 
           {error ? (
-            <Alert className="mx-4 mb-3 w-auto border-yg-line bg-yg-card sm:mx-5">
+            <Alert className="mx-4 mb-3 w-auto rounded-xl border-yg-accent-line bg-yg-accent-soft sm:mx-5">
               <AlertDescription className="flex flex-wrap items-center justify-between gap-2 text-yg-ink">
                 {t("waiter.failed")}
                 <Button
                   variant="outline"
                   size="sm"
-                  className={OUTLINE_ON_PANEL_CLASS}
+                  className={cn("min-h-11 rounded-lg px-3", OUTLINE_ON_PANEL_CLASS)}
                   disabled={loading || sending}
                   onClick={refresh}
                 >
@@ -222,17 +221,17 @@ export function CustomerWaiterSheet({ open, onOpenChange, token, branch, table }
             onValueChange={(value) => setTab(value === "history" ? "history" : "send")}
             className="min-h-0 flex-1 gap-0 overflow-hidden"
           >
-            <div className="shrink-0 px-4 pb-3 sm:px-5">
-              <TabsList className="grid h-11 w-full grid-cols-2 rounded-xl bg-yg-accent-soft p-1 group-data-horizontal/tabs:h-11">
+            <div className="shrink-0 border-b border-yg-line px-4 pb-4 sm:px-5">
+              <TabsList aria-label={t("waiter.title")} className="grid h-13 w-full grid-cols-2 rounded-2xl border border-yg-line bg-yg-accent-soft p-1 group-data-horizontal/tabs:h-13">
                 <TabsTrigger value="send" className={TAB_TRIGGER_CLASS}>
-                  <Send aria-hidden="true" className="size-4" />
-                  {t("waiter.sendTab")}
+                  <Send aria-hidden="true" className="size-4 shrink-0" />
+                  <span className="min-w-0 whitespace-normal leading-tight">{t("waiter.sendTab")}</span>
                 </TabsTrigger>
                 <TabsTrigger value="history" className={TAB_TRIGGER_CLASS}>
-                  <History aria-hidden="true" className="size-4" />
-                  {t("waiter.historyTab")}
+                  <History aria-hidden="true" className="size-4 shrink-0" />
+                  <span className="min-w-0 whitespace-normal leading-tight">{t("waiter.historyTab")}</span>
                   {pendingCount ? (
-                    <Badge className="h-5 min-w-5 rounded-full bg-yg-accent px-1.5 tabular-nums text-yg-on-accent">
+                    <Badge className="h-5 min-w-5 shrink-0 justify-center rounded-md bg-yg-accent px-1.5 tabular-nums text-yg-on-accent">
                       {pendingCount}
                     </Badge>
                   ) : null}
@@ -241,28 +240,28 @@ export function CustomerWaiterSheet({ open, onOpenChange, token, branch, table }
             </div>
 
             <TabsContent value="send" className="flex min-h-0 flex-col">
-              <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 pb-4 sm:px-5">
-                <fieldset className="mb-4">
-                  <legend className="mb-2 text-sm font-medium">{t("waiter.quickSelect")}</legend>
-                  <ul className="divide-y divide-yg-line overflow-hidden rounded-xl border border-yg-line">
-                    {kinds.map((kind) => {
+              <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 py-4 sm:px-5">
+                <fieldset className="mb-5">
+                  <legend className="mb-3 text-sm font-semibold">{t("waiter.quickSelect")}</legend>
+                  <ul className="flex flex-col gap-2.5">
+                    {CUSTOMER_WAITER_KINDS.map((kind) => {
                       const Icon = itemIcons[kind];
                       const qty = quantities[kind] ?? 0;
                       const name = t(`waiter.${kind}`);
                       return (
                         <li
                           key={kind}
-                          className={cn("flex min-h-14 items-center gap-3 px-3 py-2", qty > 0 && "bg-yg-accent-soft")}
+                          className={cn("flex min-h-18 items-center gap-2.5 rounded-2xl border px-3 py-3 transition-colors motion-reduce:transition-none", qty > 0 ? "border-yg-accent-line bg-yg-accent-soft" : "border-yg-line bg-yg-bg2")}
                         >
-                          <Icon aria-hidden="true" className="size-5 shrink-0 text-yg-accent" />
-                          <span className="min-w-0 flex-1 truncate text-sm font-medium">{name}</span>
-                          <div className="flex shrink-0 items-center gap-1">
+                          <span className="grid size-9 shrink-0 place-items-center rounded-xl bg-yg-accent-soft text-yg-accent-strong"><Icon aria-hidden="true" className="size-5" /></span>
+                          <span className="min-w-0 flex-1 break-words text-sm font-semibold">{name}</span>
+                          <div className="flex shrink-0 items-center gap-0.5">
                             <Button
                               type="button"
                               variant="outline"
                               size="icon"
                               aria-label={t("waiter.decrease", { name })}
-                              className={cn("size-10 rounded-full", OUTLINE_ON_PANEL_CLASS)}
+                              className={cn("size-11 rounded-xl", OUTLINE_ON_PANEL_CLASS)}
                               disabled={sending || qty === 0}
                               onClick={() => changeQty(kind, -1)}
                             >
@@ -272,7 +271,7 @@ export function CustomerWaiterSheet({ open, onOpenChange, token, branch, table }
                               aria-live="polite"
                               aria-label={name}
                               className={cn(
-                                "w-8 text-center text-base font-semibold tabular-nums",
+                                "w-7 text-center text-base font-bold tabular-nums",
                                 qty === 0 && "text-yg-muted",
                               )}
                             >
@@ -282,8 +281,8 @@ export function CustomerWaiterSheet({ open, onOpenChange, token, branch, table }
                               type="button"
                               size="icon"
                               aria-label={t("waiter.increase", { name })}
-                              className="size-10 rounded-full bg-yg-accent text-yg-on-accent hover:bg-yg-accent-strong"
-                              disabled={sending || qty >= MAX_QTY}
+                              className="size-11 rounded-xl bg-yg-accent text-yg-on-accent hover:bg-yg-accent-strong"
+                              disabled={sending || qty >= MAX_CUSTOMER_WAITER_QTY}
                               onClick={() => changeQty(kind, 1)}
                             >
                               <Plus aria-hidden="true" />
@@ -295,35 +294,36 @@ export function CustomerWaiterSheet({ open, onOpenChange, token, branch, table }
                   </ul>
                 </fieldset>
 
-                <label className="grid gap-2 text-sm font-medium">
-                  {t("waiter.message")}
+                <label className="grid gap-2.5 text-sm font-semibold">
+                  <span className="flex items-center gap-2"><MessageSquareText aria-hidden="true" className="size-4 text-yg-accent-strong" />{t("waiter.message")}</span>
                   <Textarea
                     value={note}
                     disabled={sending}
-                    maxLength={noteLimit}
+                    maxLength={MAX_CUSTOMER_WAITER_MESSAGE}
                     rows={3}
                     placeholder={t("waiter.messagePlaceholder")}
-                    className="min-h-20 resize-none border-yg-line bg-yg-panel font-normal text-yg-ink placeholder:text-yg-muted dark:bg-yg-panel"
+                    className="min-h-28 resize-none rounded-2xl border-yg-line bg-yg-bg2 p-3.5 text-base font-normal leading-relaxed text-yg-ink placeholder:text-yg-muted dark:bg-yg-bg2"
                     onChange={(event) => {
                       dirty();
-                      setNote(event.target.value.slice(0, noteLimit));
+                      setNote(event.target.value.slice(0, MAX_CUSTOMER_WAITER_MESSAGE));
                     }}
                   />
                 </label>
                 <p className="mt-1.5 text-right text-xs tabular-nums text-yg-muted">
-                  {note.length}/{noteLimit}
+                  {note.length}/{MAX_CUSTOMER_WAITER_MESSAGE}
                 </p>
               </div>
 
-              <div className="shrink-0 border-t border-yg-line bg-yg-panel px-4 pt-3 pb-[max(12px,env(safe-area-inset-bottom))] sm:px-5">
+              <div className="shrink-0 border-t border-yg-line bg-yg-bg2 px-4 pt-3 pb-[max(16px,env(safe-area-inset-bottom))] sm:px-5">
                 <Button
-                  className="h-12 w-full gap-2 rounded-xl bg-yg-accent text-base text-yg-on-accent hover:bg-yg-accent-strong"
+                  type="button"
+                  className="h-13 w-full gap-2 rounded-2xl bg-yg-accent text-base font-semibold text-yg-on-accent shadow-sm hover:bg-yg-accent-strong"
                   disabled={!canSend}
                   onClick={() => void submit()}
                 >
                   {sending ? (
                     <LoaderCircle aria-hidden="true" className="size-4 motion-safe:animate-spin" />
-                  ) : details ? (
+                  ) : hasDetails ? (
                     <Send aria-hidden="true" className="size-4" />
                   ) : (
                     <Bell aria-hidden="true" className="size-4" />
@@ -333,7 +333,7 @@ export function CustomerWaiterSheet({ open, onOpenChange, token, branch, table }
                     ? t("common.loading")
                     : selectedCount
                       ? t("waiter.sendWithCount", { count: selectedCount })
-                      : details
+                      : hasDetails
                         ? t("waiter.send")
                         : t("waiter.title")}
                 </Button>
@@ -343,20 +343,21 @@ export function CustomerWaiterSheet({ open, onOpenChange, token, branch, table }
             <TabsContent
               value="history"
               ref={historyScrollRef}
-              className="min-h-0 overflow-y-auto overscroll-contain px-4 pb-[max(16px,env(safe-area-inset-bottom))] sm:px-5"
+              className="min-h-0 overflow-y-auto overscroll-contain px-4 pt-4 pb-[max(20px,env(safe-area-inset-bottom))] sm:px-5"
             >
               <PublicPullToRefresh scrollRef={historyScrollRef} onRefresh={refreshHistory} />
               <div className="mb-3 flex items-center justify-between">
-                <span className="text-xs text-yg-muted">
+                <span className="text-sm font-semibold text-yg-ink">
                   {t("waiter.historyTab")} ({requests.length})
                 </span>
                 <Button
                   size="icon"
                   variant="ghost"
-                  className="size-10 rounded-full text-yg-accent-strong hover:bg-yg-panel-hover dark:hover:bg-yg-panel-hover"
+                  type="button"
+                  className="size-11 rounded-xl border border-yg-line bg-yg-bg2 text-yg-accent-strong hover:bg-yg-panel-hover dark:hover:bg-yg-panel-hover"
                   disabled={loading}
                   onClick={refresh}
-                  aria-label={t("actions.tryAgain")}
+                  aria-label={t("actions.refresh")}
                 >
                   <RefreshCw aria-hidden="true" className={cn("size-4", loading && "motion-safe:animate-spin")} />
                 </Button>
@@ -364,47 +365,58 @@ export function CustomerWaiterSheet({ open, onOpenChange, token, branch, table }
               {loading && !requests.length ? (
                 <div role="status" aria-label={t("common.loading")} className="grid gap-3">
                   {[0, 1, 2].map((index) => (
-                    <Skeleton key={index} className="h-20 rounded-xl bg-yg-accent-soft" />
+                    <Skeleton key={index} className="h-28 rounded-2xl bg-yg-accent-soft" />
                   ))}
                 </div>
               ) : requests.length ? (
-                <ol className="grid gap-3">
+                <ol className="flex flex-col gap-3" aria-live="polite" aria-relevant="additions text">
                   {requests.map((request) => {
                     const StatusIcon = statusIcon[request.status];
                     return (
-                      <li key={request.request_uuid} className="rounded-xl border border-yg-line bg-yg-card p-3 text-sm">
-                        <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+                      <li key={request.request_uuid} className="overflow-hidden rounded-2xl border border-yg-line bg-yg-bg2 p-4 text-sm shadow-sm">
+                        <div className="mb-3 flex flex-wrap items-center justify-between gap-2.5">
                           <span
                             className={cn(
-                              "inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-xs font-medium",
+                              "inline-flex min-h-7 items-center gap-1.5 rounded-lg border px-2.5 py-1 text-xs font-semibold",
                               statusClass[request.status],
                             )}
                           >
                             <StatusIcon aria-hidden="true" className="size-3.5" />
                             {t(`waiter.status${request.status}`)}
                           </span>
-                          <time dateTime={request.created_at} className="text-xs tabular-nums text-yg-muted">
+                          <time dateTime={request.created_at} className="flex items-center gap-1 text-xs tabular-nums text-yg-muted">
+                            <Clock3 aria-hidden="true" className="size-3" />
                             {formatTime(request.created_at)}
                           </time>
                         </div>
                         {request.items.length ? (
-                          <p className="mb-1 font-medium">
-                            {request.items.map((item) => `${t(`waiter.${item.kind}`)} × ${item.qty}`).join(" · ")}
-                          </p>
+                          <ul className="mb-3 flex flex-wrap gap-2">
+                            {request.items.map((item) => {
+                              const Icon = item.kind === "staff" ? Bell : itemIcons[item.kind];
+                              return (
+                                <li key={item.kind} className="flex items-center gap-1.5 rounded-lg border border-yg-accent-line bg-yg-accent-soft px-2.5 py-2 text-xs font-medium text-yg-accent-strong">
+                                  <Icon aria-hidden="true" className="size-3.5" />
+                                  <span>{t(`waiter.${item.kind}`)}</span>
+                                  <span className="font-bold tabular-nums">×{item.qty}</span>
+                                </li>
+                              );
+                            })}
+                          </ul>
                         ) : null}
                         {request.message ? (
-                          <p className="whitespace-pre-wrap break-words leading-relaxed text-yg-ink">
-                            {request.message}
-                          </p>
+                          <div className="rounded-xl bg-yg-accent-soft p-3">
+                            <p className="mb-1 flex items-center gap-1.5 text-xs font-medium text-yg-accent-strong"><MessageSquareText aria-hidden="true" className="size-3.5" />{t("waiter.message")}</p>
+                            <p className="whitespace-pre-wrap break-words leading-relaxed text-yg-ink">{request.message}</p>
+                          </div>
                         ) : null}
                       </li>
                     );
                   })}
                 </ol>
               ) : (
-                <Empty className="min-h-52">
+                <Empty className="min-h-60 rounded-2xl border border-dashed border-yg-line bg-yg-bg2">
                   <EmptyHeader>
-                    <EmptyMedia variant="icon" className="size-12 rounded-full bg-yg-accent-soft text-yg-accent">
+                    <EmptyMedia variant="icon" className="size-14 rounded-2xl bg-yg-accent-soft text-yg-accent-strong">
                       <History className="size-5" />
                     </EmptyMedia>
                     <EmptyTitle className="text-yg-muted">{t("waiter.emptyHistory")}</EmptyTitle>

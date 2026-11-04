@@ -4,6 +4,8 @@
 // ต้อง auth และสร้างพนักงานในร้านที่มีอยู่แล้ว) ฟอร์มจึงส่งผู้ใช้ออกไปช่องทางแชทแทน
 // เมื่อ backend พร้อม เปลี่ยนเฉพาะ handler ตอน submit เป็นเรียก service ใหม่ได้เลย
 
+import { YUMMY_GO_COMPANY } from "@/config/yummy-go-company";
+
 export interface LandingContact {
   email: string;
   phone: string;
@@ -34,10 +36,10 @@ export interface TrialMessageLabels {
 // ไม่งั้นปุ่มขอทดลองใช้จะถูก disable ตาม buildTrialLink ที่คืน null
 export const landingContact: LandingContact = {
   email: "",
-  phone: "020 54 555 597",
+  phone: YUMMY_GO_COMPANY.phone,
   line: "", // LINE Official Account ID เช่น @yummygo
   whatsapp: "", // เบอร์รูปแบบสากล เช่น 8562012345678
-  facebook: "https://www.facebook.com/share/1H8L4DMjtd/", // URL เต็ม
+  facebook: YUMMY_GO_COMPANY.facebook, // URL เต็ม
   address: ""
 };
 

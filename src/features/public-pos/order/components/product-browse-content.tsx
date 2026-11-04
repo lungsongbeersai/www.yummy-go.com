@@ -23,13 +23,13 @@ import {
   readPublicProductLayoutMode,
   statusSectionLabel,
   subscribePublicProductLayoutMode,
-  writePublicProductLayoutMode,
 } from "../utils";
 import { PublicLoadFeedback } from "./public-load-feedback";
 import { BottomNav } from "./public-bottom-nav";
 import { CartFlyAnimationLayer } from "./cart-fly-animation-layer";
 import { CartSheet } from "./cart-sheet";
 import { PublicCategoryMenu } from "./public-category-menu";
+import { PublicBrandCredit } from "./public-brand-credit";
 import { PublicMenuHero } from "./public-menu-hero";
 import { PublicQrDialog } from "./public-qr-dialog";
 import { PublicQrOrderScanDialog } from "./public-qr-order-scan-dialog";
@@ -57,8 +57,12 @@ const PublicCategoryIcon = dynamic(
 
 export function ProductBrowseContent({
   workflow,
+  onAbout,
+  onHelp,
 }: {
   workflow: PublicBrowseWorkflow;
+  onAbout: () => void;
+  onHelp: () => void;
 }) {
   const { t } = useTranslation();
   // server render ใช้ list เสมอ ฝั่ง client sync จาก localStorage โดยไม่มี effect
@@ -137,10 +141,6 @@ export function ProductBrowseContent({
     visibleCategoryTabs,
   } = browse;
 
-  function handleProductLayoutModeChange(mode: PublicProductLayoutMode) {
-    writePublicProductLayoutMode(mode);
-  }
-
   // ปุ่ม "ສະແກນ QR ເພື່ອສັ່ງອາຫານ" ใน modal รายละเอียดสินค้า (โหมดดูอย่างเดียว) —
   // ปิด modal แล้วพา user กลับไปที่ปุ่มเดิมบนแบนเนอร์แทนที่จะเปิด scanner ซ้อนจาก
   // ในมัด modal เอง
@@ -162,8 +162,12 @@ export function ProductBrowseContent({
   return (
     <div className="flex flex-col gap-3">
       {heroVisible ? (
-        <PublicMenuHero onSearch={search.openSearchSheet} />
-      ) : null}
+        <div className="pt-3">
+          <PublicMenuHero onSearch={search.openSearchSheet} />
+        </div>
+      ) : (
+        <h1 className="sr-only">{t("pos.foodMenu")}</h1>
+      )}
 
       {/* บาร์นี้ sticky ตลอดการเลื่อน — เดิมมี backdrop-blur-xl ซึ่งบังคับให้เบราว์เซอร์
           re-blur พื้นหลังทุกเฟรมขณะเลื่อน (สาเหตุหลักของอาการกระตุกบนจอ 120Hz)
@@ -171,7 +175,7 @@ export function ProductBrowseContent({
           border-b: เส้นใต้แถบหมวดหมู่ ขีดขอบของแถบที่เลื่อนซ้าย-ขวาได้ และแยกแถบออกจากเมนูตอนติดด้านบน */}
       <div
         ref={categoryBarRef}
-        className="sticky top-16 z-20 -mx-(--yg-gutter) border-b border-yg-divider bg-yg-bg px-(--yg-gutter) pt-0 pb-0"
+        className="sticky top-(--yg-header-height) z-20 -mx-(--yg-gutter) border-b border-yg-line bg-yg-bg px-(--yg-gutter) py-1.5 shadow-sm"
       >
         <div className="mx-auto flex max-w-280 flex-col gap-0">
           {visibleCategoryTabs.length ? (
@@ -186,7 +190,7 @@ export function ProductBrowseContent({
                     ref={categoryRailRef}
                     className="yg-rail overflow-x-auto overflow-y-hidden"
                   >
-                    <TabsList className="h-10 w-max justify-start gap-2 rounded-none bg-transparent p-0 group-data-horizontal/tabs:h-10">
+                    <TabsList aria-label={t("pos.allCategories")} className="min-h-11 w-max justify-start gap-2 rounded-none bg-transparent p-0 group-data-horizontal/tabs:h-11">
                       {visibleCategoryTabs.map((category) => (
                         <TabsTrigger
                           key={category.cateUuid}
@@ -195,15 +199,15 @@ export function ProductBrowseContent({
                             categoryTabRefs.current[category.cateUuid] =
                               element;
                           }}
-                          className="h-10 flex-none gap-1.5 rounded-none border-0 border-b-2 border-transparent bg-transparent px-2 text-sm font-medium text-yg-ink/75 shadow-none duration-150 motion-reduce:transition-none after:hidden hover:text-yg-ink dark:hover:text-yg-ink data-[state=active]:border-yg-accent data-[state=active]:bg-transparent data-[state=active]:text-yg-accent-strong data-[state=active]:hover:text-yg-accent-strong"
+                          className="h-11 min-h-11 flex-none gap-2 rounded-full border border-transparent bg-transparent px-3 text-sm font-semibold text-yg-muted shadow-none duration-150 motion-reduce:transition-none after:hidden hover:bg-yg-panel-hover hover:text-yg-ink data-[state=active]:border-yg-accent data-[state=active]:bg-yg-accent data-[state=active]:text-yg-on-accent data-[state=active]:shadow-sm data-[state=active]:hover:text-yg-on-accent dark:data-[state=active]:bg-yg-accent dark:data-[state=active]:text-yg-on-accent"
                         >
-                          <span className="grid size-3.5 shrink-0 place-items-center">
+                          <span className="grid size-4 shrink-0 place-items-center">
                             {jumpingCateUuid === category.cateUuid ? (
                               <Loader2 className="size-3.5 shrink-0 animate-spin" />
                             ) : (
                               <PublicCategoryIcon
                                 icon={category.cateIcon}
-                                className="size-3.5"
+                                className="size-4"
                               />
                             )}
                           </span>
@@ -223,13 +227,8 @@ export function ProductBrowseContent({
                 </div>
 
                 {/* อยู่นอกแถบเลื่อน — กดถึงได้เสมอไม่ต้องเลื่อนหา ใช้ตอนหมวดเยอะจนแถบ pill ไม่พอ */}
-                <span
-                  className="h-6 w-px shrink-0 bg-yg-divider"
-                  aria-hidden="true"
-                />
+                <span className="h-6 w-px shrink-0 bg-yg-divider" aria-hidden="true" />
                 <PublicCategoryMenu
-                  layoutMode={productLayoutMode}
-                  onLayoutModeChange={handleProductLayoutModeChange}
                   categories={visibleCategoryTabs}
                   activeCateUuid={activeValue}
                   jumpingCateUuid={jumpingCateUuid}
@@ -324,11 +323,6 @@ export function ProductBrowseContent({
             <div ref={renderSentinelRef} className="h-12" aria-hidden="true" />
           ) : null}
 
-          <div
-            className="shrink-0"
-            style={{ height: CATEGORY_TAIL_SPACER_HEIGHT }}
-            aria-hidden="true"
-          />
         </div>
       ) : null}
 
@@ -336,7 +330,13 @@ export function ProductBrowseContent({
         <MenuEmptyState />
       ) : null}
 
+      {!loadingMenu && !hasMoreRenderedMenu ? <PublicBrandCredit onAbout={onAbout} /> : null}
+      {renderedMenuSections.length ? (
+        <div className="shrink-0" style={{ height: CATEGORY_TAIL_SPACER_HEIGHT }} aria-hidden="true" />
+      ) : null}
+
       <BottomNav
+        onHelp={onHelp}
         cartQty={cartQty}
         needsConfirmation={Boolean(
           getConfirmableOrderPayload(cart, cartStatusRule)

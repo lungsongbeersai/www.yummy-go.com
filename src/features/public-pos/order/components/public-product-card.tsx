@@ -31,11 +31,15 @@ import {
 } from "../utils";
 import { ProductMedia } from "./public-product-media";
 
-// White tiles have a visible outline; list rows retain their section dividers.
+// A shared frame keeps product groups distinct in both list and tile layouts.
 const CARD_SURFACE_CLASS =
   "h-full gap-0 py-0 shadow-none ring-0 transition-[transform,border-color] duration-150 ease-out motion-reduce:transition-none";
-const CARD_TILE_CLASS = "rounded-[8px] border border-yg-divider bg-yg-card p-2";
-const CARD_ROW_CLASS = "rounded-none bg-transparent";
+const CARD_TILE_CLASS = "rounded-2xl border border-yg-divider bg-yg-card p-2";
+const CARD_ROW_CLASS = "rounded-2xl border border-yg-divider bg-yg-card";
+const CARD_ROW_BUTTON_CLASS =
+  "flex h-auto min-h-28 w-full items-center gap-3 rounded-2xl p-3 text-left hover:bg-yg-panel-hover active:scale-[0.99] active:duration-75 focus-visible:ring-inset aria-disabled:cursor-not-allowed aria-disabled:hover:bg-transparent disabled:opacity-100 motion-reduce:transform-none";
+const CARD_ROW_MEDIA_CLASS =
+  "relative size-20 shrink-0 overflow-hidden rounded-xl bg-yg-panel2 sm:size-24";
 
 // Chrome มีบั๊กที่รู้จักกันดี: element ที่มีทั้ง overflow:hidden + border-radius + transition/transform
 // (เช่น hover:-translate-y-1 ของ CARD_INTERACTIVE_CLASS) อยู่บนตัวเดียวกัน บางครั้งไม่ clip ลูกที่เป็น
@@ -44,8 +48,7 @@ const CARD_ROW_CLASS = "rounded-none bg-transparent";
 // hover ยังอยู่ที่ Card ชั้นนอกเหมือนเดิม (transform ของ ancestor ไม่ทำให้ลูกที่ถูก clip ไปแล้วหลุดออกมา)
 const CARD_CLIP_CLASS = "h-full";
 
-// The image carries the rounded corners now that there is no card around it.
-const MEDIA_FRAME_CLASS = "relative w-full overflow-hidden rounded-[8px]";
+const MEDIA_FRAME_CLASS = "relative w-full overflow-hidden rounded-xl";
 
 // hover:-translate-y-1 ใช้ไม่ได้บนมือถือ (แตะไม่มี :hover) — active:scale ทำงาน
 // ทันทีที่นิ้วแตะจอไม่ว่าจะ hover มาก่อนหรือไม่ ให้ความรู้สึกกดแล้ว "ตอบสนองทันที"
@@ -102,6 +105,7 @@ export const ProductCard = memo(function ProductCard({
   variant?: "grid" | "rail" | "railGrid" | "list";
 }) {
   const { t } = useTranslation();
+  const compactRail = variant === "rail" || variant === "railGrid";
   const mediaRef = useRef<HTMLDivElement | null>(null);
   const price = publicProductCardPrice(product);
   const statusSortFk = publicMenuKindToStatusSortFk(statusKind);
@@ -175,7 +179,7 @@ export const ProductCard = memo(function ProductCard({
           <Button
             type="button"
             variant="ghost"
-            className="flex h-auto min-h-28 w-full items-stretch gap-2.5 rounded-none px-0 py-2 text-left hover:bg-yg-panel-hover active:scale-[0.99] active:duration-75 focus-visible:ring-inset aria-disabled:cursor-not-allowed aria-disabled:hover:bg-transparent disabled:opacity-100 motion-reduce:transform-none"
+            className={CARD_ROW_BUTTON_CLASS}
             onClick={handleClick}
             disabled={loading}
             aria-busy={loading || undefined}
@@ -184,7 +188,7 @@ export const ProductCard = memo(function ProductCard({
           >
             <div
               ref={mediaRef}
-              className="relative size-24 shrink-0 overflow-hidden rounded-[8px] bg-yg-card"
+              className={CARD_ROW_MEDIA_CLASS}
             >
               <ProductMedia
                 product={product}
@@ -195,8 +199,8 @@ export const ProductCard = memo(function ProductCard({
               />
             </div>
 
-            <CardContent className="flex min-w-0 flex-1 flex-col justify-center gap-2 p-0">
-              <div className="flex min-w-0 flex-col gap-1">
+            <CardContent className="flex min-w-0 flex-1 flex-col justify-center gap-2.5 p-0">
+              <div className="flex min-w-0 flex-col gap-1.5">
                 <p className="lao-tone-text line-clamp-2 whitespace-normal font-yg-sans text-base font-semibold leading-6 text-yg-ink">
                   {product.prodName}
                 </p>
@@ -211,7 +215,7 @@ export const ProductCard = memo(function ProductCard({
                   </div>
                 ) : null}
               </div>
-              <div className="flex min-w-0 items-end justify-between gap-2 [&>span]:ml-auto">
+              <div className="flex min-w-0 flex-wrap items-center justify-between gap-x-2 gap-y-2 [&>span]:ml-auto">
                 <ProductPriceLabel
                   price={price}
                   lang={lang}
@@ -241,11 +245,12 @@ export const ProductCard = memo(function ProductCard({
         CARD_SURFACE_CLASS,
         CARD_TILE_CLASS,
         variant === "rail"
-          ? "w-44 flex-none snap-start"
+          ? "w-38 flex-none snap-start sm:w-42"
           : variant === "railGrid"
-          ? "w-44 flex-none snap-start sm:w-auto"
+          ? "w-38 flex-none snap-start sm:w-auto"
           : "min-w-0",
-        isBlocked ? "" : CARD_INTERACTIVE_CLASS
+        isBlocked ? "" : CARD_INTERACTIVE_CLASS,
+        compactRail && "h-auto hover:translate-y-0",
       )}
     >
       {/* content-visibility:auto ก็ทำตัวเหมือน overflow:hidden ทางการ paint (contain: paint โดยนัย)
@@ -277,13 +282,14 @@ export const ProductCard = memo(function ProductCard({
               overlay={
                 addOnImage ? (
                   // Keep the action in the same corner of every media frame.
-                  <span className="absolute right-2 bottom-2 rounded-full">
+                  <span className="absolute right-2 bottom-2 max-w-[calc(100%-1rem)] rounded-xl">
                     <ProductActionPill
                       actionState={actionState}
                       hasActualChoices={hasActualChoices}
                       label={actionLabel}
                       loading={loading}
                       onImage
+                      iconOnly={compactRail}
                       subtle={actionState === "choose"}
                     />
                   </span>
@@ -297,24 +303,25 @@ export const ProductCard = memo(function ProductCard({
             ) : null}
           </div>
 
-          <CardContent className="@container flex flex-1 flex-col gap-1 px-1 pt-2 pb-1">
-            <p className="lao-tone-text line-clamp-2 whitespace-normal font-yg-sans text-[15px] font-semibold leading-6 text-yg-ink">
+          <CardContent className={cn("@container flex flex-1 flex-col px-1", compactRail ? "gap-1 pt-2 pb-1" : "gap-1.5 pt-3 pb-2")}>
+            <p className={cn("lao-tone-text line-clamp-2 whitespace-normal font-yg-sans font-semibold text-yg-ink", compactRail ? "text-sm leading-5" : "text-base leading-6")}>
               {product.prodName}
             </p>
 
             {/* Price and action use separate rows so neither squeezes the other on phones. */}
             {showProductSummary && !isBlocked ? (
-              <p className="lao-tone-text line-clamp-2 whitespace-normal text-xs font-normal text-yg-muted">
+              <p className={cn("lao-tone-text whitespace-normal text-xs font-normal leading-5 text-yg-muted", compactRail ? "line-clamp-1" : "line-clamp-2")}>
                 {productSummary}
               </p>
             ) : null}
-            <div className="mt-auto flex min-w-0 flex-col gap-1">
+            <div className="mt-auto flex min-w-0 flex-col gap-1 pt-1">
               {price.kind !== "variable" ? (
                 <div className="flex min-h-5 min-w-0 items-center">
                   <ProductPriceLabel
                     price={price}
                     lang={lang}
                     blocked={isBlocked}
+                    compact={compactRail}
                   />
                 </div>
               ) : null}
@@ -400,9 +407,10 @@ export const SetProductCard = memo(function SetProductCard({
         CARD_SURFACE_CLASS,
         CARD_TILE_CLASS,
         variant === "rail"
-          ? "w-44 flex-none snap-start"
-          : "w-44 flex-none snap-start sm:w-auto",
-        blocked ? "" : CARD_INTERACTIVE_CLASS
+          ? "w-38 flex-none snap-start sm:w-42"
+          : "w-38 flex-none snap-start sm:w-auto",
+        blocked ? "" : CARD_INTERACTIVE_CLASS,
+        "h-auto hover:translate-y-0",
       )}
     >
       {/* canLazyRenderCard(statusKind) เป็น false เสมอที่นี่ (statusKind ล็อกเป็น SET) —
@@ -431,25 +439,27 @@ export const SetProductCard = memo(function SetProductCard({
               preload={imagePreload}
             />
             {!blocked && (
-              <span className="absolute right-2 bottom-2 flex h-7 items-center justify-center gap-1.5 rounded-full border border-yg-accent-line bg-yg-bg2 px-2.5 text-[11px] font-normal text-yg-accent-strong shadow-sm">
-                {loading ? (
-                  <Spinner />
-                ) : (
-                  <Eye className="size-3.5 shrink-0" aria-hidden="true" />
-                )}
-                <span className="lao-tone-text">{viewLabel}</span>
+              <span className="absolute right-2 bottom-2">
+                <ProductActionPill
+                  actionState="view"
+                  hasActualChoices={false}
+                  label={viewLabel}
+                  loading={loading}
+                  onImage
+                  iconOnly
+                />
               </span>
             )}
           </div>
 
           <CardContent className="flex flex-1 flex-col gap-1 px-1 pt-2 pb-1">
-            <p className="lao-tone-text line-clamp-2 whitespace-normal font-yg-sans text-[15px] font-semibold leading-6 text-yg-ink">
+            <p className="lao-tone-text line-clamp-2 whitespace-normal font-yg-sans text-sm font-semibold leading-5 text-yg-ink">
               {product.prodName}
             </p>
 
             <p
               className={cn(
-                "min-h-5 font-yg-number text-base font-semibold tabular-nums",
+                "mt-auto min-h-6 max-w-full truncate font-yg-number text-base font-bold leading-6 tabular-nums",
                 blocked ? "text-yg-muted" : "text-yg-accent-strong"
               )}
             >
@@ -480,22 +490,20 @@ function ProductPriceLabel({
   return (
     <p
       className={cn(
-        "flex min-w-0 gap-1",
-        // Card: "from" stacked above the amount, so both fit the 44px row beside a pill.
-        compact ? "min-h-5 items-baseline" : "flex-col items-start gap-0.5"
+        // Stack the starting-price label so list rows retain room for a 44px action.
+        "flex min-w-0 flex-col items-start gap-0.5",
+        compact ? "min-h-6" : ""
       )}
     >
       {price.kind === "starting" ? (
-        <span className="shrink-0 text-2xs font-bold text-yg-faint">
+        <span className="shrink-0 text-xs font-medium text-yg-faint">
           {t("pos.startingAt")}
         </span>
       ) : null}
       <span
         className={cn(
-          // Body size (16px, 14px on narrow phones): the price reads, but the product name stays
-          // the first thing the eye lands on.
-          "max-w-full font-yg-number text-base font-semibold leading-5 tabular-nums",
-          compact ? "truncate text-base font-medium" : "whitespace-nowrap",
+          "max-w-full font-yg-number font-bold leading-6 tabular-nums",
+          compact ? "truncate text-base" : "whitespace-nowrap text-lg",
           blocked ? "text-yg-muted" : "text-yg-accent-strong"
         )}
       >
@@ -515,7 +523,7 @@ function ProductChoiceMeta({
   return (
     <span
       className={cn(
-        "mt-0.5 flex min-w-0 items-center gap-1 text-2xs font-semibold text-yg-faint",
+        "flex min-w-0 items-center gap-1 text-xs font-medium leading-5 text-yg-muted",
         className
       )}
     >
@@ -540,12 +548,12 @@ function ProductPromoBadge({
         "inline-flex max-w-full items-center gap-1 border border-yg-accent-line bg-yg-accent-soft font-medium tracking-wide text-yg-accent-strong",
         overlay
           ? // บนรูปใช้พื้นทึบเหมือนปุ่มบนรูป — accent-soft โปร่ง 13% อ่านไม่ออกเมื่อทับรูปสีจัด
-            "absolute left-2.5 top-2.5 h-6 max-w-[calc(100%-1.25rem)] rounded-md bg-yg-bg2 px-2 text-2xs shadow-sm"
-          : "h-5 rounded-sm px-1.5 text-2xs",
-        compact ? "text-2xs" : ""
+            "absolute left-2 top-2 h-6 max-w-[calc(100%-1rem)] rounded-full bg-yg-bg2 px-2 text-xs shadow-sm"
+          : "min-h-6 rounded-full px-2 text-xs",
+        compact ? "font-medium" : ""
       )}
     >
-      <Sparkles className="size-2.5 shrink-0" aria-hidden="true" />
+      <Sparkles className="size-3 shrink-0" aria-hidden="true" />
       <span className="lao-tone-text truncate">{label}</span>
     </span>
   );
@@ -561,17 +569,19 @@ function ProductActionPill({
   fullWidth = false,
   subtle = false,
   filled = false,
+  iconOnly: forceIconOnly = false,
 }: {
   actionState: ProductActionState;
   hasActualChoices: boolean;
   label: string;
   loading: boolean;
   compact?: boolean;
-  /** 36px on the product photo: the whole card is the tap target, so it needn't be 44px. */
+  /** On-photo actions retain the same 44px visual target as list actions. */
   onImage?: boolean;
   fullWidth?: boolean;
   subtle?: boolean;
   filled?: boolean;
+  iconOnly?: boolean;
 }) {
   const isAdd = actionState === "add";
   const isChoose = actionState === "choose" && hasActualChoices;
@@ -583,8 +593,8 @@ function ProductActionPill({
     : isChoose
     ? SlidersHorizontal
     : Eye;
-  // ปุ่ม "เพิ่ม" เป็นไอคอนล้วนทรงจัตุรัสตามดีไซน์ ที่เหลือมีข้อความกำกับ
-  const iconOnly = isAdd && !loading;
+  // Rail icons leave more of the photo visible; the enclosing card keeps the full action label.
+  const iconOnly = forceIconOnly || (isAdd && !loading);
 
   // Sold out / unavailable is a state, not an action: plain muted text, so it never reads as a
   // button the customer should tap.
@@ -600,23 +610,22 @@ function ProductActionPill({
   return (
     <span
       className={cn(
-        "flex h-11 min-w-0 shrink-0 items-center justify-center gap-1.5 rounded-lg border text-xs font-medium leading-none transition-[filter,transform] duration-150 ease-out motion-safe:group-active/button:scale-95 active:scale-90 active:duration-75 motion-reduce:transition-none motion-reduce:active:scale-100",
-        iconOnly ? "size-7 rounded-full px-0" : "px-3.5",
+        "flex h-11 min-w-11 max-w-full shrink-0 items-center justify-center gap-1.5 rounded-xl border text-xs font-semibold leading-none transition-[filter,transform] duration-150 ease-out motion-safe:group-active/button:scale-95 active:scale-90 active:duration-75 motion-reduce:transition-none motion-reduce:active:scale-100",
+        iconOnly ? "size-11 px-0" : "px-3",
         onImage
           ? iconOnly
-            ? "size-7"
-            : "h-7 gap-1.5 rounded-full px-2.5 text-[11px] font-normal shadow-sm"
+            ? "size-11 shadow-sm"
+            : "shadow-sm"
           : "",
         compact
           ? iconOnly
-            ? "size-7 rounded-full px-0 shadow-sm"
-            : "h-9 max-w-32 rounded-full px-3 text-[11px] shadow-sm"
+            ? "size-11 px-0"
+            : "max-w-32"
           : "",
-        fullWidth ? "w-full h-9 px-2" : "",
+        fullWidth ? "w-full px-3" : "",
         subtle
-          ? "h-7 gap-1 rounded-lg border-yg-accent-line px-2 text-[11px] font-normal shadow-none"
+          ? "border-yg-accent-line shadow-none"
           : "",
-        onImage && subtle ? "h-6 gap-1 rounded-full px-1.5 text-[10px]" : "",
         filled
           ? "border-yg-accent bg-yg-accent text-yg-on-accent"
           : "border-yg-accent-line bg-yg-panel text-yg-accent-strong",
@@ -631,11 +640,7 @@ function ProductActionPill({
         <Icon
           className={cn(
             "shrink-0",
-            onImage && subtle
-              ? "size-3"
-              : subtle || isAdd
-              ? "size-3.5"
-              : "size-4"
+            isAdd ? "size-5" : "size-4"
           )}
           aria-hidden="true"
         />

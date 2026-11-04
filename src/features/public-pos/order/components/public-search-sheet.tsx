@@ -59,7 +59,7 @@ export function PublicSearchSheet({
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent
         side="bottom"
-        className="yg-shell inset-0 flex h-dvh max-h-dvh w-screen max-w-none flex-col gap-0 overflow-hidden border-0 p-0 font-yg-sans text-yg-ink data-[side=bottom]:h-dvh pb-[env(safe-area-inset-bottom)] [&>[data-slot=sheet-close]]:rounded-lg [&>[data-slot=sheet-close]]:border [&>[data-slot=sheet-close]]:border-yg-divider [&>[data-slot=sheet-close]]:bg-yg-panel [&>[data-slot=sheet-close]]:text-yg-ink"
+        className="yg-shell inset-0 flex h-dvh max-h-dvh w-screen max-w-none flex-col gap-0 overflow-hidden border-0 p-0 font-yg-sans text-yg-ink data-[side=bottom]:h-dvh pb-[env(safe-area-inset-bottom)] [&>[data-slot=sheet-close]]:size-11 [&>[data-slot=sheet-close]]:rounded-xl [&>[data-slot=sheet-close]]:border [&>[data-slot=sheet-close]]:border-yg-divider [&>[data-slot=sheet-close]]:bg-yg-panel [&>[data-slot=sheet-close]]:text-yg-ink"
       >
         <SheetHeader className="shrink-0 border-b border-yg-line bg-yg-panel px-4 py-4 text-left">
           <div className="flex min-w-0 items-center gap-3 pr-10">
@@ -96,6 +96,7 @@ export function PublicSearchSheet({
               </div>
               <Button
                 type="submit"
+                aria-label={t("actions.search")}
                 className="h-12.5 rounded-xl bg-yg-accent px-5 font-extrabold text-yg-on-accent hover:bg-yg-accent hover:brightness-105"
                 disabled={loading}
               >
