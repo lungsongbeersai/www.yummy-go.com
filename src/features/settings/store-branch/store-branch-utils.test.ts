@@ -41,6 +41,7 @@ describe("store branch utils", () => {
       store_name_la: "ຮ້ານ",
       store_name_eng: "PLC",
       store_email: "plc@example.com",
+      store_category: "restaurant",
       store_status: 1,
       store_active: 1,
       store_table_status: 1,
@@ -51,6 +52,7 @@ describe("store branch utils", () => {
     expect(
       buildStorePayload({
         active: "2",
+        category: "cafe",
         depositExpireDays: "30",
         editing: { store_uuid: "store-1", store_name: "Old" },
         email: "store@example.com",
@@ -65,12 +67,21 @@ describe("store branch utils", () => {
       store_name_la: "Store",
       store_name_eng: "",
       store_email: "store@example.com",
+      store_category: "cafe",
       store_status: 2,
       store_active: 2,
       store_table_status: 2,
       lak_rounding_version: 2,
       deposit_expire_days: 30
     });
+  });
+
+  it("preserves an existing category when an edit omits the category field", () => {
+    expect(buildStorePayload({
+      active: "1", depositExpireDays: "", editing: { store_uuid: "store-1", store_category: "pho" },
+      email: "store@example.com", lakRoundingVersion: "1", nameEng: "", nameLa: "Store",
+      status: "3", tableStatus: "1"
+    })).toMatchObject({ store_category: "pho", store_status: 3 });
   });
 
   it("leaves deposit_expire_days unset (keep existing) when left blank", () => {

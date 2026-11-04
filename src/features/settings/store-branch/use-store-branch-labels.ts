@@ -23,6 +23,15 @@ export function useStoreBranchLabels(): StoreBranchLabels {
     catalogCopyFirstBranch: t("settings.storeBranch.catalogCopyFirstBranch"),
     catalogSourceUnavailable: t("settings.storeBranch.catalogSourceUnavailable"),
     catalogSourceLoading: t("settings.storeBranch.catalogSourceLoading"),
+    category: t("settings.storeBranch.category"),
+    categories: {
+      restaurant: t("settings.storeBranch.categories.restaurant"),
+      cafe: t("settings.storeBranch.categories.cafe"),
+      mala: t("settings.storeBranch.categories.mala"),
+      pho: t("settings.storeBranch.categories.pho"),
+      pub: t("settings.storeBranch.categories.pub"),
+      bar: t("settings.storeBranch.categories.bar")
+    },
     annualDue: t("settings.storeBranch.annualDue"),
     activeStores: t("settings.storeBranch.activeStores"),
     cancel: t("actions.cancel"),
@@ -107,6 +116,7 @@ export function useStoreBranchLabels(): StoreBranchLabels {
     taxBillingHint: t("settings.storeBranch.taxBillingHint"),
     type: t("settings.storeBranch.type"),
     test: t("settings.storeBranch.test"),
+    testLoginHint: t("settings.storeBranch.testLoginHint"),
     testStores: t("settings.storeBranch.testStores"),
     generalStores: t("settings.storeBranch.generalStores"),
     uploadImage: t("settings.storeBranch.uploadImage"),

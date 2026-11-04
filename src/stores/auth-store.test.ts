@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { disconnectSocket } from "@/lib/socket";
 import { getBranchOptions, type Branch } from "@/services/branch";
 import { getExecutiveDashboard, type ExecutiveDashboardResponse } from "@/services/dashboard";
-import { checkLogin, validateLoginSession, type LoginResult } from "@/services/login";
+import { checkLogin, getTrialStores, loginToTrialStore, validateLoginSession, type LoginResult, type TrialStore } from "@/services/login";
 import { getProducts, type Product } from "@/services/product";
 import { useAuthStore, type AuthUser } from "@/stores/auth-store";
 import { useBranchStore } from "@/stores/branch-store";
@@ -19,6 +19,8 @@ vi.mock("@/lib/socket", () => ({
 
 vi.mock("@/services/login", () => ({
   checkLogin: vi.fn(),
+  getTrialStores: vi.fn(),
+  loginToTrialStore: vi.fn(),
   validateLoginSession: vi.fn()
 }));
 
@@ -47,6 +49,8 @@ vi.mock("@/services/product", async (importOriginal) => {
 });
 
 const checkLoginMock = vi.mocked(checkLogin);
+const trialLoginMock = vi.mocked(loginToTrialStore);
+const trialStoresMock = vi.mocked(getTrialStores);
 const validateLoginSessionMock = vi.mocked(validateLoginSession);
 const disconnectSocketMock = vi.mocked(disconnectSocket);
 const getBranchOptionsMock = vi.mocked(getBranchOptions);
@@ -98,6 +102,60 @@ describe("auth store session isolation", () => {
       isLoggedIn: true,
       loading: false,
     });
+  });
+
+  it("starts a trial session without remembering it and clears previous store data", async () => {
+    useAuthStore.getState().login("old-token", authUser("previous"), true);
+    useProductStore.setState({ search: "previous products" });
+    const user = { ...authUser("trial"), status: 3, store_status: 3 };
+    trialLoginMock.mockResolvedValueOnce({ token: "trial-token", user });
+    await expect(useAuthStore.getState().loginWithTrialStore("trial-store")).resolves.toEqual(user);
+    expect(useAuthStore.getState()).toMatchObject({
+      token: "trial-token", isLoggedIn: true, rememberMe: false, activeTrialStoreUuid: null, loading: false,
+    });
+    expect(useProductStore.getState().search).toBe("");
+  });
+
+  it("discards a trial response after a newer password login", async () => {
+    const old = deferred<LoginResult>();
+    trialLoginMock.mockReturnValueOnce(old.promise);
+    const trialLogin = useAuthStore.getState().loginWithTrialStore("trial-store");
+    checkLoginMock.mockResolvedValueOnce({ token: "real-token", user: authUser("cashier") });
+    await useAuthStore.getState().loginWithPassword("cashier@example.com", "password", true);
+    old.resolve({ token: "late-trial", user: authUser("trial") });
+    await expect(trialLogin).resolves.toBeNull();
+    expect(useAuthStore.getState()).toMatchObject({ token: "real-token", rememberMe: true });
+  });
+
+  it("cancels pending trial login after logout", async () => {
+    const pending = deferred<LoginResult>();
+    trialLoginMock.mockReturnValueOnce(pending.promise);
+    const login = useAuthStore.getState().loginWithTrialStore("trial-store");
+    expect(useAuthStore.getState().activeTrialStoreUuid).toBe("trial-store");
+    useAuthStore.getState().logout();
+    pending.resolve({ token: "late-trial", user: authUser("trial") });
+    await expect(login).resolves.toBeNull();
+    expect(useAuthStore.getState()).toMatchObject({ token: null, activeTrialStoreUuid: null, isLoggedIn: false });
+  });
+
+  it("reports failed trial login without creating a session", async () => {
+    trialLoginMock.mockRejectedValueOnce(new Error("Trial store unavailable"));
+    await expect(useAuthStore.getState().loginWithTrialStore("disabled-trial")).rejects.toThrow("Trial store unavailable");
+    expect(useAuthStore.getState()).toMatchObject({ token: null, isLoggedIn: false, loading: false,
+      activeTrialStoreUuid: null, error: "Trial store unavailable" });
+  });
+
+  it("keeps the latest trial list request and exposes load errors", async () => {
+    const old = deferred<TrialStore[]>();
+    trialStoresMock.mockReturnValueOnce(old.promise).mockResolvedValueOnce([]);
+    const first = useAuthStore.getState().loadTrialStores();
+    await useAuthStore.getState().loadTrialStores();
+    old.resolve([{ store_uuid: "stale" } as TrialStore]);
+    await first;
+    expect(useAuthStore.getState().trialStores).toEqual([]);
+    trialStoresMock.mockRejectedValueOnce(new Error("Network unavailable"));
+    await useAuthStore.getState().loadTrialStores();
+    expect(useAuthStore.getState()).toMatchObject({ trialStores: [], trialStoresLoading: false, trialStoresError: "Network unavailable" });
   });
 
   it("resets loaded user-scoped stores on logout", () => {

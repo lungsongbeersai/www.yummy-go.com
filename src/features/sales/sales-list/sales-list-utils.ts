@@ -11,7 +11,7 @@ import type { DailySaleItemsOrder } from "@/services/report";
 import type { ApiEntity, PageLimit } from "@/services/shared/types";
 import type { DailySaleItemsBillGroup } from "@/stores/report-store";
 
-export const SALES_LIST_LIMIT_OPTIONS: PageLimit[] = [20, 50, 100, 200];
+export const SALES_LIST_LIMIT_OPTIONS: PageLimit[] = [20, 50, 100];
 export const SALES_LIST_ORDER_OPTIONS: DailySaleItemsOrder[] = ["DESC", "ASC"];
 export const SALES_LIST_PAYMENT_METHOD_OPTIONS = ["All", "1", "2", "4"] as const;
 export type SalesListPaymentMethod = (typeof SALES_LIST_PAYMENT_METHOD_OPTIONS)[number];

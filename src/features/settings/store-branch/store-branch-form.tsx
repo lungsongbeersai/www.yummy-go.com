@@ -13,6 +13,7 @@ import { Spinner } from "@/components/ui/spinner";
 import { Textarea } from "@/components/ui/textarea";
 import { DEFAULT_CROP, SettingsImageCropPanel, cropImageFile, type CropState } from "@/features/settings/shared/settings-image-crop";
 import { cn } from "@/lib/utils";
+import { normalizeStoreCategory, STORE_CATEGORIES } from "@/lib/store-category";
 import {
   SettingsDialogBody,
   SettingsDialogContent,
@@ -218,6 +219,7 @@ function EntityForm({
   const catalogSourceValue = catalogSources.some((source) => source.value === sourceBranchUuid)
     ? sourceBranchUuid : catalogSources[0]?.value ?? "";
   const [storeStatus, setStoreStatus] = useState("2");
+  const [storeCategory, setStoreCategory] = useState("restaurant");
   const [storeActive, setStoreActive] = useState("1");
   const [storeTableStatus, setStoreTableStatus] = useState("1");
   const [lakRoundingVersion, setLakRoundingVersion] = useState("1");
@@ -248,6 +250,7 @@ function EntityForm({
     setBranchAddress(storeBranchValue(editing, "branch_address"));
     setSourceBranchUuid("");
     setStoreStatus(String(storeBranchNumber(editing, "store_status", 2)));
+    setStoreCategory(normalizeStoreCategory(editing?.store_category));
     setStoreActive(String(storeBranchNumber(editing, "store_active", 1)));
     setStoreTableStatus(String(storeTableStatusValue(storeBranchValue(editing, "store_table_status", "1"))));
     setLakRoundingVersion(String(lakRoundingVersionValue(storeBranchValue(editing, "lak_rounding_version", "1"))));
@@ -463,9 +466,20 @@ function EntityForm({
                 </Field>
                 <FieldGroup className="grid gap-4 sm:grid-cols-2">
                   <FormSelectField
+                    className="sm:col-span-2"
+                    disabled={disabled}
+                    id={`${recordKey}-store-category`}
+                    label={labels.category}
+                    name="store_category"
+                    value={storeCategory}
+                    onValueChange={setStoreCategory}
+                    options={STORE_CATEGORIES.map((category) => ({ label: labels.categories[category], value: category }))}
+                  />
+                  <FormSelectField
                     disabled={disabled}
                     id={`${recordKey}-store-status`}
                     label={labels.type}
+                    description={storeStatus === "3" ? labels.testLoginHint : undefined}
                     name="store_status"
                     value={storeStatus}
                     onValueChange={setStoreStatus}

@@ -27,6 +27,7 @@ import {
 } from "@/components/ui/input-group";
 import { Spinner } from "@/components/ui/spinner";
 import { AppleIcon, GooglePlayIcon } from "./login-provider-icons";
+import { LoginTrialStores } from "./login-trial-stores";
 import {
   getDisplayedAppVersion,
   WEB_APP_VERSION,
@@ -345,6 +346,8 @@ export function LoginClient() {
             </div>
           </CardContent>
         </Card>
+
+        <LoginTrialStores />
 
         <FieldDescription className="px-4 text-center text-xs">
           {t("auth.agreeToPolicy")} <Link href="/policy">{t("policy.title")}</Link>.{" "}

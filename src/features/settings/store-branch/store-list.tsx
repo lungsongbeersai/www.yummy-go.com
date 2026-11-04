@@ -18,6 +18,7 @@ import {
 } from "@/components/ui/item";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { cn } from "@/lib/utils";
+import { normalizeStoreCategory } from "@/lib/store-category";
 import type { StoreBranchLabels, StoreBranchSettingsRow } from "./store-branch-types";
 import {
   isStoreActive,
@@ -98,6 +99,7 @@ export function StoreTable({
           {/* w-px: checkbox, number and actions shrink to their content; the name columns take the spare width. */}
           <TableHead className="w-px text-center">{t("fields.no")}</TableHead>
           <TableHead className="min-w-72">{labels.store}</TableHead>
+          <TableHead>{labels.category}</TableHead>
           <TableHead>{labels.type}</TableHead>
           <TableHead>{labels.active}</TableHead>
           <TableHead className="w-px">
@@ -131,6 +133,7 @@ export function StoreTable({
                   </div>
                 </div>
               </TableCell>
+              <TableCell>{labels.categories[normalizeStoreCategory(row.store_category)]}</TableCell>
               <TableCell>
                 <StoreTypeBadge labels={labels} row={row} />
               </TableCell>
@@ -177,6 +180,7 @@ export function StoreMobileList({ activeId, imageUrl, labels, rowActions, rows, 
             <ItemActions>{rowActions(row)}</ItemActions>
             <ItemFooter className="flex-wrap items-start">
               <span className="flex flex-wrap gap-1.5">
+                <Badge variant="secondary">{labels.categories[normalizeStoreCategory(row.store_category)]}</Badge>
                 <StoreTypeBadge labels={labels} row={row} />
                 <StoreStatus labels={labels} row={row} />
               </span>

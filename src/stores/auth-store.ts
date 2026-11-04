@@ -3,7 +3,7 @@
 import { create } from "zustand";
 import { createJSONStorage, persist, type StateStorage } from "zustand/middleware";
 import { disconnectSocket } from "@/lib/socket";
-import { checkLogin, validateLoginSession } from "@/services/login";
+import { checkLogin, getTrialStores, loginToTrialStore, validateLoginSession, type TrialStore } from "@/services/login";
 import { resetSessionStores } from "@/stores/session-store-registry";
 import { errorMessage } from "@/stores/store-utils";
 import { contractExpiryFromError, type ContractExpiryNotice } from "@/lib/contract-expiry";
@@ -108,6 +108,12 @@ interface AuthState {
   loading: boolean;
   error: string | null;
   contractExpiry: ContractExpiryNotice | null;
+  trialStores: TrialStore[];
+  trialStoresLoading: boolean;
+  trialStoresError: string | null;
+  activeTrialStoreUuid: string | null;
+  loadTrialStores: () => Promise<void>;
+  loginWithTrialStore: (storeUuid: string) => Promise<AuthUser | null>;
   login: (token: string, user: AuthUser, rememberMe?: boolean) => void;
   loginWithPassword: (email: string, password: string, rememberMe?: boolean) => Promise<AuthUser | null>;
   validateSession: () => Promise<boolean>;
@@ -123,6 +129,7 @@ const isBrowser = typeof window !== "undefined";
 let loginRequestId = 0;
 let sessionValidationRequest: Promise<boolean> | null = null;
 let sessionValidationToken: string | null = null;
+let trialStoresRequestId = 0;
 
 function authenticatedState(token: string, user: AuthUser, rememberMe: boolean) {
   return {
@@ -131,6 +138,7 @@ function authenticatedState(token: string, user: AuthUser, rememberMe: boolean) 
     isLoggedIn: true,
     rememberMe,
     loading: false,
+    activeTrialStoreUuid: null,
     error: null,
     contractExpiry: null,
   };
@@ -170,6 +178,40 @@ export const useAuthStore = create<AuthState>()(
       loading: false,
       error: null,
       contractExpiry: null,
+      trialStores: [],
+      trialStoresLoading: false,
+      trialStoresError: null,
+      activeTrialStoreUuid: null,
+      loadTrialStores: async () => {
+        const requestId = ++trialStoresRequestId;
+        set({ trialStoresLoading: true, trialStoresError: null });
+        try {
+          const trialStores = await getTrialStores();
+          if (requestId === trialStoresRequestId) set({ trialStores, trialStoresLoading: false });
+        } catch (error) {
+          if (requestId === trialStoresRequestId) {
+            set({ trialStores: [], trialStoresLoading: false, trialStoresError: errorMessage(error) });
+          }
+        }
+      },
+      loginWithTrialStore: async (storeUuid) => {
+        const requestId = ++loginRequestId;
+        set({ loading: true, error: null, contractExpiry: null, activeTrialStoreUuid: storeUuid });
+        try {
+          const result = await loginToTrialStore(storeUuid);
+          if (requestId !== loginRequestId) return null;
+
+          sessionValidationRequest = null;
+          sessionValidationToken = null;
+          resetSessionStores();
+          set(authenticatedState(result.token, result.user, false));
+          return result.user;
+        } catch (error) {
+          if (requestId !== loginRequestId) return null;
+          set({ loading: false, activeTrialStoreUuid: null, error: errorMessage(error) });
+          throw error;
+        }
+      },
       login: (token, user, rememberMe = false) => {
         loginRequestId += 1;
         sessionValidationRequest = null;
@@ -179,7 +221,7 @@ export const useAuthStore = create<AuthState>()(
       },
       loginWithPassword: async (email, password, rememberMe = false) => {
         const requestId = ++loginRequestId;
-        set({ loading: true, error: null, contractExpiry: null });
+        set({ loading: true, error: null, contractExpiry: null, activeTrialStoreUuid: null });
         try {
           const result = await checkLogin(email, password);
           if (requestId !== loginRequestId) return null;
@@ -258,6 +300,7 @@ export const useAuthStore = create<AuthState>()(
           isLoggedIn: false,
           rememberMe: false,
           loading: false,
+          activeTrialStoreUuid: null,
           error: null,
           contractExpiry: null,
         });
@@ -269,7 +312,7 @@ export const useAuthStore = create<AuthState>()(
         sessionValidationToken = null;
         disconnectSocket();
         resetSessionStores();
-        set({ token: null, user: null, isLoggedIn: false, rememberMe: false, loading: false, error: null, contractExpiry: notice });
+        set({ token: null, user: null, isLoggedIn: false, rememberMe: false, loading: false, activeTrialStoreUuid: null, error: null, contractExpiry: notice });
         dualStorage.removeItem(STORAGE_KEY);
       },
       clearContractExpiry: () => set({ contractExpiry: null }),
