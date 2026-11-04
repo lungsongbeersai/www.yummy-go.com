@@ -72,7 +72,8 @@ export const IDLE_PUBLIC_POS_REQUEST_STATE = {
   loadingItem: false,
   loadingMenu: false,
   saving: false,
-  confirming: false
+  confirming: false,
+  refreshingMenu: false
 } as const;
 
 export function emptyPublicPosSessionState() {
@@ -119,6 +120,7 @@ export function createPublicPosSessionCache() {
   const cacheVersion = createRequestVersionTracker();
   const scanRequest = createRequestVersionTracker();
   const cartRequest = createRequestVersionTracker();
+  const menuRequest = createRequestVersionTracker();
   const productItemRequest = createRequestVersionTracker();
 
   let cartLoadPromise: Promise<CartOrder[]> | null = null;
@@ -127,15 +129,19 @@ export function createPublicPosSessionCache() {
   const productItemCache = new Map<string, CacheEntry<ProductItemResponse>>();
   const productItemPromises = new Map<string, Promise<ProductItemResponse>>();
 
-  function clearDataCache() {
+  function clearCatalogCache() {
     cacheVersion.next();
-    cartRequest.next();
-    productItemRequest.next();
-    cartLoadPromise = null;
     menuProductsCache.clear();
     menuProductsPromises.clear();
     productItemCache.clear();
     productItemPromises.clear();
+  }
+
+  function clearDataCache() {
+    clearCatalogCache();
+    cartRequest.next();
+    productItemRequest.next();
+    cartLoadPromise = null;
   }
 
   function activateSession(token: string, lang?: string) {
@@ -234,10 +240,12 @@ export function createPublicPosSessionCache() {
     isCurrentSession: sessionVersion.isCurrent,
     invalidateSession,
     clearDataCache,
+    clearCatalogCache,
     currentToken: () => activeSessionToken,
     currentLanguage: () => activeSessionLanguage,
     scanRequest,
     cartRequest,
+    menuRequest,
     productItemRequest,
     getCartLoadPromise: () => cartLoadPromise,
     setCartLoadPromise: (promise: Promise<CartOrder[]> | null) => {

@@ -10,6 +10,7 @@ import {
   usePublicPosStore,
 } from "@/stores/public-pos-store";
 import type { ToastInput } from "@/stores/toast-store";
+import { menuSequenceKey } from "@/stores/public-pos-store/helpers";
 import {
   CATEGORY_LOAD_SCROLL_SUPPRESS_MS,
   CATEGORY_SCROLL_SUPPRESS_MS,
@@ -43,6 +44,8 @@ interface PendingActiveCategorySync {
 interface UsePublicMenuBrowseParams {
   lang: string;
   loadMenuProducts: PublicPosState["loadMenuProducts"];
+  refreshMenuProducts: PublicPosState["refreshMenuProducts"];
+  refreshingMenu: boolean;
   loadNormalCategoryProducts: PublicPosState["loadNormalCategoryProducts"];
   menuByKind: PublicMenuByKind;
   menuRequestKey: string;
@@ -58,6 +61,8 @@ interface UsePublicMenuBrowseParams {
 export function usePublicMenuBrowse({
   lang,
   loadMenuProducts,
+  refreshMenuProducts,
+  refreshingMenu,
   loadNormalCategoryProducts,
   menuByKind,
   menuRequestKey,
@@ -159,15 +164,32 @@ export function usePublicMenuBrowse({
   const retryMenu = useCallback(() => {
     setError(null);
     setMenuLoadError(null);
-    void loadMenuProducts({ token, lang, search: submittedSearch }).catch((error) => {
+    const params = { token, lang, search: submittedSearch };
+    const current = usePublicPosStore.getState();
+    const hasVisibleCatalog = Object.values(current.menuByKind).some((menu) => menu.categories.length > 0);
+    const load = current.menuRequestKey === menuSequenceKey(params) && hasVisibleCatalog
+      ? refreshMenuProducts
+      : loadMenuProducts;
+    void load(params).catch((error) => {
       setMenuLoadError(error instanceof Error ? error.message : t("pos.productLoadFailed"));
     });
-  }, [lang, loadMenuProducts, setError, submittedSearch, t, token]);
+  }, [lang, loadMenuProducts, refreshMenuProducts, setError, submittedSearch, t, token]);
+
+  const refreshMenu = useCallback(async () => {
+    setError(null);
+    setMenuLoadError(null);
+    try {
+      await refreshMenuProducts({ token, lang, search: submittedSearch });
+    } catch (error) {
+      setMenuLoadError(error instanceof Error ? error.message : t("pos.productLoadFailed"));
+      throw error;
+    }
+  }, [lang, refreshMenuProducts, setError, submittedSearch, t, token]);
 
   // The catalog includes unloaded categories without counts. Resolve them in the
   // background before treating an empty product array as an empty category.
   useEffect(() => {
-    if (!token || !normalMenu.categoryTabs.length || normalMenu.loading || !firstCategoryReady) return;
+    if (!token || refreshingMenu || !normalMenu.categoryTabs.length || normalMenu.loading || !firstCategoryReady) return;
     let cancelled = false;
     const pending = normalMenu.categoryTabs.map((category) => category.cateUuid);
     const resolveCategories = async () => {
@@ -192,7 +214,7 @@ export function usePublicMenuBrowse({
     // Let the first category paint before lower-priority catalog discovery.
     const timer = window.setTimeout(() => { void resolveCategories(); }, 500);
     return () => { cancelled = true; window.clearTimeout(timer); };
-  }, [lang, loadNormalCategoryProducts, normalMenu.categoryTabs, normalMenu.loading, firstCategoryReady, submittedSearch, t, toast, token]);
+  }, [lang, loadNormalCategoryProducts, normalMenu.categoryTabs, normalMenu.loading, firstCategoryReady, refreshingMenu, submittedSearch, t, toast, token]);
 
   const ensureCategoryRendered = useCallback(
     (cateUuid: string) => {
@@ -601,6 +623,7 @@ export function usePublicMenuBrowse({
     revealMoreProductsForCategory,
     revealMoreRailProducts,
     retryMenu,
+    refreshMenu,
     scrollJumpEdge,
     setMenu,
     setProducts,

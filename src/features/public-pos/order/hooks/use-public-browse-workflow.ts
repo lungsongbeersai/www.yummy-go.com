@@ -35,6 +35,7 @@ export function usePublicBrowseWorkflow({
     table,
     menuByKind,
     loadingMenu,
+    refreshingMenu,
     menuRequestKey,
     cart,
     cartStatusRule,
@@ -49,6 +50,7 @@ export function usePublicBrowseWorkflow({
       table: state.scan,
       menuByKind: state.menuByKind,
       loadingMenu: state.loadingMenu,
+      refreshingMenu: state.refreshingMenu,
       menuRequestKey: state.menuRequestKey,
       cart: state.cart,
       cartStatusRule: state.cartStatusRule,
@@ -66,6 +68,7 @@ export function usePublicBrowseWorkflow({
     ensureCartLoaded,
     loadCart,
     loadMenuProducts,
+    refreshMenuProducts,
     loadNormalCategoryProducts,
     loadProductItem,
     createOrder,
@@ -80,6 +83,7 @@ export function usePublicBrowseWorkflow({
       ensureCartLoaded: state.ensureCartLoaded,
       loadCart: state.loadCart,
       loadMenuProducts: state.loadMenuProducts,
+      refreshMenuProducts: state.refreshMenuProducts,
       loadNormalCategoryProducts: state.loadNormalCategoryProducts,
       loadProductItem: state.loadProductItem,
       createOrder: state.createOrder,
@@ -91,6 +95,11 @@ export function usePublicBrowseWorkflow({
   );
 
   const [cartLoadError, setCartLoadError] = useState<string | null>(null);
+  const currentCartSessionRef = useRef(`${token}:${lang}`);
+  useEffect(() => {
+    currentCartSessionRef.current = `${token}:${lang}`;
+    return () => { currentCartSessionRef.current = ""; };
+  }, [lang, token]);
   const cartTargetRef = useRef<HTMLButtonElement | null>(null);
   const { cartFlyAnimations, playCartFlyAnimation, handleCartFlyDone } =
     useCartFlyAnimation(cartTargetRef);
@@ -99,6 +108,8 @@ export function usePublicBrowseWorkflow({
   const browse = usePublicMenuBrowse({
     lang,
     loadMenuProducts,
+    refreshMenuProducts,
+    refreshingMenu,
     loadNormalCategoryProducts,
     menuByKind,
     menuRequestKey,
@@ -122,13 +133,25 @@ export function usePublicBrowseWorkflow({
     () =>
       backgroundCartRefreshRef.current!(
         `${token}:${lang}`,
-        () => loadCart({ t: token, lang }).then(() => { setCartLoadError(null); }).catch((error: unknown) => {
-          setCartLoadError(error instanceof Error ? error.message : t("pos.publicLoadFailed"));
+        () => loadCart({ t: token, lang }).then(() => {
+          if (currentCartSessionRef.current === `${token}:${lang}`) setCartLoadError(null);
+        }).catch((error: unknown) => {
+          if (currentCartSessionRef.current === `${token}:${lang}`)
+            setCartLoadError(error instanceof Error ? error.message : t("pos.publicLoadFailed"));
           throw error;
         }),
       ),
     [loadCart, token, lang, t],
   );
+  const refreshMenu = browse.refreshMenu;
+  const refreshPublicMenu = useCallback(async () => {
+    const results = await Promise.allSettled([
+      refreshMenu(),
+      ...(!viewOnly ? [refreshCartInBackground()] : []),
+    ]);
+    const failure = results.find((result) => result.status === "rejected");
+    if (failure?.status === "rejected") throw failure.reason;
+  }, [refreshCartInBackground, refreshMenu, viewOnly]);
   useEffect(() => {
     if (viewOnly || !token) return;
     let cancelled = false;
@@ -161,13 +184,14 @@ export function usePublicBrowseWorkflow({
   const ensureCartWithFeedback = useCallback(async (params: Parameters<typeof ensureCartLoaded>[0]) => {
     try {
       const result = await ensureCartLoaded(params);
-      setCartLoadError(null);
+      if (currentCartSessionRef.current === `${token}:${lang}`) setCartLoadError(null);
       return result;
     } catch (error) {
-      setCartLoadError(error instanceof Error ? error.message : t("pos.publicLoadFailed"));
+      if (currentCartSessionRef.current === `${token}:${lang}`)
+        setCartLoadError(error instanceof Error ? error.message : t("pos.publicLoadFailed"));
       throw error;
     }
-  }, [ensureCartLoaded, t]);
+  }, [ensureCartLoaded, lang, t, token]);
   const cartActions = usePublicCartOrderActions({
     cart,
     cartOpen,
@@ -212,6 +236,7 @@ export function usePublicBrowseWorkflow({
     loadingCart,
     loadingItem,
     loadingMenu,
+    refreshPublicMenu,
     onCartOpenChange,
     qr,
     qrOrderScanner,

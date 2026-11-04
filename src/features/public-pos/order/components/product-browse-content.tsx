@@ -7,6 +7,10 @@ import { useRef, useState, useSyncExternalStore } from "react";
 import { Loader2 } from "lucide-react";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { PUBLIC_MENU_KIND } from "@/stores/public-pos-store";
+import { useWaiterRequestsStore } from "@/stores/waiter-requests-store";
+import type { WaiterRequestType } from "@/services/waiter-requests";
+import { findPendingBillRequest } from "@/features/waiter-requests/customer-waiter-payload";
+import { canRequestBillFromCart } from "../cart-bill-request";
 import {
   CATEGORY_TAIL_SPACER_HEIGHT,
   DEFAULT_PUBLIC_POS_HERO_VISIBLE,
@@ -79,6 +83,8 @@ export function ProductBrowseContent({
   );
   const [waiterOpen, setWaiterOpen] = useState(false);
   const [waiterMounted, setWaiterMounted] = useState(false);
+  const [waiterInitialIntent, setWaiterInitialIntent] = useState<WaiterRequestType>();
+  const pendingBillAfterCartCloseRef = useRef(false);
   const categoryRailRef = useRef<HTMLDivElement | null>(null);
   const viewOnlyScanButtonRef = useRef<HTMLButtonElement | null>(null);
   const pendingScanFocusRef = useRef(false);
@@ -110,6 +116,9 @@ export function ProductBrowseContent({
     table,
     viewOnly,
   } = workflow;
+  const billRequestPending = useWaiterRequestsStore((state) =>
+    state.publicKey === token && Boolean(findPendingBillRequest(state.publicRequests)),
+  );
   const {
     activeValue,
     categoryBarRef,
@@ -157,6 +166,27 @@ export function ProductBrowseContent({
     event.preventDefault();
     window.scrollTo({ top: 0, behavior: "smooth" });
     viewOnlyScanButtonRef.current?.focus({ preventScroll: true });
+  }
+
+  function openService(initialIntent?: WaiterRequestType) {
+    setWaiterInitialIntent(initialIntent);
+    setWaiterMounted(true);
+    setWaiterOpen(true);
+  }
+
+  function handleRequestBillFromCart() {
+    if (viewOnly || !table || loadingCart || saving || confirming || cartLoadError || !canRequestBillFromCart(cart, cartStatusRule)) return;
+    pendingBillAfterCartCloseRef.current = true;
+    onCartOpenChange(false);
+  }
+
+  function handleCartCloseAutoFocus(event: Event) {
+    if (!pendingBillAfterCartCloseRef.current) return;
+    pendingBillAfterCartCloseRef.current = false;
+    event.preventDefault();
+    cartTargetRef.current?.focus({ preventScroll: true });
+    // Open after the cart releases its focus trap and scroll lock.
+    window.requestAnimationFrame(() => openService("bill"));
   }
 
   return (
@@ -350,10 +380,7 @@ export function ProductBrowseContent({
         onShare={qr.handleOpenQrDialog}
         onCallStaff={
           !viewOnly && table
-            ? () => {
-                setWaiterMounted(true);
-                setWaiterOpen(true);
-              }
+            ? () => openService()
             : undefined
         }
       />
@@ -366,6 +393,7 @@ export function ProductBrowseContent({
           token={token}
           branch={table.branch_uuid_fk}
           table={table.table_uuid}
+          initialRequestType={waiterInitialIntent}
         />
       ) : null}
 
@@ -426,6 +454,9 @@ export function ProductBrowseContent({
         open={cartOpen}
         loadError={cartLoadError}
         onRetryLoad={retryCart}
+        onRequestBill={!viewOnly && table ? handleRequestBillFromCart : undefined}
+        billRequestPending={billRequestPending}
+        onCloseAutoFocus={handleCartCloseAutoFocus}
         onOpenChange={onCartOpenChange}
         cart={cart}
         statusRule={cartStatusRule}
@@ -433,7 +464,8 @@ export function ProductBrowseContent({
         // สคีเลตันเต็มจอควรขึ้นแค่ครั้งแรกที่ยังไม่มีข้อมูลเลย — รีเฟรชรอบถัดๆไป
         // (หลังแก้จำนวน/ลบ/socket sync) ให้ตะกร้าเดิมค้างอยู่แล้วสลับข้อมูลใหม่
         // ในที่เดิมแบบ stale-while-revalidate ไม่กะพริบทั้งจอ
-        loading={loadingCart && !cartHydrated}
+        loading={loadingCart && !cartHydrated && cart.length === 0}
+        refreshing={loadingCart && cart.length > 0}
         saving={saving}
         confirming={confirming}
         onUpdateQty={cartActions.handleUpdateItemQty}

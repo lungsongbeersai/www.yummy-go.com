@@ -11,6 +11,7 @@ interface WaiterState {
   publicKey: string;
   staffKey: string;
   publicLoading: boolean;
+  publicBillRequestsEnabled: boolean;
   staffLoading: boolean;
   staffPanelOpen: boolean;
   sending: boolean;
@@ -18,7 +19,7 @@ interface WaiterState {
   publicError: string | null;
   staffError: string | null;
   setStaffPanelOpen: (open: boolean) => void;
-  loadPublic: (token: string) => Promise<void>;
+  loadPublic: (token: string) => Promise<boolean>;
   send: (token: string, input: api.SendWaiterRequest) => Promise<boolean>;
   loadStaff: (branch: string) => Promise<void>;
   handle: (id: string, status: 1 | 2) => Promise<void>;
@@ -33,6 +34,7 @@ export const useWaiterRequestsStore = create<WaiterState>((set, get) => ({
   publicKey: "",
   staffKey: "",
   publicLoading: false,
+  publicBillRequestsEnabled: false,
   staffLoading: false,
   staffPanelOpen: false,
   sending: false,
@@ -47,19 +49,26 @@ export const useWaiterRequestsStore = create<WaiterState>((set, get) => ({
       publicKey: token,
       publicLoading: true,
       publicError: null,
-      ...(get().publicKey !== token ? { publicRequests: [] } : {}),
+      ...(get().publicKey !== token ? { publicRequests: [], publicBillRequestsEnabled: false } : {}),
     });
     try {
-      const result = await api.fetchCustomerWaiterRequests(token);
-      if (current() && run === publicRun)
-        set({ publicRequests: result, publicLoading: false });
+      const result = await api.fetchCustomerWaiterState(token);
+      if (!current() || run !== publicRun || get().publicKey !== token) return false;
+      set({ publicRequests: result.requests, publicBillRequestsEnabled: result.billRequestsEnabled, publicLoading: false });
+      return true;
     } catch (e) {
-      if (current() && run === publicRun)
-        set({ publicError: errorMessage(e), publicLoading: false });
+      if (current() && run === publicRun && get().publicKey === token)
+        set({ publicError: errorMessage(e), publicLoading: false, publicBillRequestsEnabled: false });
+      return false;
     }
   },
   send: async (token, input) => {
     if (get().sending) return false;
+    if (get().publicKey !== token) return false;
+    if (input.request_type === "bill" && !get().publicBillRequestsEnabled) {
+      set({ publicError: "Bill requests are not available yet. Please call staff." });
+      return false;
+    }
     const current = createSessionGuard();
     set({ sending: true, publicError: null });
     try {
@@ -131,6 +140,7 @@ registerSessionStoreReset("waiter-requests", () => {
     publicKey: "",
     staffKey: "",
     publicLoading: false,
+    publicBillRequestsEnabled: false,
     staffLoading: false,
     staffPanelOpen: false,
     sending: false,

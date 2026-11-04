@@ -17,6 +17,7 @@ import type {
   CustomerEmitTableStatusParams,
   CustomerFetchCartParams,
   CustomerFetchCateProductsParams,
+  CustomerFetchCateProductsResponse,
   CustomerGetProdItemParams,
   CustomerUpdateOrderNoteInput,
   CustomerUpdateQtyInput,
@@ -78,6 +79,40 @@ function emitCustomerTableAlert(params: CustomerEmitTableStatusParams) {
 // Session-versioning + request/response caching lives in session-cache.ts
 // (P3.4 split) — this file keeps only the Zustand wiring.
 const sessionCache = createPublicPosSessionCache();
+let activeCatalogRefresh: {
+  key: string;
+  sessionVersion: number;
+  menuVersion: number;
+  promise: Promise<PublicMenuByKind>;
+} | null = null;
+
+function normalizedPublicCatalog(result: CustomerFetchCateProductsResponse, params: CustomerFetchCateProductsParams) {
+  const categories = normalizeCategories(result.categories ?? []);
+  const categoryTabs = toCategoryTabs(categories);
+  const selectedCateUuid = firstAvailableCateUuid(categories, result.selectedCateUuid, result.defaultCateUuid);
+  const defaultCateUuid = result.defaultCateUuid && categories.some((category) => category.cateUuid === result.defaultCateUuid)
+    ? result.defaultCateUuid : selectedCateUuid;
+  const loadedCateUuids = uniqueStrings([selectedCateUuid, ...productCateUuids(categories)]);
+  const specialProducts = splitSpecialProducts(result.specialProducts ?? []);
+  const menuByKind: PublicMenuByKind = {
+    [PUBLIC_MENU_KIND.PROMOTION]: {
+      ...emptyStatusMenu(),
+      categories: toSpecialCategories(PUBLIC_MENU_KIND.PROMOTION, specialProducts.promotion),
+      requestKey: statusMenuRequestKey(params, PUBLIC_MENU_KIND.PROMOTION)
+    },
+    [PUBLIC_MENU_KIND.SET]: {
+      ...emptyStatusMenu(),
+      categories: toSpecialCategories(PUBLIC_MENU_KIND.SET, specialProducts.set),
+      requestKey: statusMenuRequestKey(params, PUBLIC_MENU_KIND.SET)
+    },
+    [PUBLIC_MENU_KIND.NORMAL]: {
+      categories, categoryTabs, selectedCateUuid, defaultCateUuid, loadedCateUuids,
+      loadingCateUuids: [], loading: false, error: null,
+      requestKey: statusMenuRequestKey(params, PUBLIC_MENU_KIND.NORMAL)
+    }
+  };
+  return { menuByKind, categoryTabs, selectedCateUuid, defaultCateUuid };
+}
 
 interface PublicPosState {
   token: string;
@@ -88,6 +123,7 @@ interface PublicPosState {
   selectedCateUuid: string;
   defaultCateUuid: string;
   loadingMenu: boolean;
+  refreshingMenu: boolean;
   menuRequestKey: string;
   selectedProduct: ProdItem | null;
   cart: CartOrder[];
@@ -109,6 +145,7 @@ interface PublicPosState {
   loadCart: (params: CustomerFetchCartParams) => Promise<CartOrder[]>;
   ensureCartLoaded: (params: CustomerFetchCartParams) => Promise<CartOrder[]>;
   loadMenuProducts: (params: CustomerFetchCateProductsParams) => Promise<PublicMenuByKind>;
+  refreshMenuProducts: (params: CustomerFetchCateProductsParams) => Promise<PublicMenuByKind>;
   loadNormalCategoryProducts: (params: CustomerFetchCateProductsParams) => Promise<PublicStatusMenu>;
   loadProductItem: (params: CustomerGetProdItemParams) => Promise<ProdItem>;
   createOrder: (token: string, input: CustomerCreateOrderInput) => Promise<CreateOrderResponse>;
@@ -276,6 +313,7 @@ export const usePublicPosStore = create<PublicPosState>((set, get) => ({
     return request;
   },
   loadMenuProducts: async (params) => {
+    const menuVersion = sessionCache.menuRequest.next();
     const sessionChanged = !sessionCache.isActiveSession(params.token, params.lang);
     const sessionVersion = sessionCache.activateSession(params.token, params.lang);
     const baseParams: CustomerFetchCateProductsParams = {
@@ -290,6 +328,7 @@ export const usePublicPosStore = create<PublicPosState>((set, get) => ({
       ...(sessionChanged ? emptyPublicPosSessionState() : {}),
       ...emptyProductBrowseState(),
       loadingMenu: true,
+      refreshingMenu: false,
       menuRequestKey: sequenceKey,
       error: null,
       token: baseParams.token
@@ -299,69 +338,129 @@ export const usePublicPosStore = create<PublicPosState>((set, get) => ({
       const result = await sessionCache.fetchMenuProducts(baseParams);
       if (
         !sessionCache.isCurrentSession(sessionVersion) ||
+        !sessionCache.menuRequest.isCurrent(menuVersion) ||
         get().menuRequestKey !== sequenceKey
       ) {
         return get().menuByKind;
       }
 
-      const categories = normalizeCategories(result.categories ?? []);
-      const categoryTabs = toCategoryTabs(categories);
-      const selectedCateUuid = firstAvailableCateUuid(categories, result.selectedCateUuid, result.defaultCateUuid);
-      const defaultCateUuid =
-        result.defaultCateUuid && categories.some((category) => category.cateUuid === result.defaultCateUuid)
-          ? result.defaultCateUuid
-          : selectedCateUuid;
-      const loadedCateUuids = uniqueStrings([selectedCateUuid, ...productCateUuids(categories)]);
-      const specialProducts = splitSpecialProducts(result.specialProducts ?? []);
-      const promotionCategories = toSpecialCategories(PUBLIC_MENU_KIND.PROMOTION, specialProducts.promotion);
-      const setCategories = toSpecialCategories(PUBLIC_MENU_KIND.SET, specialProducts.set);
-
       set({
-        menuByKind: {
-          [PUBLIC_MENU_KIND.PROMOTION]: {
-            ...emptyStatusMenu(),
-            categories: promotionCategories,
-            requestKey: statusMenuRequestKey(baseParams, PUBLIC_MENU_KIND.PROMOTION)
-          },
-          [PUBLIC_MENU_KIND.SET]: {
-            ...emptyStatusMenu(),
-            categories: setCategories,
-            requestKey: statusMenuRequestKey(baseParams, PUBLIC_MENU_KIND.SET)
-          },
-          [PUBLIC_MENU_KIND.NORMAL]: {
-            categories,
-            categoryTabs,
-            selectedCateUuid,
-            defaultCateUuid,
-            loadedCateUuids,
-            loadingCateUuids: [],
-            loading: false,
-            error: null,
-            requestKey: statusMenuRequestKey(baseParams, PUBLIC_MENU_KIND.NORMAL)
-          }
-        },
-        categoryTabs,
-        selectedCateUuid,
-        defaultCateUuid,
+        ...normalizedPublicCatalog(result, baseParams),
         loadingMenu: false,
+        refreshingMenu: false,
         error: null
       });
 
       return get().menuByKind;
     } catch (error) {
+      if (!sessionCache.isCurrentSession(sessionVersion) ||
+        !sessionCache.menuRequest.isCurrent(menuVersion) || get().menuRequestKey !== sequenceKey) return get().menuByKind;
       const errorState = publicPosErrorState(error);
-      if (
-        sessionCache.isCurrentSession(sessionVersion) &&
-        get().menuRequestKey === sequenceKey
-      ) {
-        set({
-          ...errorState,
-          menuByKind: emptyMenuByKind(),
-          loadingMenu: false
-        });
-      }
+      set({
+        ...errorState,
+        menuByKind: emptyMenuByKind(),
+        loadingMenu: false
+      });
       throw error;
     }
+  },
+  refreshMenuProducts: (params) => {
+    const sessionChanged = !sessionCache.isActiveSession(params.token, params.lang);
+    const sessionVersion = sessionCache.activateSession(params.token, params.lang);
+    const baseParams: CustomerFetchCateProductsParams = {
+      token: params.token,
+      lang: params.lang,
+      cateUuid: params.cateUuid?.trim() || undefined,
+      search: params.search ?? ""
+    };
+    const sequenceKey = menuSequenceKey(baseParams);
+    if (activeCatalogRefresh?.key === sequenceKey &&
+      activeCatalogRefresh.sessionVersion === sessionVersion &&
+      sessionCache.menuRequest.isCurrent(activeCatalogRefresh.menuVersion)) {
+      return activeCatalogRefresh.promise;
+    }
+
+    const menuVersion = sessionCache.menuRequest.next();
+    const previous = sessionChanged ? null : get();
+    const previousNormal = previous?.menuByKind[PUBLIC_MENU_KIND.NORMAL];
+    const previouslyLoaded = uniqueStrings([
+      ...(previousNormal?.loadedCateUuids ?? []),
+      ...(previousNormal?.loadingCateUuids ?? []),
+      previous?.selectedCateUuid ?? previousNormal?.selectedCateUuid ?? ""
+    ]);
+    const hasVisibleMenu = Boolean(previous && (
+      previousNormal?.categoryTabs.length ||
+      previous.menuByKind[PUBLIC_MENU_KIND.PROMOTION].categories.length ||
+      previous.menuByKind[PUBLIC_MENU_KIND.SET].categories.length
+    ));
+    // Manual refresh invalidates catalog TTLs, never an independent cart request.
+    sessionCache.clearCatalogCache();
+    set({
+      ...(sessionChanged ? emptyPublicPosSessionState() : {}),
+      token: params.token,
+      loadingMenu: !hasVisibleMenu,
+      refreshingMenu: true,
+      menuRequestKey: sequenceKey,
+      error: null
+    });
+    const isCurrent = () => sessionCache.isCurrentSession(sessionVersion) &&
+      sessionCache.menuRequest.isCurrent(menuVersion) && get().menuRequestKey === sequenceKey;
+
+    const request: Promise<PublicMenuByKind> = (async () => {
+      try {
+        const result = await sessionCache.fetchMenuProducts(baseParams);
+        if (!isCurrent()) return get().menuByKind;
+        const next = normalizedPublicCatalog(result, baseParams);
+        const normal = next.menuByKind[PUBLIC_MENU_KIND.NORMAL];
+        const existingCategoryUuids = new Set(normal.categories.map((category) => category.cateUuid));
+        const pending = previouslyLoaded.filter((uuid) => existingCategoryUuids.has(uuid) && !normal.loadedCateUuids.includes(uuid));
+        let nextIndex = 0;
+        let failed = false;
+        const worker = async () => {
+          while (!failed && isCurrent() && nextIndex < pending.length) {
+            const cateUuid = pending[nextIndex++];
+            if (!cateUuid) continue;
+            try {
+              const categoryResult = await sessionCache.fetchMenuProducts({ ...baseParams, cateUuid });
+              if (!isCurrent()) return;
+              normal.categories = mergeCategoryProducts(normal.categories, normalizeCategories(categoryResult.categories ?? []), cateUuid);
+              normal.loadedCateUuids = uniqueStrings([...normal.loadedCateUuids, cateUuid]);
+            } catch (error) {
+              failed = true;
+              throw error;
+            }
+          }
+        };
+        await Promise.all(Array.from({ length: Math.min(3, pending.length) }, worker));
+        if (!isCurrent()) return get().menuByKind;
+        const selectedCateUuid = firstAvailableCateUuid(normal.categories, get().selectedCateUuid, next.selectedCateUuid);
+        normal.selectedCateUuid = selectedCateUuid;
+        // All refreshed categories become visible together, without an empty intermediate catalog.
+        set({ ...next, selectedCateUuid, loadingMenu: false, refreshingMenu: false, error: null });
+        return get().menuByKind;
+      } catch (error) {
+        if (!isCurrent()) return get().menuByKind;
+        const errorState = publicPosErrorState(error);
+        set((current) => ({
+          ...errorState,
+          loadingMenu: false,
+          refreshingMenu: false,
+          menuByKind: {
+            ...current.menuByKind,
+            [PUBLIC_MENU_KIND.NORMAL]: {
+              ...current.menuByKind[PUBLIC_MENU_KIND.NORMAL],
+              loadingCateUuids: [],
+              error: errorState.error
+            }
+          }
+        }));
+        throw error;
+      } finally {
+        if (activeCatalogRefresh?.menuVersion === menuVersion) activeCatalogRefresh = null;
+      }
+    })();
+    activeCatalogRefresh = { key: sequenceKey, sessionVersion, menuVersion, promise: request };
+    return request;
   },
   loadNormalCategoryProducts: async (params) => {
     const sessionChanged = !sessionCache.isActiveSession(params.token, params.lang);
@@ -378,6 +477,8 @@ export const usePublicPosStore = create<PublicPosState>((set, get) => ({
 
     const state = get();
     const normalMenu = state.menuByKind[PUBLIC_MENU_KIND.NORMAL];
+    const menuVersion = sessionCache.menuRequest.current();
+    if (state.refreshingMenu) return normalMenu;
     if (normalMenu.loadedCateUuids.includes(cateUuid) || normalMenu.loadingCateUuids.includes(cateUuid)) {
       return normalMenu;
     }
@@ -406,7 +507,7 @@ export const usePublicPosStore = create<PublicPosState>((set, get) => ({
 
     try {
       const result = await sessionCache.fetchMenuProducts(requestParams);
-      if (!sessionCache.isCurrentSession(sessionVersion)) {
+      if (!sessionCache.isCurrentSession(sessionVersion) || !sessionCache.menuRequest.isCurrent(menuVersion)) {
         return get().menuByKind[PUBLIC_MENU_KIND.NORMAL];
       }
       const categories = normalizeCategories(result.categories ?? []);
@@ -440,22 +541,23 @@ export const usePublicPosStore = create<PublicPosState>((set, get) => ({
         };
       });
     } catch (error) {
-      const errorState = publicPosErrorState(error);
-      if (sessionCache.isCurrentSession(sessionVersion)) {
-        set((current) => ({
-          menuByKind: {
-            ...current.menuByKind,
-            [PUBLIC_MENU_KIND.NORMAL]: {
-              ...current.menuByKind[PUBLIC_MENU_KIND.NORMAL],
-              loadingCateUuids: current.menuByKind[PUBLIC_MENU_KIND.NORMAL].loadingCateUuids.filter(
-                (uuid) => uuid !== cateUuid
-              ),
-              error: errorState.error
-            }
-          },
-          ...errorState
-        }));
+      if (!sessionCache.isCurrentSession(sessionVersion) || !sessionCache.menuRequest.isCurrent(menuVersion)) {
+        return get().menuByKind[PUBLIC_MENU_KIND.NORMAL];
       }
+      const errorState = publicPosErrorState(error);
+      set((current) => ({
+        menuByKind: {
+          ...current.menuByKind,
+          [PUBLIC_MENU_KIND.NORMAL]: {
+            ...current.menuByKind[PUBLIC_MENU_KIND.NORMAL],
+            loadingCateUuids: current.menuByKind[PUBLIC_MENU_KIND.NORMAL].loadingCateUuids.filter(
+              (uuid) => uuid !== cateUuid
+            ),
+            error: errorState.error
+          }
+        },
+        ...errorState
+      }));
       throw error;
     }
 

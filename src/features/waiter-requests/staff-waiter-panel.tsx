@@ -3,8 +3,8 @@
 import { useCallback, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
-  AlertCircle, ArrowRight, BellRing, Check, CheckCheck, Clock3,
-  LoaderCircle, MessageSquareText, MessagesSquare, RefreshCcw,
+  AlertCircle, ArrowRight, Bell, BellRing, Check, CheckCheck, Clock3,
+  LoaderCircle, MessageSquareText, MessagesSquare, Receipt, RefreshCcw,
   Soup, Utensils, UtensilsCrossed, X,
 } from "lucide-react";
 import { Alert, AlertTitle } from "@/components/ui/alert";
@@ -200,6 +200,9 @@ interface StaffRequestCardProps {
 
 function StaffRequestCard({ request, busy, onHandle }: StaffRequestCardProps) {
   const { t, i18n } = useTranslation();
+  const isBill = request.request_type === "bill";
+  const RequestIcon = isBill ? Receipt : Bell;
+  const requestTypeLabel = t(isBill ? "waiter.typeBill" : "waiter.typeStaff");
   const waiting = request.status === 0;
   const updating = busy === request.request_uuid;
   const tableName = i18n.language === "en"
@@ -209,6 +212,8 @@ function StaffRequestCard({ request, busy, onHandle }: StaffRequestCardProps) {
   return (
     <article
       data-request-status={request.status}
+      data-request-type={isBill ? "bill" : "staff"}
+      aria-label={`${requestTypeLabel} · ${tableName || t("nav.table")}`}
       aria-busy={updating}
       className={cn("overflow-hidden rounded-2xl border bg-card text-card-foreground shadow-sm", waiting ? "border-warning/25" : "border-info/25")}
     >
@@ -217,17 +222,20 @@ function StaffRequestCard({ request, busy, onHandle }: StaffRequestCardProps) {
         <div className="flex items-start justify-between gap-3">
           <div className="flex min-w-0 items-center gap-3">
             <span className={cn("grid size-11 shrink-0 place-items-center rounded-xl", waiting ? "bg-warning/10 text-warning-text" : "bg-info/10 text-info-text")}>
-              <UtensilsCrossed aria-hidden="true" className="size-5" />
+              <RequestIcon aria-hidden="true" className="size-5" />
             </span>
             <div className="min-w-0">
+              <Badge className={cn("mb-1 h-auto min-h-6 max-w-full whitespace-normal rounded-lg border px-2 py-1 text-2xs", isBill ? "border-primary/20 bg-primary/10 text-primary-text" : "border-border bg-muted/50 text-muted-foreground")}>
+                {requestTypeLabel}
+              </Badge>
               <p className="text-2xs font-medium text-muted-foreground">{t("nav.table")}</p>
               <h3 className="break-words text-lg font-bold leading-tight">{tableName || t("nav.table")}</h3>
             </div>
           </div>
-          <div className="flex shrink-0 flex-col items-end gap-2">
-            <Badge className={cn("h-6 gap-1.5 border px-2 text-2xs", waiting ? "border-warning/20 bg-warning/10 text-warning-text" : "border-info/20 bg-info/10 text-info-text")}>
+          <div className="flex max-w-[48%] shrink-0 flex-col items-end gap-2">
+            <Badge className={cn("h-auto min-h-6 gap-1.5 whitespace-normal border px-2 py-1 text-right text-2xs", waiting ? "border-warning/20 bg-warning/10 text-warning-text" : "border-info/20 bg-info/10 text-info-text")}>
               {updating ? <LoaderCircle aria-hidden="true" className="motion-safe:animate-spin" /> : <span aria-hidden="true" className={cn("size-1.5 rounded-full", waiting ? "bg-warning" : "bg-info")} />}
-              {t(updating ? "waiter.panel.updating" : `waiter.status${request.status}`)}
+              {t(updating ? "waiter.panel.updating" : `${isBill ? "waiter.billStatus" : "waiter.status"}${request.status}`)}
             </Badge>
             <time dateTime={request.created_at} className="flex items-center gap-1 text-2xs tabular-nums text-muted-foreground">
               <Clock3 aria-hidden="true" className="size-3" />
@@ -261,12 +269,12 @@ function StaffRequestCard({ request, busy, onHandle }: StaffRequestCardProps) {
       </div>
       <div className="flex gap-2 border-t border-border/70 bg-muted/25 px-4 py-3">
         {waiting ? (
-          <Button type="button" className="h-11 min-w-0 flex-1 gap-2 rounded-xl px-3 text-xs font-semibold" disabled={!!busy} onClick={() => void onHandle(request.request_uuid, 1)}>
-            <Check aria-hidden="true" className="size-4" />{t("waiter.accept")}<ArrowRight aria-hidden="true" className="ml-auto size-3.5" />
+          <Button type="button" className="h-auto min-h-11 min-w-0 flex-1 gap-2 whitespace-normal rounded-xl px-3 py-2 text-xs font-semibold" disabled={!!busy} onClick={() => void onHandle(request.request_uuid, 1)}>
+            <Check aria-hidden="true" className="size-4" /><span className="min-w-0 flex-1">{t(isBill ? "waiter.billAccept" : "waiter.accept")}</span><ArrowRight aria-hidden="true" className="ml-auto size-3.5" />
           </Button>
         ) : null}
-        <Button type="button" variant={waiting ? "outline" : "default"} className="h-11 min-w-0 flex-1 gap-2 rounded-xl px-3 text-xs font-semibold" disabled={!!busy} onClick={() => void onHandle(request.request_uuid, 2)}>
-          <CheckCheck aria-hidden="true" className="size-4" />{t("waiter.complete")}
+        <Button type="button" variant={waiting ? "outline" : "default"} className="h-auto min-h-11 min-w-0 flex-1 gap-2 whitespace-normal rounded-xl px-3 py-2 text-xs font-semibold" disabled={!!busy} onClick={() => void onHandle(request.request_uuid, 2)}>
+          <CheckCheck aria-hidden="true" className="size-4" /><span className="min-w-0 flex-1">{t(isBill ? "waiter.billComplete" : "waiter.complete")}</span>
         </Button>
       </div>
     </article>

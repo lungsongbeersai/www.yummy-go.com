@@ -87,7 +87,7 @@ export function BottomNav({
         <NavButton
           icon={<Bell className="size-5" />}
           label={t("publicHelp.staffShort")}
-          ariaLabel={t("pos.callWaiter")}
+          ariaLabel={t("waiter.serviceTitle")}
           description={onCallStaff ? undefined : staffComingSoon}
           disabled={!onCallStaff}
           onClick={onCallStaff}

@@ -1,5 +1,5 @@
 "use client";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useId, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
   Bell,
@@ -10,6 +10,7 @@ import {
   MessageSquareText,
   Minus,
   Plus,
+  Receipt,
   RefreshCw,
   Send,
   Soup,
@@ -33,7 +34,9 @@ import { Empty, EmptyHeader, EmptyMedia, EmptyTitle } from "@/components/ui/empt
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
+import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { cn } from "@/lib/utils";
+import type { WaiterRequestType } from "@/services/waiter-requests";
 import { useWaiterRequestsStore } from "@/stores/waiter-requests-store";
 import { PublicPullToRefresh } from "@/features/public-pos/order/components/public-pull-to-refresh";
 import {
@@ -41,6 +44,7 @@ import {
   CUSTOMER_WAITER_KINDS,
   MAX_CUSTOMER_WAITER_MESSAGE,
   MAX_CUSTOMER_WAITER_QTY,
+  findPendingBillRequest,
   resolveCustomerWaiterAttempt,
   type CustomerWaiterAttempt,
   type CustomerWaiterKind,
@@ -72,14 +76,18 @@ interface Props {
   token: string;
   branch: string;
   table: string;
+  initialRequestType?: WaiterRequestType;
 }
 
-export function CustomerWaiterSheet({ open, onOpenChange, token, branch, table }: Props) {
+export function CustomerWaiterSheet({ open, onOpenChange, token, branch, table, initialRequestType }: Props) {
   const { t, i18n } = useTranslation();
+  const choiceId = useId();
   const [tab, setTab] = useState<"send" | "history">("send");
+  const [requestType, setRequestType] = useState<WaiterRequestType>(initialRequestType ?? "staff");
   const [quantities, setQuantities] = useState<Partial<Record<CustomerWaiterKind, number>>>({});
-  const [note, setNote] = useState("");
+  const [notes, setNotes] = useState<Record<WaiterRequestType, string>>({ staff: "", bill: "" });
   const [sent, setSent] = useState(false);
+  const [sentType, setSentType] = useState<WaiterRequestType>("staff");
   const requestAttempt = useRef<CustomerWaiterAttempt | null>(null);
   const opener = useRef<HTMLElement | null>(null);
   const historyScrollRef = useRef<HTMLDivElement | null>(null);
@@ -88,6 +96,7 @@ export function CustomerWaiterSheet({ open, onOpenChange, token, branch, table }
   const key = useWaiterRequestsStore((s) => s.publicKey);
   const requests = key === token ? storedRequests : [];
   const loading = useWaiterRequestsStore((s) => s.publicLoading);
+  const billEnabled = useWaiterRequestsStore((s) => s.publicKey === token && s.publicBillRequestsEnabled);
   const sending = useWaiterRequestsStore((s) => s.sending);
   const error = useWaiterRequestsStore((s) => s.publicError);
   const load = useWaiterRequestsStore((s) => s.loadPublic);
@@ -100,13 +109,20 @@ export function CustomerWaiterSheet({ open, onOpenChange, token, branch, table }
   useEffect(refresh, [refresh]);
   useWaiterUpdates(branch, refresh, table);
 
-  const payload = useMemo(
-    () => buildCustomerWaiterPayload(quantities, note, t("waiter.comeToTable")),
-    [quantities, note, t],
-  );
+  const isBill = requestType === "bill";
+  const note = notes[requestType];
+  const pendingBill = findPendingBillRequest(requests);
+  useEffect(() => {
+    // A socket refresh can confirm a committed bill after its POST response was lost.
+    // Once confirmed, a later explicit request after service needs a fresh UUID.
+    if (isBill && pendingBill) requestAttempt.current = null;
+  }, [isBill, pendingBill]);
+  const payload = useMemo(() => buildCustomerWaiterPayload(
+    quantities, note, t(isBill ? "waiter.billDefaultMessage" : "waiter.comeToTable"), requestType,
+  ), [quantities, note, t, isBill, requestType]);
   const selectedCount = payload.items.reduce((sum, item) => sum + item.qty, 0);
   const hasDetails = selectedCount > 0 || Boolean(note.trim());
-  const canSend = !sending;
+  const canSend = !sending && (!isBill || (billEnabled && !loading && !pendingBill));
   const pendingCount = requests.filter((request) => request.status !== 2).length;
 
   // ค่าที่ส่งเปลี่ยน = คำขอใหม่ (client_request_uuid ใหม่) — กดส่งซ้ำค่าเดิมยังใช้ id เดิม กันคำขอซ้ำ
@@ -132,8 +148,9 @@ export function CustomerWaiterSheet({ open, onOpenChange, token, branch, table }
     });
     if (!ok) return;
     requestAttempt.current = null;
-    setQuantities({});
-    setNote("");
+    if (!isBill) setQuantities({});
+    setNotes((current) => ({ ...current, [requestType]: "" }));
+    setSentType(requestType);
     setSent(true);
     // ส่งแล้วพาไปดูประวัติ ให้เห็นสถานะ "รอรับเรื่อง" ของคำขอที่เพิ่งส่ง
     setTab("history");
@@ -149,7 +166,7 @@ export function CustomerWaiterSheet({ open, onOpenChange, token, branch, table }
 
   return (
     <>
-      <PublicSuccessDialog open={sent} onOpenChange={setSent} message={t("publicSuccess.waiter")} />
+      <PublicSuccessDialog open={sent} onOpenChange={setSent} message={t(sentType === "bill" ? "waiter.billSent" : "publicSuccess.waiter")} />
       <Drawer
         open={open}
         dismissible={!sending}
@@ -164,6 +181,11 @@ export function CustomerWaiterSheet({ open, onOpenChange, token, branch, table }
           className="mx-auto flex h-[min(740px,92dvh)] w-full max-w-lg flex-col gap-0 overflow-hidden rounded-t-3xl border border-b-0 border-yg-line bg-yg-bg2 p-0 font-yg-sans text-yg-ink shadow-xl before:hidden data-[vaul-drawer-direction=bottom]:max-h-[92dvh] [&>div:first-child]:hidden"
           onOpenAutoFocus={() => {
             opener.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+            if (initialRequestType) {
+              if (requestType !== initialRequestType) requestAttempt.current = null;
+              setRequestType(initialRequestType);
+              setTab(initialRequestType === "bill" && pendingBill ? "history" : "send");
+            }
           }}
           onCloseAutoFocus={(event) => {
             if (opener.current?.isConnected) {
@@ -180,9 +202,9 @@ export function CustomerWaiterSheet({ open, onOpenChange, token, branch, table }
             </span>
             <div className="min-w-0 flex-1">
               <p className="mb-1 text-[10px] font-semibold tracking-wide text-yg-accent-strong">{t("waiter.panel.eyebrow")}</p>
-              <DrawerTitle className="text-xl font-bold leading-tight text-yg-ink">{t("waiter.title")}</DrawerTitle>
+              <DrawerTitle className="text-xl font-bold leading-tight text-yg-ink">{t("waiter.serviceTitle")}</DrawerTitle>
               <DrawerDescription className="mt-1.5 text-sm leading-relaxed text-yg-muted">
-                {t("waiter.description")}
+                {t("waiter.serviceDescription")}
               </DrawerDescription>
             </div>
             <DrawerClose asChild>
@@ -222,7 +244,7 @@ export function CustomerWaiterSheet({ open, onOpenChange, token, branch, table }
             className="min-h-0 flex-1 gap-0 overflow-hidden"
           >
             <div className="shrink-0 border-b border-yg-line px-4 pb-4 sm:px-5">
-              <TabsList aria-label={t("waiter.title")} className="grid h-13 w-full grid-cols-2 rounded-2xl border border-yg-line bg-yg-accent-soft p-1 group-data-horizontal/tabs:h-13">
+              <TabsList aria-label={t("waiter.serviceTitle")} className="grid h-13 w-full grid-cols-2 rounded-2xl border border-yg-line bg-yg-accent-soft p-1 group-data-horizontal/tabs:h-13">
                 <TabsTrigger value="send" className={TAB_TRIGGER_CLASS}>
                   <Send aria-hidden="true" className="size-4 shrink-0" />
                   <span className="min-w-0 whitespace-normal leading-tight">{t("waiter.sendTab")}</span>
@@ -241,6 +263,51 @@ export function CustomerWaiterSheet({ open, onOpenChange, token, branch, table }
 
             <TabsContent value="send" className="flex min-h-0 flex-col">
               <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 py-4 sm:px-5">
+                <div className="mb-5 flex flex-col gap-3">
+                  <p id={`${choiceId}-label`} className="lao-tone-text text-sm font-semibold">{t("waiter.requestTypeLabel")}</p>
+                  <ToggleGroup
+                    type="single"
+                    orientation="vertical"
+                    value={requestType}
+                    aria-labelledby={`${choiceId}-label`}
+                    className="w-full gap-2.5"
+                    onValueChange={(value) => {
+                      if (value !== "staff" && value !== "bill") return;
+                      dirty();
+                      setRequestType(value);
+                    }}
+                  >
+                    {(["staff", "bill"] as const).map((type) => {
+                      const Icon = type === "bill" ? Receipt : Bell;
+                      const selected = requestType === type;
+                      return (
+                        <ToggleGroupItem
+                          key={type}
+                          value={type}
+                          aria-label={t(type === "bill" ? "waiter.requestBill" : "waiter.requestStaff")}
+                          aria-describedby={`${choiceId}-${type}`}
+                          disabled={sending || (type === "bill" && !billEnabled && !pendingBill)}
+                          className="h-auto min-h-20 w-full justify-start gap-3 whitespace-normal rounded-2xl border border-yg-line bg-yg-bg2 px-3 py-3 text-left text-yg-ink hover:bg-yg-panel-hover hover:text-yg-ink focus-visible:ring-yg-accent data-[state=on]:border-yg-accent-line data-[state=on]:bg-yg-accent-soft data-[state=on]:text-yg-ink dark:bg-yg-bg2 dark:data-[state=on]:bg-yg-accent-soft dark:data-[state=on]:text-yg-ink"
+                        >
+                          <span className="grid size-10 shrink-0 place-items-center rounded-xl bg-yg-accent-soft text-yg-accent-strong"><Icon className="size-5" aria-hidden="true" /></span>
+                          <span className="flex min-w-0 flex-1 flex-col gap-1">
+                            <span className="lao-tone-text text-sm font-semibold">{t(type === "bill" ? "waiter.requestBill" : "waiter.requestStaff")}</span>
+                            <span id={`${choiceId}-${type}`} className="lao-tone-text text-xs font-normal leading-5 text-yg-muted">{t(type === "bill" ? "waiter.requestBillDescription" : "waiter.requestStaffDescription")}</span>
+                          </span>
+                          <span aria-hidden="true" className={cn("grid size-5 shrink-0 place-items-center rounded-full", selected ? "text-yg-accent-strong" : "border border-yg-line")}>{selected ? <CheckCircle2 className="size-5" /> : null}</span>
+                        </ToggleGroupItem>
+                      );
+                    })}
+                  </ToggleGroup>
+                  {!loading && !billEnabled && !pendingBill ? <p className="lao-tone-text text-xs leading-5 text-yg-muted">{t("waiter.billUnavailable")}</p> : null}
+                </div>
+
+                {isBill ? (
+                  <div className="mb-5 flex flex-col gap-3 rounded-2xl border border-yg-accent-line bg-yg-accent-soft p-4">
+                    <p className="lao-tone-text text-sm leading-6 text-yg-ink">{t(pendingBill ? "waiter.billPending" : "waiter.billNotice")}</p>
+                    {pendingBill ? <span role="status" className="lao-tone-text text-sm font-semibold text-yg-accent-strong">{t(`waiter.billStatus${pendingBill.status}`)}</span> : null}
+                  </div>
+                ) : (
                 <fieldset className="mb-5">
                   <legend className="mb-3 text-sm font-semibold">{t("waiter.quickSelect")}</legend>
                   <ul className="flex flex-col gap-2.5">
@@ -293,7 +360,9 @@ export function CustomerWaiterSheet({ open, onOpenChange, token, branch, table }
                     })}
                   </ul>
                 </fieldset>
+                )}
 
+                {!(isBill && pendingBill) ? (
                 <label className="grid gap-2.5 text-sm font-semibold">
                   <span className="flex items-center gap-2"><MessageSquareText aria-hidden="true" className="size-4 text-yg-accent-strong" />{t("waiter.message")}</span>
                   <Textarea
@@ -301,28 +370,32 @@ export function CustomerWaiterSheet({ open, onOpenChange, token, branch, table }
                     disabled={sending}
                     maxLength={MAX_CUSTOMER_WAITER_MESSAGE}
                     rows={3}
-                    placeholder={t("waiter.messagePlaceholder")}
+                    placeholder={t(isBill ? "waiter.billMessagePlaceholder" : "waiter.messagePlaceholder")}
                     className="min-h-28 resize-none rounded-2xl border-yg-line bg-yg-bg2 p-3.5 text-base font-normal leading-relaxed text-yg-ink placeholder:text-yg-muted dark:bg-yg-bg2"
                     onChange={(event) => {
                       dirty();
-                      setNote(event.target.value.slice(0, MAX_CUSTOMER_WAITER_MESSAGE));
+                      const value = event.target.value.slice(0, MAX_CUSTOMER_WAITER_MESSAGE);
+                      setNotes((current) => ({ ...current, [requestType]: value }));
                     }}
                   />
                 </label>
-                <p className="mt-1.5 text-right text-xs tabular-nums text-yg-muted">
+                ) : null}
+                {!(isBill && pendingBill) ? <p className="mt-1.5 text-right text-xs tabular-nums text-yg-muted">
                   {note.length}/{MAX_CUSTOMER_WAITER_MESSAGE}
-                </p>
+                </p> : null}
               </div>
 
               <div className="shrink-0 border-t border-yg-line bg-yg-bg2 px-4 pt-3 pb-[max(16px,env(safe-area-inset-bottom))] sm:px-5">
                 <Button
                   type="button"
                   className="h-13 w-full gap-2 rounded-2xl bg-yg-accent text-base font-semibold text-yg-on-accent shadow-sm hover:bg-yg-accent-strong"
-                  disabled={!canSend}
-                  onClick={() => void submit()}
+                  disabled={sending || (!(isBill && pendingBill) && !canSend)}
+                  onClick={() => isBill && pendingBill ? setTab("history") : void submit()}
                 >
                   {sending ? (
                     <LoaderCircle aria-hidden="true" className="size-4 motion-safe:animate-spin" />
+                  ) : isBill ? (
+                    <Receipt aria-hidden="true" className="size-4" />
                   ) : hasDetails ? (
                     <Send aria-hidden="true" className="size-4" />
                   ) : (
@@ -331,6 +404,8 @@ export function CustomerWaiterSheet({ open, onOpenChange, token, branch, table }
                   {/* ยังไม่เลือกอะไร = ปุ่มเรียกพนักงานเฉยๆ / เลือกแล้ว = ส่งคำขอพร้อมจำนวน */}
                   {sending
                     ? t("common.loading")
+                    : isBill
+                      ? t(pendingBill ? "waiter.billViewHistory" : "waiter.billSubmit")
                     : selectedCount
                       ? t("waiter.sendWithCount", { count: selectedCount })
                       : hasDetails
@@ -374,7 +449,11 @@ export function CustomerWaiterSheet({ open, onOpenChange, token, branch, table }
                     const StatusIcon = statusIcon[request.status];
                     return (
                       <li key={request.request_uuid} className="overflow-hidden rounded-2xl border border-yg-line bg-yg-bg2 p-4 text-sm shadow-sm">
-                        <div className="mb-3 flex flex-wrap items-center justify-between gap-2.5">
+                        <div className="mb-3 flex flex-wrap items-center gap-2.5">
+                          <span className="lao-tone-text inline-flex min-h-7 items-center gap-1.5 rounded-lg bg-yg-accent-soft px-2.5 py-1 text-xs font-semibold text-yg-accent-strong">
+                            {request.request_type === "bill" ? <Receipt className="size-3.5" aria-hidden="true" /> : <Bell className="size-3.5" aria-hidden="true" />}
+                            {t(request.request_type === "bill" ? "waiter.typeBill" : "waiter.typeStaff")}
+                          </span>
                           <span
                             className={cn(
                               "inline-flex min-h-7 items-center gap-1.5 rounded-lg border px-2.5 py-1 text-xs font-semibold",
@@ -382,9 +461,9 @@ export function CustomerWaiterSheet({ open, onOpenChange, token, branch, table }
                             )}
                           >
                             <StatusIcon aria-hidden="true" className="size-3.5" />
-                            {t(`waiter.status${request.status}`)}
+                            {t(request.request_type === "bill" ? `waiter.billStatus${request.status}` : `waiter.status${request.status}`)}
                           </span>
-                          <time dateTime={request.created_at} className="flex items-center gap-1 text-xs tabular-nums text-yg-muted">
+                          <time dateTime={request.created_at} className="ml-auto flex items-center gap-1 text-xs tabular-nums text-yg-muted">
                             <Clock3 aria-hidden="true" className="size-3" />
                             {formatTime(request.created_at)}
                           </time>
