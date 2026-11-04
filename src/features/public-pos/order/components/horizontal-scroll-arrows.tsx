@@ -27,9 +27,8 @@ export function HorizontalScrollArrows({
 }: {
   scrollRef: RefObject<HTMLDivElement | null>;
   className?: string;
-  /** overlay: big round buttons over a product rail (mouse only). edge: a fade on each side
-   *  that still has content, with a small arrow — the cue that a strip scrolls sideways. */
-  variant?: "edge" | "fade" | "overlay";
+  /** controls sits beside a section heading; overlay is reserved for mouse-driven rails. */
+  variant?: "edge" | "fade" | "overlay" | "controls";
 }) {
   const { t } = useTranslation();
   const [scrollState, setScrollState] =
@@ -113,20 +112,23 @@ export function HorizontalScrollArrows({
     );
   }
 
-  // pointer-coarse:hidden — on a touch screen the rail is swiped, and the arrows only sat on
-  // top of the cards' names and prices. Mouse users keep them.
+  // Only overlay arrows hide on touch screens; heading controls remain available without
+  // covering product names, prices, or photo actions.
   const buttonClassName = cn(
-    "absolute top-1/2 z-10 pointer-coarse:hidden size-11 -translate-y-1/2 rounded-full border border-yg-line bg-yg-bg2/90 text-yg-accent-strong shadow-[0_12px_30px_-12px_rgb(0_0_0/0.5)] backdrop-blur-md transition-[color,background-color,opacity] hover:border-yg-accent hover:bg-yg-accent hover:text-yg-on-accent disabled:opacity-0 motion-reduce:transition-none",
+    "size-11 border border-yg-line text-yg-accent-strong transition-[color,background-color,opacity] hover:border-yg-accent hover:bg-yg-accent hover:text-yg-on-accent motion-reduce:transition-none",
+    variant === "controls"
+      ? "rounded-xl bg-yg-panel shadow-none disabled:opacity-40"
+      : "absolute top-1/2 z-10 pointer-coarse:hidden -translate-y-1/2 rounded-full bg-yg-bg2/90 shadow-[0_12px_30px_-12px_rgb(0_0_0/0.5)] backdrop-blur-md disabled:opacity-0",
     className,
   );
 
-  return (
+  const buttons = (
     <>
       <Button
         type="button"
         size="icon"
         variant="outline"
-        className={cn(buttonClassName, "left-1")}
+        className={cn(buttonClassName, variant !== "controls" && "left-1")}
         aria-label={t("pos.scrollLeft")}
         disabled={!scrollState.canScrollLeft}
         onClick={() => scroll(-1)}
@@ -137,7 +139,7 @@ export function HorizontalScrollArrows({
         type="button"
         size="icon"
         variant="outline"
-        className={cn(buttonClassName, "right-1")}
+        className={cn(buttonClassName, variant !== "controls" && "right-1")}
         aria-label={t("pos.scrollRight")}
         disabled={!scrollState.canScrollRight}
         onClick={() => scroll(1)}
@@ -146,6 +148,8 @@ export function HorizontalScrollArrows({
       </Button>
     </>
   );
+
+  return variant === "controls" ? <div className="flex items-center gap-1">{buttons}</div> : buttons;
 }
 
 // The fade says "there is more this way"; the arrow makes it tappable too. Hidden sides are

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { AlertCircle } from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -14,6 +14,7 @@ import { usePublicPosBootstrap } from "@/features/public-pos/order/hooks/use-pub
 import { usePublicPosThemeScope } from "@/features/public-pos/order/hooks/use-public-pos-theme-scope";
 import { DEFAULT_PUBLIC_POS_ACCENT } from "@/features/public-pos/order/constants";
 import { usePublicPosTheme } from "@/features/public-pos/order/public-pos-theme";
+import { PublicHelpSheet, type PublicHelpView } from "./components/public-help-sheet";
 
 export function PublicPosClient({
   token,
@@ -26,6 +27,9 @@ export function PublicPosClient({
 }) {
   const { t } = useTranslation();
   const [cartOpen, setCartOpen] = useState(false);
+  const [aboutOpen, setAboutOpen] = useState(false);
+  const [helpView, setHelpView] = useState<PublicHelpView>("help");
+  const aboutReturnFocusRef = useRef<HTMLElement | null>(null);
   const accent = DEFAULT_PUBLIC_POS_ACCENT;
   const theme = usePublicPosTheme();
   const {
@@ -44,6 +48,25 @@ export function PublicPosClient({
 
   usePublicPosThemeScope(fontClassName, accent, theme);
 
+  function openAbout() {
+    aboutReturnFocusRef.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    setHelpView("about");
+    setAboutOpen(true);
+  }
+
+  function openHelp() {
+    aboutReturnFocusRef.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    setHelpView("help");
+    setAboutOpen(true);
+  }
+
+  function restoreAboutFocus(event: Event) {
+    event.preventDefault();
+    const target = aboutReturnFocusRef.current;
+    if (target?.isConnected) target.focus({ preventScroll: true });
+    else document.querySelector<HTMLButtonElement>('header button[aria-haspopup="menu"]')?.focus({ preventScroll: true });
+  }
+
   return (
     <main
       data-yg-menu=""
@@ -52,7 +75,8 @@ export function PublicPosClient({
       className={cn(
         fontClassName,
         "yg-shell relative min-h-dvh font-yg-sans text-yg-ink antialiased",
-        "pb-[calc(5.5rem+env(safe-area-inset-bottom))]",
+        "[--yg-header-height:4.5rem] sm:[--yg-header-height:5rem]",
+        "pb-[calc(5.5rem+env(safe-area-inset-bottom))] sm:pb-[calc(6.5rem+env(safe-area-inset-bottom))]",
       )}
     >
       <ShellAmbience />
@@ -60,14 +84,15 @@ export function PublicPosClient({
       <div className="relative mx-auto flex w-full max-w-280 flex-col gap-0 px-(--yg-gutter) pt-0">
         <section
           className={cn(
-            "flex w-full flex-col gap-3",
+            "flex w-full flex-col",
+            canOrder ? "gap-0" : "gap-3",
             !table || isPublicLoading
               ? "mx-auto min-h-[calc(100dvh-220px)] max-w-2xl justify-start"
               : "",
           )}
         >
         {!canOrder ? (
-          <PublicHeader table={table} canSearch={false} onSearch={() => undefined} />
+          <PublicHeader table={table} canSearch={false} onSearch={() => undefined} onAbout={openAbout} />
         ) : null}
 
           {isPublicLoading ? <><PublicLoadFeedback loading /><PublicPosLoadingScreen /></> : null}
@@ -95,10 +120,13 @@ export function PublicPosClient({
               lang={activeLanguage}
               cartOpen={cartOpen}
               onCartOpenChange={setCartOpen}
+              onAbout={openAbout}
+              onHelp={openHelp}
             />
           ) : null}
         </section>
       </div>
+      <PublicHelpSheet open={aboutOpen} view={helpView} viewOnly={Boolean(table?.view_only)} onOpenChange={setAboutOpen} onViewChange={setHelpView} onCloseAutoFocus={restoreAboutFocus} />
     </main>
   );
 }

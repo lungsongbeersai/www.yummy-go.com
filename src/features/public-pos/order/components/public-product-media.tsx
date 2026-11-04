@@ -97,7 +97,7 @@ export function ProductMedia({
           fetchPriority={preload ? "high" : undefined}
           quality={75}
           sizes={imageSizes}
-          className={cn(variant === "listThumb" ? "object-cover" : "object-contain", blockedState ? "saturate-[0.55]" : "")}
+          className={cn("object-contain", blockedState ? "saturate-[0.55]" : "")}
         />
         <ProductMediaStateOverlay blockedState={blockedState} label={blockedLabel} compact={variant === "listThumb"} />
       </div>
