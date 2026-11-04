@@ -159,4 +159,41 @@ describe("createPublicPosSessionCache", () => {
     await cache.fetchMenuProducts(params);
     expect(publicPosMocks.customerFetchCateProducts).toHaveBeenCalledTimes(2);
   });
+
+  it("catalog-only invalidation bypasses warm menu and product caches without cancelling a cart load", async () => {
+    const cache = createPublicPosSessionCache();
+    cache.activateSession("token", "la");
+    const params = { token: "token", lang: "la" };
+    publicPosMocks.customerFetchCateProducts.mockResolvedValue(EMPTY_CATALOG_RESPONSE);
+    publicPosMocks.customerGetProdItem.mockResolvedValue({ prodUuid: "product" });
+    await cache.fetchMenuProducts(params);
+    await cache.fetchProductItem({ ...params, prodUuid: "product" });
+    const cartVersion = cache.cartRequest.next();
+    const cart = Promise.resolve([]);
+    cache.setCartLoadPromise(cart);
+    cache.clearCatalogCache();
+    expect(cache.cartRequest.isCurrent(cartVersion)).toBe(true);
+    expect(cache.getCartLoadPromise()).toBe(cart);
+    expect(cache.currentToken()).toBe("token");
+    await cache.fetchMenuProducts(params);
+    await cache.fetchProductItem({ ...params, prodUuid: "product" });
+    expect(publicPosMocks.customerFetchCateProducts).toHaveBeenCalledTimes(2);
+    expect(publicPosMocks.customerGetProdItem).toHaveBeenCalledTimes(2);
+  });
+
+  it("an old catalog response cannot replace the fresh cache after catalog-only invalidation", async () => {
+    const cache = createPublicPosSessionCache();
+    let resolveOld!: (value: CustomerFetchCateProductsResponse) => void;
+    publicPosMocks.customerFetchCateProducts.mockReturnValueOnce(new Promise<CustomerFetchCateProductsResponse>((resolve) => { resolveOld = resolve; }));
+    const params = { token: "token", lang: "la" };
+    const old = cache.fetchMenuProducts(params);
+    cache.clearCatalogCache();
+    const fresh = { ...EMPTY_CATALOG_RESPONSE, message: "fresh" };
+    publicPosMocks.customerFetchCateProducts.mockResolvedValueOnce(fresh);
+    await cache.fetchMenuProducts(params);
+    resolveOld(EMPTY_CATALOG_RESPONSE);
+    await old;
+    expect(await cache.fetchMenuProducts(params)).toBe(fresh);
+    expect(publicPosMocks.customerFetchCateProducts).toHaveBeenCalledTimes(2);
+  });
 });

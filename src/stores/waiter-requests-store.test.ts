@@ -1,10 +1,10 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { resetSessionStores } from "@/stores/session-store-registry";
-import type { WaiterRequest } from "@/services/waiter-requests";
+import type { CustomerWaiterState, WaiterRequest } from "@/services/waiter-requests";
 import * as api from "@/services/waiter-requests";
 import { useWaiterRequestsStore as store } from "./waiter-requests-store";
 vi.mock("@/services/waiter-requests", () => ({
-  fetchCustomerWaiterRequests: vi.fn(),
+  fetchCustomerWaiterState: vi.fn(),
   sendCustomerWaiterRequest: vi.fn(),
   fetchStaffWaiterRequests: vi.fn(),
   updateStaffWaiterRequest: vi.fn(),
@@ -33,6 +33,7 @@ beforeEach(() => {
     publicKey: "",
     staffKey: "",
     publicLoading: false,
+    publicBillRequestsEnabled: false,
     staffLoading: false,
     staffPanelOpen: false,
     sending: false,
@@ -40,21 +41,77 @@ beforeEach(() => {
     publicError: null,
     staffError: null,
   });
-  vi.mocked(api.fetchCustomerWaiterRequests).mockResolvedValue([]);
+  vi.mocked(api.fetchCustomerWaiterState).mockResolvedValue({ requests: [], billRequestsEnabled: false });
   vi.mocked(api.fetchStaffWaiterRequests).mockResolvedValue([]);
 });
 describe("waiter request store", () => {
+  it("reports a refresh as successful only after its response is applied", async () => {
+    const response = deferred<CustomerWaiterState>();
+    vi.mocked(api.fetchCustomerWaiterState).mockReturnValueOnce(response.promise);
+    const refresh = store.getState().loadPublic("token");
+    expect(store.getState()).toMatchObject({ publicLoading: true, publicRequests: [] });
+
+    response.resolve({ requests: [row], billRequestsEnabled: true });
+    expect(await refresh).toBe(true);
+    expect(store.getState()).toMatchObject({
+      publicRequests: [row],
+      publicBillRequestsEnabled: true,
+      publicLoading: false,
+      publicError: null,
+    });
+  });
+  it("reports failed refreshes without claiming success or discarding visible requests", async () => {
+    store.setState({ publicKey: "token", publicRequests: [row], publicBillRequestsEnabled: true });
+    vi.mocked(api.fetchCustomerWaiterState).mockRejectedValueOnce(new Error("Unavailable"));
+
+    expect(await store.getState().loadPublic("token")).toBe(false);
+    expect(store.getState()).toMatchObject({
+      publicRequests: [row],
+      publicError: "Unavailable",
+      publicLoading: false,
+      publicBillRequestsEnabled: false,
+    });
+  });
+  it("does not report success for an older refresh while a newer one is pending", async () => {
+    const older = deferred<CustomerWaiterState>();
+    const latest = deferred<CustomerWaiterState>();
+    vi.mocked(api.fetchCustomerWaiterState)
+      .mockReturnValueOnce(older.promise)
+      .mockReturnValueOnce(latest.promise);
+    const first = store.getState().loadPublic("token");
+    const second = store.getState().loadPublic("token");
+
+    older.resolve({ requests: [row], billRequestsEnabled: true });
+    expect(await first).toBe(false);
+    expect(store.getState()).toMatchObject({ publicLoading: true, publicRequests: [], publicBillRequestsEnabled: false });
+
+    const accepted: WaiterRequest = { ...row, status: 1 };
+    latest.resolve({ requests: [accepted], billRequestsEnabled: true });
+    expect(await second).toBe(true);
+    expect(store.getState()).toMatchObject({ publicLoading: false, publicRequests: [accepted] });
+  });
+  it("does not report success when the session ends before a public refresh completes", async () => {
+    const response = deferred<CustomerWaiterState>();
+    vi.mocked(api.fetchCustomerWaiterState).mockReturnValueOnce(response.promise);
+    const refresh = store.getState().loadPublic("token");
+    resetSessionStores();
+
+    response.resolve({ requests: [row], billRequestsEnabled: true });
+    expect(await refresh).toBe(false);
+    expect(store.getState()).toMatchObject({ publicKey: "", publicRequests: [], publicBillRequestsEnabled: false });
+  });
   it("discards stale customer responses after changing QR", async () => {
-    const old = deferred<WaiterRequest[]>();
-    vi.mocked(api.fetchCustomerWaiterRequests)
+    const old = deferred<CustomerWaiterState>();
+    vi.mocked(api.fetchCustomerWaiterState)
       .mockReturnValueOnce(old.promise)
-      .mockResolvedValueOnce([row]);
+      .mockResolvedValueOnce({ requests: [row], billRequestsEnabled: false });
     const first = store.getState().loadPublic("old");
     await store.getState().loadPublic("new");
-    old.resolve([]);
+    old.resolve({ requests: [], billRequestsEnabled: true });
     await first;
     expect(store.getState().publicRequests).toEqual([row]);
     expect(store.getState().publicKey).toBe("new");
+    expect(store.getState().publicBillRequestsEnabled).toBe(false);
   });
   it("clears old branch data and ignores its late response", async () => {
     const old = deferred<WaiterRequest[]>();
@@ -90,7 +147,7 @@ describe("waiter request store", () => {
     const result = deferred<WaiterRequest>();
     store.setState({ publicKey: "token" });
     vi.mocked(api.sendCustomerWaiterRequest).mockReturnValue(result.promise);
-    vi.mocked(api.fetchCustomerWaiterRequests).mockResolvedValue([row]);
+    vi.mocked(api.fetchCustomerWaiterState).mockResolvedValue({ requests: [row], billRequestsEnabled: false });
     const input = {
       client_request_uuid: "id",
       items: row.items,
@@ -116,6 +173,41 @@ describe("waiter request store", () => {
       staffError: "Unavailable",
     });
   });
+
+  it("sends a bill request only after the current QR's server confirms support", async () => {
+    const bill: WaiterRequest = { ...row, request_type: "bill", items: [] };
+    const input = { client_request_uuid: "bill-attempt", request_type: "bill" as const, items: [], message: "Bring the bill" };
+    store.setState({ publicKey: "token" });
+    expect(await store.getState().send("token", input)).toBe(false);
+    expect(api.sendCustomerWaiterRequest).not.toHaveBeenCalled();
+    vi.mocked(api.fetchCustomerWaiterState).mockResolvedValue({ requests: [], billRequestsEnabled: true });
+    await store.getState().loadPublic("token");
+    vi.mocked(api.sendCustomerWaiterRequest).mockResolvedValue(bill);
+    vi.mocked(api.fetchCustomerWaiterState).mockResolvedValue({ requests: [bill], billRequestsEnabled: true });
+    expect(await store.getState().send("token", input)).toBe(true);
+    expect(api.sendCustomerWaiterRequest).toHaveBeenCalledWith("token", input);
+    expect(store.getState().publicRequests).toEqual([bill]);
+  });
+
+  it("removes bill capability immediately when switching QR or reloading fails", async () => {
+    store.setState({ publicKey: "old", publicBillRequestsEnabled: true });
+    const response = deferred<CustomerWaiterState>();
+    vi.mocked(api.fetchCustomerWaiterState).mockReturnValueOnce(response.promise);
+    const loading = store.getState().loadPublic("new");
+    expect(store.getState().publicBillRequestsEnabled).toBe(false);
+    response.resolve({ requests: [], billRequestsEnabled: true });
+    await loading;
+    expect(store.getState().publicBillRequestsEnabled).toBe(true);
+    vi.mocked(api.fetchCustomerWaiterState).mockRejectedValueOnce(new Error("Unavailable"));
+    await store.getState().loadPublic("new");
+    expect(store.getState()).toMatchObject({ publicBillRequestsEnabled: false, publicError: "Unavailable" });
+  });
+
+  it("does not send a bill with capability from another QR", async () => {
+    store.setState({ publicKey: "other-table", publicBillRequestsEnabled: true });
+    expect(await store.getState().send("token", { client_request_uuid: "id", request_type: "bill", items: [], message: "Bill" })).toBe(false);
+    expect(api.sendCustomerWaiterRequest).not.toHaveBeenCalled();
+  });
 });
 
 it("clears request data on logout and discards in-flight responses", async () => {
@@ -123,6 +215,7 @@ it("clears request data on logout and discards in-flight responses", async () =>
   vi.mocked(api.fetchStaffWaiterRequests).mockReturnValueOnce(response.promise);
   const loading = store.getState().loadStaff("branch");
   store.getState().setStaffPanelOpen(true);
+  store.setState({ publicBillRequestsEnabled: true });
   resetSessionStores();
   response.resolve([row]);
   await loading;
@@ -131,5 +224,6 @@ it("clears request data on logout and discards in-flight responses", async () =>
     staffKey: "",
     staffLoading: false,
     staffPanelOpen: false,
+    publicBillRequestsEnabled: false,
   });
 });

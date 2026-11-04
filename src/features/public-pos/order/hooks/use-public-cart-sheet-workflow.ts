@@ -18,6 +18,7 @@ import {
   isServedCartItem,
   isWaitingStaffConfirmCartItem,
 } from "../utils";
+import { canRequestBillFromCart } from "../cart-bill-request";
 
 export interface CartSheetProps {
   open: boolean;
@@ -26,8 +27,12 @@ export interface CartSheetProps {
   statusRule: FetchCartStatusRule | null;
   lang: string;
   loading: boolean;
+  refreshing?: boolean;
   loadError?: string | null;
   onRetryLoad?: () => void;
+  onRequestBill?: () => void;
+  billRequestPending?: boolean;
+  onCloseAutoFocus?: (event: Event) => void;
   saving: boolean;
   confirming: boolean;
   onUpdateQty: (
@@ -62,8 +67,12 @@ export function usePublicCartSheetWorkflow({
   statusRule,
   lang,
   loading,
+  refreshing = false,
   loadError,
   onRetryLoad,
+  onRequestBill,
+  billRequestPending = false,
+  onCloseAutoFocus,
   saving,
   confirming,
   onUpdateQty,
@@ -81,6 +90,10 @@ export function usePublicCartSheetWorkflow({
   quantityTarget,
 }: CartSheetProps) {
   const { t } = useTranslation();
+  const canRequestBill = useMemo(
+    () => !loadError && canRequestBillFromCart(cart, statusRule),
+    [cart, loadError, statusRule],
+  );
   const receipt = cart[0] ?? null;
   const allItems = useMemo(
     () => cart.flatMap((order) => order.items ?? []),
@@ -171,8 +184,12 @@ export function usePublicCartSheetWorkflow({
   );
 
   return {
+    canRequestBill,
+    billRequestPending,
     loadError,
     onRetryLoad,
+    onRequestBill,
+    onCloseAutoFocus,
     allItems,
     cart,
     confirming,
@@ -182,6 +199,7 @@ export function usePublicCartSheetWorkflow({
     invoice,
     lang,
     loading,
+    refreshing,
     onConfirmKitchen,
     onDeleteItem,
     onNoteChange,

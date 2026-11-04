@@ -41,7 +41,7 @@ function BranchWaiterNotifications({ branch }: { branch: string }) {
         : row.table_name_la || row.table_name_eng;
       show({
         id: `waiter-${row.request_uuid}`,
-        title: `${t("waiter.title")} · ${tableName || ""}`,
+        title: `${t(row.request_type === "bill" ? "waiter.billAlertTitle" : "waiter.staffAlertTitle")} · ${tableName || ""}`,
         description: [
           ...row.items.map((item) => `${t(`waiter.${item.kind}`)} ×${item.qty}`),
           row.message,

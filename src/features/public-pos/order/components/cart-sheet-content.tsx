@@ -1,7 +1,7 @@
 "use client";
 
 import { useTranslation } from "react-i18next";
-import { CircleCheck, Send, ShoppingBag, X } from "lucide-react";
+import { CircleCheck, Receipt, Send, ShoppingBag, X } from "lucide-react";
 import { Alert, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -42,6 +42,8 @@ export function CartSheetContent({
   const isMobile = useIsMobile();
   const {
     allItems,
+    canRequestBill,
+    billRequestPending,
     confirming,
     confirmableItemQty,
     confirmableItems,
@@ -49,8 +51,12 @@ export function CartSheetContent({
     invoice,
     lang,
     loading,
+    refreshing,
     loadError,
-    onRetryLoad,    onConfirmKitchen,
+    onRetryLoad,
+    onRequestBill,
+    onCloseAutoFocus,
+    onConfirmKitchen,
     onDeleteItem,
     onNoteChange,
     onNoteOpen,
@@ -81,7 +87,8 @@ export function CartSheetContent({
       <SheetContent
         side={isMobile ? "bottom" : "right"}
         showCloseButton={false}
-        aria-busy={loading || saving || confirming}
+        aria-busy={loading || refreshing || saving || confirming}
+        onCloseAutoFocus={onCloseAutoFocus}
         className={cn(
           "yg-shell overflow-hidden border-yg-line p-0 font-yg-sans text-yg-ink",
           isMobile
@@ -102,6 +109,7 @@ export function CartSheetContent({
             </div>
             <div className="flex shrink-0 items-center gap-1">
               <Badge className="h-7 rounded-full border-yg-accent-line bg-yg-accent-soft px-2.5 text-2xs font-extrabold text-yg-accent-strong">
+                {refreshing ? <Spinner className="size-3" aria-label={t("pos.publicRefreshing")} /> : null}
                 {totalItemQty} {t("pos.cartItems")}
               </Badge>
               <SheetClose asChild>
@@ -229,7 +237,7 @@ export function CartSheetContent({
                         confirmableItems.length > 0 && !saving && !confirming && "yg-cart-needs-confirm",
                       )}
                       onClick={onConfirmKitchen}
-                      disabled={!confirmableItems.length || saving || confirming}
+                      disabled={!confirmableItems.length || refreshing || Boolean(loadError) || saving || confirming}
                     >
                       {confirming ? (
                         <Spinner />
@@ -239,12 +247,28 @@ export function CartSheetContent({
                       {t("pos.confirmOrderItems", { count: confirmableItemQty })}
                     </Button>
                   </div>
-                ) : (
+                ) : canRequestBill && onRequestBill ? (
+                  <div className="grid gap-2">
+                    <p id="public-cart-bill-hint" className="text-center text-xs leading-relaxed text-yg-muted">
+                      {t(billRequestPending ? "pos.cartBillPending" : "pos.cartBillHint")}
+                    </p>
+                    <Button
+                      type="button"
+                      aria-describedby="public-cart-bill-hint"
+                      className="h-13.5 w-full rounded-xl bg-yg-accent text-base font-semibold text-yg-on-accent transition-[transform,filter] hover:bg-yg-accent hover:brightness-105 active:scale-[0.98] motion-reduce:transform-none disabled:opacity-55"
+                      disabled={refreshing || saving || confirming}
+                      onClick={onRequestBill}
+                    >
+                      <Receipt data-icon="inline-start" aria-hidden="true" />
+                      {t(billRequestPending ? "waiter.billViewHistory" : "pos.cartRequestBill")}
+                    </Button>
+                  </div>
+                ) : canRequestBill ? (
                   <Alert className="border-yg-accent-line bg-yg-accent-soft text-yg-accent-strong">
                     <CircleCheck aria-hidden="true" />
                     <AlertTitle>{t("pos.allItemsSubmitted")}</AlertTitle>
                   </Alert>
-                )}
+                ) : null}
               </>
             )}
           </SheetFooter>

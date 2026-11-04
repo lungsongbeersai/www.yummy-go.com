@@ -1318,7 +1318,13 @@
     "taxIncludedWithPercent": "VAT included ({{percent}}%)",
     "discountRemaining": "Remaining",
     "menuLink": "Menu link",
-    "currentQuantity": "Currently {{qty}}"
+    "currentQuantity": "Currently {{qty}}",
+    "cartRequestBill": "Request the bill",
+    "cartBillHint": "Review and send a bill request to restaurant staff.",
+    "cartBillPending": "Bill request in progress",
+    "publicRefreshing": "Updating…",
+    "publicRefreshed": "Updated",
+    "publicRefreshFailed": "Unable to update. Please try again."
   },
   "category": {
     "sorted": "Order saved",
@@ -1607,26 +1613,26 @@
     "tryDifferentIconSearch": "Try a different icon search."
   },
   "printer": {
-      "diagnostics": {
-        "title": "Printer needs attention",
-        "paused": "The printer queue is paused. Check pending jobs before resuming it in system printer settings.",
-        "notAccepting": "The printer queue is not accepting jobs. Check system printer settings.",
-        "offline": "The printer is offline. Check its power and connection.",
-        "offlineReported": "The printer reports an offline signal. Check the connection; the reported status may be stale.",
-        "paperOut": "The printer reports missing paper. Check and refill the paper.",
-        "paperJam": "The printer reports a paper jam. Check and clear the paper path.",
-        "coverOpen": "The printer reports an open cover. Check that the cover is closed.",
+    "diagnostics": {
+      "title": "Printer needs attention",
+      "paused": "The printer queue is paused. Check pending jobs before resuming it in system printer settings.",
+      "notAccepting": "The printer queue is not accepting jobs. Check system printer settings.",
+      "offline": "The printer is offline. Check its power and connection.",
+      "offlineReported": "The printer reports an offline signal. Check the connection; the reported status may be stale.",
+      "paperOut": "The printer reports missing paper. Check and refill the paper.",
+      "paperJam": "The printer reports a paper jam. Check and clear the paper path.",
+      "coverOpen": "The printer reports an open cover. Check that the cover is closed.",
       "manualFeed": "The printer is waiting for manual paper feed. Load the required paper.",
-        "error": "The printer reports an error. Check the printer and system queue.",
-        "unknown": "Printer queue status could not be confirmed. Check the printer.",
-        "queueOnly": "Queue status does not confirm that paper has physically printed.",
-        "pendingJobs": "{{count}} existing job(s) are in the queue. Check the output before printing again.",
-        "storageTitle": "Agent computer storage needs attention",
-        "storage": {
-          "low": "Storage is running low on the Agent computer. Free up space before printing.",
-          "critical": "There is not enough free space to safely record new print jobs. Free up space on the Agent computer."
-        }
-      },
+      "error": "The printer reports an error. Check the printer and system queue.",
+      "unknown": "Printer queue status could not be confirmed. Check the printer.",
+      "queueOnly": "Queue status does not confirm that paper has physically printed.",
+      "pendingJobs": "{{count}} existing job(s) are in the queue. Check the output before printing again.",
+      "storageTitle": "Agent computer storage needs attention",
+      "storage": {
+        "low": "Storage is running low on the Agent computer. Free up space before printing.",
+        "critical": "There is not enough free space to safely record new print jobs. Free up space on the Agent computer."
+      }
+    },
     "documentLogoMode": "Invoice and receipt logo",
     "documentLogoModeHint": "Use the logo saved in the store and branch settings. You can change this for each bill before printing.",
     "showDocumentLogo": "Show logo on invoices and receipts",
@@ -2096,17 +2102,50 @@
         }
       },
       "templates": {
-        "bistro": { "name": "Green Bistro", "description": "Two menu columns with a large round food photo." },
-        "garden": { "name": "Garden Fresh", "description": "Three photo columns on a green background." },
-        "sunny": { "name": "Sunny Kitchen", "description": "A large header photo above three menu columns." },
-        "classic": { "name": "Classic Bistro", "description": "Two photo columns on a cream background." },
-        "midnight": { "name": "Midnight Dining", "description": "Two photo columns with a dark background and gold borders." },
-        "market": { "name": "Street Market", "description": "Four photo columns with red price labels." },
-        "cafe": { "name": "Cozy Café", "description": "Three photo columns with rounded price labels." },
-        "editorial": { "name": "Bistro Gallery", "description": "Menu and prices on the left, food photos on the right." },
-        "promo": { "name": "Bold Photo Catalog", "description": "Six photo columns in red and orange." },
-        "directory": { "name": "Category Directory", "description": "Three categorized menu columns with small photos." },
-        "featured": { "name": "Photo Showcase", "description": "Three photo columns with yellow price labels." }
+        "bistro": {
+          "name": "Green Bistro",
+          "description": "Two menu columns with a large round food photo."
+        },
+        "garden": {
+          "name": "Garden Fresh",
+          "description": "Three photo columns on a green background."
+        },
+        "sunny": {
+          "name": "Sunny Kitchen",
+          "description": "A large header photo above three menu columns."
+        },
+        "classic": {
+          "name": "Classic Bistro",
+          "description": "Two photo columns on a cream background."
+        },
+        "midnight": {
+          "name": "Midnight Dining",
+          "description": "Two photo columns with a dark background and gold borders."
+        },
+        "market": {
+          "name": "Street Market",
+          "description": "Four photo columns with red price labels."
+        },
+        "cafe": {
+          "name": "Cozy Café",
+          "description": "Three photo columns with rounded price labels."
+        },
+        "editorial": {
+          "name": "Bistro Gallery",
+          "description": "Menu and prices on the left, food photos on the right."
+        },
+        "promo": {
+          "name": "Bold Photo Catalog",
+          "description": "Six photo columns in red and orange."
+        },
+        "directory": {
+          "name": "Category Directory",
+          "description": "Three categorized menu columns with small photos."
+        },
+        "featured": {
+          "name": "Photo Showcase",
+          "description": "Three photo columns with yellow price labels."
+        }
       },
       "errors": {
         "empty": "There are no active regular or set products to include in a menu.",
@@ -3908,6 +3947,30 @@
     },
     "title": "Call staff",
     "description": "Call staff to your table right away, or pick what you need first",
+    "serviceTitle": "Table service",
+    "serviceDescription": "Choose assistance or a bill request, then confirm below.",
+    "requestTypeLabel": "How can we help?",
+    "requestStaff": "Call staff",
+    "requestStaffDescription": "Ask for assistance or request items for your table.",
+    "requestBill": "Request bill",
+    "requestBillDescription": "Ask staff to bring the bill to your table.",
+    "billNotice": "This asks restaurant staff for the bill. Payment is completed with the restaurant.",
+    "billDefaultMessage": "Please bring the bill to our table.",
+    "billMessagePlaceholder": "For example: please bring the bill to our table",
+    "billSubmit": "Confirm bill request",
+    "billSent": "Your bill request has been sent.",
+    "billPending": "A bill request for this table is already in progress.",
+    "billViewHistory": "View bill request",
+    "billUnavailable": "Bill requests are not available right now. Please call staff.",
+    "billStatus0": "Bill request pending",
+    "billStatus1": "Bill request accepted",
+    "billStatus2": "Bill delivered",
+    "billAccept": "Accept bill request",
+    "billComplete": "Bill delivered",
+    "typeStaff": "Staff request",
+    "typeBill": "Bill request",
+    "staffAlertTitle": "Staff request",
+    "billAlertTitle": "Bill request",
     "bowl": "Bowl",
     "spoon": "Spoon",
     "chopsticks": "Chopsticks",
@@ -3927,7 +3990,7 @@
     "complete": "Complete",
     "messagePlaceholder": "For example: extra ice, tissues",
     "sendTab": "Send request",
-    "historyTab": "Call history",
+    "historyTab": "Request history",
     "emptyHistory": "No requests yet",
     "quickSelect": "What do you need?",
     "pullRefresh": "Pull to refresh",
@@ -3940,7 +4003,11 @@
     "tagline": "QR ordering & restaurant POS",
     "headline": "Easy ordering. Smoother restaurant service.",
     "description": "The digital menu you’re using is developed by YummyGo. Bring QR ordering, POS and table management together for your restaurant.",
-    "features": { "qr": "QR ordering", "pos": "Restaurant POS", "tables": "Orders & tables" },
+    "features": {
+      "qr": "QR ordering",
+      "pos": "Restaurant POS",
+      "tables": "Orders & tables"
+    },
     "contactLabel": "YummyGo team · WhatsApp",
     "contactAction": "Chat with YummyGo",
     "contactDescription": "Tell us about your restaurant. Our team can help you explore QR ordering and POS.",
@@ -3956,14 +4023,14 @@
     "nav": "Help",
     "title": "Help & information",
     "description": "Quick answers for ordering at this restaurant.",
-    "staffShort": "Staff",
+    "staffShort": "Service",
     "orderingTitle": "Using this menu",
     "orderQuestion": "How do I place an order?",
     "orderAnswer": "Choose an item and options, then add it to your cart. Open Cart to review your items and confirm your order.",
     "viewOnlyQuestion": "How do I order from this menu?",
     "viewOnlyAnswer": "This QR code lets you browse the menu. To place an order, scan the QR code at your table or ask the restaurant staff.",
     "staffQuestion": "Need help from the restaurant?",
-    "staffAnswer": "Use Staff in the bottom bar for help with food, bills or table service.",
+    "staffAnswer": "Use Service in the bottom bar to call staff, request items or ask for the bill.",
     "staffViewOnlyAnswer": "Please speak to the restaurant staff for help with food, bills or table service.",
     "preferencesQuestion": "How do I adjust the display?",
     "preferencesAnswer": "Use Settings at the top to choose your language, light or dark mode, and list or grid view.",

@@ -29,7 +29,10 @@ export function ProductBrowse({
 
   return (
     <>
-      <PublicPullToRefresh />
+      <PublicPullToRefresh
+        key={`${token}:${lang}:${workflow.search.searchRun}`}
+        onRefresh={workflow.refreshPublicMenu}
+      />
       <PublicHeader
         table={workflow.table}
         canSearch={!workflow.loadingMenu}
