@@ -12,10 +12,12 @@ interface WaiterState {
   staffKey: string;
   publicLoading: boolean;
   staffLoading: boolean;
+  staffPanelOpen: boolean;
   sending: boolean;
   handling: string;
   publicError: string | null;
   staffError: string | null;
+  setStaffPanelOpen: (open: boolean) => void;
   loadPublic: (token: string) => Promise<void>;
   send: (token: string, input: api.SendWaiterRequest) => Promise<boolean>;
   loadStaff: (branch: string) => Promise<void>;
@@ -32,10 +34,12 @@ export const useWaiterRequestsStore = create<WaiterState>((set, get) => ({
   staffKey: "",
   publicLoading: false,
   staffLoading: false,
+  staffPanelOpen: false,
   sending: false,
   handling: "",
   publicError: null,
   staffError: null,
+  setStaffPanelOpen: (staffPanelOpen) => set({ staffPanelOpen }),
   loadPublic: async (token) => {
     const current = createSessionGuard();
     const run = ++publicRun;
@@ -128,6 +132,7 @@ registerSessionStoreReset("waiter-requests", () => {
     staffKey: "",
     publicLoading: false,
     staffLoading: false,
+    staffPanelOpen: false,
     sending: false,
     handling: "",
     publicError: null,

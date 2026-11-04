@@ -3884,6 +3884,27 @@
     }
   },
   "waiter": {
+    "chatTitle": "All chats",
+    "chatOpen": "Open all chats ({{count}} pending requests)",
+    "viewRequests": "View requests",
+    "panel": {
+      "eyebrow": "CUSTOMER SERVICE",
+      "subtitle": "Table requests and customer messages, together in one place.",
+      "all": "All",
+      "waiting": "Waiting",
+      "inProgress": "In progress",
+      "filterLabel": "Filter customer requests",
+      "requests": "CUSTOMER REQUESTS",
+      "items": "REQUESTED ITEMS",
+      "customerMessage": "Message from customer",
+      "updating": "Updating…",
+      "loading": "Loading requests…",
+      "footer": "Accept a request to let the customer know you are on your way.",
+      "emptyTitle": "You're all caught up",
+      "emptyDescription": "New requests from your tables will appear here automatically.",
+      "emptyFilterTitle": "No requests with this status",
+      "emptyFilterDescription": "Choose another status to view your other requests."
+    },
     "title": "Call staff",
     "description": "Call staff to your table right away, or pick what you need first",
     "bowl": "Bowl",

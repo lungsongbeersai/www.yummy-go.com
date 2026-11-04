@@ -34,6 +34,7 @@ beforeEach(() => {
     staffKey: "",
     publicLoading: false,
     staffLoading: false,
+    staffPanelOpen: false,
     sending: false,
     handling: "",
     publicError: null,
@@ -121,6 +122,7 @@ it("clears request data on logout and discards in-flight responses", async () =>
   const response = deferred<WaiterRequest[]>();
   vi.mocked(api.fetchStaffWaiterRequests).mockReturnValueOnce(response.promise);
   const loading = store.getState().loadStaff("branch");
+  store.getState().setStaffPanelOpen(true);
   resetSessionStores();
   response.resolve([row]);
   await loading;
@@ -128,5 +130,6 @@ it("clears request data on logout and discards in-flight responses", async () =>
     staffRequests: [],
     staffKey: "",
     staffLoading: false,
+    staffPanelOpen: false,
   });
 });

@@ -20,7 +20,6 @@ import {
 import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@/components/ui/empty";
 import { OrderAlertSoundDialog } from "@/components/layout/order-alert-sound-dialog";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
-import { StaffWaiterPanel } from "@/features/waiter-requests/staff-waiter-panel";
 import { useWaiterRequestsStore } from "@/stores/waiter-requests-store";
 import { useAuthStore } from "@/stores/auth-store";
 import { useAppStore } from "@/stores/app-store";
@@ -48,7 +47,8 @@ export function NotificationMenu({
   const waiterCount = waiterRows.length;
   // ชื่อโต๊ะที่เรียกอยู่ (ไม่ซ้ำ) — พนักงานรู้ทันทีว่าต้องไปโต๊ะไหนโดยไม่ต้องเปิดแผงรายการ
   const waiterTables = [...new Set(waiterRows.map((row) => row.table_name_la || row.table_name_eng).filter(Boolean))];
-  const [waiterOpen, setWaiterOpen] = useState(false);
+  const setWaiterOpen = useWaiterRequestsStore((state) => state.setStaffPanelOpen);
+  const triggerRef = useRef<HTMLButtonElement>(null);
   const openWaiterOnCloseRef = useRef(false);
   const runGuardedNavigation = useNavigationGuardStore((state) => state.run);
   const zoneOptions = usePosStore((state) => state.zoneOptions);
@@ -83,6 +83,7 @@ export function NotificationMenu({
           <TooltipTrigger asChild>
             <DropdownMenuTrigger asChild>
               <Button
+                ref={triggerRef}
                 variant={triggerVariant}
                 size={triggerSize}
                 aria-label={t("notifications.title")}
@@ -106,6 +107,7 @@ export function NotificationMenu({
             if (openWaiterOnCloseRef.current) {
               openWaiterOnCloseRef.current = false;
               event.preventDefault();
+              triggerRef.current?.focus();
               setWaiterOpen(true);
               return;
             }
@@ -196,7 +198,6 @@ export function NotificationMenu({
           </div>
         </DropdownMenuContent>
       </DropdownMenu>
-      <StaffWaiterPanel branch={branch} open={waiterOpen} onOpenChange={setWaiterOpen} />
       <OrderAlertSoundDialog open={soundDialogOpen} onOpenChange={setSoundDialogOpen} />
     </>
   );
