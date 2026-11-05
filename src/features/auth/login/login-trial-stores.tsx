@@ -101,7 +101,6 @@ export function LoginTrialStores() {
               const Icon = categoryIcons[store.store_category];
               const name = (i18n.language.startsWith("en") ? store.store_name_eng : store.store_name_la)
                 || store.store_name_la || store.store_name_eng || t("auth.trial.demo");
-              const branchName = store.branch_name?.trim();
               const entering = authLoading && activeStoreUuid === store.store_uuid;
               return (
                 <Button
@@ -120,7 +119,7 @@ export function LoginTrialStores() {
                   </Avatar>
                   <span className="flex min-w-0 flex-1 flex-col gap-0.5 font-lao">
                     <span className="break-words text-sm leading-relaxed font-semibold">{name}</span>
-                    {branchName && branchName !== name.trim() ? <span className="break-words text-xs leading-relaxed font-normal text-muted-foreground">{branchName}</span> : null}
+                    <span className="text-xs leading-relaxed font-normal text-muted-foreground">{t(`settings.storeBranch.categories.${store.store_category}`)}</span>
                     <span className="sr-only" aria-live="polite">{entering ? t("auth.signingIn") : null}</span>
                   </span>
                   <span aria-hidden="true" className="flex size-7 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary">
