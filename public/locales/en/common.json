@@ -284,6 +284,11 @@
       "empty": "No trial stores available yet",
       "emptyHint": "Please check back later, or sign in with your account above."
     },
+    "mobileAppPrompt": {
+      "title": "Get the YummyGo app",
+      "description": "We recommend downloading YummyGo before signing in on your phone or tablet.",
+      "continueInBrowser": "Continue in browser"
+    },
     "accessWorkspace": "Sign in to start managing your restaurant.",
     "backToHome": "Back to home",
     "cleanInterface": "Clean POS Pro interface",
