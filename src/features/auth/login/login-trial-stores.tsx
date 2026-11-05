@@ -5,7 +5,6 @@ import { useTranslation } from "react-i18next";
 import { ArrowRight, Beef, Beer, Coffee, FlaskConical, Martini, Soup, UtensilsCrossed, type LucideIcon } from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@/components/ui/empty";
@@ -58,18 +57,27 @@ export function LoginTrialStores() {
   }
 
   return (
-    <Card className="min-w-0 rounded-2xl shadow-lg" aria-labelledby="login-trial-title">
-      <CardHeader>
-        <div className="flex flex-wrap items-center gap-2">
-          <CardTitle id="login-trial-title" className="font-lao text-lg">{t("auth.trial.title")}</CardTitle>
-          <Badge variant="secondary"><FlaskConical aria-hidden />{t("settings.storeBranch.test")}</Badge>
+    <Card className="min-h-0 min-w-0 gap-0 rounded-2xl py-0 shadow-lg lg:absolute lg:inset-0" aria-labelledby="login-trial-title">
+      <CardHeader className="shrink-0 gap-3 border-b bg-muted/30 p-5">
+        <div className="flex items-center gap-2.5">
+          <span className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
+            <FlaskConical aria-hidden className="size-4" />
+          </span>
+          <CardTitle id="login-trial-title" className="font-lao text-base font-semibold">{t("auth.trial.title")}</CardTitle>
         </div>
-        <CardDescription className="font-lao">{t("auth.trial.description")}</CardDescription>
+        <CardDescription id="login-trial-description" className="font-lao text-xs leading-relaxed">{t("auth.trial.description")}</CardDescription>
       </CardHeader>
-      <CardContent>
+      <CardContent
+        id="login-trial-list"
+        role="region"
+        tabIndex={0}
+        aria-labelledby="login-trial-title"
+        aria-describedby="login-trial-description"
+        className="min-h-0 max-h-80 overflow-y-auto overscroll-y-contain p-3 [scrollbar-gutter:stable] focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring lg:max-h-none lg:flex-1"
+      >
         {!hydrated || listLoading ? (
-          <div className="grid gap-3" aria-busy="true" aria-label={t("auth.trial.loading")}>
-            {[0, 1, 2].map((index) => <Skeleton key={index} className="h-24 rounded-xl" />)}
+          <div className="grid gap-2" aria-busy="true" aria-label={t("auth.trial.loading")}>
+            {[0, 1, 2].map((index) => <Skeleton key={index} className="h-20 rounded-xl" />)}
           </div>
         ) : listError ? (
           <Alert>
@@ -88,18 +96,19 @@ export function LoginTrialStores() {
             </EmptyHeader>
           </Empty>
         ) : (
-          <div className="grid gap-3">
+          <div className="grid gap-2 p-1">
             {stores.map((store) => {
               const Icon = categoryIcons[store.store_category];
               const name = (i18n.language.startsWith("en") ? store.store_name_eng : store.store_name_la)
-                || store.store_name_la || store.store_name_eng || t(`settings.storeBranch.categories.${store.store_category}`);
+                || store.store_name_la || store.store_name_eng || t("auth.trial.demo");
+              const branchName = store.branch_name?.trim();
               const entering = authLoading && activeStoreUuid === store.store_uuid;
               return (
                 <Button
                   key={store.store_uuid}
                   type="button"
                   variant="outline"
-                  className="h-auto min-h-24 w-full min-w-0 items-start justify-start gap-3 rounded-xl p-3 text-left whitespace-normal"
+                  className="relative h-auto min-h-20 w-full min-w-0 justify-start gap-3 rounded-xl bg-background p-3 text-left whitespace-normal hover:border-primary/40 hover:bg-primary/5 focus-visible:border-primary"
                   disabled={!hydrated || authLoading || isLoggedIn}
                   aria-label={t("auth.trial.enterStore", { name })}
                   aria-busy={entering}
@@ -110,13 +119,12 @@ export function LoginTrialStores() {
                     <AvatarFallback><Icon aria-hidden className="size-5" /></AvatarFallback>
                   </Avatar>
                   <span className="flex min-w-0 flex-1 flex-col gap-0.5 font-lao">
-                    <span className="text-xs font-normal text-muted-foreground">{t(`settings.storeBranch.categories.${store.store_category}`)}</span>
-                    <span className="break-words font-semibold">{name}</span>
-                    {store.branch_name ? <span className="break-words text-xs font-normal text-muted-foreground">{store.branch_name}</span> : null}
-                    <span className="mt-1 flex items-center gap-2 text-xs font-semibold text-primary" aria-live="polite">
-                      {entering ? <Spinner /> : <ArrowRight aria-hidden className="size-4" />}
-                      {entering ? t("auth.signingIn") : t("auth.trial.enter")}
-                    </span>
+                    <span className="break-words text-sm leading-relaxed font-semibold">{name}</span>
+                    {branchName && branchName !== name.trim() ? <span className="break-words text-xs leading-relaxed font-normal text-muted-foreground">{branchName}</span> : null}
+                    <span className="sr-only" aria-live="polite">{entering ? t("auth.signingIn") : null}</span>
+                  </span>
+                  <span aria-hidden="true" className="flex size-7 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary">
+                    {entering ? <Spinner className="size-3.5" /> : <ArrowRight className="size-3.5" />}
                   </span>
                 </Button>
               );
