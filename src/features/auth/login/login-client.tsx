@@ -186,7 +186,7 @@ export function LoginClient() {
       </div>
 
       <div className="my-auto flex w-full max-w-md flex-col gap-5 lg:max-w-7xl">
-        <Card className="grid gap-0 rounded-2xl p-0 shadow-xl lg:grid-cols-[minmax(0,18rem)_minmax(0,1fr)]">
+        <Card className="grid gap-0 rounded-2xl p-0 shadow-xl lg:grid-cols-[minmax(0,15rem)_minmax(0,1fr)]">
           <div className="min-w-0 lg:col-start-2 lg:row-start-1">
             <CardContent className="grid p-0 xl:grid-cols-2">
               <form
