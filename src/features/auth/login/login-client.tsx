@@ -28,6 +28,7 @@ import {
 import { Spinner } from "@/components/ui/spinner";
 import { AppleIcon, GooglePlayIcon } from "./login-provider-icons";
 import { LoginTrialStores } from "./login-trial-stores";
+import { LoginAppDownloadPrompt } from "./login-app-download-prompt";
 import {
   getDisplayedAppVersion,
   WEB_APP_VERSION,
@@ -164,6 +165,8 @@ export function LoginClient() {
       />
       <div aria-hidden="true" className="absolute inset-0 -z-10 bg-background/70 backdrop-blur-md" />
 
+      <LoginAppDownloadPrompt />
+
       {/* อยู่ใน container กว้างเท่าการ์ด เพื่อให้ปุ่มนำทางไม่ลอยชิดขอบจอบน desktop */}
       <div className="flex w-full max-w-md items-center justify-between lg:max-w-7xl">
         <Button
@@ -201,7 +204,7 @@ export function LoginClient() {
                 </div>
 
                 <div className="flex flex-col items-center gap-1.5 text-center">
-                  <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">{t("auth.welcomeBack")}</h1>
+                  <h1 id="login-title" tabIndex={-1} className="text-2xl font-bold tracking-tight sm:text-3xl">{t("auth.welcomeBack")}</h1>
                   <p className="max-w-sm text-balance text-sm leading-relaxed text-muted-foreground">
                     {t("auth.accessWorkspace")}
                   </p>
