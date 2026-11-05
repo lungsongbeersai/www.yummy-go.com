@@ -165,7 +165,7 @@ export function LoginClient() {
       <div aria-hidden="true" className="absolute inset-0 -z-10 bg-background/70 backdrop-blur-md" />
 
       {/* อยู่ใน container กว้างเท่าการ์ด เพื่อให้ปุ่มนำทางไม่ลอยชิดขอบจอบน desktop */}
-      <div className="flex w-full max-w-md items-center justify-between lg:max-w-6xl">
+      <div className="flex w-full max-w-md items-center justify-between lg:max-w-7xl">
         <Button
           asChild
           variant="ghost"
@@ -179,9 +179,9 @@ export function LoginClient() {
         <LanguageSwitch variant="outline" />
       </div>
 
-      <div className="my-auto flex w-full max-w-md flex-col gap-5 lg:max-w-6xl">
-        <Card className="overflow-hidden rounded-2xl p-0 shadow-xl ring-1 ring-foreground/10">
-          <CardContent className="grid p-0 lg:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)]">
+      <div className="my-auto grid w-full max-w-md items-start gap-5 lg:max-w-7xl lg:grid-cols-[minmax(0,18rem)_minmax(0,1fr)]">
+        <Card className="min-w-0 overflow-hidden rounded-2xl p-0 shadow-xl ring-1 ring-foreground/10 lg:col-start-2 lg:row-start-1">
+          <CardContent className="grid p-0 xl:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)]">
             <form
               className="flex w-full max-w-lg flex-col justify-center justify-self-center p-7 sm:p-8 lg:p-10"
               noValidate
@@ -331,12 +331,12 @@ export function LoginClient() {
               </FieldGroup>
             </form>
 
-            <div className="relative hidden min-h-[38rem] overflow-hidden bg-muted lg:block">
+            <div className="relative hidden min-h-[38rem] overflow-hidden bg-muted xl:block">
               <Image
                 src="/auth/login-hero.png"
                 alt=""
                 fill
-                sizes="(min-width: 1280px) 40rem, (min-width: 1024px) 55vw, 0px"
+                sizes="(min-width: 1280px) 34rem, 0px"
                 className="object-cover"
               />
               <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-foreground/90 via-foreground/55 to-transparent p-7 pt-24 text-background lg:p-8 lg:pt-28">
@@ -347,9 +347,11 @@ export function LoginClient() {
           </CardContent>
         </Card>
 
-        <LoginTrialStores />
+        <aside className="min-w-0 lg:col-start-1 lg:row-start-1" aria-labelledby="login-trial-title">
+          <LoginTrialStores />
+        </aside>
 
-        <FieldDescription className="px-4 text-center text-xs">
+        <FieldDescription className="px-4 text-center text-xs lg:col-span-2">
           {t("auth.agreeToPolicy")} <Link href="/policy">{t("policy.title")}</Link>.{" "}
           {t("auth.version", { version: displayedVersion })}
         </FieldDescription>

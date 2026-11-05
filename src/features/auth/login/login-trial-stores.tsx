@@ -58,7 +58,7 @@ export function LoginTrialStores() {
   }
 
   return (
-    <Card className="rounded-2xl shadow-lg" aria-labelledby="login-trial-title">
+    <Card className="min-w-0 rounded-2xl shadow-lg" aria-labelledby="login-trial-title">
       <CardHeader>
         <div className="flex flex-wrap items-center gap-2">
           <CardTitle id="login-trial-title" className="font-lao text-lg">{t("auth.trial.title")}</CardTitle>
@@ -68,8 +68,8 @@ export function LoginTrialStores() {
       </CardHeader>
       <CardContent>
         {!hydrated || listLoading ? (
-          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3" aria-busy="true" aria-label={t("auth.trial.loading")}>
-            {[0, 1, 2].map((index) => <Skeleton key={index} className="h-32 rounded-xl" />)}
+          <div className="grid gap-3" aria-busy="true" aria-label={t("auth.trial.loading")}>
+            {[0, 1, 2].map((index) => <Skeleton key={index} className="h-24 rounded-xl" />)}
           </div>
         ) : listError ? (
           <Alert>
@@ -88,7 +88,7 @@ export function LoginTrialStores() {
             </EmptyHeader>
           </Empty>
         ) : (
-          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+          <div className="grid gap-3">
             {stores.map((store) => {
               const Icon = categoryIcons[store.store_category];
               const name = (i18n.language.startsWith("en") ? store.store_name_eng : store.store_name_la)
@@ -99,7 +99,7 @@ export function LoginTrialStores() {
                   key={store.store_uuid}
                   type="button"
                   variant="outline"
-                  className="h-auto min-h-32 w-full min-w-0 items-start justify-start gap-3 rounded-xl p-4 text-left whitespace-normal"
+                  className="h-auto min-h-24 w-full min-w-0 items-start justify-start gap-3 rounded-xl p-3 text-left whitespace-normal"
                   disabled={!hydrated || authLoading || isLoggedIn}
                   aria-label={t("auth.trial.enterStore", { name })}
                   aria-busy={entering}
@@ -109,11 +109,11 @@ export function LoginTrialStores() {
                     {store.store_logo ? <AvatarImage src={getStoreLogoUrl(store.store_logo)} alt="" /> : null}
                     <AvatarFallback><Icon aria-hidden className="size-5" /></AvatarFallback>
                   </Avatar>
-                  <span className="flex min-w-0 flex-1 flex-col gap-1 font-lao">
+                  <span className="flex min-w-0 flex-1 flex-col gap-0.5 font-lao">
                     <span className="text-xs font-normal text-muted-foreground">{t(`settings.storeBranch.categories.${store.store_category}`)}</span>
                     <span className="break-words font-semibold">{name}</span>
                     {store.branch_name ? <span className="break-words text-xs font-normal text-muted-foreground">{store.branch_name}</span> : null}
-                    <span className="mt-2 flex items-center gap-2 text-sm font-semibold text-primary" aria-live="polite">
+                    <span className="mt-1 flex items-center gap-2 text-xs font-semibold text-primary" aria-live="polite">
                       {entering ? <Spinner /> : <ArrowRight aria-hidden className="size-4" />}
                       {entering ? t("auth.signingIn") : t("auth.trial.enter")}
                     </span>
