@@ -57,8 +57,8 @@ export function LoginTrialStores() {
   }
 
   return (
-    <Card className="min-h-0 min-w-0 gap-0 rounded-2xl py-0 shadow-lg lg:absolute lg:inset-0" aria-labelledby="login-trial-title">
-      <CardHeader className="shrink-0 gap-3 border-b bg-muted/30 p-5">
+    <Card className="min-h-0 min-w-0 gap-0 rounded-none py-0 shadow-none ring-0 lg:absolute lg:inset-0" aria-labelledby="login-trial-title">
+      <CardHeader className="shrink-0 gap-3 rounded-none border-b bg-muted/30 p-5">
         <div className="flex items-center gap-2.5">
           <span className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
             <FlaskConical aria-hidden className="size-4" />
