@@ -6,10 +6,11 @@ import Image from "next/image";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useTranslation } from "react-i18next";
-import { ArrowLeft, Eye, EyeOff } from "lucide-react";
+import { ArrowLeft, Eye, EyeOff, ShieldCheck } from "lucide-react";
 import { firstNavigablePath } from "@/components/layout/shell-menu-helpers";
 import { LanguageSwitch } from "@/components/layout/language-switch";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
@@ -83,6 +84,7 @@ export function LoginClient() {
   const showToast = useToastStore((state) => state.show);
   const loginWithPassword = useAuthStore((state) => state.loginWithPassword);
   const loading = useAuthStore((state) => state.loading);
+  const activeTrialStoreUuid = useAuthStore((state) => state.activeTrialStoreUuid);
   const isLoggedIn = useAuthStore((state) => state.isLoggedIn);
   const user = useAuthStore((state) => state.user);
   const hydrated = useAuthStore((state) => state.hydrated);
@@ -94,6 +96,7 @@ export function LoginClient() {
   const [displayedVersion, setDisplayedVersion] = useState(WEB_APP_VERSION);
 
   const redirectParam = searchParams.get("redirect");
+  const signingInAccount = loading && !activeTrialStoreUuid;
 
   useEffect(() => {
     if (!hydrated || !isLoggedIn) return;
@@ -185,29 +188,36 @@ export function LoginClient() {
       <div className="my-auto flex w-full max-w-md flex-col gap-5 lg:max-w-7xl">
         <Card className="grid gap-0 rounded-2xl p-0 shadow-xl lg:grid-cols-[minmax(0,18rem)_minmax(0,1fr)]">
           <div className="min-w-0 lg:col-start-2 lg:row-start-1">
-            <CardContent className="grid p-0 xl:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)]">
+            <CardContent className="grid p-0 xl:grid-cols-2">
               <form
                 className="flex w-full max-w-lg flex-col justify-center justify-self-center p-6 sm:p-8"
+                aria-labelledby="login-title"
+                aria-describedby="login-account-description"
                 noValidate
                 onSubmit={onSubmit}
               >
                 <FieldGroup className="gap-4">
-                  <div className="flex justify-center">
-                    <span className="relative size-14 shrink-0 overflow-hidden rounded-2xl bg-background shadow-sm ring-1 ring-foreground/10">
+                  <div className="flex items-center justify-center gap-2.5">
+                    <span className="relative size-10 shrink-0 overflow-hidden rounded-xl bg-background shadow-sm ring-1 ring-foreground/10">
                       <Image
                         src="/brand/icon-mark.png"
-                        alt="YummyGo"
+                        alt=""
                         fill
-                        sizes="56px"
+                        sizes="40px"
                         className="object-cover"
                       />
                     </span>
+                    <span className="text-lg font-bold tracking-tight">YummyGo</span>
                   </div>
 
-                  <div className="flex flex-col items-center gap-1.5 text-center">
-                    <h1 id="login-title" tabIndex={-1} className="text-2xl font-bold tracking-tight sm:text-3xl xl:text-2xl 2xl:text-3xl">{t("auth.welcomeBack")}</h1>
-                    <p className="max-w-sm text-balance text-sm leading-relaxed text-muted-foreground">
-                      {t("auth.accessWorkspace")}
+                  <div className="flex flex-col items-center gap-2 text-center">
+                    <Badge variant="secondary" className="h-auto gap-1.5 bg-primary/10 px-3 py-1 font-lao text-xs text-primary">
+                      <ShieldCheck aria-hidden />
+                      {t("auth.accountSignIn.label")}
+                    </Badge>
+                    <h1 id="login-title" tabIndex={-1} className="text-2xl leading-snug font-bold tracking-tight">{t("auth.accountSignIn.title")}</h1>
+                    <p id="login-account-description" className="max-w-sm text-balance text-sm leading-relaxed text-muted-foreground">
+                      {t("auth.accountSignIn.description")}
                     </p>
                   </div>
 
@@ -280,11 +290,12 @@ export function LoginClient() {
                   <Field>
                     <Button
                       type="submit"
-                      className="login-submit-button h-12 w-full rounded-xl text-sm font-semibold shadow-lg shadow-primary/20"
+                      className="login-submit-button h-auto min-h-12 w-full rounded-xl px-4 py-3 text-sm font-semibold whitespace-normal shadow-lg shadow-primary/20"
                       disabled={!hydrated || loading}
+                      aria-busy={signingInAccount}
                     >
-                      {loading ? <Spinner data-icon="inline-start" /> : null}
-                      {loading ? t("auth.signingIn") : t("auth.signIn")}
+                      {signingInAccount ? <Spinner data-icon="inline-start" /> : null}
+                      {signingInAccount ? t("auth.signingIn") : t("auth.accountSignIn.submit")}
                     </Button>
                   </Field>
 
@@ -298,7 +309,8 @@ export function LoginClient() {
                     <div className="grid grid-cols-2 gap-2">
                       <Button
                         asChild
-                        className="h-auto min-h-12 min-w-0 w-full justify-start gap-1 rounded-xl border-primary/20 px-1.5 py-2 shadow-sm shadow-primary/15 hover:bg-primary hover:shadow-md sm:gap-2 sm:px-3.5"
+                        variant="outline"
+                        className="h-auto min-h-12 min-w-0 w-full justify-start gap-1 rounded-xl bg-background px-1.5 py-2 shadow-sm sm:gap-2 sm:px-3.5"
                       >
                         <a
                           href={appVersionConfig.ios.storeUrl}
@@ -315,7 +327,8 @@ export function LoginClient() {
                       </Button>
                       <Button
                         asChild
-                        className="h-auto min-h-12 min-w-0 w-full justify-start gap-1 rounded-xl border-primary/20 px-1.5 py-2 shadow-sm shadow-primary/15 hover:bg-primary hover:shadow-md sm:gap-2 sm:px-3.5"
+                        variant="outline"
+                        className="h-auto min-h-12 min-w-0 w-full justify-start gap-1 rounded-xl bg-background px-1.5 py-2 shadow-sm sm:gap-2 sm:px-3.5"
                       >
                         <a
                           href={appVersionConfig.android.storeUrl}
