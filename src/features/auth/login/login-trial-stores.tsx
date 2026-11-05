@@ -27,6 +27,15 @@ const categoryIcons: Record<StoreCategory, LucideIcon> = {
   bar: Martini,
 };
 
+const categoryTones: Record<StoreCategory, string> = {
+  restaurant: "bg-primary/10 text-primary ring-primary/10",
+  cafe: "bg-warning/10 text-foreground/75 ring-warning/10",
+  mala: "bg-warning/10 text-foreground/75 ring-warning/10",
+  pho: "bg-info/10 text-foreground/75 ring-info/10",
+  pub: "bg-warning/10 text-foreground/75 ring-warning/10",
+  bar: "bg-info/10 text-foreground/75 ring-info/10",
+};
+
 export function LoginTrialStores() {
   const { t, i18n } = useTranslation();
   const stores = useAuthStore((state) => state.trialStores);
@@ -116,22 +125,22 @@ export function LoginTrialStores() {
                   data-trial-slide=""
                   type="button"
                   variant="ghost"
-                  className="h-auto min-h-16 min-w-0 w-full snap-start justify-start gap-2.5 rounded-lg border-border/50 bg-background/70 px-2.5 py-2.5 text-left whitespace-normal hover:border-primary/20 hover:bg-primary/5"
+                  className="group/trial h-auto min-h-16 min-w-0 w-full snap-start justify-start gap-2.5 rounded-lg border-border/50 bg-background/70 px-2.5 py-2.5 text-left whitespace-normal transition-[background-color,border-color,box-shadow] duration-200 hover:border-primary/25 hover:bg-primary/5 hover:shadow-sm focus-visible:border-primary/40 focus-visible:bg-primary/5 focus-visible:ring-primary/20 active:not-aria-[haspopup]:translate-y-0 motion-reduce:transition-none"
                   disabled={!hydrated || authLoading || isLoggedIn}
                   aria-label={t("auth.trial.enterStore", { name })}
                   aria-busy={entering}
                   onClick={() => void tryStore(store.store_uuid)}
                 >
-                  <Avatar>
+                  <Avatar className={cn("ring-4", categoryTones[store.store_category])}>
                     {store.store_logo ? <AvatarImage src={getStoreLogoUrl(store.store_logo)} alt="" /> : null}
-                    <AvatarFallback><Icon aria-hidden className="size-4" /></AvatarFallback>
+                    <AvatarFallback className="bg-transparent text-current"><Icon aria-hidden className="size-4" /></AvatarFallback>
                   </Avatar>
                   <span className="flex min-w-0 flex-1 flex-col gap-0.5 font-lao">
                     <span title={name} className="line-clamp-2 break-words text-xs leading-relaxed font-semibold">{name}</span>
                     <span aria-live="polite" className="text-xs leading-relaxed font-normal text-muted-foreground">{entering ? t("auth.signingIn") : t(`settings.storeBranch.categories.${store.store_category}`)}</span>
                   </span>
-                  <span className="flex size-7 shrink-0 items-center justify-center rounded-md bg-primary/5 text-primary">
-                    {entering ? <Spinner aria-hidden className="size-3.5" /> : <ArrowRight aria-hidden className="size-3.5" />}
+                  <span className="flex size-7 shrink-0 items-center justify-center rounded-md bg-primary/5 text-primary transition-colors duration-200 group-hover/trial:bg-primary/10 group-focus-visible/trial:bg-primary/10 motion-reduce:transition-none">
+                    {entering ? <Spinner aria-hidden className="size-3.5 motion-reduce:animate-none" /> : <ArrowRight aria-hidden className="size-3.5 motion-safe:transition-transform motion-safe:duration-200 motion-safe:group-hover/trial:translate-x-0.5 motion-safe:group-focus-visible/trial:translate-x-0.5" />}
                   </span>
                 </Button>
               );
