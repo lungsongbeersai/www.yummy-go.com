@@ -271,11 +271,13 @@
   },
   "auth": {
     "trial": {
-      "title": "Try Yummy Go",
-      "description": "Choose a demo to explore YummyGo. No account needed. Demo data is shared.",
+      "title": "Try YummyGo",
+      "description": "Choose a demo store to explore. No account needed.",
+      "label": "DEMO",
+      "sharedData": "Shared demo data",
       "demo": "Demo workspace",
-      "enter": "Try this store",
-      "enterStore": "Try {{name}}",
+      "enter": "Try demo",
+      "enterStore": "Try demo: {{name}}",
       "welcome": "Welcome to the trial store",
       "loginFailed": "Unable to enter this trial store",
       "loading": "Loading trial stores",
@@ -283,7 +285,13 @@
       "loadFailedHint": "Please try loading the trial stores again.",
       "retry": "Try again",
       "empty": "No trial stores available yet",
-      "emptyHint": "Please check back later, or sign in with your account above."
+      "emptyHint": "Please check back later, or sign in with your business account."
+    },
+    "accountSignIn": {
+      "label": "Business account",
+      "title": "Sign in to your store",
+      "description": "Use the email and password registered with your store.",
+      "submit": "Sign in to your account"
     },
     "mobileAppPrompt": {
       "title": "Get the YummyGo app",
