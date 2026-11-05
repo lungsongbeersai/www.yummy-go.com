@@ -272,7 +272,8 @@
   "auth": {
     "trial": {
       "title": "Try Yummy Go",
-      "description": "Choose a trial store to sign in instantly. No email or password needed. This is a shared demo workspace.",
+      "description": "Choose a demo to explore YummyGo. No account needed. Demo data is shared.",
+      "demo": "Demo workspace",
       "enter": "Try this store",
       "enterStore": "Try {{name}}",
       "welcome": "Welcome to the trial store",

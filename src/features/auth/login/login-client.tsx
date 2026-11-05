@@ -186,25 +186,25 @@ export function LoginClient() {
         <Card className="min-w-0 overflow-hidden rounded-2xl p-0 shadow-xl ring-1 ring-foreground/10 lg:col-start-2 lg:row-start-1">
           <CardContent className="grid p-0 xl:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)]">
             <form
-              className="flex w-full max-w-lg flex-col justify-center justify-self-center p-7 sm:p-8 lg:p-10"
+              className="flex w-full max-w-lg flex-col justify-center justify-self-center p-6 sm:p-8"
               noValidate
               onSubmit={onSubmit}
             >
               <FieldGroup className="gap-4">
                 <div className="flex justify-center">
-                  <span className="relative size-16 shrink-0 overflow-hidden rounded-2xl bg-background shadow-sm ring-1 ring-foreground/10">
+                  <span className="relative size-14 shrink-0 overflow-hidden rounded-2xl bg-background shadow-sm ring-1 ring-foreground/10">
                     <Image
                       src="/brand/icon-mark.png"
                       alt="YummyGo"
                       fill
-                      sizes="64px"
+                      sizes="56px"
                       className="object-cover"
                     />
                   </span>
                 </div>
 
                 <div className="flex flex-col items-center gap-1.5 text-center">
-                  <h1 id="login-title" tabIndex={-1} className="text-2xl font-bold tracking-tight sm:text-3xl">{t("auth.welcomeBack")}</h1>
+                  <h1 id="login-title" tabIndex={-1} className="text-2xl font-bold tracking-tight sm:text-3xl xl:text-2xl 2xl:text-3xl">{t("auth.welcomeBack")}</h1>
                   <p className="max-w-sm text-balance text-sm leading-relaxed text-muted-foreground">
                     {t("auth.accessWorkspace")}
                   </p>
@@ -350,7 +350,8 @@ export function LoginClient() {
           </CardContent>
         </Card>
 
-        <aside className="min-w-0 lg:col-start-1 lg:row-start-1" aria-labelledby="login-trial-title">
+        {/* The login card sets the desktop row height; demo results scroll without stretching it. */}
+        <aside className="min-w-0 lg:relative lg:col-start-1 lg:row-start-1 lg:min-h-0 lg:self-stretch" aria-labelledby="login-trial-title">
           <LoginTrialStores />
         </aside>
 
