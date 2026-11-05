@@ -6,7 +6,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useTranslation } from "react-i18next";
-import { ArrowLeft, Eye, EyeOff, ShieldCheck } from "lucide-react";
+import { ArrowLeft, ArrowRight, Eye, EyeOff, LockKeyhole, Mail, ShieldCheck } from "lucide-react";
 import { firstNavigablePath } from "@/components/layout/shell-menu-helpers";
 import { LanguageSwitch } from "@/components/layout/language-switch";
 import { Button } from "@/components/ui/button";
@@ -19,7 +19,6 @@ import {
   FieldGroup,
   FieldLabel,
 } from "@/components/ui/field";
-import { Input } from "@/components/ui/input";
 import {
   InputGroup,
   InputGroupAddon,
@@ -42,6 +41,8 @@ import { authStoreUuid, type AuthUser, useAuthStore } from "@/stores/auth-store"
 import { usePermissionsSidebarStore } from "@/stores/permissions-sidebar-store";
 import { useToastStore } from "@/stores/toast-store";
 import appVersionConfig from "../../../../public/app-version.json";
+
+const loginInputGroupClassName = "h-12 overflow-hidden rounded-xl bg-card shadow-sm transition-[border-color,box-shadow] duration-200 focus-within:border-primary has-[[data-slot=input-group-control]:focus-visible]:ring-4 has-[[data-slot=input-group-control]:focus-visible]:ring-primary/10 motion-reduce:transition-none";
 
 // ไม่มี redirect param ชัดเจน (เช่น เข้า /login ตรง ๆ) — ปลายทางต้องมาจากเมนูที่สิทธิ์ผู้ใช้เปิดจริง
 // ไม่ใช่ "/" ตายตัว เพราะ Dashboard ไม่เคยอยู่ใน permission tree ที่ backend ส่งมาเลย เรียกผ่าน
@@ -156,17 +157,12 @@ export function LoginClient() {
     // pt/pb บวก safe-area — บน Capacitor หน้าเว็บวาดใต้ status bar/แถบ gesture (edge-to-edge)
     // จัดกลางด้วย my-auto ของคอลัมน์แทน justify-center: ตอนคีย์บอร์ดเปิดแล้วเนื้อหาสูงกว่าจอ
     // justify-center ดันหัวการ์ดล้นขึ้นไปใต้ status bar จนเลื่อนกลับมาดูไม่ได้ ส่วน auto margin ไม่ล้น
-    <main className="login-light-zone login-layout relative isolate flex min-h-svh flex-col items-center gap-4 bg-muted px-4 pb-[calc(1.5rem+env(safe-area-inset-bottom,0px))] pt-[calc(1rem+env(safe-area-inset-top,0px))] sm:px-6 md:px-10 md:pb-6 md:pt-6">
-      {/* Full-screen backdrop, softened so the card and the footer text stay readable. */}
-      <Image
-        src="/auth/login-hero.png"
-        alt=""
-        fill
-        preload
-        sizes="100vw"
-        className="-z-20 object-cover"
-      />
-      <div aria-hidden="true" className="absolute inset-0 -z-10 bg-background/70 backdrop-blur-md" />
+    <main className="login-light-zone login-layout relative isolate flex min-h-svh flex-col items-center gap-4 bg-background px-4 pb-[calc(1.5rem+env(safe-area-inset-bottom,0px))] pt-[calc(1rem+env(safe-area-inset-top,0px))] text-foreground sm:px-6 md:px-10 md:pb-6 md:pt-6">
+      <div aria-hidden="true" className="pointer-events-none absolute inset-0 -z-10 overflow-hidden">
+        <div className="absolute inset-0 bg-linear-to-br from-warning/5 via-background to-primary/5" />
+        <div className="absolute -top-40 -right-40 size-96 rounded-full bg-primary/10 blur-3xl sm:size-128" />
+        <div className="absolute -bottom-48 -left-40 size-96 rounded-full bg-primary/10 blur-3xl sm:size-128" />
+      </div>
 
       <LoginAppDownloadPrompt />
 
@@ -186,7 +182,7 @@ export function LoginClient() {
       </div>
 
       <div className="my-auto flex w-full max-w-md flex-col gap-5 lg:max-w-7xl">
-        <Card className="grid gap-0 rounded-2xl p-0 shadow-xl lg:grid-cols-[minmax(0,15rem)_minmax(0,1fr)]">
+        <Card className="grid gap-0 rounded-2xl p-0 shadow-xl shadow-primary/10 ring-primary/10 lg:grid-cols-[minmax(0,15rem)_minmax(0,1fr)]">
           <div className="min-w-0 lg:col-start-2 lg:row-start-1">
             <CardContent className="grid p-0 xl:grid-cols-2">
               <form
@@ -198,7 +194,7 @@ export function LoginClient() {
               >
                 <FieldGroup className="gap-4">
                   <div className="flex items-center justify-center gap-2.5">
-                    <span className="relative size-10 shrink-0 overflow-hidden rounded-xl bg-background shadow-sm ring-1 ring-foreground/10">
+                    <span className="relative size-10 shrink-0 overflow-hidden rounded-xl bg-card shadow-sm shadow-primary/10 ring-1 ring-primary/10">
                       <Image
                         src="/brand/icon-mark.png"
                         alt=""
@@ -227,19 +223,24 @@ export function LoginClient() {
                     </FieldLabel>
                     {/* text-base below md: this route has no pinch-zoom lock, and iOS Safari
                         zooms into any input under 16px on focus. */}
-                    <Input
-                      id="login-email"
-                      name="email"
-                      type="email"
-                      placeholder=""
-                      autoComplete="email"
-                      spellCheck={false}
-                      required
-                      className="login-input h-12 rounded-xl bg-card px-4 text-base shadow-sm md:text-base"
-                      value={email}
-                      onBlur={() => setEmail((value) => normalizeLoginEmail(value))}
-                      onChange={(event) => setEmail(event.target.value)}
-                    />
+                    <InputGroup className={loginInputGroupClassName}>
+                      <InputGroupAddon className="pl-3.5 text-muted-foreground/75 group-focus-within/input-group:text-primary">
+                        <Mail aria-hidden className="size-4" />
+                      </InputGroupAddon>
+                      <InputGroupInput
+                        id="login-email"
+                        name="email"
+                        type="email"
+                        placeholder=""
+                        autoComplete="email"
+                        spellCheck={false}
+                        required
+                        className="h-full pr-4 text-base md:text-base"
+                        value={email}
+                        onBlur={() => setEmail((value) => normalizeLoginEmail(value))}
+                        onChange={(event) => setEmail(event.target.value)}
+                      />
+                    </InputGroup>
                   </Field>
 
                   <Field className="gap-2.5">
@@ -249,14 +250,17 @@ export function LoginClient() {
                     {/* overflow-hidden clips the input to the group's rounded inner edge: the
                         input is as tall as the bordered group, so Chrome's autofill fill would
                         otherwise paint over the group border and its corners. */}
-                    <InputGroup className="h-12 overflow-hidden rounded-xl bg-card shadow-sm">
+                    <InputGroup className={loginInputGroupClassName}>
+                      <InputGroupAddon className="pl-3.5 text-muted-foreground/75 group-focus-within/input-group:text-primary">
+                        <LockKeyhole aria-hidden className="size-4" />
+                      </InputGroupAddon>
                       <InputGroupInput
                         id="login-password"
                         name="password"
                         type={showPassword ? "text" : "password"}
                         autoComplete="current-password"
                         required
-                        className="px-4 text-base md:text-base"
+                        className="h-full text-base md:text-base"
                         value={password}
                         onChange={(event) => setPassword(event.target.value)}
                       />
@@ -290,12 +294,13 @@ export function LoginClient() {
                   <Field>
                     <Button
                       type="submit"
-                      className="login-submit-button h-auto min-h-12 w-full rounded-xl px-4 py-3 text-sm font-semibold whitespace-normal shadow-lg shadow-primary/20"
+                      className="login-submit-button group/login-submit h-auto min-h-12 w-full gap-2 rounded-xl bg-linear-to-br from-primary-foreground/10 via-transparent to-transparent px-4 py-3 text-sm font-semibold whitespace-normal shadow-md shadow-primary/20 transition-[background-color,box-shadow,translate] duration-200 hover:bg-primary hover:shadow-lg hover:shadow-primary/25 motion-safe:hover:-translate-y-0.5 motion-reduce:active:not-aria-[haspopup]:translate-y-0 motion-reduce:transition-none"
                       disabled={!hydrated || loading}
                       aria-busy={signingInAccount}
                     >
-                      {signingInAccount ? <Spinner data-icon="inline-start" /> : null}
+                      {signingInAccount ? <Spinner data-icon="inline-start" className="motion-reduce:animate-none" /> : null}
                       {signingInAccount ? t("auth.signingIn") : t("auth.accountSignIn.submit")}
+                      {!signingInAccount ? <ArrowRight aria-hidden className="size-4 transition-transform duration-200 motion-safe:group-hover/login-submit:translate-x-0.5 motion-reduce:transition-none" /> : null}
                     </Button>
                   </Field>
 
@@ -353,6 +358,7 @@ export function LoginClient() {
                   src="/auth/login-hero.png"
                   alt=""
                   fill
+                  preload
                   sizes="(min-width: 1280px) 34rem, 0px"
                   className="object-cover"
                 />
