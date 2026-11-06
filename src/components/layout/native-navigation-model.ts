@@ -1,4 +1,5 @@
 import type { MenuItem } from "@/config/menu";
+import { mobileMenuItem } from "./mobile-menu";
 import { routeIsActive } from "./shell-menu-helpers";
 
 // iOS HIG และ Material แนะนำ 3-5 ปลายทาง; 3 ทำให้ label ภาษาลาวยาว ๆ ไม่ถูกบีบบนจอแคบ
@@ -35,13 +36,14 @@ export interface AndroidBackInput {
   pathname: string;
 }
 
-// กลุ่มอย่าง "ขาย" มี menu_path เป็น /sale ซึ่งไม่มีหน้าจริง — ยิงไปลูกตัวแรกที่กดได้แทน
+// กลุ่มอย่าง "ขาย" มี menu_path เป็น /sale ซึ่งไม่มีหน้าจริง — ใช้ลูกตัวแรกที่กดได้
+// เป็น representative path สำหรับ active/back; กลุ่มหลายรายการเปิดตัวเลือกตอนแตะ
 export function destinationPath(item: MenuItem): string | undefined {
+  if (item.disabled) return undefined;
   const child = item.children?.find(
-    (entry) => !entry.disabled && entry.path,
+    (entry) => !entry.disabled && !entry.is_header && entry.path,
   );
   if (child?.path) return child.path;
-  if (item.disabled) return undefined;
   return item.path;
 }
 
@@ -51,45 +53,19 @@ export function buildNativeNavigationModel(
 ): NativeNavigationModel {
   const direct: NativeDestination[] = [];
   const more: MenuItem[] = [];
-  const usedMorePaths = new Set<string>();
-
-  // path ที่เคยโผล่ใน more ไปแล้ว (ตัว item เองหรือลูกที่ดันเข้ามาแทนกลุ่มพ่อ) ข้ามไม่ให้ซ้ำ
-  // — เฉพาะฝั่ง more เท่านั้น: direct ปล่อยให้ path ซ้ำกับตัวอื่นได้ตามจริง (ดูเหตุผลด้านล่าง)
-  function pushToMore(candidate: MenuItem) {
-    if (candidate.path && usedMorePaths.has(candidate.path)) return;
-    if (candidate.path) usedMorePaths.add(candidate.path);
-    more.push(candidate);
-  }
-
-  for (const item of items) {
+  for (const sourceItem of items) {
+    const item = mobileMenuItem(sourceItem);
     if (item.is_header) continue;
     const path = destinationPath(item);
     if (path && direct.length < directCount) {
       direct.push({ item, path });
-      // เมนูจริงจาก backend ตั้งใจวางลิงก์ลัด (เช่น "ຂາຍ" → /posAll/tables) คู่กับ dropdown
-      // เต็มรูปแบบ (เช่น "ເປີດຂາຍ" ที่ children ตัวแรก resolve ไปหน้าเดียวกัน) ติดกันเป็น
-      // รายการที่ 2-3 จริง — ไม่ใช่ข้อมูลซ้ำโดยไม่ตั้งใจ เดิมเคยกันด้วยการข้าม path ที่ใช้ไป
-      // แล้วลง more แทน แต่นั่นไปเบียดลำดับ direct ให้ไม่ตรงกับ 3 อันดับแรกจริงของ backend/
-      // desktop อีกที (อาการที่รายงานมา) ปล่อยให้ path ซ้ำกันได้ตามจริง แก้ปัญหา React key
-      // ชนกันที่ต้นเหตุแทน (ใช้ item.title/menu_id เป็น key ใน nav-destination-button.tsx
-      // ไม่ใช้ destination.path) โดยไม่ต้องเสียลำดับ
-      //
-      // path นี้อาจมาจาก bypass ไปหาลูกตัวแรก (ไม่ใช่ item.path เอง) แปลว่ากลุ่มทั้งก้อนถูก
-      // เบียดไปเป็นไอคอน direct ตัวเดียว ลูกที่เหลือ (เช่น "รายการขาย" ใต้กลุ่ม "ขาย") จะ
-      // เข้าไม่ถึงเลยถ้าปล่อยทิ้ง — ดันลูกที่เหลือ (ยกเว้นตัวที่กลายเป็น direct ไปแล้ว) เข้า
-      // more ตรงตำแหน่งเดิมของกลุ่มแทน รักษาลำดับสัมพัทธ์เดิมไว้
-      const isChildBypass = item.children?.some(
-        (child) => destinationPath(child) === path,
-      );
-      if (isChildBypass) {
-        const remainingChildren = item.children?.filter(
-          (child) => destinationPath(child) !== path,
-        );
-        remainingChildren?.forEach(pushToMore);
-      }
+      // Backend อาจวาง shortcut คู่กับกลุ่มที่มี representative path เดียวกัน
+      // เก็บทั้งสองตามลำดับเดิมและใช้ item.title/menu_id เป็น React key แทน path
+      // กลุ่มหลายรายการเปิด Drawer จากปุ่มนี้ได้แล้ว จึงเก็บลูกไว้ในกลุ่มเดิมทั้งหมด
+      // ไม่ต้องสร้างแถวซ้ำใน More จากลูกที่เหลืออีก
       continue;
     }
-    pushToMore(item);
+    more.push(item);
   }
 
   return { direct, more };

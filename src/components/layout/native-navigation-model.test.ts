@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { MenuItem } from "@/config/menu";
+import { internalRoute } from "@/lib/routes";
 import {
   backFallbackPath,
   buildNativeNavigationModel,
@@ -53,6 +54,17 @@ describe("destinationPath", () => {
       destinationPath({ path: "/stock", title: "stock", disabled: true }),
     ).toBeUndefined();
   });
+
+  it("does not enable a disabled group through one of its children", () => {
+    expect(destinationPath({ ...menu[2], disabled: true })).toBeUndefined();
+  });
+
+  it("does not use a header child's path as the representative destination", () => {
+    expect(destinationPath({ title: "sales", children: [
+      { title: "header", path: "/products", is_header: true },
+      { title: "sales-list", path: "/sales/sales-list" },
+    ] })).toBe("/sales/sales-list");
+  });
 });
 
 describe("buildNativeNavigationModel", () => {
@@ -67,10 +79,9 @@ describe("buildNativeNavigationModel", () => {
 
   it("puts every remaining item under more", () => {
     const model = buildNativeNavigationModel(menu);
-    // "sales" ถูกเบียดไปเป็น direct destination ตัวที่ 2 (bypass ไปหา /posAll/tables) — ลูกที่
-    // เหลือของมัน (sales_list) เลยโผล่ใน more แทนตำแหน่งเดิมของกลุ่ม ก่อน stock/printers
+    // Direct groups expose all their children in their own Drawer, so More contains
+    // only the remaining top-level entries in backend order.
     expect(model.more.map((item) => item.title)).toEqual([
-      "sales_list",
       "stock_quantity",
       "printer_management",
     ]);
@@ -125,10 +136,11 @@ describe("buildNativeNavigationModel", () => {
       "open_table_sale",
       "sales",
     ]);
-    // "sales" กิน slot ที่ 3 ไปแล้วผ่าน bypass — "menu_add_item" (/products) หลุดไป more
-    // ส่วน sales-list (ลูกที่เหลือของกลุ่ม "sales") โผล่ก่อนมันตามตำแหน่งเดิมของกลุ่ม
-    expect(model.more.map((item) => item.title)).toEqual([
+    expect(model.direct[2].item.children?.map((child) => child.title)).toEqual([
+      "open_table_sale",
       "sales_list",
+    ]);
+    expect(model.more.map((item) => item.title)).toEqual([
       "menu_add_item",
     ]);
   });
@@ -181,8 +193,6 @@ describe("buildNativeNavigationModel", () => {
       "open-sale-group-id",
     ]);
     expect(model.more.map((item) => item.title)).toEqual([
-      "sales-list-id",
-      "stuck-orders-id",
       "order-manage-id",
       "cancel-group-id",
       "products-id",
@@ -194,7 +204,7 @@ describe("buildNativeNavigationModel", () => {
     ]);
   });
 
-  it("surfaces a bypassed group's remaining children in more, right where the group itself would have appeared", () => {
+  it("keeps all direct-group children together instead of spilling siblings into more", () => {
     const model = buildNativeNavigationModel([
       { path: "/", title: "dashboard" },
       {
@@ -209,23 +219,22 @@ describe("buildNativeNavigationModel", () => {
       { path: "/sales/cancel-sale", title: "cancel_sale" },
       { path: "/printers", title: "printer_management" },
     ]);
-    // "/sale" ยิงไป /sales/open-table-sale โดยตรง (destinationPath) กิน direct slot
-    // ที่ 2 ไปแล้ว — /sales/sales-list เข้าไม่ถึงถ้าปล่อยทิ้ง จึงต้องโผล่ใน more แทนกลุ่มพ่อ
-    // ตรงตำแหน่งเดิมของ "sales" ในอาเรย์ (ก่อน cancel-sale/printers) ไม่ใช่ถูก inject ไปแทรก
-    // ที่อื่นซึ่งจะทำให้ลำดับไม่ตรงกับที่ backend ส่งมา
     expect(model.direct.map((entry) => entry.path)).toEqual([
       "/",
       "/sales/open-table-sale",
       "/products",
     ]);
     expect(model.more.map((item) => item.path)).toEqual([
-      "/sales/sales-list",
       "/sales/cancel-sale",
       "/printers",
     ]);
+    expect(model.direct[1].item.children?.map((child) => child.path)).toEqual([
+      "/sales/open-table-sale",
+      "/sales/sales-list",
+    ]);
   });
 
-  it("surfaces the remaining child even when the rest of the menu shape differs (no cancel-sale group at all)", () => {
+  it("keeps a direct group's sibling reachable in the group when the rest of the menu changes", () => {
     const model = buildNativeNavigationModel([
       { path: "/", title: "dashboard" },
       {
@@ -240,12 +249,12 @@ describe("buildNativeNavigationModel", () => {
       { path: "/printers", title: "printer_management" },
     ]);
     expect(model.more.map((item) => item.path)).toEqual([
-      "/sales/sales-list",
       "/printers",
     ]);
+    expect(model.direct[1].item.children?.[1].path).toBe("/sales/sales-list");
   });
 
-  it("does not surface the same path twice when it's also reachable on its own", () => {
+  it("does not create an extra more row for a child already exposed by a direct group", () => {
     const model = buildNativeNavigationModel([
       { path: "/", title: "dashboard" },
       {
@@ -263,6 +272,44 @@ describe("buildNativeNavigationModel", () => {
     expect(
       model.more.filter((item) => item.path === "/sales/sales-list"),
     ).toHaveLength(1);
+  });
+
+  it("projects one permitted child into a direct destination and preserves its parent identity", () => {
+    const source: MenuItem = {
+      title: "sales-group", label: "Sales", iconName: "ShoppingCart", path: "/sale",
+      children: [{ title: "selected-sales-list", path: "/sales/sales-list" }],
+    };
+    const model = buildNativeNavigationModel([source]);
+    expect(model.direct).toEqual([{ item: { ...source, path: "/sales/sales-list", children: undefined }, path: "/sales/sales-list" }]);
+    expect(model.more).toEqual([]);
+    expect(source.path).toBe("/sale");
+    expect(source.children).toHaveLength(1);
+  });
+
+  it("projects a single permitted child under more after the direct slots are full", () => {
+    const source: MenuItem = { title: "reports", path: "/report", children: [{ title: "daily", path: "/report/daily-sales" }] };
+    const model = buildNativeNavigationModel([source], 0);
+    expect(model.direct).toEqual([]);
+    expect(model.more).toEqual([{ ...source, path: "/report/daily-sales", children: undefined }]);
+  });
+
+  it("preserves duplicate top-level destinations under more in backend order", () => {
+    const items: MenuItem[] = [
+      { title: "shortcut", path: "/posAll/tables" },
+      { title: "sales-group", path: "/sale", children: [{ title: "open-sale", path: "/posAll/tables" }] },
+    ];
+    const model = buildNativeNavigationModel(items, 0);
+    expect(model.more.map((item) => item.title)).toEqual(["shortcut", "sales-group"]);
+    expect(model.more.map((item) => item.path)).toEqual(["/posAll/tables", "/posAll/tables"]);
+  });
+
+  it("keeps legacy single-child destinations compatible with shared route aliases", () => {
+    const model = buildNativeNavigationModel([{ title: "sales", path: "/sale", children: [
+      { title: "open-sale", path: "/sales/open-table-sale" },
+      { title: "sales-list", path: "/sales/sales-list", disabled: true },
+    ] }]);
+    expect(model.direct[0].item.children).toBeUndefined();
+    expect(internalRoute(model.direct[0].path)).toBe("/posAll/tables");
   });
 });
 

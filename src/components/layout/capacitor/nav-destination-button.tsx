@@ -2,10 +2,11 @@
 
 import Link from "next/link";
 import { useTranslation } from "react-i18next";
-import { MoreHorizontal, RefreshCw } from "lucide-react";
+import { ChevronUp, MoreHorizontal, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { MenuIcon } from "@/components/common/menu-icon";
+import { DestinationIcon } from "@/components/layout/capacitor/destination-icon";
+import { MoreGroupRow } from "@/components/layout/capacitor/more-list-row";
 import { NativeRouteProgress } from "@/components/layout/capacitor/route-progress";
 import { menuItemLabel } from "@/components/layout/shell-menu-helpers";
 import {
@@ -15,20 +16,6 @@ import {
 } from "@/components/layout/native-navigation-model";
 import { internalRoute } from "@/lib/routes";
 import { cn } from "@/lib/utils";
-import type { MenuItem } from "@/config/menu";
-
-export function DestinationIcon({
-  className = "size-5 shrink-0",
-  item,
-}: {
-  className?: string;
-  item: MenuItem;
-}) {
-  const Icon = item.icon;
-  if (Icon) return <Icon className={className} />;
-  if (item.iconName) return <MenuIcon value={item.iconName} className={className} />;
-  return null;
-}
 
 // ปุ่มนี้ใช้กับ bottom bar ของมือถือเท่านั้นแล้ว (side rail แท็บเล็ต/แนวนอน เปลี่ยนไปใช้
 // AppSidebar ตัวเดียวกับเว็บเดสก์ท็อป — ดู capacitor/side-rail.tsx) label อยู่ใต้ไอคอน
@@ -36,26 +23,44 @@ export function DestinationIcon({
 export function NavDestinationButton({
   active,
   destination,
+  pathname,
 }: {
   active: boolean;
   destination: NativeDestination;
+  pathname: string;
 }) {
   const { t } = useTranslation();
   const label = menuItemLabel(destination.item, t);
+  const grouped = Boolean(destination.item.children?.length);
+  const className = cn(
+    "relative flex min-h-12 min-w-0 flex-none flex-col items-center justify-center gap-1 rounded-md px-1 py-1.5 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+    active ? "text-primary" : "text-muted-foreground hover:text-foreground",
+  );
+  const content = (
+    <>
+      <DestinationIcon item={destination.item} />
+      <span className="flex w-full min-w-0 items-center justify-center gap-0.5 text-center text-2xs font-semibold leading-tight">
+        <span className="truncate">{label}</span>
+        {grouped ? <ChevronUp aria-hidden="true" className="size-3 shrink-0" /> : null}
+      </span>
+    </>
+  );
+
+  if (grouped) return (
+    <MoreGroupRow
+      item={destination.item}
+      pathname={pathname}
+      trigger={<button type="button" className={className}>{content}</button>}
+    />
+  );
 
   return (
     <Link
       href={internalRoute(destination.path)}
       aria-current={active ? "page" : undefined}
-      className={cn(
-        "relative flex min-h-12 min-w-0 flex-none flex-col items-center justify-center gap-1 rounded-md px-1 py-1.5 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
-        active ? "text-primary" : "text-muted-foreground hover:text-foreground",
-      )}
+      className={className}
     >
-      <DestinationIcon item={destination.item} />
-      <span className="w-full truncate text-center text-2xs font-semibold leading-tight">
-        {label}
-      </span>
+      {content}
       <NativeRouteProgress />
     </Link>
   );
@@ -150,13 +155,11 @@ export function NativeNavItems({
     <>
       {model.direct.map((destination) => (
         <NavDestinationButton
-          // เมนูจริงจาก backend มีทั้งลิงก์ลัด (เช่น "ຂາຍ") กับ dropdown ที่ children ตัวแรก
-          // resolve ไปหน้าเดียวกัน (เช่น "ເປີດຂາຍ") วางคู่กันโดยตั้งใจ (ดู native-navigation-
-          // model.ts) — destination.path เลยซ้ำกันได้จริงโดยไม่ใช่บั๊ก ต้องใช้ title (menu_id
-          // จริงจาก backend การันตีไม่ซ้ำ) เป็น key แทน ไม่งั้น React เจอ key ซ้ำ
+          // Distinct backend menu IDs can share a destination path.
           key={destination.item.title}
           active={isDestinationActive(destination, pathname)}
           destination={destination}
+          pathname={pathname}
         />
       ))}
       {model.more.length ? (

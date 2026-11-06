@@ -46,6 +46,7 @@ import {
   routeIsActive,
 } from "@/components/layout/shell-menu-helpers";
 import type { MenuItem } from "@/config/menu";
+import { mobileMenuItem } from "@/components/layout/mobile-menu";
 
 // ดึงออกมาจาก web/app-shell.tsx เดิม — ใช้ร่วมกันทั้งเว็บเดสก์ท็อป (AppShell) และ
 // NativeSideRail (Capacitor แท็บเล็ต/แนวนอน) เพื่อให้เมนูหน้าตาเดียวกันจริง ๆ ไม่ใช่แค่
@@ -76,8 +77,8 @@ export function AppSidebar({
   toggleMenu: (title: string) => void;
 }) {
   const { t } = useTranslation();
-  const { setOpen, setOpenMobile, state } = useSidebar();
-  const collapsed = state === "collapsed";
+  const { isMobile, setOpen, setOpenMobile, state } = useSidebar();
+  const collapsed = !isMobile && state === "collapsed";
 
   function closeMobile() {
     setOpenMobile(false);
@@ -89,7 +90,7 @@ export function AppSidebar({
     const icon = <SidebarItemIcon item={item} />;
 
     return (
-      <SidebarMenuItem key={item.path ?? item.title}>
+      <SidebarMenuItem key={item.title}>
         {item.disabled || !item.path ? (
           <SidebarMenuButton disabled tooltip={title}>
             {icon}
@@ -164,7 +165,8 @@ export function AppSidebar({
     );
   }
 
-  function renderItem(item: MenuItem) {
+  function renderItem(sourceItem: MenuItem) {
+    const item = isMobile ? mobileMenuItem(sourceItem) : sourceItem;
     if (item.is_header) {
       return (
         <SidebarGroupLabel key={item.title}>

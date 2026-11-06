@@ -1,20 +1,19 @@
 "use client";
 
-import { useState } from "react";
+import { useState, type ReactElement } from "react";
 import Link from "next/link";
 import { ChevronRight, LayoutGrid } from "lucide-react";
 import { useTranslation } from "react-i18next";
-import { Drawer, DrawerContent, DrawerDescription, DrawerHeader, DrawerTitle } from "@/components/ui/drawer";
-import { DestinationIcon } from "@/components/layout/capacitor/nav-destination-button";
+import { Drawer, DrawerContent, DrawerDescription, DrawerHeader, DrawerTitle, DrawerTrigger } from "@/components/ui/drawer";
+import { DestinationIcon } from "@/components/layout/capacitor/destination-icon";
 import { NativeRouteProgress } from "@/components/layout/capacitor/route-progress";
 import { menuItemLabel, routeIsActive } from "@/components/layout/shell-menu-helpers";
 import type { MenuItem } from "@/config/menu";
 import { internalRoute } from "@/lib/routes";
 import { cn } from "@/lib/utils";
 
-// ตรงกับ sidebar ฝั่งเว็บ (web/app-shell.tsx renderItem): มีลูก = เป็นกลุ่มเสมอ ไม่สน
-// ว่า item.path ของกลุ่มจะมีหน้าเพจจริงรองรับหรือไม่ (เช่น "ตั้งค่า" ก็เปิดกลุ่มแทนการพาไปหน้า
-// hub /settings) — path ของตัวลูกแต่ละอันต่างหากที่ใช้ navigate จริง
+// The mobile model has already turned single usable children into direct links.
+// Remaining groups need their children shown instead of navigating to a group-only path.
 export function needsMoreGroupDropdown(item: MenuItem): boolean {
   return Boolean(item.children?.length);
 }
@@ -101,9 +100,11 @@ export function MoreListRow({
 export function MoreGroupRow({
   item,
   pathname,
+  trigger,
 }: {
   item: MenuItem;
   pathname: string;
+  trigger?: ReactElement;
 }) {
   const { t } = useTranslation();
   const [open, setOpen] = useState(false);
@@ -114,16 +115,19 @@ export function MoreGroupRow({
 
   return (
     <Drawer open={open} onOpenChange={setOpen}>
-      <button
-        type="button"
-        aria-haspopup="dialog"
-        className={cn(ROW_CLASS, "w-[calc(100%+1.5rem)]")}
-        onClick={() => setOpen(true)}
-      >
-        <RowIcon active={containsActive} item={item} />
-        <RowText active={containsActive} label={label} summary={summary} />
-        <ChevronRight aria-hidden="true" className="size-5 shrink-0 text-muted-foreground/60" />
-      </button>
+      <DrawerTrigger asChild>
+        {trigger ?? (
+          <button
+            type="button"
+            disabled={item.disabled}
+            className={cn(ROW_CLASS, "w-[calc(100%+1.5rem)]")}
+          >
+            <RowIcon active={containsActive} item={item} />
+            <RowText active={containsActive} label={label} summary={summary} />
+            <ChevronRight aria-hidden="true" className="size-5 shrink-0 text-muted-foreground/60" />
+          </button>
+        )}
+      </DrawerTrigger>
       {/* Edge-to-edge sheet with rounded top corners, above the gesture bar — the Android bottom
           sheet, not the floating inset panel the shared drawer draws by default. */}
       <DrawerContent className="p-0 pb-[max(env(safe-area-inset-bottom),0.75rem)] before:inset-0 before:rounded-none before:rounded-t-3xl before:border-0">

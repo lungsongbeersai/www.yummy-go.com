@@ -33,7 +33,7 @@ export function NativeMorePage() {
           needsMoreGroupDropdown(item) ? (
             <MoreGroupRow key={item.title} item={item} pathname={pathname} />
           ) : (
-            <MoreListRow key={item.path ?? item.title} item={item} pathname={pathname} />
+            <MoreListRow key={item.title} item={item} pathname={pathname} />
           ),
         )}
       </nav>
