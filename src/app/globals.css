@@ -2117,6 +2117,21 @@ html.dark {
   background-size: var(--decor-background-preview-size);
 }
 
+/* POS surfaces share the shell preference, including sheets portaled outside the workspace.
+   Keep foreground tokens inherited from the app so product and table cards stay readable. */
+.pos-decor-surface {
+  background-color: var(--background);
+  background-image: none;
+}
+
+html:not([data-decor-background="off"]) .pos-decor-surface {
+  background-color: rgb(var(--decor-background-rgb));
+  background-image: var(--decor-background-image);
+  background-position: top left;
+  background-repeat: var(--decor-background-repeat);
+  background-size: var(--decor-background-size);
+}
+
 /* Menus and tooltips portal out of these decorated subtrees and keep the normal theme. */
 html:not([data-decor-background="off"]) .app-header,
 html:not([data-decor-background="off"]) .app-shell [data-slot="sidebar-inner"],

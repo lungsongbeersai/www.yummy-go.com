@@ -152,7 +152,7 @@ export function EmployeeSearchForm({
           className={cn(
             "h-11 rounded-xl pl-9 font-semibold shadow-xs",
             onPrimary
-              ? "border-primary-foreground/50 bg-primary-foreground text-foreground placeholder:text-muted-foreground"
+              ? "border-primary-foreground/50 bg-card text-card-foreground placeholder:text-muted-foreground"
               : neutral
               ? "border-border bg-card text-foreground placeholder:text-muted-foreground"
               : "border-white/25 bg-white/15 text-white placeholder:text-white/65 dark:border-border dark:bg-card dark:text-foreground dark:placeholder:text-muted-foreground"

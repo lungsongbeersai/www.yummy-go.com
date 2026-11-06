@@ -31,6 +31,7 @@ export function TableSelectionPage() {
   const searchParams = useSearchParams();
   const user = useAuthStore((state) => state.user);
   const language = useAppStore((state) => state.language);
+  const decorBackground = useAppStore((state) => state.decorBackground);
   const zones = usePosStore((state) => state.zones);
   const zoneOptions = usePosStore((state) => state.zoneOptions);
   const loading = usePosStore((state) => state.loading);
@@ -131,12 +132,11 @@ export function TableSelectionPage() {
   }
 
   return (
-    <div data-pos-pattern="true" className="relative h-full min-h-0 overflow-hidden bg-[url('/posAll/background_wide.webp')] bg-cover bg-top dark:bg-none dark:bg-background">
-      <div aria-hidden="true" data-pos-pattern-overlay="true" className="pointer-events-none absolute inset-0 bg-primary/45 dark:hidden" />
+    <div data-pos-appearance={decorBackground ? "decorated" : "plain"} className="pos-decor-surface relative h-full min-h-0 overflow-hidden text-foreground">
       <div className="relative flex h-full min-h-0 flex-col overflow-hidden">
         {/* Keep these three children for Swan's grid fallback. Tool groups wrap
             within the right track so the centered clock never overlaps them. */}
-        <header data-pos-table-header="true" className="relative grid min-h-18 shrink-0 grid-cols-[auto_minmax(0,1fr)] items-center gap-x-2 gap-y-2 overflow-hidden px-2 pb-2 pt-[calc(0.5rem+env(safe-area-inset-top,0px))] text-primary-foreground shadow-sm sm:px-4 md:min-h-20 md:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)]">
+        <header data-pos-table-header="true" className={cn("relative grid min-h-18 shrink-0 grid-cols-[auto_minmax(0,1fr)] items-center gap-x-2 gap-y-2 overflow-hidden px-2 pb-2 pt-[calc(0.5rem+env(safe-area-inset-top,0px))] shadow-sm sm:px-4 md:min-h-20 md:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)]", decorBackground ? "text-primary-foreground" : "border-b border-border bg-card text-foreground")}>
           <Button aria-label={t("actions.back")} className={cn(headerIconButtonClass, "col-start-1 row-start-1 justify-self-start")} size="icon" type="button" variant="header" onClick={() => router.replace("/")}>
             <ChevronLeft />
           </Button>
@@ -171,7 +171,7 @@ function TableClock() {
   }, []);
 
   return (
-    <p data-pos-table-clock="true" className="col-span-2 col-start-1 row-start-1 max-w-55 justify-self-center whitespace-nowrap text-xl font-black leading-none tracking-wide tabular-nums text-primary-foreground dark:text-white md:col-span-1 md:col-start-2 2xl:text-3xl">
+    <p data-pos-table-clock="true" className="col-span-2 col-start-1 row-start-1 max-w-55 justify-self-center whitespace-nowrap text-xl font-black leading-none tracking-wide tabular-nums md:col-span-1 md:col-start-2 2xl:text-3xl">
       {formatClock(now)}
     </p>
   );

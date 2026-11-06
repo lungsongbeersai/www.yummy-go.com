@@ -22,6 +22,7 @@ import { useIsCapacitorNativeApp } from "@/hooks/use-capacitor-native-app";
 import { useLandscapeTablet } from "@/hooks/use-landscape-tablet";
 import { cn } from "@/lib/utils";
 import { useNativeHeaderStore } from "@/stores/native-header-store";
+import { useAppStore } from "@/stores/app-store";
 import { SelectedTableCartPanel } from "../table-selection/selected-table-cart-panel";
 import { DraftExitWarningDialog } from "./draft-exit-warning-dialog";
 import { productModeLabel } from "./order-customer-utils";
@@ -118,6 +119,8 @@ export function OrderCustomerView({
   } = workflow;
 
   const nativeShellActive = useIsNativeShellActive();
+  const decorBackground = useAppStore((state) => state.decorBackground);
+  const neutralChrome = nativeShellActive || !decorBackground;
   const isNativeApp = useIsCapacitorNativeApp();
   const landscapeTablet = useLandscapeTablet();
   const horizontalNativeOrderLayout = nativeShellActive && landscapeTablet;
@@ -159,24 +162,12 @@ export function OrderCustomerView({
 
   return (
     <div
-      // ไม่ใส่ attribute data-pos-pattern เลยบน Capacitor (ไม่ใช่แค่เปลี่ยน class) เพราะ
-      // .android-webview-compat [data-pos-pattern] ใน globals.css บังคับรูปพื้นหลังกลับมา
-      // ด้วย !important จาก attribute selector ตัวนี้โดยตรง ต่อให้ class ไม่มีรูปแล้วก็ตาม
-      {...(!nativeShellActive ? { "data-pos-pattern": "true" } : {})}
+      data-pos-appearance={neutralChrome ? "plain" : "decorated"}
       className={cn(
-        "relative h-full min-h-0 overflow-hidden text-foreground",
-        nativeShellActive
-          ? "bg-background"
-          : "bg-[url('/posAll/background_wide.webp')] bg-cover bg-top dark:bg-none dark:bg-background"
+        "relative h-full min-h-0 overflow-hidden bg-background text-foreground",
+        !nativeShellActive && "pos-decor-surface"
       )}
     >
-      {!nativeShellActive ? (
-        <div
-          aria-hidden="true"
-          data-pos-pattern-overlay="true"
-          className="pointer-events-none absolute inset-0 bg-primary/45 dark:hidden"
-        />
-      ) : null}
       <div
         className={cn(
           "relative grid h-full min-h-0 grid-rows-[auto_minmax(0,1fr)] overflow-hidden",
@@ -197,15 +188,14 @@ export function OrderCustomerView({
                 // ให้ด้านบนแล้ว — AppShell ก็ซ่อน header ตัวเองบน immersive screen เหมือนกัน) ต้อง
                 // กันพื้นที่ status bar เองด้วย pt เพิ่มจาก env(safe-area-inset-top) ไม่งั้น
                 // sort-tabs/search แถวบนโดน status bar ทับตอนรันบน Capacitor จอกว้าง/แนวนอน
-                "border-white/15 bg-transparent py-2 pt-[calc(0.5rem+env(safe-area-inset-top,0px))] text-white shadow-[0_1px_0_rgb(255_255_255/0.08)] lg:py-1.5 lg:pt-[calc(0.375rem+env(safe-area-inset-top,0px))]"
+                cn(
+                  "py-2 pt-[calc(0.5rem+env(safe-area-inset-top,0px))] lg:py-1.5 lg:pt-[calc(0.375rem+env(safe-area-inset-top,0px))]",
+                  neutralChrome
+                    ? "border-border bg-card text-foreground shadow-xs"
+                    : "border-primary-foreground/20 bg-transparent text-primary-foreground"
+                )
           )}
         >
-          {!nativeShellActive ? (
-            <div
-              aria-hidden="true"
-              className="pointer-events-none absolute inset-0 bg-black/10"
-            />
-          ) : null}
           {horizontalNativeOrderLayout ? (
             <div className="relative flex min-w-0 flex-col gap-1.5">
               <h1 className="sr-only">
@@ -276,7 +266,7 @@ export function OrderCustomerView({
               {!portraitNativeOrderLayout ? (
                 <EmployeeSortTabs
                   activeSort={activeSort}
-                  neutral={nativeShellActive}
+                  neutral={neutralChrome}
                   onSortChange={(status) => setActiveSort(status)}
                 />
               ) : null}
@@ -299,7 +289,7 @@ export function OrderCustomerView({
                 <EmployeeSearchForm
                   className="flex-1"
                   loading={loadingMenu}
-                  neutral={nativeShellActive}
+                  neutral={neutralChrome}
                   search={search}
                   onSearchChange={setSearch}
                   onSearchSubmit={() => void submitSearch()}
@@ -318,7 +308,7 @@ export function OrderCustomerView({
 
               <EmployeeCategoryRail
                 categories={categories}
-                neutral={useNativeCategoryLayout}
+                neutral={useNativeCategoryLayout || neutralChrome}
                 selectedCateUuid={selectedCateUuid}
                 wide={useNativeCategoryLayout}
                 onSelectCategory={(cateUuid) => void selectCategory(cateUuid)}
@@ -347,13 +337,13 @@ export function OrderCustomerView({
                 <EmployeeSortTabs
                   activeSort={activeSort}
                   className="w-full"
-                  neutral={nativeShellActive}
+                  neutral={neutralChrome}
                   onSortChange={(status) => setActiveSort(status)}
                 />
                 <EmployeeSearchForm
                   className={cn("w-full", !nativeShellActive && "lg:max-w-xl")}
                   loading={loadingMenu}
-                  neutral={nativeShellActive}
+                  neutral={neutralChrome}
                   search={search}
                   showSearchLabel
                   onSearchChange={setSearch}
@@ -433,7 +423,7 @@ export function OrderCustomerView({
             <EmployeeCategorySidebar
               categories={categories}
               loading={loadingMenu && !categories.length}
-              neutral={nativeShellActive}
+              neutral={neutralChrome}
               selectedCateUuid={selectedCateUuid}
               onSelectCategory={(cateUuid) => void selectCategory(cateUuid)}
             />
@@ -553,9 +543,7 @@ export function OrderCustomerView({
         }}
       >
         <SheetContent
-          // cart sheet ใช้รูปพื้นหลังต่อ (ต่างจาก container หลักที่ตัดรูปออกบน Capacitor
-          // ตามที่ขอ) — ยังคง data-pos-pattern ไว้ทุกแพลตฟอร์มเหมือนเดิม
-          data-pos-pattern="true"
+          data-pos-appearance={decorBackground ? "decorated" : "plain"}
           side="bottom"
           // ลบ env(safe-area-inset-top) ออกจากความสูงทั้งก้อน แทนที่จะปล่อยให้ sheet กาง
           // ไปทับ status bar แล้วค่อยดันแค่ "เนื้อหา" ข้างในลงมาด้วย padding (ที่ทำไปรอบ
@@ -564,7 +552,12 @@ export function OrderCustomerView({
           // ไม่ล้ำขึ้นไปในโซน status bar เลย จึงต้องลดความสูงของ sheet เอง ให้ขอบบนสุดหยุด
           // อยู่ที่เส้น safe-area พอดี — CardHeader/ปุ่มปิดข้างในเลยกลับไปใช้ตำแหน่งปกติได้
           // (ไม่ต้อง offset เพิ่มเองแล้ว เพราะกรอบ sheet เริ่มต่ำกว่า status bar อยู่แล้ว)
-          className="h-[calc(100dvh-8px-env(safe-area-inset-top,0px))] max-h-none gap-0 overflow-hidden rounded-t-2xl border-white/20 bg-[image:linear-gradient(color-mix(in_oklch,var(--primary)_45%,transparent),color-mix(in_oklch,var(--primary)_45%,transparent)),url('/posAll/background_wide.webp')] bg-cover bg-top p-0 text-white data-[side=bottom]:h-[calc(100dvh-8px-env(safe-area-inset-top,0px))] dark:border-primary/30 dark:bg-none dark:bg-background"
+          className={cn(
+            "pos-decor-surface h-[calc(100dvh-8px-env(safe-area-inset-top,0px))] max-h-none gap-0 overflow-hidden rounded-t-2xl p-0 data-[side=bottom]:h-[calc(100dvh-8px-env(safe-area-inset-top,0px))]",
+            decorBackground
+              ? "border-primary-foreground/20 text-primary-foreground"
+              : "border-border text-foreground"
+          )}
         >
           <SheetTitle className="sr-only">{t("pos.currentCart")}</SheetTitle>
           <OrderCartPanel
