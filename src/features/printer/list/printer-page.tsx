@@ -4,6 +4,7 @@ import { useState, type ComponentType } from "react";
 import Link from "next/link";
 import {
   AlertTriangle,
+  Info,
   LayoutGrid,
   Plus,
   Power,
@@ -38,6 +39,7 @@ import {
   type PrinterStatusFilter,
 } from "./printer-page-utils";
 import { usePrinterPage } from "./use-printer-page";
+import { Spinner } from "@/components/ui/spinner";
 import { PrinterSelfTestDialog } from "@/features/printer/printer-self-test-dialog";
 
 const AGENT_DOT: Record<string, string> = {
@@ -90,6 +92,8 @@ export function PrinterPage() {
   const listViewProps = {
     categories: printer.categories,
     zones: printer.zones,
+    networkVisibilityByPrinter: printer.networkVisibilityByPrinter,
+    manualTestPrinterUuids: printer.manualTestPrinterUuids,
     filteredRows: printer.filteredRows,
     language: printer.language,
     printing: printer.printing || Boolean(printer.pendingSelfTest),
@@ -146,7 +150,7 @@ export function PrinterPage() {
           {/* สถานะ Agent เป็นจุดสี + ข้อความ — เดิมเป็นข้อความเทาเล็ก ๆ ท้ายชื่อหน้า มองไม่ออกว่าเชื่อมต่ออยู่หรือไม่ */}
           <p className="mt-1 inline-flex max-w-full min-w-0 items-center gap-1.5 rounded-full bg-(--dash-shade) px-2.5 py-0.5 text-xs" title={printer.agentStatusLabel}>
             <span aria-hidden="true" className={cn("size-2 shrink-0 rounded-full", AGENT_DOT[printer.agentStatus] ?? AGENT_DOT.unchecked)} />
-            <span className="shrink-0">{t("printer.agentStatus")}:</span>
+            <span className="shrink-0">{t("printer.listVisibility.currentAgent")}:</span>
             <span className="truncate font-semibold">{printer.agentStatusLabel}</span>
           </p>
         </div>
@@ -174,6 +178,48 @@ export function PrinterPage() {
           บนมือถือจะเหลือพื้นที่ให้การ์ดไม่ถึงครึ่งจอ จอ lg ขึ้นไปค่อยปักส่วนบนแล้วเลื่อนเฉพาะรายการ */}
       <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain lg:flex lg:flex-col lg:overflow-hidden">
         <div className="flex shrink-0 flex-col gap-3 px-3 pt-3 sm:px-4 lg:px-5">
+          <div className="flex flex-col gap-2 rounded-xl border border-border bg-card p-3 sm:flex-row sm:items-center sm:justify-between">
+            <div className="min-w-0">
+              <p className="text-sm font-semibold">{t("printer.listVisibility.title")}</p>
+              <p className="mt-0.5 text-xs text-muted-foreground">{t("printer.listVisibility.description")}</p>
+            </div>
+            <ToggleGroup
+              type="single"
+              aria-label={t("printer.listVisibility.title")}
+              value={printer.listScope}
+              onValueChange={(value) => {
+                if (value === "here" || value === "saved") printer.setListScope(value);
+              }}
+              className="w-full shrink-0 gap-1 rounded-lg border border-border bg-muted p-1 sm:w-auto"
+            >
+              <ToggleGroupItem value="here" className={cn(TOGGLE_ITEM_CLASS, "h-auto min-h-10 min-w-0 py-1.5 whitespace-normal sm:min-h-9")}>{t("printer.listVisibility.here")}</ToggleGroupItem>
+              <ToggleGroupItem value="saved" className={cn(TOGGLE_ITEM_CLASS, "h-auto min-h-10 min-w-0 py-1.5 whitespace-normal sm:min-h-9")}>{t("printer.listVisibility.saved")}</ToggleGroupItem>
+            </ToggleGroup>
+          </div>
+
+          {printer.error ? (
+            <Alert variant="destructive">
+              <AlertTriangle />
+              <AlertTitle>{t("printer.loadFailed")}</AlertTitle>
+              <AlertDescription className="col-start-2">{printer.error}</AlertDescription>
+              <Button type="button" variant="outline" className="col-start-2 mt-2 min-h-10" disabled={printer.loading} onClick={() => void printer.load()}>
+                {t("actions.tryAgain")}
+              </Button>
+            </Alert>
+          ) : printer.checkingNetwork ? (
+            <p role="status" className="flex items-center gap-2 text-xs text-muted-foreground">
+              <Spinner className="size-3.5" />{t("printer.listVisibility.checking")}
+            </p>
+          ) : printer.listScope === "here" && printer.hiddenLanCount > 0 ? (
+            <Alert>
+              <Info />
+              <AlertTitle>{t("printer.listVisibility.hidden", { count: printer.hiddenLanCount })}</AlertTitle>
+              <AlertDescription className="col-start-2">{t("printer.listVisibility.hiddenDescription")}</AlertDescription>
+              <Button type="button" variant="outline" className="col-start-2 mt-2 min-h-10" onClick={() => printer.setListScope("saved")}>
+                {t("printer.listVisibility.showSaved")}
+              </Button>
+            </Alert>
+          ) : null}
           {/* Agent ไม่เชื่อมต่อ = ทดสอบพิมพ์/เครื่อง USB ใช้ไม่ได้ทั้งหน้า — บอกไว้บนสุดพร้อมทางแก้ แทนให้ไปเจอปุ่มที่กดไม่ได้เอง */}
           {printer.agentStatus === "offline" ? (
             <Alert className="border-warning/40 bg-warning/10 pr-28">
@@ -341,15 +387,15 @@ export function PrinterPage() {
             {t("common.showingRange", {
               start: printer.pageStart,
               end: printer.pageEnd,
-              total: printer.printers.length,
+              total: printer.scopeTotal,
             })}
           </p>
         </div>
 
         <div className="flex flex-col lg:min-h-0 lg:flex-1 lg:overflow-hidden">
-          {printer.loading && !printer.printers.length ? (
+          {(printer.loading && !printer.printers.length) || (printer.checkingNetwork && !printer.filteredRows.length) ? (
             <div className="min-h-0 flex-1 p-4">
-              <LoadingState label={t("printer.loading")} variant="settingsTable" />
+              <LoadingState label={t(printer.checkingNetwork ? "printer.listVisibility.checking" : "printer.loading")} variant="settingsTable" />
             </div>
           ) : printer.filteredRows.length ? (
             viewMode === "table" ? (
@@ -359,11 +405,14 @@ export function PrinterPage() {
             ) : (
               <PrinterListCards {...listViewProps} />
             )
-          ) : (
+          ) : !printer.error ? (
             <div className="flex min-h-0 flex-1 flex-col items-center justify-center gap-3 p-4">
-              <EmptyState title={t("printer.noPrinters")} description={t("printer.noPrintersDescription")} />
+              <EmptyState
+                title={t(printer.listScope === "here" && printer.printers.length ? "printer.listVisibility.noneHere" : "printer.noPrinters")}
+                description={t(printer.listScope === "here" && printer.printers.length ? "printer.listVisibility.noneHereDescription" : "printer.noPrintersDescription")}
+              />
               {/* ตัวกรองเป็นเหตุให้ว่าง ≠ ร้านยังไม่มีเครื่องพิมพ์ — ให้ทางออกที่ตรงกับสาเหตุ */}
-              {filtersActive && printer.printers.length ? (
+              {filtersActive && printer.scopeTotal ? (
                 <Button
                   type="button"
                   variant="outline"
@@ -376,6 +425,10 @@ export function PrinterPage() {
                 >
                   {t("actions.clear")}
                 </Button>
+              ) : printer.listScope === "here" && printer.printers.length ? (
+                <Button type="button" variant="outline" onClick={() => printer.setListScope("saved")}>
+                  {t("printer.listVisibility.showSaved")}
+                </Button>
               ) : (
                 <Link className={buttonVariants()} href="/printers/form">
                   <Plus data-icon="inline-start" />
@@ -383,7 +436,7 @@ export function PrinterPage() {
                 </Link>
               )}
             </div>
-          )}
+          ) : null}
         </div>
       </div>
 

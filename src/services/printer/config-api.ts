@@ -85,7 +85,16 @@ function isPrinterVisibleToDevice(printer: Printer, deviceCode: string) {
   return Boolean(deviceCode) && ownerDeviceCode === deviceCode;
 }
 
-export async function getPrinters(params: FetchPrintersParams) {
+export function getPrinters(params: FetchPrintersParams) {
+  return fetchPrinterConfigs(params);
+}
+
+/** A management catalog only; operational readers keep their established filters. */
+export function getPrinterManagementCatalog(params: FetchPrintersParams) {
+  return fetchPrinterConfigs({ ...params, management_view: true, include_offline_shared: true }, true);
+}
+
+async function fetchPrinterConfigs(params: FetchPrintersParams, catalogView = false) {
   const deviceCode = textValue(params.device_code);
   const requesterNetworkHints = [
     ...new Set(
@@ -105,12 +114,16 @@ export async function getPrinters(params: FetchPrintersParams) {
         ? { include_offline_shared: "1" }
         : {}),
       ...(params.management_view ? { management_view: "1" } : {}),
+      ...(catalogView ? { catalog_view: "1" } : {}),
       ...(requesterNetworkHints.length
         ? { requester_network_hints: requesterNetworkHints.join(",") }
         : {}),
       lang: toApiLanguage(params.lang)
     }
   });
+  if (catalogView && (Array.isArray(result.data) || result.data?.catalog_view !== true)) {
+    throw new ServiceError("The printer management catalog is unavailable. Please refresh and try again.", 503);
+  }
   return printerRowsFromFetchResponse(result)
     .map((item) => mapPrinter(item))
     .filter((printer) => isPrinterVisibleToDevice(printer, deviceCode))

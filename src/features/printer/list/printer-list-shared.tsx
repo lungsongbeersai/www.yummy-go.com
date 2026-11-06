@@ -6,6 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
+import { useTranslation } from "react-i18next";
 
 const BADGE_LIST_MAX = 4;
 
@@ -183,6 +184,20 @@ export function PrinterAvailabilityBadge({
     >
       <Icon className="size-3" />
       {online ? onlineLabel : offlineLabel}
+    </Badge>
+  );
+}
+
+export function PrinterNetworkVisibilityBadge({ state }: { state: "local" | "unknown" | null }) {
+  const { t } = useTranslation();
+  if (!state) return null;
+  const Icon = state === "local" ? Wifi : WifiOff;
+  return (
+    <Badge variant="outline" className={cn("h-auto min-h-5 max-w-full gap-1 rounded-full text-left text-xs whitespace-normal", state === "local"
+      ? "border-info/30 bg-info/10 text-info-text"
+      : "border-warning/30 bg-warning/10 text-warning-text")}>
+      <Icon className="size-3 shrink-0" />
+      <span className="min-w-0 break-words">{t(state === "local" ? "printer.listVisibility.networkConfirmed" : "printer.listVisibility.networkUnknown")}</span>
     </Badge>
   );
 }

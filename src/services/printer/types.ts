@@ -184,6 +184,8 @@ export interface Printer extends ApiEntity {
   // DEDICATED (พฤติกรรมเดิมก่อนมีการแชร์เครื่องพิมพ์) ดู sharingModeOf() ใน printer-form-utils.ts
   sharing_mode?: PrinterSharingMode;
   access_mode?: PrinterAccessMode;
+  registered_agent_url?: string | null;
+  resolved_agent_url?: string | null;
   // ตั้งโดย backend เมื่อเครื่องนี้ใช้ address เดียวกับ config SHARED ตัวอื่นในสาขา
   // งานจริงจะไปออกที่ตัวนั้น ตัวนี้จึงแสดงไว้เพื่อให้แก้ address หรือลบทิ้งได้
   endpoint_duplicate?: boolean;
@@ -227,6 +229,7 @@ export interface SearchPrintersResponse extends ApiEntity {
   message?: string;
 }
 export interface FetchPrinterPayload extends ApiEntity {
+  catalog_view?: boolean;
   login_uuid_fk?: string;
   branch_uuid_fk?: string;
   agent_id?: string;
