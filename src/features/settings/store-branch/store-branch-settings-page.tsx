@@ -1,8 +1,9 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import Link from "next/link";
 import { useTranslation } from "react-i18next";
-import { Building2, KeyRound, Store as StoreIcon, X } from "lucide-react";
+import { Building2, KeyRound, ShieldCheck, Store as StoreIcon, X } from "lucide-react";
 import { ConfirmDialog } from "@/components/common/confirm-dialog";
 import { Button } from "@/components/ui/button";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -14,6 +15,7 @@ import { useSettingsCrudController } from "@/features/settings/shared/use-settin
 import { SettingsPageHeader } from "@/features/settings/shared/settings-page-header";
 import { useResetOnDeps } from "@/hooks/use-reset-on-change";
 import { canCreateStoreBranch, canDeleteStoreBranch, canEditStoreBranch, canEditBranchSettings, canEditBranchSettingsRow } from "@/lib/permissions";
+import { canConfigureTrialStorePermissions, trialStorePermissionsRoute } from "@/lib/trial-store-permissions";
 import type { UrlPaginationState } from "@/lib/url-pagination";
 import type { Branch, BranchManagementStoreOptions, FetchBranchesParams, SaveBranchInput } from "@/services/branch";
 import type { FetchStoresParams, SaveStoreInput, Store } from "@/services/store";
@@ -33,6 +35,7 @@ import {
   buildBranchPayload,
   branchCatalogSourceOptions,
   buildStorePayload,
+  isStoreTest,
   missingBranchField,
   missingStoreField,
   normalizeStoreReportSummary,
@@ -291,21 +294,31 @@ function StoreSettingsPage({ initialPagination }: { initialPagination: UrlPagina
     const id = storeBranchId(row, "store");
     const isCurrent = id === activeId;
     return (
-      <SettingsRowActions
-        row={row}
-        editDisabled={!canEdit || saving}
-        deleteDisabled={!canDelete || isCurrent || saving}
-        actions={[
-          {
-            label: labels.resetPassword,
-            icon: <KeyRound aria-hidden />,
-            disabled: !canEdit || saving,
-            onSelect: (nextRow) => void handleResetPassword(nextRow as Store)
-          }
-        ]}
-        onEdit={(nextRow) => openEdit(nextRow as Store)}
-        onDelete={(nextRow) => setDeleteTarget(nextRow as Store)}
-      />
+      <div className="flex items-center justify-end gap-1">
+        {id && canConfigureTrialStorePermissions(user) && isStoreTest(row) ? (
+          <Button asChild variant="outline" className="h-auto min-h-11 whitespace-normal font-lao">
+            <Link href={trialStorePermissionsRoute(id)}>
+              <ShieldCheck aria-hidden data-icon="inline-start" />
+              {t("storePermissions.configureTrial")}
+            </Link>
+          </Button>
+        ) : null}
+        <SettingsRowActions
+          row={row}
+          editDisabled={!canEdit || saving}
+          deleteDisabled={!canDelete || isCurrent || saving}
+          actions={[
+            {
+              label: labels.resetPassword,
+              icon: <KeyRound aria-hidden />,
+              disabled: !canEdit || saving,
+              onSelect: (nextRow) => void handleResetPassword(nextRow as Store)
+            }
+          ]}
+          onEdit={(nextRow) => openEdit(nextRow as Store)}
+          onDelete={(nextRow) => setDeleteTarget(nextRow as Store)}
+        />
+      </div>
     );
   }
 

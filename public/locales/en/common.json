@@ -1426,6 +1426,12 @@
     "wine": "Wine"
   },
   "storePermissions": {
+    "configureTrial": "Configure demo menus",
+    "trialTitle": "Demo store menu visibility",
+    "trialHint": "Select only the menus visitors should see in this demo store, then save. These settings apply to the public trial account.",
+    "trialRoleHint": "The public trial uses {{role}}. Switch to this account to configure the menus visitors see.",
+    "trialUnavailable": "Demo permission settings unavailable",
+    "trialUnavailableHint": "This demo store or its trial account is not available in your permitted options. Choose a store from Manage Access Permissions or refresh the list.",
     "access": "Access",
     "assignmentHint": "Tick the submenus this store and role should be allowed to see.",
     "assignmentTitle": "Menu access",
