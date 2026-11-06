@@ -18,6 +18,7 @@ interface SidebarMenuState {
   requestKey: string;
   clearActive: () => void;
   load: (companyUuid: string, roleId: number, lang?: string) => Promise<void>;
+  refreshPolicy: (companyUuid: string, roleId: number) => Promise<void>;
   reset: () => void;
 }
 
@@ -52,6 +53,7 @@ const initialState = {
 };
 
 let requestId = 0;
+let pendingRequest: { id: number; key: string; promise: Promise<void> } | null = null;
 
 export const usePermissionsSidebarStore = create<SidebarMenuState>()(
   persist(
@@ -59,39 +61,63 @@ export const usePermissionsSidebarStore = create<SidebarMenuState>()(
       ...initialState,
       clearActive: () => {
         requestId += 1;
+        pendingRequest = null;
         set({ error: null, items: [], loading: false, requestKey: "" });
       },
-      load: async (companyUuid, roleId, lang) => {
+      load: (companyUuid, roleId, lang) => {
+        const requestKey = sidebarMenuCacheKey(companyUuid, roleId, lang);
+        if (pendingRequest?.key === requestKey && get().loading) return pendingRequest.promise;
         const currentRequestId = ++requestId;
         const isCurrentSession = createSessionGuard();
-        const requestKey = sidebarMenuCacheKey(companyUuid, roleId, lang);
-        const cachedItems = get().cache[requestKey] ?? [];
-        set({ error: null, items: cachedItems, loading: true, requestKey });
+        // Keep an already verified menu during background refreshes. A restored
+        // cache or different scope must be checked against the API first.
+        const currentItems = get().requestKey === requestKey ? get().items : [];
+        set({ error: null, items: currentItems, loading: true, requestKey });
 
-        try {
-          const items = await fetchSidebarPermissionMenu({ companyUuid, lang, roleId });
-          if (currentRequestId === requestId && isCurrentSession()) {
-            set((state) => ({
-              cache: { ...state.cache, [requestKey]: items },
-              error: null,
-              items,
-              loading: false,
-              requestKey
-            }));
+        const promise = (async () => {
+          try {
+            const items = await fetchSidebarPermissionMenu({ companyUuid, lang, roleId });
+            if (currentRequestId === requestId && isCurrentSession()) {
+              set((state) => ({
+                cache: { ...state.cache, [requestKey]: items },
+                error: null,
+                items,
+                loading: false,
+                requestKey
+              }));
+            }
+          } catch (error) {
+            if (currentRequestId === requestId && isCurrentSession()) {
+              set((state) => ({
+                cache: Object.fromEntries(Object.entries(state.cache).filter(([key]) => key !== requestKey)),
+                error: errorMessage(error),
+                items: [],
+                loading: false,
+                requestKey
+              }));
+            }
+          } finally {
+            if (pendingRequest?.id === currentRequestId) pendingRequest = null;
           }
-        } catch (error) {
-          if (currentRequestId === requestId && isCurrentSession()) {
-            set({
-              error: errorMessage(error),
-              items: get().cache[requestKey] ?? [],
-              loading: false,
-              requestKey
-            });
-          }
-        }
+        })();
+        pendingRequest = { id: currentRequestId, key: requestKey, promise };
+        return promise;
+      },
+      refreshPolicy: async (companyUuid, roleId) => {
+        const prefix = `${companyUuid.trim()}:${Number(roleId)}:`;
+        const activeKey = get().requestKey;
+        set((state) => ({
+          cache: Object.fromEntries(Object.entries(state.cache).filter(([key]) => !key.startsWith(prefix)))
+        }));
+        if (!activeKey.startsWith(prefix)) return;
+        requestId += 1;
+        pendingRequest = null;
+        set({ error: null, items: [] });
+        await get().load(companyUuid, roleId, activeKey.slice(prefix.length));
       },
       reset: () => {
         requestId += 1;
+        pendingRequest = null;
         set(initialState);
       }
     }),

@@ -19,6 +19,8 @@ import { canConfigureTrialStorePermissions, resolveTrialPermissionContext, TRIAL
 import type { StorePermissionRoleTree, StorePermissionTree } from "@/services/permissions/access";
 import { useAuthStore } from "@/stores/auth-store";
 import { usePermissionsAccessStore } from "@/stores/permissions-access-store";
+import { usePermissionsSidebarStore } from "@/stores/permissions-sidebar-store";
+import { createSessionGuard } from "@/stores/session-store-registry";
 import { useToastStore } from "@/stores/toast-store";
 import {
   menuSubmenus,
@@ -152,7 +154,9 @@ export function StorePermissionsPage({ initialTrialContext }: StorePermissionsPa
   const canClearAll = Boolean(selectedCount) && !saving && !loading;
   const canToggleGroups = Boolean(visibleMenuIds.length) && !searchActive;
   const canReset = dirty && !saving && !loading;
-  const canSave = Boolean(selectedStoreUuid && selectedRoleId && tree && dirty) && !saving && !loading;
+  const canSave = Boolean(selectedStoreUuid && selectedRoleId && dirty
+    && tree?.company_uuid_fk === selectedStoreUuid
+    && tree.roles.some((role) => role.role_id === selectedRoleId)) && !saving && !loading;
 
   const loadPermissionOptions = useCallback(() => {
     const requestId = ++optionsRequestId.current;
@@ -256,10 +260,19 @@ export function StorePermissionsPage({ initialTrialContext }: StorePermissionsPa
 
   async function save() {
     if (!canSave) return;
+    const isCurrentSession = createSessionGuard();
+    const isCurrentSave = () => {
+      const state = usePermissionsAccessStore.getState();
+      return isCurrentSession() && state.selectedStoreUuid === selectedStoreUuid && state.selectedRoleId === selectedRoleId;
+    };
     try {
-      await savePermissions(userStatus, language);
+      const verified = await savePermissions(userStatus, language);
+      if (!verified || !isCurrentSave() || usePermissionsAccessStore.getState().dirty) return;
+      if (selectedRoleId) await usePermissionsSidebarStore.getState().refreshPolicy(selectedStoreUuid, selectedRoleId);
+      if (!isCurrentSave()) return;
       showToast({ title: t("storePermissions.saved"), tone: "success" });
     } catch (error) {
+      if (!isCurrentSave()) return;
       showToast({
         description: error instanceof Error ? error.message : t("toasts.pleaseTryAgain"),
         title: t("storePermissions.saveFailed"),

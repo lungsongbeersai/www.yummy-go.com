@@ -9,7 +9,8 @@ import { AppShellSkeleton } from "@/components/layout/web/app-shell-skeleton";
 import { isCapacitorNativeApp } from "@/lib/capacitor-platform";
 import { internalRoute } from "@/lib/routes";
 import { useIsCapacitorNativeApp } from "@/hooks/use-capacitor-native-app";
-import { useAuthStore } from "@/stores/auth-store";
+import { authStoreUuid, useAuthStore } from "@/stores/auth-store";
+import { usePermissionsSidebarStore } from "@/stores/permissions-sidebar-store";
 
 export function unauthenticatedEntryPath(pathname: string, nativeApp: boolean, contractExpired = false) {
   if (contractExpired) return "/subscription-expired";
@@ -18,7 +19,7 @@ export function unauthenticatedEntryPath(pathname: string, nativeApp: boolean, c
 }
 
 export function AuthGuard({ children }: { children: React.ReactNode }) {
-  const { t } = useTranslation();
+  const { i18n, t } = useTranslation();
   const router = useRouter();
   const pathname = usePathname();
   const hydrated = useAuthStore((state) => state.hydrated);
@@ -61,7 +62,11 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
     if (!hydrated || !isLoggedIn || !token || validatedToken !== token) return;
 
     const checkSession = () => {
-      void validateSession().catch(() => false);
+      void validateSession().then((valid) => {
+        const current = useAuthStore.getState();
+        if (!valid || current.token !== token || !current.isLoggedIn || !current.user) return;
+        return usePermissionsSidebarStore.getState().load(authStoreUuid(current.user), current.user.status, i18n.language);
+      }).catch(() => false);
     };
     const checkVisibleSession = () => {
       if (document.visibilityState === "visible") checkSession();
@@ -69,14 +74,14 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
 
     window.addEventListener("focus", checkSession);
     document.addEventListener("visibilitychange", checkVisibleSession);
-    const interval = window.setInterval(checkSession, 30_000);
+    const interval = window.setInterval(checkVisibleSession, 30_000);
 
     return () => {
       window.clearInterval(interval);
       window.removeEventListener("focus", checkSession);
       document.removeEventListener("visibilitychange", checkVisibleSession);
     };
-  }, [hydrated, isLoggedIn, token, validateSession, validatedToken]);
+  }, [hydrated, i18n.language, isLoggedIn, token, validateSession, validatedToken]);
 
   const validatingSession = hydrated && isLoggedIn && Boolean(token) && validatedToken !== token;
 

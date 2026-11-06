@@ -45,7 +45,7 @@ interface StorePermissionsState {
   save: (
     viewerRoleId: number,
     lang?: string
-  ) => Promise<void>;
+  ) => Promise<boolean>;
   clearAllSubmenus: () => void;
   selectAllSubmenus: () => void;
   setRole: (roleId: number) => void;
@@ -117,6 +117,10 @@ function roleSubmenuIds(
   );
 }
 
+let treeRequestId = 0;
+let saveRequestId = 0;
+const SAVE_VERIFICATION_MESSAGE = "The server returned different menu permissions after saving. Your selections have been kept.";
+
 export const usePermissionsAccessStore =
   create<StorePermissionsState>((set, get) => ({
     checkedSubIds: [],
@@ -174,13 +178,21 @@ export const usePermissionsAccessStore =
           selectedStoreUuid !== currentStore ||
           selectedRoleId !== currentRole;
 
+        if (selectionChanged) {
+          treeRequestId += 1;
+          saveRequestId += 1;
+        }
+
         set({
           ...(selectionChanged
             ? {
                 checkedSubIds: [],
                 dirty: false,
+                loadingSaved: false,
+                loadingTree: false,
                 savedCheckedSubIds: [],
                 savedList: null,
+                saving: false,
                 tree: null
               }
             : {}),
@@ -203,11 +215,17 @@ export const usePermissionsAccessStore =
     },
 
     loadTree: async (viewerRoleId, lang) => {
+      const requestId = ++treeRequestId;
       const isCurrentSession = createSessionGuard();
       const {
         selectedRoleId,
         selectedStoreUuid
       } = get();
+      const isCurrentRequest = () =>
+        requestId === treeRequestId &&
+        isCurrentSession() &&
+        get().selectedStoreUuid === selectedStoreUuid &&
+        get().selectedRoleId === selectedRoleId;
 
       if (
         !selectedStoreUuid ||
@@ -216,6 +234,8 @@ export const usePermissionsAccessStore =
         set({
           checkedSubIds: [],
           dirty: false,
+          loadingSaved: false,
+          loadingTree: false,
           savedCheckedSubIds: [],
           savedList: null,
           tree: null
@@ -244,7 +264,7 @@ export const usePermissionsAccessStore =
             )
           ]);
 
-        if (!isCurrentSession()) return;
+        if (!isCurrentRequest()) return;
 
         const savedCheckedSubIds =
           checkedSubmenuIds(tree);
@@ -260,19 +280,19 @@ export const usePermissionsAccessStore =
           tree
         });
       } catch (error) {
-        if (isCurrentSession()) {
-          set({
-            error: errorMessage(error),
-            loadingSaved: false,
-            loadingTree: false
-          });
-        }
-
+        if (!isCurrentRequest()) return;
+        set({
+          error: errorMessage(error),
+          loadingSaved: false,
+          loadingTree: false
+        });
         throw error;
       }
     },
 
-    reset: () =>
+    reset: () => {
+      treeRequestId += 1;
+      saveRequestId += 1;
       set({
         checkedSubIds: [],
         dirty: false,
@@ -288,7 +308,8 @@ export const usePermissionsAccessStore =
         selectedStoreUuid: "",
         stores: [],
         tree: null
-      }),
+      });
+    },
 
     resetChanges: () =>
       set((state) => ({
@@ -304,17 +325,36 @@ export const usePermissionsAccessStore =
       const {
         checkedSubIds,
         dirty,
+        loadingSaved,
+        loadingTree,
         selectedRoleId,
-        selectedStoreUuid
+        selectedStoreUuid,
+        saving,
+        tree
       } = get();
 
       if (
         !selectedStoreUuid ||
         !selectedRoleId ||
-        !dirty
+        !dirty ||
+        loadingSaved ||
+        loadingTree ||
+        saving ||
+        !tree ||
+        tree.company_uuid_fk !== selectedStoreUuid ||
+        !tree.roles.some((role) => role.role_id === selectedRoleId)
       ) {
-        return;
+        return false;
       }
+
+      const currentSaveRequestId = ++saveRequestId;
+      let currentTreeRequestId = ++treeRequestId;
+      let saved = false;
+      const isCurrentSave = () =>
+        currentSaveRequestId === saveRequestId &&
+        isCurrentSession() &&
+        get().selectedStoreUuid === selectedStoreUuid &&
+        get().selectedRoleId === selectedRoleId;
 
       set({
         error: null,
@@ -329,7 +369,13 @@ export const usePermissionsAccessStore =
           sub_id_list: checkedSubIds
         });
 
-        const [tree, savedList] =
+        saved = true;
+        if (!isCurrentSave()) return false;
+
+        // Reads started before the write completed may still contain the old policy.
+        currentTreeRequestId = ++treeRequestId;
+        set({ error: null, loadingSaved: true, loadingTree: true });
+        const [savedTree, savedList] =
           await Promise.all([
             fetchStorePermissionTree(
               selectedStoreUuid,
@@ -343,28 +389,54 @@ export const usePermissionsAccessStore =
             )
           ]);
 
-        if (!isCurrentSession()) return;
+        if (!isCurrentSave()) return false;
+        if (currentTreeRequestId !== treeRequestId) {
+          set({ saving: false });
+          return false;
+        }
 
+        if (!savedTree || savedTree.company_uuid_fk !== selectedStoreUuid ||
+          !savedTree.roles.some((role) => role.role_id === selectedRoleId)) {
+          throw new Error(SAVE_VERIFICATION_MESSAGE);
+        }
         const savedCheckedSubIds =
-          checkedSubmenuIds(tree);
+          checkedSubmenuIds(savedTree);
+
+        if (!sameIds(checkedSubIds, savedCheckedSubIds)) {
+          set({
+            checkedSubIds: [...checkedSubIds],
+            dirty: true,
+            savedCheckedSubIds,
+            savedList,
+            tree: savedTree
+          });
+          throw new Error(SAVE_VERIFICATION_MESSAGE);
+        }
 
         set({
           checkedSubIds:
             savedCheckedSubIds,
           dirty: false,
+          loadingSaved: false,
+          loadingTree: false,
           savedCheckedSubIds,
           savedList,
           saving: false,
-          tree
+          tree: savedTree
         });
+        return true;
       } catch (error) {
-        if (isCurrentSession()) {
-          set({
+        if (!isCurrentSave()) return false;
+        const ownsTree = currentTreeRequestId === treeRequestId;
+        set({
+          ...(ownsTree ? {
             error: errorMessage(error),
-            saving: false
-          });
-        }
-
+            loadingSaved: false,
+            loadingTree: false
+          } : {}),
+          saving: false
+        });
+        if (saved && !ownsTree) return false;
         throw error;
       }
     },
@@ -395,24 +467,38 @@ export const usePermissionsAccessStore =
         };
       }),
 
-    setRole: (roleId) =>
+    setRole: (roleId) => {
+      treeRequestId += 1;
+      saveRequestId += 1;
       set({
         checkedSubIds: [],
         dirty: false,
+        error: null,
+        loadingSaved: false,
+        loadingTree: false,
         savedCheckedSubIds: [],
         selectedRoleId: roleId,
+        saving: false,
         tree: null
-      }),
+      });
+    },
 
-    setStore: (storeUuid) =>
+    setStore: (storeUuid) => {
+      treeRequestId += 1;
+      saveRequestId += 1;
       set({
         checkedSubIds: [],
         dirty: false,
+        error: null,
+        loadingSaved: false,
+        loadingTree: false,
         savedCheckedSubIds: [],
         savedList: null,
         selectedStoreUuid: storeUuid,
+        saving: false,
         tree: null
-      }),
+      });
+    },
 
     toggleMenu: (menuId, checked) =>
       set((state) => {
