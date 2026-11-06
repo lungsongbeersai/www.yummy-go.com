@@ -71,14 +71,14 @@ export function LoginTrialStores() {
   }
 
   return (
-    <Card className="min-h-0 min-w-0 gap-0 rounded-none bg-muted/30 py-0 shadow-none ring-0 lg:absolute lg:inset-0" aria-labelledby="login-trial-title">
-      <CardHeader className="shrink-0 gap-2 rounded-none border-b p-4">
-        <div className="flex items-center gap-2">
-          <span className="flex size-7 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
-            <FlaskConical aria-hidden className="size-3.5" />
+    <Card className="min-h-0 min-w-0 gap-0 rounded-none bg-muted/25 py-0 shadow-none ring-0 lg:absolute lg:inset-0" aria-labelledby="login-trial-title">
+      <CardHeader className="shrink-0 gap-3 rounded-none border-b border-border/60 p-5">
+        <div className="flex items-center gap-2.5">
+          <span className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-card text-primary shadow-sm ring-1 ring-border/60">
+            <FlaskConical aria-hidden className="size-4" />
           </span>
           <CardTitle id="login-trial-title" role="heading" aria-level={2} className="min-w-0 flex-1 font-lao text-sm font-semibold">{t("auth.trial.title")}</CardTitle>
-          <Badge variant="outline" className="border-primary/15 bg-primary/5 font-lao text-primary">{t("auth.trial.label")}</Badge>
+          <Badge variant="outline" className="shrink-0 border-primary/15 bg-primary/5 font-lao text-primary">{t("auth.trial.label")}</Badge>
         </div>
         <CardDescription id="login-trial-description" className="font-lao text-xs leading-relaxed">{t("auth.trial.description")}</CardDescription>
       </CardHeader>
@@ -90,14 +90,14 @@ export function LoginTrialStores() {
         aria-labelledby="login-trial-title"
         aria-describedby="login-trial-description"
         onKeyDown={onKeyDown}
-        className="min-h-0 snap-x snap-mandatory overflow-x-auto overflow-y-hidden overscroll-x-contain scroll-px-3 p-2 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring max-lg:no-scrollbar lg:flex-1 lg:snap-none lg:overflow-x-hidden lg:overflow-y-auto lg:overscroll-y-contain lg:scroll-px-0"
+        className="min-h-0 snap-x snap-mandatory overflow-x-auto overflow-y-hidden overscroll-x-contain scroll-px-4 p-3 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring max-lg:no-scrollbar lg:flex-1 lg:snap-none lg:overflow-x-hidden lg:overflow-y-auto lg:overscroll-y-contain lg:scroll-px-0"
       >
         {!hydrated || listLoading ? (
-          <div className="grid grid-flow-col auto-cols-[calc(100%_-_1.5rem)] gap-1 p-1 lg:grid-flow-row lg:auto-cols-auto" aria-busy="true" aria-label={t("auth.trial.loading")}>
-            {[0, 1, 2].map((index) => <Skeleton key={index} className="h-16 rounded-lg" />)}
+          <div className="grid grid-flow-col auto-cols-[calc(100%_-_1.5rem)] gap-2 p-1 lg:grid-flow-row lg:auto-cols-auto" aria-busy="true" aria-label={t("auth.trial.loading")}>
+            {[0, 1, 2].map((index) => <Skeleton key={index} className="h-18 rounded-xl" />)}
           </div>
         ) : listError ? (
-          <Alert>
+          <Alert className="rounded-xl border-border/60 bg-card shadow-sm">
             <AlertTitle>{t("auth.trial.loadFailed")}</AlertTitle>
             <AlertDescription className="flex flex-wrap items-center justify-between gap-3">
               <span>{t("auth.trial.loadFailedHint")}</span>
@@ -105,7 +105,7 @@ export function LoginTrialStores() {
             </AlertDescription>
           </Alert>
         ) : stores.length === 0 ? (
-          <Empty className="border">
+          <Empty className="rounded-xl border border-border/60 bg-card/80 px-4 py-6">
             <EmptyHeader>
               <EmptyMedia variant="icon"><FlaskConical aria-hidden /></EmptyMedia>
               <EmptyTitle>{t("auth.trial.empty")}</EmptyTitle>
@@ -113,7 +113,7 @@ export function LoginTrialStores() {
             </EmptyHeader>
           </Empty>
         ) : (
-          <div className={cn("grid grid-flow-col auto-rows-fr gap-1 p-1 lg:auto-rows-auto lg:grid-flow-row lg:auto-cols-auto", stores.length > 1 ? "auto-cols-[calc(100%_-_1.5rem)]" : "auto-cols-fr")}>
+          <div className={cn("grid grid-flow-col auto-rows-fr gap-2 p-1 lg:auto-rows-auto lg:grid-flow-row lg:auto-cols-auto", stores.length > 1 ? "auto-cols-[calc(100%_-_1.5rem)]" : "auto-cols-fr")}>
             {stores.map((store) => {
               const Icon = categoryIcons[store.store_category];
               const name = (i18n.language.startsWith("en") ? store.store_name_eng : store.store_name_la)
@@ -125,21 +125,24 @@ export function LoginTrialStores() {
                   data-trial-slide=""
                   type="button"
                   variant="ghost"
-                  className="group/trial h-auto min-h-16 min-w-0 w-full snap-start justify-start gap-2.5 rounded-lg border-border/50 bg-background/70 px-2.5 py-2.5 text-left whitespace-normal transition-[background-color,border-color,box-shadow] duration-200 hover:border-primary/25 hover:bg-primary/5 hover:shadow-sm focus-visible:border-primary/40 focus-visible:bg-primary/5 focus-visible:ring-primary/20 active:not-aria-[haspopup]:translate-y-0 motion-reduce:transition-none"
+                  className={cn(
+                    "group/trial h-auto min-h-18 min-w-0 w-full snap-start justify-start gap-3 rounded-xl border-border/60 bg-card px-3 py-3 text-left whitespace-normal shadow-sm transition-[background-color,border-color,box-shadow] duration-200 hover:border-primary/30 hover:bg-primary/5 hover:shadow-md hover:shadow-primary/5 focus-visible:border-primary/40 focus-visible:bg-primary/5 focus-visible:ring-primary/20 active:not-aria-[haspopup]:translate-y-0 motion-reduce:transition-none",
+                    entering && "border-primary/40 bg-primary/5 ring-1 ring-primary/10 disabled:opacity-100",
+                  )}
                   disabled={!hydrated || authLoading || isLoggedIn}
                   aria-label={t("auth.trial.enterStore", { name })}
                   aria-busy={entering}
                   onClick={() => void tryStore(store.store_uuid)}
                 >
-                  <Avatar className={cn("ring-4", categoryTones[store.store_category])}>
+                  <Avatar className={cn("size-9 ring-3", categoryTones[store.store_category])}>
                     {store.store_logo ? <AvatarImage src={getStoreLogoUrl(store.store_logo)} alt="" /> : null}
                     <AvatarFallback className="bg-transparent text-current"><Icon aria-hidden className="size-4" /></AvatarFallback>
                   </Avatar>
                   <span className="flex min-w-0 flex-1 flex-col gap-0.5 font-lao">
-                    <span title={name} className="line-clamp-2 break-words text-xs leading-relaxed font-semibold">{name}</span>
+                    <span title={name} className="line-clamp-2 break-words text-sm leading-relaxed font-semibold">{name}</span>
                     <span aria-live="polite" className="text-xs leading-relaxed font-normal text-muted-foreground">{entering ? t("auth.signingIn") : t(`settings.storeBranch.categories.${store.store_category}`)}</span>
                   </span>
-                  <span className="flex size-7 shrink-0 items-center justify-center rounded-md bg-primary/5 text-primary transition-colors duration-200 group-hover/trial:bg-primary/10 group-focus-visible/trial:bg-primary/10 motion-reduce:transition-none">
+                  <span className={cn("flex size-7 shrink-0 items-center justify-center rounded-lg bg-muted/60 text-muted-foreground transition-colors duration-200 group-hover/trial:bg-primary/10 group-hover/trial:text-primary group-focus-visible/trial:bg-primary/10 group-focus-visible/trial:text-primary motion-reduce:transition-none", entering && "bg-primary/10 text-primary")}>
                     {entering ? <Spinner aria-hidden className="size-3.5 motion-reduce:animate-none" /> : <ArrowRight aria-hidden className="size-3.5 motion-safe:transition-transform motion-safe:duration-200 motion-safe:group-hover/trial:translate-x-0.5 motion-safe:group-focus-visible/trial:translate-x-0.5" />}
                   </span>
                 </Button>
@@ -148,7 +151,7 @@ export function LoginTrialStores() {
           </div>
         )}
       </CardContent>
-      <CardFooter className="shrink-0 flex-col items-stretch gap-2 rounded-none border-t px-4 py-3 font-lao text-xs text-muted-foreground">
+      <CardFooter className="shrink-0 flex-col items-stretch gap-3 rounded-none border-t border-border/60 px-4 py-4 font-lao text-xs text-muted-foreground">
         {listReady && stores.length > 1 ? (
           <div role="group" aria-label={t("auth.trial.carousel")} className="flex items-center justify-between gap-3 lg:hidden">
             <Button
@@ -181,7 +184,7 @@ export function LoginTrialStores() {
             </Button>
           </div>
         ) : null}
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 rounded-lg bg-card/80 px-3 py-2.5 ring-1 ring-border/60">
           <UsersRound aria-hidden className="size-3.5 shrink-0" />
           <span>{t("auth.trial.sharedData")}</span>
         </div>
