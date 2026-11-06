@@ -23,7 +23,7 @@ import { formatClock } from "./utils";
 import { useTableAlerts } from "./hooks/use-table-alerts";
 import { SimulatorLauncher } from "@/features/simulator/simulator-launcher";
 
-const headerIconButtonClass = "relative size-[40px] rounded-full border border-primary-foreground/20 bg-primary-foreground/10 px-0 text-primary-foreground shadow-sm backdrop-blur-sm hover:bg-primary-foreground/20 hover:text-primary-foreground dark:border-white/20 dark:bg-white/10 dark:text-white dark:hover:bg-white/20 dark:hover:text-white";
+const headerIconButtonClass = "relative size-10 rounded-full px-0";
 
 export function TableSelectionPage() {
   const { t } = useTranslation();
@@ -137,7 +137,7 @@ export function TableSelectionPage() {
         {/* Keep these three children for Swan's grid fallback. Tool groups wrap
             within the right track so the centered clock never overlaps them. */}
         <header data-pos-table-header="true" className="relative grid min-h-18 shrink-0 grid-cols-[auto_minmax(0,1fr)] items-center gap-x-2 gap-y-2 overflow-hidden px-2 pb-2 pt-[calc(0.5rem+env(safe-area-inset-top,0px))] text-primary-foreground shadow-sm sm:px-4 md:min-h-20 md:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)]">
-          <Button aria-label={t("actions.back")} className={cn(headerIconButtonClass, "col-start-1 row-start-1 justify-self-start")} size="icon" type="button" variant="ghost" onClick={() => router.replace("/")}>
+          <Button aria-label={t("actions.back")} className={cn(headerIconButtonClass, "col-start-1 row-start-1 justify-self-start")} size="icon" type="button" variant="header" onClick={() => router.replace("/")}>
             <ChevronLeft />
           </Button>
           <TableClock />
@@ -147,10 +147,10 @@ export function TableSelectionPage() {
               <SimulatorLauncher />
             </div>
             <div className="flex shrink-0 items-center gap-1 sm:gap-1.5">
-              <NotificationMenu triggerClassName={headerIconButtonClass} triggerVariant="ghost" />
-              <LanguageSwitch className={cn(headerIconButtonClass, "hidden min-[500px]:inline-flex")} compact size="icon" variant="ghost" />
-              <ThemeToggle className={headerIconButtonClass} size="icon" variant="ghost" />
-              <Button aria-label={t("actions.refresh")} className={headerIconButtonClass} size="icon" type="button" variant="ghost" onClick={() => void load()}>
+              <NotificationMenu triggerClassName={headerIconButtonClass} triggerVariant="header" />
+              <LanguageSwitch className={cn(headerIconButtonClass, "hidden min-[500px]:inline-flex")} compact size="icon" variant="header" />
+              <ThemeToggle className={headerIconButtonClass} size="icon" variant="header" />
+              <Button aria-label={t("actions.refresh")} className={headerIconButtonClass} size="icon" type="button" variant="header" onClick={() => void load()}>
                 <RefreshCcw />
               </Button>
             </div>

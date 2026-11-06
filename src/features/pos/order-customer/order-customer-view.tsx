@@ -46,21 +46,7 @@ import type { OrderCustomerWorkflow } from "./use-order-customer-workflow";
 // Its own state/store subscriptions still update this panel independently.
 const OrderCartPanel = memo(SelectedTableCartPanel);
 
-// สี white/black แบบ glass เดิมออกแบบไว้สำหรับพื้นหลังรูปภาพโหมดสว่างเท่านั้น (bg_wide.webp)
-// โหมดมืดไม่มีรูปพื้นหลัง (dark:bg-none dark:bg-background) เลยเหลือแต่กระจกใสซ้อนพื้นเข้ม
-// เกือบดำ มองแทบไม่เห็นขอบ/พื้นปุ่ม จึงต้องมี dark: ทับด้วย token การ์ดปกติของแอป
-// Capacitor (neutral) ใช้ token การ์ดแบบเดียวกันนี้ตรง ๆ เสมอ ไม่ผูกกับ dark: เพราะพื้นหลัง
-// เป็น bg-background ธรรมดา (ไม่มีรูป) ทั้งสองโหมดอยู่แล้ว — ดู nativeShellActive ด้านล่าง
-function headerIconButtonClass(neutral: boolean, onPrimary = false) {
-  return cn(
-    "size-11 shrink-0 rounded-full border shadow-sm",
-    onPrimary
-      ? "border-primary-foreground/35 bg-primary-foreground/10 text-primary-foreground hover:bg-primary-foreground/20 hover:text-primary-foreground"
-      : neutral
-      ? "border-primary/20 bg-card text-primary-text hover:bg-primary/10 hover:text-primary-text"
-      : "border-white/25 bg-white/15 text-white hover:bg-white/25 hover:text-white dark:border-border dark:bg-card dark:text-foreground dark:hover:bg-accent dark:hover:text-foreground"
-  );
-}
+const headerIconButtonClass = "size-11 shrink-0 rounded-full";
 
 export function OrderCustomerView({
   workflow,
@@ -234,10 +220,10 @@ export function OrderCustomerView({
               >
                 <Button
                   type="button"
-                  variant="ghost"
+                  variant="header"
                   size="icon"
                   aria-label={t("actions.back")}
-                  className={headerIconButtonClass(true, true)}
+                  className={headerIconButtonClass}
                   onClick={() => void openTablesPage()}
                 >
                   <ArrowLeft data-icon="inline-start" />
@@ -265,8 +251,6 @@ export function OrderCustomerView({
 
                 <EmployeeMobileHeaderActions
                   loading={loadingTables || loadingMenu}
-                  neutral
-                  onPrimary
                   onRefresh={() => void refreshAll()}
                 />
               </div>
@@ -302,10 +286,10 @@ export function OrderCustomerView({
                 {!nativeShellActive ? (
                   <Button
                     type="button"
-                    variant="ghost"
+                    variant="header"
                     size="icon"
                     aria-label={t("actions.back")}
-                    className="size-11 shrink-0 rounded-full bg-white/15 text-white shadow-sm hover:bg-white/25 hover:text-white dark:bg-card dark:text-foreground dark:hover:bg-accent dark:hover:text-foreground"
+                    className={headerIconButtonClass}
                     onClick={() => void openTablesPage()}
                   >
                     <ArrowLeft data-icon="inline-start" />
@@ -349,10 +333,10 @@ export function OrderCustomerView({
               {!nativeShellActive ? (
                 <Button
                   type="button"
-                  variant="ghost"
+                  variant="header"
                   size="icon"
                   aria-label={t("actions.back")}
-                  className={headerIconButtonClass(nativeShellActive)}
+                  className={headerIconButtonClass}
                   onClick={() => void openTablesPage()}
                 >
                   <ArrowLeft data-icon="inline-start" />
@@ -387,22 +371,22 @@ export function OrderCustomerView({
                     ที่ว่างพอ */}
                   <div className="hidden items-center gap-2 xl:flex">
                     <LanguageSwitch
-                      className={headerIconButtonClass(nativeShellActive)}
+                      className={headerIconButtonClass}
                       compact
                       size="icon"
-                      variant="ghost"
+                      variant="header"
                     />
                     <ThemeToggle
-                      className={headerIconButtonClass(nativeShellActive)}
+                      className={headerIconButtonClass}
                       size="icon"
-                      variant="ghost"
+                      variant="header"
                     />
                     <Button
                       type="button"
-                      variant="ghost"
+                      variant="header"
                       size="icon"
                       aria-label={t("actions.refresh")}
-                      className={headerIconButtonClass(nativeShellActive)}
+                      className={headerIconButtonClass}
                       disabled={loadingTables || loadingMenu}
                       onClick={() => void refreshAll()}
                     >
@@ -416,7 +400,6 @@ export function OrderCustomerView({
                   <div className="xl:hidden">
                     <EmployeeMobileHeaderActions
                       loading={loadingTables || loadingMenu}
-                      neutral={nativeShellActive}
                       onRefresh={() => void refreshAll()}
                     />
                   </div>

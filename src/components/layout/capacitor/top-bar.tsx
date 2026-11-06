@@ -273,13 +273,13 @@ function NativeProfileMenu({
             <span className="text-sm text-muted-foreground">
               {t("app.changeLanguage")}
             </span>
-            <LanguageSwitch compact size="icon" className="size-9" />
+            <LanguageSwitch compact size="icon" variant="header" className="size-9" />
           </div>
           <div className="flex items-center justify-between gap-2 px-2 py-1">
             <span className="text-sm text-muted-foreground">
               {t("app.theme")}
             </span>
-            <ThemeToggle variant="ghost" className="size-9" />
+            <ThemeToggle variant="header" className="size-9" />
           </div>
           <DropdownMenuSeparator />
           {/* onSelect เซ็ต state ตรง ๆ ไม่ต้อง preventDefault — DropdownMenu ปิดตัวเองแล้ว

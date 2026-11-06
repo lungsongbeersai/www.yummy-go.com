@@ -192,13 +192,9 @@ export function EmployeeSearchForm({
 
 export function EmployeeMobileHeaderActions({
   loading,
-  neutral = false,
-  onPrimary = false,
   onRefresh,
 }: {
   loading: boolean;
-  neutral?: boolean;
-  onPrimary?: boolean;
   onRefresh: () => void;
 }) {
   const { t } = useTranslation();
@@ -215,17 +211,10 @@ export function EmployeeMobileHeaderActions({
       <DropdownMenuTrigger asChild>
         <Button
           type="button"
-          variant="ghost"
+          variant="header"
           size="icon"
           aria-label={t("common.actions")}
-          className={cn(
-            "size-11 shrink-0 rounded-full border shadow-sm",
-            onPrimary
-              ? "border-primary-foreground/35 bg-primary-foreground/10 text-primary-foreground hover:bg-primary-foreground/20 hover:text-primary-foreground"
-              : neutral
-              ? "border-primary/20 bg-card text-primary-text hover:bg-primary/10 hover:text-primary-text"
-              : "border-white/25 bg-white/15 text-white hover:bg-white/25 hover:text-white dark:border-border dark:bg-card dark:text-foreground dark:hover:bg-accent dark:hover:text-foreground"
-          )}
+          className="size-11 shrink-0 rounded-full"
         >
           <MoreHorizontal data-icon="inline-start" />
         </Button>
