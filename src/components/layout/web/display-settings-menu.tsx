@@ -1,7 +1,7 @@
 "use client";
 
 import { useTranslation } from "react-i18next";
-import { Moon, Palette, Sun } from "lucide-react";
+import { Moon, Sun, SwatchBook } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { FieldLegend, FieldSet } from "@/components/ui/field";
 import {
@@ -19,6 +19,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { AppearanceControls } from "@/components/layout/appearance-controls";
+import { cn } from "@/lib/utils";
 import { useAppStore, type ThemeMode } from "@/stores/app-store";
 
 // One header entry point for theme and color preferences. Replaces the draggable
@@ -28,21 +29,32 @@ export function DisplaySettingsMenu({ className }: { className?: string }) {
   const { t } = useTranslation();
   const theme = useAppStore((state) => state.theme);
   const setTheme = useAppStore((state) => state.setTheme);
-  const label = t("app.appearance.openSettings");
+  const label = t("app.appearance.changeColor");
 
   return (
     <Popover>
       <Tooltip>
         <TooltipTrigger asChild>
           <PopoverTrigger asChild>
-            <Button variant="ghost" size="icon" aria-label={label} className={className}>
-              <Palette />
+            <Button
+              variant="ghost"
+              aria-label={label}
+              className={cn(
+                "size-11 px-0 font-lao text-sidebar-primary hover:text-sidebar-primary aria-expanded:text-sidebar-primary sm:h-9 sm:w-auto sm:px-3",
+                className,
+              )}
+            >
+              <SwatchBook />
+              <span className="hidden sm:inline">{label}</span>
             </Button>
           </PopoverTrigger>
         </TooltipTrigger>
         <TooltipContent side="bottom">{label}</TooltipContent>
       </Tooltip>
-      <PopoverContent align="end" className="w-72">
+      <PopoverContent
+        align="end"
+        className="max-h-(--radix-popover-content-available-height) w-72 max-w-[calc(100vw-2rem)] overflow-y-auto overscroll-contain"
+      >
         <PopoverHeader>
           <PopoverTitle>{t("app.appearance.title")}</PopoverTitle>
         </PopoverHeader>

@@ -227,11 +227,21 @@
     },
     "appearance": {
       "openSettings": "Appearance settings",
+      "changeColor": "Change color",
       "title": "Appearance",
       "colorLabel": "Accent color",
       "fontSizeLabel": "Text size",
       "backgroundLabel": "Background image",
-      "backgroundDescription": "Floral artwork behind the top bar and the menu",
+      "backgroundDescription": "Colors and patterns behind the top bar and the menu",
+      "backgroundColorLabel": "Background color",
+      "backgroundStyleLabel": "Background style",
+      "backgroundStyles": {
+        "floral": "Classic",
+        "leaves": "Leaves",
+        "waves": "Waves",
+        "geometric": "Geometric",
+        "dots": "Dots"
+      },
       "laoFontLabel": "Lao font",
       "laoFonts": {
         "noto-sans": "Noto Sans Lao (default)",

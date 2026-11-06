@@ -4,6 +4,14 @@ import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import { DEFAULT_LANGUAGE, type Language } from "@/lib/language";
 import {
+  normalizeDecorBackgroundPreferences,
+  THEME_COLORS,
+  type DecorBackgroundStyle,
+  type ThemeColor,
+} from "@/lib/appearance-preferences";
+export { DECOR_BACKGROUND_STYLES, THEME_COLORS } from "@/lib/appearance-preferences";
+export type { DecorBackgroundStyle, ThemeColor } from "@/lib/appearance-preferences";
+import {
   DEFAULT_ORDER_ALERT_SOUND,
   ALERT_SOUND_KINDS,
   DEFAULT_WAITER_ALERT_SOUND,
@@ -13,14 +21,12 @@ import {
 } from "@/lib/pos/order-alert-sounds";
 
 export type ThemeMode = "light" | "dark";
-export type ThemeColor = "emerald" | "blue" | "amber" | "rose" | "violet";
 export type FontScale = "sm" | "md" | "lg" | "xl";
 // ฟอนต์ภาษาลาวของ UI ทั้งแอป (globals.css html[data-lao-font] → --font-lao-ui)
 export type LaoFont = "noto-sans" | "noto-serif" | "phetsarath" | "saysettha";
 
 // แหล่งความจริงเดียวของค่าที่ใช้ได้ — UI ตั้งค่าหน้าตาทุกตัว (AppearanceControls) อ่านจากที่นี่
 // แทนการประกาศ array ซ้ำในแต่ละ component ซึ่งเคยหลุดออกจากกันมาแล้ว
-export const THEME_COLORS: readonly ThemeColor[] = ["emerald", "blue", "amber", "rose", "violet"];
 export const FONT_SCALES: readonly FontScale[] = ["sm", "md", "lg", "xl"];
 export const LAO_FONTS: readonly LaoFont[] = ["noto-sans", "noto-serif", "phetsarath", "saysettha"];
 
@@ -41,6 +47,8 @@ interface AppState {
   // ภาพพื้นหลังลายใบไม้ของแถบบนและเมนูข้าง (globals.css html[data-decor-background]) — ปิดได้สำหรับ
   // คนที่อยากได้หน้าตาเรียบ หรือเครื่องที่วาดภาพพื้นหลังช้า
   decorBackground: boolean;
+  decorBackgroundColor: ThemeColor;
+  decorBackgroundStyle: DecorBackgroundStyle;
   laoFont: LaoFont;
   language: Language;
   orderAlertSound: OrderAlertSoundId;
@@ -55,6 +63,8 @@ interface AppState {
   setThemeColor: (themeColor: ThemeColor) => void;
   setFontScale: (fontScale: FontScale) => void;
   setDecorBackground: (decorBackground: boolean) => void;
+  setDecorBackgroundColor: (decorBackgroundColor: ThemeColor) => void;
+  setDecorBackgroundStyle: (decorBackgroundStyle: DecorBackgroundStyle) => void;
   setLaoFont: (laoFont: LaoFont) => void;
   setLanguage: (language: Language) => void;
   setOrderAlertSound: (orderAlertSound: OrderAlertSoundId) => void;
@@ -73,6 +83,8 @@ export const useAppStore = create<AppState>()(
       themeColor: "emerald",
       fontScale: "md",
       decorBackground: true,
+      decorBackgroundColor: "emerald",
+      decorBackgroundStyle: "floral",
       laoFont: "noto-sans",
       language: DEFAULT_LANGUAGE,
       orderAlertSound: DEFAULT_ORDER_ALERT_SOUND,
@@ -86,6 +98,8 @@ export const useAppStore = create<AppState>()(
       setThemeColor: (themeColor) => set({ themeColor }),
       setFontScale: (fontScale) => set({ fontScale }),
       setDecorBackground: (decorBackground) => set({ decorBackground }),
+      setDecorBackgroundColor: (decorBackgroundColor) => set({ decorBackgroundColor }),
+      setDecorBackgroundStyle: (decorBackgroundStyle) => set({ decorBackgroundStyle }),
       setLaoFont: (laoFont) => set({ laoFont }),
       setLanguage: (language) => set({ language }),
       setOrderAlertSound: (orderAlertSound) => set({ orderAlertSound }),
@@ -112,17 +126,24 @@ export const useAppStore = create<AppState>()(
         return persistedState as AppState;
       },
       // waiterAlertSound/alertSoundEnabled ไม่ต้อง migrate — ผู้ใช้เดิมไม่มีค่านี้ persist จะ merge ค่าเริ่มต้นให้เอง
-      partialize: ({ theme, themeColor, fontScale, decorBackground, laoFont, language, orderAlertSound, waiterAlertSound, alertSoundEnabled, collapsed }) => ({
+      partialize: ({ theme, themeColor, fontScale, decorBackground, decorBackgroundColor, decorBackgroundStyle, laoFont, language, orderAlertSound, waiterAlertSound, alertSoundEnabled, collapsed }) => ({
         theme,
         themeColor,
         fontScale,
         decorBackground,
+        decorBackgroundColor,
+        decorBackgroundStyle,
         laoFont,
         language,
         orderAlertSound,
         waiterAlertSound,
         alertSoundEnabled,
         collapsed
+      }),
+      merge: (persistedState, currentState) => ({
+        ...currentState,
+        ...(persistedState && typeof persistedState === "object" ? persistedState : {}),
+        ...normalizeDecorBackgroundPreferences(persistedState),
       }),
       skipHydration: true,
       onRehydrateStorage: () => (state) => {

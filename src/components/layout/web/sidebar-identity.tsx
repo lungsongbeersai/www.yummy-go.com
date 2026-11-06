@@ -44,7 +44,7 @@ export function SidebarStoreHeader({ user }: { user: AuthUser | null }) {
               <AvatarFallback className="rounded-xl">{userInitials(user)}</AvatarFallback>
             </Avatar>
             <div className="grid flex-1 gap-0.5 text-left">
-              <span className="truncate text-base leading-tight font-bold">{branchTitle}</span>
+              <span className="truncate font-lao text-base leading-tight font-bold text-sidebar-primary">{branchTitle}</span>
               <span className="line-clamp-2 text-xs leading-snug text-muted-foreground">{address}</span>
             </div>
           </Link>

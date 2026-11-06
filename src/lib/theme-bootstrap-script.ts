@@ -1,4 +1,5 @@
-const THEME_COLORS = ["emerald", "blue", "amber", "rose", "violet"];
+import { DECOR_BACKGROUND_STYLES, THEME_COLORS } from "@/lib/appearance-preferences";
+
 const FONT_SCALES = ["sm", "md", "lg"];
 const LAO_FONTS = ["noto-sans", "noto-serif", "phetsarath", "saysettha"];
 
@@ -15,6 +16,8 @@ export const themeBootstrapScript = `
     var themeColor = state && ${JSON.stringify(THEME_COLORS)}.indexOf(state.themeColor) !== -1 ? state.themeColor : "emerald";
     var laoFont = state && ${JSON.stringify(LAO_FONTS)}.indexOf(state.laoFont) !== -1 ? state.laoFont : "noto-sans";
     var decorBackground = state && state.decorBackground === false ? "off" : "on";
+    var decorBackgroundColor = state && ${JSON.stringify(THEME_COLORS)}.indexOf(state.decorBackgroundColor) !== -1 ? state.decorBackgroundColor : themeColor;
+    var decorBackgroundStyle = state && ${JSON.stringify(DECOR_BACKGROUND_STYLES)}.indexOf(state.decorBackgroundStyle) !== -1 ? state.decorBackgroundStyle : "floral";
     var fontScale = state && ${JSON.stringify(FONT_SCALES)}.indexOf(state.fontScale) !== -1 ? state.fontScale : "md";
     var root = document.documentElement;
     root.classList.toggle("dark", theme === "dark");
@@ -22,6 +25,8 @@ export const themeBootstrapScript = `
     root.dataset.themeColor = themeColor;
     root.dataset.fontScale = fontScale;
     root.dataset.decorBackground = decorBackground;
+    root.dataset.decorBackgroundColor = decorBackgroundColor;
+    root.dataset.decorBackgroundStyle = decorBackgroundStyle;
     root.dataset.laoFont = laoFont;
     root.style.colorScheme = theme;
   } catch (_) {
@@ -31,6 +36,8 @@ export const themeBootstrapScript = `
     fallbackRoot.dataset.themeColor = "emerald";
     fallbackRoot.dataset.fontScale = "md";
     fallbackRoot.dataset.decorBackground = "on";
+    fallbackRoot.dataset.decorBackgroundColor = "emerald";
+    fallbackRoot.dataset.decorBackgroundStyle = "floral";
     fallbackRoot.dataset.laoFont = "noto-sans";
     fallbackRoot.style.colorScheme = "light";
   }

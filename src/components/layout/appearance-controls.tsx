@@ -1,6 +1,7 @@
 "use client";
 
 import { useTranslation } from "react-i18next";
+import { Check } from "lucide-react";
 import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Separator } from "@/components/ui/separator";
@@ -8,10 +9,12 @@ import { Switch } from "@/components/ui/switch";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { cn } from "@/lib/utils";
 import {
+  DECOR_BACKGROUND_STYLES,
   FONT_SCALES,
   LAO_FONTS,
   THEME_COLORS,
   useAppStore,
+  type DecorBackgroundStyle,
   type FontScale,
   type LaoFont,
   type ThemeColor,
@@ -44,6 +47,10 @@ export function AppearanceControls({
   const fontScale = useAppStore((state) => state.fontScale);
   const setFontScale = useAppStore((state) => state.setFontScale);
   const decorBackground = useAppStore((state) => state.decorBackground);
+  const decorBackgroundColor = useAppStore((state) => state.decorBackgroundColor);
+  const setDecorBackgroundColor = useAppStore((state) => state.setDecorBackgroundColor);
+  const decorBackgroundStyle = useAppStore((state) => state.decorBackgroundStyle);
+  const setDecorBackgroundStyle = useAppStore((state) => state.setDecorBackgroundStyle);
   const laoFont = useAppStore((state) => state.laoFont);
   const setLaoFont = useAppStore((state) => state.setLaoFont);
   const setDecorBackground = useAppStore((state) => state.setDecorBackground);
@@ -154,17 +161,101 @@ export function AppearanceControls({
 
       <Separator />
 
-      {/* The floral artwork behind the top bar and the sidebar (globals.css, data-decor-background). */}
-      <div className="flex items-center justify-between gap-3">
-        <Label htmlFor={`${idPrefix}-decor-background`} className="flex flex-col items-start gap-0.5">
-          <span className="text-xs font-semibold text-muted-foreground">{t("app.appearance.backgroundLabel")}</span>
-          <span className="text-2xs font-normal text-muted-foreground">{t("app.appearance.backgroundDescription")}</span>
-        </Label>
-        <Switch
-          id={`${idPrefix}-decor-background`}
-          checked={decorBackground}
-          onCheckedChange={setDecorBackground}
-        />
+      <div className="flex flex-col gap-4 font-lao">
+        <div className="flex items-center justify-between gap-3">
+          <Label htmlFor={`${idPrefix}-decor-background`} className="flex flex-col items-start gap-0.5">
+            <span className="text-xs font-semibold text-muted-foreground">{t("app.appearance.backgroundLabel")}</span>
+            <span className="text-2xs font-normal text-muted-foreground">{t("app.appearance.backgroundDescription")}</span>
+          </Label>
+          <Switch
+            id={`${idPrefix}-decor-background`}
+            checked={decorBackground}
+            onCheckedChange={setDecorBackground}
+          />
+        </div>
+        {decorBackground ? (
+          <>
+            <div className="flex flex-col gap-2">
+              <Label id={`${idPrefix}-background-color-label`} className="text-xs font-semibold text-muted-foreground">
+                {t("app.appearance.backgroundColorLabel")}
+              </Label>
+              <RadioGroup
+                aria-labelledby={`${idPrefix}-background-color-label`}
+                value={decorBackgroundColor}
+                onValueChange={(value) => setDecorBackgroundColor(value as ThemeColor)}
+                className={cn("flex flex-row flex-wrap", touch ? "gap-3" : "gap-2")}
+              >
+                {THEME_COLORS.map((color) => (
+                  <Label
+                    key={color}
+                    htmlFor={`${idPrefix}-background-color-${color}`}
+                    title={t(`app.appearance.colors.${color}`)}
+                    className={cn(
+                      "relative flex cursor-pointer items-center justify-center rounded-full ring-1 ring-border ring-offset-2 ring-offset-popover transition-shadow has-data-[state=checked]:ring-2 has-data-[state=checked]:ring-primary-text has-focus-visible:ring-2 has-focus-visible:ring-primary-text",
+                      touch ? "size-12" : "size-11",
+                    )}
+                  >
+                    <span
+                      aria-hidden="true"
+                      data-decor-background-color={color}
+                      data-decor-background-style={decorBackgroundStyle}
+                      className="decor-background-preview absolute inset-0 rounded-full"
+                    />
+                    <RadioGroupItem
+                      id={`${idPrefix}-background-color-${color}`}
+                      value={color}
+                      className="sr-only"
+                    />
+                    <span className="sr-only">{t(`app.appearance.colors.${color}`)}</span>
+                    {decorBackgroundColor === color ? (
+                      <Check aria-hidden="true" className="relative size-5 rounded-full bg-card p-0.5 text-primary-text shadow-sm" />
+                    ) : null}
+                  </Label>
+                ))}
+              </RadioGroup>
+            </div>
+            <div className="flex flex-col gap-2">
+              <Label id={`${idPrefix}-background-style-label`} className="text-xs font-semibold text-muted-foreground">
+                {t("app.appearance.backgroundStyleLabel")}
+              </Label>
+              <RadioGroup
+                aria-labelledby={`${idPrefix}-background-style-label`}
+                value={decorBackgroundStyle}
+                onValueChange={(value) => setDecorBackgroundStyle(value as DecorBackgroundStyle)}
+                className={cn("grid grid-cols-2 gap-2", touch && "sm:grid-cols-3")}
+              >
+                {DECOR_BACKGROUND_STYLES.map((style) => (
+                  <Label
+                    key={style}
+                    htmlFor={`${idPrefix}-background-style-${style}`}
+                    className={cn(
+                      "relative flex cursor-pointer flex-col items-stretch gap-1.5 rounded-lg border border-border p-1.5 transition-colors hover:bg-muted has-data-[state=checked]:border-primary-text has-data-[state=checked]:bg-primary/10 has-focus-visible:ring-2 has-focus-visible:ring-primary-text has-focus-visible:ring-offset-2 has-focus-visible:ring-offset-popover",
+                      touch && "p-2",
+                    )}
+                  >
+                    <RadioGroupItem
+                      id={`${idPrefix}-background-style-${style}`}
+                      value={style}
+                      className="sr-only"
+                    />
+                    <span
+                      aria-hidden="true"
+                      data-decor-background-color={decorBackgroundColor}
+                      data-decor-background-style={style}
+                      className={cn("decor-background-preview w-full rounded-md", touch ? "h-16" : "h-12")}
+                    />
+                    <span className="text-center text-2xs leading-snug font-semibold">
+                      {t(`app.appearance.backgroundStyles.${style}`)}
+                    </span>
+                    {decorBackgroundStyle === style ? (
+                      <Check aria-hidden="true" className="absolute top-2 right-2 size-5 rounded-full bg-card p-0.5 text-primary-text shadow-sm" />
+                    ) : null}
+                  </Label>
+                ))}
+              </RadioGroup>
+            </div>
+          </>
+        ) : null}
       </div>
     </div>
   );

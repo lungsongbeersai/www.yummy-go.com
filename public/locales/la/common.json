@@ -225,11 +225,21 @@
     },
     "appearance": {
       "openSettings": "ຕັ້ງຄ່າການສະແດງຜົນ",
+      "changeColor": "ປ່ຽນສີ",
       "title": "ການສະແດງຜົນ",
       "colorLabel": "ສີຫຼັກ",
       "fontSizeLabel": "ຂະໜາດຕົວອັກສອນ",
       "backgroundLabel": "ຮູບພື້ນຫຼັງ",
-      "backgroundDescription": "ລາຍໃບໄມ້ຢູ່ແຖບເທິງ ແລະ ເມນູດ້ານຂ້າງ",
+      "backgroundDescription": "ສີ ແລະ ລາຍພື້ນຫຼັງຂອງແຖບເທິງ ແລະ ເມນູດ້ານຂ້າງ",
+      "backgroundColorLabel": "ສີພື້ນຫຼັງ",
+      "backgroundStyleLabel": "ແບບພື້ນຫຼັງ",
+      "backgroundStyles": {
+        "floral": "ລາຍເດີມ",
+        "leaves": "ໃບໄມ້",
+        "waves": "ຄື້ນ",
+        "geometric": "ເລຂາຄະນິດ",
+        "dots": "ຈຸດ"
+      },
       "laoFontLabel": "ຟອນພາສາລາວ",
       "laoFonts": {
         "noto-sans": "Noto Sans Lao (ຄ່າເລີ່ມຕົ້ນ)",
