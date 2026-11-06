@@ -259,6 +259,7 @@ export function ProductFormDetailsSection({ form }: { form: ProductFormWorkflow 
                             <Button
                               type="button"
                               size="icon"
+                              className="size-10"
                               variant="outline"
                               aria-label={`${t("actions.add")} ${detailItemLabel}`}
                               disabled={isSet ? setOptionSaving : sizeSaving}
@@ -571,6 +572,7 @@ export function ProductFormDetailsSection({ form }: { form: ProductFormWorkflow 
                                           <Button
                                             type="button"
                                             size="icon"
+                                            className="size-10"
                                             variant="outline"
                                             aria-label={`${t("actions.add")} ${t("product.setChildOption")}`}
                                             disabled={setOptionSaving}

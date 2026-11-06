@@ -1,6 +1,5 @@
 "use client";
 
-import { useEffect } from "react";
 import { recoverFromChunkLoadError } from "@/lib/chunk-load-recovery";
 import { GLOBAL_ERROR_COPY, readGlobalErrorClientState } from "@/lib/global-error-state";
 import "./globals.css";
@@ -13,10 +12,6 @@ interface GlobalErrorProps {
 export default function GlobalError({ error, unstable_retry }: GlobalErrorProps) {
   const { theme, lang } = readGlobalErrorClientState();
   const copy = GLOBAL_ERROR_COPY[lang];
-
-  useEffect(() => {
-    void recoverFromChunkLoadError(error, { automatic: true });
-  }, [error]);
 
   async function handleRetry() {
     if (await recoverFromChunkLoadError(error)) return;

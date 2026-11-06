@@ -1,6 +1,5 @@
 "use client";
 
-import { useEffect } from "react";
 import { useTranslation } from "react-i18next";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -14,10 +13,6 @@ export default function ErrorPage({
   reset: () => void;
 }) {
   const { t } = useTranslation();
-
-  useEffect(() => {
-    void recoverFromChunkLoadError(error, { automatic: true });
-  }, [error]);
 
   async function handleRetry() {
     if (await recoverFromChunkLoadError(error)) return;
