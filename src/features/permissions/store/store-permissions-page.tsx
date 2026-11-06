@@ -1,18 +1,21 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { CheckCheck, CheckCircle2, ChevronsDownUp, ChevronsUpDown, CircleX, RefreshCcw, Search, ShieldCheck } from "lucide-react";
+import { CheckCheck, CheckCircle2, ChevronsDownUp, ChevronsUpDown, CircleX, FlaskConical, RefreshCcw, Search, ShieldCheck } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { ConfirmDialog } from "@/components/common/confirm-dialog";
 import { LoadingState } from "@/components/common/loading-state";
 import { Button } from "@/components/ui/button";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Card } from "@/components/ui/card";
 import { InputGroup, InputGroupAddon, InputGroupInput } from "@/components/ui/input-group";
 import { Separator } from "@/components/ui/separator";
 import { Spinner } from "@/components/ui/spinner";
 import { SettingsPageHeader } from "@/features/settings/shared/settings-page-header";
 import { canManageStorePermissions } from "@/lib/permissions";
+import { canConfigureTrialStorePermissions, resolveTrialPermissionContext, TRIAL_PERMISSION_ROLE_ID } from "@/lib/trial-store-permissions";
 import type { StorePermissionRoleTree, StorePermissionTree } from "@/services/permissions/access";
 import { useAuthStore } from "@/stores/auth-store";
 import { usePermissionsAccessStore } from "@/stores/permissions-access-store";
@@ -29,7 +32,12 @@ import {
 } from "./store-permissions-panels";
 
 /** A switch that would drop unsaved ticks, held until the user confirms. */
-type PendingSwitch = { type: "refresh" } | { roleId: number; type: "role" } | { storeUuid: string; type: "store" };
+type PendingSwitch = { type: "refresh" } | { roleId: number; type: "role" } | { storeUuid: string; type: "store" }
+  | { storeUuid: string; roleId: number; type: "trial" };
+
+interface StorePermissionsPageProps {
+  initialTrialContext?: { storeUuid?: string | string[]; roleId?: string | string[] };
+}
 
 function currentRoleTree(tree: StorePermissionTree | null, roleId: number | null) {
   if (!tree || !roleId) return null;
@@ -65,10 +73,14 @@ function filteredMenuGroups(roleTree: StorePermissionRoleTree | null, search: st
   }, []);
 }
 
-export function StorePermissionsPage() {
+export function StorePermissionsPage({ initialTrialContext }: StorePermissionsPageProps) {
   const { i18n, t } = useTranslation();
   const router = useRouter();
   const user = useAuthStore((state) => state.user);
+  const hasTrialRequest = initialTrialContext?.storeUuid !== undefined;
+  const requestedStoreUuid = typeof initialTrialContext?.storeUuid === "string" ? initialTrialContext.storeUuid : "";
+  const requestedRoleId = initialTrialContext?.roleId === undefined ? null
+    : typeof initialTrialContext.roleId === "string" ? initialTrialContext.roleId : "invalid";
   const showToast = useToastStore((state) => state.show);
   const checkedSubIds = usePermissionsAccessStore((state) => state.checkedSubIds);
   const dirty = usePermissionsAccessStore((state) => state.dirty);
@@ -95,9 +107,16 @@ export function StorePermissionsPage() {
   const [permissionSearch, setPermissionSearch] = useState("");
   const [collapsedMenuIds, setCollapsedMenuIds] = useState<Set<string>>(() => new Set());
   const [pendingSwitch, setPendingSwitch] = useState<PendingSwitch | null>(null);
+  const [trialContextResult, setTrialContextResult] = useState<{ key: string; valid: boolean } | null>(null);
+  const initializedTrialContext = useRef("");
+  const optionsRequestId = useRef(0);
   const allowed = canManageStorePermissions(user?.status);
   const loginUuid = user?.uuid ?? "";
   const userStatus = Number(user?.status ?? 0);
+  const trialContextKey = hasTrialRequest
+    ? JSON.stringify([loginUuid, userStatus, user?.store_status, requestedStoreUuid, requestedRoleId]) : "";
+  const trialContextPending = hasTrialRequest && trialContextResult?.key !== trialContextKey;
+  const trialContextError = hasTrialRequest && trialContextResult?.key === trialContextKey && !trialContextResult.valid;
   const language = i18n.language;
   const roleTree = useMemo(() => currentRoleTree(tree, selectedRoleId), [selectedRoleId, tree]);
   const visibleGroups = useMemo(() => filteredMenuGroups(roleTree, permissionSearch), [permissionSearch, roleTree]);
@@ -119,9 +138,11 @@ export function StorePermissionsPage() {
   );
   const total = totalSubmenus(roleTree);
   const selectedCount = checkedSubIds.length;
-  const loading = loadingOptions || loadingTree || loadingSaved;
+  const loading = loadingOptions || loadingTree || loadingSaved || trialContextPending;
   const selectedRole = roles.find((role) => role.roles_id === selectedRoleId);
   const selectedStore = stores.find((store) => store.store_uuid === selectedStoreUuid);
+  const trialRole = roles.find((role) => role.roles_id === TRIAL_PERMISSION_ROLE_ID);
+  const showTrialContext = canConfigureTrialStorePermissions(user) && selectedStore?.store_status === 3;
   const searchActive = Boolean(permissionSearch.trim());
   const allCollapsed = Boolean(
     visibleMenuIds.length &&
@@ -133,17 +154,44 @@ export function StorePermissionsPage() {
   const canReset = dirty && !saving && !loading;
   const canSave = Boolean(selectedStoreUuid && selectedRoleId && tree && dirty) && !saving && !loading;
 
-  const loadPermissionOptions = useCallback(async () => {
-    try {
-      await loadOptions(loginUuid, language);
-    } catch (error) {
+  const loadPermissionOptions = useCallback(() => {
+    const requestId = ++optionsRequestId.current;
+    return loadOptions(loginUuid, language).then(() => {
+      if (requestId !== optionsRequestId.current || useAuthStore.getState().user?.uuid !== loginUuid) return;
+      if (hasTrialRequest && initializedTrialContext.current !== trialContextKey) {
+        const state = usePermissionsAccessStore.getState();
+        const context = resolveTrialPermissionContext(useAuthStore.getState().user, requestedStoreUuid, requestedRoleId, state);
+        if (!context) {
+          setTrialContextResult({ key: trialContextKey, valid: false });
+          return;
+        }
+        const changed = state.selectedStoreUuid !== context.storeUuid || state.selectedRoleId !== context.roleId;
+        if (changed && state.dirty) setPendingSwitch({ ...context, type: "trial" });
+        else if (changed) {
+          setStore(context.storeUuid);
+          setRole(context.roleId);
+        }
+        initializedTrialContext.current = trialContextKey;
+      }
+      if (hasTrialRequest) setTrialContextResult({ key: trialContextKey, valid: true });
+      else {
+        initializedTrialContext.current = "";
+        setTrialContextResult(null);
+      }
+    }).catch((error: unknown) => {
+      if (requestId !== optionsRequestId.current) return;
+      if (hasTrialRequest) setTrialContextResult({ key: trialContextKey, valid: false });
+      else {
+        initializedTrialContext.current = "";
+        setTrialContextResult(null);
+      }
       showToast({
         description: error instanceof Error ? error.message : t("toasts.pleaseTryAgain"),
         title: t("storePermissions.loadFailed"),
         tone: "error"
       });
-    }
-  }, [language, loadOptions, loginUuid, showToast, t]);
+    });
+  }, [hasTrialRequest, language, loadOptions, loginUuid, requestedRoleId, requestedStoreUuid, setRole, setStore, showToast, t, trialContextKey]);
 
   const loadPermissionTree = useCallback(async () => {
     try {
@@ -164,12 +212,16 @@ export function StorePermissionsPage() {
   useEffect(() => {
     if (!allowed || !loginUuid) return;
     void loadPermissionOptions();
+    return () => { optionsRequestId.current += 1; };
   }, [allowed, loadPermissionOptions, loginUuid]);
 
   useEffect(() => {
-    if (!allowed || !userStatus || !selectedStoreUuid || !selectedRoleId) return;
+    if (!allowed || !userStatus || !selectedStoreUuid || !selectedRoleId || trialContextPending || trialContextError) return;
+    const current = usePermissionsAccessStore.getState();
+    if (current.dirty && current.tree?.company_uuid_fk === selectedStoreUuid
+      && current.tree.roles.some((role) => role.role_id === selectedRoleId)) return;
     void loadPermissionTree();
-  }, [allowed, loadPermissionTree, selectedRoleId, selectedStoreUuid, userStatus]);
+  }, [allowed, loadPermissionTree, selectedRoleId, selectedStoreUuid, trialContextError, trialContextPending, userStatus]);
 
   async function refresh() {
     try {
@@ -187,6 +239,10 @@ export function StorePermissionsPage() {
   function applySwitch(next: PendingSwitch) {
     if (next.type === "store") setStore(next.storeUuid);
     else if (next.type === "role") setRole(next.roleId);
+    else if (next.type === "trial") {
+      setStore(next.storeUuid);
+      setRole(next.roleId);
+    }
     else void refresh();
   }
 
@@ -235,6 +291,23 @@ export function StorePermissionsPage() {
   }
 
   if (!allowed) return <LoadingState label={t("common.processing")} variant="table" />;
+  if (trialContextError) return (
+    <div className="p-4">
+      <Alert variant="destructive" className="max-w-xl rounded-xl p-4 font-lao">
+        <ShieldCheck aria-hidden />
+        <AlertTitle>{t("storePermissions.trialUnavailable")}</AlertTitle>
+        <AlertDescription className="flex flex-col items-start gap-3">
+          <p>{t("storePermissions.trialUnavailableHint")}</p>
+          <div className="flex flex-wrap gap-2">
+            <Button asChild variant="outline" className="min-h-11">
+              <Link href="/settings/manage-access-permissions">{t("storePermissions.title")}</Link>
+            </Button>
+            <Button type="button" variant="outline" className="min-h-11" onClick={() => void loadPermissionOptions()}>{t("actions.refresh")}</Button>
+          </div>
+        </AlertDescription>
+      </Alert>
+    </div>
+  );
 
   const savedTotal = [...savedCounts.values()].reduce((sum, count) => sum + count, 0);
 
@@ -259,6 +332,23 @@ export function StorePermissionsPage() {
             </Button>
           }
         />
+
+        {showTrialContext ? (
+          <Alert role="status" className="shrink-0 rounded-xl border-primary/20 bg-primary/5 p-4 font-lao">
+            <FlaskConical aria-hidden className="text-primary" />
+            <AlertTitle>{t("storePermissions.trialTitle")}</AlertTitle>
+            <AlertDescription className="flex flex-wrap items-center justify-between gap-3">
+              <p>{selectedRoleId === TRIAL_PERMISSION_ROLE_ID
+                ? t("storePermissions.trialHint")
+                : t("storePermissions.trialRoleHint", { role: trialRole?.role_name ?? "-" })}</p>
+              {trialRole && selectedRoleId !== TRIAL_PERMISSION_ROLE_ID ? (
+                <Button type="button" variant="outline" className="min-h-11" disabled={saving || loading} onClick={() => requestSwitch({ roleId: TRIAL_PERMISSION_ROLE_ID, type: "role" })}>
+                  {t("storePermissions.configureTrial")}
+                </Button>
+              ) : null}
+            </AlertDescription>
+          </Alert>
+        ) : null}
 
         <div className="flex flex-col gap-4 @4xl:grid @4xl:min-h-0 @4xl:flex-1 @4xl:grid-cols-[minmax(16rem,20rem)_minmax(0,1fr)]">
           {/* Setup: which store and role is being edited, and how much of the menu it opens. */}

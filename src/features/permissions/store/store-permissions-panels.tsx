@@ -100,6 +100,7 @@ export function PermissionStorePicker({
             <span className="min-w-0 flex-1 truncate text-left">
               {selected ? selected.store_name || selected.store_uuid : t("storePermissions.selectStore")}
             </span>
+            {selected?.store_status === 3 ? <Badge variant="outline" className="shrink-0 border-primary/20 text-primary">{t("auth.trial.label")}</Badge> : null}
             <ChevronsUpDown data-icon="inline-end" className="opacity-50" />
           </Button>
         </PopoverTrigger>
@@ -116,13 +117,14 @@ export function PermissionStorePicker({
                   <CommandItem
                     key={store.store_uuid}
                     data-checked={store.store_uuid === value}
-                    value={`${store.store_name} ${store.store_uuid}`}
+                    value={`${store.store_name} ${store.store_uuid}${store.store_status === 3 ? ` ${t("auth.trial.label")}` : ""}`}
                     onSelect={() => {
                       onValueChange(store.store_uuid);
                       setOpen(false);
                     }}
                   >
-                    <span className="truncate">{store.store_name || store.store_uuid}</span>
+                    <span className="min-w-0 flex-1 truncate">{store.store_name || store.store_uuid}</span>
+                    {store.store_status === 3 ? <Badge variant="outline" className="shrink-0 border-primary/20 text-primary">{t("auth.trial.label")}</Badge> : null}
                   </CommandItem>
                 ))}
               </CommandGroup>

@@ -5,6 +5,9 @@ export const metadata: Metadata = {
   title: "ຈັດການສິດທິເຂົ້າໃຊ້",
 };
 
-export default function Page() {
-  return <StorePermissionsPage />;
+export default async function Page({ searchParams }: {
+  searchParams: Promise<{ store_uuid?: string | string[]; role_id?: string | string[] }>;
+}) {
+  const params = await searchParams;
+  return <StorePermissionsPage initialTrialContext={{ storeUuid: params.store_uuid, roleId: params.role_id }} />;
 }
