@@ -40,7 +40,7 @@ function DialogOverlay({
     <DialogPrimitive.Overlay
       data-slot="dialog-overlay"
       className={cn(
-        "fixed inset-0 isolate z-50 bg-black/80 duration-100 supports-backdrop-filter:backdrop-blur-xs data-open:animate-in data-open:fade-in-0 data-closed:pointer-events-none data-closed:animate-out data-closed:fade-out-0",
+        "fixed inset-0 isolate z-50 bg-overlay duration-100 supports-backdrop-filter:backdrop-blur-xs data-open:animate-in data-open:fade-in-0 data-closed:pointer-events-none data-closed:animate-out data-closed:fade-out-0",
         className
       )}
       {...props}
@@ -71,9 +71,9 @@ function DialogContent({
         ref={mergedRef}
         data-slot="dialog-content"
         className={cn(
-          "fixed top-1/2 left-1/2 z-50 grid w-full max-w-[calc(100%-2rem)] -translate-x-1/2 -translate-y-1/2 gap-4 rounded-xl bg-popover p-4 text-xs/relaxed text-popover-foreground ring-1 ring-foreground/10 duration-100 outline-none sm:max-w-sm data-open:animate-in data-open:fade-in-0 data-open:zoom-in-95 data-closed:pointer-events-none data-closed:animate-out data-closed:fade-out-0 data-closed:zoom-out-95",
-          // เว้นที่ขวาของหัวข้อให้ปุ่มปิด 40px — หัวข้อยาวจะได้ตัดบรรทัดก่อนถึงปุ่ม ไม่ลอดใต้ปุ่ม
-          showCloseButton && "[&>[data-slot=dialog-header]]:pr-10",
+          "fixed top-1/2 left-1/2 z-50 grid max-h-[calc(100dvh-2rem)] w-full max-w-[calc(100%-2rem)] -translate-x-1/2 -translate-y-1/2 gap-5 overflow-y-auto rounded-2xl border border-border bg-popover p-5 text-sm/relaxed text-popover-foreground shadow-2xl ring-1 ring-border duration-100 outline-none sm:max-w-3xl data-open:animate-in data-open:fade-in-0 data-open:zoom-in-95 data-closed:pointer-events-none data-closed:animate-out data-closed:fade-out-0 data-closed:zoom-out-95",
+          // Keep long titles clear of the 44px close target, including flush header layouts.
+          showCloseButton && "[&>[data-slot=dialog-header]]:pr-14",
           className
         )}
         {...props}
@@ -93,9 +93,8 @@ function DialogContent({
         {showCloseButton && (
           <DialogPrimitive.Close data-slot="dialog-close" asChild>
             <Button
-              variant="ghost"
-              // 40px (เดิม icon-sm 24px / ไอคอน 12px กดยากบนจอสัมผัส) — Capacitor ขยายเป็น 44px ใน globals.css
-              className="ui-overlay-close-button absolute top-2 right-2 size-10 [&_svg:not([class*='size-'])]:size-5"
+              variant="outline"
+              className="ui-overlay-close-button absolute top-3 right-3 size-11 rounded-full border-border bg-popover text-foreground shadow-sm hover:bg-accent [&_svg:not([class*='size-'])]:size-5"
               size="icon"
             >
               <XIcon />
@@ -112,7 +111,7 @@ function DialogHeader({ className, ...props }: React.ComponentProps<"div">) {
   return (
     <div
       data-slot="dialog-header"
-      className={cn("flex flex-col gap-1", className)}
+      className={cn("flex flex-col gap-2 rounded-t-xl border-b border-border bg-primary/10 px-4 py-4", className)}
       {...props}
     />
   );
@@ -130,7 +129,7 @@ function DialogFooter({
     <div
       data-slot="dialog-footer"
       className={cn(
-        "flex flex-col-reverse gap-2 sm:flex-row sm:justify-end",
+        "flex flex-col-reverse gap-3 rounded-b-xl border-t border-border bg-muted/60 px-4 py-4 [&>button]:min-h-11 sm:flex-row sm:justify-end",
         className
       )}
       {...props}
@@ -152,7 +151,7 @@ function DialogTitle({
   return (
     <DialogPrimitive.Title
       data-slot="dialog-title"
-      className={cn("font-heading text-sm font-medium", className)}
+      className={cn("font-heading text-lg font-semibold text-foreground", className)}
       {...props}
     />
   );
@@ -166,7 +165,7 @@ function DialogDescription({
     <DialogPrimitive.Description
       data-slot="dialog-description"
       className={cn(
-        "text-xs/relaxed text-muted-foreground *:[a]:underline *:[a]:underline-offset-3 *:[a]:hover:text-foreground",
+        "text-sm/relaxed text-muted-foreground *:[a]:underline *:[a]:underline-offset-3 *:[a]:hover:text-foreground",
         className
       )}
       {...props}

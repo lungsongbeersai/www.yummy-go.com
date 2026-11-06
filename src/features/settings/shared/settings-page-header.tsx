@@ -29,7 +29,7 @@ export function SettingsPageHeader({
 
   return (
     // shrink-0: a Card clips its overflow, which lets a flex column squash it.
-    <Card className={cn("shrink-0 ring-0", SETTINGS_ACCENT.wash)}>
+    <Card className={cn("shrink-0 shadow-sm ring-border", SETTINGS_ACCENT.wash)}>
       <CardContent className="flex flex-wrap items-center gap-3">
         <span aria-hidden className={cn("flex size-11 shrink-0 items-center justify-center rounded-xl shadow-sm", SETTINGS_ACCENT.solid)}>
           <Icon className="size-5" />

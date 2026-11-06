@@ -139,7 +139,7 @@ export function SettingsListPageLayout({
           <>
             {summary}
 
-            <div className="flex flex-wrap items-center gap-2">
+            <div className="flex shrink-0 flex-wrap items-center gap-2 rounded-lg border border-border bg-card p-3 shadow-sm">
               <InputGroup className="@xl:max-w-xs">
                 <InputGroupAddon>
                   <Search />
@@ -198,7 +198,7 @@ export function SettingsListPageLayout({
 
             {hasRows ? (
               <>
-                <div className="hidden min-h-0 flex-1 flex-col overflow-hidden rounded-lg border @3xl:flex">{table}</div>
+                <div className="hidden min-h-0 flex-1 flex-col overflow-hidden rounded-lg border border-border bg-card shadow-sm @3xl:flex">{table}</div>
                 <div className="@3xl:hidden">{mobileList}</div>
               </>
             ) : (

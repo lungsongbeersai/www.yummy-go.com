@@ -37,7 +37,7 @@ export function SettingsDialogContent({ className, ...props }: ComponentProps<ty
   return (
     <DialogContent
       className={cn(
-        "max-h-[calc(100dvh-1rem-env(safe-area-inset-top,0px)-env(safe-area-inset-bottom,0px))] w-[calc(100vw-1rem)] overflow-hidden p-0 sm:max-h-[calc(100dvh-2rem-env(safe-area-inset-top,0px)-env(safe-area-inset-bottom,0px))] sm:max-w-xl",
+        "max-h-[calc(100dvh-1rem-env(safe-area-inset-top,0px)-env(safe-area-inset-bottom,0px))] w-[calc(100vw-1rem)] overflow-hidden p-0 sm:max-h-[calc(100dvh-2rem-env(safe-area-inset-top,0px)-env(safe-area-inset-bottom,0px))] sm:max-w-3xl",
         className
       )}
       {...props}
@@ -50,17 +50,17 @@ export function SettingsDialogForm({ className, ...props }: ComponentProps<"form
 }
 
 export function SettingsDialogHeader({ className, ...props }: ComponentProps<typeof DialogHeader>) {
-  return <DialogHeader className={cn("shrink-0 border-b border-border px-4 py-4 pr-12 text-left sm:px-6", className)} {...props} />;
+  return <DialogHeader className={cn("shrink-0 border-b border-border bg-primary/10 px-5 py-5 pr-14 text-left sm:px-7 sm:pr-16", className)} {...props} />;
 }
 
 export function SettingsDialogBody({ className, ...props }: ComponentProps<"div">) {
-  return <div className={cn("min-h-0 flex-1 overflow-y-auto px-4 py-4 sm:px-6", className)} {...props} />;
+  return <div className={cn("min-h-0 flex-1 overflow-y-auto bg-card p-5 sm:p-7", className)} {...props} />;
 }
 
 export function SettingsDialogFooter({ className, ...props }: ComponentProps<typeof DialogFooter>) {
   return (
     <DialogFooter
-      className={cn("shrink-0 border-t border-border px-4 py-3 sm:px-6 [&>button]:w-full sm:[&>button]:w-auto", className)}
+      className={cn("shrink-0 border-t border-border bg-muted/70 px-5 py-4 sm:px-7 [&>button]:w-full sm:[&>button]:w-auto", className)}
       {...props}
     />
   );
