@@ -45,7 +45,7 @@ export function Swan1HomeTopBar({ breadcrumbs }: { breadcrumbs: BreadcrumbTrailI
       <span className="min-w-0 truncate font-semibold">{title}</span>
       <div className="ml-auto flex shrink-0 items-center gap-1">
         <BranchContractStatus className="h-11 sm:h-11" />
-        <LanguageSwitch compact size="icon" className="size-11" />
+        <LanguageSwitch compact size="icon" variant="header" className="size-11" />
         <NotificationMenu triggerClassName="size-11" />
         <DisplaySettingsMenu className="sm:h-11" />
       </div>

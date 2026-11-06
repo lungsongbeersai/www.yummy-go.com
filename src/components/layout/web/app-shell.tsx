@@ -174,7 +174,7 @@ function AppHeader({ breadcrumbs }: { breadcrumbs: BreadcrumbTrailItem[] }) {
       <AppBreadcrumb breadcrumbs={breadcrumbs} />
       <BranchContractStatus className="col-span-4 row-start-2 w-full lg:ml-auto lg:w-auto" />
       <div className="col-start-4 row-start-1 flex shrink-0 items-center gap-1">
-        <LanguageSwitch compact size="icon" className={controlClassName} />
+        <LanguageSwitch compact size="icon" variant="header" className={controlClassName} />
         <NotificationMenu triggerClassName={controlClassName} />
         <DisplaySettingsMenu />
       </div>

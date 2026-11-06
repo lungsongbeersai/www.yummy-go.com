@@ -37,10 +37,10 @@ export function DisplaySettingsMenu({ className }: { className?: string }) {
         <TooltipTrigger asChild>
           <PopoverTrigger asChild>
             <Button
-              variant="ghost"
+              variant="header"
               aria-label={label}
               className={cn(
-                "size-11 px-0 font-lao text-sidebar-primary hover:text-sidebar-primary aria-expanded:text-sidebar-primary sm:h-9 sm:w-auto sm:px-3",
+                "size-11 px-0 font-lao sm:h-9 sm:w-auto sm:px-3",
                 className,
               )}
             >

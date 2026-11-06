@@ -35,7 +35,7 @@ interface NotificationMenuProps {
 export function NotificationMenu({
   triggerClassName,
   triggerSize = "icon",
-  triggerVariant = "ghost"
+  triggerVariant = "header"
 }: NotificationMenuProps = {}) {
   const { t } = useTranslation();
   const router = useRouter();
