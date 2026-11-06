@@ -4,15 +4,21 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { useMediaQuery } from "@/hooks/use-media-query";
 import { useResetOnChange, useResetOnDeps } from "@/hooks/use-reset-on-change";
 import { useTranslation } from "react-i18next";
-import { openLocalInvoicePrintWindow, type InvoicePrintData } from "@/services/printer/invoice-print-window";
-import { buildSalesListInvoicePrintData } from "@/features/sales/cancel-sale/cancel-sale-utils";
+import {
+  openLocalInvoicePrintWindow,
+  reserveLocalInvoicePrintWindow,
+  type InvoicePrintData,
+  type LocalInvoicePrintWindowReservation
+} from "@/services/printer/invoice-print-window";
+import { buildBrowserDocumentPrintData } from "@/features/printer/browser-document-print";
 import { useDocumentLogo } from "@/features/printer/use-document-logo";
 import { useUrlPagination } from "@/hooks/use-url-pagination";
-import { isCapacitorNativeApp } from "@/lib/capacitor-platform";
+import { canUseWindowOpen } from "@/lib/capacitor-platform";
 import { createMutationUuid } from "@/lib/pos/mutation-identity";
+import { canUseSystemPrintFallback } from "@/lib/system-print-capability";
 import type { UrlPaginationState } from "@/lib/url-pagination";
 import { useAppStore } from "@/stores/app-store";
-import { authStoreUuid, useAuthStore, type AuthUser } from "@/stores/auth-store";
+import { authStoreUuid, useAuthStore } from "@/stores/auth-store";
 import { useBranchStore } from "@/stores/branch-store";
 import { usePosStore } from "@/stores/pos-store";
 import { usePrinterStore } from "@/stores/printer-store";
@@ -23,7 +29,6 @@ import {
   branchOptionFromRow,
   defaultSalesListFilters,
   readValue,
-  saleListPrintBillSource,
   salesListRange,
   selectedBranchLabel,
   textValue,
@@ -208,33 +213,15 @@ export function useSalesListPage(initialPagination: UrlPaginationState) {
     setMobileFilterOpen(false);
   }
 
-  function buildFallbackReceiptData(group: DailySaleItemsBillGroup, receiptUser: AuthUser) {
-    const currentBranch = branches.find((branch) => branch.branch_uuid === branchUuid);
-    const baseReceiptSource = saleListPrintBillSource(group);
-    const receiptSource = {
-      ...baseReceiptSource,
-      branch_address:
-        textValue(readValue(baseReceiptSource, ["branch_address"]), "") ||
-        textValue(readValue(currentBranch ?? {}, ["branch_address"]), ""),
-      branch_qr:
-        textValue(readValue(baseReceiptSource, ["branch_qr", "qr_url", "payment_qr", "branch_qr_url"]), ""),
-      branch_tel:
-        textValue(readValue(baseReceiptSource, ["branch_tel", "branch_phone", "tel", "phone"]), "") ||
-        textValue(readValue(currentBranch ?? {}, ["branch_tel", "branch_phone", "tel", "phone"]), "")
-    };
-
-    return buildSalesListInvoicePrintData({
-      bill: receiptSource,
-      showLogo: documentLogo.previewShowLogo,
-      translate: (key, options) => String(t(key, options)),
-      user: receiptUser
-    });
-  }
-
   async function reprintReceipt(group: DailySaleItemsBillGroup) {
     const orderUuid = textValue(readValue(group.raw, ["order_uuid"]), "");
     if (!orderUuid || !user?.uuid || printingBillId) return;
 
+    const canOpenBrowserPrint = canUseWindowOpen() && canUseSystemPrintFallback();
+    const browserPrintWindow = canOpenBrowserPrint && usePrinterStore.getState().agentStatus !== "connected"
+      ? reserveLocalInvoicePrintWindow()
+      : null;
+    let physicalJobPrepared = false;
     setPrintingBillId(group.id);
     try {
       const pendingQuery = await requestReprintReceipt({
@@ -254,24 +241,13 @@ export function useSalesListPage(initialPagination: UrlPaginationState) {
         return;
       }
 
-      let printStarted = false;
+      physicalJobPrepared = true;
       const printResult = await executeInvoice({
         pending_query: pendingQuery,
-        login_uuid_fk: user.uuid,
-        onProgress: ({ phase }) => {
-          if (phase === "printing") printStarted = true;
-        }
+        login_uuid_fk: user.uuid
       });
 
       if (printResult.failedCount > 0) {
-        if (printStarted && !isCapacitorNativeApp()) {
-          await openReceiptPrintWindow(
-            buildFallbackReceiptData(group, user),
-            printResult.errorMessage ?? "",
-          );
-          return;
-        }
-
         showToast({
           title: t("salesList.reprintReceiptFailed"),
           description: printResult.errorMessage,
@@ -307,25 +283,33 @@ export function useSalesListPage(initialPagination: UrlPaginationState) {
         tone: "error"
       });
     } catch (printError) {
+      const receiptData = canOpenBrowserPrint && !physicalJobPrepared
+        ? buildBrowserDocumentPrintData(printError, "receipt", (key, options) => String(t(key, options)))
+        : null;
+      if (receiptData) {
+        await openReceiptPrintWindow(receiptData, browserPrintWindow);
+        return;
+      }
+
       showToast({
         title: t("salesList.reprintReceiptFailed"),
         description: printError instanceof Error ? printError.message : "",
         tone: "error"
       });
     } finally {
+      browserPrintWindow?.closeUnused();
       setPrintingBillId("");
     }
   }
 
   async function openReceiptPrintWindow(
     data: InvoicePrintData,
-    description: string,
+    reservation: LocalInvoicePrintWindowReservation | null = null,
   ) {
-    const opened = await openLocalInvoicePrintWindow(data);
+    const opened = reservation?.render(data) || await openLocalInvoicePrintWindow(data);
     if (opened) {
       showToast({
-        title: t("salesList.reprintReceiptFallback"),
-        description,
+        title: t("pos.browserPrintOpened"),
         tone: "info"
       });
       return;
@@ -334,7 +318,11 @@ export function useSalesListPage(initialPagination: UrlPaginationState) {
     showToast({
       title: t("salesList.reprintReceiptFailed"),
       description: t("salesList.reprintReceiptPopupBlocked"),
-      tone: "error"
+      tone: "error",
+      action: {
+        label: t("pos.browserPrintAction"),
+        onClick: () => void openReceiptPrintWindow(data)
+      }
     });
   }
 

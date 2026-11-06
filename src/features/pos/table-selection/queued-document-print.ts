@@ -1,7 +1,7 @@
 import type { KitchenPrintResult } from "@/services/printer";
 import type { ConfirmToKitchenPendingQuery, PaymentResponse, ReprintReceiptRequest } from "@/services/pos";
 
-export type QueuedDocumentPrintOutcome = "success" | "pending" | "error" | "skipped";
+export type QueuedDocumentPrintOutcome = "success" | "pending" | "error" | "skipped" | "browser";
 
 export function isReceiptPrintSkipped(
   response: Pick<PaymentResponse, "print_job" | "pending_query" | "print_queue_error" | "fallback_print"> & {
@@ -12,6 +12,10 @@ export function isReceiptPrintSkipped(
   // real preparation failure still need the normal document workflow.
   if (response.pending_query?.print_job_uuid || response.print_job?.print_job_uuid ||
     response.print_queue_error || response.fallback_print) return false;
+  return hasUnconfiguredReceiptRole(response);
+}
+
+export function hasUnconfiguredReceiptRole(response: { print_skipped?: unknown }): boolean {
   const skipped = response.print_skipped;
   return Boolean(skipped && typeof skipped === "object" &&
     "reason" in skipped && skipped.reason === "DOCUMENT_PRINT_ROLE_NOT_CONFIGURED" &&

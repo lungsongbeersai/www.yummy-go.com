@@ -4,16 +4,20 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { useResetOnDeps } from "@/hooks/use-reset-on-change";
 import { useMediaQuery } from "@/hooks/use-media-query";
 import { useDocumentLogo } from "@/features/printer/use-document-logo";
+import { buildBrowserDocumentPrintData } from "@/features/printer/browser-document-print";
 import { useTranslation } from "react-i18next";
 import { EmptyState } from "@/components/common/empty-state";
 import { PrintLoadingDialog } from "@/components/common/print-loading-dialog";
 import {
   openLocalInvoicePrintWindow,
-  type InvoicePrintData
+  reserveLocalInvoicePrintWindow,
+  type InvoicePrintData,
+  type LocalInvoicePrintWindowReservation
 } from "@/services/printer/invoice-print-window";
 import { useUrlPagination } from "@/hooks/use-url-pagination";
-import { isCapacitorNativeApp } from "@/lib/capacitor-platform";
+import { canUseWindowOpen } from "@/lib/capacitor-platform";
 import { createMutationUuid } from "@/lib/pos/mutation-identity";
+import { canUseSystemPrintFallback } from "@/lib/system-print-capability";
 import type { UrlPaginationState } from "@/lib/url-pagination";
 import type { CancelableBill } from "@/services/cancel";
 import type { SortOrder } from "@/services/shared/types";
@@ -33,7 +37,6 @@ import {
   billCanCancel,
   billIsSelected,
   billUuid,
-  buildSalesListInvoicePrintData,
   cancelDateChoices,
   pageBounds,
   shouldOpenInitialCancelDialog,
@@ -237,6 +240,11 @@ export function CancelSalePage({
     const orderUuid = billUuid(detailSource);
     if (!orderUuid || !user?.uuid || receiptPrintingOrderUuid) return;
 
+    const canOpenBrowserPrint = canUseWindowOpen() && canUseSystemPrintFallback();
+    const browserPrintWindow = canOpenBrowserPrint && usePrinterStore.getState().agentStatus !== "connected"
+      ? reserveLocalInvoicePrintWindow()
+      : null;
+    let physicalJobPrepared = false;
     setReceiptPrintingOrderUuid(orderUuid);
     try {
       const pendingQuery = await requestReprintReceipt({
@@ -256,30 +264,13 @@ export function CancelSalePage({
         return;
       }
 
-      let printStarted = false;
+      physicalJobPrepared = true;
       const printResult = await executeInvoice({
         pending_query: pendingQuery,
-        login_uuid_fk: user.uuid,
-        onProgress: ({ phase }) => {
-          if (phase === "printing") printStarted = true;
-        }
+        login_uuid_fk: user.uuid
       });
 
       if (printResult.failedCount > 0) {
-        if (printStarted && !isCapacitorNativeApp()) {
-          const receiptData = buildSalesListInvoicePrintData({
-            bill: detailSource,
-            showLogo: documentLogo.previewShowLogo,
-            translate: (key, options) => String(t(key, options)),
-            user
-          });
-          await openReceiptPrintWindow(
-            receiptData,
-            printResult.errorMessage ?? "",
-          );
-          return;
-        }
-
         showToast({
           title: t("cancelSale.reprintReceiptFailed"),
           description: printResult.errorMessage,
@@ -315,25 +306,33 @@ export function CancelSalePage({
         tone: "error"
       });
     } catch (printError) {
+      const receiptData = canOpenBrowserPrint && !physicalJobPrepared
+        ? buildBrowserDocumentPrintData(printError, "receipt", (key, options) => String(t(key, options)))
+        : null;
+      if (receiptData) {
+        await openReceiptPrintWindow(receiptData, browserPrintWindow);
+        return;
+      }
+
       showToast({
         title: t("cancelSale.reprintReceiptFailed"),
         description: printError instanceof Error ? printError.message : "",
         tone: "error"
       });
     } finally {
+      browserPrintWindow?.closeUnused();
       setReceiptPrintingOrderUuid("");
     }
   }
 
   async function openReceiptPrintWindow(
     data: InvoicePrintData,
-    description: string,
+    reservation: LocalInvoicePrintWindowReservation | null = null,
   ) {
-    const opened = await openLocalInvoicePrintWindow(data);
+    const opened = reservation?.render(data) || await openLocalInvoicePrintWindow(data);
     if (opened) {
       showToast({
-        title: t("cancelSale.reprintReceiptFallback"),
-        description,
+        title: t("pos.browserPrintOpened"),
         tone: "info"
       });
       return;
@@ -342,7 +341,11 @@ export function CancelSalePage({
     showToast({
       title: t("cancelSale.reprintReceiptFailed"),
       description: t("cancelSale.reprintReceiptPopupBlocked"),
-      tone: "error"
+      tone: "error",
+      action: {
+        label: t("pos.browserPrintAction"),
+        onClick: () => void openReceiptPrintWindow(data)
+      }
     });
   }
 

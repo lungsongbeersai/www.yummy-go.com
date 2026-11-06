@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { ServiceError } from "@/lib/api";
 import { resolvePrinterDeviceIdentity } from "@/services/printer";
 import {
   confirmToKitchen,
@@ -248,6 +249,31 @@ describe("POS store session follow-up requests", () => {
     await expect(usePosStore.getState().reprintReceipt({
       order_uuid: "paid-order", operation_uuid: "receipt-retry", login_uuid_fk: "login-1",
     })).rejects.toThrow("no active printer config for role_code receipt");
+  });
+
+  it("preserves the server's unqueued receipt snapshot for browser printing", async () => {
+    resolvePrinterDeviceIdentityMock.mockResolvedValueOnce({
+      ok: true,
+      agent: { agent_id: "agent-1", agent_name: "Agent", device_code: "device-1", platform: "win32" },
+    });
+    const response: ReprintReceiptResponse = {
+      print_job: null,
+      receipt_payload: { document_type: "receipt", invoiceNo: "PAID-100", total: 35000 },
+      fallback_print: {
+        mode: "browser_print", role_code: "receipt", safe_not_queued: true,
+        reason: "No receipt printer configured",
+        payload: { document_type: "receipt", invoiceNo: "PAID-100", total: 35000 },
+      },
+    };
+    reprintReceiptMock.mockResolvedValueOnce(response);
+
+    const error = await usePosStore.getState().reprintReceipt({
+      order_uuid: "paid-order", operation_uuid: "receipt-retry", login_uuid_fk: "login-1",
+    }).catch((failure: unknown) => failure);
+
+    expect(error).toBeInstanceOf(ServiceError);
+    expect(error).toMatchObject({ statusCode: 503, payload: response });
+    expect(reprintReceiptMock).toHaveBeenCalledOnce();
   });
 
   it("rejects mismatched receipt queue identities rather than printing another job", async () => {
