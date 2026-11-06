@@ -456,6 +456,20 @@ describe("project refactor guards", () => {
     expect(directUiImports).toEqual([]);
   });
 
+  it("keeps the original sales-list route separate from personal orders", () => {
+    const salesRoute = readFileSync(join(srcDir, "app/(protected)/sales/sales-list/page.tsx"), "utf8");
+    const salesPage = readFileSync(join(srcDir, "features/sales/sales-list/sales-list-page.tsx"), "utf8");
+    const personalRoute = readFileSync(join(srcDir, "app/(protected)/my_orders/page.tsx"), "utf8");
+
+    // Service/store tests cover their distinct APIs. This guards the route-to-
+    // workflow wiring that could otherwise show personal items on a branch report.
+    expect(salesRoute).toContain("<SalesListPage ");
+    expect(salesPage).toContain("useSalesListPage(initialPagination)");
+    expect(salesPage).not.toContain("MySalesPage");
+    expect(personalRoute).toContain("<MySalesPage ");
+    expect(personalRoute).not.toContain("<SalesListPage ");
+  });
+
   it("keeps a complete root error boundary", () => {
     const globalError = readFileSync(join(srcDir, "app/global-error.tsx"), "utf8");
 
