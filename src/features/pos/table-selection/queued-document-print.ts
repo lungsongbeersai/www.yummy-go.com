@@ -22,17 +22,23 @@ export function hasUnconfiguredReceiptRole(response: { print_skipped?: unknown }
     "role_code" in skipped && skipped.role_code === "receipt");
 }
 
-export function documentPrinterFailureKind(error: unknown): "unavailable" | "authorization" | "registration" | null {
+export function documentPrinterFailureKind(error: unknown): "unavailable" | "authorization" | "registration" | "preparation" | null {
   if (typeof error === "string") {
     if (error.startsWith("DOCUMENT_PRINTER_UNAVAILABLE") || /^no active printer config for role_code (invoice|receipt)\b/i.test(error)) return "unavailable";
     return null;
   }
   if (!error || typeof error !== "object") return null;
   if ("error_code" in error) {
-    if (error.error_code === "DOCUMENT_PRINTER_UNAVAILABLE") return "unavailable";
     if (error.error_code === "PRINTER_AGENT_AUTHORIZATION_FAILED") return "authorization";
     if (error.error_code === "PRINTER_AGENT_REGISTRATION_FAILED") return "registration";
   }
+  if ("fallback_print" in error && error.fallback_print && typeof error.fallback_print === "object" &&
+      "print_document_error" in error.fallback_print) {
+    const previewError = error.fallback_print.print_document_error;
+    if (previewError && typeof previewError === "object" && "code" in previewError &&
+        previewError.code === "BROWSER_DOCUMENT_RENDER_FAILED") return "preparation";
+  }
+  if ("error_code" in error && error.error_code === "DOCUMENT_PRINTER_UNAVAILABLE") return "unavailable";
   const record = error as Record<string, unknown>;
   for (const key of ["payload", "print_queue_error", "message"] as const) {
     if (key in record) {

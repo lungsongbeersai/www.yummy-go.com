@@ -5,6 +5,7 @@ import { useResetOnDeps } from "@/hooks/use-reset-on-change";
 import { useMediaQuery } from "@/hooks/use-media-query";
 import { useDocumentLogo } from "@/features/printer/use-document-logo";
 import { buildBrowserDocumentPrintData } from "@/features/printer/browser-document-print";
+import { documentPrinterFailureKind } from "@/features/pos/table-selection/queued-document-print";
 import { useTranslation } from "react-i18next";
 import { EmptyState } from "@/components/common/empty-state";
 import { PrintLoadingDialog } from "@/components/common/print-loading-dialog";
@@ -316,7 +317,8 @@ export function CancelSalePage({
 
       showToast({
         title: t("cancelSale.reprintReceiptFailed"),
-        description: printError instanceof Error ? printError.message : "",
+        description: documentPrinterFailureKind(printError) === "preparation"
+          ? t("pos.browserPrintPreparationFailed") : printError instanceof Error ? printError.message : "",
         tone: "error"
       });
     } finally {

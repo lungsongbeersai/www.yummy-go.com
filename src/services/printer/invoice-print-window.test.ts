@@ -3,6 +3,7 @@ import { runInNewContext } from "node:vm";
 import lao from "../../../public/locales/la/common.json";
 import {
   INVOICE_TOTAL_FIT_SCRIPT,
+  CANONICAL_INVOICE_PRINT_ON_LOAD_SCRIPT,
   mergeInvoicePrintItems,
   renderInvoiceItems,
   renderInvoiceHeader,
@@ -12,6 +13,10 @@ import {
   openLocalInvoiceBatchPrintWindow,
   openLocalInvoicePrintWindow,
   reserveLocalInvoicePrintWindow,
+  parseCanonicalInvoicePrintDocument,
+  renderLocalInvoiceHtml,
+  renderLocalInvoiceBatchHtml,
+  type CanonicalInvoicePrintDocument,
   type InvoicePrintData,
   type InvoicePrintItem,
 } from "./invoice-print-window";
@@ -266,6 +271,115 @@ function previewData(): InvoicePrintData {
     title: "Invoice", total: 180_000, vat: 0,
   };
 }
+
+const png576 = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAkAAAAACCAYAAACwlWN4AAAAIUlEQVR4nO3OMQEAAAgDoPUvrS3mISQgAwDwTK4DAABtC3YZ7wCqktBBAAAAAElFTkSuQmCC";
+const png384 = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAYAAAAACCAYAAABRyAvYAAAAH0lEQVR4nO3OMQEAAAwCIPuX3mJ4CAnIATAp7QAAHQ80uvSm5BoSwQAAAABJRU5ErkJggg==";
+
+function canonicalDocument(paper: 58 | 80 = 80): CanonicalInvoicePrintDocument {
+  const width = paper === 58 ? 384 : 576;
+  return {
+    version: 1, document_type: "receipt", lang: "la", paper_width_mm: paper,
+    printable_width_px: width,
+    images: [{ src: paper === 58 ? png384 : png576, width, height: 2 }],
+  };
+}
+
+describe("canonical Auto Print document", () => {
+  it.each([58, 80] as const)("keeps every %imm PNG strip byte-for-byte at the Auto Print physical scale", (paper) => {
+    const document = canonicalDocument(paper);
+    document.images.push({ ...document.images[0] });
+    const source = structuredClone(document);
+    const data = { ...previewData(), canonicalPrintDocument: document };
+    expect(parseCanonicalInvoicePrintDocument(document, "receipt")).toEqual(source);
+    const html = renderLocalInvoiceHtml(data, "Receipt &lt;1&gt;");
+    const widthMm = paper === 58 ? 48 : 72;
+    expect(html).toContain(`@page { size: ${paper}mm 0.5mm; margin: 0; }`);
+    expect(html.match(new RegExp(`src="${document.images[0].src.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}"`, "g"))).toHaveLength(2);
+    expect(html).toContain(`style="width:${widthMm}mm;height:0.25mm"`);
+    expect(html).not.toContain("210mm");
+    expect(html).not.toContain("180.000");
+    expect(html).not.toContain("<link");
+    expect(html).not.toContain("font-size: 13px");
+    expect(html).not.toContain("fitInvoiceTotals");
+    expect(document).toEqual(source);
+  });
+
+  it("rejects invalid source formats, changed dimensions and noncanonical documents", () => {
+    const document = canonicalDocument();
+    const image = document.images[0];
+    for (const changed of [
+      undefined, null, {}, { ...document, version: 2 },
+      { ...document, document_type: "report" }, { ...document, lang: "en" },
+      { ...document, paper_width_mm: 57 }, { ...document, printable_width_px: 384 },
+      { ...document, images: [] }, { ...document, images: [{ ...image, width: 384 }] },
+      { ...document, images: [{ ...image, height: 1 }] },
+      { ...document, images: [{ ...image, height: 2.5 }] },
+      { ...document, images: [{ ...image, height: 0 }] },
+      { ...document, images: [{ ...image, height: 32_001 }] },
+      ...["https://example.com/receipt.png", "data:image/svg+xml;base64,PHN2Zz4=", "data:image/png;base64,bm90IGEgcG5n", `${image.src}\" onerror=\"alert(1)`]
+        .map((src) => ({ ...document, images: [{ ...image, src }] })),
+    ]) expect(parseCanonicalInvoicePrintDocument(changed)).toBeNull();
+    expect(parseCanonicalInvoicePrintDocument(document, "invoice")).toBeNull();
+  });
+
+  it("bounds image count, aggregate declared height and encoded PNG allocation", () => {
+    const document = canonicalDocument();
+    const image = document.images[0];
+    expect(parseCanonicalInvoicePrintDocument({ ...document, images: Array.from({ length: 129 }, () => image) })).toBeNull();
+    const bytes = Buffer.from(image.src.split(",")[1], "base64");
+    bytes.writeUInt32BE(32_000, 20);
+    const tallImage = { ...image, height: 32_000, src: `data:image/png;base64,${bytes.toString("base64")}` };
+    expect(parseCanonicalInvoicePrintDocument({ ...document, images: [tallImage, tallImage, tallImage] })).toBeNull();
+    expect(parseCanonicalInvoicePrintDocument({ ...document, images: [{ ...image,
+      src: `data:image/png;base64,${"A".repeat(Math.ceil(20 * 1024 * 1024 / 3) * 4 + 4)}`,
+    }] })).toBeNull();
+  });
+
+  it("fails closed for a missing canonical member or mixed paper sizes in a batch", () => {
+    const canonical = { ...previewData(), canonicalPrintDocument: canonicalDocument() };
+    expect(() => renderLocalInvoiceBatchHtml([canonical, previewData()], "Batch")).toThrow("Canonical print document unavailable");
+    expect(() => renderLocalInvoiceBatchHtml([canonical, {
+      ...previewData(), canonicalPrintDocument: canonicalDocument(58),
+    }], "Batch")).toThrow("Canonical print paper size mismatch");
+  });
+
+  it("waits for every image decoder before triggering the print dialog", async () => {
+    let finishDecode!: () => void;
+    const decoded = new Promise<void>((resolve) => { finishDecode = resolve; });
+    const print = vi.fn();
+    const focus = vi.fn();
+    const image = { complete: true, naturalWidth: 576, decode: () => decoded };
+    const listeners = new Map<string, () => void>();
+    runInNewContext(CANONICAL_INVOICE_PRINT_ON_LOAD_SCRIPT, {
+      window: { addEventListener: (name: string, listener: () => void) => listeners.set(name, listener), focus,
+        setTimeout: (callback: () => void) => callback(), print },
+      document: { querySelectorAll: () => [image], body: { setAttribute: vi.fn() }, getElementById: () => null },
+    });
+    listeners.get("load")?.();
+    await Promise.resolve();
+    expect(print).not.toHaveBeenCalled();
+    finishDecode();
+    await vi.waitFor(() => expect(print).toHaveBeenCalledOnce());
+    expect(focus).toHaveBeenCalledOnce();
+  });
+
+  it("shows a clear error and never prints a partial document when an image is broken", async () => {
+    const print = vi.fn();
+    const error = { hidden: true };
+    const setAttribute = vi.fn();
+    const listeners = new Map<string, () => void>();
+    runInNewContext(CANONICAL_INVOICE_PRINT_ON_LOAD_SCRIPT, {
+      window: { addEventListener: (name: string, listener: () => void) => listeners.set(name, listener),
+        focus: vi.fn(), setTimeout: (callback: () => void) => callback(), print },
+      document: { querySelectorAll: () => [{ complete: true, naturalWidth: 0, decode: () => Promise.reject(new Error("broken PNG")) }],
+        body: { setAttribute }, getElementById: () => error },
+    });
+    listeners.get("load")?.();
+    await vi.waitFor(() => expect(error.hidden).toBe(false));
+    expect(setAttribute).toHaveBeenCalledWith("data-print-error", "image_decode_failed");
+    expect(print).not.toHaveBeenCalled();
+  });
+});
 
 function popup() {
   return {

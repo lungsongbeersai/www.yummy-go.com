@@ -77,6 +77,118 @@ export type InvoicePrintPayment = {
   dueDate?: string;
 };
 
+export interface CanonicalInvoicePrintImage {
+  src: string;
+  width: number;
+  height: number;
+}
+
+/** Raster strips produced by the same Backend template/renderer as Auto Print. */
+export interface CanonicalInvoicePrintDocument {
+  version: 1;
+  document_type: "invoice" | "receipt";
+  lang: "la" | "eng";
+  paper_width_mm: 58 | 80;
+  printable_width_px: 384 | 576;
+  images: CanonicalInvoicePrintImage[];
+}
+
+const MAX_CANONICAL_IMAGES = 128;
+const MAX_CANONICAL_IMAGE_HEIGHT = 32_000;
+const MAX_CANONICAL_TOTAL_HEIGHT = 65_536;
+const MAX_CANONICAL_PNG_BYTES = 20 * 1024 * 1024;
+const PNG_DATA_PREFIX = "data:image/png;base64,";
+
+function pngDocumentRecord(value: unknown): Record<string, unknown> | null {
+  return value !== null && typeof value === "object" && !Array.isArray(value)
+    ? value as Record<string, unknown> : null;
+}
+
+function canonicalPngBytes(src: string, width: number, height: number, remainingBytes: number) {
+  if (!src.startsWith(PNG_DATA_PREFIX)) return null;
+  const base64 = src.slice(PNG_DATA_PREFIX.length);
+  if (!base64.length || base64.length % 4 !== 0 || base64.length > Math.ceil(remainingBytes / 3) * 4) return null;
+  const bytes = base64.length / 4 * 3 - (base64.endsWith("==") ? 2 : base64.endsWith("=") ? 1 : 0);
+  if (bytes < 45 || bytes > remainingBytes || !/^[A-Za-z0-9+/]+={0,2}$/.test(base64)) return null;
+  try {
+    // Read the real PNG dimensions rather than trusting an HTML width field.
+    // The browser decoder is still required to accept every complete strip
+    // before printing; a broken image can never become a partial receipt.
+    const header = atob(base64.slice(0, 44));
+    const signature = "\x89PNG\r\n\x1a\n";
+    const uint32 = (offset: number) => ((header.charCodeAt(offset) * 0x1000000) +
+      (header.charCodeAt(offset + 1) << 16) + (header.charCodeAt(offset + 2) << 8) +
+      header.charCodeAt(offset + 3));
+    const end = atob(base64.slice(-16));
+    if (!header.startsWith(signature) || uint32(8) !== 13 || header.slice(12, 16) !== "IHDR" ||
+        uint32(16) !== width || uint32(20) !== height || !end.endsWith("IEND\xaeB`\x82")) return null;
+    return bytes;
+  } catch {
+    return null;
+  }
+}
+
+export function parseCanonicalInvoicePrintDocument(
+  value: unknown,
+  expectedDocumentType?: "invoice" | "receipt",
+): CanonicalInvoicePrintDocument | null {
+  const document = pngDocumentRecord(value);
+  if (!document || document.version !== 1 ||
+      (document.document_type !== "invoice" && document.document_type !== "receipt") ||
+      (expectedDocumentType && document.document_type !== expectedDocumentType) ||
+      (document.lang !== "la" && document.lang !== "eng") ||
+      (document.paper_width_mm !== 58 && document.paper_width_mm !== 80) ||
+      document.printable_width_px !== (document.paper_width_mm === 58 ? 384 : 576) ||
+      !Array.isArray(document.images) || !document.images.length || document.images.length > MAX_CANONICAL_IMAGES) return null;
+
+  const width = document.paper_width_mm === 58 ? 384 : 576;
+  const images: CanonicalInvoicePrintImage[] = [];
+  let totalHeight = 0;
+  let totalBytes = 0;
+  for (const valueImage of document.images) {
+    const image = pngDocumentRecord(valueImage);
+    if (!image || image.width !== width || typeof image.height !== "number" ||
+        !Number.isInteger(image.height) || image.height < 1 || image.height > MAX_CANONICAL_IMAGE_HEIGHT ||
+        typeof image.src !== "string") return null;
+    totalHeight += image.height;
+    if (totalHeight > MAX_CANONICAL_TOTAL_HEIGHT) return null;
+    const bytes = canonicalPngBytes(image.src, width, image.height, MAX_CANONICAL_PNG_BYTES - totalBytes);
+    if (bytes === null) return null;
+    totalBytes += bytes;
+    images.push({ src: image.src, width, height: image.height });
+  }
+  return {
+    version: 1,
+    document_type: document.document_type,
+    lang: document.lang,
+    paper_width_mm: document.paper_width_mm,
+    printable_width_px: width,
+    images,
+  };
+}
+
+export const CANONICAL_INVOICE_PRINT_ON_LOAD_SCRIPT = `
+  window.addEventListener("load", () => {
+    const images = Array.from(document.querySelectorAll(".canonical-print-strip"));
+    const decode = (image) => {
+      if (typeof image.decode === "function") return image.decode();
+      return image.complete && image.naturalWidth > 0
+        ? Promise.resolve() : Promise.reject(new Error("Print image unavailable"));
+    };
+    Promise.all(images.map(decode)).then(() => {
+      if (!images.length || images.some((image) => !image.complete || image.naturalWidth === 0)) {
+        throw new Error("Print image unavailable");
+      }
+      window.focus();
+      window.setTimeout(() => window.print(), 250);
+    }).catch(() => {
+      document.body.setAttribute("data-print-error", "image_decode_failed");
+      const error = document.getElementById("canonical-print-error");
+      if (error) error.hidden = false;
+    });
+  });
+`;
+
 function invoicePrintNumber(value: number) {
   return Math.round(value * 1_000_000) / 1_000_000;
 }
@@ -172,6 +284,7 @@ export function mergeInvoicePrintItems(items: InvoicePrintItem[]) {
 }
 
 export type InvoicePrintData = {
+  canonicalPrintDocument?: CanonicalInvoicePrintDocument;
   logoUrl?: string | null;
   branchAddress: string;
   branchName: string;
@@ -288,7 +401,7 @@ function reserveInvoicePrintWindow(): (LocalInvoicePrintWindowReservation & {
   try {
     maximizePrintWindow(popup);
     popup.document.write(
-      `<!doctype html><html><head>${WINDOW_OPEN_FONT_STYLESHEET_LINK}<title>Print preview</title></head><body class="${WINDOW_OPEN_FONT_CLASS_NAME}">Loading print preview...</body></html>`,
+      "<!doctype html><html><head><title>Print preview</title></head><body>Loading print preview...</body></html>",
     );
     popup.document.close();
   } catch {
@@ -353,6 +466,9 @@ export function renderLocalInvoiceBatchHtml(
   safeTitle: string,
   autoPrint = true,
 ) {
+  if (dataList.some((data) => data.canonicalPrintDocument !== undefined)) {
+    return renderCanonicalInvoiceBatchHtml(dataList, safeTitle, autoPrint);
+  }
   const first = dataList[0];
   const contentWidth = first.contentWidthMm;
   const paperHeight = first.paperHeightMm;
@@ -403,6 +519,43 @@ export function renderLocalInvoiceBatchHtml(
     ${receipts}
     <script>${INVOICE_TOTAL_FIT_SCRIPT}</script>
     ${autoPrint ? `<script>${WINDOW_OPEN_PRINT_ON_LOAD_SCRIPT}</script>` : ""}
+  </body>
+</html>`;
+}
+
+function renderCanonicalInvoiceBatchHtml(dataList: InvoicePrintData[], safeTitle: string, autoPrint: boolean) {
+  const documents = dataList.map((data) => parseCanonicalInvoicePrintDocument(data.canonicalPrintDocument));
+  if (documents.some((document) => !document)) throw new Error("Canonical print document unavailable");
+  const verified = documents.filter((document): document is CanonicalInvoicePrintDocument => document !== null);
+  const first = verified[0];
+  if (!first || verified.some((document) => document.paper_width_mm !== first.paper_width_mm)) {
+    throw new Error("Canonical print paper size mismatch");
+  }
+  // Auto Print's raster dots use the same 8 dots/mm scale. Browser fonts and
+  // amount formatting never participate in the financial document body.
+  const heightMm = Math.max(...verified.map((document) =>
+    document.images.reduce((height, image) => height + image.height, 0) / 8));
+  const receipts = verified.map((document) => `<section class="canonical-receipt">${document.images.map((image) =>
+    `<img class="canonical-print-strip" src="${image.src}" width="${image.width}" height="${image.height}" style="width:${image.width / 8}mm;height:${image.height / 8}mm" alt="" />`).join("")}</section>`).join("");
+  return `<!doctype html>
+<html lang="${first.lang === "eng" ? "en" : "lo"}">
+  <head>
+    <title>${safeTitle}</title>
+    <style>
+      @page { size: ${first.paper_width_mm}mm ${heightMm}mm; margin: 0; }
+      * { box-sizing: border-box; }
+      html, body { width: ${first.paper_width_mm}mm; margin: 0; padding: 0; background: #fff; color: #111; }
+      .canonical-receipt { width: ${first.printable_width_px / 8}mm; margin: 0 auto; padding: 0; break-after: page; page-break-after: always; }
+      .canonical-receipt:last-of-type { break-after: auto; page-break-after: auto; }
+      .canonical-print-strip { display: block; margin: 0; padding: 0; border: 0; }
+      #canonical-print-error { margin: 4mm; font: 14px sans-serif; }
+      body[data-print-error] .canonical-receipt { display: none; }
+    </style>
+  </head>
+  <body>
+    ${receipts}
+    <p id="canonical-print-error" role="alert" hidden>Print preview could not be loaded. Please try again.</p>
+    ${autoPrint ? `<script>${CANONICAL_INVOICE_PRINT_ON_LOAD_SCRIPT}</script>` : ""}
   </body>
 </html>`;
 }

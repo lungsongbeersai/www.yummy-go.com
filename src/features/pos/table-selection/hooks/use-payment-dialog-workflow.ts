@@ -897,6 +897,13 @@ export function usePaymentDialogWorkflow({
     if (browserData) {
       return showBrowserDocument(browserData, context, t("pos.paymentReceiptPrintFailed"));
     }
+    if (browserAvailable && (!pendingJobUuid || hasUnconfiguredReceiptRole(response)) &&
+        response.fallback_print?.mode === "browser_print" &&
+        response.fallback_print.role_code === "receipt" && response.fallback_print.safe_not_queued === true) {
+      // A kitchen delivery result cannot stand in for a receipt whose exact
+      // Auto Print document could not be prepared. Payment remains committed.
+      throw new Error(t("pos.browserPrintPreparationFailed"));
+    }
     if (kitchenOutcome) return kitchenOutcome;
     // Native clients retain the existing no-receipt-printer skip behavior.
     // The additive browser snapshot must not turn their skip into an error.
@@ -1157,6 +1164,7 @@ export function usePaymentDialogWorkflow({
 
   function documentPrinterFailureDescription(error: unknown): string {
     const kind = documentPrinterFailureKind(error);
+    if (kind === "preparation") return t("pos.browserPrintPreparationFailed");
     if (kind === "unavailable") return t("pos.documentPrinterUnavailable");
     if (kind === "authorization") return t("pos.printerAgentAuthorizationFailed");
     if (kind === "registration") return t("pos.printerAgentRegistrationFailed");

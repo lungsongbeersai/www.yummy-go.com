@@ -91,8 +91,21 @@ function safeBrowserDocument(documentType: "invoice" | "receipt") {
       role_code: documentType,
       safe_not_queued: true,
       reason: "DOCUMENT_PRINTER_UNAVAILABLE",
+      print_document: {
+        version: 1,
+        document_type: documentType,
+        lang: "la",
+        paper_width_mm: 80,
+        printable_width_px: 576,
+        images: [{
+          src: "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAkAAAAABCAYAAAA2ARHWAAAAGElEQVR4nO3BAQEAAAABIP9PM0SVAgCcGWID93l7Qpv8AAAAAElFTkSuQmCC",
+          width: 576,
+          height: 1,
+        }],
+      },
       payload: {
         document_type: documentType,
+        lang: "la",
         invoiceNo: "SERVER-SPLIT-2",
         shopName: "Server shop",
         branchName: "Server branch",
@@ -287,7 +300,8 @@ describe("payment dialog workflow", () => {
 
   it.each(["full", "split"] as const)("opens a %s invoice using only the authoritative unqueued server snapshot", async (paymentKind) => {
     platform.native = false;
-    const enqueue = vi.fn().mockRejectedValue(safeInvoiceError());
+    const error = safeInvoiceError();
+    const enqueue = vi.fn().mockRejectedValue(error);
     const payment = vi.fn();
     const execute = vi.fn();
     const show = vi.fn<typeof originalShowToast>();
@@ -310,6 +324,8 @@ describe("payment dialog workflow", () => {
     }));
     expect(browserPrint.render.mock.calls[0][0].total).not.toBe(summary.grandTotal);
     expect(browserPrint.render.mock.calls[0][0].payment).toBeUndefined();
+    expect(browserPrint.render.mock.calls[0][0].canonicalPrintDocument)
+      .toEqual(error.payload.fallback_print.print_document);
     expect(browserPrint.open).not.toHaveBeenCalled();
     expect(execute).not.toHaveBeenCalled();
     expect(payment).not.toHaveBeenCalled();
@@ -344,6 +360,8 @@ describe("payment dialog workflow", () => {
         change: 18_000, currency: "THB", exchangeRate: 600, foreignPaid: 150,
       }),
     }));
+    expect(browserPrint.render.mock.calls[0][0].canonicalPrintDocument)
+      .toEqual(response.fallback_print.print_document);
     expect(execute).not.toHaveBeenCalled();
     expect(reprint).not.toHaveBeenCalled();
     expect(onCompleted).toHaveBeenCalledOnce();
@@ -382,6 +400,61 @@ describe("payment dialog workflow", () => {
     expect(kitchenFailure?.id).toBeDefined();
     expect(kitchenFailure?.id).not.toBe(receiptOpened?.id);
   });
+
+  for (const kitchenFailed of [false, true]) {
+    it.each(["full", "split"] as const)(`reports a failed canonical %s receipt even when its skipped role accompanies a ${kitchenFailed ? "failed" : "successful"} kitchen job`, async (paymentKind) => {
+      platform.native = false;
+      const savedReceipt = committedReceipt(paymentKind);
+      const response = {
+        ...savedReceipt,
+        fallback_print: {
+          ...savedReceipt.fallback_print,
+          print_document: undefined,
+          print_document_error: {
+            code: "BROWSER_DOCUMENT_RENDER_FAILED",
+            message: "The browser document could not be prepared.",
+          },
+        },
+        pending_query: { print_job_uuid: "kitchen-job", login_uuid_fk: "cashier-1" },
+        print_skipped: { role_code: "receipt", reason: "DOCUMENT_PRINT_ROLE_NOT_CONFIGURED" },
+      };
+      const pay = vi.fn().mockResolvedValue(response);
+      const execute = vi.fn().mockResolvedValue({
+        successCount: kitchenFailed ? 0 : 1,
+        failedCount: kitchenFailed ? 1 : 0,
+        total: 1,
+      });
+      const reprint = vi.fn();
+      const show = vi.fn<typeof originalShowToast>();
+      const onCompleted = vi.fn<PaymentDialogProps["onCompleted"]>().mockResolvedValue();
+      const onOpenChange = vi.fn<PaymentDialogProps["onOpenChange"]>();
+      usePosStore.setState({ createPayment: pay, splitBill: pay, reprintReceipt: reprint });
+      usePrinterStore.setState({ executeInvoice: execute });
+      useToastStore.setState({ show });
+
+      await renderActionWorkflow(paymentKind, { onCompleted, onOpenChange }).submitPayment();
+
+      expect(pay).toHaveBeenCalledOnce();
+      expect(execute).toHaveBeenCalledExactlyOnceWith(expect.objectContaining({ pending_query: response.pending_query }));
+      expect(reprint).not.toHaveBeenCalled();
+      expect(browserPrint.render).not.toHaveBeenCalled();
+      expect(browserPrint.open).not.toHaveBeenCalled();
+      expect(browserPrint.closeUnused).toHaveBeenCalledOnce();
+      expect(onCompleted).toHaveBeenCalledOnce();
+      expect(onOpenChange).toHaveBeenCalledWith(false);
+      const receiptFailure = show.mock.calls.at(-1)?.[0];
+      expect(receiptFailure).toMatchObject({
+        title: "pos.paymentReceiptPrintFailed", description: expect.stringContaining("pos.browserPrintPreparationFailed"), tone: "error",
+        action: { label: "pos.manualReprint" },
+      });
+      if (kitchenFailed) {
+        const kitchenFailure = show.mock.calls.find(([toast]) => toast.title === "pos.documentPrintFailed")?.[0];
+        expect(kitchenFailure).toMatchObject({ tone: "error", action: { label: "pos.manualReprint" } });
+        expect(kitchenFailure?.id).not.toBe(receiptFailure?.id);
+      }
+      expect(show.mock.calls.some(([toast]) => ["pos.paymentFailed", "pos.splitPaymentFailed"].includes(toast.title))).toBe(false);
+    });
+  }
 
   it.each(["full", "split"] as const)("retries only the queued kitchen job when a %s payment replay skips receipt without a safe snapshot", async (paymentKind) => {
     platform.native = false;
@@ -648,6 +721,61 @@ describe("payment dialog workflow", () => {
     expect(browserPrint.open).not.toHaveBeenCalled();
     expect(show).toHaveBeenLastCalledWith(expect.objectContaining({ title: "pos.invoicePrintFailed", tone: "error" }));
   });
+
+  for (const documentType of ["invoice", "receipt"] as const) {
+    for (const invalidDocument of ["missing", "empty images"] as const) {
+      it.each(["full", "split"] as const)(`rejects ${invalidDocument} canonical ${documentType} output during %s checkout without replaying a payment`, async (paymentKind) => {
+        platform.native = false;
+        const source = safeBrowserDocument(documentType);
+        const fallback_print = {
+          ...source.fallback_print,
+          print_document: invalidDocument === "missing" ? undefined : {
+            ...source.fallback_print.print_document,
+            images: [],
+          },
+        };
+        const response = {
+          ...committedReceipt(paymentKind),
+          fallback_print,
+        };
+        const request = documentType === "invoice"
+          ? vi.fn().mockRejectedValue(Object.assign(new Error("Invoice printer unavailable"), {
+            payload: { error_code: "DOCUMENT_PRINTER_UNAVAILABLE", fallback_print },
+          }))
+          : vi.fn().mockResolvedValue(response);
+        const execute = vi.fn();
+        const reprint = vi.fn();
+        const show = vi.fn<typeof originalShowToast>();
+        const onCompleted = vi.fn<PaymentDialogProps["onCompleted"]>().mockResolvedValue();
+        const onOpenChange = vi.fn<PaymentDialogProps["onOpenChange"]>();
+        usePosStore.setState({
+          createPayment: request, printInvoice: request, splitBill: request, reprintReceipt: reprint,
+        });
+        usePrinterStore.setState({ executeInvoice: execute });
+        useToastStore.setState({ show });
+
+        const workflow = renderActionWorkflow(paymentKind, { onCompleted, onOpenChange });
+        if (documentType === "invoice") await workflow.handlePrintInvoice();
+        else await workflow.submitPayment();
+
+        expect(request).toHaveBeenCalledOnce();
+        expect(browserPrint.render).not.toHaveBeenCalled();
+        expect(browserPrint.open).not.toHaveBeenCalled();
+        expect(browserPrint.closeUnused).toHaveBeenCalledOnce();
+        expect(execute).not.toHaveBeenCalled();
+        expect(reprint).not.toHaveBeenCalled();
+        expect(show).toHaveBeenLastCalledWith(expect.objectContaining({
+          title: documentType === "invoice" ? "pos.invoicePrintFailed" : "pos.paymentReceiptPrintFailed",
+          tone: "error",
+        }));
+        expect(show.mock.calls.some(([toast]) => [
+          "pos.browserPrintOpened", "common.printSuccess", "pos.paymentFailed", "pos.splitPaymentFailed",
+        ].includes(toast.title))).toBe(false);
+        expect(onCompleted).toHaveBeenCalledTimes(documentType === "receipt" ? 1 : 0);
+        if (documentType === "receipt") expect(onOpenChange).toHaveBeenCalledWith(false);
+      });
+    }
+  }
 
   for (const target of ["native", "electron"] as const) {
     it.each(["full", "split"] as const)(`finishes ${target} %s payment when its unconfigured receipt role includes a browser-only snapshot`, async (paymentKind) => {

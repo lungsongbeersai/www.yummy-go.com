@@ -1,9 +1,10 @@
-import type {
-  InvoicePrintData,
-  InvoicePrintExchangeRate,
-  InvoicePrintItem,
-  InvoicePrintPayment,
-  InvoicePrintTopping,
+import {
+  parseCanonicalInvoicePrintDocument,
+  type InvoicePrintData,
+  type InvoicePrintExchangeRate,
+  type InvoicePrintItem,
+  type InvoicePrintPayment,
+  type InvoicePrintTopping,
 } from "@/services/printer/invoice-print-window";
 
 type DocumentType = "invoice" | "receipt";
@@ -84,7 +85,10 @@ function safeDocumentSnapshot(response: unknown, documentType: DocumentType) {
         fallback.role_code !== documentType ||
         fallback.safe_not_queued !== true) continue;
     const payload = record(fallback.payload);
-    if (payload?.document_type === documentType) return payload;
+    if (payload?.document_type !== documentType || fallback.print_document_error) continue;
+    const printDocument = parseCanonicalInvoicePrintDocument(fallback.print_document, documentType);
+    if (!printDocument || (payload.lang !== undefined && payload.lang !== printDocument.lang)) continue;
+    return { payload, printDocument };
   }
   return null;
 }
@@ -204,14 +208,15 @@ function snapshotPayment(payload: Snapshot): InvoicePrintPayment | null {
   };
 }
 
-/** Project only an authoritative, explicitly unqueued document returned by the API. */
+/** An unqueued server snapshot may print only its canonical Auto Print raster. */
 export function buildBrowserDocumentPrintData(
   response: unknown,
   documentType: DocumentType,
   translate: Translate,
 ): InvoicePrintData | null {
-  const payload = safeDocumentSnapshot(response, documentType);
-  if (!payload) return null;
+  const snapshot = safeDocumentSnapshot(response, documentType);
+  if (!snapshot) return null;
+  const { payload, printDocument } = snapshot;
   const subtotal = amount(payload.subTotal);
   const total = amount(payload.total);
   const discount = amount(payload.discount_amount);
@@ -233,6 +238,7 @@ export function buildBrowserDocumentPrintData(
   const snapshotDate = receipt ? text(payload.paid_at) || text(payload.printed_at) : text(payload.printed_at);
   const printedAt = snapshotDate ? new Date(snapshotDate) : new Date();
   return {
+    canonicalPrintDocument: printDocument,
     logoUrl: payload.show_logo === true ? text(payload.branch_logo) || null : null,
     branchAddress: text(payload.branchAddress),
     branchName: text(payload.branchName),
@@ -274,9 +280,9 @@ export function buildBrowserDocumentPrintData(
       creditBalance: translate("orderAudit.fields.credit_balance"),
       dueDate: translate("pos.dueDate"),
     },
-    contentWidthMm: 72.1,
-    paperHeightMm: 210,
-    paperWidthMm: 80,
+    contentWidthMm: printDocument.printable_width_px / 8,
+    paperHeightMm: printDocument.images.reduce((height, image) => height + image.height, 0) / 8,
+    paperWidthMm: printDocument.paper_width_mm,
     ...(payment ? { payment } : {}),
     printedAt: Number.isNaN(printedAt.getTime()) ? new Date() : printedAt,
     // Reprints provide this exact local sale time in DD/MM/YYYY HH:mm format.
