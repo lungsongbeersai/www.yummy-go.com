@@ -160,7 +160,7 @@ export function LoginClient() {
     // pt/pb บวก safe-area — บน Capacitor หน้าเว็บวาดใต้ status bar/แถบ gesture (edge-to-edge)
     // จัดกลางด้วย my-auto ของคอลัมน์แทน justify-center: ตอนคีย์บอร์ดเปิดแล้วเนื้อหาสูงกว่าจอ
     // justify-center ดันหัวการ์ดล้นขึ้นไปใต้ status bar จนเลื่อนกลับมาดูไม่ได้ ส่วน auto margin ไม่ล้น
-    <main className="login-light-zone login-layout relative isolate flex min-h-svh flex-col items-center gap-4 bg-background px-4 pb-[calc(1.5rem+env(safe-area-inset-bottom,0px))] pt-[calc(1rem+env(safe-area-inset-top,0px))] text-foreground sm:px-6 md:px-10 md:pb-6 md:pt-6">
+    <main className="login-light-zone login-layout relative isolate flex min-h-svh flex-col items-center gap-4 bg-background px-4 pb-[calc(1.5rem+env(safe-area-inset-bottom,0px))] pt-[calc(1rem+env(safe-area-inset-top,0px))] text-foreground sm:px-6 md:gap-3 md:px-10 md:pb-4 md:pt-4">
       <div aria-hidden="true" className="pointer-events-none absolute inset-0 -z-10 overflow-hidden">
         <div className="absolute inset-0 bg-linear-to-br from-warning/5 via-background to-primary/5" />
         <div className="absolute -top-40 -right-40 size-96 rounded-full bg-primary/10 blur-3xl sm:size-128" />
@@ -184,38 +184,40 @@ export function LoginClient() {
         <LanguageSwitch variant="outline" className="h-11 rounded-xl bg-card sm:h-11" />
       </div>
 
-      <div className="my-auto flex w-full max-w-md flex-col gap-5 lg:max-w-7xl">
+      <div className="my-auto flex w-full max-w-md flex-col gap-3 lg:max-w-7xl">
         <Card className="grid gap-0 rounded-3xl p-0 shadow-xl shadow-foreground/5 ring-border/80 lg:grid-cols-[minmax(0,22fr)_minmax(0,78fr)]">
           <div className="min-w-0 lg:col-start-2 lg:row-start-1">
             <CardContent className="grid min-w-0 p-0 lg:grid-cols-[minmax(0,40fr)_minmax(0,38fr)]">
               <form
-                className="flex w-full min-w-0 max-w-lg flex-col justify-center justify-self-center p-6 sm:p-8 lg:p-6 xl:p-8"
+                className="flex w-full min-w-0 max-w-lg flex-col justify-center justify-self-center p-6 sm:p-8 lg:px-6 lg:py-5 xl:px-8"
                 aria-labelledby="login-title"
                 aria-describedby={authError ? "login-account-description login-account-error" : "login-account-description"}
                 noValidate
                 onSubmit={onSubmit}
               >
-                <FieldGroup className="gap-6">
-                  <div className="flex flex-col gap-6">
-                    <div className="flex items-center gap-3">
-                      <span className="relative size-11 shrink-0 overflow-hidden rounded-xl bg-card shadow-xs ring-1 ring-primary/15">
-                        <Image
-                          src="/brand/icon-mark.png"
-                          alt=""
-                          fill
-                          sizes="44px"
-                          className="object-cover"
-                        />
-                      </span>
-                      <span className="text-xl font-bold tracking-tight">YummyGo</span>
-                    </div>
-
-                    <div className="flex flex-col items-start gap-2 text-left">
-                      <Badge variant="secondary" className="mb-1 h-auto gap-1.5 rounded-full bg-primary/8 px-2.5 py-1 font-lao text-xs text-primary">
+                <FieldGroup className="gap-4">
+                  <div className="flex flex-col gap-4">
+                    <div className="flex flex-wrap items-center justify-between gap-3">
+                      <div className="flex items-center gap-3">
+                        <span className="relative size-11 shrink-0 overflow-hidden rounded-xl bg-card shadow-xs ring-1 ring-primary/15">
+                          <Image
+                            src="/brand/icon-mark.png"
+                            alt=""
+                            fill
+                            sizes="44px"
+                            className="object-cover"
+                          />
+                        </span>
+                        <span className="text-xl font-bold tracking-tight">YummyGo</span>
+                      </div>
+                      <Badge variant="secondary" className="h-auto shrink-0 gap-1.5 rounded-full bg-primary/8 px-2.5 py-1 font-lao text-xs text-primary">
                         <ShieldCheck aria-hidden />
                         {t("auth.accountSignIn.label")}
                       </Badge>
-                      <h1 id="login-title" tabIndex={-1} className="max-w-full text-balance text-2xl leading-snug font-semibold tracking-tight sm:text-3xl lg:text-2xl xl:text-3xl">{t("auth.accountSignIn.title")}</h1>
+                    </div>
+
+                    <div className="flex flex-col items-start gap-2 text-left">
+                      <h1 id="login-title" tabIndex={-1} className="max-w-full text-balance text-2xl leading-snug font-semibold tracking-tight">{t("auth.accountSignIn.title")}</h1>
                       <p id="login-account-description" className="max-w-sm text-pretty text-sm leading-relaxed text-muted-foreground">
                         {t("auth.accountSignIn.description")}
                       </p>
@@ -277,7 +279,7 @@ export function LoginClient() {
                         value={password}
                         onChange={(event) => setPassword(event.target.value)}
                       />
-                      <InputGroupAddon align="inline-end" className="pr-2">
+                      <InputGroupAddon align="inline-end" className="py-0 pr-2">
                         <InputGroupButton
                           size="icon-sm"
                           className="size-11 rounded-lg text-muted-foreground hover:bg-primary/5 hover:text-primary motion-reduce:transition-none"
@@ -317,10 +319,10 @@ export function LoginClient() {
                     </Button>
                   </Field>
 
-                  <section className="border-t border-border/70 pt-6" aria-labelledby="login-app-downloads">
+                  <section className="border-t border-border/70 pt-4" aria-labelledby="login-app-downloads">
                     <h2
                       id="login-app-downloads"
-                      className="mb-4 text-left text-xs font-medium text-muted-foreground"
+                      className="mb-3 text-left text-xs font-medium text-muted-foreground"
                     >
                       {t("auth.downloadAppsTitle")}
                     </h2>
@@ -366,20 +368,17 @@ export function LoginClient() {
                 </FieldGroup>
               </form>
 
-              <div className="relative hidden min-w-0 flex-col overflow-hidden border-l border-primary/10 bg-primary lg:flex">
-                <div className="relative aspect-square w-full shrink-0">
-                  <Image
-                    src="/auth/login-hero.png"
-                    alt=""
-                    fill
-                    preload
-                    sizes="(min-width: 1440px) 486px, (min-width: 1024px) 38vw, 0px"
-                    className="object-contain"
-                  />
-                  <div aria-hidden="true" className="absolute inset-x-0 bottom-0 h-16 bg-linear-to-t from-primary to-transparent" />
-                </div>
-                <div className="relative flex flex-1 flex-col justify-end gap-4 bg-linear-to-b from-primary to-foreground p-6 text-primary-foreground xl:p-8">
-                  <p className="max-w-md text-pretty font-lao text-2xl leading-snug font-semibold xl:text-3xl">{t("auth.heroTitle")}</p>
+              <div className="relative hidden min-h-0 min-w-0 overflow-hidden border-l border-primary/10 bg-primary lg:block">
+                <Image
+                  src="/auth/login-hero.png"
+                  alt=""
+                  fill
+                  preload
+                  sizes="(min-width: 1440px) 486px, (min-width: 1024px) 38vw, 0px"
+                  className="object-cover object-[60%_top]"
+                />
+                <div className="absolute inset-x-0 bottom-0 flex flex-col gap-3 bg-linear-to-t from-foreground via-foreground/85 to-transparent px-6 pt-24 pb-6 text-primary-foreground xl:px-8">
+                  <p className="max-w-md text-pretty font-lao text-2xl leading-snug font-semibold">{t("auth.heroTitle")}</p>
                   <p className="max-w-md text-pretty font-lao text-sm leading-relaxed text-primary-foreground/85">{t("auth.heroBody")}</p>
                 </div>
               </div>
