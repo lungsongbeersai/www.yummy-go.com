@@ -100,14 +100,11 @@ export function CartTabTrigger({
       // data-active: (ตัว variant เดียวกับที่ TabsTrigger ฐานใช้เอง) แทน data-[state=active]:
       // ของเดิม — สอง syntax นี้ต่างกันเป็นคนละ utility ในสาย twMerge ทำให้ merge ไม่ชนกันจริง
       // ผลลัพธ์เลยเดายากว่าใครชนะ ใช้ variant เดียวกันเพื่อให้ค่านี้ override ฐานได้ชัวร์เสมอ
-      //
-      // native side panel ใช้พื้นเขียวลายใบไม้เหมือน cart sheet จึงคงข้อความขาวไว้และใช้
-      // primary ทึบแยกแท็บ active; dark mode ตัดภาพออกและกลับไปใช้ผิว card ตาม token
       className={cn(
         "h-full min-w-0 gap-1.5 rounded-lg px-2.5 text-sm font-black transition-colors disabled:cursor-not-allowed disabled:opacity-60",
         neutral
-          ? "text-primary-foreground/80 hover:bg-white/10 hover:text-primary-foreground data-active:bg-primary data-active:text-primary-foreground data-active:shadow-sm dark:text-muted-foreground dark:hover:bg-card dark:hover:text-foreground dark:data-active:bg-primary dark:data-active:text-primary-foreground"
-          : "text-white/80 hover:text-white data-active:bg-primary data-active:text-primary-foreground data-active:shadow-sm dark:data-active:bg-primary dark:data-active:text-primary-foreground"
+          ? "text-muted-foreground hover:bg-card hover:text-card-foreground data-active:bg-primary data-active:text-primary-foreground data-active:shadow-sm dark:text-muted-foreground dark:hover:text-card-foreground dark:data-active:bg-primary dark:data-active:text-primary-foreground"
+          : "text-primary-foreground/80 hover:bg-primary-foreground/10 hover:text-primary-foreground data-active:bg-primary data-active:text-primary-foreground data-active:shadow-sm dark:text-primary-foreground/80 dark:hover:text-primary-foreground dark:data-active:bg-primary dark:data-active:text-primary-foreground"
       )}
     >
       <span className="min-w-0 truncate sm:hidden">{shortLabel ?? label}</span>
@@ -116,12 +113,10 @@ export function CartTabTrigger({
         className={cn(
           "h-6 shrink-0 rounded-full border-transparent px-2 text-xs font-black",
           active
-            ? neutral
-              ? "bg-primary-foreground/20 text-primary-foreground dark:bg-primary-foreground/20 dark:text-primary-foreground"
-              : "bg-primary-foreground/20 text-primary-foreground"
+            ? "bg-primary-foreground/20 text-primary-foreground"
             : neutral
-            ? "bg-primary-foreground/15 text-primary-foreground/85 dark:bg-card dark:text-muted-foreground"
-            : "bg-white/15 text-white"
+            ? "bg-card text-muted-foreground"
+            : "bg-primary-foreground/15 text-primary-foreground"
         )}
       >
         {count}

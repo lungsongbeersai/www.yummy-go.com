@@ -25,6 +25,7 @@ import { useIsNativeShellActive } from "@/hooks/use-native-shell-active";
 import { cn } from "@/lib/utils";
 import type { PosZone } from "@/services/pos";
 import { useAuthStore } from "@/stores/auth-store";
+import { useAppStore } from "@/stores/app-store";
 import { DepositDialog } from "@/features/sales/deposit/deposit-dialog";
 import { BranchMenuQrDialog } from "./branch-menu-qr-dialog";
 import {
@@ -99,10 +100,8 @@ export function SelectedTableCartPanelContent({
   const selectedTable = workflow.selectedTable;
   const customerDisplay = workflow.customerDisplay;
   const nativeShellActive = useIsNativeShellActive();
-  // Native landscape ใช้ side panel ค้างขวา: คืนพื้นเขียวลายใบไม้เฉพาะหัว/ท้ายตาม cart sheet
-  // แนวตั้ง แต่ให้ CardContent ทึบสีขาวคั่นกลาง จึงคงธีมขาว–เขียวและไม่รบกวนการอ่านรายการ
-  // ใช้ useIsNativeShellActive แทนเช็ก Capacitor ตรง ๆ เพื่อให้ scope ตรงกับ shell ที่แสดงจริง
-  const neutral = nativeShellActive && variant === "side";
+  const decorated = useAppStore((state) => state.decorBackground);
+  const neutral = !decorated;
   const isNoTableStore = useAuthStore(
     (state) => state.user?.store_table_status === 2
   );
@@ -124,23 +123,15 @@ export function SelectedTableCartPanelContent({
 
   return (
     <Card
-      data-pos-pattern={neutral ? "true" : undefined}
       className={cn(
-        "relative flex h-full min-h-0 flex-col overflow-hidden border-0 bg-transparent text-white shadow-none",
+        "relative flex h-full min-h-0 flex-col overflow-hidden border-0 bg-card text-card-foreground shadow-none",
         variant === "side"
-          ? "rounded-none border-l border-primary/15"
+          ? "rounded-none border-l border-border"
           : "rounded-t-2xl",
-        neutral &&
-          "border-primary/30 bg-primary bg-[url('/posAll/background_wide.webp')] bg-cover bg-top pb-0 text-primary-foreground dark:border-border dark:bg-none dark:bg-background dark:text-foreground"
+        decorated && "pos-decor-surface text-primary-foreground",
+        nativeShellActive && variant === "side" && "pb-0",
       )}
     >
-      {neutral ? (
-        <div
-          aria-hidden="true"
-          data-pos-pattern-overlay="true"
-          className="pointer-events-none absolute inset-0 bg-primary/30 dark:hidden"
-        />
-      ) : null}
       <Tabs
         value={workflow.activeTab}
         onValueChange={workflow.handleTabChange}
@@ -154,8 +145,8 @@ export function SelectedTableCartPanelContent({
           className={cn(
             "relative block shrink-0 overflow-hidden border-b",
             neutral
-              ? "border-white/15 bg-primary/25 text-primary-foreground dark:border-border dark:bg-card dark:text-foreground"
-              : "border-white/10 text-white dark:bg-black/25",
+              ? "border-border bg-card text-card-foreground"
+              : "border-primary-foreground/20 bg-transparent text-primary-foreground",
             variant === "side" ? "px-3 pb-2 pt-2.5" : "px-4 pb-2.5 pt-3"
           )}
         >
@@ -172,9 +163,7 @@ export function SelectedTableCartPanelContent({
               <p
                 className={cn(
                   "flex min-w-0 items-center gap-2 truncate text-base font-black leading-5",
-                  neutral
-                    ? "text-primary-foreground dark:text-foreground"
-                    : "text-white"
+                  neutral ? "text-card-foreground" : "text-primary-foreground"
                 )}
               >
                 <ReceiptText className="size-5 shrink-0" />
@@ -192,9 +181,7 @@ export function SelectedTableCartPanelContent({
                 <p
                   className={cn(
                     "truncate text-2xs font-bold leading-4",
-                    neutral
-                      ? "text-primary-foreground/80 dark:text-muted-foreground"
-                      : "text-white/75"
+                    neutral ? "text-muted-foreground" : "text-primary-foreground/80"
                   )}
                 >
                   {t("pos.invoice")}: {workflow.invoice}
@@ -205,8 +192,8 @@ export function SelectedTableCartPanelContent({
               className={cn(
                 "shrink-0 rounded-full font-semibold tabular-nums shadow-none",
                 neutral
-                  ? "border-white/25 bg-white/15 text-primary-foreground dark:border-border dark:bg-muted dark:text-foreground"
-                  : "border-white/20 bg-white/15 text-white",
+                  ? "border-border bg-muted text-muted-foreground"
+                  : "border-primary-foreground/25 bg-primary-foreground/15 text-primary-foreground",
                 variant === "side" ? "h-7 px-2.5 text-2xs" : "h-8 px-3 text-xs"
               )}
             >
@@ -217,23 +204,10 @@ export function SelectedTableCartPanelContent({
           {isNoTableStore ? null : (
             <TabsList
               className={cn(
-                // pos-soft-light-zone ต้องมาคู่กับ pos-dark-zone เสมอ (ดู CardContent ด้านล่าง) —
-                // ถ้ามีแค่ pos-soft-light-zone อย่างเดียว --foreground จะค้างค่าโหมดสว่าง (เกือบดำ)
-                // แม้อยู่ในโหมดมืด ทำให้ตัวอักษรแท็บที่ active (ใช้ text-foreground จาก TabsTrigger
-                // เดิม) เป็นสีดำมองไม่เห็นบนพื้นเข้ม — จุดนี้เคยตกหล่นไปตอนก๊อปคลาสมา
-                // overflow-hidden กัน focus ring/box-shadow ของ trigger แต่ละอันทะลุออกนอก
-                // มุมโค้ง rounded-xl ของแถบทั้งก้อน (trigger เองโค้งแค่ rounded-lg เล็กกว่า)
-                //
-                // native side ใช้พื้นเขียวลายใบไม้ จึงใช้ track ขาวโปร่งและข้อความขาวเหมือน sheet
-                // โดยให้ active tab เป็น primary ทึบเพื่อเห็นสถานะชัดเจน
-                // gap-1 — TabsTrigger ฐานปัดมุมโค้งครบ 4 มุมทุกด้าน (rounded-lg) ไม่ใช่แค่มุมนอก
-                // เดิมไม่มี gap คั่นระหว่าง 2 เซลล์ grid เลย แท็บทั้งสองเลยชนกันสนิท ตรงรอยต่อ
-                // มุมโค้งของทั้งคู่หันเข้าหากันจึงเผยพื้นหลังแทร็ก (bg-muted) เป็นรอยบากรูปโบว์ไท
-                // เล็ก ๆ แทรกอยู่ตรงกลาง เห็นชัดเป็นพิเศษตอนแท็บ active ทึบสีเขียว — ดูเหมือนมีอะไร
-                // มาบัง/กัดขอบปุ่ม ใส่ gap คั่นแยกให้แต่ละแท็บเป็นก้อนอิสระ ตัดปัญหาที่ต้นตอ
+                "grid w-full grid-cols-2 gap-1 overflow-hidden rounded-xl border p-1 shadow-inner",
                 neutral
-                  ? "grid w-full grid-cols-2 gap-1 overflow-hidden rounded-xl border border-white/20 bg-white/15 p-1 text-primary-foreground shadow-inner backdrop-blur-sm dark:border-border dark:bg-muted dark:text-foreground"
-                  : "pos-soft-light-zone pos-dark-zone grid w-full grid-cols-2 gap-1 overflow-hidden rounded-xl bg-white/15 p-1 text-white shadow-inner backdrop-blur-sm",
+                  ? "border-border bg-muted text-foreground"
+                  : "border-primary-foreground/20 bg-primary-foreground/15 text-primary-foreground backdrop-blur-sm",
                 variant === "side"
                   ? "mt-2 h-14 group-data-horizontal/tabs:h-14"
                   : "mt-2.5 h-11 group-data-horizontal/tabs:h-11"
@@ -354,8 +328,8 @@ export function SelectedTableCartPanelContent({
           className={cn(
             "pos-safe-bottom-padding block shrink-0 border-t",
             neutral
-              ? "border-white/15 bg-primary/25 text-primary-foreground dark:border-border dark:bg-card dark:text-foreground"
-              : "border-white/15 bg-transparent text-white dark:bg-black/25",
+              ? "border-border bg-card text-card-foreground"
+              : "border-primary-foreground/20 bg-transparent text-primary-foreground",
             variant === "side" ? "px-2.5 pt-1.5" : "px-3 pt-2"
           )}
         >
