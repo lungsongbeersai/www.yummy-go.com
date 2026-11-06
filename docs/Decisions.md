@@ -1,5 +1,14 @@
 # Decisions
 
+## Browser billing documents use the Auto Print raster
+
+- **Date:** 2026-11-06.
+- **Decision:** Safe, explicitly unqueued browser invoices and receipts carry PNG strips produced by the Backend's existing document formatter and raster renderer. The print window displays those strips at the configured paper width and physical dot scale. Browser code does not recreate financial labels, totals, item layout, credit rules or fonts for these documents.
+- **Reason:** The owner requested the same output as Auto Print. The independent HTML layout had drifted in money formatting, topping quantities, credit headings and customer details. Sharing the prepared raster keeps the existing Auto Print template authoritative instead of maintaining a second layout.
+- **Boundaries:** Existing role selection, transport, queue identities, payment commits and reprint drawer rules stay authoritative. The browser path still requires a saved API snapshot and `safe_not_queued`; it never substitutes cached carts, starts a second physical job or resubmits payment. Rendering errors are visible even when separate kitchen jobs succeed.
+- **Limits:** PNG size, dimensions and strip count are bounded. Without an available document printer profile the default is 80 mm. Browser print settings and the chosen driver still control output scale, margins, cutting and hardware actions; opening a preview is not proof of paper delivery.
+- **Authorization:** The user explicitly requested invoice and receipt printing to match Auto Print in every applicable detail.
+
 ## Printer management visibility follows verified owner access
 
 - **Date:** 2026-11-06.

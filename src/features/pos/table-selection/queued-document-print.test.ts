@@ -27,6 +27,27 @@ describe("document printer availability errors", () => {
     expect(documentPrinterFailureKind(new Error("Printer paper out"))).toBeNull();
     expect(documentPrinterFailureKind({ payload: { error_code: "INVOICE_PRINT_PREPARATION_FAILED" } })).toBeNull();
   });
+
+  it("reports canonical document preparation failure after an unqueued printer fallback", () => {
+    const fallback_print = {
+      mode: "browser_print",
+      safe_not_queued: true,
+      print_document_error: { code: "BROWSER_DOCUMENT_RENDER_FAILED" },
+    };
+    expect(documentPrinterFailureKind({
+      payload: { error_code: "DOCUMENT_PRINTER_UNAVAILABLE", fallback_print },
+    })).toBe("preparation");
+    expect(documentPrinterFailureKind({
+      payment_committed: true, fallback_print,
+      print_queue_error: { error_code: "DOCUMENT_PRINTER_UNAVAILABLE" },
+    })).toBe("preparation");
+    expect(documentPrinterFailureKind({
+      error_code: "PRINTER_AGENT_AUTHORIZATION_FAILED", fallback_print,
+    })).toBe("authorization");
+    expect(documentPrinterFailureKind({
+      fallback_print: { print_document_error: { code: "SOME_OTHER_ERROR" } },
+    })).toBeNull();
+  });
 });
 
 function deferred() {

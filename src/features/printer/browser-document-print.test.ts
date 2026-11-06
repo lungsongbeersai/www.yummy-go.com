@@ -1,9 +1,45 @@
 import { describe, expect, it } from "vitest";
+import { deflateSync } from "node:zlib";
 import { buildBrowserDocumentPrintData } from "./browser-document-print";
 import { renderInvoiceSystemPrintHtml } from "@/services/printer/invoice-print-window";
 
 const translate = (key: string, values?: Record<string, unknown>) =>
   values?.percent ? `${key} (${values.percent}%)` : key;
+
+function png(width: number, height = 2) {
+  const chunk = (type: string, data: Buffer) => {
+    const body = Buffer.concat([Buffer.from(type), data]);
+    let crc = 0xffffffff;
+    for (const byte of body) {
+      crc ^= byte;
+      for (let bit = 0; bit < 8; bit++) crc = (crc >>> 1) ^ (crc & 1 ? 0xedb88320 : 0);
+    }
+    const size = Buffer.alloc(4);
+    size.writeUInt32BE(data.length);
+    const checksum = Buffer.alloc(4);
+    checksum.writeUInt32BE((crc ^ 0xffffffff) >>> 0);
+    return Buffer.concat([size, body, checksum]);
+  };
+  const header = Buffer.alloc(13);
+  header.writeUInt32BE(width);
+  header.writeUInt32BE(height, 4);
+  header[8] = 8;
+  header[9] = 6;
+  const rgba = Buffer.alloc((width * 4 + 1) * height, 255);
+  for (let row = 0; row < height; row++) rgba[row * (width * 4 + 1)] = 0;
+  return `data:image/png;base64,${Buffer.concat([
+    Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]),
+    chunk("IHDR", header), chunk("IDAT", deflateSync(rgba)), chunk("IEND", Buffer.alloc(0)),
+  ]).toString("base64")}`;
+}
+
+function canonical(type: "invoice" | "receipt" = "invoice", paper: 58 | 80 = 80) {
+  const width = paper === 58 ? 384 : 576;
+  return {
+    version: 1, document_type: type, lang: "eng", paper_width_mm: paper,
+    printable_width_px: width, images: [{ src: png(width), width, height: 2 }],
+  };
+}
 
 function payload(type: "invoice" | "receipt" = "invoice") {
   return {
@@ -59,7 +95,7 @@ function payload(type: "invoice" | "receipt" = "invoice") {
 function fallback(type: "invoice" | "receipt" = "invoice") {
   return { fallback_print: {
     mode: "browser_print", role_code: type, safe_not_queued: true,
-    reason: "DOCUMENT_PRINTER_UNAVAILABLE", payload: payload(type),
+    reason: "DOCUMENT_PRINTER_UNAVAILABLE", payload: payload(type), print_document: canonical(type),
   } };
 }
 
@@ -148,7 +184,7 @@ describe("authoritative browser document fallback", () => {
     expect(response).toEqual(original);
   });
 
-  it("prints receipt-specific labels, saved paid amounts and change with escaped server text", () => {
+  it("renders only the canonical receipt images while retaining saved metadata for the workflow", () => {
     const data = buildBrowserDocumentPrintData(fallback("receipt"), "receipt", translate);
     expect(data?.payment).toEqual({
       paidCash: 90_000, paidTransfer: 0, paidTotal: 90_000, change: 18_000,
@@ -158,13 +194,12 @@ describe("authoritative browser document fallback", () => {
     expect(data?.labels.invoice).toBe("pos.receiptPrintNumber");
     expect(data?.title).toBe("pos.receiptPrintTitle");
     const html = renderInvoiceSystemPrintHtml(data!);
-    expect(html).toContain("Shop &lt;&amp;&gt; &quot;one&quot;");
-    expect(html).toContain("Egg &lt;script&gt;");
-    expect(html).toContain("Cash &lt;&amp;&gt;");
-    expect(html).toContain("90.000 ₭");
-    expect(html).toContain("18.000 ₭");
-    expect(html).toContain("150 THB");
-    expect(html).toContain("Thank &lt;you&gt;");
+    expect(html).toContain(`src="${data!.canonicalPrintDocument!.images[0].src}"`);
+    expect(html).not.toContain("class=\"payment-summary\"");
+    expect(html).not.toContain("Shop &lt;&amp;&gt; &quot;one&quot;");
+    expect(html).not.toContain("90.000 ₭");
+    expect(html).not.toContain("150 THB");
+    expect(html).not.toContain("Thank &lt;you&gt;");
     expect(html).not.toContain("<script>Egg");
   });
 
@@ -192,9 +227,10 @@ describe("authoritative browser document fallback", () => {
       creditBalance: 52_000, dueDate: "2026-12-01",
     });
     const html = renderInvoiceSystemPrintHtml(data!);
-    expect(html).toMatch(/pos.amountReceived<\/span><span[^>]*>0 ₭<\/span>/);
-    expect(html).toContain("52.000 ₭");
-    expect(html).toContain("2026-12-01");
+    expect(html).toContain("canonical-print-strip");
+    expect(html).not.toContain("pos.amountReceived");
+    expect(html).not.toContain("52.000 ₭");
+    expect(html).not.toContain("2026-12-01");
   });
 
   it("preserves the original local sale date on a receipt reprint", () => {
@@ -206,7 +242,35 @@ describe("authoritative browser document fallback", () => {
       },
     } }, "receipt", translate);
     expect(data?.saleDateTime).toBe("06/11/2026 08:35");
-    expect(renderInvoiceSystemPrintHtml(data!)).toContain("06/11/2026 08:35");
+    expect(renderInvoiceSystemPrintHtml(data!)).not.toContain("06/11/2026 08:35");
     expect(data?.printedAt.toISOString()).toBe("2026-11-06T01:35:00.000Z");
+  });
+
+  it.each([58, 80] as const)("preserves exact %imm canonical strips without recalculating their content", (paper) => {
+    const source = fallback("receipt");
+    source.fallback_print.print_document = canonical("receipt", paper);
+    const original = structuredClone(source);
+    const data = buildBrowserDocumentPrintData(source, "receipt", translate)!;
+    expect(data.canonicalPrintDocument).toEqual(source.fallback_print.print_document);
+    expect(data.paperWidthMm).toBe(paper);
+    expect(data.contentWidthMm).toBe(paper === 58 ? 48 : 72);
+    const html = renderInvoiceSystemPrintHtml({ ...data, total: 999_999_999, items: [], payment: undefined });
+    expect(html).toContain(`src="${source.fallback_print.print_document.images[0].src}"`);
+    expect(html).toContain(`@page { size: ${paper}mm 0.25mm; margin: 0; }`);
+    expect(html).not.toContain("999");
+    expect(html).not.toContain("window-open-fonts");
+    expect(source).toEqual(original);
+  });
+
+  it("requires canonical output and rejects rendering errors instead of using the old HTML layout", () => {
+    const source = fallback();
+    for (const changed of [
+      { ...source.fallback_print, print_document: undefined },
+      { ...source.fallback_print, print_document: null },
+      { ...source.fallback_print, print_document: canonical("receipt") },
+      { ...source.fallback_print, print_document: { ...canonical(), lang: "la" } },
+      { ...source.fallback_print, print_document_error: { code: "PRINT_DOCUMENT_RENDER_FAILED" } },
+      { ...source.fallback_print, print_document: { ...canonical(), images: [{ src: "https://example.com/a.png", width: 576, height: 2 }] } },
+    ]) expect(buildBrowserDocumentPrintData({ fallback_print: changed }, "invoice", translate)).toBeNull();
   });
 });

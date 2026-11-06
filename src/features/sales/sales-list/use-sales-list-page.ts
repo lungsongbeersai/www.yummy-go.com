@@ -11,6 +11,7 @@ import {
   type LocalInvoicePrintWindowReservation
 } from "@/services/printer/invoice-print-window";
 import { buildBrowserDocumentPrintData } from "@/features/printer/browser-document-print";
+import { documentPrinterFailureKind } from "@/features/pos/table-selection/queued-document-print";
 import { useDocumentLogo } from "@/features/printer/use-document-logo";
 import { useUrlPagination } from "@/hooks/use-url-pagination";
 import { canUseWindowOpen } from "@/lib/capacitor-platform";
@@ -293,7 +294,8 @@ export function useSalesListPage(initialPagination: UrlPaginationState) {
 
       showToast({
         title: t("salesList.reprintReceiptFailed"),
-        description: printError instanceof Error ? printError.message : "",
+        description: documentPrinterFailureKind(printError) === "preparation"
+          ? t("pos.browserPrintPreparationFailed") : printError instanceof Error ? printError.message : "",
         tone: "error"
       });
     } finally {
