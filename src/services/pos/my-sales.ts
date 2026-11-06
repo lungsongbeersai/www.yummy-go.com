@@ -1,5 +1,6 @@
 import { apiRequest } from "@/lib/api";
 import { listParams } from "@/services/shared/crud";
+import type { CartSetChildOption } from "@/services/pos/types";
 
 export type MySalesKitchenStatus = "pending" | "partial" | "sent" | "cancelled";
 export type MySalesPaymentStatus = "unpaid" | "paid" | "cancelled";
@@ -10,7 +11,7 @@ export interface MySalesParams {
   search?: string;
   date_start?: string;
   date_end?: string;
-  kitchen_status?: "all" | "pending" | "partial" | "sent";
+  kitchen_status?: "all" | MySalesKitchenStatus;
   payment_status?: "all" | MySalesPaymentStatus;
   lang?: string;
 }
@@ -21,6 +22,7 @@ export interface MySalesItem {
   quantity: number;
   price: number;
   total: number;
+  item_discount_amount?: number;
   status: number;
   kitchen_sent: boolean;
   kitchen_confirmed_at: string | null;
@@ -29,6 +31,7 @@ export interface MySalesItem {
   set_instance_uuid?: string | null;
   set_quantity?: number | null;
   status_sort_fk?: number | null;
+  set_child_options?: CartSetChildOption[];
   tastes?: { taste_uuid_fk: string; taste_name_la: string; taste_name_eng: string }[];
   toppings?: { topping_name_la: string; topping_name_eng: string; quantity: number; price: number }[];
 }
@@ -66,20 +69,24 @@ export interface MySalesResponse {
   data: MySalesOrder[];
   pagination: { page: number; limit: number; total: number; total_pages: number };
   summary: MySalesSummary;
+  time_zone?: string;
 }
 
 export function fetchMySales(params: MySalesParams) {
   // Identity and branch come from the authenticated session on Backend.
+  const query = listParams({
+    page: params.page ?? 1,
+    limit: params.limit ?? 20,
+    search: params.search?.trim() ?? "",
+    date_start: params.date_start || undefined,
+    date_end: params.date_end || undefined,
+    kitchen_status: params.kitchen_status ?? "all",
+    payment_status: params.payment_status ?? "all",
+    lang: params.lang,
+  });
+  // This endpoint fixes newest-first ordering; it has no orderBy parameter.
+  delete query.orderBy;
   return apiRequest<MySalesResponse>("get", "/api/v1/posAll/my_sales", {
-    params: listParams({
-      page: params.page ?? 1,
-      limit: params.limit ?? 20,
-      search: params.search?.trim() ?? "",
-      date_start: params.date_start || undefined,
-      date_end: params.date_end || undefined,
-      kitchen_status: params.kitchen_status ?? "all",
-      payment_status: params.payment_status ?? "all",
-      lang: params.lang,
-    }),
+    params: query,
   });
 }

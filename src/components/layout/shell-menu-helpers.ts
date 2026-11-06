@@ -10,6 +10,7 @@ const FIXED_DATA_SCREEN_PATHS = new Set([
   "/sales/cancel-sale",
   "/sales/sales-list",
   "/order_manage",
+  "/my_orders",
 ]);
 const FIXED_DATA_SCREEN_PREFIXES = ["/settings/", "/report/"] as const;
 const IMMERSIVE_SCREEN_PATHS = new Set(["/posAll/tables", "/posAll/order"]);

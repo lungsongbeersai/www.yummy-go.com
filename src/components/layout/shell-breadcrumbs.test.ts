@@ -21,6 +21,15 @@ const items: MenuItem[] = [
 ];
 
 describe("resolveShellBreadcrumbs", () => {
+  it("labels personal orders before its permission menu has loaded", () => {
+    expect(resolveShellBreadcrumbs([], "/my_orders")).toEqual([
+      { path: "/my_orders", title: "my_orders" },
+    ]);
+    expect(resolveShellBreadcrumbs([
+      { path: "/my_orders", title: "personal-orders", label: "Own orders from API" },
+    ], "/my_orders")?.[0]?.label).toBe("Own orders from API");
+  });
+
   it("does not link permission groups that have no real page", () => {
     expect(resolveShellBreadcrumbs(items, "/settings/category")?.[0]).toEqual(
       expect.objectContaining({ path: undefined, title: "settings" }),
