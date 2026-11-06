@@ -17,18 +17,19 @@
 }
 
 :root {
+  /* Distinct workspace, card and control surfaces keep dense POS screens readable. */
   --card: oklch(1 0 0);
-  --card-foreground: oklch(0.148 0.004 228.8);
+  --card-foreground: #172e28;
   --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.148 0.004 228.8);
-  --muted: oklch(0.963 0.002 197.1);
-  --muted-foreground: oklch(0.56 0.021 213.5);
-  --accent: oklch(0.963 0.002 197.1);
-  --accent-foreground: oklch(0.218 0.008 223.9);
+  --popover-foreground: #172e28;
+  --muted: #e0e9e4;
+  --muted-foreground: #475e54;
+  --accent: #d9e8df;
+  --accent-foreground: #1f3d30;
   --primary: oklch(0.508 0.118 165.612);
   --primary-foreground: oklch(0.979 0.021 166.113);
-  --secondary: oklch(0.967 0.001 286.375);
-  --secondary-foreground: oklch(0.21 0.006 285.885);
+  --secondary: #e3ece7;
+  --secondary-foreground: #233e32;
   --destructive: oklch(0.577 0.245 27.325);
   --destructive-foreground: oklch(1 0 0);
   --warning: hsl(38 92% 46%);
@@ -49,9 +50,10 @@
      แต่โหมดมืด --primary เข้มมาก (ออกแบบเป็นสีพื้นปุ่มคู่กับ -foreground) ใช้เป็นตัวอักษรบนพื้นมืด
      แล้วแทบมองไม่เห็น จึงชี้ไป --sidebar-primary ที่ทุก preset สีธีมกำหนดเฉดสว่างไว้ในโหมดมืดแล้ว */
   --primary-text: var(--primary);
-  --border: oklch(0.925 0.005 214.3);
-  --input: oklch(0.925 0.005 214.3);
-  --ring: oklch(0.723 0.014 214.4);
+  --border: #b9c9c2;
+  --input: #7d9288;
+  --ring: var(--primary-text);
+  --overlay: #071b15a8;
   --sidebar: oklch(0.99 0.002 197.1);
   --sidebar-foreground: oklch(0.21 0.01 165);
   --sidebar-primary: oklch(0.508 0.118 165.612);
@@ -60,10 +62,10 @@
   --sidebar-accent-foreground: oklch(0.24 0.06 165);
   --sidebar-border: oklch(0.9 0.01 165);
   --sidebar-ring: oklch(0.508 0.118 165.612);
-  --app: 211 44% 98%;
+  --app: 156 16% 94%;
   --pos-system-bottom-safe-area: env(safe-area-inset-bottom, 0px);
-  --background: oklch(1 0 0);
-  --foreground: oklch(0.148 0.004 228.8);
+  --background: #edf2f0;
+  --foreground: #172e28;
   --chart-1: oklch(0.871 0.15 154.449);
   --chart-2: oklch(0.723 0.219 149.579);
   --chart-3: oklch(0.627 0.194 149.214);
@@ -98,20 +100,20 @@
 }
 
 .dark {
-  --background: oklch(0.148 0.004 228.8);
-  --foreground: oklch(0.987 0.002 197.1);
-  --card: oklch(0.218 0.008 223.9);
-  --card-foreground: oklch(0.987 0.002 197.1);
-  --popover: oklch(0.218 0.008 223.9);
-  --popover-foreground: oklch(0.987 0.002 197.1);
-  --muted: oklch(0.275 0.011 216.9);
-  --muted-foreground: oklch(0.723 0.014 214.4);
-  --accent: oklch(0.275 0.011 216.9);
-  --accent-foreground: oklch(0.987 0.002 197.1);
+  --background: #101b18;
+  --foreground: #f1f7f3;
+  --card: #1b2923;
+  --card-foreground: #f1f7f3;
+  --popover: #22342c;
+  --popover-foreground: #f1f7f3;
+  --muted: #2c4136;
+  --muted-foreground: #b6c9be;
+  --accent: #354f40;
+  --accent-foreground: #f1f7f3;
   --primary: oklch(0.432 0.095 166.913);
   --primary-foreground: oklch(0.979 0.021 166.113);
-  --secondary: oklch(0.274 0.006 286.033);
-  --secondary-foreground: oklch(0.985 0 0);
+  --secondary: #2e4438;
+  --secondary-foreground: #f1f7f3;
   --destructive: oklch(0.704 0.191 22.216);
   --destructive-foreground: oklch(1 0 0);
   --warning: hsl(38 92% 55%);
@@ -126,9 +128,10 @@
   --info-text: hsl(199 95% 74%);
   --warning-text: hsl(46 97% 64%);
   --primary-text: var(--sidebar-primary);
-  --border: oklch(1 0 0 / 10%);
-  --input: oklch(1 0 0 / 15%);
-  --ring: oklch(0.56 0.021 213.5);
+  --border: #456154;
+  --input: #759384;
+  --ring: var(--primary-text);
+  --overlay: #020a07c7;
   --sidebar: oklch(0.218 0.008 223.9);
   --sidebar-foreground: oklch(0.987 0.002 197.1);
   --sidebar-primary: oklch(0.696 0.17 162.48);
@@ -137,7 +140,7 @@
   --sidebar-accent-foreground: oklch(0.98 0.01 166);
   --sidebar-border: oklch(1 0 0 / 10%);
   --sidebar-ring: oklch(0.696 0.17 162.48);
-  --app: 220 26% 8%;
+  --app: 164 26% 8%;
   --chart-1: oklch(0.871 0.15 154.449);
   --chart-2: oklch(0.723 0.219 149.579);
   --chart-3: oklch(0.627 0.194 149.214);
@@ -293,22 +296,22 @@
    Swan 1 — WebView บางรุ่น parse OKLCH ได้แต่แสดงผล/ผสม opacity ต่างจาก Chrome desktop */
 html.capacitor-android {
   --card: #fff;
-  --card-foreground: #090b0c;
+  --card-foreground: #172e28;
   --popover: #fff;
-  --popover-foreground: #090b0c;
-  --muted: #f1f3f3;
-  --muted-foreground: #67787c;
-  --accent: #f1f3f3;
-  --accent-foreground: #161b1d;
+  --popover-foreground: #172e28;
+  --muted: #e0e9e4;
+  --muted-foreground: #475e54;
+  --accent: #d9e8df;
+  --accent-foreground: #1f3d30;
   --primary: #007956;
   --primary-foreground: #ecfdf5;
-  --secondary: #f4f4f5;
-  --secondary-foreground: #18181b;
+  --secondary: #e3ece7;
+  --secondary-foreground: #233e32;
   --destructive: #e40014;
   --destructive-foreground: #fff;
-  --border: #e3e7e8;
-  --input: #e3e7e8;
-  --ring: #9ca8ab;
+  --border: #b9c9c2;
+  --input: #7d9288;
+  --ring: var(--primary-text);
   --sidebar: #fafcfc;
   --sidebar-foreground: #141a17;
   --sidebar-primary: #007956;
@@ -317,8 +320,8 @@ html.capacitor-android {
   --sidebar-accent-foreground: #002719;
   --sidebar-border: #d8e0dc;
   --sidebar-ring: #007956;
-  --background: #fff;
-  --foreground: #090b0c;
+  --background: #edf2f0;
+  --foreground: #172e28;
   --chart-1: #7bf1a8;
   --chart-2: #00c758;
   --chart-3: #00a544;
@@ -360,25 +363,25 @@ html.capacitor-android {
 }
 
 html.capacitor-android.dark {
-  --background: #090b0c;
-  --foreground: #f9fbfb;
-  --card: #161b1d;
-  --card-foreground: #f9fbfb;
-  --popover: #161b1d;
-  --popover-foreground: #f9fbfb;
-  --muted: #22292b;
-  --muted-foreground: #9ca8ab;
-  --accent: #22292b;
-  --accent-foreground: #f9fbfb;
+  --background: #101b18;
+  --foreground: #f1f7f3;
+  --card: #1b2923;
+  --card-foreground: #f1f7f3;
+  --popover: #22342c;
+  --popover-foreground: #f1f7f3;
+  --muted: #2c4136;
+  --muted-foreground: #b6c9be;
+  --accent: #354f40;
+  --accent-foreground: #f1f7f3;
   --primary: #005f46;
   --primary-foreground: #ecfdf5;
-  --secondary: #27272a;
-  --secondary-foreground: #fafafa;
+  --secondary: #2e4438;
+  --secondary-foreground: #f1f7f3;
   --destructive: #ff6568;
   --destructive-foreground: #fff;
-  --border: #ffffff1a;
-  --input: #ffffff26;
-  --ring: #67787c;
+  --border: #456154;
+  --input: #759384;
+  --ring: var(--primary-text);
   --sidebar: #161b1d;
   --sidebar-foreground: #f9fbfb;
   --sidebar-primary: #00bb7f;
@@ -528,6 +531,7 @@ html[data-lao-font="saysettha"] {
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
+  --color-overlay: var(--overlay);
   --color-card: var(--card);
   --color-card-foreground: var(--card-foreground);
   --color-popover: var(--popover);

@@ -11,7 +11,7 @@ export function isActiveStatus(status: string) {
 
 export function statusBadgeClass(active: boolean) {
   return active
-    ? "border-primary/25 bg-primary/10 text-primary"
+    ? "border-primary/40 bg-primary/10 text-primary-text"
     : "border-muted-foreground/20 bg-muted text-muted-foreground";
 }
 

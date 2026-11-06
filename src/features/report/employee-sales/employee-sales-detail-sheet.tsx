@@ -138,7 +138,7 @@ export function EmployeeSalesDetailSheet({
   return (
     <Dialog open={Boolean(row)} onOpenChange={onOpenChange}>
       {/* Full screen: the base dialog centres a small box; this pins it to the whole viewport. */}
-      <DialogContent className="top-0 left-0 flex h-dvh w-screen max-w-none translate-x-0 translate-y-0 flex-col gap-0 overflow-hidden rounded-none p-0 ring-0 sm:max-w-none">
+      <DialogContent className="top-0 left-0 flex h-dvh max-h-none w-screen max-w-none translate-x-0 translate-y-0 flex-col gap-0 overflow-hidden rounded-none border-0 p-0 ring-0 sm:max-w-none">
         {/* Keyed by employee: search, sort, page, selection and expanded bills start fresh. */}
         {row ? <EmployeeOrdersView key={row.login_uuid} row={row} /> : null}
       </DialogContent>

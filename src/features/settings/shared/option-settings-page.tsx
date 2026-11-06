@@ -419,7 +419,7 @@ export function OptionFormDialog<Row extends ApiEntity>({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <SettingsDialogContent className={dialogContentClassName ?? "sm:max-w-2xl"}>
+      <SettingsDialogContent className={dialogContentClassName}>
         <SettingsDialogForm key={formKey} action={onSubmit}>
           <SettingsDialogHeader>
             <DialogTitle>{editing ? t("settings.editRecord") : t("settings.newRecord")}: {title}</DialogTitle>

@@ -9,7 +9,7 @@ import { cn } from "@/lib/utils";
 export const SETTINGS_ACCENT = {
   solid: "bg-primary text-primary-foreground",
   soft: "bg-primary/10 text-primary-text",
-  wash: "bg-linear-to-br from-primary/15 via-primary/5 to-card"
+  wash: "bg-linear-to-br from-primary/15 via-primary/10 to-primary/5"
 } as const;
 
 /** The soft icon tile shown beside a record in the lists. */
