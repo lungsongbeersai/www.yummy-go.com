@@ -59,6 +59,24 @@ export type InvoicePrintExchangeRate = {
   rate: number;
 };
 
+export type InvoicePrintPayment = {
+  paidCash: number;
+  paidTransfer: number;
+  paidTotal: number;
+  change: number;
+  label: string;
+  currency: string;
+  exchangeRate: number;
+  foreignPaid: number;
+  paidLak: number;
+  changeLak: number;
+  isCredit?: boolean;
+  debtAmount?: number;
+  creditPaidTotal?: number;
+  creditBalance?: number;
+  dueDate?: string;
+};
+
 function invoicePrintNumber(value: number) {
   return Math.round(value * 1_000_000) / 1_000_000;
 }
@@ -186,12 +204,24 @@ export type InvoicePrintData = {
     currentExchangeRate?: string;
     item?: string;
     amount?: string;
+    paidCash?: string;
+    paidTransfer?: string;
+    paidTotal?: string;
+    change?: string;
+    payment?: string;
+    foreignPaid?: string;
+    debtAmount?: string;
+    creditPaidTotal?: string;
+    creditBalance?: string;
+    dueDate?: string;
   };
 
   contentWidthMm: number;
   paperHeightMm: number;
   paperWidthMm: number;
+  payment?: InvoicePrintPayment;
   printedAt: Date;
+  saleDateTime?: string;
   qrUrl: string | null;
   service: number;
   storeName: string;
@@ -211,33 +241,84 @@ export async function openLocalInvoiceBatchPrintWindow(
 ) {
   if (!dataList.length) return false;
 
-  const printWindow = openWindowOutsideNativeApp(
-    "",
-    "_blank",
-    fullscreenPrintWindowFeatures()
-  );
-  if (!printWindow) return false;
+  const reservation = reserveInvoicePrintWindow();
+  if (!reservation) return false;
+  const rendered = reservation.renderBatch(dataList);
+  if (!rendered) reservation.closeUnused();
+  return rendered;
+}
 
-  maximizePrintWindow(printWindow);
+export type LocalInvoicePrintWindowReservation = {
+  render(data: InvoicePrintData): boolean;
+  closeUnused(): void;
+};
 
-  const first = dataList[0];
-  const safeTitle = escapeHtml(
-    dataList.length > 1
-      ? `${first.title} (${dataList.length})`
-      : first.invoice
-        ? `${first.labels.invoice}: ${first.invoice}`
-        : first.title
-  );
+/** Open during the click gesture; populate only after the server confirms its snapshot. */
+export function reserveLocalInvoicePrintWindow(): LocalInvoicePrintWindowReservation | null {
+  return reserveInvoicePrintWindow();
+}
 
-  printWindow.document.write(
-    `<!doctype html><html><head>${WINDOW_OPEN_FONT_STYLESHEET_LINK}<title>${safeTitle}</title></head><body class="${WINDOW_OPEN_FONT_CLASS_NAME}">Loading print preview...</body></html>`
-  );
-  printWindow.document.close();
+function reserveInvoicePrintWindow(): (LocalInvoicePrintWindowReservation & {
+  renderBatch(dataList: InvoicePrintData[]): boolean;
+}) | null {
+  let printWindow: Window | null;
+  try {
+    printWindow = openWindowOutsideNativeApp(
+      "",
+      "_blank",
+      fullscreenPrintWindowFeatures(),
+    );
+  } catch {
+    return null;
+  }
+  if (!printWindow || printWindow.closed) return null;
 
-  printWindow.document.open();
-  printWindow.document.write(renderLocalInvoiceBatchHtml(dataList, safeTitle));
-  printWindow.document.close();
-  return true;
+  const popup = printWindow;
+  let rendered = false;
+  let discarded = false;
+  const closeUnused = () => {
+    if (rendered || discarded) return;
+    discarded = true;
+    try {
+      if (!popup.closed) popup.close();
+    } catch {
+      // A closed or navigated preview no longer belongs to this operation.
+    }
+  };
+  try {
+    maximizePrintWindow(popup);
+    popup.document.write(
+      `<!doctype html><html><head>${WINDOW_OPEN_FONT_STYLESHEET_LINK}<title>Print preview</title></head><body class="${WINDOW_OPEN_FONT_CLASS_NAME}">Loading print preview...</body></html>`,
+    );
+    popup.document.close();
+  } catch {
+    closeUnused();
+    return null;
+  }
+
+  const renderBatch = (dataList: InvoicePrintData[]) => {
+    if (rendered || discarded || !dataList.length) return false;
+    try {
+      if (popup.closed) return false;
+      const first = dataList[0];
+      const safeTitle = escapeHtml(
+        dataList.length > 1
+          ? `${first.title} (${dataList.length})`
+          : first.invoice
+            ? `${first.labels.invoice}: ${first.invoice}`
+            : first.title,
+      );
+      popup.document.open();
+      popup.document.write(renderLocalInvoiceBatchHtml(dataList, safeTitle));
+      // Mark ownership before close(), which can synchronously run print scripts.
+      rendered = true;
+      popup.document.close();
+      return true;
+    } catch {
+      return false;
+    }
+  };
+  return { render: (data) => renderBatch([data]), renderBatch, closeUnused };
 }
 
 export function fullscreenPrintWindowFeatures() {
@@ -351,6 +432,7 @@ function renderInvoiceReceiptBody(data: InvoicePrintData) {
       ${renderInvoiceItems(data)}
       <div class="divider"></div>
       ${renderInvoiceTotals(data)}
+      ${renderInvoicePayment(data)}
       ${renderInvoiceExchangeRates(data)}
       ${renderInvoiceQr(data)}
       <p class="footer">${escapeHtml(data.labels.thankYou)}</p>`;
@@ -584,7 +666,7 @@ export function renderInvoiceHeader(data: InvoicePrintData) {
 export function renderInvoiceMeta(data: InvoicePrintData) {
   return [
     invoiceMetaRow(data.labels.invoice, data.invoice ?? "-"),
-    invoiceMetaRow(data.labels.date, formatInvoicePrintDate(data.printedAt)),
+    invoiceMetaRow(data.labels.date, data.saleDateTime || formatInvoicePrintDate(data.printedAt)),
     invoiceMetaRow(data.labels.table, data.tableName || "-"),
     invoiceMetaRow(data.labels.cashier, data.cashier),
     data.customer ? invoiceMetaRow(data.labels.customer, data.customer) : "",
@@ -672,6 +754,34 @@ export function renderInvoiceTotals(data: InvoicePrintData) {
       : "",
     data.vat > 0 ? invoiceTotalRow(data.labels.vat, money(data.vat)) : "",
     invoiceTotalRow(data.labels.total, money(data.total), true),
+  ].join("")}</section>`;
+}
+
+export function renderInvoicePayment(data: InvoicePrintData) {
+  const payment = data.payment;
+  if (!payment) return "";
+  return `<div class="divider"></div><section class="totals payment-summary">${[
+    payment.label ? invoiceTotalRow(data.labels.payment ?? "Payment", payment.label) : "",
+    payment.paidCash > 0 ? invoiceTotalRow(data.labels.paidCash ?? "Cash received", money(payment.paidCash)) : "",
+    payment.paidTransfer > 0 ? invoiceTotalRow(data.labels.paidTransfer ?? "Transfer received", money(payment.paidTransfer)) : "",
+    invoiceTotalRow(data.labels.paidTotal ?? "Amount received", money(
+      payment.isCredit ? payment.paidCash + payment.paidTransfer : payment.paidTotal,
+    )),
+    invoiceTotalRow(data.labels.change ?? "Change", money(payment.change)),
+    payment.currency && payment.currency !== "LAK" && payment.foreignPaid > 0
+      ? invoiceTotalRow(
+          data.labels.foreignPaid ?? "Foreign currency received",
+          `${new Intl.NumberFormat("en-US", { maximumFractionDigits: 6 }).format(payment.foreignPaid)} ${payment.currency}`,
+        )
+      : "",
+    payment.isCredit && payment.debtAmount !== undefined
+      ? invoiceTotalRow(data.labels.debtAmount ?? "Debt", money(payment.debtAmount)) : "",
+    payment.isCredit && payment.creditPaidTotal !== undefined
+      ? invoiceTotalRow(data.labels.creditPaidTotal ?? "Credit repayments", money(payment.creditPaidTotal)) : "",
+    payment.isCredit && payment.creditBalance !== undefined
+      ? invoiceTotalRow(data.labels.creditBalance ?? "Credit balance", money(payment.creditBalance)) : "",
+    payment.isCredit && payment.dueDate
+      ? invoiceTotalRow(data.labels.dueDate ?? "Due date", payment.dueDate) : "",
   ].join("")}</section>`;
 }
 

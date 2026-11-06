@@ -1,5 +1,14 @@
 # Decisions
 
+## Browser invoice and receipt printing without a configured printer
+
+- **Date:** 2026-11-06.
+- **Decision:** Ordinary browsers may print invoices and receipts through a reserved `window.open` preview when Backend returns an authoritative document snapshot explicitly marked `safe_not_queued`. A popup blocked by the browser can be reopened from the same prepared snapshot. Native and Electron transport capability rules remain authoritative.
+- **Reason:** The owner requested browser printing when no printer is connected. Backend prepares the bill, payment, currency and credit values; cached cart data cannot replace failed preparation. Receipt printing happens after payment commits and never resubmits payment.
+- **Duplicate protection:** Queued physical jobs keep their existing delivery/recovery path. Missing receipt-role configuration may accompany kitchen jobs; only the unqueued receipt opens in the browser. Ambiguous retries of the same invoice operation and payment replays do not automatically start browser printing. Backend checks existing durable print identities before allowing a no-printer fallback.
+- **Result semantics:** Opening the browser print window reports an informational preview-opened result, not proof that paper was printed. The cashier selects a system printer or PDF in the browser dialog.
+- **Authorization:** Explicit user request to support `window.open` printing for both receipts and invoices when no printer is connected.
+
 ## Branch contract expiry applies to every staff branch
 
 - **Date:** 2026-10-29.

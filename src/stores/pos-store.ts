@@ -1,5 +1,7 @@
 "use client";
 
+import { ServiceError } from "@/lib/api";
+
 import { create } from "zustand";
 import { resolvePosPrinterContext } from "@/stores/pos-store/printer-context";
 import * as posService from "@/services/pos";
@@ -834,7 +836,9 @@ export const usePosStore = create<PosState>((set, get) => ({
     if (!printJobUuid) {
       const reason = textValue(response.print_queue_error?.message) ||
         textValue(response.fallback_print?.reason);
-      if (reason) throw new Error(reason);
+      if (reason || response.fallback_print?.safe_not_queued === true) {
+        throw new ServiceError(reason || "Receipt printer unavailable", 503, undefined, response);
+      }
       return null;
     }
     if (pendingQuery?.print_job_uuid && textValue(pendingQuery.print_job_uuid) !== printJobUuid) {

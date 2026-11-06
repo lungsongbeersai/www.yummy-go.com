@@ -787,6 +787,7 @@ export interface AutomaticReceiptPrintSkip {
 }
 
 export interface PaymentResponse extends ApiEntity {
+  receipt_payload?: ApiEntity | null;
   status?: string;
   message?: string;
   order_uuid?: string;
@@ -855,6 +856,7 @@ export interface SplitBillResponseData extends ApiEntity {
 }
 
 export interface SplitBillResponse extends ApiEntity {
+  print_payload?: ApiEntity | null;
   status?: string;
   message?: string;
   order_uuid?: string;
@@ -1305,6 +1307,7 @@ export interface ReprintReceiptRequest {
 export type ReprintReceiptPrintJob = ConfirmToKitchenPrintJob;
 
 export interface ReprintReceiptResponse {
+  receipt_payload?: ApiEntity | null;
   print_job?: ReprintReceiptPrintJob | null;
   pending_query?: ConfirmToKitchenPendingQuery | null;
   fallback_print?: ApiEntity | null;

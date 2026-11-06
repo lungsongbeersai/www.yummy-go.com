@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { runInNewContext } from "node:vm";
 import lao from "../../../public/locales/la/common.json";
 import {
@@ -8,9 +8,16 @@ import {
   renderInvoiceHeader,
   renderInvoiceExchangeRates,
   renderInvoiceTotals,
+  renderInvoicePayment,
+  openLocalInvoiceBatchPrintWindow,
+  openLocalInvoicePrintWindow,
+  reserveLocalInvoicePrintWindow,
   type InvoicePrintData,
   type InvoicePrintItem,
 } from "./invoice-print-window";
+
+const openPrintWindow = vi.hoisted(() => vi.fn());
+vi.mock("@/lib/capacitor-platform", () => ({ openWindowOutsideNativeApp: openPrintWindow }));
 
 function item(overrides: Partial<InvoicePrintItem> = {}): InvoicePrintItem {
   return {
@@ -217,5 +224,118 @@ describe("invoice exchange heading", () => {
     expect(html).toContain('<span>USD &lt;&amp;&gt; &quot;test&quot;</span><span class="exchange-amount">123,456,789.00</span>');
     expect(html).toContain('1 USD &lt;&amp;&gt; &quot;test&quot; = 1 LAK');
     expect(html).not.toContain("USD <&>");
+  });
+});
+
+describe("receipt payment summary", () => {
+  it("leaves existing unpaid invoice rendering unchanged", () => {
+    expect(renderInvoicePayment({} as InvoicePrintData)).toBe("");
+  });
+
+  it("renders saved receipt amounts including zero change and escapes its payment label", () => {
+    const data = {
+      payment: {
+        paidCash: 0, paidTransfer: 35_000, paidTotal: 35_000, change: 0,
+        label: 'Bank <&> "one"', currency: "LAK", exchangeRate: 1,
+        foreignPaid: 0, paidLak: 35_000, changeLak: 0,
+      },
+      labels: { paidTransfer: "Transfer", paidTotal: "Received", change: "Change" },
+    } as InvoicePrintData;
+    const html = renderInvoicePayment(data);
+    expect(html).toContain("Bank &lt;&amp;&gt; &quot;one&quot;");
+    expect(html).toContain("<span>Transfer</span><span>35.000 ₭</span>");
+    expect(html).toContain("<span>Received</span><span>35.000 ₭</span>");
+    expect(html).toContain("<span>Change</span><span>0 ₭</span>");
+    expect(html).not.toContain("Cash received");
+  });
+});
+
+function previewData(): InvoicePrintData {
+  return {
+    branchAddress: "", branchName: "", branchTel: "", cashier: "Staff",
+    customer: null, discount: 0, invoice: "I<&>", items: [item()],
+    labels: {
+      address: "Address", cashier: "Staff", customer: "Customer", date: "Date",
+      discount: "Discount", invoice: "Invoice", price: "Price", service: "Service",
+      subtotal: "Subtotal", table: "Table", thankYou: "Thank you", title: "Invoice",
+      topping: "Topping", total: "Total", vat: "VAT",
+    },
+    contentWidthMm: 72.1, paperHeightMm: 210, paperWidthMm: 80,
+    printedAt: new Date("2026-11-06T00:00:00Z"), qrUrl: null,
+    service: 0, storeName: "Shop", subtotal: 180_000, tableName: "7",
+    title: "Invoice", total: 180_000, vat: 0,
+  };
+}
+
+function popup() {
+  return {
+    closed: false,
+    document: { open: vi.fn(), write: vi.fn(), close: vi.fn() },
+    close: vi.fn(), moveTo: vi.fn(), resizeTo: vi.fn(),
+  };
+}
+
+describe("reserved browser print window", () => {
+  beforeEach(() => {
+    openPrintWindow.mockReset();
+    vi.stubGlobal("window", { screen: { availWidth: 1440, availHeight: 900 } });
+  });
+  afterEach(() => vi.unstubAllGlobals());
+
+  it("reserves synchronously before awaiting a server snapshot and renders once", () => {
+    const target = popup();
+    openPrintWindow.mockReturnValue(target);
+    const reservation = reserveLocalInvoicePrintWindow();
+    expect(openPrintWindow).toHaveBeenCalledOnce();
+    expect(target.document.write).toHaveBeenCalledWith(expect.stringContaining("Loading print preview"));
+    expect(target.document.write).not.toHaveBeenCalledWith(expect.stringContaining("180.000"));
+    expect(reservation?.render(previewData())).toBe(true);
+    expect(target.document.write).toHaveBeenLastCalledWith(expect.stringContaining("180.000 ₭"));
+    expect(target.document.write).toHaveBeenLastCalledWith(expect.stringContaining("<title>Invoice: I&lt;&amp;&gt;</title>"));
+    expect(reservation?.render(previewData())).toBe(false);
+    reservation?.closeUnused();
+    expect(target.close).not.toHaveBeenCalled();
+  });
+
+  it("closes a reservation when a physical job is used or preparation fails", () => {
+    const target = popup();
+    openPrintWindow.mockReturnValue(target);
+    const reservation = reserveLocalInvoicePrintWindow();
+    reservation?.closeUnused();
+    expect(target.close).toHaveBeenCalledOnce();
+    reservation?.closeUnused();
+    expect(target.close).toHaveBeenCalledOnce();
+    expect(reservation?.render(previewData())).toBe(false);
+  });
+
+  it("handles blocked or closed popups without throwing", () => {
+    openPrintWindow.mockReturnValue(null);
+    expect(reserveLocalInvoicePrintWindow()).toBeNull();
+    const target = popup();
+    openPrintWindow.mockReturnValue(target);
+    const reservation = reserveLocalInvoicePrintWindow();
+    target.closed = true;
+    expect(reservation?.render(previewData())).toBe(false);
+    reservation?.closeUnused();
+    expect(target.close).not.toHaveBeenCalled();
+  });
+
+  it("closes an unused inaccessible popup and keeps existing open APIs compatible", async () => {
+    const inaccessible = popup();
+    inaccessible.document.write.mockImplementation(() => { throw new Error("document unavailable"); });
+    openPrintWindow.mockReturnValue(inaccessible);
+    expect(reserveLocalInvoicePrintWindow()).toBeNull();
+    expect(inaccessible.close).toHaveBeenCalledOnce();
+
+    const single = popup();
+    openPrintWindow.mockReturnValue(single);
+    await expect(openLocalInvoicePrintWindow(previewData())).resolves.toBe(true);
+    const batch = popup();
+    openPrintWindow.mockReturnValue(batch);
+    await expect(openLocalInvoiceBatchPrintWindow([previewData(), previewData()])).resolves.toBe(true);
+    expect(batch.document.write).toHaveBeenLastCalledWith(expect.stringContaining("<title>Invoice (2)</title>"));
+    openPrintWindow.mockClear();
+    await expect(openLocalInvoiceBatchPrintWindow([])).resolves.toBe(false);
+    expect(openPrintWindow).not.toHaveBeenCalled();
   });
 });
