@@ -86,50 +86,48 @@ export const DashboardHeader = memo(function DashboardHeader({
   const updatedAt = text(filtersMeta.updated_at, "");
 
   return (
-    <header className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+    <header className="grid grid-cols-[minmax(0,1fr)_auto] items-start gap-x-3 gap-y-2 sm:grid-cols-[minmax(0,1fr)_auto_auto] sm:items-end">
       <div className="flex min-w-0 flex-col gap-2">
-        <h1 className="font-heading text-xl font-bold text-primary-text sm:text-2xl lg:text-3xl">{text(section.section_name, copy.title)}</h1>
+        <h1 className="font-heading text-xl font-bold text-primary-text wrap-anywhere sm:text-2xl lg:text-3xl">{text(section.section_name, copy.title)}</h1>
         <div className="flex flex-wrap items-center gap-2">
           {branchLabel ? (
-            <Badge variant="outline" className="h-auto gap-1.5 py-1 text-xs">
+            <Badge variant="outline" className="h-auto max-w-full gap-1.5 whitespace-normal py-1 text-left text-xs">
               <Store data-icon="inline-start" />
-              {branchLabel}
+              <span className="min-w-0 wrap-anywhere">{branchLabel}</span>
             </Badge>
           ) : null}
           {range ? (
-            <Badge variant="outline" className="h-auto gap-1.5 py-1 text-xs tabular-nums">
+            <Badge variant="outline" className="h-auto max-w-full gap-1.5 whitespace-normal py-1 text-left text-xs tabular-nums">
               <CalendarDays data-icon="inline-start" />
-              {range}
+              <span className="min-w-0 wrap-anywhere">{range}</span>
             </Badge>
           ) : null}
           {scopeLoadingLabel ? (
-            <Badge role="status" variant="secondary" className="h-auto gap-1.5 py-1 text-xs">
+            <Badge role="status" variant="secondary" className="h-auto max-w-full gap-1.5 whitespace-normal py-1 text-left text-xs">
               <Spinner data-icon="inline-start" />
-              {t("dashboard.loadingPeriod", { range: scopeLoadingLabel })}
+              <span className="min-w-0 wrap-anywhere">{t("dashboard.loadingPeriod", { range: scopeLoadingLabel })}</span>
             </Badge>
           ) : null}
         </div>
       </div>
-      <div className="flex items-center gap-2 self-start sm:self-auto">
-        {updatedAt ? (
-          <span role="status" className="inline-flex items-center gap-1.5 text-xs text-muted-foreground tabular-nums">
-            <Clock aria-hidden="true" className="size-3.5" />
-            {t("dashboard.updatedAt", { time: updatedAt })}
-          </span>
-        ) : null}
-        <Button
-          type="button"
-          variant="outline"
-          size="icon"
-          className="pointer-coarse:size-10"
-          aria-label={copy.refresh}
-          title={copy.refresh}
-          disabled={loading}
-          onClick={onRefresh}
-        >
-          {loading ? <Spinner /> : <RefreshCw />}
-        </Button>
-      </div>
+      {updatedAt ? (
+        <span role="status" className="col-span-2 row-start-2 inline-flex min-w-0 items-center gap-1.5 text-xs text-muted-foreground tabular-nums sm:col-span-1 sm:col-start-2 sm:row-start-1">
+          <Clock aria-hidden="true" className="size-3.5 shrink-0" />
+          <span className="min-w-0 wrap-anywhere">{t("dashboard.updatedAt", { time: updatedAt })}</span>
+        </span>
+      ) : null}
+      <Button
+        type="button"
+        variant="outline"
+        size="icon"
+        className="col-start-2 row-start-1 justify-self-end pointer-coarse:size-10 sm:col-start-3"
+        aria-label={copy.refresh}
+        title={copy.refresh}
+        disabled={loading}
+        onClick={onRefresh}
+      >
+        {loading ? <Spinner /> : <RefreshCw />}
+      </Button>
     </header>
   );
 });
@@ -319,7 +317,7 @@ export const DashboardFilterBar = memo(function DashboardFilterBar({
                 <ToggleGroupItem
                   key={option.value}
                   value={option.value}
-                  className="flex-1 pointer-coarse:h-10 data-[state=on]:bg-primary data-[state=on]:text-primary-foreground md:flex-none"
+                  className="h-10 flex-1 text-sm data-[state=on]:bg-primary data-[state=on]:text-primary-foreground md:flex-none"
                 >
                   {option.label}
                 </ToggleGroupItem>

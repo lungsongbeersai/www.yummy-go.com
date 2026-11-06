@@ -60,4 +60,40 @@ describe("chunk load recovery", () => {
     )).resolves.toBe(false);
     expect(reload).not.toHaveBeenCalled();
   });
+
+  it("does not navigate when background chunk failures recur", async () => {
+    const reload = vi.fn();
+    vi.stubGlobal("window", {
+      location: { reload },
+      sessionStorage: memorySessionStorage(),
+    });
+    vi.stubGlobal("navigator", { onLine: true });
+
+    for (const error of [
+      new Error("ChunkLoadError: Loading chunk 42 failed"),
+      new Error("Failed to fetch dynamically imported module"),
+    ]) {
+      await expect(recoverFromChunkLoadError(error, { automatic: true })).resolves.toBe(false);
+    }
+
+    expect(reload).not.toHaveBeenCalled();
+  });
+
+  it("keeps background recovery safe with blocked storage and allows an explicit retry", async () => {
+    const reload = vi.fn();
+    const readStorage = vi.fn(() => { throw new Error("Storage access denied"); });
+    vi.stubGlobal("window", {
+      location: { reload },
+      get sessionStorage() { return readStorage(); },
+    });
+    vi.stubGlobal("navigator", { onLine: true });
+    const error = new Error("ChunkLoadError: Loading chunk 42 failed");
+
+    await expect(recoverFromChunkLoadError(error, { automatic: true })).resolves.toBe(false);
+    expect(reload).not.toHaveBeenCalled();
+    await expect(recoverFromChunkLoadError(error)).resolves.toBe(true);
+
+    expect(reload).toHaveBeenCalledOnce();
+    expect(readStorage).not.toHaveBeenCalled();
+  });
 });

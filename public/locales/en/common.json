@@ -482,7 +482,7 @@
     "paymentSplit": "Payment split",
     "paymentSplitWarning": "Mixed payment exists, but split cash/transfer columns are not available, so the split cannot be separated clearly.",
     "peakDay": "Peak day",
-    "periodType": "Report period",
+    "periodType": "Format",
     "products": "products",
     "productsSold": "sold",
     "qty": "Qty",

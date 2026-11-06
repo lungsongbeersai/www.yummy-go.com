@@ -275,6 +275,7 @@ export function ProductFormView({ form }: { form: ProductFormWorkflow }) {
                       type="button"
                       variant="outline"
                       size="icon"
+                      className="size-10"
                       aria-label={`${t("actions.add")} ${t("nav.category")}`}
                       disabled={categorySaving}
                       onClick={() => setCategoryDialogOpen(true)}
@@ -317,6 +318,7 @@ export function ProductFormView({ form }: { form: ProductFormWorkflow }) {
                       type="button"
                       variant="outline"
                       size="icon"
+                      className="size-10"
                       aria-label={`${t("actions.add")} ${t("nav.unit")}`}
                       disabled={unitSaving}
                       onClick={() => setUnitDialogOpen(true)}
