@@ -204,6 +204,96 @@ describe("auth store session isolation", () => {
     expect(useAuthStore.getState().user?.name).toBe("Noy");
   });
 
+  it("applies the live role and clears data loaded under the previous role, including pending responses", async () => {
+    const oldProducts = deferred<Awaited<ReturnType<typeof getProducts>>>();
+    getProductsMock.mockReturnValueOnce(oldProducts.promise);
+    useAuthStore.getState().login("token-1", { ...authUser("user-1"), name: "Noy", store_status: 3 }, true);
+    const oldMenu = [{ title: "private-menu", label: "Private menu", path: "/settings/manage-menu", source: "permission-api" as const }];
+    usePermissionsSidebarStore.setState({ cache: { "user-1-store:1:la": oldMenu }, items: oldMenu, requestKey: "user-1-store:1:la" });
+    usePermissionsAccessStore.setState({ selectedStoreUuid: "private-store", selectedRoleId: 1,
+      checkedSubIds: ["private-submenu"], dirty: true });
+    useDashboardStore.setState({ data: { owner: "old-role" } });
+    useProductStore.setState({ search: "old-role products" });
+    const pendingLoad = useProductStore.getState().load();
+    validateLoginSessionMock.mockResolvedValueOnce({
+      uuid: "user-1", login_email: "user-1@example.com", login_name: "Noy",
+      branch_uuid: "user-1-branch", store_uuid_fk: "user-1-store", login_status: 3, store_status: 3,
+    });
+
+    await expect(useAuthStore.getState().validateSession()).resolves.toBe(true);
+    expect(useAuthStore.getState()).toMatchObject({ token: "token-1", isLoggedIn: true, rememberMe: true,
+      user: { status: 3, branch_uuid: "user-1-branch", store_uuid: "user-1-store" } });
+    expect(usePermissionsSidebarStore.getState()).toMatchObject({ cache: {}, items: [], requestKey: "" });
+    expect(usePermissionsAccessStore.getState()).toMatchObject({ selectedStoreUuid: "", selectedRoleId: null,
+      checkedSubIds: [], dirty: false });
+    expect(useDashboardStore.getState().data).toBeNull();
+    expect(useProductStore.getState()).toMatchObject({ rows: [], search: "", loading: false });
+
+    const staleRows: Product[] = [{ prod_uuid: "old-role-product" }];
+    oldProducts.resolve({ data: staleRows, message: "ok", status: "success", total: 1, totalPages: 1 });
+    await expect(pendingLoad).resolves.toEqual(staleRows);
+    expect(useProductStore.getState()).toMatchObject({ rows: [], search: "", loading: false });
+  });
+
+  it("preserves role-scoped data and unsaved permission choices when the live role is unchanged", async () => {
+    useAuthStore.getState().login("token-1", { ...authUser("user-1"), name: "Old name", store_status: 2 });
+    const menu = [{ title: "current-menu", label: "Current menu", path: "/products", source: "permission-api" as const }];
+    usePermissionsSidebarStore.setState({ cache: { "user-1-store:1:la": menu }, items: menu, requestKey: "user-1-store:1:la" });
+    usePermissionsAccessStore.setState({ selectedStoreUuid: "draft-store", selectedRoleId: 3,
+      checkedSubIds: ["draft-submenu"], dirty: true });
+    useProductStore.setState({ search: "current products" });
+    validateLoginSessionMock.mockResolvedValueOnce({
+      uuid: "user-1", login_email: "user-1@example.com", login_name: "Updated name",
+      branch_uuid: "user-1-branch", store_uuid_fk: "user-1-store", login_status: 1, store_status: 2,
+    });
+
+    await expect(useAuthStore.getState().validateSession()).resolves.toBe(true);
+    expect(useAuthStore.getState().user).toMatchObject({ status: 1, name: "Updated name" });
+    expect(usePermissionsSidebarStore.getState()).toMatchObject({ items: menu, requestKey: "user-1-store:1:la" });
+    expect(usePermissionsAccessStore.getState()).toMatchObject({ selectedStoreUuid: "draft-store", selectedRoleId: 3,
+      checkedSubIds: ["draft-submenu"], dirty: true });
+    expect(useProductStore.getState().search).toBe("current products");
+  });
+
+  it.each([undefined, null, 0, -1, 1.5, NaN, Infinity, "3", true, {}])(
+    "ignores malformed live role metadata without discarding current choices: %j", async (loginStatus) => {
+      useAuthStore.getState().login("token-1", { ...authUser("user-1"), status: 3, store_status: 3 });
+      usePermissionsAccessStore.setState({ selectedStoreUuid: "draft-store", checkedSubIds: ["draft-submenu"], dirty: true });
+      validateLoginSessionMock.mockResolvedValueOnce({
+        uuid: "user-1", login_email: "user-1@example.com", login_name: "Noy",
+        branch_uuid: "user-1-branch", store_uuid_fk: "user-1-store", login_status: loginStatus as number, store_status: 3,
+      });
+
+      await expect(useAuthStore.getState().validateSession()).resolves.toBe(true);
+      expect(useAuthStore.getState().user).toMatchObject({ status: 3, name: "Noy" });
+      expect(usePermissionsAccessStore.getState()).toMatchObject({ selectedStoreUuid: "draft-store",
+        checkedSubIds: ["draft-submenu"], dirty: true });
+    },
+  );
+
+  it.each([false, true])("ignores a stale role response after a new login, including token reuse=%s", async (reuseToken) => {
+    const pending = deferred<Awaited<ReturnType<typeof validateLoginSession>>>();
+    useAuthStore.getState().login("old-token", authUser("old-user"));
+    validateLoginSessionMock.mockReturnValueOnce(pending.promise);
+    const validation = useAuthStore.getState().validateSession();
+    const newToken = reuseToken ? "old-token" : "new-token";
+    useAuthStore.getState().login(newToken, { ...authUser("new-user"), status: 2 });
+    usePermissionsSidebarStore.setState({ requestKey: "new-user-store:2:la" });
+    usePermissionsAccessStore.setState({ selectedStoreUuid: "new-draft-store", dirty: true });
+    useProductStore.setState({ search: "new-user products" });
+    pending.resolve({
+      uuid: "old-user", login_email: "old-user@example.com", login_name: "Old user",
+      branch_uuid: "old-user-branch", store_uuid_fk: "old-user-store", login_status: 3, store_status: 3,
+    });
+
+    await expect(validation).resolves.toBe(false);
+    expect(useAuthStore.getState()).toMatchObject({ token: newToken, isLoggedIn: true,
+      user: { uuid: "new-user", status: 2 } });
+    expect(usePermissionsSidebarStore.getState().requestKey).toBe("new-user-store:2:la");
+    expect(usePermissionsAccessStore.getState()).toMatchObject({ selectedStoreUuid: "new-draft-store", dirty: true });
+    expect(useProductStore.getState().search).toBe("new-user products");
+  });
+
   it("resets the previous session before applying a new login", () => {
     useAuthStore.getState().login("token-1", authUser("user-1"));
     useProductStore.setState({ search: "user-1 products" });

@@ -256,15 +256,20 @@ export const useAuthStore = create<AuthState>()(
 
             const displayName = String(session.login_name ?? "").trim();
             const storeStatus = [1, 2, 3].includes(Number(session.store_status)) ? Number(session.store_status) : 2;
+            const roleId = typeof session.login_status === "number" && Number.isInteger(session.login_status) && session.login_status > 0
+              ? session.login_status : current.user.status;
+            const roleChanged = current.user.status !== roleId;
             // Session dates belong to the verified branch, regardless of any
             // customer selected on the management screen or a later reassignment.
             const sameBranch = session.branch_uuid === current.user.branch_uuid &&
               session.store_uuid_fk === authStoreUuid(current.user);
             const contractEndOn = sameBranch ? session.contract_end_on ?? null : null;
             const contractDaysRemaining = sameBranch ? session.contract_days_remaining ?? null : null;
-            if (current.user.name !== displayName || current.user.store_status !== storeStatus ||
+            // Cached data and pending requests belong to the role that loaded them.
+            if (roleChanged) resetSessionStores();
+            if (roleChanged || current.user.name !== displayName || current.user.store_status !== storeStatus ||
               current.user.contract_end_on !== contractEndOn || current.user.contract_days_remaining !== contractDaysRemaining) {
-              set({ user: normalizeAuthUser({ ...current.user, name: displayName, store_status: storeStatus,
+              set({ user: normalizeAuthUser({ ...current.user, name: displayName, status: roleId, store_status: storeStatus,
                 contract_end_on: contractEndOn, contract_days_remaining: contractDaysRemaining }) });
             }
 
