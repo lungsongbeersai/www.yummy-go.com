@@ -19,7 +19,7 @@ describe("personal sales service", () => {
     await fetchMySales(untrustedInput);
     expect(request).toHaveBeenCalledWith("get", "/api/v1/posAll/my_sales", {
       params: {
-        page: 3, limit: 50, orderBy: "ASC", lang: "eng", search: "noodles",
+        page: 3, limit: 50, lang: "eng", search: "noodles",
         date_start: "2026-11-01", date_end: "2026-11-05", kitchen_status: "partial", payment_status: "unpaid",
       },
     });
@@ -29,7 +29,25 @@ describe("personal sales service", () => {
     request.mockResolvedValue({ status: "success", data: [] });
     await fetchMySales({ date_start: "", date_end: "" });
     expect(request).toHaveBeenCalledWith("get", "/api/v1/posAll/my_sales", {
-      params: { page: 1, limit: 20, search: "", orderBy: "ASC", lang: "la", kitchen_status: "all", payment_status: "all" },
+      params: { page: 1, limit: 20, search: "", lang: "la", kitchen_status: "all", payment_status: "all" },
+    });
+  });
+
+  it("supports the API's cancelled kitchen filter without forwarding identity or unsupported sorting", async () => {
+    request.mockResolvedValue({ status: "success", data: [] });
+    const untrustedInput = {
+      kitchen_status: "cancelled" as const,
+      payment_status: "cancelled" as const,
+      login_uuid_fk: "another-user",
+      branch_uuid_fk: "another-branch",
+      orderBy: "ASC",
+    };
+    await fetchMySales(untrustedInput);
+    expect(request).toHaveBeenCalledWith("get", "/api/v1/posAll/my_sales", {
+      params: {
+        page: 1, limit: 20, search: "", lang: "la",
+        kitchen_status: "cancelled", payment_status: "cancelled",
+      },
     });
   });
 

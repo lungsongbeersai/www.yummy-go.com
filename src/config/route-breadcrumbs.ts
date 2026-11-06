@@ -4,6 +4,7 @@ export type RouteBreadcrumbItem = Pick<MenuItem, "disabled" | "label" | "path" |
 
 export const routeBreadcrumbs: Record<string, RouteBreadcrumbItem[]> = {
   "/package": [{ path: "/package", title: "package_management" }],
+  "/my_orders": [{ path: "/my_orders", title: "my_orders" }],
   "/products/form": [
     { path: "/products", title: "menu_add_item" },
     { path: "/products/form", title: "product_form" }

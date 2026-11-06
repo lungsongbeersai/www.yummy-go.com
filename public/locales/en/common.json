@@ -697,6 +697,7 @@
     "sales": "Sales",
     "cancel_sale": "Cancel sale",
     "sales_list": "Sales list",
+    "my_orders": "My orders",
     "cancel_history": "Cancel history",
     "service_charge_summary": "Service charge summary",
     "settings": "Settings",
@@ -4062,7 +4063,7 @@
     "close": "Close window"
   },
   "mySales": {
-    "title": "My sales",
+    "title": "My orders",
     "description": "Items you added in your current branch. Bill status applies to the table bill.",
     "refresh": "Refresh",
     "search": "Search",

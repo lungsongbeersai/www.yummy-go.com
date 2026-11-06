@@ -18,10 +18,11 @@ import { useAppStore } from "@/stores/app-store";
 import { useAuthStore } from "@/stores/auth-store";
 import { useMySalesStore } from "@/stores/my-sales-store";
 import { MySalesOrders } from "./my-sales-orders";
-
-const LIMIT_OPTIONS = [20, 50, 100];
-const KITCHEN_OPTIONS = ["all", "pending", "partial", "sent"] as const;
-const PAYMENT_OPTIONS = ["all", "unpaid", "paid", "cancelled"] as const;
+import {
+  MY_SALES_KITCHEN_OPTIONS as KITCHEN_OPTIONS,
+  MY_SALES_LIMIT_OPTIONS as LIMIT_OPTIONS,
+  MY_SALES_PAYMENT_OPTIONS as PAYMENT_OPTIONS,
+} from "./my-sales-options";
 
 interface Filters {
   search: string;
@@ -88,6 +89,7 @@ export function MySalesPage({ initialPagination }: { initialPagination: UrlPagin
     { label: t("mySales.kitchen.sent"), value: summary.sent_kitchen_count },
     { label: t("mySales.payment.unpaid"), value: summary.unpaid_count },
     { label: t("mySales.payment.paid"), value: summary.paid_count },
+    { label: t("mySales.payment.cancelled"), value: summary.cancelled_count },
   ];
   const start = orders.length ? (pagination.page - 1) * pagination.limit + 1 : 0;
   const end = orders.length ? Math.min(pagination.total, start + orders.length - 1) : 0;
@@ -121,7 +123,7 @@ export function MySalesPage({ initialPagination }: { initialPagination: UrlPagin
             </div>
           </form>
           {error ? <Alert variant="destructive"><AlertTitle>{t("mySales.loadFailed")}</AlertTitle><AlertDescription>{error}</AlertDescription><Button type="button" variant="outline" className="mt-2 min-h-10" onClick={() => void reload()}>{t("mySales.retry")}</Button></Alert> : null}
-          <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-5" aria-live="polite">
+          <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-6" aria-live="polite">
             {stats.map((stat) => <div key={stat.label} className="rounded-lg border border-border bg-card px-3 py-3"><p className="text-xs text-muted-foreground">{stat.label}</p><p className="mt-1 text-xl font-semibold tabular-nums">{stat.value.toLocaleString()}</p></div>)}
           </div>
           <section aria-label={t("mySales.title")} aria-busy={loading}>

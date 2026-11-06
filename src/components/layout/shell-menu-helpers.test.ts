@@ -134,6 +134,12 @@ describe("isFixedDataScreen", () => {
   it("leaves the dashboard scrollable", () => {
     expect(isFixedDataScreen("/")).toBe(false);
   });
+
+  it("lets personal orders own scrolling inside the protected app shell", () => {
+    expect(isFixedDataScreen("/my_orders")).toBe(true);
+    expect(isPublicAppPath("/my_orders")).toBe(false);
+    expect(routeIsActive("/my_orders", "/my_orders")).toBe(true);
+  });
 });
 
 describe("firstNavigablePath", () => {

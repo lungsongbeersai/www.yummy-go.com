@@ -3,6 +3,7 @@ import { useTranslation } from "react-i18next";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { Badge } from "@/components/ui/badge";
 import { money } from "@/lib/format";
+import { cartSelectionNames } from "@/lib/pos/set-child-options";
 import { cn } from "@/lib/utils";
 import type { MySalesItem, MySalesOrder } from "@/services/pos";
 import { MySalesKitchenBadge, MySalesPaymentBadge } from "./my-sales-status";
@@ -65,7 +66,7 @@ function MySalesItemRow({ item }: { item: MySalesItem }) {
   const { t, i18n } = useTranslation();
   const cancelled = Number(item.status) === 9;
   const setMember = Number(item.status_sort_fk) === 2;
-  const tastes = item.tastes?.map((taste) => i18n.language === "en" ? taste.taste_name_eng || taste.taste_name_la : taste.taste_name_la || taste.taste_name_eng).filter(Boolean) ?? [];
+  const selections = cartSelectionNames(item, i18n.language);
   const toppings = item.toppings?.map((topping) => `${i18n.language === "en" ? topping.topping_name_eng || topping.topping_name_la : topping.topping_name_la || topping.topping_name_eng} × ${topping.quantity}`).filter(Boolean) ?? [];
   return (
     <li className={cn("flex flex-col gap-2 px-3 py-3", cancelled && "text-muted-foreground")}>
@@ -76,7 +77,7 @@ function MySalesItemRow({ item }: { item: MySalesItem }) {
         </div>
         {!setMember ? <span className="shrink-0 text-sm tabular-nums">{money(item.total)}</span> : null}
       </div>
-      {tastes.length || toppings.length ? <p className="break-words text-xs text-muted-foreground">{[...tastes, ...toppings].join(" · ")}</p> : null}
+      {selections.length || toppings.length ? <p className="break-words text-xs text-muted-foreground">{[...selections, ...toppings].join(" · ")}</p> : null}
       {item.note ? <p className="break-words text-xs text-muted-foreground">{t("mySales.note")}: {item.note}</p> : null}
       <div className="flex flex-wrap items-center gap-2">
         {cancelled ? <Badge variant="destructive">{t("mySales.payment.cancelled")}</Badge> : <MySalesKitchenBadge status={item.kitchen_sent ? "sent" : "pending"} />}
