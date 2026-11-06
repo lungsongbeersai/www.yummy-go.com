@@ -19,7 +19,7 @@ import {
 } from "@/lib/capacitor-platform";
 import { LANGUAGE_COOKIE, type Language } from "@/lib/language";
 import { syncNativeStatusBarTheme } from "@/lib/native-theme-bridge";
-import { useAppStore, type FontScale, type LaoFont, type ThemeColor, type ThemeMode } from "@/stores/app-store";
+import { useAppStore, type DecorBackgroundStyle, type FontScale, type LaoFont, type ThemeColor, type ThemeMode } from "@/stores/app-store";
 import { OrderAlertPopup } from "@/components/layout/order-alert-popup";
 import { Toaster } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -58,8 +58,15 @@ function applyDocumentLaoFont(laoFont: LaoFont) {
   document.documentElement.dataset.laoFont = laoFont;
 }
 
-function applyDocumentDecorBackground(decorBackground: boolean) {
-  document.documentElement.dataset.decorBackground = decorBackground ? "on" : "off";
+function applyDocumentDecorBackground(
+  decorBackground: boolean,
+  decorBackgroundColor: ThemeColor,
+  decorBackgroundStyle: DecorBackgroundStyle,
+) {
+  const root = document.documentElement;
+  root.dataset.decorBackground = decorBackground ? "on" : "off";
+  root.dataset.decorBackgroundColor = decorBackgroundColor;
+  root.dataset.decorBackgroundStyle = decorBackgroundStyle;
 }
 
 function applyDocumentFontScale(fontScale: FontScale) {
@@ -138,6 +145,8 @@ export function Providers({ children, initialLanguage }: ProvidersProps) {
   const themeColor = useAppStore((state) => state.themeColor);
   const fontScale = useAppStore((state) => state.fontScale);
   const decorBackground = useAppStore((state) => state.decorBackground);
+  const decorBackgroundColor = useAppStore((state) => state.decorBackgroundColor);
+  const decorBackgroundStyle = useAppStore((state) => state.decorBackgroundStyle);
   const laoFont = useAppStore((state) => state.laoFont);
   const language = useAppStore((state) => state.language);
   const hydrated = useAppStore((state) => state.hydrated);
@@ -235,8 +244,8 @@ export function Providers({ children, initialLanguage }: ProvidersProps) {
 
   useEffect(() => {
     if (!mounted || !hydrated) return;
-    applyDocumentDecorBackground(decorBackground);
-  }, [decorBackground, hydrated, mounted]);
+    applyDocumentDecorBackground(decorBackground, decorBackgroundColor, decorBackgroundStyle);
+  }, [decorBackground, decorBackgroundColor, decorBackgroundStyle, hydrated, mounted]);
 
   useEffect(() => {
     if (!mounted || !hydrated) return;

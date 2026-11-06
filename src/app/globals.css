@@ -878,29 +878,14 @@ html {
   background: var(--card);
 }
 
-/* WebView 101 drops color-mix(), so the decorative wash uses the sRGB channels from the opacity
-   plugin there. Old WebViews also repaint fixed backgrounds on the main thread, so each box gets
-   its own slice instead (the join does not line up there, by design). */
+/* Old WebViews repaint fixed backgrounds on the main thread, so each box gets its own slice.
+   The decoration variables use sRGB and rgba(), which also work without color-mix(). */
 html.android-webview-compat:not([data-decor-background="off"]) .app-header,
 html.android-webview-compat:not([data-decor-background="off"]) .app-sidebar-panel,
 html.android-webview-compat:not([data-decor-background="off"]) [data-slot="sidebar-inner"] {
-  background-color: var(--primary);
-  background-image: linear-gradient(
-      rgba(var(--legacy-primary-rgb), 0.3),
-      rgba(var(--legacy-primary-rgb), 0.3)
-    ),
-    url("/posAll/background_wide.webp");
+  background-color: rgb(var(--decor-background-rgb));
+  background-image: var(--decor-background-image);
   background-attachment: scroll;
-}
-
-html.android-webview-compat.dark:not([data-decor-background="off"]) .app-header,
-html.android-webview-compat.dark:not([data-decor-background="off"]) .app-sidebar-panel,
-html.android-webview-compat.dark:not([data-decor-background="off"]) [data-slot="sidebar-inner"] {
-  background-image: linear-gradient(
-      rgba(var(--legacy-primary-rgb), 0.4),
-      rgba(var(--legacy-primary-rgb), 0.4)
-    ),
-    url("/posAll/background_wide_dark.webp");
 }
 
 .android-webview-compat .app-sidebar-panel {
@@ -2047,12 +2032,92 @@ html.swan1-legacy-colors
   box-shadow: none;
 }
 
-/* Decorative background (Display settings → Background image, app-store decorBackground,
-   html[data-decor-background]; on unless set to "off"). The top bar and the sidebar wear the
-   green floral artwork of the POS tables screen (table-selection-page.tsx) under a theme wash;
-   the solid --primary underneath shows if the image or color-mix() is unavailable. Everything
-   inside them is token-driven, so the tokens are re-pointed to light values for these subtrees
-   instead of restyling each control. Menus and tooltips portal out and keep the normal theme. */
+/* Decoration has its own palette, separate from the app accent. Dark bases keep the white
+   shell labels readable even under the light pattern strokes. These tokens are also used by
+   the settings previews so every thumbnail displays the selected color and the actual pattern. */
+:root,
+[data-decor-background-color="emerald"] {
+  --decor-background-rgb: 0, 95, 70;
+}
+
+[data-decor-background-color="blue"] {
+  --decor-background-rgb: 30, 64, 175;
+}
+
+[data-decor-background-color="amber"] {
+  --decor-background-rgb: 146, 64, 14;
+}
+
+[data-decor-background-color="rose"] {
+  --decor-background-rgb: 159, 18, 57;
+}
+
+[data-decor-background-color="violet"] {
+  --decor-background-rgb: 91, 33, 182;
+}
+
+:root {
+  --decor-background-artwork: url("/posAll/background_wide.webp");
+}
+
+html.dark {
+  --decor-background-artwork: url("/posAll/background_wide_dark.webp");
+}
+
+:root,
+[data-decor-background-style="floral"] {
+  --decor-background-image: linear-gradient(
+      rgba(var(--decor-background-rgb), 0.9),
+      rgba(var(--decor-background-rgb), 0.9)
+    ),
+    var(--decor-background-artwork);
+  --decor-background-size: cover;
+  --decor-background-preview-size: 240px auto;
+  --decor-background-preview-position: top left;
+  --decor-background-repeat: no-repeat;
+}
+
+[data-decor-background-style="leaves"] {
+  --decor-background-image: url("/backgrounds/leaves.svg");
+  --decor-background-size: 240px 240px;
+  --decor-background-preview-size: 100px 100px;
+  --decor-background-preview-position: center;
+  --decor-background-repeat: repeat;
+}
+
+[data-decor-background-style="waves"] {
+  --decor-background-image: url("/backgrounds/waves.svg");
+  --decor-background-size: 240px 120px;
+  --decor-background-preview-size: 120px 60px;
+  --decor-background-preview-position: center;
+  --decor-background-repeat: repeat;
+}
+
+[data-decor-background-style="geometric"] {
+  --decor-background-image: url("/backgrounds/geometric.svg");
+  --decor-background-size: 120px 120px;
+  --decor-background-preview-size: 60px 60px;
+  --decor-background-preview-position: center;
+  --decor-background-repeat: repeat;
+}
+
+[data-decor-background-style="dots"] {
+  --decor-background-image: radial-gradient(circle, #ffffff24 1.5px, transparent 1.5px);
+  --decor-background-size: 20px 20px;
+  --decor-background-preview-size: 14px 14px;
+  --decor-background-preview-position: center;
+  --decor-background-repeat: repeat;
+}
+
+.decor-background-preview {
+  background-color: rgb(var(--decor-background-rgb));
+  background-image: var(--decor-background-image);
+  background-position: var(--decor-background-preview-position);
+  background-repeat: var(--decor-background-repeat);
+  background-size: var(--decor-background-preview-size);
+}
+
+/* Menus and tooltips portal out of these decorated subtrees and keep the normal theme. */
 html:not([data-decor-background="off"]) .app-header,
 html:not([data-decor-background="off"]) .app-shell [data-slot="sidebar-inner"],
 html:not([data-decor-background="off"]) [data-slot="sidebar"][data-mobile="true"],
@@ -2071,35 +2136,21 @@ html:not([data-decor-background="off"]) .app-sidebar-panel {
   --sidebar-ring: #ffffff;
   --sidebar-primary: #ffffff;
   color: var(--foreground);
-  background-color: var(--primary);
-  background-image: linear-gradient(
-      color-mix(in oklch, var(--primary) 30%, transparent),
-      color-mix(in oklch, var(--primary) 30%, transparent)
-    ),
-    url("/posAll/background_wide.webp");
+  background-color: rgb(var(--decor-background-rgb));
+  background-image: var(--decor-background-image);
   /* One picture for the whole shell: anchored to the viewport, the top bar and the sidebar each
      show their own slice of the same image, so the leaves run on across the corner where they
      meet instead of restarting in each box. Both are fixed/sticky, so nothing scrolls under it. */
   background-attachment: fixed;
   background-position: top left;
-  background-size: cover;
+  background-size: var(--decor-background-size);
+  background-repeat: var(--decor-background-repeat);
   backdrop-filter: none;
 }
 
 html:not([data-decor-background="off"]) .app-header {
   box-shadow: 0 10px 30px -24px rgb(15 23 42 / 0.6);
   border-bottom: 1px solid var(--border);
-}
-
-html.dark:not([data-decor-background="off"]) .app-header,
-html.dark:not([data-decor-background="off"]) .app-shell [data-slot="sidebar-inner"],
-html.dark:not([data-decor-background="off"]) [data-slot="sidebar"][data-mobile="true"],
-html.dark:not([data-decor-background="off"]) .app-sidebar-panel {
-  background-image: linear-gradient(
-      color-mix(in oklch, var(--primary) 40%, transparent),
-      color-mix(in oklch, var(--primary) 40%, transparent)
-    ),
-    url("/posAll/background_wide_dark.webp");
 }
 
 html.dark:not([data-decor-background="off"]) .app-header {
