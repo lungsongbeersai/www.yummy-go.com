@@ -20,6 +20,7 @@ import {
   PrinterAvailabilityBadge,
   PrinterOwnershipBadge,
   PrinterStatusBadge,
+  PrinterNetworkVisibilityBadge,
 } from "./printer-list-shared";
 import {
   canDeletePrinter,
@@ -28,17 +29,19 @@ import {
   isOwnedPrinter,
   mappingTypeOf,
   printerCategories,
-  printerHealth,
   printerReachable,
   printerZones,
   zoneLabel,
   type PrinterTableRow,
 } from "./printer-page-utils";
+import { isUnverifiedLanPrinter, printerListHealth, printerListNetworkState, type PrinterListNetworkMap } from "./printer-list-visibility";
 
 interface PrinterListTableProps {
   categories: Category[];
   zones: Zone[];
   filteredRows: PrinterTableRow[];
+  networkVisibilityByPrinter: PrinterListNetworkMap;
+  manualTestPrinterUuids: ReadonlySet<string>;
   language: string;
   printing: boolean;
   selfTestTargets: Map<string, PrinterSelfTestInput>;
@@ -60,6 +63,8 @@ export function PrinterListTable({
   categories,
   zones,
   filteredRows,
+  networkVisibilityByPrinter,
+  manualTestPrinterUuids,
   language,
   printing,
   selfTestTargets,
@@ -89,7 +94,7 @@ export function PrinterListTable({
           if (!row.is_active) {
             return "border-l-4 border-l-border bg-muted/30 hover:bg-muted/50";
           }
-          if (printerHealth(row) === "unreachable") {
+          if (printerListHealth(row, networkVisibilityByPrinter) === "unreachable") {
             return "border-l-4 border-l-warning bg-warning/5 hover:bg-warning/10";
           }
           if (!isOwnedPrinter(row)) {
@@ -144,8 +149,8 @@ export function PrinterListTable({
                 {row.is_shared ? (
                   <PrinterAvailabilityBadge
                     online={row.agent_online !== false}
-                    onlineLabel={t("printer.sharedOnline")}
-                    offlineLabel={t("printer.sharedOffline")}
+                    onlineLabel={t("printer.listVisibility.ownerAgentOnline")}
+                    offlineLabel={t("printer.listVisibility.ownerAgentOffline")}
                   />
                 ) : row.is_local_device === false ? (
                   <PrinterAvailabilityBadge
@@ -153,6 +158,15 @@ export function PrinterListTable({
                     onlineLabel=""
                     offlineLabel={t("printer.notLocalDevice")}
                   />
+                ) : null}
+                <PrinterNetworkVisibilityBadge state={printerListNetworkState(row, networkVisibilityByPrinter)} />
+                {!isUnverifiedLanPrinter(row, networkVisibilityByPrinter) && !manualTestPrinterUuids.has(row.print_config_uuid) ? (
+                  <span className="max-w-64 text-xs text-muted-foreground whitespace-normal">{t("printer.listVisibility.manualTestUnavailable")}</span>
+                ) : null}
+                {row.access_mode === "INTERNET" ? (
+                  <Badge variant="outline" className="border-info/30 bg-info/10 text-info-text" title={t("printer.accessInternet")}>
+                    INTERNET
+                  </Badge>
                 ) : null}
               </div>
             ),
@@ -281,6 +295,8 @@ export function PrinterListTable({
               Boolean(togglingUuid) ||
               !userUuid ||
               !row.print_config_uuid ||
+              !manualTestPrinterUuids.has(row.print_config_uuid) ||
+              isUnverifiedLanPrinter(row, networkVisibilityByPrinter) ||
               !printerReachable(row),
             keepOpenOnSelect: true,
             onSelect: (row) => void onTest(row),
@@ -304,6 +320,8 @@ export function PrinterListTable({
               Boolean(togglingUuid) ||
               !userUuid ||
               !row.print_config_uuid ||
+              !manualTestPrinterUuids.has(row.print_config_uuid) ||
+              isUnverifiedLanPrinter(row, networkVisibilityByPrinter) ||
               !printerReachable(row),
             keepOpenOnSelect: true,
             onSelect: (row) => void onTestDrawer(row),

@@ -39,6 +39,7 @@ import {
   PrinterAvailabilityBadge,
   PrinterOwnershipBadge,
   PrinterStatusBadge,
+  PrinterNetworkVisibilityBadge,
 } from "./printer-list-shared";
 import {
   canDeletePrinter,
@@ -47,18 +48,20 @@ import {
   isOwnedPrinter,
   mappingTypeOf,
   printerCategories,
-  printerHealth,
   printerReachable,
   printerZones,
   zoneLabel,
   type PrinterHealth,
   type PrinterTableRow,
 } from "./printer-page-utils";
+import { isUnverifiedLanPrinter, printerListHealth, printerListNetworkState, type PrinterListNetworkMap } from "./printer-list-visibility";
 
 interface PrinterListCardsProps {
   categories: Category[];
   zones: Zone[];
   filteredRows: PrinterTableRow[];
+  networkVisibilityByPrinter: PrinterListNetworkMap;
+  manualTestPrinterUuids: ReadonlySet<string>;
   language: string;
   printing: boolean;
   selfTestTargets: Map<string, PrinterSelfTestInput>;
@@ -104,6 +107,8 @@ function PrinterCard({
   selfTestTargets,
   roleItemsByPrinter,
   row,
+  networkVisibilityByPrinter,
+  manualTestPrinterUuids,
   statusLabels,
   testingUuid,
   testingDrawerUuid,
@@ -118,7 +123,9 @@ function PrinterCard({
 }: Omit<PrinterListCardsProps, "filteredRows"> & { row: PrinterTableRow }) {
   const { t } = useTranslation();
   const router = useRouter();
-  const health = printerHealth(row);
+  const unverifiedLan = isUnverifiedLanPrinter(row, networkVisibilityByPrinter);
+  const manualTestUnavailable = !manualTestPrinterUuids.has(row.print_config_uuid);
+  const health = printerListHealth(row, networkVisibilityByPrinter);
   const editable = canEditPrinter(row);
   const deletable = canDeletePrinter(row);
   const toggling = togglingUuid === row.print_config_uuid;
@@ -126,7 +133,8 @@ function PrinterCard({
   const testingDrawer = testingDrawerUuid === row.print_config_uuid;
   // เงื่อนไขเดิมของปุ่มทดสอบทุกข้อ (ดู printer-list-table.tsx) — printerReachable แทนสองเงื่อนไข shared/local ท้ายสุด
   const testDisabled =
-    printing || Boolean(testingUuid) || Boolean(togglingUuid) || !userUuid || !row.print_config_uuid || !printerReachable(row);
+    printing || Boolean(testingUuid) || Boolean(togglingUuid) || !userUuid || !row.print_config_uuid ||
+    manualTestUnavailable || !printerReachable(row);
   const drawerDisabled = testDisabled || Boolean(testingDrawerUuid);
   const testingSelfTest = testingSelfTestUuid === row.print_config_uuid;
   const selfTestDisabled = drawerDisabled || Boolean(testingSelfTestUuid) || !selfTestTargets.has(row.print_config_uuid);
@@ -193,11 +201,17 @@ function PrinterCard({
           {row.is_shared ? (
             <PrinterAvailabilityBadge
               online={row.agent_online !== false}
-              onlineLabel={t("printer.sharedOnline")}
-              offlineLabel={t("printer.sharedOffline")}
+              onlineLabel={t("printer.listVisibility.ownerAgentOnline")}
+              offlineLabel={t("printer.listVisibility.ownerAgentOffline")}
             />
           ) : row.is_local_device === false ? (
             <PrinterAvailabilityBadge online={false} onlineLabel="" offlineLabel={t("printer.notLocalDevice")} />
+          ) : null}
+          <PrinterNetworkVisibilityBadge state={printerListNetworkState(row, networkVisibilityByPrinter)} />
+          {row.access_mode === "INTERNET" ? (
+            <Badge variant="outline" className="border-info/30 bg-info/10 text-info-text" title={t("printer.accessInternet")}>
+              INTERNET
+            </Badge>
           ) : null}
         </div>
 
@@ -240,7 +254,7 @@ function PrinterCard({
           </div>
         </dl>
 
-        {health !== "ready" ? (
+        {health !== "ready" || unverifiedLan ? (
           <p
             className={cn(
               "flex items-start gap-1.5 rounded-md px-2.5 py-2 text-xs",
@@ -252,7 +266,14 @@ function PrinterCard({
             ) : (
               <Info className="mt-px size-3.5 shrink-0" />
             )}
-            {health === "unreachable" ? t("printer.unreachableHint") : t("printer.disabledHint")}
+            {unverifiedLan ? t("printer.listVisibility.unverifiedHint")
+              : health === "unreachable" ? t("printer.unreachableHint") : t("printer.disabledHint")}
+          </p>
+        ) : null}
+        {!unverifiedLan && manualTestUnavailable ? (
+          <p className="flex items-start gap-1.5 rounded-md bg-muted px-2.5 py-2 text-xs text-muted-foreground">
+            <Info className="mt-px size-3.5 shrink-0" />
+            {t("printer.listVisibility.manualTestUnavailable")}
           </p>
         ) : null}
       </div>

@@ -9,7 +9,7 @@ vi.mock("@/lib/api", () => ({
   ServiceError: class extends Error {},
 }));
 
-import { getPrinterEmployeeRoles, renderMobileEscpos, savePrinter, searchPrinters } from "@/services/printer/config-api";
+import { getPrinterEmployeeRoles, getPrinters, getPrinterManagementCatalog, renderMobileEscpos, savePrinter, searchPrinters } from "@/services/printer/config-api";
 
 describe("printer configuration API", () => {
   const input: SavePrinterInput = {
@@ -25,6 +25,38 @@ describe("printer configuration API", () => {
   };
 
   beforeEach(() => vi.clearAllMocks());
+
+  it("requests an explicit branch management catalog without changing operational fetches", async () => {
+    const rows = [{ print_config_uuid: "remote-lan", sharing_mode: "SHARED", is_shared: true,
+      is_owner: false, agent_online: false, access_mode: "LAN", owner_device_code: "other" }];
+    apiMocks.apiRequest.mockResolvedValueOnce({ status: "success", data: { catalog_view: true, data: rows } });
+    const catalog = await getPrinterManagementCatalog({ login_uuid_fk: "login", device_code: "local", lang: "en" });
+    expect(catalog.map((printer) => printer.print_config_uuid)).toEqual(["remote-lan"]);
+    expect(apiMocks.apiRequest).toHaveBeenLastCalledWith("get", "/api/v1/printer/fetch", { params: {
+      login_uuid_fk: "login", device_code: "local", lang: "eng",
+      management_view: "1", include_offline_shared: "1", catalog_view: "1",
+    } });
+
+    apiMocks.apiRequest.mockResolvedValueOnce({ status: "success", data: rows });
+    expect(await getPrinters({ login_uuid_fk: "login", device_code: "local" })).toEqual([]);
+    expect(apiMocks.apiRequest).toHaveBeenLastCalledWith("get", "/api/v1/printer/fetch", {
+      params: { login_uuid_fk: "login", device_code: "local", lang: "la" },
+    });
+  });
+
+  it("refuses to label an older network-filtered response as the full catalog", async () => {
+    apiMocks.apiRequest.mockResolvedValueOnce({ status: "success", data: { data: [] } });
+    await expect(getPrinterManagementCatalog({ login_uuid_fk: "login" })).rejects.toThrow("management catalog is unavailable");
+  });
+
+  it("retains the dedicated-device boundary in the full catalog", async () => {
+    apiMocks.apiRequest.mockResolvedValueOnce({ data: { catalog_view: true, data: [
+      { print_config_uuid: "mine", device_code: "local", is_owner: true },
+      { print_config_uuid: "private-other", device_code: "other", is_owner: false },
+    ] } });
+    expect((await getPrinterManagementCatalog({ login_uuid_fk: "login", device_code: "local" }))
+      .map((printer) => printer.print_config_uuid)).toEqual(["mine"]);
+  });
 
   it.each([
     new Error("Renderer response lost"),

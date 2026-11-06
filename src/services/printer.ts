@@ -112,6 +112,7 @@ export {
   getPrinterRoles,
   getPrinterEmployeeRoles,
   getPrinters,
+  getPrinterManagementCatalog,
   migrateMobilePrinterDevice,
   registerPrinterAgent,
   renderMobileEscpos,
@@ -123,6 +124,15 @@ export {
   sendMobileBackendPrintJob,
   togglePrinterActive
 } from "@/services/printer/config-api";
+
+export {
+  isLanSharedPrinter,
+  resolvePrinterListVisibility,
+} from "@/services/printer/list-visibility";
+export type {
+  PrinterListNetworkContext,
+  PrinterListNetworkStatus,
+} from "@/services/printer/list-visibility";
 
 export {
   checkPrinterAgentConnection,

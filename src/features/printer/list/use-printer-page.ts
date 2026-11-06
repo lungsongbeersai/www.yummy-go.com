@@ -8,6 +8,9 @@ import type { Printer } from "@/services/printer";
 import type { Zone } from "@/services/zone";
 import { authStoreUuid, useAuthStore } from "@/stores/auth-store";
 import { usePrinterStore } from "@/stores/printer-store";
+import { usePrinterListStore } from "@/stores/printer-list-store";
+import { useResetOnDeps } from "@/hooks/use-reset-on-change";
+import { printerListScopeKey } from "@/lib/printer-list-mode";
 import { printerDiagnosticReasonKey } from "@/stores/printer-diagnostics";
 import { useReferenceStore } from "@/stores/reference-store";
 import { useToastStore } from "@/stores/toast-store";
@@ -17,17 +20,24 @@ import {
   agentDownloadUrl,
   categoryLabel,
   matchesPrinterOwnership,
-  matchesPrinterStatus,
   OWNER_ALL,
   type PrinterOwnerFilter,
   type PrinterStatusFilter,
   printerCategories,
   roleLabel,
   STATUS_ALL,
-  summarizePrinters,
   savedPrinterSelfTestTarget,
   TYPE_ALL,
 } from "./printer-page-utils";
+import {
+  canManuallyTestListedPrinter,
+  isUnverifiedLanPrinter,
+  printerListHealth,
+  printerListPresentation,
+  printersInListScope,
+  summarizePrinterList,
+  type PrinterListScope,
+} from "./printer-list-visibility";
 
 const EMPTY_CATEGORIES: Category[] = [];
 const EMPTY_ZONES: Zone[] = [];
@@ -36,12 +46,21 @@ export function usePrinterPage() {
   const { i18n, t } = useTranslation();
   const user = useAuthStore((state) => state.user);
   const showToast = useToastStore((state) => state.show);
-  const printers = usePrinterStore((state) => state.printers);
+  const catalog = usePrinterListStore((state) => state.catalog);
+  const catalogNetworkVisibility = usePrinterListStore((state) => state.networkVisibilityByPrinter);
+  const catalogScopeKey = usePrinterListStore((state) => state.scopeKey);
+  const catalogLoading = usePrinterListStore((state) => state.loading);
+  const catalogCheckingNetwork = usePrinterListStore((state) => state.checkingNetwork);
+  const catalogError = usePrinterListStore((state) => state.error);
+  const loadCatalog = usePrinterListStore((state) => state.load);
+  const invalidateNetwork = usePrinterListStore((state) => state.invalidateNetwork);
+  const resetCatalog = usePrinterListStore((state) => state.reset);
   const roles = usePrinterStore((state) => state.roles);
+  const operationalPrinters = usePrinterStore((state) => state.printers);
   const agentStatus = usePrinterStore((state) => state.agentStatus);
   const agentError = usePrinterStore((state) => state.agentError);
   const agentFiles = usePrinterStore((state) => state.agentFiles);
-  const loading = usePrinterStore((state) => state.loading);
+  const legacyLoading = usePrinterStore((state) => state.loading);
   const loadingAgentFiles = usePrinterStore((state) => state.loadingAgentFiles);
   const agent = usePrinterStore((state) => state.agent);
   const checkAgent = usePrinterStore((state) => state.checkAgent);
@@ -82,19 +101,50 @@ export function usePrinterPage() {
   const [typeFilter, setTypeFilter] = useState(TYPE_ALL);
   const [statusFilter, setStatusFilter] = useState<PrinterStatusFilter>(STATUS_ALL);
   const [ownerFilter, setOwnerFilter] = useState<PrinterOwnerFilter>(OWNER_ALL);
+  const [listScope, setListScope] = useState<PrinterListScope>("here");
   const [agentFilesFailed, setAgentFilesFailed] = useState(false);
 
   const language = i18n.language;
   const storeUuid = authStoreUuid(user);
   const branchUuid = user?.branch_uuid;
+  const loginUuid = user?.uuid ?? "";
+  const scopeKey = JSON.stringify([loginUuid, branchUuid, storeUuid]);
+  const expectedCatalogScopeKey = printerListScopeKey(loginUuid, agent?.device_code || "", scopeKey);
+  const presentation = useMemo(() => printerListPresentation({
+    catalog,
+    networkVisibilityByPrinter: catalogNetworkVisibility,
+    scopeKey: catalogScopeKey,
+    loading: catalogLoading,
+    checkingNetwork: catalogCheckingNetwork,
+    error: catalogError,
+  }, expectedCatalogScopeKey), [catalog, catalogCheckingNetwork, catalogError, catalogLoading, catalogNetworkVisibility, catalogScopeKey, expectedCatalogScopeKey]);
+  const printers = presentation.catalog;
+  const networkVisibilityByPrinter = presentation.networkVisibilityByPrinter;
+  const checkingNetwork = presentation.checkingNetwork;
+  const error = presentation.error;
+  const loading = presentation.loading || legacyLoading;
+  useResetOnDeps([scopeKey], () => setListScope("here"));
+  const scopeRows = useMemo(
+    () => printersInListScope(printers, listScope, networkVisibilityByPrinter),
+    [listScope, networkVisibilityByPrinter, printers],
+  );
+  const hiddenLanCount = useMemo(
+    () => printers.filter((row) => isUnverifiedLanPrinter(row, networkVisibilityByPrinter)).length,
+    [networkVisibilityByPrinter, printers],
+  );
+  const manualTestPrinterUuids = useMemo(() => new Set(
+    printers.filter((row) => canManuallyTestListedPrinter(row, operationalPrinters, networkVisibilityByPrinter))
+      .map((row) => row.print_config_uuid),
+  ), [networkVisibilityByPrinter, operationalPrinters, printers]);
   const selfTestTargets = useMemo(() => {
     const targets = new Map<string, NonNullable<ReturnType<typeof savedPrinterSelfTestTarget>>>();
     for (const row of printers) {
+      if (!manualTestPrinterUuids.has(row.print_config_uuid)) continue;
       const target = savedPrinterSelfTestTarget(row, agent);
       if (target) targets.set(row.print_config_uuid, target);
     }
     return targets;
-  }, [printers, agent]);
+  }, [printers, agent, manualTestPrinterUuids]);
   const roleItemsByPrinter = useMemo(
     () =>
       new Map(
@@ -124,11 +174,14 @@ export function usePrinterPage() {
   );
   const filteredRows = useMemo(() => {
     const query = searchText.trim().toLowerCase();
-    return printers
+    return scopeRows
       .filter((printer) => {
         const matchesType =
           typeFilter === TYPE_ALL || printer.connect_type === typeFilter;
-        const matchesStatus = matchesPrinterStatus(printer, statusFilter);
+        const health = printerListHealth(printer, networkVisibilityByPrinter);
+        const matchesStatus = statusFilter === "active" ? printer.is_active
+          : statusFilter === "inactive" ? !printer.is_active
+          : statusFilter === "attention" ? health === "unreachable" : true;
         const matchesOwner = matchesPrinterOwnership(printer, ownerFilter);
         const roleText = printer.role_codes
           .map((code) => roleLabel(code, roles))
@@ -160,33 +213,54 @@ export function usePrinterPage() {
     categories,
     language,
     ownerFilter,
-    printers,
+    scopeRows,
+    networkVisibilityByPrinter,
     roles,
     searchText,
     statusFilter,
     typeFilter,
   ]);
-  // ตัวเลขบนไทล์สถานะนับจากทุกเครื่อง ไม่ใช่เฉพาะที่ผ่านตัวกรอง — ไทล์เองคือตัวกรองสถานะ
-  const summary = useMemo(() => summarizePrinters(printers), [printers]);
+  // Tiles describe the selected location scope before the optional list filters.
+  const summary = useMemo(() => summarizePrinterList(scopeRows, networkVisibilityByPrinter), [networkVisibilityByPrinter, scopeRows]);
   const pageStart = filteredRows.length ? 1 : 0;
   const pageEnd = filteredRows.length;
   const agentStatusLabel = agentStatus === "unauthorized"
     ? t("printer.status.unauthorized")
     : agentError ?? t(`printer.status.${agentStatus}`);
 
-  const loginUuid = user?.uuid ?? "";
+  const isCurrentScope = useCallback(() => {
+    const currentUser = useAuthStore.getState().user;
+    return JSON.stringify([currentUser?.uuid ?? "", currentUser?.branch_uuid, authStoreUuid(currentUser)]) === scopeKey;
+  }, [scopeKey]);
+
+  const refreshCatalog = useCallback(async () => {
+    if (!loginUuid || !isCurrentScope()) return;
+    // A previous page/session may finish its Agent lookup after the new one.
+    // Do not let that old callback start a newer request for the wrong scope.
+    const current = usePrinterStore.getState();
+    await loadCatalog({
+      login_uuid_fk: loginUuid,
+      lang: language,
+      device_code: current.agent?.device_code || undefined,
+    }, { agent: current.agent, connected: current.agentStatus === "connected", scopeKey });
+  }, [isCurrentScope, language, loadCatalog, loginUuid, scopeKey]);
 
   const load = useCallback(async () => {
-    if (!loginUuid) return;
+    if (!loginUuid || !isCurrentScope()) return;
+    invalidateNetwork();
     try {
-      await Promise.all([
+      const resources = await Promise.allSettled([
         loadPrintersForLocalAgent({ login_uuid_fk: loginUuid, lang: language }),
         loadRoles(language),
         storeUuid ? loadCategories(language, storeUuid) : Promise.resolve([]),
         loadZones(language, branchUuid),
       ]);
+      await refreshCatalog();
       await refreshPrinterDiagnostics();
+      const failedResource = resources.find((result) => result.status === "rejected");
+      if (failedResource?.status === "rejected") throw failedResource.reason;
     } catch (error) {
+      if (!isCurrentScope()) return;
       showToast({
         title: t("printer.loadFailed"),
         description: error instanceof Error ? error.message : "",
@@ -197,8 +271,11 @@ export function usePrinterPage() {
     branchUuid,
     language,
     loadCategories,
+    invalidateNetwork,
+    isCurrentScope,
     loadPrintersForLocalAgent,
     refreshPrinterDiagnostics,
+    refreshCatalog,
     loadRoles,
     loadZones,
     loginUuid,
@@ -214,8 +291,10 @@ export function usePrinterPage() {
   useEffect(() => {
     if (!loginUuid) return;
     const monitor = monitorPrinterAgentConnection(async () => {
+      if (!isCurrentScope()) return;
+      invalidateNetwork();
       await checkAgent();
-      await refreshPrinterDiagnostics();
+      await Promise.all([refreshCatalog(), refreshPrinterDiagnostics()]);
     });
     const nativeListener = isCapacitorMobileApp()
       ? import("@capacitor/app").then(({ App }) => App.addListener("appStateChange", ({ isActive }) => {
@@ -226,7 +305,9 @@ export function usePrinterPage() {
       monitor.stop();
       void nativeListener.then((listener) => listener?.remove()).catch(() => undefined);
     };
-  }, [checkAgent, refreshPrinterDiagnostics, loginUuid]);
+  }, [checkAgent, invalidateNetwork, isCurrentScope, refreshCatalog, refreshPrinterDiagnostics, loginUuid]);
+
+  useEffect(() => () => resetCatalog(), [resetCatalog]);
 
   const loadAgentFilesOnOpen = useCallback(
     (open: boolean) => {
@@ -261,6 +342,7 @@ export function usePrinterPage() {
       await removePrinter(row.print_config_uuid);
       setDeleteTarget(null);
       showToast({ title: t("settings.deleted"), tone: "success" });
+      void refreshCatalog().catch(() => undefined);
     } catch (error) {
       showToast({
         title: t("settings.deleteFailed"),
@@ -271,7 +353,9 @@ export function usePrinterPage() {
   }
 
   async function testPrinter(row: Printer) {
-    if (!user?.uuid || !row.print_config_uuid || testingUuid || printing || pendingSelfTest) return;
+    if (!user?.uuid || !row.print_config_uuid || testingUuid || printing || pendingSelfTest ||
+        !canManuallyTestListedPrinter(row, usePrinterStore.getState().printers,
+          usePrinterListStore.getState().networkVisibilityByPrinter)) return;
     setTestingUuid(row.print_config_uuid);
     try {
       const routingWarning = await testPrinterAction({
@@ -301,7 +385,9 @@ export function usePrinterPage() {
   }
 
   async function testDrawer(row: Printer) {
-    if (!user?.uuid || !row.print_config_uuid || testingDrawerUuid || printing || pendingSelfTest) return;
+    if (!user?.uuid || !row.print_config_uuid || testingDrawerUuid || printing || pendingSelfTest ||
+        !canManuallyTestListedPrinter(row, usePrinterStore.getState().printers,
+          usePrinterListStore.getState().networkVisibilityByPrinter)) return;
     setTestingDrawerUuid(row.print_config_uuid);
     try {
       const { routingWarning, cashDrawerEnabled } = await testDrawerAction({
@@ -334,7 +420,9 @@ export function usePrinterPage() {
 
   async function testSelfTest(row: Printer) {
     const target = selfTestTargets.get(row.print_config_uuid);
-    if (!target || !user?.uuid || printing || pendingSelfTest || testingSelfTestUuid) return;
+    if (!target || !user?.uuid || printing || pendingSelfTest || testingSelfTestUuid ||
+        !canManuallyTestListedPrinter(row, usePrinterStore.getState().printers,
+          usePrinterListStore.getState().networkVisibilityByPrinter)) return;
     setTestingSelfTestUuid(row.print_config_uuid);
     try {
       await runSelfTest(target);
@@ -353,6 +441,7 @@ export function usePrinterPage() {
         login_uuid_fk: user.uuid,
         lang: language,
       });
+      await refreshCatalog();
       showToast({
         title: wasActive
           ? t("printer.disableSuccess")
@@ -375,6 +464,14 @@ export function usePrinterPage() {
     language,
     user,
     printers,
+    listScope,
+    setListScope,
+    scopeTotal: scopeRows.length,
+    hiddenLanCount,
+    checkingNetwork,
+    networkVisibilityByPrinter,
+    manualTestPrinterUuids,
+    error,
     printing,
     pendingSelfTest,
     completeSelfTest,

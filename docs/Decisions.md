@@ -1,5 +1,14 @@
 # Decisions
 
+## Printer management visibility follows verified owner access
+
+- **Date:** 2026-11-06.
+- **Decision:** The printer management page defaults to this device's printers, LAN printers with a freshly verified owner, and configured INTERNET printers. A separate all-saved view preserves the authenticated branch's settings catalog and existing private-device ownership boundary. A dedicated presentation store holds this catalog and its observations; the operational printer store and automatic kitchen/document selection stay unchanged.
+- **Verification:** A bounded, credentialless GET to the saved private IPv4 owner Agent's `/health` must return both the exact Agent ID and device code. Matching IP prefixes, a saved identity or a server heartbeat alone cannot confirm a foreign owner on the current connection. Failed, blocked or mismatched reads remain unconfirmed and can be inspected in the all-saved view. Manual LAN test controls are unavailable until verification; no verification request sends printer bytes.
+- **Lifetime:** Evidence is not persisted. Wake, focus, online and periodic refresh clear it before reading the current Agent and catalog again; user/branch/device changes and logout discard old observations.
+- **Limits:** A confirmed owner Agent is not proof of physical printer readiness. A connected owning terminal remains its own device; identifying a physical site after that same owner moves to an identical private network would require a separate site/router identity. Browser private-network or CORS restrictions leave a peer unconfirmed rather than inventing a successful check.
+- **Authorization:** The user explicitly selected hiding nonlocal LAN entries only from the list, retaining INTERNET visibility and automatic routing, then requested implementation.
+
 ## Browser invoice and receipt printing without a configured printer
 
 - **Date:** 2026-11-06.
