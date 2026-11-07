@@ -88,7 +88,7 @@ export const DashboardHeader = memo(function DashboardHeader({
   return (
     <header className="grid grid-cols-[minmax(0,1fr)_auto] items-start gap-x-3 gap-y-2 sm:grid-cols-[minmax(0,1fr)_auto_auto] sm:items-end">
       <div className="flex min-w-0 flex-col gap-2">
-        <h1 className="font-heading text-xl font-bold text-primary-text wrap-anywhere sm:text-2xl lg:text-3xl">{text(section.section_name, copy.title)}</h1>
+        <h1 className="font-heading text-xl font-bold text-foreground wrap-anywhere dark:text-primary-text sm:text-2xl lg:text-3xl">{text(section.section_name, copy.title)}</h1>
         <div className="flex flex-wrap items-center gap-2">
           {branchLabel ? (
             <Badge variant="outline" className="h-auto max-w-full gap-1.5 whitespace-normal py-1 text-left text-xs">
@@ -518,9 +518,8 @@ function Sparkline({ strokeClassName, values }: { strokeClassName: string; value
 
 type KpiTone = "neutral" | "warning" | "destructive";
 
-// Each tile keeps its own accent whatever its value, so a quiet day (all zeros) still reads as
-// four distinct, coloured figures. The value text only turns warning/destructive when there is
-// something to look at. Literal class strings so Tailwind emits them.
+// Accent marks identify each metric. Light-mode figures use neutral ink; active warnings
+// and losses retain their semantic color. Literal classes keep every dark accent available.
 type KpiAccent = "info" | "primary" | "warning" | "destructive";
 
 const kpiAccents: Record<
@@ -534,7 +533,7 @@ const kpiAccents: Record<
     line: "bg-destructive/25",
     meter: "bg-destructive/15 *:data-[slot=progress-indicator]:bg-destructive",
     stroke: "stroke-destructive",
-    text: "text-destructive",
+    text: "text-foreground dark:text-destructive",
   },
   info: {
     bar: "bg-info",
@@ -543,7 +542,7 @@ const kpiAccents: Record<
     line: "bg-info/25",
     meter: "bg-info/15 *:data-[slot=progress-indicator]:bg-info",
     stroke: "stroke-info",
-    text: "text-info-text",
+    text: "text-foreground dark:text-info-text",
   },
   // primary-text, not primary, for the thin marks: dark mode's --primary is a deep fill colour that
   // nearly vanishes as a 4px line on a dark card.
@@ -554,16 +553,16 @@ const kpiAccents: Record<
     line: "bg-primary-text/30",
     meter: "bg-primary-text/15 *:data-[slot=progress-indicator]:bg-primary-text",
     stroke: "stroke-primary-text",
-    text: "text-primary-text",
+    text: "text-foreground dark:text-primary-text",
   },
   warning: {
     bar: "bg-warning",
     blob: "bg-warning/10",
-    chip: "bg-warning text-warning-foreground",
+    chip: "bg-warning/15 text-warning-text dark:bg-warning dark:text-warning-foreground",
     line: "bg-warning/25",
     meter: "bg-warning/15 *:data-[slot=progress-indicator]:bg-warning",
     stroke: "stroke-warning",
-    text: "text-warning-text",
+    text: "text-foreground dark:text-warning-text",
   },
 };
 

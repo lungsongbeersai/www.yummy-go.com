@@ -264,9 +264,9 @@ function ProductCardPriceLabel({
       ) : null}
       <span
         className={cn(
-          "min-w-0 truncate font-black text-primary-text tabular-nums",
+          "min-w-0 truncate font-black text-card-foreground tabular-nums dark:text-primary-text",
           compact ? "text-base leading-5" : "text-base leading-6 sm:text-lg",
-          blocked && "text-muted-foreground"
+          blocked && "text-muted-foreground dark:text-muted-foreground"
         )}
       >
         {money(price.value)}

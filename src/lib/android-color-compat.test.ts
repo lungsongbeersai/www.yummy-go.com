@@ -52,6 +52,31 @@ describe("Android color compatibility", () => {
     );
   });
 
+  it.each([
+    ["table-cashier", "#2563eb", "37, 99, 235"],
+    ["table-staff", "#9333ea", "147, 51, 234"],
+    ["table-payment", "#0d9488", "13, 148, 136"],
+  ])("keeps %s status tints translucent on Android", async (token, color, channels) => {
+    const selector = `.bg-${token}\\/8`;
+    const input = `
+      :root { --${token}: ${color}; }
+      ${selector} { background-color: var(--${token}); }
+      @supports (color: color-mix(in lab, red, red)) {
+        ${selector} {
+          background-color: color-mix(in oklab, var(--${token}) 8%, transparent);
+        }
+      }
+    `;
+
+    const result = await postcss([legacyWebViewOpacity()]).process(input, { from: undefined });
+
+    expect(result.css).toContain(`--legacy-${token}-rgb: ${channels}`);
+    expect(result.css).toContain(`.capacitor-android ${selector}`);
+    expect(result.css).toContain(
+      `rgba(var(--legacy-${token}-rgb), calc(var(--legacy-${token}-alpha) * 0.08))`,
+    );
+  });
+
   it("adds translucent color fallbacks for every Capacitor Android device", async () => {
     const input = `
       :root { --primary: #007956; }

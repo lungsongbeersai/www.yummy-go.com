@@ -106,7 +106,7 @@ function SectionCard({
             <Icon className="size-4" />
           </span>
           <div className="flex min-w-0 flex-col gap-0.5">
-            <h2 id={titleId} className="text-sm font-semibold text-primary-text lg:text-base">
+            <h2 id={titleId} className="text-sm font-semibold text-foreground lg:text-base dark:text-primary-text">
               {title}
             </h2>
             {description ? <p className="text-xs text-muted-foreground tabular-nums">{description}</p> : null}
