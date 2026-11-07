@@ -86,9 +86,10 @@ function KipOdometer({ tier, value }: { tier: VisualEffectsTier; value: string }
   const long = kipFigureSize(figure) === "long";
   const compact = kipFigureSize(figure, 8) === "long";
   const numeralClassName = cn(
-    "font-heading font-extrabold font-stretch-condensed tabular-nums leading-none tracking-tight",
+    "font-heading font-extrabold font-stretch-condensed tabular-nums tracking-tight",
     long ? "text-xl" : compact ? "text-2xl" : "text-4xl",
     long ? "sm:text-5xl xl:text-6xl" : "sm:text-6xl xl:text-7xl",
+    "leading-[1.2]",
   );
 
   if (!parts || tier === "static") {
@@ -117,7 +118,7 @@ function KipOdometer({ tier, value }: { tier: VisualEffectsTier; value: string }
           }
           const digitsFromRight = characters.slice(index + 1).filter((next) => /\d/.test(next)).length;
           return (
-            <span key={`digit-${place}`} className="relative inline-block h-[1em] overflow-hidden">
+            <span key={`digit-${place}`} className="relative inline-block h-[1.2em] overflow-hidden">
               <span
                 className="flex flex-col transition-transform motion-reduce:transition-none"
                 style={{
@@ -128,7 +129,7 @@ function KipOdometer({ tier, value }: { tier: VisualEffectsTier; value: string }
                 }}
               >
                 {DIGITS.map((digit) => (
-                  <span key={digit} className="h-[1em]">
+                  <span key={digit} className="h-[1.2em]">
                     {digit}
                   </span>
                 ))}
