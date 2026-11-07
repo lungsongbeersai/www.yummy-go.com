@@ -237,7 +237,7 @@ function SalesCard({
 
   return (
     <SectionCard
-      className={className}
+      className={cn(className, isSingleDay && !showChart && "self-start")}
       icon={ChartColumn}
       title={copy.dailySales}
       description={subtitle}
@@ -368,7 +368,7 @@ function SalesCard({
         // One day has no trend to draw (a one-bar chart says nothing). The payment methods take the
         // room as large tiles — they are this card's legend too — and the month is one tap away.
         <>
-          <ul className="grid flex-1 grid-cols-1 gap-3 sm:grid-cols-3">
+          <ul className="grid grid-cols-1 gap-3 sm:grid-cols-3">
             {split.segments.map((segment) => (
               <li
                 key={segment.key}
