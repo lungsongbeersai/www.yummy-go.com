@@ -161,6 +161,41 @@ describe("waiter request store", () => {
     expect(api.sendCustomerWaiterRequest).toHaveBeenCalledTimes(1);
     expect(store.getState().publicRequests).toEqual([row]);
   });
+  it("reports acceptance only after Backend accepts the request", async () => {
+    store.setState({ staffKey: "branch", staffRequests: [row] });
+    vi.mocked(api.updateStaffWaiterRequest).mockResolvedValue({ ...row, status: 1 });
+    vi.mocked(api.fetchStaffWaiterRequests).mockResolvedValue([{ ...row, status: 1 }]);
+    expect(await store.getState().handle("request", 1)).toBe(true);
+    expect(api.updateStaffWaiterRequest).toHaveBeenCalledWith("request", 1);
+    expect(store.getState().staffRequests[0]?.status).toBe(1);
+  });
+  it("reports an update failure so callers keep the request panel open", async () => {
+    store.setState({ staffKey: "branch", staffRequests: [row] });
+    vi.mocked(api.updateStaffWaiterRequest).mockRejectedValue(new Error("Unavailable"));
+    expect(await store.getState().handle("request", 1)).toBe(false);
+    expect(store.getState().staffRequests).toEqual([row]);
+  });
+  it("blocks duplicate accepts and discards a late result after switching branches", async () => {
+    const response = deferred<WaiterRequest>();
+    store.setState({ staffKey: "branch", staffRequests: [row] });
+    vi.mocked(api.updateStaffWaiterRequest).mockReturnValue(response.promise);
+    const accepting = store.getState().handle("request", 1);
+    expect(await store.getState().handle("request", 1)).toBe(false);
+    store.setState({ staffKey: "other", staffRequests: [] });
+    response.resolve({ ...row, status: 1 });
+    expect(await accepting).toBe(false);
+    expect(api.fetchStaffWaiterRequests).not.toHaveBeenCalled();
+  });
+  it("discards an acceptance after the session ends", async () => {
+    const response = deferred<WaiterRequest>();
+    store.setState({ staffKey: "branch", staffRequests: [row] });
+    vi.mocked(api.updateStaffWaiterRequest).mockReturnValue(response.promise);
+    const accepting = store.getState().handle("request", 1);
+    resetSessionStores();
+    response.resolve({ ...row, status: 1 });
+    expect(await accepting).toBe(false);
+    expect(store.getState().staffRequests).toEqual([]);
+  });
   it("keeps cashier requests visible if completion fails", async () => {
     store.setState({ staffKey: "branch", staffRequests: [row] });
     vi.mocked(api.updateStaffWaiterRequest).mockRejectedValue(

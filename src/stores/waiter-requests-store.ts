@@ -22,7 +22,7 @@ interface WaiterState {
   loadPublic: (token: string) => Promise<boolean>;
   send: (token: string, input: api.SendWaiterRequest) => Promise<boolean>;
   loadStaff: (branch: string) => Promise<void>;
-  handle: (id: string, status: 1 | 2) => Promise<void>;
+  handle: (id: string, status: 1 | 2) => Promise<boolean>;
 }
 const errorMessage = (e: unknown) =>
   e instanceof Error ? e.message : "Unable to load requests";
@@ -115,16 +115,19 @@ export const useWaiterRequestsStore = create<WaiterState>((set, get) => ({
     }
   },
   handle: async (id, status) => {
-    if (get().handling) return;
+    if (get().handling) return false;
     const current = createSessionGuard();
     const branch = get().staffKey;
     set({ handling: id, staffError: null });
     try {
       await api.updateStaffWaiterRequest(id, status);
-      if (current() && get().staffKey === branch) await get().loadStaff(branch);
+      if (!current() || get().staffKey !== branch) return false;
+      await get().loadStaff(branch);
+      return current() && get().staffKey === branch;
     } catch (e) {
       if (current() && get().staffKey === branch)
         set({ staffError: errorMessage(e) });
+      return false;
     } finally {
       if (current()) set({ handling: "" });
     }

@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
 import { useTranslation } from "react-i18next";
 import {
   AlertCircle, ArrowRight, Bell, BellRing, Check, CheckCheck, Clock3,
@@ -15,8 +16,11 @@ import { Sheet, SheetClose, SheetContent, SheetDescription, SheetHeader, SheetTi
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { cn } from "@/lib/utils";
+import { createMutationUuid } from "@/lib/pos/mutation-identity";
 import type { WaiterRequest } from "@/services/waiter-requests";
 import { useWaiterRequestsStore } from "@/stores/waiter-requests-store";
+import { useNavigationGuardStore } from "@/stores/navigation-guard-store";
+import { billRequestOrderUrl } from "./bill-request-navigation";
 
 interface StaffWaiterPanelProps {
   branch: string;
@@ -34,7 +38,9 @@ const itemIcons = {
 };
 
 export function StaffWaiterPanel({ branch, open, onOpenChange }: StaffWaiterPanelProps) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
+  const router = useRouter();
+  const runGuardedNavigation = useNavigationGuardStore((state) => state.run);
   const storedRows = useWaiterRequestsStore((state) => state.staffRequests);
   const key = useWaiterRequestsStore((state) => state.staffKey);
   const rows = key === branch ? storedRows : [];
@@ -56,6 +62,19 @@ export function StaffWaiterPanel({ branch, open, onOpenChange }: StaffWaiterPane
     { value: "waiting", count: waitingCount },
     { value: "inProgress", count: progressCount },
   ] as const;
+
+  function openBillRequest(request: WaiterRequest) {
+    const target = billRequestOrderUrl(request, i18n.language, createMutationUuid());
+    if (!target) return;
+    runGuardedNavigation(() => {
+      void (async () => {
+        if (request.status === 0 && !await handle(request.request_uuid, 1)) return;
+        if (useWaiterRequestsStore.getState().staffKey !== branch) return;
+        onOpenChange(false);
+        router.push(target);
+      })();
+    });
+  }
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
@@ -178,7 +197,7 @@ export function StaffWaiterPanel({ branch, open, onOpenChange }: StaffWaiterPane
             ) : null}
             <div className="flex flex-col gap-4">
               {visibleRows.map((request) => (
-                <StaffRequestCard key={request.request_uuid} request={request} busy={busy} onHandle={handle} />
+                <StaffRequestCard key={request.request_uuid} request={request} busy={busy} onHandle={handle} onOpenBill={openBillRequest} />
               ))}
             </div>
           </TabsContent>
@@ -195,10 +214,11 @@ export function StaffWaiterPanel({ branch, open, onOpenChange }: StaffWaiterPane
 interface StaffRequestCardProps {
   request: WaiterRequest;
   busy: string;
-  onHandle: (id: string, status: 1 | 2) => Promise<void>;
+  onHandle: (id: string, status: 1 | 2) => Promise<boolean>;
+  onOpenBill: (request: WaiterRequest) => void;
 }
 
-function StaffRequestCard({ request, busy, onHandle }: StaffRequestCardProps) {
+function StaffRequestCard({ request, busy, onHandle, onOpenBill }: StaffRequestCardProps) {
   const { t, i18n } = useTranslation();
   const isBill = request.request_type === "bill";
   const RequestIcon = isBill ? Receipt : Bell;
@@ -268,9 +288,9 @@ function StaffRequestCard({ request, busy, onHandle }: StaffRequestCardProps) {
         ) : null}
       </div>
       <div className="flex gap-2 border-t border-border/70 bg-muted/25 px-4 py-3">
-        {waiting ? (
-          <Button type="button" className="h-auto min-h-11 min-w-0 flex-1 gap-2 whitespace-normal rounded-xl px-3 py-2 text-xs font-semibold" disabled={!!busy} onClick={() => void onHandle(request.request_uuid, 1)}>
-            <Check aria-hidden="true" className="size-4" /><span className="min-w-0 flex-1">{t(isBill ? "waiter.billAccept" : "waiter.accept")}</span><ArrowRight aria-hidden="true" className="ml-auto size-3.5" />
+        {waiting || (isBill && request.status === 1) ? (
+          <Button type="button" className="h-auto min-h-11 min-w-0 flex-1 gap-2 whitespace-normal rounded-xl px-3 py-2 text-xs font-semibold" disabled={!!busy || (isBill && !request.table_uuid.trim())} onClick={() => isBill ? onOpenBill(request) : void onHandle(request.request_uuid, 1)}>
+            <Check aria-hidden="true" className="size-4" /><span className="min-w-0 flex-1">{t(isBill ? waiting ? "waiter.billAccept" : "notifications.newOrderPopup.openTable" : "waiter.accept")}</span><ArrowRight aria-hidden="true" className="ml-auto size-3.5" />
           </Button>
         ) : null}
         <Button type="button" variant={waiting ? "outline" : "default"} className="h-auto min-h-11 min-w-0 flex-1 gap-2 whitespace-normal rounded-xl px-3 py-2 text-xs font-semibold" disabled={!!busy} onClick={() => void onHandle(request.request_uuid, 2)}>

@@ -20,6 +20,7 @@ import { Spinner } from "@/components/ui/spinner";
 import { useIsNativeShellActive } from "@/hooks/use-native-shell-active";
 import { useIsCapacitorNativeApp } from "@/hooks/use-capacitor-native-app";
 import { useLandscapeTablet } from "@/hooks/use-landscape-tablet";
+import { useMediaQuery } from "@/hooks/use-media-query";
 import { cn } from "@/lib/utils";
 import { useNativeHeaderStore } from "@/stores/native-header-store";
 import { useAppStore } from "@/stores/app-store";
@@ -55,6 +56,7 @@ export function OrderCustomerView({
 }: {
   workflow: OrderCustomerWorkflow;
 }) {
+  const hasSideCart = useMediaQuery("(min-width: 64rem)");
   const {
     activeProducts,
     activeSort,
@@ -538,7 +540,7 @@ export function OrderCustomerView({
       </Button>
 
       <Sheet
-        open={cartSheetOpen}
+        open={cartSheetOpen && !hasSideCart}
         onOpenChange={(nextOpen) => {
           if (nextOpen) {
             void openCartSheet();

@@ -66,12 +66,14 @@ export type OrderCustomerWorkflowInput = {
   initialTableUuid: string;
   initialTableName: string;
   initialZoneUuid: string;
+  initialBillRequestKey?: string;
 };
 
 export function useOrderCustomerWorkflow({
   initialTableUuid,
   initialTableName,
   initialZoneUuid,
+  initialBillRequestKey = "",
 }: OrderCustomerWorkflowInput) {
   const { t } = useTranslation();
   const router = useRouter();
@@ -116,7 +118,7 @@ export function useOrderCustomerWorkflow({
   const [search, setSearch] = useState("");
   const [loadingProductUuid, setLoadingProductUuid] = useState("");
   const [productSheetOpen, setProductSheetOpen] = useState(false);
-  const [cartSheetOpen, setCartSheetOpen] = useState(false);
+  const [cartSheetOpen, setCartSheetOpen] = useState(Boolean(initialBillRequestKey && initialTableUuid));
   const [draftExitWarningOpen, setDraftExitWarningOpen] = useState(false);
   const [draftExitCleanupPending, setDraftExitCleanupPending] = useState(false);
   const productActionPendingRef = useRef(false);
@@ -622,8 +624,8 @@ export function useOrderCustomerWorkflow({
     t,
   ]);
 
-  useResetOnDeps([initialTableName, initialTableUuid], () => {
-    setCartSheetOpen(false);
+  useResetOnDeps([initialTableName, initialTableUuid, initialBillRequestKey], () => {
+    setCartSheetOpen(Boolean(initialBillRequestKey && initialTableUuid));
   });
 
   useEffect(() => {
@@ -637,7 +639,7 @@ export function useOrderCustomerWorkflow({
 
   useEffect(() => {
     void loadCart();
-  }, [loadCart]);
+  }, [initialBillRequestKey, loadCart]);
 
   // Preserve events arriving while a previous read is in flight. The follow-up
   // read observes changes committed after that earlier read started.
