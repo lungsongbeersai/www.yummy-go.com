@@ -21,6 +21,7 @@ import {
   sparklinePath,
   sparklineValues,
   splitMoneyString,
+  trendAxisLabels,
   unsplitRevenue,
   yearSelectOptions,
   type TrendPoint
@@ -661,6 +662,96 @@ describe("dashboard presentation helpers", () => {
       "2026-01-01", "2026-02-01", "unknown first", "-", "unknown second"
     ]);
     expect(daily.rows[3].key).toBe("2");
+  });
+
+  it("keeps existing daily labels within one month and never mutates the buckets", () => {
+    const rows = bucketTrendRows([
+      trendPoint({ date: "2026-11-07", day: "7" }),
+      trendPoint({ date: "2026-11-21", day: "21" })
+    ], "day").rows;
+    const before = rows.map((row) => ({ ...row, dates: [...row.dates] }));
+    rows.forEach((row) => { Object.freeze(row.dates); Object.freeze(row); });
+    Object.freeze(rows);
+
+    expect([...trendAxisLabels(rows, "day")]).toEqual([["2026-11-07", "7"], ["2026-11-21", "21"]]);
+    expect(rows).toEqual(before);
+  });
+
+  it("includes the month when daily dates cross months and keeps repeated day numbers distinct", () => {
+    const rows = bucketTrendRows([
+      trendPoint({ date: "2026-10-07", day: "7" }),
+      trendPoint({ date: "2026-11-07", day: "7" })
+    ], "day").rows;
+
+    expect([...trendAxisLabels(rows, "day")]).toEqual([["2026-10-07", "07/10"], ["2026-11-07", "07/11"]]);
+  });
+
+  it("includes the full year when daily dates cross years", () => {
+    const rows = bucketTrendRows([
+      trendPoint({ date: "2026-12-31" }),
+      trendPoint({ date: "2027-01-01" })
+    ], "day").rows;
+
+    expect([...trendAxisLabels(rows, "day")]).toEqual([["2026-12-31", "31/12/2026"], ["2027-01-01", "01/01/2027"]]);
+  });
+
+  it("keeps weekly labels within a year and uses the first observed date for a partial ISO week", () => {
+    const rows = bucketTrendRows([
+      trendPoint({ date: "2026-01-01" }),
+      trendPoint({ date: "2026-01-04" }),
+      trendPoint({ date: "2026-01-05" })
+    ], "week").rows;
+
+    expect([...trendAxisLabels(rows, "week")]).toEqual([["2025-12-29", "01/01"], ["2026-01-05", "05/01"]]);
+  });
+
+  it("detects observed years within a single ISO week instead of reading only its start date", () => {
+    const rows = bucketTrendRows([
+      trendPoint({ date: "2025-12-31" }),
+      trendPoint({ date: "2026-01-01" }),
+      trendPoint({ date: "2026-01-04" })
+    ], "week").rows;
+
+    expect([...trendAxisLabels(rows, "week")]).toEqual([["2025-12-29", "31/12/2025"]]);
+  });
+
+  it("keeps monthly month/year labels", () => {
+    const rows = bucketTrendRows([
+      trendPoint({ date: "2026-12-31" }),
+      trendPoint({ date: "2027-01-01" })
+    ], "month").rows;
+
+    expect([...trendAxisLabels(rows, "month")]).toEqual([["2026-12", "12/2026"], ["2027-01", "01/2027"]]);
+  });
+
+  it("preserves labels for invalid dates without letting them introduce a month or year", () => {
+    const rows = bucketTrendRows([
+      trendPoint({ date: "2026-02-07", day: "7" }),
+      trendPoint({ date: "2026-02-30", day: "invalid day" }),
+      trendPoint({ date: "2027-13-01", day: "invalid month" }),
+      trendPoint({ date: "unknown", day: "unknown date" })
+    ], "day").rows;
+    const labels = trendAxisLabels(rows, "day");
+
+    expect(labels.size).toBe(rows.length);
+    expect(labels.get("2026-02-07")).toBe("7");
+    expect(labels.get("2026-02-30")).toBe("invalid day");
+    expect(labels.get("2027-13-01")).toBe("invalid month");
+    expect(labels.get("unknown")).toBe("unknown date");
+    expect([...trendAxisLabels([], "day")]).toEqual([]);
+  });
+
+  it("formats valid leap days and preserves invalid non-leap days", () => {
+    const rows = bucketTrendRows([
+      trendPoint({ date: "2028-02-29" }),
+      trendPoint({ date: "2028-03-01" }),
+      trendPoint({ date: "2027-02-29", day: "invalid leap day" })
+    ], "day").rows;
+    const labels = trendAxisLabels(rows, "day");
+
+    expect(labels.get("2028-02-29")).toBe("29/02");
+    expect(labels.get("2028-03-01")).toBe("01/03");
+    expect(labels.get("2027-02-29")).toBe("invalid leap day");
   });
 
   it("draws skyline columns from sales rows with the owed cap from payment rows", () => {

@@ -73,6 +73,16 @@ No custom breakpoints are defined anywhere in the repo (`components.json` has no
 - Full keyboard operability for any flow a mouse/touch user has (this is a POS — a cashier may be using a barcode-scanner keyboard wedge or a hardware keypad).
 - Touch targets sized for a tablet/POS terminal, not just desktop — verify by hand on the actual target device class, since no repo token currently encodes this.
 
+## Dashboard overview baseline
+
+Keep this arrangement as the dashboard's standard unless the user requests a layout change:
+
+- At desktop widths, revenue and its chart occupy the wider left card; the accounting receipt stays in the right card. Stack the cards at smaller widths.
+- Cash, transfer and collected (cash + transfer) summaries sit above the chart. Keep debt and unallocated payments separate.
+- Compact order-channel tiles remain below the chart inside the revenue card. Show counts, shares and amounts; there is no channel pie or centered order total.
+- Chart metric changes preserve the plot's size and position. Show month/year context on date labels when the observed range crosses those boundaries, and place the daily-average caption outside the plot.
+- Keep the existing theme colours, Light/Dark support and responsive typography. This is a layout baseline, not a CSS fixed-position screen or a fixed-height mobile page.
+
 ## Safe shadcn preset changes
 
 Inspect the current and incoming preset before changing visual foundations:

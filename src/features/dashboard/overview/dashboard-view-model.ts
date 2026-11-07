@@ -561,6 +561,33 @@ export function bucketTrendRows(
   return { kind, rows: Array.from(buckets.values()) };
 }
 
+
+function axisBusinessDateParts(value: string) {
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value);
+  if (!match) return null;
+  const date = new Date(`${value}T00:00:00Z`);
+  // Date parsing rolls invalid days into the next month; never turn those into a plausible label.
+  if (!Number.isFinite(date.getTime()) || date.toISOString().slice(0, 10) !== value) return null;
+  return { day: match[3], month: match[2], year: match[1] };
+}
+
+/** Axis labels disambiguate month/year boundaries without changing the observed buckets. */
+export function trendAxisLabels(rows: TrendBucket[], kind: TrendBucketKind): Map<string, string> {
+  const observed = rows.flatMap((row) => [row.date, ...row.dates])
+    .map(axisBusinessDateParts)
+    .filter((parts) => parts !== null);
+  const spansYears = new Set(observed.map((parts) => parts.year)).size > 1;
+  const spansMonths = new Set(observed.map((parts) => `${parts.year}-${parts.month}`)).size > 1;
+
+  return new Map(rows.map((row) => {
+    const parts = axisBusinessDateParts(row.date);
+    const showDate = kind === "day" ? spansMonths : kind === "week" && spansYears;
+    if (!parts || !showDate) return [row.key, row.label];
+    const label = `${parts.day}/${parts.month}${spansYears ? `/${parts.year}` : ""}`;
+    return [row.key, label];
+  }));
+}
+
 export type SkylineColumn = {
   /** Column height as a share of the tallest column, 0-100. */
   height: number;

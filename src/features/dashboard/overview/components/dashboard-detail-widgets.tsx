@@ -189,6 +189,7 @@ function SalesCard({
   const revenueSource = paymentTrendRows.length ? paymentTrendRows : trendRows;
   const ordersSource = trendRows.length ? trendRows : paymentTrendRows;
   const source = metric === "revenue" ? revenueSource : ordersSource;
+  const orderCount = ordersSource.reduce((sum, row) => sum + row.orders, 0);
   const bucketKind = grouping ?? trendBucketKind(source.length);
   const bucketed = useMemo(() => bucketTrendRows(source, bucketKind), [source, bucketKind]);
   const isBucketed = bucketed.kind !== "day";
@@ -283,12 +284,13 @@ function SalesCard({
             type="single" variant="outline" spacing={0} aria-label={t("dashboard.chartMetric")}
             value={metric} onValueChange={(value) => { if (value) setMetric(value as TrendMetric); }}
           >
-            <ToggleGroupItem value="revenue" className="pointer-coarse:min-h-11 data-[state=on]:bg-primary data-[state=on]:text-primary-foreground data-[state=on]:hover:bg-primary data-[state=on]:hover:text-primary-foreground">{copy.revenue}</ToggleGroupItem>
-            <ToggleGroupItem value="orders" className="pointer-coarse:min-h-11 data-[state=on]:bg-primary data-[state=on]:text-primary-foreground data-[state=on]:hover:bg-primary data-[state=on]:hover:text-primary-foreground">{copy.orders}</ToggleGroupItem>
+            <ToggleGroupItem value="revenue" className="min-h-10 pointer-coarse:min-h-11 data-[state=on]:bg-primary data-[state=on]:text-primary-foreground data-[state=on]:hover:bg-primary data-[state=on]:hover:text-primary-foreground">{copy.revenue}</ToggleGroupItem>
+            <ToggleGroupItem value="orders" className="min-h-10 pointer-coarse:min-h-11 data-[state=on]:bg-primary data-[state=on]:text-primary-foreground data-[state=on]:hover:bg-primary data-[state=on]:hover:text-primary-foreground">{copy.orders}</ToggleGroupItem>
           </ToggleGroup>
         </div>
-        {metric === "revenue" ? (
-          <ul className="flex flex-wrap justify-center gap-x-5 gap-y-2 text-xs font-semibold tabular-nums">
+        {/* Both legends occupy the same grid cell, so switching metric keeps the plot in place. */}
+        <div className="grid">
+          <ul aria-hidden={metric !== "revenue"} className={cn("col-start-1 row-start-1 flex flex-wrap justify-center gap-x-5 gap-y-2 text-xs font-semibold tabular-nums", metric !== "revenue" && "invisible")}>
             {(["cash", "transfer", "collected"] as const).map((key) => (
               <li key={key} className="flex min-w-0 flex-wrap items-center gap-2">
                 <span aria-hidden="true" className={cn(key === "collected" ? "h-0.5 w-5 bg-success" : "size-2.5 rounded-full", key === "cash" && "bg-chart-cat-1", key === "transfer" && "bg-chart-cat-2")} />
@@ -298,10 +300,18 @@ function SalesCard({
             {revenueSource.some((row) => row.debt > 0) ? <li className="flex items-center gap-2 text-foreground"><span aria-hidden="true" className="size-3 rounded-xs bg-hatch text-chart-cat-3" />{labels.debt}</li> : null}
             {revenueSource.some((row) => unsplitRevenue(row) > 0) ? <li className="flex items-center gap-2 text-foreground"><span aria-hidden="true" className="size-2.5 rounded-full bg-muted-foreground" />{labels.other}</li> : null}
           </ul>
-        ) : null}
+          <ul aria-hidden={metric !== "orders"} className={cn("col-start-1 row-start-1 flex flex-wrap items-center justify-center gap-2 text-xs font-semibold text-foreground tabular-nums", metric !== "orders" && "invisible")}>
+            <li className="flex items-center gap-2"><span aria-hidden="true" className="size-2.5 rounded-xs bg-muted-foreground" />{copy.orders} {formatNumber(orderCount)}</li>
+          </ul>
+        </div>
         {source.length ? (
           <>
-            <DailySalesChart average={average} bucketed={isBucketed} copy={copy} labels={labels} metric={metric} peakKey={peakKey} rows={bucketed.rows} tier={tier} />
+            <DailySalesChart average={average} kind={bucketed.kind} copy={copy} labels={labels} metric={metric} peakKey={peakKey} rows={bucketed.rows} tier={tier} />
+            <p data-dashboard-chart-average className="flex min-h-5 flex-wrap items-center gap-x-2 gap-y-1 text-xs text-muted-foreground tabular-nums">
+              {!isBucketed && source.length > 1 && average > 0 ? <span aria-hidden="true" className="w-4 shrink-0 border-t-2 border-dashed border-foreground" /> : null}
+              <span>{copy.dailyAverage}:</span>
+              <strong className="font-semibold text-foreground">{metric === "revenue" ? formatKip(average) : `${formatNumber(average, 1)} ${copy.orders}`}</strong>
+            </p>
             <div className="sr-only">
               <table>
                 <caption>{copy.dailyTable}</caption>

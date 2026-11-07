@@ -27,9 +27,11 @@ import {
   formatNumber,
   plottedRevenue,
   unsplitRevenue,
+  trendAxisLabels,
   type DashboardCopy,
   type TrendBucket,
   type TrendMetric,
+  type TrendBucketKind,
 } from "@/features/dashboard/overview/dashboard-view-model";
 
 // The only module on the dashboard that imports recharts (see dashboard-chart-boundary.test.ts):
@@ -74,7 +76,7 @@ function TooltipRow({ label, swatch, value }: { label: string; swatch: string; v
 
 export function DailySalesChart({
   average,
-  bucketed,
+  kind,
   copy,
   labels,
   metric,
@@ -84,8 +86,7 @@ export function DailySalesChart({
 }: {
   /** Daily average of the shown metric over the raw days (plotted revenue, or bills). */
   average: number;
-  /** Rows are weekly/monthly sums: the daily average line and peak dot would not match them. */
-  bucketed: boolean;
+  kind: TrendBucketKind;
   copy: DashboardCopy;
   labels: Record<SegmentKey | "collected", string>;
   metric: TrendMetric;
@@ -98,6 +99,8 @@ export function DailySalesChart({
   const animate = tier !== "static";
   const timing = tier === "static" ? null : animationByTier[tier];
   const isRevenue = metric === "revenue";
+  const bucketed = kind !== "day";
+  const axisLabels = trendAxisLabels(rows, kind);
   const data = rows.map((row) => ({ ...row, collected: row.cash + row.transfer, other: unsplitRevenue(row) }));
   const hasValue = data.some((row) => (isRevenue ? plottedRevenue(row) : row.orders) > 0);
   const hasOther = data.some((row) => row.other > 0);
@@ -116,7 +119,7 @@ export function DailySalesChart({
   const formatValue = (value: unknown) => (isRevenue ? formatKip(value) : `${formatNumber(value)} ${copy.orders}`);
   // The axis runs on the unique bucket key: day labels repeat across a month boundary ("1" in
   // January and February), and a repeated category would lose the peak dot and merge tooltips.
-  const bucketLabel = (key: unknown) => bucketByKey.get(String(key))?.label ?? String(key);
+  const bucketLabel = (key: unknown) => axisLabels.get(String(key)) ?? String(key);
 
   return (
     <ChartContainer config={config} className="aspect-auto h-56 w-full sm:h-64 lg:h-72">
@@ -215,13 +218,7 @@ export function DailySalesChart({
           />
         ) : null}
         {!bucketed && rows.length > 1 && average > 0 ? (
-          <ReferenceLine y={average} stroke="var(--foreground)" strokeDasharray="4 4" ifOverflow="extendDomain">
-            <Label
-              value={`${copy.dailyAverage} ${compactNumber.format(average)}`}
-              position="insideTopLeft"
-              className="fill-muted-foreground text-2xs font-semibold"
-            />
-          </ReferenceLine>
+          <ReferenceLine y={average} stroke="var(--foreground)" strokeDasharray="4 4" ifOverflow="extendDomain" />
         ) : null}
         {!bucketed && peak && peakValue > 0 ? (
           <ReferenceDot x={peak.key} y={peakValue} r={4} fill="var(--foreground)" stroke="var(--card)" strokeWidth={2}>
