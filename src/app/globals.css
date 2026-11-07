@@ -19,17 +19,17 @@
 :root {
   /* Distinct workspace, card and control surfaces keep dense POS screens readable. */
   --card: oklch(1 0 0);
-  --card-foreground: #172e28;
+  --card-foreground: #1f2937;
   --popover: oklch(1 0 0);
-  --popover-foreground: #172e28;
-  --muted: #e0e9e4;
-  --muted-foreground: #475e54;
-  --accent: #d9e8df;
-  --accent-foreground: #1f3d30;
+  --popover-foreground: #1f2937;
+  --muted: #eef2f6;
+  --muted-foreground: #526171;
+  --accent: #e8edf3;
+  --accent-foreground: #1f2937;
   --primary: oklch(0.508 0.118 165.612);
   --primary-foreground: oklch(0.979 0.021 166.113);
-  --secondary: #e3ece7;
-  --secondary-foreground: #233e32;
+  --secondary: #f0f3f7;
+  --secondary-foreground: #334155;
   --destructive: oklch(0.577 0.245 27.325);
   --destructive-foreground: oklch(1 0 0);
   --warning: hsl(38 92% 46%);
@@ -40,6 +40,9 @@
   --info-foreground: hsl(0 0% 100%);
   --pending: hsl(25 90% 45%);
   --pending-foreground: hsl(0 0% 100%);
+  --table-cashier: #2563eb;
+  --table-staff: #9333ea;
+  --table-payment: #0d9488;
   /* คู่ "ข้อความบนพื้น" ของ --info/--warning: เข้มพอผ่าน WCAG AA (>=4.5:1) เมื่อใช้เป็น
      text บน card/พื้นสว่าง ต่างจากตัว --info/--warning ที่ออกแบบเป็นสี fill (คู่กับ
      -foreground) ซึ่ง contrast ตกเมื่อเอามาเป็นตัวอักษรบนพื้นขาว ใช้กับยอด service/VAT
@@ -50,22 +53,22 @@
      แต่โหมดมืด --primary เข้มมาก (ออกแบบเป็นสีพื้นปุ่มคู่กับ -foreground) ใช้เป็นตัวอักษรบนพื้นมืด
      แล้วแทบมองไม่เห็น จึงชี้ไป --sidebar-primary ที่ทุก preset สีธีมกำหนดเฉดสว่างไว้ในโหมดมืดแล้ว */
   --primary-text: var(--primary);
-  --border: #b9c9c2;
-  --input: #7d9288;
+  --border: #d8e0e8;
+  --input: #7d8b9c;
   --ring: var(--primary-text);
-  --overlay: #071b15a8;
-  --sidebar: oklch(0.99 0.002 197.1);
-  --sidebar-foreground: oklch(0.21 0.01 165);
+  --overlay: #0f172a80;
+  --sidebar: #ffffff;
+  --sidebar-foreground: #1f2937;
   --sidebar-primary: oklch(0.508 0.118 165.612);
   --sidebar-primary-foreground: oklch(0.979 0.021 166.113);
   --sidebar-accent: oklch(0.92 0.05 165);
   --sidebar-accent-foreground: oklch(0.24 0.06 165);
-  --sidebar-border: oklch(0.9 0.01 165);
+  --sidebar-border: #d8e0e8;
   --sidebar-ring: oklch(0.508 0.118 165.612);
-  --app: 156 16% 94%;
+  --app: 216 33% 97%;
   --pos-system-bottom-safe-area: env(safe-area-inset-bottom, 0px);
-  --background: #edf2f0;
-  --foreground: #172e28;
+  --background: #f5f7fa;
+  --foreground: #1f2937;
   --chart-1: oklch(0.871 0.15 154.449);
   --chart-2: oklch(0.723 0.219 149.579);
   --chart-3: oklch(0.627 0.194 149.214);
@@ -86,14 +89,12 @@
   --chart-cat-2-text: #b8461a;
   --chart-cat-3-text: #0b7a52;
   --success-text: #13714c;
-  /* Dashboard "banknote plate" (revenue hero). Neutral white/black overlays with their own
-     alpha, so they tint whatever --primary resolves to (every data-theme-color preset, light
-     and dark, and the sRGB Capacitor blocks) and parse on Android WebView 101 (hex8, no
-     color-mix). The shade sits under the plate's small text and only ever raises contrast
-     against --primary-foreground; the sheen and engraving stay in the text-free corner. */
+  /* Dashboard revenue card: faint accent engraving on the light card; white/black
+     sheen and shade on the filled dark plate. Hex alpha values also work on WebView 101. */
   --dash-sheen: #ffffff1a;
   --dash-shade: #0000003d;
-  --dash-engrave: #ffffff1f;
+  --dash-engrave: var(--primary);
+  --dash-notch: var(--card);
   --dash-card-shadow: 0 1px 2px #0f172a0f, 0 12px 32px -20px #0f172a47;
   --dash-plate-shadow: 0 24px 48px -28px #0f172a8c;
   --radius: 0.625rem;
@@ -159,6 +160,10 @@
   --dash-sheen: #ffffff14;
   --dash-shade: #00000059;
   --dash-engrave: #ffffff17;
+  --dash-notch: var(--primary);
+  --table-cashier: #60a5fa;
+  --table-staff: #c084fc;
+  --table-payment: #2dd4bf;
   --dash-card-shadow: inset 0 1px 0 #ffffff0d, 0 1px 2px #00000080, 0 16px 32px -24px #000000cc;
   --dash-plate-shadow: 0 24px 48px -28px #000000b3;
 }
@@ -296,32 +301,32 @@
    Swan 1 — WebView บางรุ่น parse OKLCH ได้แต่แสดงผล/ผสม opacity ต่างจาก Chrome desktop */
 html.capacitor-android {
   --card: #fff;
-  --card-foreground: #172e28;
+  --card-foreground: #1f2937;
   --popover: #fff;
-  --popover-foreground: #172e28;
-  --muted: #e0e9e4;
-  --muted-foreground: #475e54;
-  --accent: #d9e8df;
-  --accent-foreground: #1f3d30;
+  --popover-foreground: #1f2937;
+  --muted: #eef2f6;
+  --muted-foreground: #526171;
+  --accent: #e8edf3;
+  --accent-foreground: #1f2937;
   --primary: #007956;
   --primary-foreground: #ecfdf5;
-  --secondary: #e3ece7;
-  --secondary-foreground: #233e32;
+  --secondary: #f0f3f7;
+  --secondary-foreground: #334155;
   --destructive: #e40014;
   --destructive-foreground: #fff;
-  --border: #b9c9c2;
-  --input: #7d9288;
+  --border: #d8e0e8;
+  --input: #7d8b9c;
   --ring: var(--primary-text);
-  --sidebar: #fafcfc;
-  --sidebar-foreground: #141a17;
+  --sidebar: #ffffff;
+  --sidebar-foreground: #1f2937;
   --sidebar-primary: #007956;
   --sidebar-primary-foreground: #ecfdf5;
   --sidebar-accent: #c7f0dc;
   --sidebar-accent-foreground: #002719;
-  --sidebar-border: #d8e0dc;
+  --sidebar-border: #d8e0e8;
   --sidebar-ring: #007956;
-  --background: #edf2f0;
-  --foreground: #172e28;
+  --background: #f5f7fa;
+  --foreground: #1f2937;
   --chart-1: #7bf1a8;
   --chart-2: #00c758;
   --chart-3: #00a544;
@@ -548,6 +553,9 @@ html[data-lao-font="saysettha"] {
   --color-destructive-foreground: var(--destructive-foreground);
   --color-warning: var(--warning);
   --color-warning-foreground: var(--warning-foreground);
+  --color-table-cashier: var(--table-cashier);
+  --color-table-staff: var(--table-staff);
+  --color-table-payment: var(--table-payment);
   --color-success: var(--success);
   --color-success-foreground: var(--success-foreground);
   --color-pending: var(--pending);
@@ -636,7 +644,7 @@ html[data-lao-font="saysettha"] {
   background-image: repeating-linear-gradient(
     90deg,
     transparent 0 calc(10% - 2px),
-    var(--primary) calc(10% - 2px) 10%
+    var(--dash-notch) calc(10% - 2px) 10%
   );
 }
 
@@ -1461,20 +1469,20 @@ html.android-webview-compat:not([data-decor-background="off"]) [data-slot="sideb
 }
 
 .pos-soft-light-zone {
-  --background: hsl(210 38% 98%);
-  --foreground: hsl(224 42% 11%);
-  --card: hsl(0 0% 100%);
-  --card-foreground: hsl(224 42% 11%);
-  --popover: hsl(0 0% 100%);
-  --popover-foreground: hsl(224 42% 11%);
-  --muted: hsl(210 26% 93%);
-  --muted-foreground: hsl(215 13% 42%);
-  --accent: hsl(210 26% 93%);
-  --accent-foreground: hsl(224 42% 11%);
-  --secondary: hsl(205 78% 94%);
-  --secondary-foreground: hsl(211 47% 22%);
-  --border: hsl(214 28% 87%);
-  --input: hsl(214 28% 87%);
+  --background: #f5f7fa;
+  --foreground: #1f2937;
+  --card: #ffffff;
+  --card-foreground: #1f2937;
+  --popover: #ffffff;
+  --popover-foreground: #1f2937;
+  --muted: #eef2f6;
+  --muted-foreground: #526171;
+  --accent: #e8edf3;
+  --accent-foreground: #1f2937;
+  --secondary: #f0f3f7;
+  --secondary-foreground: #334155;
+  --border: #d8e0e8;
+  --input: #7d8b9c;
 }
 
 .dark .pos-dark-zone {
@@ -1887,9 +1895,15 @@ html.swan1-legacy-colors
   box-shadow: var(--dash-card-shadow);
 }
 
-/* The plate paints its own bg-primary + bg-dash-plate on Chromium 101; an extra white
-   wash here would sit under the footer text and drop it to ~3.4:1. */
+/* The light plate shares card borders; the dark plate retains its filled surface. */
 html.swan1-legacy-colors
+  .app-shell[data-desktop-home-layout="true"]
+  [data-dashboard-revenue-card] {
+  border-color: var(--border);
+  box-shadow: var(--dash-card-shadow);
+}
+
+html.dark.swan1-legacy-colors
   .app-shell[data-desktop-home-layout="true"]
   [data-dashboard-revenue-card] {
   border-color: transparent;
@@ -2807,8 +2821,8 @@ html.dark:not([data-decor-background="off"]) .app-header {
   );
 }
 
-/* Placeholder bars that sit on a filled --primary surface (the dashboard plate skeleton). */
-.skeleton-shimmer[data-skeleton-tone="inverse"] {
+/* The plate is a white card in light mode and a filled primary surface in dark mode. */
+.dark .skeleton-shimmer[data-skeleton-tone="inverse"] {
   background-color: color-mix(in oklch, var(--primary-foreground) 22%, transparent);
 }
 
@@ -2818,7 +2832,7 @@ html.capacitor-android .skeleton-shimmer {
   background-color: rgba(var(--legacy-foreground-rgb), 0.09);
 }
 
-html.capacitor-android .skeleton-shimmer[data-skeleton-tone="inverse"] {
+html.capacitor-android.dark .skeleton-shimmer[data-skeleton-tone="inverse"] {
   background-color: rgba(var(--legacy-primary-foreground-rgb), 0.22);
 }
 

@@ -22,16 +22,15 @@ import {
 const GUILLOCHE_PATH = buildGuillochePath();
 
 const plateClassName =
-  "relative isolate gap-0 overflow-hidden rounded-2xl bg-primary p-5 text-primary-foreground shadow-dash-plate ring-0 sm:p-6 lg:min-h-80 xl:p-7 2xl:col-span-8";
+  "relative isolate gap-0 overflow-hidden rounded-2xl border-border bg-card p-5 text-card-foreground shadow-dash-card ring-0 dark:border-transparent dark:bg-primary dark:text-primary-foreground dark:shadow-dash-plate sm:p-6 lg:min-h-80 xl:p-7 2xl:col-span-8";
 
-// The sheen/shade overlay lives on its own layer: tailwind-merge reads `bg-dash-plate` as a
-// background colour and would drop `bg-primary` if both went through cn() on the Card.
-// The security engraving sits in the plate's top-right corner, which holds no small text: at
-// the sheen's peak the contrast is only enough for the large numeral (see --dash-* in globals).
+// Light mode uses a quiet card with an accent rule; the filled dark plate keeps its sheen.
+// The engraving stays in the text-free corner so totals and labels remain clear.
 function PlateEngraving() {
   return (
     <>
-      <div aria-hidden="true" className="pointer-events-none absolute inset-0 bg-dash-plate" />
+      <div aria-hidden="true" className="pointer-events-none absolute inset-x-0 top-0 h-1 bg-primary dark:hidden" />
+      <div aria-hidden="true" className="pointer-events-none absolute inset-0 hidden bg-dash-plate dark:block" />
       <PlateRosette />
     </>
   );
@@ -41,7 +40,7 @@ function PlateRosette() {
   return (
     <div
       aria-hidden="true"
-      className="pointer-events-none absolute -top-24 -right-24 size-64 overflow-hidden transform-gpu sm:size-80 lg:-top-32 lg:-right-28 lg:size-112"
+      className="pointer-events-none absolute -top-24 -right-24 size-64 overflow-hidden opacity-[0.06] transform-gpu sm:size-80 lg:-top-32 lg:-right-28 lg:size-112 dark:opacity-100"
     >
       <svg viewBox="-100 -100 200 200" className="size-full" focusable="false">
         <path
@@ -83,10 +82,13 @@ function KipOdometer({ tier, value }: { tier: VisualEffectsTier; value: string }
   const parts = splitMoneyString(value);
   const animate = tier !== "static" && parts !== null;
   const rolled = useRolledFigure(parts?.number ?? value, animate);
-  const long = kipFigureSize(parts?.number ?? value) === "long";
+  const figure = parts?.number ?? value;
+  const long = kipFigureSize(figure) === "long";
+  const compact = kipFigureSize(figure, 8) === "long";
   const numeralClassName = cn(
     "font-heading font-extrabold font-stretch-condensed tabular-nums leading-none tracking-tight",
-    long ? "text-4xl sm:text-5xl xl:text-6xl" : "text-5xl sm:text-6xl xl:text-7xl",
+    long ? "text-xl" : compact ? "text-2xl" : "text-4xl",
+    long ? "sm:text-5xl xl:text-6xl" : "sm:text-6xl xl:text-7xl",
   );
 
   if (!parts || tier === "static") {
@@ -158,14 +160,14 @@ function PlateSkyline({ columns, tier }: { columns: SkylineColumn[]; tier: Visua
       >
         {columns.map((column) => (
           <div key={column.key} className="flex h-full min-w-0 flex-1 flex-col items-center justify-end">
-            {column.isPeak ? <span className="mb-1 size-1.5 shrink-0 rounded-full bg-primary-foreground" /> : null}
+            {column.isPeak ? <span className="mb-1 size-1.5 shrink-0 rounded-full bg-primary dark:bg-primary-foreground" /> : null}
             <div
               className="flex w-full flex-col overflow-hidden rounded-t-xs"
               // Scaled to 90% so the peak dot always has room above the tallest column.
               style={{ height: `${column.height * 0.9}%` }}
             >
-              <div className="bg-hatch text-primary-foreground" style={{ flexBasis: 0, flexGrow: column.owedPercent }} />
-              <div className="bg-primary-foreground/75" style={{ flexBasis: 0, flexGrow: 100 - column.owedPercent }} />
+              <div className="bg-hatch text-primary dark:text-primary-foreground" style={{ flexBasis: 0, flexGrow: column.owedPercent }} />
+              <div className="bg-primary/75 dark:bg-primary-foreground/75" style={{ flexBasis: 0, flexGrow: 100 - column.owedPercent }} />
             </div>
           </div>
         ))}
@@ -215,13 +217,13 @@ export const RevenuePlate = memo(function RevenuePlate({
         <div className="flex min-w-0 flex-col">
           <div className="flex flex-col items-start gap-2">
             <span className="flex items-center gap-2 text-sm font-semibold">
-              <span aria-hidden="true" className="flex size-8 items-center justify-center rounded-lg bg-(--dash-shade)">
+              <span aria-hidden="true" className="flex size-8 items-center justify-center rounded-lg bg-primary/10 text-primary-text dark:bg-(--dash-shade) dark:text-primary-foreground">
                 <TrendingUp className="size-4" />
               </span>
               {label}
             </span>
             {period ? (
-              <Badge className="h-auto border-transparent bg-(--dash-shade) py-0.5 text-2xs text-primary-foreground tabular-nums">
+              <Badge className="h-auto border-transparent bg-muted py-0.5 text-2xs text-muted-foreground tabular-nums dark:bg-(--dash-shade) dark:text-primary-foreground">
                 {period}
               </Badge>
             ) : null}
@@ -239,7 +241,7 @@ export const RevenuePlate = memo(function RevenuePlate({
                   aria-label={copy.collectionRate}
                   value={rate}
                   className={cn(
-                    "h-2.5 rounded-full bg-(--dash-shade) *:data-[slot=progress-indicator]:bg-primary-foreground",
+                    "h-2.5 rounded-full bg-muted *:data-[slot=progress-indicator]:bg-primary dark:bg-(--dash-shade) dark:*:data-[slot=progress-indicator]:bg-primary-foreground",
                     tier === "full" && "*:data-[slot=progress-indicator]:duration-1000",
                   )}
                 />
@@ -250,17 +252,17 @@ export const RevenuePlate = memo(function RevenuePlate({
         </div>
         {hasSkyline ? <PlateSkyline columns={skyline} tier={tier} /> : null}
       </div>
-      <div className="relative z-10 mt-5 grid grid-cols-2 gap-4 border-t border-(--dash-shade) pt-4">
+      <div className="relative z-10 mt-5 grid grid-cols-2 gap-4 border-t border-border pt-4 dark:border-(--dash-shade)">
         <PlateFigure
           icon={<HandCoins aria-hidden="true" className="size-3.5" />}
           label={copy.paidTotal}
-          swatch={<span aria-hidden="true" className="size-2.5 shrink-0 rounded-xs bg-primary-foreground/75" />}
+          swatch={<span aria-hidden="true" className="size-2.5 shrink-0 rounded-xs bg-primary/75 dark:bg-primary-foreground/75" />}
           value={formatKip(paid)}
         />
         <PlateFigure
           icon={<Wallet aria-hidden="true" className="size-3.5" />}
           label={`${copy.balance} · ${formatPercent(unpaidRate)}`}
-          swatch={<span aria-hidden="true" className="size-2.5 shrink-0 rounded-xs bg-hatch text-primary-foreground" />}
+          swatch={<span aria-hidden="true" className="size-2.5 shrink-0 rounded-xs bg-hatch text-primary dark:text-primary-foreground" />}
           value={formatKip(balance)}
         />
       </div>
@@ -301,7 +303,7 @@ export function RevenuePlateSkeleton() {
         <Skeleton data-skeleton-tone="inverse" className="h-12 w-3/4 sm:h-14 xl:h-16" />
         <Skeleton data-skeleton-tone="inverse" className="h-2.5 w-full lg:max-w-md" />
       </div>
-      <div className="relative z-10 mt-5 grid grid-cols-2 gap-4 border-t border-(--dash-shade) pt-4">
+      <div className="relative z-10 mt-5 grid grid-cols-2 gap-4 border-t border-border pt-4 dark:border-(--dash-shade)">
         <Skeleton data-skeleton-tone="inverse" className="h-10 w-full" />
         <Skeleton data-skeleton-tone="inverse" className="h-10 w-full" />
       </div>

@@ -432,7 +432,7 @@ export function OrderCustomerView({
             className="relative flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden"
           >
             <div
-              className="pos-soft-light-zone pos-dark-zone min-h-0 flex-1 overflow-y-auto bg-card p-3 text-foreground sm:p-3.5 lg:p-4 dark:bg-background"
+              className="pos-soft-light-zone pos-dark-zone min-h-0 flex-1 overflow-y-auto bg-background p-3 text-foreground sm:p-3.5 lg:p-4 dark:bg-background"
             >
               {loadingMenu ? (
                 <ProductGridSkeleton

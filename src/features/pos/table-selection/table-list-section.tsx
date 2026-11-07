@@ -141,7 +141,7 @@ export function TableListSection({
 
   return (
     <div className="flex min-h-0 flex-1 flex-col bg-background">
-      <div className="flex shrink-0 flex-col gap-1.5 border-b border-border bg-background px-0 py-1.5 shadow-sm sm:px-4 xl:px-5">
+      <div className="flex shrink-0 flex-col gap-1.5 border-b border-border bg-card px-0 py-1.5 shadow-xs sm:px-4 xl:px-5 dark:bg-background dark:shadow-sm">
         <div className="flex items-center gap-2">
           <div className="relative min-w-0 flex-1">
             {/* Keep the arrow outside the scrolling viewport so chips never pass underneath. */}
@@ -247,7 +247,7 @@ export function TableListSection({
             <Search aria-hidden="true" data-pos-table-search-icon="true" className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
             <Input
               aria-label={t("actions.search")}
-              className="h-9 rounded-full border-border bg-muted/35 pl-9 shadow-none"
+              className="h-9 rounded-lg border-input bg-background pl-9 text-foreground shadow-none placeholder:text-muted-foreground dark:rounded-full dark:border-border dark:bg-muted/35"
               placeholder={t("actions.search")}
               type="search"
               value={search}
@@ -350,7 +350,7 @@ function ZoneToggleItem({
     <ToggleGroupItem
       className={cn(
         "h-11 gap-1 rounded-full border border-transparent px-3 text-sm font-medium shadow-sm transition motion-safe:active:scale-95 data-[state=on]:bg-primary data-[state=on]:text-primary-foreground data-[state=on]:shadow-primary/20 sm:h-8",
-        !active && "border-border bg-card text-muted-foreground hover:border-primary/30 hover:bg-primary/5 hover:text-foreground",
+        !active && "border-border bg-background text-foreground hover:border-primary/30 hover:bg-accent hover:text-foreground dark:bg-card dark:text-muted-foreground dark:hover:bg-primary/5",
         // ใช้ ring กะพริบแทนพื้นหลังกะพริบ — พื้นหลังกะพริบชนสี text-destructive จนคอนทราสต์ไม่ผ่าน WCAG AA
         hasAlert && "pos-chip-alert-ring"
       )}
@@ -386,7 +386,7 @@ function StatusToggleItem({
     <ToggleGroupItem
       className={cn(
         "h-11 gap-1 rounded-full border border-transparent px-3 text-sm font-medium shadow-sm transition motion-safe:active:scale-95 data-[state=on]:bg-primary data-[state=on]:text-primary-foreground data-[state=on]:shadow-primary/20 sm:h-8",
-        !active && "border-border bg-card text-muted-foreground hover:border-primary/30 hover:bg-primary/5 hover:text-foreground"
+        !active && "border-border bg-background text-foreground hover:border-primary/30 hover:bg-accent hover:text-foreground dark:bg-card dark:text-muted-foreground dark:hover:bg-primary/5"
       )}
       value={value}
     >
@@ -405,20 +405,9 @@ function dotClass(status: "free" | "busy" | "update") {
   return STATUS_STYLE.available.dot;
 }
 
-// สไตล์ต่อสถานะ 6 แบบ ผูกกับ table_status ล้วน ๆ (ดู tableVisualStatus() ใน
-// table-zones.ts) — พื้นใช้สีฮิวหลักผสมความโปร่งใสต่ำ (/12-/15) แทนขั้นพาสเทลทึบ
-// (100/200) ให้ได้โทนหม่น ๆ ออกเกรย์ตามที่อ้างอิงไว้ ตัวอักษรใช้เฉด 900 ให้ contrast
-// สูงกับพื้น จุดกลมมุมขวายังคงสีเข้มไว้ให้กวาดสายตาแยกสถานะได้ไว
-// `card` ไม่มี ring สีต่อสถานะแล้ว — ขอบใช้สีเทา/ดำกลาง ๆ ตัวเดียวร่วมกันทุกสถานะ
-// (border-border ใน TableCard) ให้พื้นหลังเป็นตัวสื่อสถานะอย่างเดียว ไม่ให้ขอบแย่งซีน
-// ทุกคู่สีมี dark: กำกับเสมอ — ค่า raw ({color}-600/15 + text-{color}-900) ที่ไม่มี
-// dark: จะจางจนแยกไม่ออกบนพื้นเข้ม (bg blend เป็นเกือบดำ + ตัวอักษรก็เกือบดำ ⇒ กลืนกัน)
-// รอบแรกลอง dark:bg-{color}-500/20 แต่ 500 เป็นเฉดกลางที่ยังสดเกินไป ผสมแล้วกลายเป็น
-// บล็อกสีทึบดูหนักตา จึงเปลี่ยนมาใช้เฉดเข้มสุด (950) ที่ opacity ต่ำแทน ให้ยังคงหม่น
-// รอบสอง: ตัวอักษรยังใช้ dark:text-{color}-300 ซึ่งเป็นฮิวเดียวกับพื้น (แค่ต่าง shade)
-// — ฮิวเดียวกันทั้งคู่เสี่ยง contrast ตกได้ง่ายมาก (สังเกตุจาก UI จริง) จึงเลิกให้ตัวอักษร
-// สถานะใช้สีต่อฮิวในโหมดมืด เปลี่ยนเป็น text-foreground กลาง ๆ แทน (เหมือนชื่อโต๊ะ/label
-// "โต๊ะ" ที่อ่านออกชัดอยู่แล้ว) ให้สีสถานะสื่อผ่านพื้นหลัง + จุดกลมมุมขวาสองจุดนี้พอ
+// Keep fixed status identities independent of the selected app accent. Light cards use a
+// white base with one restrained tint per section, so nested backgrounds never compound.
+// Text stays neutral for readability; the dot and surface tint identify each status.
 interface TableCardStyle {
   card: string;
   body: string;
@@ -430,18 +419,18 @@ interface TableCardStyle {
 
 const STATUS_STYLE: Record<TableVisualStatus, TableCardStyle> = {
   available: {
-    card: "bg-background",
-    body: "bg-background",
-    footer: "border-green-200 bg-muted/50 dark:border-green-800/50",
-    dot: "bg-green-600 dark:bg-green-500",
+    card: "bg-card dark:bg-background",
+    body: "bg-card dark:bg-background",
+    footer: "border-border bg-muted/40 dark:border-green-800/50 dark:bg-muted/50",
+    dot: "bg-success dark:bg-green-500",
     text: "text-muted-foreground"
   },
   occupied: {
-    card: "bg-green-600/15 dark:bg-green-950/40",
-    body: "bg-green-600/15 dark:bg-green-950/40",
-    footer: "border-green-600/25 bg-green-600/10 dark:border-green-800/40 dark:bg-green-900/25",
-    dot: "bg-red-700 dark:bg-red-400",
-    text: "text-green-900 dark:text-foreground"
+    card: "bg-card dark:bg-green-950/40",
+    body: "bg-success/8 dark:bg-green-950/40",
+    footer: "border-success/20 bg-success/5 dark:border-green-800/40 dark:bg-green-900/25",
+    dot: "bg-destructive dark:bg-red-400",
+    text: "text-foreground"
   },
   // ring: คลาสสี "--ring-rgb" สำหรับ pos-status-ring-pulse (การ์ดสถานะนี้ต้องรอ
   // "คนอื่น" กดยืนยันก่อนถึงจะไปต่อได้ — วงแหวนกะพริบช่วยดึงสายตาว่ายังค้างอยู่)
@@ -450,50 +439,48 @@ const STATUS_STYLE: Record<TableVisualStatus, TableCardStyle> = {
   // (ดูรายละเอียดที่ .pos-ring-* ใน globals.css) ต้องแยกเป็นคลาสตั้งค่า --ring-rgb
   // เป็นเลข r g b ตรง ๆ แทน
   cashierOrder: {
-    card: "bg-blue-600/15 dark:bg-blue-950/40",
-    body: "bg-blue-600/15 dark:bg-blue-950/40",
-    footer: "border-blue-600/25 bg-blue-600/10 dark:border-blue-800/40 dark:bg-blue-900/25",
-    dot: "bg-blue-600 dark:bg-blue-400",
-    text: "text-blue-900 dark:text-foreground",
+    card: "bg-card dark:bg-blue-950/40",
+    body: "bg-table-cashier/8 dark:bg-blue-950/40",
+    footer: "border-table-cashier/20 bg-table-cashier/5 dark:border-blue-800/40 dark:bg-blue-900/25",
+    dot: "bg-table-cashier dark:bg-blue-400",
+    text: "text-foreground",
     ring: "pos-ring-cashier-order"
   },
   // เปลี่ยนกลับมาใช้ amber ตามคำขอ — ให้แยกจากป้ายเตือน "ออเดอร์ใหม่" (สีแดงจาก
   // ORDER_ALERT_STYLE) ได้ทั้งสี ไม่ใช่พึ่งจังหวะกะพริบของวงแหวนอย่างเดียว
   awaitingConfirm: {
-    card: "bg-amber-500/15 dark:bg-amber-950/40",
-    body: "bg-amber-500/15 dark:bg-amber-950/40",
-    footer: "border-amber-500/25 bg-amber-500/10 dark:border-amber-800/40 dark:bg-amber-900/25",
-    dot: "bg-amber-600 dark:bg-amber-400",
-    text: "text-amber-900 dark:text-foreground",
+    card: "bg-card dark:bg-amber-950/40",
+    body: "bg-warning/8 dark:bg-amber-950/40",
+    footer: "border-warning/20 bg-warning/5 dark:border-amber-800/40 dark:bg-amber-900/25",
+    dot: "bg-warning-text dark:bg-amber-400",
+    text: "text-foreground",
     ring: "pos-ring-awaiting-confirm"
   },
   callStaff: {
-    card: "bg-purple-600/15 dark:bg-purple-950/40",
-    body: "bg-purple-600/15 dark:bg-purple-950/40",
-    footer: "border-purple-600/25 bg-purple-600/10 dark:border-purple-800/40 dark:bg-purple-900/25",
-    dot: "bg-purple-600 dark:bg-purple-400",
-    text: "text-purple-900 dark:text-foreground"
+    card: "bg-card dark:bg-purple-950/40",
+    body: "bg-table-staff/8 dark:bg-purple-950/40",
+    footer: "border-table-staff/20 bg-table-staff/5 dark:border-purple-800/40 dark:bg-purple-900/25",
+    dot: "bg-table-staff dark:bg-purple-400",
+    text: "text-foreground"
   },
-  // เดิมใช้ orange ซึ่งอยู่ใกล้ amber ของ awaitingConfirm บน color wheel มากเกินไป
-  // (~20°) ตอนนี้ awaitingConfirm ย้ายไปแดงแล้ว orange ก็ยังใกล้แดงอยู่ดี (~25°) จึง
-  // ย้ายมาใช้ teal แทนเพื่อให้ห่างจากทุกฮิวอื่นในชุดสถานะจริง ๆ
+  // Teal keeps pending payment distinct from the amber confirmation and red new-order alert.
   awaitingPayment: {
-    card: "bg-teal-600/15 dark:bg-teal-950/40",
-    body: "bg-teal-600/15 dark:bg-teal-950/40",
-    footer: "border-teal-600/25 bg-teal-600/10 dark:border-teal-800/40 dark:bg-teal-900/25",
-    dot: "bg-teal-600 dark:bg-teal-400",
-    text: "text-teal-900 dark:text-foreground"
+    card: "bg-card dark:bg-teal-950/40",
+    body: "bg-table-payment/8 dark:bg-teal-950/40",
+    footer: "border-table-payment/20 bg-table-payment/5 dark:border-teal-800/40 dark:bg-teal-900/25",
+    dot: "bg-table-payment dark:bg-teal-400",
+    text: "text-foreground"
   }
 };
 
 // customer_order_state: true ต้องแดงเสมอ ไม่ว่า table_status จะเป็นอะไร — ทับ
 // STATUS_STYLE ทั้งก้อนแทนการเรียงสี ring ไว้ข้างบนแบบเดิม (ดู hasOrderAlert ใน TableCard)
 const ORDER_ALERT_STYLE: TableCardStyle = {
-  card: "bg-red-600/15 dark:bg-red-950/40",
-  body: "bg-red-600/15 dark:bg-red-950/40",
-  footer: "border-red-600/30 bg-red-600/10 dark:border-red-800/40 dark:bg-red-900/25",
-  dot: "bg-red-700 dark:bg-red-400",
-  text: "text-red-700 dark:text-foreground"
+  card: "bg-card dark:bg-red-950/40",
+  body: "bg-destructive/8 dark:bg-red-950/40",
+  footer: "border-destructive/20 bg-destructive/5 dark:border-red-800/40 dark:bg-red-900/25",
+  dot: "bg-destructive dark:bg-red-400",
+  text: "text-foreground"
 };
 
 // เรียงตามลำดับ 1-6 ที่กำหนดไว้ (ดู TableStatus ใน pos-constants.ts) — ใช้ร่วมกัน
@@ -530,7 +517,7 @@ function StatusLegend() {
       role="region"
       aria-label={t("pos.statusFilterAria")}
       tabIndex={0}
-      className="flex min-w-0 shrink-0 items-center gap-4 overflow-x-auto overscroll-x-contain border-t border-border bg-background/95 px-4 py-2.5 pb-[calc(0.625rem+max(var(--pos-system-bottom-safe-area,0px),var(--app-shell-bottom-nav-height,0px)))] text-xs text-muted-foreground backdrop-blur-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring xl:px-5"
+      className="flex min-w-0 shrink-0 items-center gap-4 overflow-x-auto overscroll-x-contain border-t border-border bg-card/95 px-4 py-2.5 pb-[calc(0.625rem+max(var(--pos-system-bottom-safe-area,0px),var(--app-shell-bottom-nav-height,0px)))] text-xs text-muted-foreground backdrop-blur-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring xl:px-5 dark:bg-background/95"
     >
       {STATUS_LEGEND_ORDER.map((status) => (
         <span key={status} className="flex shrink-0 items-center gap-1.5 whitespace-nowrap">
@@ -608,7 +595,7 @@ const TableCard = memo(function TableCard({
             <span
               aria-hidden="true"
               className={cn(
-                "absolute right-2.5 top-2.5 size-3 rounded-full border-[3px] border-background shadow-sm sm:right-3 sm:top-3",
+                "absolute right-2.5 top-2.5 size-3 rounded-full border-[3px] border-card shadow-sm sm:right-3 dark:border-background sm:top-3",
                 style.dot
               )}
             />
