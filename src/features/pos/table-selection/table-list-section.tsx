@@ -429,7 +429,7 @@ const STATUS_STYLE: Record<TableVisualStatus, TableCardStyle> = {
     card: "bg-card [--table-card-border:var(--table-occupied-border)] dark:bg-green-950/40",
     body: "bg-table-occupied-surface dark:bg-green-950/40",
     footer: "border-table-card-border bg-table-occupied-footer dark:border-green-800/40 dark:bg-green-900/25",
-    dot: "bg-destructive dark:bg-red-400",
+    dot: "bg-table-occupied",
     text: "text-foreground"
   },
   // ring: คลาสสี "--ring-rgb" สำหรับ pos-status-ring-pulse (การ์ดสถานะนี้ต้องรอ
@@ -463,12 +463,12 @@ const STATUS_STYLE: Record<TableVisualStatus, TableCardStyle> = {
     dot: "bg-table-staff dark:bg-purple-400",
     text: "text-foreground"
   },
-  // Yellow marks payment follow-up; confirmation keeps its amber surface and pulse.
+  // Keep the familiar teal payment identity shared by the card and its legend dot.
   awaitingPayment: {
-    card: "bg-card [--table-card-border:var(--table-payment-border)] dark:bg-table-payment-surface dark:[--table-card-border:var(--table-payment-border)]",
-    body: "bg-table-payment-surface",
-    footer: "border-table-card-border bg-table-payment-footer",
-    dot: "bg-table-payment",
+    card: "bg-card [--table-card-border:var(--table-payment-border)] dark:bg-teal-950/40",
+    body: "bg-table-payment-surface dark:bg-teal-950/40",
+    footer: "border-table-card-border bg-table-payment-footer dark:border-teal-800/40 dark:bg-teal-900/25",
+    dot: "bg-table-payment dark:bg-teal-400",
     text: "text-foreground"
   }
 };
