@@ -7,5 +7,8 @@ export function orderCustomerRouteInput(searchParams: SearchParamsReader) {
     initialTableUuid: searchParams.get("table_uuid")?.trim() ?? "",
     initialTableName: searchParams.get("table_name")?.trim() ?? "",
     initialZoneUuid: searchParams.get("zone_uuid")?.trim() ?? "",
+    initialBillRequestKey: searchParams.get("table_uuid")?.trim()
+      ? searchParams.get("bill_request")?.trim() ?? ""
+      : "",
   };
 }
