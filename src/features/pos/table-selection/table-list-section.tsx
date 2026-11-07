@@ -405,9 +405,9 @@ function dotClass(status: "free" | "busy" | "update") {
   return STATUS_STYLE.available.dot;
 }
 
-// Keep fixed status identities independent of the selected app accent. Light cards use a
-// white base with one restrained tint per section, so nested backgrounds never compound.
-// Text stays neutral for readability; the dot and surface tint identify each status.
+// Fixed status identities stay independent of the app accent. Solid light surfaces and
+// matching edges remain consistent on web and older WebViews without alpha compositing.
+// Neutral text keeps table names and metadata readable on the stronger status colours.
 interface TableCardStyle {
   card: string;
   body: string;
@@ -426,9 +426,9 @@ const STATUS_STYLE: Record<TableVisualStatus, TableCardStyle> = {
     text: "text-muted-foreground"
   },
   occupied: {
-    card: "bg-card dark:bg-green-950/40",
-    body: "bg-success/8 dark:bg-green-950/40",
-    footer: "border-success/20 bg-success/5 dark:border-green-800/40 dark:bg-green-900/25",
+    card: "bg-card [--table-card-border:var(--table-occupied-border)] dark:bg-green-950/40",
+    body: "bg-table-occupied-surface dark:bg-green-950/40",
+    footer: "border-table-card-border bg-table-occupied-footer dark:border-green-800/40 dark:bg-green-900/25",
     dot: "bg-destructive dark:bg-red-400",
     text: "text-foreground"
   },
@@ -439,9 +439,9 @@ const STATUS_STYLE: Record<TableVisualStatus, TableCardStyle> = {
   // (ดูรายละเอียดที่ .pos-ring-* ใน globals.css) ต้องแยกเป็นคลาสตั้งค่า --ring-rgb
   // เป็นเลข r g b ตรง ๆ แทน
   cashierOrder: {
-    card: "bg-card dark:bg-blue-950/40",
-    body: "bg-table-cashier/8 dark:bg-blue-950/40",
-    footer: "border-table-cashier/20 bg-table-cashier/5 dark:border-blue-800/40 dark:bg-blue-900/25",
+    card: "bg-card [--table-card-border:var(--table-cashier-border)] dark:bg-blue-950/40",
+    body: "bg-table-cashier-surface dark:bg-blue-950/40",
+    footer: "border-table-card-border bg-table-cashier-footer dark:border-blue-800/40 dark:bg-blue-900/25",
     dot: "bg-table-cashier dark:bg-blue-400",
     text: "text-foreground",
     ring: "pos-ring-cashier-order"
@@ -449,25 +449,25 @@ const STATUS_STYLE: Record<TableVisualStatus, TableCardStyle> = {
   // เปลี่ยนกลับมาใช้ amber ตามคำขอ — ให้แยกจากป้ายเตือน "ออเดอร์ใหม่" (สีแดงจาก
   // ORDER_ALERT_STYLE) ได้ทั้งสี ไม่ใช่พึ่งจังหวะกะพริบของวงแหวนอย่างเดียว
   awaitingConfirm: {
-    card: "bg-card dark:bg-amber-950/40",
-    body: "bg-warning/8 dark:bg-amber-950/40",
-    footer: "border-warning/20 bg-warning/5 dark:border-amber-800/40 dark:bg-amber-900/25",
+    card: "bg-card [--table-card-border:var(--table-confirm-border)] dark:bg-amber-950/40",
+    body: "bg-table-confirm-surface dark:bg-amber-950/40",
+    footer: "border-table-card-border bg-table-confirm-footer dark:border-amber-800/40 dark:bg-amber-900/25",
     dot: "bg-warning-text dark:bg-amber-400",
     text: "text-foreground",
     ring: "pos-ring-awaiting-confirm"
   },
   callStaff: {
-    card: "bg-card dark:bg-purple-950/40",
-    body: "bg-table-staff/8 dark:bg-purple-950/40",
-    footer: "border-table-staff/20 bg-table-staff/5 dark:border-purple-800/40 dark:bg-purple-900/25",
+    card: "bg-card [--table-card-border:var(--table-staff-border)] dark:bg-purple-950/40",
+    body: "bg-table-staff-surface dark:bg-purple-950/40",
+    footer: "border-table-card-border bg-table-staff-footer dark:border-purple-800/40 dark:bg-purple-900/25",
     dot: "bg-table-staff dark:bg-purple-400",
     text: "text-foreground"
   },
   // Teal keeps pending payment distinct from the amber confirmation and red new-order alert.
   awaitingPayment: {
-    card: "bg-card dark:bg-teal-950/40",
-    body: "bg-table-payment/8 dark:bg-teal-950/40",
-    footer: "border-table-payment/20 bg-table-payment/5 dark:border-teal-800/40 dark:bg-teal-900/25",
+    card: "bg-card [--table-card-border:var(--table-payment-border)] dark:bg-teal-950/40",
+    body: "bg-table-payment-surface dark:bg-teal-950/40",
+    footer: "border-table-card-border bg-table-payment-footer dark:border-teal-800/40 dark:bg-teal-900/25",
     dot: "bg-table-payment dark:bg-teal-400",
     text: "text-foreground"
   }
@@ -476,9 +476,9 @@ const STATUS_STYLE: Record<TableVisualStatus, TableCardStyle> = {
 // customer_order_state: true ต้องแดงเสมอ ไม่ว่า table_status จะเป็นอะไร — ทับ
 // STATUS_STYLE ทั้งก้อนแทนการเรียงสี ring ไว้ข้างบนแบบเดิม (ดู hasOrderAlert ใน TableCard)
 const ORDER_ALERT_STYLE: TableCardStyle = {
-  card: "bg-card dark:bg-red-950/40",
-  body: "bg-destructive/8 dark:bg-red-950/40",
-  footer: "border-destructive/20 bg-destructive/5 dark:border-red-800/40 dark:bg-red-900/25",
+  card: "bg-card [--table-card-border:var(--table-alert-border)] dark:bg-red-950/40",
+  body: "bg-table-alert-surface dark:bg-red-950/40",
+  footer: "border-table-card-border bg-table-alert-footer dark:border-red-800/40 dark:bg-red-900/25",
   dot: "bg-destructive dark:bg-red-400",
   text: "text-foreground"
 };
@@ -566,7 +566,7 @@ const TableCard = memo(function TableCard({
         tabIndex={0}
         aria-pressed={selected}
         className={cn(
-          "cursor-pointer overflow-hidden rounded-xl border border-table-card-border bg-card p-0 shadow-sm outline-none ring-0 transition motion-safe:active:scale-[0.97] hover:border-primary/70 hover:shadow-md focus-visible:ring-2 focus-visible:ring-ring/30",
+          "cursor-pointer overflow-hidden rounded-xl border border-table-card-border bg-card p-0 shadow-sm outline-none ring-0 transition motion-safe:active:scale-[0.97] hover:border-primary/70 hover:shadow-md focus-visible:ring-2 focus-visible:ring-ring/30 dark:[--table-card-border:var(--border)]",
           style.card,
           // ring กะพริบซ้อนทับสีสถานะเดิม — บอกว่ามีออเดอร์ใหม่เข้ามาสด ๆ โดยไม่เปลี่ยนสีการ์ด
           hasOrderAlert && "pos-table-card-alert",
@@ -599,7 +599,7 @@ const TableCard = memo(function TableCard({
                 style.dot
               )}
             />
-            <span className="text-xs font-medium text-muted-foreground">
+            <span className={cn("text-xs font-medium dark:text-muted-foreground", style.text)}>
               {t("nav.table")}
             </span>
             <span className="mt-1 text-xl font-bold leading-none tracking-normal text-foreground sm:text-2xl">
@@ -612,7 +612,8 @@ const TableCard = memo(function TableCard({
           </div>
           <div
             className={cn(
-              "flex h-8 items-center gap-1.5 border-t px-3 text-xs text-muted-foreground sm:h-8.5",
+              "flex h-8 items-center gap-1.5 border-t px-3 text-xs sm:h-8.5 dark:text-muted-foreground",
+              style.text,
               style.footer
             )}
           >
