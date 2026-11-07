@@ -96,10 +96,10 @@ export const EmployeeProductCard = memo(function EmployeeProductCard({
       data-pos-product-compact={compact ? "true" : undefined}
       data-pos-product-copy={nativeMobile ? "mobile" : "desktop"}
       className={cn(
-        "group relative flex min-w-0 flex-col gap-0 overflow-hidden border-border bg-card py-0 text-card-foreground shadow-sm [contain-intrinsic-size:320px] [content-visibility:auto]",
+        "group relative flex min-w-0 flex-col gap-0 overflow-hidden border-product-card-border bg-card py-0 text-card-foreground shadow-product-card ring-product-card-border [contain-intrinsic-size:320px] [content-visibility:auto] dark:border-border dark:shadow-sm dark:ring-border",
         cardRadiusClass,
         !interactionDisabled &&
-          "cursor-pointer transition-[transform,border-color,box-shadow] duration-200 motion-safe:hover:-translate-y-0.5 hover:border-primary/45 hover:shadow-md motion-reduce:transition-none",
+          "cursor-pointer transition-[transform,border-color,box-shadow] duration-200 motion-safe:hover:-translate-y-0.5 hover:border-primary/45 hover:shadow-md motion-reduce:transition-none dark:hover:border-primary/45 dark:hover:shadow-md",
         interactionDisabled && "cursor-not-allowed"
       )}
     >

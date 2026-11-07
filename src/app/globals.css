@@ -46,6 +46,9 @@
   --table-canvas: #e2e8f0;
   --table-card-border: #94a3b8;
   --table-card-shadow: 0 1px 2px #0f172a1a, 0 5px 12px -4px #0f172a26;
+  --product-canvas: #e2e8f0;
+  --product-card-border: #94a3b8;
+  --product-card-shadow: 0 1px 2px #0f172a1a, 0 5px 12px -4px #0f172a26;
   /* คู่ "ข้อความบนพื้น" ของ --info/--warning: เข้มพอผ่าน WCAG AA (>=4.5:1) เมื่อใช้เป็น
      text บน card/พื้นสว่าง ต่างจากตัว --info/--warning ที่ออกแบบเป็นสี fill (คู่กับ
      -foreground) ซึ่ง contrast ตกเมื่อเอามาเป็นตัวอักษรบนพื้นขาว ใช้กับยอด service/VAT
@@ -170,6 +173,9 @@
   --table-canvas: var(--background);
   --table-card-border: var(--border);
   --table-card-shadow: none;
+  --product-canvas: var(--background);
+  --product-card-border: var(--border);
+  --product-card-shadow: 0 1px 3px #0000001a, 0 1px 2px -1px #0000001a;
   --dash-card-shadow: inset 0 1px 0 #ffffff0d, 0 1px 2px #00000080, 0 16px 32px -24px #000000cc;
   --dash-plate-shadow: 0 24px 48px -28px #000000b3;
 }
@@ -564,6 +570,8 @@ html[data-lao-font="saysettha"] {
   --color-table-payment: var(--table-payment);
   --color-table-canvas: var(--table-canvas);
   --color-table-card-border: var(--table-card-border);
+  --color-product-canvas: var(--product-canvas);
+  --color-product-card-border: var(--product-card-border);
   --color-success: var(--success);
   --color-success-foreground: var(--success-foreground);
   --color-pending: var(--pending);
@@ -616,6 +624,7 @@ html[data-lao-font="saysettha"] {
   --radius-3xl: calc(var(--radius) * 2.2);
   --radius-4xl: calc(var(--radius) * 2.6);
   --shadow-table-card: var(--table-card-shadow);
+  --shadow-product-card: var(--product-card-shadow);
   --shadow-dash-card: var(--dash-card-shadow);
   --shadow-dash-plate: var(--dash-plate-shadow);
 
@@ -1837,6 +1846,11 @@ html.swan1-legacy-colors [data-pos-product-card] {
   border: 1px solid var(--border);
   background-color: var(--card);
   box-shadow: 0 1px 3px rgba(15, 23, 42, 0.12);
+}
+
+html.swan1-legacy-colors:not(.dark) [data-pos-product-card] {
+  border-color: var(--product-card-border);
+  box-shadow: var(--product-card-shadow);
 }
 
 /* Swan 1 drives the POS at 1920x1080 on an RK3566 (its factory image ships an
