@@ -116,7 +116,11 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         />
       ) : null}
       <SidebarInset
-        className={cn("min-w-0", fixedDataScreen && "h-full min-h-0 overflow-hidden")}
+        className={cn(
+          "min-w-0",
+          dashboardScreen && "bg-dashboard-canvas dark:bg-background",
+          fixedDataScreen && "h-full min-h-0 overflow-hidden",
+        )}
       >
         {!immersiveScreen ? <AppHeader breadcrumbs={breadcrumbs} /> : null}
         {/* SidebarInset already renders <main>; this is the skip-link target inside it. */}

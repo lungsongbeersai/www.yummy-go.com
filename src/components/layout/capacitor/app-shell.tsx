@@ -33,6 +33,7 @@ export function NativeAppShell({ children }: { children: React.ReactNode }) {
   const user = useAuthStore((state) => state.user);
   const {
     breadcrumbs,
+    dashboardScreen,
     fixedDataScreen,
     menuError,
     menuItems,
@@ -123,7 +124,12 @@ export function NativeAppShell({ children }: { children: React.ReactNode }) {
       {/* app-shell-body moves here from <main> — this div, not <main> alone, is now the
           flex-1 row occupying the space below the top bar (side rail + content side by
           side), matching how the web shell's .app-shell-body wraps sidebar + main together */}
-      <div className="app-shell-body flex min-h-0 w-full flex-1">
+      <div
+        className={cn(
+          "app-shell-body flex min-h-0 w-full flex-1",
+          dashboardScreen && "bg-dashboard-canvas dark:bg-transparent",
+        )}
+      >
         {/* หน้า Table และ Order เป็น workspace เต็มจอของตัวเอง จึงซ่อน rail ทั้งแนวตั้งและ
             แนวนอนเพื่อคืนพื้นที่ให้เนื้อหาหลัก; หน้าทั่วไปยังใช้ rail ตามเดิม */}
         {showSideRail ? (

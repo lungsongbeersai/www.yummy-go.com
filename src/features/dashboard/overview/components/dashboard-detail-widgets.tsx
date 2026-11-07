@@ -23,7 +23,6 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
 import { Empty, EmptyHeader, EmptyMedia, EmptyTitle } from "@/components/ui/empty";
 import { Item, ItemContent, ItemDescription, ItemGroup, ItemMedia, ItemTitle } from "@/components/ui/item";
 import { Progress } from "@/components/ui/progress";
@@ -39,6 +38,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { cn } from "@/lib/utils";
+import { DashboardCard } from "@/features/dashboard/overview/components/dashboard-card";
 import type { VisualEffectsTier } from "@/lib/visual-effects-tier";
 import {
   asRow,
@@ -99,7 +99,7 @@ function SectionCard({
   const titleId = useId();
 
   return (
-    <Card role="region" aria-labelledby={titleId} className={cn("min-w-0 shadow-dash-card", className)}>
+    <DashboardCard role="region" aria-labelledby={titleId} className={cn("min-w-0", className)}>
       <div className="flex flex-wrap items-start justify-between gap-3 px-4">
         <div className="flex min-w-0 items-start gap-3">
           <span aria-hidden="true" className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary-text">
@@ -115,7 +115,7 @@ function SectionCard({
         {action ? <div className="flex flex-wrap items-center gap-2">{action}</div> : null}
       </div>
       <div className="flex min-w-0 flex-1 flex-col gap-4 px-4">{children}</div>
-    </Card>
+    </DashboardCard>
   );
 }
 

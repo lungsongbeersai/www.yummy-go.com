@@ -7,6 +7,7 @@ import { Lock, RefreshCw } from "lucide-react";
 import { useShallow } from "zustand/react/shallow";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { DashboardCard } from "@/features/dashboard/overview/components/dashboard-card";
 import { Empty, EmptyContent, EmptyHeader, EmptyTitle } from "@/components/ui/empty";
 import { menuGrantsPath } from "@/components/layout/shell-menu-helpers";
 import { useSidebarPermissionAccess } from "@/hooks/use-sidebar-permission-access";
@@ -571,7 +572,7 @@ function DashboardPageContent() {
       <DashboardAlerts copy={copy} errors={errors} onRetry={handleRetry} warnings={model.warnings} />
 
       {!data && !loading ? (
-        <Card className="shadow-dash-card">
+        <DashboardCard>
           <CardContent>
             <Empty>
               <EmptyHeader>
@@ -585,7 +586,7 @@ function DashboardPageContent() {
               </EmptyContent>
             </Empty>
           </CardContent>
-        </Card>
+        </DashboardCard>
       ) : (
         <div
           aria-busy={loading}

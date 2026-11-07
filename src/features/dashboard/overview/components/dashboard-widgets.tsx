@@ -20,7 +20,7 @@ import {
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
+import { CardContent } from "@/components/ui/card";
 import { Field, FieldLabel } from "@/components/ui/field";
 import { Progress } from "@/components/ui/progress";
 import {
@@ -35,6 +35,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Spinner } from "@/components/ui/spinner";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { cn } from "@/lib/utils";
+import { DashboardCard } from "@/features/dashboard/overview/components/dashboard-card";
 import type { VisualEffectsTier } from "@/lib/visual-effects-tier";
 import { ReportDateInput } from "@/features/report/shared/report-date-input";
 import { RevenuePlate, RevenuePlateSkeleton } from "@/features/dashboard/overview/components/dashboard-plate";
@@ -258,7 +259,7 @@ export const DashboardFilterBar = memo(function DashboardFilterBar({
   const dirtyHintId = useId();
 
   return (
-    <Card size="sm" className="shadow-dash-card">
+    <DashboardCard size="sm">
       <CardContent className="flex flex-col gap-3">
         <Button
           type="button"
@@ -431,7 +432,7 @@ export const DashboardFilterBar = memo(function DashboardFilterBar({
           </div>
         </div>
       </CardContent>
-    </Card>
+    </DashboardCard>
   );
 });
 
@@ -605,9 +606,9 @@ function KpiTile({
   const colors = kpiAccents[accent];
 
   return (
-    <Card
+    <DashboardCard
       className={cn(
-        "relative isolate gap-3 px-4 shadow-dash-card",
+        "relative isolate gap-3 px-4",
         tier !== "static" && "motion-safe:animate-in motion-safe:fade-in-0 motion-safe:slide-in-from-bottom-2 motion-safe:fill-mode-both motion-safe:duration-300",
         tier === "full" && kpiDelays[index],
       )}
@@ -653,7 +654,7 @@ function KpiTile({
           </Badge>
         ) : null}
       </div>
-    </Card>
+    </DashboardCard>
   );
 }
 
@@ -765,7 +766,7 @@ export const DashboardHeroRow = memo(function DashboardHeroRow({
 
 function KpiTileSkeleton() {
   return (
-    <Card className="gap-3 px-4">
+    <DashboardCard className="gap-3 px-4">
       <div className="flex items-start justify-between gap-2">
         <Skeleton className="h-4 w-20" />
         <Skeleton className="size-8 rounded-lg" />
@@ -773,13 +774,13 @@ function KpiTileSkeleton() {
       <Skeleton className="h-8 w-32 max-w-full" />
       <Skeleton className="h-8 w-full" />
       <Skeleton className="h-4 w-24" />
-    </Card>
+    </DashboardCard>
   );
 }
 
 function CardSkeleton({ className, lines }: { className?: string; lines: number }) {
   return (
-    <Card className={cn("px-4", className)}>
+    <DashboardCard className={cn("px-4", className)}>
       <div className="flex items-center gap-2">
         <Skeleton className="size-8 rounded-lg" />
         <Skeleton className="h-5 w-40" />
@@ -790,7 +791,7 @@ function CardSkeleton({ className, lines }: { className?: string; lines: number 
           <Skeleton className="h-5 w-24" />
         </div>
       ))}
-    </Card>
+    </DashboardCard>
   );
 }
 
@@ -801,7 +802,7 @@ export function DashboardDetailFallback({ variant }: { variant: DashboardDetailF
   if (variant === "sales") {
     return (
       <div className="grid grid-cols-1 gap-4 xl:grid-cols-12 xl:gap-5">
-        <Card className="px-4 xl:col-span-8">
+        <DashboardCard className="px-4 xl:col-span-8">
           <div className="flex items-center gap-2">
             <Skeleton className="size-8 rounded-lg" />
             <Skeleton className="h-5 w-48" />
@@ -813,7 +814,7 @@ export function DashboardDetailFallback({ variant }: { variant: DashboardDetailF
             ))}
           </div>
           <Skeleton className="h-64 w-full lg:h-80" />
-        </Card>
+        </DashboardCard>
         <div className="grid content-start gap-4 lg:grid-cols-2 xl:col-span-4 xl:grid-cols-1">
           <CardSkeleton lines={5} />
           <CardSkeleton lines={3} />
@@ -824,7 +825,7 @@ export function DashboardDetailFallback({ variant }: { variant: DashboardDetailF
 
   return (
     <div className="grid grid-cols-1 gap-4 xl:grid-cols-12 xl:gap-5">
-      <Card className="px-4 xl:col-span-8">
+      <DashboardCard className="px-4 xl:col-span-8">
         <div className="flex items-center gap-2">
           <Skeleton className="size-8 rounded-lg" />
           <Skeleton className="h-5 w-40" />
@@ -838,7 +839,7 @@ export function DashboardDetailFallback({ variant }: { variant: DashboardDetailF
             <Skeleton className="h-4 w-24" />
           </div>
         ))}
-      </Card>
+      </DashboardCard>
       <div className="grid content-start gap-4 lg:grid-cols-2 xl:col-span-4 xl:grid-cols-1">
         <CardSkeleton lines={3} />
         <CardSkeleton lines={3} />
@@ -858,7 +859,7 @@ export function DashboardPageSkeleton({ label }: { label: string }) {
           <Skeleton className="h-6 w-36 rounded-full" />
         </div>
       </div>
-      <Card size="sm">
+      <DashboardCard size="sm">
         <CardContent>
           <Skeleton className="h-11 w-full md:hidden" />
           <div className="hidden gap-3 md:flex md:flex-wrap md:items-end">
@@ -869,7 +870,7 @@ export function DashboardPageSkeleton({ label }: { label: string }) {
             <Skeleton className="ml-auto h-7 w-64" />
           </div>
         </CardContent>
-      </Card>
+      </DashboardCard>
       <div className="grid grid-cols-1 gap-4 xl:gap-5 2xl:grid-cols-12">
         <RevenuePlateSkeleton />
         <div className="grid grid-cols-2 gap-3 lg:grid-cols-4 lg:gap-4 2xl:col-span-4 2xl:grid-cols-2">
