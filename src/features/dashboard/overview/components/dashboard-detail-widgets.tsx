@@ -621,20 +621,21 @@ export const DashboardSalesRow = memo(function DashboardSalesRow({
 }) {
   return (
     <div className={cn("grid grid-cols-1 gap-4 xl:grid-cols-12 xl:gap-5", entranceClassName(tier))}>
-      <SalesCard
-        className="xl:col-span-8"
-        copy={copy}
-        onThisMonth={onThisMonth}
-        paymentSummary={paymentSummary}
-        paymentSummaryCards={paymentSummaryCards}
-        paymentTrendRows={paymentTrendRows}
-        isSingleDay={isSingleDay}
-        tier={tier}
-        trendRows={trendRows}
-      />
-      <div className="grid min-w-0 content-start gap-4 lg:grid-cols-2 xl:col-span-4 xl:grid-cols-1 xl:gap-5">
-        <AccountingCard copy={copy} rows={accountingRows} />
+      <div className="grid min-w-0 content-start gap-4 xl:col-span-8 xl:gap-5">
+        <SalesCard
+          copy={copy}
+          onThisMonth={onThisMonth}
+          paymentSummary={paymentSummary}
+          paymentSummaryCards={paymentSummaryCards}
+          paymentTrendRows={paymentTrendRows}
+          isSingleDay={isSingleDay}
+          tier={tier}
+          trendRows={trendRows}
+        />
         <OrderChannelsCard copy={copy} mainChannelKey={mainOrderChannel?.key ?? null} rows={channelRows} />
+      </div>
+      <div className="grid min-w-0 content-start xl:col-span-4">
+        <AccountingCard copy={copy} rows={accountingRows} />
       </div>
     </div>
   );

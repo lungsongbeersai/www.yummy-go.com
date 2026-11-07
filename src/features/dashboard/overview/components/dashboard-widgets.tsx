@@ -802,22 +802,24 @@ export function DashboardDetailFallback({ variant }: { variant: DashboardDetailF
   if (variant === "sales") {
     return (
       <div className="grid grid-cols-1 gap-4 xl:grid-cols-12 xl:gap-5">
-        <DashboardCard className="px-4 xl:col-span-8">
-          <div className="flex items-center gap-2">
-            <Skeleton className="size-8 rounded-lg" />
-            <Skeleton className="h-5 w-48" />
-          </div>
-          <Skeleton className="h-3 w-full rounded-full" />
-          <div className="grid gap-2 sm:grid-cols-3">
-            {Array.from({ length: 3 }, (_, index) => (
-              <Skeleton key={index} className="h-6 w-full" />
-            ))}
-          </div>
-          <Skeleton className="h-64 w-full lg:h-80" />
-        </DashboardCard>
-        <div className="grid content-start gap-4 lg:grid-cols-2 xl:col-span-4 xl:grid-cols-1">
-          <CardSkeleton lines={5} />
+        <div className="grid min-w-0 content-start gap-4 xl:col-span-8 xl:gap-5">
+          <DashboardCard className="px-4">
+            <div className="flex items-center gap-2">
+              <Skeleton className="size-8 rounded-lg" />
+              <Skeleton className="h-5 w-48" />
+            </div>
+            <Skeleton className="h-3 w-full rounded-full" />
+            <div className="grid gap-2 sm:grid-cols-3">
+              {Array.from({ length: 3 }, (_, index) => (
+                <Skeleton key={index} className="h-6 w-full" />
+              ))}
+            </div>
+            <Skeleton className="h-64 w-full lg:h-80" />
+          </DashboardCard>
           <CardSkeleton lines={3} />
+        </div>
+        <div className="grid min-w-0 content-start xl:col-span-4">
+          <CardSkeleton lines={5} />
         </div>
       </div>
     );
