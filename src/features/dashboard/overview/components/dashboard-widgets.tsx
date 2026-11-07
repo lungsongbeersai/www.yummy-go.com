@@ -811,12 +811,9 @@ export function DashboardDetailFallback({ variant }: { variant: DashboardDetailF
             {Array.from({ length: 3 }, (_, index) => <Skeleton key={index} className="h-24 rounded-xl" />)}
           </div>
           <Skeleton className="h-56 w-full sm:h-64 lg:h-72" />
-          <div className="rounded-xl border border-border p-4">
-            <Skeleton className="mb-4 h-5 w-40" />
-            <div className="grid items-center gap-4 lg:grid-cols-[8.5rem_minmax(0,1fr)]">
-              <Skeleton className="mx-auto size-36 rounded-full" />
-              <div className="grid gap-3 sm:grid-cols-3">{Array.from({ length: 3 }, (_, index) => <Skeleton key={index} className="h-36 rounded-xl" />)}</div>
-            </div>
+          <div className="rounded-xl border border-border p-3">
+            <Skeleton className="mb-3 h-5 w-40" />
+            <div className="grid gap-2 sm:grid-cols-3">{Array.from({ length: 3 }, (_, index) => <Skeleton key={index} className="h-20 rounded-lg" />)}</div>
           </div>
         </DashboardCard>
         <DashboardCard className="min-w-0 gap-5 rounded-2xl px-4 xl:col-span-4">

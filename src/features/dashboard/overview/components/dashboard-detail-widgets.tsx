@@ -390,12 +390,12 @@ function AccountingCard({ copy, rows }: { copy: DashboardCopy; rows: AccountingR
   );
 }
 
-function channelStyle(key: string) {
+function channelTone(key: string) {
   const channel = key.toUpperCase();
-  if (channel === "DINE_IN") return { tone: "bg-success/10 text-success-text", stroke: "var(--success)" };
-  if (channel === "TAKEAWAY") return { tone: "bg-info/10 text-info-text", stroke: "var(--info)" };
-  if (channel === "DELIVERY") return { tone: "bg-warning/10 text-warning-text", stroke: "var(--warning)" };
-  return { tone: "bg-primary/10 text-primary-text", stroke: "var(--primary)" };
+  if (channel === "DINE_IN") return "bg-success/10 text-success-text";
+  if (channel === "TAKEAWAY") return "bg-info/10 text-info-text";
+  if (channel === "DELIVERY") return "bg-warning/10 text-warning-text";
+  return "bg-primary/10 text-primary-text";
 }
 
 function channelIcon(key: string): LucideIcon {
@@ -411,55 +411,35 @@ function OrderChannelsSummary({ copy, mainChannelKey, rows }: {
   mainChannelKey: string | null;
   rows: BreakdownRow[];
 }) {
-  const { t } = useTranslation();
   const titleId = useId();
   const orderTotal = rows.reduce((sum, row) => sum + (row.count ?? 0), 0);
-  const cumulative = cumulativeShares(rows.map((row) => row.count ?? 0));
-  const segments = rows.map((row, index) => ({
-    key: row.key,
-    offset: index === 0 ? 0 : cumulative[index - 1],
-    percent: share(row.count ?? 0, orderTotal),
-    stroke: channelStyle(row.key).stroke,
-  }));
 
   return (
-    <section aria-labelledby={titleId} className="min-w-0 rounded-xl border border-border p-3 sm:p-4">
-      <h3 id={titleId} className="flex items-center gap-2 font-heading text-base font-bold text-foreground">
-        <span aria-hidden="true" className="flex size-9 shrink-0 items-center justify-center rounded-full bg-success/10 text-success-text"><Utensils className="size-5" /></span>
+    <section aria-labelledby={titleId} className="min-w-0 rounded-xl border border-border p-3">
+      <h3 id={titleId} className="flex items-center gap-2 font-heading text-sm font-bold text-foreground">
+        <span aria-hidden="true" className="flex size-8 shrink-0 items-center justify-center rounded-full bg-success/10 text-success-text"><Utensils className="size-4" /></span>
         {copy.orderChannels}
       </h3>
       {rows.length ? (
-        <div className="mt-4 grid min-w-0 items-center gap-4 lg:grid-cols-[8.5rem_minmax(0,1fr)] 2xl:grid-cols-[10rem_minmax(0,1fr)]">
-          <div className="relative mx-auto size-36 2xl:size-40">
-            <svg aria-hidden="true" viewBox="0 0 120 120" className="size-full forced-color-adjust-none">
-              <circle cx="60" cy="60" r="50" fill="none" strokeWidth="11" style={{ stroke: "var(--muted)" }} />
-              {segments.filter((segment) => segment.percent > 0).map((segment) => (
-                <circle key={segment.key} cx="60" cy="60" r="50" pathLength="100" fill="none" strokeWidth="11" transform="rotate(-90 60 60)"
-                  strokeDasharray={`${segment.percent} ${100 - segment.percent}`} strokeDashoffset={-segment.offset} style={{ stroke: segment.stroke }} />
-              ))}
-            </svg>
-            <div className="absolute inset-5 flex flex-col items-center justify-center gap-1 text-center">
-              <span className="text-xs text-muted-foreground">{t("dashboard.totalOrders")}</span>
-              <strong className="font-heading text-3xl font-bold text-foreground tabular-nums">{formatNumber(orderTotal)}</strong>
-              <span className="text-xs text-muted-foreground">{copy.orders}</span>
-            </div>
-          </div>
-          <ul className="grid min-w-0 grid-cols-1 gap-3 sm:grid-cols-3">
-            {rows.map((row) => {
-              const Icon = channelIcon(row.key);
-              const count = row.count ?? 0;
-              const isMain = count > 0 && mainChannelKey?.toUpperCase() === row.key.toUpperCase();
-              return (
-                <li key={row.key} className={cn("flex min-w-0 flex-col gap-2 rounded-xl p-3", channelStyle(row.key).tone)}>
-                  <span aria-hidden="true" className="flex size-9 shrink-0 items-center justify-center rounded-full bg-card"><Icon className="size-5" /></span>
-                  <span className="flex min-w-0 flex-wrap items-center gap-1.5 text-sm font-bold">{row.label}{isMain ? <Badge variant="secondary" className="h-auto py-0.5 text-2xs">{copy.mainChannel}</Badge> : null}</span>
+        <ul className="mt-3 grid min-w-0 gap-2 sm:grid-cols-3">
+          {rows.map((row) => {
+            const Icon = channelIcon(row.key);
+            const count = row.count ?? 0;
+            const isMain = count > 0 && mainChannelKey?.toUpperCase() === row.key.toUpperCase();
+            return (
+              <li key={row.key} className={cn("flex min-w-0 flex-col gap-2 rounded-lg p-3", channelTone(row.key))}>
+                <span className="flex min-w-0 items-start gap-2">
+                  <span aria-hidden="true" className="flex size-7 shrink-0 items-center justify-center rounded-full bg-card"><Icon className="size-4" /></span>
+                  <span className="flex min-w-0 flex-wrap items-center gap-1.5 text-sm font-semibold">{row.label}{isMain ? <Badge variant="secondary" className="h-auto py-0.5 text-2xs">{copy.mainChannel}</Badge> : null}</span>
+                </span>
+                <div className="mt-auto flex min-w-0 flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
                   <span className="text-xs text-foreground tabular-nums">{formatNumber(count)} {copy.orders} ({formatPercent(share(count, orderTotal))})</span>
-                  <strong className="mt-auto font-heading text-xl font-bold tabular-nums wrap-anywhere">{formatKip(row.value)}</strong>
-                </li>
-              );
-            })}
-          </ul>
-        </div>
+                  <strong className="max-w-full font-heading text-base font-bold tabular-nums wrap-anywhere">{formatKip(row.value)}</strong>
+                </div>
+              </li>
+            );
+          })}
+        </ul>
       ) : <EmptyPanel label={copy.noData} />}
     </section>
   );
