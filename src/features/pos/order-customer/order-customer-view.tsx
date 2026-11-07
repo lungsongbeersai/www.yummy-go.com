@@ -13,7 +13,7 @@ import {
   EmptyTitle,
 } from "@/components/ui/empty";
 import { LanguageSwitch } from "@/components/layout/language-switch";
-import { ThemeToggle } from "@/components/layout/theme-toggle";
+import { DisplaySettingsMenu } from "@/components/layout/web/display-settings-menu";
 import { SimulatorLauncher } from "@/features/simulator/simulator-launcher";
 import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
 import { Spinner } from "@/components/ui/spinner";
@@ -272,7 +272,7 @@ export function OrderCustomerView({
               ) : null}
               {/* ปุ่มย้อนกลับ + เมนู "..." ซ้ำกับ NativeTopBar บน Capacitor เท่านั้น —
                   ฝั่งเว็บยังไม่มี header ของ shell ให้หน้านี้ จึงต้องเก็บไว้เหมือนเดิม */}
-              <div className="flex min-w-0 items-center gap-2">
+              <div className="flex min-w-0 flex-wrap items-center gap-2">
                 {!nativeShellActive ? (
                   <Button
                     type="button"
@@ -287,7 +287,9 @@ export function OrderCustomerView({
                 ) : null}
 
                 <EmployeeSearchForm
-                  className="flex-1"
+                  className={nativeShellActive
+                    ? "min-w-40 flex-1"
+                    : "order-last w-full flex-none sm:order-none sm:w-auto sm:flex-1"}
                   loading={loadingMenu}
                   neutral={neutralChrome}
                   search={search}
@@ -295,14 +297,18 @@ export function OrderCustomerView({
                   onSearchSubmit={() => void submitSearch()}
                 />
 
+                {portraitNativeOrderLayout ? (
+                  <DisplaySettingsMenu showLabel className="ml-auto h-11 sm:h-11" />
+                ) : null}
+
                 {!nativeShellActive ? (
-                  <>
-                  <SimulatorLauncher />
-                  <EmployeeMobileHeaderActions
-                    loading={loadingTables || loadingMenu}
-                    onRefresh={() => void refreshAll()}
-                  />
-                  </>
+                  <div className="ml-auto flex shrink-0 items-center gap-2">
+                    <SimulatorLauncher />
+                    <EmployeeMobileHeaderActions
+                      loading={loadingTables || loadingMenu}
+                      onRefresh={() => void refreshAll()}
+                    />
+                  </div>
                 ) : null}
               </div>
 
@@ -317,7 +323,7 @@ export function OrderCustomerView({
           ) : null}
 
           {!horizontalNativeOrderLayout && !nativeShellActive ? (
-            <div className="relative hidden min-w-0 items-center gap-2 lg:flex lg:h-11">
+            <div className="relative hidden min-w-0 flex-wrap items-center gap-2 lg:flex lg:min-h-11">
               {/* Capacitor's NativeTopBar already carries back / refresh / notif —
                 on native, only the sort tabs + search belong in this row. */}
               {!nativeShellActive ? (
@@ -333,7 +339,7 @@ export function OrderCustomerView({
                 </Button>
               ) : null}
 
-              <div className="grid min-w-0 flex-1 grid-cols-[17rem_minmax(14rem,1fr)] gap-2">
+              <div className="grid min-w-[min(22.5rem,100%)] flex-1 grid-cols-[minmax(12rem,17rem)_minmax(10rem,1fr)] gap-2">
                 <EmployeeSortTabs
                   activeSort={activeSort}
                   className="w-full"
@@ -354,20 +360,12 @@ export function OrderCustomerView({
               {!nativeShellActive ? (
                 <div className="ml-auto flex shrink-0 items-center gap-2">
                   <SimulatorLauncher />
-                  {/* lg–xl (ประมาณ iPad landscape) แถวนี้ไม่พอที่ใส่ปุ่มภาษา/ธีม/รีเฟรช
-                    แยก 3 ปุ่มพร้อมกับ sort tabs + search ที่กว้างคงที่ — คำนวณแล้ว
-                    ล้นแน่นอนที่ 1024px (เห็นเป็นแถวปุ่มบีบ/ตกบรรทัดในภาพจริงบน iPad)
-                    จึงยุบเป็นเมนู "..." เดียวกับแถวมือถือจนกว่าจะถึง xl (1280px) ที่มี
-                    ที่ว่างพอ */}
+                  <DisplaySettingsMenu showLabel className="h-11 sm:h-11" />
+                  {/* Keep language/refresh compact on tablet widths; appearance remains visible. */}
                   <div className="hidden items-center gap-2 xl:flex">
                     <LanguageSwitch
                       className={headerIconButtonClass}
                       compact
-                      size="icon"
-                      variant="header"
-                    />
-                    <ThemeToggle
-                      className={headerIconButtonClass}
                       size="icon"
                       variant="header"
                     />

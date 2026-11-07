@@ -6,7 +6,7 @@ import { ChevronLeft, RefreshCcw } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { LanguageSwitch } from "@/components/layout/language-switch";
 import { NotificationMenu } from "@/components/layout/notification-menu";
-import { ThemeToggle } from "@/components/layout/theme-toggle";
+import { DisplaySettingsMenu } from "@/components/layout/web/display-settings-menu";
 import { BranchContractStatus } from "@/components/layout/branch-contract-status";
 import { Button } from "@/components/ui/button";
 import { useIsNativeShellActive } from "@/hooks/use-native-shell-active";
@@ -149,7 +149,7 @@ export function TableSelectionPage() {
             <div className="flex shrink-0 items-center gap-1 sm:gap-1.5">
               <NotificationMenu triggerClassName={headerIconButtonClass} triggerVariant="header" />
               <LanguageSwitch className={cn(headerIconButtonClass, "hidden min-[500px]:inline-flex")} compact size="icon" variant="header" />
-              <ThemeToggle className={headerIconButtonClass} size="icon" variant="header" />
+              <DisplaySettingsMenu showLabel className="h-10 sm:h-10" />
               <Button aria-label={t("actions.refresh")} className={headerIconButtonClass} size="icon" type="button" variant="header" onClick={() => void load()}>
                 <RefreshCcw />
               </Button>
