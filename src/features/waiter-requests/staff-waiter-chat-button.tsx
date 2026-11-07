@@ -5,7 +5,7 @@ import { useTranslation } from "react-i18next";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import { collectOrderAlerts } from "@/lib/pos/order-alerts";
+import { zoneOrderAlertCount } from "@/lib/pos/order-alerts";
 import { usePosStore } from "@/stores/pos-store";
 import { useAuthStore } from "@/stores/auth-store";
 import { useWaiterRequestsStore } from "@/stores/waiter-requests-store";
@@ -15,6 +15,7 @@ export function StaffWaiterChatButton() {
   const branch = useAuthStore((state) => state.user?.branch_uuid ?? "");
   const requests = useWaiterRequestsStore((state) => state.staffRequests);
   const zoneOptions = usePosStore((state) => state.zoneOptions);
+  const zones = usePosStore((state) => state.zones);
   const key = useWaiterRequestsStore((state) => state.staffKey);
   const panelOpen = useWaiterRequestsStore((state) => state.staffPanelOpen);
   const setPanelOpen = useWaiterRequestsStore((state) => state.setStaffPanelOpen);
@@ -22,9 +23,10 @@ export function StaffWaiterChatButton() {
   const count = key === branch ? requests.length : 0;
   const hasPending = count > 0;
   const hasError = Boolean(error && key === branch);
-  const hasNotice = collectOrderAlerts(zoneOptions).length > 0 ||
-    (key === branch && requests.some((request) => request.status === 0));
-  const animateNotice = hasNotice && !panelOpen && !hasError;
+  const hasNotice = hasPending ||
+    zoneOptions.some((zone) => zoneOrderAlertCount(zone) > 0) ||
+    zones.some((zone) => zoneOrderAlertCount(zone) > 0);
+  const animateNotice = hasNotice && !panelOpen;
 
   if (!branch) return null;
 
@@ -56,7 +58,7 @@ export function StaffWaiterChatButton() {
         <span className="flex min-w-0 flex-col items-start gap-0.5 text-left">
           <span className="max-w-full truncate text-sm font-semibold leading-5">{t("waiter.chatTitle")}</span>
           {hasError ? (
-            <span className="max-w-full truncate text-xs font-medium leading-4 text-destructive">{t("waiter.failed")}</span>
+            <span className={cn("max-w-full truncate text-xs font-medium leading-4 text-destructive", animateNotice && "text-current")}>{t("waiter.failed")}</span>
           ) : hasPending ? (
             <span className={cn("max-w-full truncate text-xs font-normal leading-4 text-muted-foreground", animateNotice && "text-current")}>
               {t("waiter.requestCount", { count })}
@@ -68,7 +70,7 @@ export function StaffWaiterChatButton() {
             {count > 99 ? "99+" : count}
           </Badge>
         ) : hasError ? (
-          <CircleAlert aria-hidden="true" className="ml-1 size-4 text-destructive" />
+          <CircleAlert aria-hidden="true" className={cn("ml-1 size-4 text-destructive", animateNotice && "text-current")} />
         ) : null}
       </Button>
       <span role="status" className="sr-only">

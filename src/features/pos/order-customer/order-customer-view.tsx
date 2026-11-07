@@ -119,7 +119,7 @@ export function OrderCustomerView({
     zones,
   } = workflow;
 
-  const hasPendingCartNotice = Boolean(selectedTable?.customer_order_state) ||
+  const hasPendingCartNotice = cartCount > 0 || Boolean(selectedTable?.customer_order_state) ||
     newOrderTabItems(visibleCartItems(primaryCartOrder(cart))).length > 0;
   const animateCartNotice = hasPendingCartNotice && !cartSheetOpen;
   const nativeShellActive = useIsNativeShellActive();
