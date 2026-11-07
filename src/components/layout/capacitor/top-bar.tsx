@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useTranslation } from "react-i18next";
@@ -9,7 +9,7 @@ import {
   LogOut,
   ReceiptText,
   RefreshCcw,
-  Settings,
+  SwatchBook,
   ShieldCheck,
   Table2,
   UserPen,
@@ -30,11 +30,10 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { AppearanceControls } from "@/components/layout/appearance-controls";
+import { AppearanceSettings } from "@/components/layout/appearance-settings";
 import { LanguageSwitch } from "@/components/layout/language-switch";
 import { NotificationMenu } from "@/components/layout/notification-menu";
 import { BranchContractStatus } from "@/components/layout/branch-contract-status";
-import { ThemeToggle } from "@/components/layout/theme-toggle";
 import { ProductSortStatus } from "@/config/pos-constants";
 import {
   menuItemLabel,
@@ -240,12 +239,15 @@ function NativeProfileMenu({
   const { t } = useTranslation();
   const profileSrc = user?.profile ? getUserProfileUrl(user.profile) : "";
   const [appearanceOpen, setAppearanceOpen] = useState(false);
+  const triggerRef = useRef<HTMLButtonElement>(null);
+  const openAppearanceOnCloseRef = useRef(false);
 
   return (
     <>
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
           <Button
+            ref={triggerRef}
             variant="ghost"
             size="icon"
             aria-label={user?.email ?? t("profile.sections.account")}
@@ -259,35 +261,30 @@ function NativeProfileMenu({
             </Avatar>
           </Button>
         </DropdownMenuTrigger>
-        <DropdownMenuContent align="end" className="w-80">
+        <DropdownMenuContent
+          align="end"
+          className="w-80"
+          onCloseAutoFocus={(event) => {
+            if (!openAppearanceOnCloseRef.current) return;
+            openAppearanceOnCloseRef.current = false;
+            event.preventDefault();
+            setAppearanceOpen(true);
+          }}
+        >
           <DropdownMenuLabel className="truncate">
             {user?.email ?? t("profile.sections.account")}
           </DropdownMenuLabel>
           <DropdownMenuSeparator />
-          {/* theme/language ย้ายมาไว้ในนี้แทนไอคอนแยกบน top bar — จอมือถือไม่มีที่พอ
-              (ThemeToggle = สลับสว่าง/มืดเร็ว ๆ ตรงนี้ คนละอย่างกับ AppearanceControls
-              สี/ขนาดฟอนต์ที่เปิดเป็น dialog จากเมนู "ตั้งค่า" ด้านล่างแทน)
-              py-1 (ไม่ใช่ py-1.5 แบบ DropdownMenuItem ปกติ) — สองแถวนี้สูงกว่ารายการอื่น
-              อยู่แล้วเพราะมีปุ่มไอคอน size-9 ข้างใน padding เท่ากันเลยดูห่างกันเกินไปตามที่รายงานมา */}
           <div className="flex items-center justify-between gap-2 px-2 py-1">
             <span className="text-sm text-muted-foreground">
               {t("app.changeLanguage")}
             </span>
             <LanguageSwitch compact size="icon" variant="header" className="size-9" />
           </div>
-          <div className="flex items-center justify-between gap-2 px-2 py-1">
-            <span className="text-sm text-muted-foreground">
-              {t("app.theme")}
-            </span>
-            <ThemeToggle variant="header" className="size-9" />
-          </div>
           <DropdownMenuSeparator />
-          {/* onSelect เซ็ต state ตรง ๆ ไม่ต้อง preventDefault — DropdownMenu ปิดตัวเองแล้ว
-              Dialog (sibling นอก DropdownMenu ด้านล่าง) เปิดตามได้โดยไม่ชนกัน ตามแพทเทิร์นเดียวกับ
-              product-order-dialog.tsx ในระบบนี้ */}
-          <DropdownMenuItem onSelect={() => setAppearanceOpen(true)}>
-            <Settings />
-            {t("nav.settings")}
+          <DropdownMenuItem onSelect={() => { openAppearanceOnCloseRef.current = true; }}>
+            <SwatchBook />
+            {t("app.appearance.changeColor")}
           </DropdownMenuItem>
           <DropdownMenuItem asChild>
             <Link href="/profile">
@@ -310,11 +307,17 @@ function NativeProfileMenu({
       </DropdownMenu>
 
       <Dialog open={appearanceOpen} onOpenChange={setAppearanceOpen}>
-        <DialogContent>
+        <DialogContent
+          aria-describedby={undefined}
+          onCloseAutoFocus={(event) => {
+            event.preventDefault();
+            triggerRef.current?.focus();
+          }}
+        >
           <DialogHeader>
             <DialogTitle>{t("app.appearance.title")}</DialogTitle>
           </DialogHeader>
-          <AppearanceControls
+          <AppearanceSettings
             idPrefix="topbar-appearance-theme-color"
             size="touch"
           />

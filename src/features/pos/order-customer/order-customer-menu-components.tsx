@@ -1,18 +1,19 @@
 "use client";
 
 import dynamic from "next/dynamic";
-import { memo, useEffect, useRef } from "react";
+import { memo, useEffect, useId, useRef, useState } from "react";
 import {
   Check,
-  Moon,
   MoreHorizontal,
   RefreshCcw,
   Search,
-  Sun,
+  SwatchBook,
 } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { HorizontalScrollArrows } from "@/components/common/horizontal-scroll-arrows";
 import { Button } from "@/components/ui/button";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { AppearanceSettings } from "@/components/layout/appearance-settings";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -200,62 +201,88 @@ export function EmployeeMobileHeaderActions({
   const { t } = useTranslation();
   const language = useAppStore((state) => state.language);
   const setLanguage = useAppStore((state) => state.setLanguage);
-  const theme = useAppStore((state) => state.theme);
-  const toggleTheme = useAppStore((state) => state.toggleTheme);
-  const ThemeIcon = theme === "dark" ? Sun : Moon;
-  const themeLabel =
-    theme === "dark" ? t("dashboard.lightTheme") : t("dashboard.darkTheme");
+  const [appearanceOpen, setAppearanceOpen] = useState(false);
+  const openAppearanceOnCloseRef = useRef(false);
+  const triggerRef = useRef<HTMLButtonElement>(null);
+  const appearanceId = useId();
 
   return (
-    <DropdownMenu>
-      <DropdownMenuTrigger asChild>
-        <Button
-          type="button"
-          variant="header"
-          size="icon"
-          aria-label={t("common.actions")}
-          className="size-11 shrink-0 rounded-full"
+    <>
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <Button
+            ref={triggerRef}
+            type="button"
+            variant="header"
+            size="icon"
+            aria-label={t("common.actions")}
+            className="size-11 shrink-0 rounded-full"
+          >
+            <MoreHorizontal data-icon="inline-start" />
+          </Button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent
+          align="end"
+          className="w-52"
+          onCloseAutoFocus={(event) => {
+            if (!openAppearanceOnCloseRef.current) return;
+            openAppearanceOnCloseRef.current = false;
+            event.preventDefault();
+            setAppearanceOpen(true);
+          }}
         >
-          <MoreHorizontal data-icon="inline-start" />
-        </Button>
-      </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className="w-52">
-        <DropdownMenuGroup>
-          {LANGUAGES.map((item) => {
-            const active = item.code === language;
-            const label = item.code === "la" ? "LA" : "EN";
-            return (
-              <DropdownMenuItem
-                key={item.code}
-                className="font-semibold"
-                onSelect={() => setLanguage(item.code)}
-              >
-                <span className="flex size-6 items-center justify-center rounded-sm bg-muted text-xs font-black text-muted-foreground">
+          <DropdownMenuGroup>
+            {LANGUAGES.map((item) => {
+              const active = item.code === language;
+              const label = item.code === "la" ? "LA" : "EN";
+              return (
+                <DropdownMenuItem
+                  key={item.code}
+                  className="font-semibold"
+                  onSelect={() => setLanguage(item.code)}
+                >
+                  <span className="flex size-6 items-center justify-center rounded-sm bg-muted text-xs font-black text-muted-foreground">
+                    {label}
+                  </span>
                   {label}
-                </span>
-                {label}
-                {active ? <Check className="ml-auto size-4" /> : null}
-              </DropdownMenuItem>
-            );
-          })}
-        </DropdownMenuGroup>
-        <DropdownMenuSeparator />
-        <DropdownMenuGroup>
-          <DropdownMenuItem onSelect={() => toggleTheme()}>
-            <ThemeIcon data-icon="inline-start" />
-            {themeLabel}
-          </DropdownMenuItem>
-          <DropdownMenuItem disabled={loading} onSelect={onRefresh}>
-            {loading ? (
-              <Spinner data-icon="inline-start" />
-            ) : (
-              <RefreshCcw data-icon="inline-start" />
-            )}
-            {t("actions.refresh")}
-          </DropdownMenuItem>
-        </DropdownMenuGroup>
-      </DropdownMenuContent>
-    </DropdownMenu>
+                  {active ? <Check className="ml-auto size-4" /> : null}
+                </DropdownMenuItem>
+              );
+            })}
+          </DropdownMenuGroup>
+          <DropdownMenuSeparator />
+          <DropdownMenuGroup>
+            <DropdownMenuItem onSelect={() => { openAppearanceOnCloseRef.current = true; }}>
+              <SwatchBook data-icon="inline-start" />
+              {t("app.appearance.changeColor")}
+            </DropdownMenuItem>
+            <DropdownMenuItem disabled={loading} onSelect={onRefresh}>
+              {loading ? (
+                <Spinner data-icon="inline-start" />
+              ) : (
+                <RefreshCcw data-icon="inline-start" />
+              )}
+              {t("actions.refresh")}
+            </DropdownMenuItem>
+          </DropdownMenuGroup>
+        </DropdownMenuContent>
+      </DropdownMenu>
+      <Dialog open={appearanceOpen} onOpenChange={setAppearanceOpen}>
+        <DialogContent
+          aria-describedby={undefined}
+          className="gap-4 sm:max-w-sm"
+          onCloseAutoFocus={(event) => {
+            event.preventDefault();
+            triggerRef.current?.focus();
+          }}
+        >
+          <DialogHeader>
+            <DialogTitle>{t("app.appearance.title")}</DialogTitle>
+          </DialogHeader>
+          <AppearanceSettings idPrefix={`${appearanceId}-pos-appearance`} size="touch" />
+        </DialogContent>
+      </Dialog>
+    </>
   );
 }
 
