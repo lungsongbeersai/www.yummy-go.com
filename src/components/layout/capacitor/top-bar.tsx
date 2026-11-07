@@ -110,20 +110,20 @@ export function NativeTopBar({
       data-pos-table-top-bar={isTableTopBar ? "true" : undefined}
       className={cn(
         "native-top-bar sticky top-0 z-40 flex min-h-(--app-shell-header-height) w-full shrink-0 items-center px-2 sm:px-3",
+        !isPosWorkspaceTopBar && "app-header",
         isOrderTopBar ? "gap-2" : "gap-1"
       )}
     >
       {showBack ? (
         <Button
           type="button"
-          variant="ghost"
+          variant={isPosWorkspaceTopBar ? "ghost" : "header"}
           size="icon"
           aria-label={t("actions.back")}
           className={cn(
             "size-12 shrink-0",
-            isPosWorkspaceTopBar
-              ? "rounded-full border-primary-foreground/35 bg-primary-foreground/15 text-primary-foreground shadow-sm hover:bg-primary-foreground/25 hover:text-primary-foreground focus-visible:border-primary-foreground/70 focus-visible:ring-primary-foreground/40"
-              : "text-primary"
+            isPosWorkspaceTopBar &&
+              "rounded-full border-primary-foreground/35 bg-primary-foreground/15 text-primary-foreground shadow-sm hover:bg-primary-foreground/25 hover:text-primary-foreground focus-visible:border-primary-foreground/70 focus-visible:ring-primary-foreground/40"
           )}
           onClick={goBack}
         >
@@ -167,12 +167,12 @@ export function NativeTopBar({
       {isOrderTopBar ? (
         <NativeOrderSortTabs />
       ) : (
-        <div className="flex shrink-0 items-center">
+        <div className="flex shrink-0 items-center gap-1">
           <BranchContractStatus compact className="size-12 sm:size-12" />
           {refreshAction ? (
             <Button
               type="button"
-              variant="ghost"
+              variant="header"
               size="icon"
               aria-label={t("actions.refresh")}
               className="size-12"
@@ -248,7 +248,7 @@ function NativeProfileMenu({
         <DropdownMenuTrigger asChild>
           <Button
             ref={triggerRef}
-            variant="ghost"
+            variant="header"
             size="icon"
             aria-label={user?.email ?? t("profile.sections.account")}
             className="size-12"
@@ -257,7 +257,7 @@ function NativeProfileMenu({
               {profileSrc ? (
                 <AvatarImage src={profileSrc} alt={user?.email ?? "Profile"} />
               ) : null}
-              <AvatarFallback>{userInitials(user)}</AvatarFallback>
+              <AvatarFallback className="bg-secondary text-secondary-foreground">{userInitials(user)}</AvatarFallback>
             </Avatar>
           </Button>
         </DropdownMenuTrigger>
