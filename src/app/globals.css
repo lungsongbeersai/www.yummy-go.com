@@ -42,7 +42,7 @@
   --pending-foreground: hsl(0 0% 100%);
   --table-cashier: #2563eb;
   --table-staff: #9333ea;
-  --table-payment: #0d9488;
+  --table-payment: #8a6b08;
   --table-occupied-surface: #ecc3cc;
   --table-occupied-footer: #dfa6b4;
   --table-occupied-border: #a94d61;
@@ -55,9 +55,9 @@
   --table-staff-surface: #d9c3f2;
   --table-staff-footer: #c9ade7;
   --table-staff-border: #8554b3;
-  --table-payment-surface: #aad8d2;
-  --table-payment-footer: #91c9c1;
-  --table-payment-border: #327f77;
+  --table-payment-surface: #f4e48b;
+  --table-payment-footer: #e8d56c;
+  --table-payment-border: #8a6b08;
   --table-alert-surface: #f0a5a5;
   --table-alert-footer: #e98c8c;
   --table-alert-border: #ac3e3e;
@@ -190,7 +190,10 @@
   --dash-notch: var(--primary);
   --table-cashier: #60a5fa;
   --table-staff: #c084fc;
-  --table-payment: #2dd4bf;
+  --table-payment: #facc15;
+  --table-payment-surface: #332e12;
+  --table-payment-footer: #403916;
+  --table-payment-border: #8f7927;
   --table-canvas: var(--background);
   --table-card-border: var(--border);
   --table-card-shadow: none;
