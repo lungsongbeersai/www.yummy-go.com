@@ -16,6 +16,7 @@ import {
 import {
   CAPACITOR_IOS_CLASS,
   CAPACITOR_NATIVE_CLASS,
+  detectCapacitorMobilePlatform,
 } from "@/lib/capacitor-platform";
 import { LANGUAGE_COOKIE, type Language } from "@/lib/language";
 import { syncNativeStatusBarTheme } from "@/lib/native-theme-bridge";
@@ -100,9 +101,14 @@ function cssSupports(property: string, value: string) {
 }
 
 function applyCapacitorPlatformClasses() {
-  const isNativePlatform = Capacitor.isNativePlatform();
-  const platform = Capacitor.getPlatform();
+  const reportedNativePlatform = Capacitor.isNativePlatform();
+  const reportedPlatform = Capacitor.getPlatform();
   const userAgent = window.navigator.userAgent;
+  // Remote Store WebViews can report "web" before their native bridge is ready.
+  // Match the shell's app-marker fallback so its theme and compat tokens agree.
+  const mobilePlatform = detectCapacitorMobilePlatform(reportedNativePlatform, reportedPlatform, userAgent);
+  const isNativePlatform = reportedNativePlatform || mobilePlatform !== null;
+  const platform = mobilePlatform ?? reportedPlatform;
   const info = getAndroidWebViewCompatInfo({
     isNativePlatform,
     platform,
