@@ -49,6 +49,9 @@
   --product-canvas: #e2e8f0;
   --product-card-border: #94a3b8;
   --product-card-shadow: 0 1px 2px #0f172a1a, 0 5px 12px -4px #0f172a26;
+  --dashboard-canvas: #e2e8f0;
+  --dashboard-card-border: #94a3b8;
+  --dashboard-card-shadow: 0 1px 2px #0f172a1a, 0 5px 12px -4px #0f172a26;
   /* คู่ "ข้อความบนพื้น" ของ --info/--warning: เข้มพอผ่าน WCAG AA (>=4.5:1) เมื่อใช้เป็น
      text บน card/พื้นสว่าง ต่างจากตัว --info/--warning ที่ออกแบบเป็นสี fill (คู่กับ
      -foreground) ซึ่ง contrast ตกเมื่อเอามาเป็นตัวอักษรบนพื้นขาว ใช้กับยอด service/VAT
@@ -176,6 +179,9 @@
   --product-canvas: var(--background);
   --product-card-border: var(--border);
   --product-card-shadow: 0 1px 3px #0000001a, 0 1px 2px -1px #0000001a;
+  --dashboard-canvas: var(--background);
+  --dashboard-card-border: var(--border);
+  --dashboard-card-shadow: var(--dash-card-shadow);
   --dash-card-shadow: inset 0 1px 0 #ffffff0d, 0 1px 2px #00000080, 0 16px 32px -24px #000000cc;
   --dash-plate-shadow: 0 24px 48px -28px #000000b3;
 }
@@ -572,6 +578,8 @@ html[data-lao-font="saysettha"] {
   --color-table-card-border: var(--table-card-border);
   --color-product-canvas: var(--product-canvas);
   --color-product-card-border: var(--product-card-border);
+  --color-dashboard-canvas: var(--dashboard-canvas);
+  --color-dashboard-card-border: var(--dashboard-card-border);
   --color-success: var(--success);
   --color-success-foreground: var(--success-foreground);
   --color-pending: var(--pending);
@@ -1919,16 +1927,16 @@ html.swan1-legacy-colors
 html.swan1-legacy-colors
   .app-shell[data-desktop-home-layout="true"]
   [data-slot="card"] {
-  border: 1px solid var(--border);
-  box-shadow: var(--dash-card-shadow);
+  border: 1px solid var(--dashboard-card-border);
+  box-shadow: var(--dashboard-card-shadow);
 }
 
 /* The light plate shares card borders; the dark plate retains its filled surface. */
 html.swan1-legacy-colors
   .app-shell[data-desktop-home-layout="true"]
   [data-dashboard-revenue-card] {
-  border-color: var(--border);
-  box-shadow: var(--dash-card-shadow);
+  border-color: var(--dashboard-card-border);
+  box-shadow: var(--dashboard-card-shadow);
 }
 
 html.dark.swan1-legacy-colors

@@ -83,7 +83,13 @@ export function AppShellSkeleton({ label }: { label?: string }) {
           </SidebarFooter>
         </Sidebar>
       ) : null}
-      <SidebarInset className={cn("min-w-0", fixed && "h-full min-h-0 overflow-hidden")}>
+      <SidebarInset
+        className={cn(
+          "min-w-0",
+          pathname === "/" && "bg-dashboard-canvas dark:bg-background",
+          fixed && "h-full min-h-0 overflow-hidden",
+        )}
+      >
         {!immersive ? (
           <header
             aria-hidden="true"

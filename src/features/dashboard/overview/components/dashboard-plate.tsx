@@ -3,10 +3,10 @@
 import { memo, useEffect, useState } from "react";
 import { HandCoins, TrendingUp, Wallet } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
-import { Card } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
+import { DashboardCard } from "@/features/dashboard/overview/components/dashboard-card";
 import type { VisualEffectsTier } from "@/lib/visual-effects-tier";
 import { buildGuillochePath } from "@/features/dashboard/overview/dashboard-engraving";
 import {
@@ -22,7 +22,7 @@ import {
 const GUILLOCHE_PATH = buildGuillochePath();
 
 const plateClassName =
-  "relative isolate gap-0 overflow-hidden rounded-2xl border-border bg-card p-5 text-card-foreground shadow-dash-card ring-0 dark:border-transparent dark:bg-primary dark:text-primary-foreground dark:shadow-dash-plate sm:p-6 lg:min-h-80 xl:p-7 2xl:col-span-8";
+  "relative isolate gap-0 overflow-hidden rounded-2xl border-dashboard-card-border bg-card p-5 text-card-foreground ring-1 dark:ring-0 dark:border-transparent dark:bg-primary dark:text-primary-foreground dark:shadow-(--dash-plate-shadow) sm:p-6 lg:min-h-80 xl:p-7 2xl:col-span-8";
 
 // Light mode uses a quiet card with an accent rule; the filled dark plate keeps its sheen.
 // The engraving stays in the text-free corner so totals and labels remain clear.
@@ -205,7 +205,7 @@ export const RevenuePlate = memo(function RevenuePlate({
   const hasSkyline = skyline.length >= 2;
 
   return (
-    <Card
+    <DashboardCard
       data-dashboard-revenue-card="true"
       className={cn(
         plateClassName,
@@ -267,7 +267,7 @@ export const RevenuePlate = memo(function RevenuePlate({
           value={formatKip(balance)}
         />
       </div>
-    </Card>
+    </DashboardCard>
   );
 });
 
@@ -297,7 +297,7 @@ function PlateFigure({
 // The loading plate keeps the real surface so the first paint already reads as the hero.
 export function RevenuePlateSkeleton() {
   return (
-    <Card aria-hidden="true" className={plateClassName}>
+    <DashboardCard aria-hidden="true" className={plateClassName}>
       <PlateEngraving />
       <div className="relative z-10 flex flex-col gap-4">
         <Skeleton data-skeleton-tone="inverse" className="h-5 w-32" />
@@ -308,6 +308,6 @@ export function RevenuePlateSkeleton() {
         <Skeleton data-skeleton-tone="inverse" className="h-10 w-full" />
         <Skeleton data-skeleton-tone="inverse" className="h-10 w-full" />
       </div>
-    </Card>
+    </DashboardCard>
   );
 }
