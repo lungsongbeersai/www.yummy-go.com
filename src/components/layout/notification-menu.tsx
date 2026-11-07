@@ -20,8 +20,6 @@ import {
 import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@/components/ui/empty";
 import { OrderAlertSoundDialog } from "@/components/layout/order-alert-sound-dialog";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
-import { useWaiterRequestsStore } from "@/stores/waiter-requests-store";
-import { useAuthStore } from "@/stores/auth-store";
 import { useAppStore } from "@/stores/app-store";
 import { usePosStore } from "@/stores/pos-store";
 import { useNavigationGuardStore } from "@/stores/navigation-guard-store";
@@ -39,21 +37,10 @@ export function NotificationMenu({
 }: NotificationMenuProps = {}) {
   const { t } = useTranslation();
   const router = useRouter();
-  const branch = useAuthStore((state) => state.user?.branch_uuid ?? "");
-  const staffRequests = useWaiterRequestsStore((state) => state.staffRequests);
-  const staffKey = useWaiterRequestsStore((state) => state.staffKey);
-  const staffError = useWaiterRequestsStore((state) => state.staffError);
-  const waiterRows = staffKey === branch ? staffRequests : [];
-  const waiterCount = waiterRows.length;
-  // ชื่อโต๊ะที่เรียกอยู่ (ไม่ซ้ำ) — พนักงานรู้ทันทีว่าต้องไปโต๊ะไหนโดยไม่ต้องเปิดแผงรายการ
-  const waiterTables = [...new Set(waiterRows.map((row) => row.table_name_la || row.table_name_eng).filter(Boolean))];
-  const setWaiterOpen = useWaiterRequestsStore((state) => state.setStaffPanelOpen);
   const triggerRef = useRef<HTMLButtonElement>(null);
-  const openWaiterOnCloseRef = useRef(false);
   const runGuardedNavigation = useNavigationGuardStore((state) => state.run);
   const zoneOptions = usePosStore((state) => state.zoneOptions);
   const orderAlertSound = useAppStore((state) => state.orderAlertSound);
-  const waiterAlertSound = useAppStore((state) => state.waiterAlertSound);
   const soundEnabled = useAppStore((state) => state.alertSoundEnabled);
   const [soundDialogOpen, setSoundDialogOpen] = useState(false);
   // เปิด dialog ตอนดรอปดาวน์ปิดเสร็จแล้ว (onCloseAutoFocus) ไม่ใช่ใน onSelect ตรง ๆ — ดรอปดาวน์
@@ -65,7 +52,7 @@ export function NotificationMenu({
   // โต๊ะจริงเท่านั้น การเปิดดรอปดาวน์นี้ไม่ถือว่ารับทราบ
   const orderAlerts = useMemo(() => collectOrderAlerts(zoneOptions), [zoneOptions]);
 
-  const pendingCount = orderAlerts.length + waiterCount;
+  const pendingCount = orderAlerts.length;
   const hasUnread = pendingCount > 0;
   const badgeText = pendingCount > 9 ? "9+" : String(pendingCount);
 
@@ -104,13 +91,6 @@ export function NotificationMenu({
           align="end"
           className="w-80 p-0 sm:w-88"
           onCloseAutoFocus={(event) => {
-            if (openWaiterOnCloseRef.current) {
-              openWaiterOnCloseRef.current = false;
-              event.preventDefault();
-              triggerRef.current?.focus();
-              setWaiterOpen(true);
-              return;
-            }
             if (!openSoundDialogOnCloseRef.current) return;
             openSoundDialogOnCloseRef.current = false;
             event.preventDefault();
@@ -129,33 +109,8 @@ export function NotificationMenu({
             ) : null}
           </div>
           <DropdownMenuSeparator className="my-0" />
-          {hasUnread || staffError ? (
+          {hasUnread ? (
             <DropdownMenuGroup className="flex max-h-80 flex-col gap-1 overflow-y-auto p-1.5">
-              {waiterCount > 0 || staffError ? (
-                <DropdownMenuItem className="gap-3 px-2.5 py-2" onSelect={() => { openWaiterOnCloseRef.current = true; }}>
-                  {/* ทรงเดียวกับแถวออเดอร์ (กล่องไอคอน + จุด) ให้กวาดตาอ่านเป็นรายการชุดเดียวกัน */}
-                  <span className="relative grid size-8 shrink-0 place-items-center rounded-md bg-primary/10 text-primary">
-                    <BellRing aria-hidden />
-                    {waiterCount > 0 ? (
-                      <span aria-hidden className="absolute -right-0.5 -top-0.5 size-2.5 rounded-full border-2 border-popover bg-destructive" />
-                    ) : null}
-                  </span>
-                  <span className="flex min-w-0 flex-1 flex-col">
-                    <span className="truncate text-sm font-semibold">{t("waiter.title")}</span>
-                    {staffError ? (
-                      <span className="truncate text-xs text-destructive">{t("waiter.failed")}</span>
-                    ) : (
-                      <span className="truncate text-xs text-muted-foreground">
-                        {t("nav.table")} {waiterTables.join(", ")} · {t("waiter.requestCount", { count: waiterCount })}
-                      </span>
-                    )}
-                  </span>
-                  {waiterCount > 0 ? (
-                    <Badge variant="secondary" className="tabular-nums">{waiterCount}</Badge>
-                  ) : null}
-                  <ChevronRight aria-hidden className="text-muted-foreground" />
-                </DropdownMenuItem>
-              ) : null}
               {orderAlerts.map((alert) => (
                 <LiveOrderAlertRow key={alert.tableUuid} alert={alert} onSelect={() => openTableOrder(alert)} />
               ))}
@@ -185,12 +140,10 @@ export function NotificationMenu({
               </span>
               <span className="flex min-w-0 flex-1 flex-col">
                 <span className="truncate text-sm font-medium">{t("notifications.sound.title")}</span>
-                {/* สรุปเสียงที่ตั้งไว้ทั้งสองแบบ — เห็นค่าปัจจุบันโดยไม่ต้องเปิด dialog */}
+                {/* สรุปเสียงออเดอร์ที่ตั้งไว้ — เห็นค่าปัจจุบันโดยไม่ต้องเปิด dialog */}
                 <span className="truncate text-xs text-muted-foreground">
                   {t("notifications.sound.kinds.order")}:{" "}
-                  {soundEnabled.order ? t(`notifications.sound.options.${orderAlertSound}`) : t("notifications.sound.off")} ·{" "}
-                  {t("notifications.sound.kinds.waiter")}:{" "}
-                  {soundEnabled.waiter ? t(`notifications.sound.options.${waiterAlertSound}`) : t("notifications.sound.off")}
+                  {soundEnabled.order ? t(`notifications.sound.options.${orderAlertSound}`) : t("notifications.sound.off")}
                 </span>
               </span>
               <ChevronRight aria-hidden className="text-muted-foreground" />
