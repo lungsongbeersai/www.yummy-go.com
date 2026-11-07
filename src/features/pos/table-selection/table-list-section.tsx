@@ -140,7 +140,7 @@ export function TableListSection({
   }, [filterOptions, initialZoneUuid, loading]);
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col bg-background">
+    <div className="flex min-h-0 flex-1 flex-col bg-table-canvas">
       <div className="flex shrink-0 flex-col gap-1.5 border-b border-border bg-card px-0 py-1.5 shadow-xs sm:px-4 xl:px-5 dark:bg-background dark:shadow-sm">
         <div className="flex items-center gap-2">
           <div className="relative min-w-0 flex-1">
@@ -421,7 +421,7 @@ const STATUS_STYLE: Record<TableVisualStatus, TableCardStyle> = {
   available: {
     card: "bg-card dark:bg-background",
     body: "bg-card dark:bg-background",
-    footer: "border-border bg-muted/40 dark:border-green-800/50 dark:bg-muted/50",
+    footer: "border-table-card-border bg-muted/40 dark:border-green-800/50 dark:bg-muted/50",
     dot: "bg-success dark:bg-green-500",
     text: "text-muted-foreground"
   },
@@ -559,14 +559,14 @@ const TableCard = memo(function TableCard({
     // ทำให้ box-shadow ปกติที่ล้นออกนอกกรอบโดนตัดจนมองไม่เห็นถ้าใส่ตรง Card เลย wrapper
     // นี้ไม่มี overflow ครอบเลยเรืองแสงออกมาได้เต็มที่ ไม่ไปกลืนกับพื้นการ์ดที่ทาสีทับ
     // เป็นโทนเดียวกันอยู่แล้ว (bg-blue-600/15 เป็นต้น) ด้วย
-    <div className={cn("relative rounded-xl [contain-intrinsic-size:180px] [content-visibility:auto]", hasRingPulse && cn("pos-status-ring-pulse", style.ring))}>
+    <div data-pos-table-frame="true" className={cn("relative rounded-xl shadow-table-card [contain-intrinsic-size:180px] [content-visibility:auto] dark:shadow-none", hasRingPulse && cn("pos-status-ring-pulse", style.ring))}>
       <Card
         data-pos-table-card="true"
         role="button"
         tabIndex={0}
         aria-pressed={selected}
         className={cn(
-          "cursor-pointer overflow-hidden rounded-xl border border-border bg-card p-0 shadow-sm outline-none ring-0 transition motion-safe:active:scale-[0.97] hover:border-primary/70 hover:shadow-md focus-visible:ring-2 focus-visible:ring-ring/30",
+          "cursor-pointer overflow-hidden rounded-xl border border-table-card-border bg-card p-0 shadow-sm outline-none ring-0 transition motion-safe:active:scale-[0.97] hover:border-primary/70 hover:shadow-md focus-visible:ring-2 focus-visible:ring-ring/30",
           style.card,
           // ring กะพริบซ้อนทับสีสถานะเดิม — บอกว่ามีออเดอร์ใหม่เข้ามาสด ๆ โดยไม่เปลี่ยนสีการ์ด
           hasOrderAlert && "pos-table-card-alert",
