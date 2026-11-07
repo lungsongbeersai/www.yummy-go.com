@@ -624,7 +624,6 @@ html[data-lao-font="saysettha"] {
   --radius-3xl: calc(var(--radius) * 2.2);
   --radius-4xl: calc(var(--radius) * 2.6);
   --shadow-table-card: var(--table-card-shadow);
-  --shadow-product-card: var(--product-card-shadow);
   --shadow-dash-card: var(--dash-card-shadow);
   --shadow-dash-plate: var(--dash-plate-shadow);
 
