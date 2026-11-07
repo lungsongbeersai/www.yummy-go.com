@@ -57,6 +57,24 @@ describe("background preferences before first paint", () => {
     },
   );
 
+  it.each(["light", "dark"] as const)("restores gold choices before first paint in %s mode", (theme) => {
+    const { root, classes } = bootstrap(JSON.stringify({ state: {
+      theme,
+      themeColor: "gold",
+      decorBackground: true,
+      decorBackgroundColor: "gold",
+      decorBackgroundStyle: "gold",
+    } }));
+
+    expect(root.dataset).toMatchObject({
+      themeColor: "gold",
+      decorBackground: "on",
+      decorBackgroundColor: "gold",
+      decorBackgroundStyle: "gold",
+    });
+    expect(classes.has("dark")).toBe(theme === "dark");
+  });
+
   it("retains the accent color and disabled flag from an older installation", () => {
     expect(bootstrap(JSON.stringify({ state: { themeColor: "blue", decorBackground: false } })).root.dataset)
       .toMatchObject({ decorBackground: "off", decorBackgroundColor: "blue", decorBackgroundStyle: "floral" });

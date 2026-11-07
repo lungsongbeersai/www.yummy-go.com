@@ -1,7 +1,7 @@
-export const THEME_COLORS = ["emerald", "blue", "amber", "rose", "violet"] as const;
+export const THEME_COLORS = ["emerald", "blue", "amber", "rose", "violet", "gold"] as const;
 export type ThemeColor = (typeof THEME_COLORS)[number];
 
-export const DECOR_BACKGROUND_STYLES = ["floral", "leaves", "waves", "geometric", "dots"] as const;
+export const DECOR_BACKGROUND_STYLES = ["floral", "leaves", "waves", "geometric", "dots", "gold"] as const;
 export type DecorBackgroundStyle = (typeof DECOR_BACKGROUND_STYLES)[number];
 
 interface DecorBackgroundPreferences {

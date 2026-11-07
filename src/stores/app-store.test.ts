@@ -60,6 +60,33 @@ describe("app background persistence", () => {
     expect(useAppStore.getState()).toMatchObject({ themeColor: "emerald", decorBackgroundColor: "emerald" });
   });
 
+  it("preserves gold choices after reopening while background colors remain independent", async () => {
+    const { useAppStore } = await restoreApp({ theme: "dark", themeColor: "blue" });
+    useAppStore.getState().setThemeColor("gold");
+    useAppStore.getState().setDecorBackgroundColor("gold");
+    useAppStore.getState().setDecorBackgroundStyle("gold");
+
+    vi.resetModules();
+    const reopened = await import("@/stores/app-store");
+    await reopened.useAppStore.persist.rehydrate();
+    expect(reopened.useAppStore.getState()).toMatchObject({
+      theme: "dark",
+      themeColor: "gold",
+      decorBackgroundColor: "gold",
+      decorBackgroundStyle: "gold",
+    });
+
+    reopened.useAppStore.getState().setDecorBackgroundColor("violet");
+    vi.resetModules();
+    const changedBackground = await import("@/stores/app-store");
+    await changedBackground.useAppStore.persist.rehydrate();
+    expect(changedBackground.useAppStore.getState()).toMatchObject({
+      themeColor: "gold",
+      decorBackgroundColor: "violet",
+      decorBackgroundStyle: "gold",
+    });
+  });
+
   it("persists selections independently of the accent and restores them after reopening", async () => {
     const { useAppStore } = await restoreApp({ themeColor: "blue", decorBackground: false });
     useAppStore.getState().setDecorBackgroundColor("rose");

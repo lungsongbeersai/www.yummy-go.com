@@ -43,7 +43,7 @@
   --table-occupied: #166534;
   --table-cashier: #2563eb;
   --table-staff: #9333ea;
-  --table-payment: #0d9488;
+  --table-payment: #94780d;
   --table-occupied-surface: #bdddc8;
   --table-occupied-footer: #a8cfb7;
   --table-occupied-border: #4e845f;
@@ -56,9 +56,9 @@
   --table-staff-surface: #d9c3f2;
   --table-staff-footer: #c9ade7;
   --table-staff-border: #8554b3;
-  --table-payment-surface: #aad8d2;
-  --table-payment-footer: #91c9c1;
-  --table-payment-border: #327f77;
+  --table-payment-surface: #f7edb4;
+  --table-payment-footer: #efe099;
+  --table-payment-border: #94780d;
   --table-alert-surface: #f0a5a5;
   --table-alert-footer: #e98c8c;
   --table-alert-border: #ac3e3e;
@@ -192,7 +192,10 @@
   --table-occupied: #4ade80;
   --table-cashier: #60a5fa;
   --table-staff: #c084fc;
-  --table-payment: #2dd4bf;
+  --table-payment: #facc15;
+  --table-payment-surface: #332e12;
+  --table-payment-footer: #403916;
+  --table-payment-border: #8f7927;
   --table-canvas: var(--background);
   --table-card-border: var(--border);
   --table-card-shadow: none;
@@ -333,6 +336,25 @@
   --sidebar-accent: #4c1d95;
   --sidebar-accent-foreground: #ede9fe;
   --sidebar-ring: #8b5cf6;
+}
+
+[data-theme-color="gold"] {
+  --primary: #6c4e0e;
+  --primary-foreground: #ffffff;
+  --sidebar-primary: #6c4e0e;
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: #f8edc9;
+  --sidebar-accent-foreground: #62470f;
+  --sidebar-ring: #6c4e0e;
+}
+.dark[data-theme-color="gold"] {
+  --primary: #765719;
+  --primary-foreground: #fff7db;
+  --sidebar-primary: #e2bf54;
+  --sidebar-primary-foreground: #2e250d;
+  --sidebar-accent: #463a17;
+  --sidebar-accent-foreground: #faedbc;
+  --sidebar-ring: #e2bf54;
 }
 
 /* Capacitor Android ทุกเครื่องใช้ sRGB ชุดเดียวกันเพื่อให้สีตรงกันทั้งมือถือทั่วไปและ
@@ -538,6 +560,26 @@ html.capacitor-android.dark[data-theme-color="violet"] {
   --sidebar-accent: #4c1d95;
   --sidebar-accent-foreground: #ede9fe;
   --sidebar-ring: #8b5cf6;
+}
+
+html.capacitor-android[data-theme-color="gold"] {
+  --primary: #6c4e0e;
+  --primary-foreground: #ffffff;
+  --sidebar-primary: #6c4e0e;
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: #f8edc9;
+  --sidebar-accent-foreground: #62470f;
+  --sidebar-ring: #6c4e0e;
+}
+
+html.capacitor-android.dark[data-theme-color="gold"] {
+  --primary: #765719;
+  --primary-foreground: #fff7db;
+  --sidebar-primary: #e2bf54;
+  --sidebar-primary-foreground: #2e250d;
+  --sidebar-accent: #463a17;
+  --sidebar-accent-foreground: #faedbc;
+  --sidebar-ring: #e2bf54;
 }
 
 /* ขนาดตัวอักษรที่ปรับจากเมนูตั้งค่าการแสดงผล — สเกล root font-size แล้วให้ Tailwind
@@ -1896,10 +1938,10 @@ html.swan1-legacy-colors:not(.dark) [data-pos-product-card] {
 /* Swan 1 drives the POS at 1920x1080 on an RK3566 (its factory image ships an
    especially old WebView). Long transition lists and continuously pulsing shadows
    compete with taps on the renderer thread, so the terminal gets an intentionally
-   immediate, static UI. Loading spinners stay animated to preserve async feedback. */
+   immediate, static UI. Loading spinners and shared pending-notice cues stay animated. */
 html.swan1-legacy-colors
   .app-shell[data-desktop-pos-layout="true"]
-  *:not([data-slot="spinner"]),
+  *:not([data-slot="spinner"]):not(.pos-pending-notice),
 html.swan1-legacy-colors .app-shell[data-desktop-pos-layout="true"] *::before,
 html.swan1-legacy-colors .app-shell[data-desktop-pos-layout="true"] *::after {
   animation: none !important;
@@ -1987,7 +2029,7 @@ html.swan1-legacy-colors
 html.swan1-legacy-colors
   .app-shell[data-desktop-home-layout="true"]
   [data-fx]
-  *:not([data-slot="spinner"]),
+  *:not([data-slot="spinner"]):not(.pos-pending-notice),
 html.swan1-legacy-colors .app-shell[data-desktop-home-layout="true"] [data-fx] *::before,
 html.swan1-legacy-colors .app-shell[data-desktop-home-layout="true"] [data-fx] *::after {
   animation: none !important;
@@ -2139,6 +2181,10 @@ html.swan1-legacy-colors
   --decor-background-rgb: 91, 33, 182;
 }
 
+[data-decor-background-color="gold"] {
+  --decor-background-rgb: 104, 78, 21;
+}
+
 :root {
   --decor-background-artwork: url("/posAll/background_wide.webp");
 }
@@ -2188,6 +2234,14 @@ html.dark {
   --decor-background-image: radial-gradient(circle, #ffffff24 1.5px, transparent 1.5px);
   --decor-background-size: 20px 20px;
   --decor-background-preview-size: 14px 14px;
+  --decor-background-preview-position: center;
+  --decor-background-repeat: repeat;
+}
+
+[data-decor-background-style="gold"] {
+  --decor-background-image: url("/backgrounds/gold.svg");
+  --decor-background-size: 160px 160px;
+  --decor-background-preview-size: 80px 80px;
   --decor-background-preview-position: center;
   --decor-background-repeat: repeat;
 }
@@ -3106,6 +3160,27 @@ html.capacitor-android.dark .skeleton-shimmer::after {
   }
 }
 
+/* Shared chat/cart cues alternate complete theme colour pairs, keeping text readable
+   between phases without timers or repeated React renders. */
+.pos-pending-notice {
+  animation: pos-pending-notice-colors 2.8s steps(1, end) infinite;
+}
+
+@keyframes pos-pending-notice-colors {
+  0%, 100% {
+    background-color: var(--primary);
+    color: var(--primary-foreground);
+    border-color: var(--primary-text);
+    box-shadow: 0 0 0 2px var(--primary-text);
+  }
+  50% {
+    background-color: var(--sidebar-accent);
+    color: var(--sidebar-accent-foreground);
+    border-color: var(--primary-text);
+    box-shadow: 0 0 0 4px var(--primary-text);
+  }
+}
+
 /* คิวออเดอร์แยกตารางหัว/เนื้อหา/ท้ายเป็นคนละ <table> (ดูเหตุผลใน order-queue-table-frame.tsx)
    แล้ว sync ตำแหน่งเลื่อนแนวนอนของตารางหัว/ท้ายตามตารางเนื้อหาด้วย scrollLeft — แต่ scrollbar
    แนวนอนของตัวเนื้อหา (ตัวเดียวที่ผู้ใช้โต้ตอบได้จริง) กินความกว้าง content area ไปหลายพิกเซล
@@ -3160,6 +3235,14 @@ html.capacitor-android.dark .skeleton-shimmer::after {
     box-shadow: 0 0 0 2px
       color-mix(in oklch, var(--destructive) 50%, transparent);
     will-change: auto;
+  }
+
+  .pos-pending-notice {
+    animation: none;
+    background-color: var(--primary);
+    color: var(--primary-foreground);
+    border-color: var(--primary-text);
+    box-shadow: 0 0 0 2px var(--primary-text);
   }
 
   .pos-status-ring-pulse {

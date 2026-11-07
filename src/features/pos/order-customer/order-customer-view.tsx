@@ -24,6 +24,7 @@ import { cn } from "@/lib/utils";
 import { useNativeHeaderStore } from "@/stores/native-header-store";
 import { useAppStore } from "@/stores/app-store";
 import { SelectedTableCartPanel } from "../table-selection/selected-table-cart-panel";
+import { newOrderTabItems, primaryCartOrder, visibleCartItems } from "../table-selection/utils";
 import { DraftExitWarningDialog } from "./draft-exit-warning-dialog";
 import { productModeLabel } from "./order-customer-utils";
 import {
@@ -118,6 +119,9 @@ export function OrderCustomerView({
     zones,
   } = workflow;
 
+  const hasPendingCartNotice = Boolean(selectedTable?.customer_order_state) ||
+    newOrderTabItems(visibleCartItems(primaryCartOrder(cart))).length > 0;
+  const animateCartNotice = hasPendingCartNotice && !cartSheetOpen;
   const nativeShellActive = useIsNativeShellActive();
   const decorBackground = useAppStore((state) => state.decorBackground);
   const neutralChrome = nativeShellActive || !decorBackground;
@@ -508,11 +512,13 @@ export function OrderCustomerView({
       <Button
         type="button"
         aria-label={t("pos.currentCart")}
+        data-pending-notice={animateCartNotice ? "true" : undefined}
         className={cn(
           "pos-safe-bottom-offset fixed right-4 z-40 h-12 max-w-[calc(100vw-2rem)] rounded-md border px-4 text-sm font-black shadow-[0_16px_34px_-20px_rgb(15_23_42/0.9)] active:scale-[0.98] lg:hidden",
           portraitNativeOrderLayout
             ? "border-foreground/15 bg-foreground text-background hover:bg-foreground/90 hover:text-background"
-            : "border-primary/20 bg-primary text-primary-foreground hover:bg-primary/90"
+            : "border-primary/20 bg-primary text-primary-foreground hover:bg-primary/90",
+          animateCartNotice && "pos-pending-notice"
         )}
         onClick={() => void openCartSheet()}
       >
@@ -523,7 +529,8 @@ export function OrderCustomerView({
             "min-w-6 shrink-0 justify-center rounded-full px-1.5 py-0",
             portraitNativeOrderLayout
               ? "border-background/30 bg-background text-foreground"
-              : "border-primary-foreground/30 bg-primary-foreground text-primary"
+              : "border-primary-foreground/30 bg-primary-foreground text-primary",
+            animateCartNotice && "border-border bg-card text-card-foreground"
           )}
         >
           {cartCount}

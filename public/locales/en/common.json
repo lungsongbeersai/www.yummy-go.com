@@ -240,7 +240,8 @@
         "leaves": "Leaves",
         "waves": "Waves",
         "geometric": "Geometric",
-        "dots": "Dots"
+        "dots": "Dots",
+        "gold": "Gold filigree"
       },
       "laoFontLabel": "Lao font",
       "laoFonts": {
@@ -260,7 +261,8 @@
         "blue": "Blue",
         "amber": "Amber",
         "rose": "Rose",
-        "violet": "Violet"
+        "violet": "Violet",
+        "gold": "Gold"
       },
       "fontSizes": {
         "sm": "Small",

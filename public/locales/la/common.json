@@ -238,7 +238,8 @@
         "leaves": "ໃບໄມ້",
         "waves": "ຄື້ນ",
         "geometric": "ເລຂາຄະນິດ",
-        "dots": "ຈຸດ"
+        "dots": "ຈຸດ",
+        "gold": "ລາຍທອງ"
       },
       "laoFontLabel": "ຟອນພາສາລາວ",
       "laoFonts": {
@@ -258,7 +259,8 @@
         "blue": "ຟ້າ",
         "amber": "ສົ້ມ",
         "rose": "ຊົມພູ",
-        "violet": "ມ່ວງ"
+        "violet": "ມ່ວງ",
+        "gold": "ທອງ"
       },
       "fontSizes": {
         "sm": "ນ້ອຍ",
