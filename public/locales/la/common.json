@@ -403,6 +403,16 @@
     "waiting": "ກຳລັງລໍຖ້າຂໍ້ມູນຈາກ POS"
   },
   "dashboard": {
+    "cashTotal": "ຍອດເງິນສົດ",
+    "transferTotal": "ຍອດເງິນໂອນ",
+    "collectedTotal": "ລວມ (ສົດ + ໂອນ)",
+    "chartGrouping": "ຈັດກຸ່ມກຣາຟ",
+    "chartMetric": "ຂໍ້ມູນໃນກຣາຟ",
+    "groupDay": "ລາຍວັນ",
+    "groupWeek": "ອາທິດ",
+    "groupMonth": "ເດືອນ",
+    "groupingLoadedRange": "ຈັດກຸ່ມຕາມຊ່ວງວັນທີທີ່ເລືອກ",
+    "totalOrders": "ລວມອໍເດີ",
     "accessRestrictedDescription": "ຕິດຕໍ່ຜູ້ດູແລລະບົບ ຫຼື ເຈົ້າຂອງຮ້ານເພື່ອຂໍສິດເຂົ້າເຖິງໜ້ານີ້",
     "accessRestrictedTitle": "ທ່ານບໍ່ມີສິດເຂົ້າເຖິງຂໍ້ມູນນີ້",
     "accounting": "ການບັນຊີ",

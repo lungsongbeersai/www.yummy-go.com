@@ -68,6 +68,8 @@
   --product-canvas: #e2e8f0;
   --product-card-border: #94a3b8;
   --product-card-shadow: 0 1px 2px #0f172a1a, 0 5px 12px -4px #0f172a26;
+  --dashboard-collected-surface: #f3edff;
+  --dashboard-collected-text: #6d28d9;
   --dashboard-canvas: #e2e8f0;
   --dashboard-card-border: #94a3b8;
   --dashboard-card-shadow: 0 1px 2px #0f172a1a, 0 5px 12px -4px #0f172a26;
@@ -202,6 +204,8 @@
   --product-canvas: var(--background);
   --product-card-border: var(--border);
   --product-card-shadow: 0 1px 3px #0000001a, 0 1px 2px -1px #0000001a;
+  --dashboard-collected-surface: #2e2244;
+  --dashboard-collected-text: #d0b5ff;
   --dashboard-canvas: var(--background);
   --dashboard-card-border: var(--border);
   --dashboard-card-shadow: var(--dash-card-shadow);
@@ -653,6 +657,8 @@ html[data-lao-font="saysettha"] {
   --color-table-card-border: var(--table-card-border);
   --color-product-canvas: var(--product-canvas);
   --color-product-card-border: var(--product-card-border);
+  --color-dashboard-collected-surface: var(--dashboard-collected-surface);
+  --color-dashboard-collected-text: var(--dashboard-collected-text);
   --color-dashboard-canvas: var(--dashboard-canvas);
   --color-dashboard-card-border: var(--dashboard-card-border);
   --color-success: var(--success);

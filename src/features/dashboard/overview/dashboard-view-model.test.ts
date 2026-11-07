@@ -593,6 +593,76 @@ describe("dashboard presentation helpers", () => {
     expect(monthly.rows).toHaveLength(14);
   });
 
+  it("allows explicit daily grouping without changing or filling the source dates", () => {
+    const rows = daysFrom("2026-10-01", 70).reverse();
+    const originalDates = rows.map((row) => row.date);
+    rows.forEach(Object.freeze);
+    Object.freeze(rows);
+
+    const daily = bucketTrendRows(rows, "day");
+
+    expect(daily.kind).toBe("day");
+    expect(daily.rows).toHaveLength(70);
+    expect(daily.rows[0]).toMatchObject({ date: "2026-10-01", days: 1, key: "2026-10-01", revenue: 100 });
+    expect(daily.rows.at(-1)).toMatchObject({ date: "2026-12-09", days: 1, key: "2026-12-09", revenue: 169 });
+    expect(rows.map((row) => row.date)).toEqual(originalDates);
+  });
+
+  it("explicitly groups ISO weeks across a year boundary and sums only observed days", () => {
+    const amounts = { balance: 4, cash: 10, debt: 3, mixed: 5, orders: 2, paid: 30, revenue: 33, transfer: 20 };
+    const rows = [
+      trendPoint({ date: "2026-01-19", revenue: 50 }),
+      trendPoint({ date: "2026-01-04", ...amounts }),
+      trendPoint({ date: "2026-01-05", revenue: 40 }),
+      trendPoint({ date: "2026-01-01", ...amounts }),
+      trendPoint({ date: "2025-12-31", ...amounts })
+    ];
+
+    const weekly = bucketTrendRows(rows, "week");
+
+    expect(weekly.kind).toBe("week");
+    expect(weekly.rows.map((row) => row.key)).toEqual(["2025-12-29", "2026-01-05", "2026-01-19"]);
+    expect(weekly.rows[0]).toMatchObject({
+      balance: 12, cash: 30, date: "2025-12-31", days: 3, debt: 9,
+      dates: ["2025-12-31", "2026-01-01", "2026-01-04"], label: "31/12",
+      mixed: 15, orders: 6, paid: 90, revenue: 99, transfer: 60
+    });
+    expect(weekly.rows[1]).toMatchObject({ days: 1, revenue: 40 });
+    expect(weekly.rows[2]).toMatchObject({ days: 1, revenue: 50 });
+  });
+
+  it("explicitly groups months by year while leaving absent months out", () => {
+    const monthly = bucketTrendRows([
+      trendPoint({ date: "2027-01-20", cash: 20, revenue: 20 }),
+      trendPoint({ date: "2026-11-30", cash: 30, revenue: 30 }),
+      trendPoint({ date: "2026-01-15", cash: 15, revenue: 15 }),
+      trendPoint({ date: "2027-01-01", cash: 1, revenue: 1 })
+    ], "month");
+
+    expect(monthly.kind).toBe("month");
+    expect(monthly.rows.map((row) => row.key)).toEqual(["2026-01", "2026-11", "2027-01"]);
+    expect(monthly.rows[2]).toMatchObject({
+      cash: 21, date: "2027-01-01", dates: ["2027-01-01", "2027-01-20"], days: 2,
+      label: "01/2027", revenue: 21
+    });
+    expect(bucketTrendRows([], "month")).toEqual({ kind: "month", rows: [] });
+  });
+
+  it("keeps unknown dates stable after chronological dates and preserves their fallback keys", () => {
+    const daily = bucketTrendRows([
+      trendPoint({ date: "unknown first" }),
+      trendPoint({ date: "2026-02-01" }),
+      trendPoint({ date: "-" }),
+      trendPoint({ date: "2026-01-01" }),
+      trendPoint({ date: "unknown second" })
+    ], "day");
+
+    expect(daily.rows.map((row) => row.date)).toEqual([
+      "2026-01-01", "2026-02-01", "unknown first", "-", "unknown second"
+    ]);
+    expect(daily.rows[3].key).toBe("2");
+  });
+
   it("draws skyline columns from sales rows with the owed cap from payment rows", () => {
     const sales = [
       trendPoint({ date: "2026-10-01", revenue: 200 }),

@@ -35,7 +35,7 @@ describe("dashboard chart bundle boundary", () => {
     expect(filesWithChartImports).toEqual(["components/dashboard-chart-widgets.tsx"]);
   });
 
-  // "Today" is one day with no trend to draw, so the default view must never fetch recharts.
+  // The chart stays lazy even when the current range contains only one observed business day.
   it("reaches the chart module only through a dynamic import", () => {
     const staticImports = sourceFiles(overviewDir)
       .filter((path) => /from\s+["'][^"']*dashboard-chart-widgets["']/.test(readFileSync(path, "utf8")))

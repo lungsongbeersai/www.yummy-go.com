@@ -404,6 +404,16 @@
     "waiting": "Waiting for POS data"
   },
   "dashboard": {
+    "cashTotal": "Cash received",
+    "transferTotal": "Transfers received",
+    "collectedTotal": "Collected (cash + transfer)",
+    "chartGrouping": "Group chart by",
+    "chartMetric": "Chart metric",
+    "groupDay": "Daily",
+    "groupWeek": "Weekly",
+    "groupMonth": "Monthly",
+    "groupingLoadedRange": "Grouped within the selected date range",
+    "totalOrders": "Total orders",
     "accessRestrictedDescription": "Contact an administrator or store owner to request access to this page.",
     "accessRestrictedTitle": "You do not have permission to access this data",
     "accounting": "Accounting",

@@ -527,12 +527,19 @@ export function plottedRevenue(row: PaymentParts) {
   return Math.max(row.revenue, row.cash + row.transfer + row.debt);
 }
 
-/** Sums daily rows into at most ~62 bars so a yearly range stays readable. */
-export function bucketTrendRows(rows: TrendPoint[]): { kind: TrendBucketKind; rows: TrendBucket[] } {
-  const kind = trendBucketKind(rows.length);
+/** Groups observed daily rows; automatic grouping keeps a yearly range readable. */
+export function bucketTrendRows(
+  rows: TrendPoint[],
+  kind: TrendBucketKind = trendBucketKind(rows.length)
+): { kind: TrendBucketKind; rows: TrendBucket[] } {
+  // The API can return days out of order. Unknown dates stay in their original order after
+  // known dates; retaining each original index also keeps their fallback keys stable.
+  const orderedRows = rows
+    .map((row, index) => ({ row, index, time: parseBusinessDate(row.date)?.getTime() ?? Infinity }))
+    .sort((a, b) => a.time - b.time || a.index - b.index);
   const buckets = new Map<string, TrendBucket>();
 
-  rows.forEach((row, index) => {
+  orderedRows.forEach(({ row, index }) => {
     const { key, label } = bucketOf(row, kind, index);
     const bucket = buckets.get(key) ?? {
       balance: 0, cash: 0, date: row.date, dates: [], days: 0, debt: 0, key, label,

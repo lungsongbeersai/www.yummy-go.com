@@ -802,25 +802,28 @@ export function DashboardDetailFallback({ variant }: { variant: DashboardDetailF
   if (variant === "sales") {
     return (
       <div className="grid grid-cols-1 gap-4 xl:grid-cols-12 xl:gap-5">
-        <div className="grid min-w-0 content-start gap-4 xl:col-span-8 xl:gap-5">
-          <DashboardCard className="px-4">
-            <div className="flex items-center gap-2">
-              <Skeleton className="size-8 rounded-lg" />
-              <Skeleton className="h-5 w-48" />
+        <DashboardCard className="min-w-0 rounded-2xl px-4 xl:col-span-8">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div className="flex items-center gap-2"><Skeleton className="size-11 rounded-xl" /><Skeleton className="h-5 w-40" /></div>
+            <Skeleton className="h-10 w-48" />
+          </div>
+          <div className="grid gap-3 sm:grid-cols-3">
+            {Array.from({ length: 3 }, (_, index) => <Skeleton key={index} className="h-24 rounded-xl" />)}
+          </div>
+          <Skeleton className="h-56 w-full sm:h-64 lg:h-72" />
+          <div className="rounded-xl border border-border p-4">
+            <Skeleton className="mb-4 h-5 w-40" />
+            <div className="grid items-center gap-4 lg:grid-cols-[8.5rem_minmax(0,1fr)]">
+              <Skeleton className="mx-auto size-36 rounded-full" />
+              <div className="grid gap-3 sm:grid-cols-3">{Array.from({ length: 3 }, (_, index) => <Skeleton key={index} className="h-36 rounded-xl" />)}</div>
             </div>
-            <Skeleton className="h-3 w-full rounded-full" />
-            <div className="grid gap-2 sm:grid-cols-3">
-              {Array.from({ length: 3 }, (_, index) => (
-                <Skeleton key={index} className="h-6 w-full" />
-              ))}
-            </div>
-            <Skeleton className="h-64 w-full lg:h-80" />
-          </DashboardCard>
-          <CardSkeleton lines={3} />
-        </div>
-        <div className="grid min-w-0 content-start xl:col-span-4">
-          <CardSkeleton lines={5} />
-        </div>
+          </div>
+        </DashboardCard>
+        <DashboardCard className="min-w-0 gap-5 rounded-2xl px-4 xl:col-span-4">
+          <Skeleton className="h-20 w-full rounded-xl" />
+          {Array.from({ length: 6 }, (_, index) => <Skeleton key={index} className="h-10 w-full" />)}
+          <Skeleton className="mt-auto h-20 w-full rounded-xl" />
+        </DashboardCard>
       </div>
     );
   }

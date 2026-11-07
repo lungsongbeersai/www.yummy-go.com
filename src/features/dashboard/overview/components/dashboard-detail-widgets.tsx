@@ -6,6 +6,14 @@ import { useTranslation } from "react-i18next";
 import {
   AlertTriangle,
   Armchair,
+  Banknote,
+  Calculator,
+  Coins,
+  CreditCard,
+  Layers,
+  Percent,
+  Settings2,
+  Tag,
   CalendarRange,
   ChartColumn,
   Info,
@@ -53,6 +61,8 @@ import {
   paymentSplit,
   plottedRevenue,
   seatSummary,
+  trendBucketKind,
+  unsplitRevenue,
   share,
   text,
   type AccountingRow,
@@ -66,13 +76,14 @@ import {
   type SeatState,
   type SelectOption,
   type TrendMetric,
+  type TrendBucketKind,
   type TrendPoint,
 } from "@/features/dashboard/overview/dashboard-view-model";
 
-// recharts is fetched only once a period has at least two days to draw; "today" never loads it.
+// Keep chart code lazy; an empty response needs no chart bundle.
 const DailySalesChart = dynamic(
   () => import("./dashboard-chart-widgets").then((module) => module.DailySalesChart),
-  { loading: () => <Skeleton className="h-64 w-full lg:h-80" />, ssr: false },
+  { loading: () => <Skeleton className="h-56 w-full sm:h-64 lg:h-72" />, ssr: false },
 );
 
 function entranceClassName(tier: VisualEffectsTier) {
@@ -133,24 +144,7 @@ function EmptyPanel({ label }: { label: string }) {
 }
 
 // ---------------------------------------------------------------------------
-// Sales: payment split for the whole period, then the daily bars when there is more than a day.
-
-// Tinted surfaces for the single-day method tiles: chart-cat tokens are registered with the
-// legacy-WebView opacity plugin, so the /10 tint stays a tint on Capacitor Android too.
-const splitTileClassNames: Record<PaymentSplitKey, string> = {
-  cash: "bg-chart-cat-1/10",
-  debt: "bg-chart-cat-3/10",
-  transfer: "bg-chart-cat-2/10",
-  unallocated: "bg-muted",
-};
-
-// AA text shades of the category colours (--chart-cat-N-text), for labels and amounts.
-const splitTextClassNames: Record<PaymentSplitKey, string> = {
-  cash: "text-chart-cat-1-text",
-  debt: "text-chart-cat-3-text",
-  transfer: "text-chart-cat-2-text",
-  unallocated: "text-foreground",
-};
+// Sales and order channels share one surface; accounting remains a separate receipt.
 
 const splitSegmentClassNames: Record<PaymentSplitKey, string> = {
   cash: "bg-chart-cat-1",
@@ -165,9 +159,10 @@ function splitLabel(copy: DashboardCopy, key: PaymentSplitKey, apiLabel: string)
 }
 
 function SalesCard({
-  className,
+  channelRows,
   copy,
   isSingleDay,
+  mainChannelKey,
   onThisMonth,
   paymentSummary,
   paymentSummaryCards,
@@ -175,10 +170,10 @@ function SalesCard({
   tier,
   trendRows,
 }: {
-  className?: string;
+  channelRows: BreakdownRow[];
   copy: DashboardCopy;
-  /** The applied range is one business day, which has no trend to draw. */
   isSingleDay: boolean;
+  mainChannelKey: string | null;
   onThisMonth: () => void;
   paymentSummary: PaymentSummary;
   paymentSummaryCards: PaymentSummaryCard[];
@@ -187,310 +182,220 @@ function SalesCard({
   trendRows: TrendPoint[];
 }) {
   const { t } = useTranslation();
+  const titleId = useId();
   const [metric, setMetric] = useState<TrendMetric>("revenue");
+  const [grouping, setGrouping] = useState<TrendBucketKind | null>(null);
   const split = useMemo(() => paymentSplit(paymentSummaryCards), [paymentSummaryCards]);
-  // Revenue bars come from the payment rows (they carry the cash/transfer/debt split), bills from
-  // the sales rows; each falls back to the other when the API sends only one of them.
   const revenueSource = paymentTrendRows.length ? paymentTrendRows : trendRows;
   const ordersSource = trendRows.length ? trendRows : paymentTrendRows;
   const source = metric === "revenue" ? revenueSource : ordersSource;
-  const bucketed = useMemo(() => bucketTrendRows(source), [source]);
-  const rowCount = Math.max(revenueSource.length, ordersSource.length);
-  // A single day has no trend to draw (the hint offers the month instead); a longer range draws
-  // even one active day, and a longer range with no rows at all is plainly empty.
-  const showChart = rowCount >= 2 || (!isSingleDay && rowCount === 1);
+  const bucketKind = grouping ?? trendBucketKind(source.length);
+  const bucketed = useMemo(() => bucketTrendRows(source, bucketKind), [source, bucketKind]);
   const isBucketed = bucketed.kind !== "day";
-  // Average, peak dot and the footer all measure what the bars plot (see plottedRevenue), over
-  // the raw days, so the dashed line and the dot always sit on the bars they describe.
-  const averageRevenue = revenueSource.length
-    ? revenueSource.reduce((sum, row) => sum + plottedRevenue(row), 0) / revenueSource.length
-    : 0;
-  const averageOrders = ordersSource.length
-    ? ordersSource.reduce((sum, row) => sum + row.orders, 0) / ordersSource.length
-    : 0;
-  const peakDay = revenueSource.reduce<TrendPoint | null>(
-    (best, row) => (plottedRevenue(row) > (best ? plottedRevenue(best) : 0) ? row : best),
-    null,
-  );
-  const peakDayOrders = peakDay
-    ? (ordersSource.find((row) => row.date === peakDay.date)?.orders ?? peakDay.orders)
-    : 0;
-  const peakKey =
-    metric === "revenue"
-      ? (bucketed.rows.find((row) => peakDay && row.dates.includes(peakDay.date))?.key ?? null)
-      : bucketed.rows.reduce<{ key: string | null; value: number }>(
-          (best, row) => (row.orders > best.value ? { key: row.key, value: row.orders } : best),
-          { key: null, value: 0 },
-        ).key;
-  const splitWarning =
-    !paymentSummary.hasMixedSplitColumns &&
+  const cash = split.segments.find((segment) => segment.key === "cash")?.value ?? 0;
+  const transfer = split.segments.find((segment) => segment.key === "transfer")?.value ?? 0;
+  // Collected money excludes debt and the mixed remainder the Backend could not allocate.
+  const collected = cash + transfer;
+  const additional = split.segments.filter((segment) => segment.value > 0 && segment.key !== "cash" && segment.key !== "transfer");
+  const splitWarning = !paymentSummary.hasMixedSplitColumns &&
     (paymentSummary.mixedTotal > 0 || paymentSummary.unallocatedMixedTotal > 0);
-  const legendLabels = {
+  const labels = {
     cash: splitLabel(copy, "cash", split.segments[0]?.label ?? ""),
+    collected: t("dashboard.collectedTotal"),
     debt: splitLabel(copy, "debt", split.segments[2]?.label ?? ""),
     other: copy.unallocatedMixedPayment,
     transfer: splitLabel(copy, "transfer", split.segments[1]?.label ?? ""),
   };
-  const subtitle = isBucketed
-    ? `${copy.dailySalesSubtitle} · ${bucketed.kind === "week" ? copy.weeklyTotals : copy.monthlyTotals}`
-    : copy.dailySalesSubtitle;
+  const average = source.length
+    ? source.reduce((sum, row) => sum + (metric === "revenue" ? plottedRevenue(row) : row.orders), 0) / source.length
+    : 0;
+  const peakKey = bucketed.rows.reduce<{ key: string | null; value: number }>(
+    (best, row) => {
+      const value = metric === "revenue" ? plottedRevenue(row) : row.orders;
+      return value > best.value ? { key: row.key, value } : best;
+    }, { key: null, value: 0 },
+  ).key;
+  const summaries = [
+    { key: "cash", label: t("dashboard.cashTotal"), value: cash, icon: Banknote, tone: "bg-success/10 text-success-text" },
+    { key: "transfer", label: t("dashboard.transferTotal"), value: transfer, icon: CreditCard, tone: "bg-info/10 text-info-text" },
+    { key: "collected", label: labels.collected, value: collected, icon: Layers, tone: "bg-dashboard-collected-surface text-dashboard-collected-text" },
+  ];
 
   return (
-    <SectionCard
-      className={cn(className, isSingleDay && !showChart && "self-start")}
-      icon={ChartColumn}
-      title={copy.dailySales}
-      description={subtitle}
-      action={
-        showChart ? (
-          <ToggleGroup
-            type="single"
-            variant="outline"
-            spacing={0}
-            aria-label={copy.dailySales}
-            value={metric}
-            onValueChange={(value) => {
-              if (value) setMetric(value as TrendMetric);
-            }}
-          >
-            <ToggleGroupItem value="revenue" className="pointer-coarse:h-10">
-              {copy.revenue}
+    <DashboardCard role="region" aria-labelledby={titleId} className="min-w-0 gap-5 rounded-2xl p-4 sm:p-5">
+      <div className="flex flex-wrap items-start justify-between gap-4">
+        <div className="flex min-w-0 items-start gap-3">
+          <span aria-hidden="true" className="flex size-11 shrink-0 items-center justify-center rounded-xl bg-success/10 text-success-text">
+            <ChartColumn className="size-6" />
+          </span>
+          <div className="min-w-0">
+            <h2 id={titleId} className="font-heading text-base font-bold text-foreground sm:text-lg">{copy.dailySales}</h2>
+            <p className="mt-1 text-xs text-muted-foreground">{copy.dailySalesSubtitle}</p>
+          </div>
+        </div>
+        <ToggleGroup
+          type="single" variant="outline" spacing={0} aria-label={t("dashboard.chartGrouping")}
+          value={bucketKind}
+          onValueChange={(value) => { if (value) setGrouping(value as TrendBucketKind); }}
+        >
+          {(["day", "week", "month"] as const).map((kind) => (
+            <ToggleGroupItem key={kind} value={kind} className="min-h-10 px-3 pointer-coarse:min-h-11 data-[state=on]:bg-primary data-[state=on]:text-primary-foreground data-[state=on]:hover:bg-primary data-[state=on]:hover:text-primary-foreground">
+              {t(`dashboard.group${kind === "day" ? "Day" : kind === "week" ? "Week" : "Month"}`)}
             </ToggleGroupItem>
-            <ToggleGroupItem value="orders" className="pointer-coarse:h-10">
-              {copy.orders}
-            </ToggleGroupItem>
-          </ToggleGroup>
-        ) : null
-      }
-    >
-      {/* The bar and its legend: every segment carries its label and amount, never colour alone. */}
-      <div aria-hidden="true" className="flex h-3 w-full gap-0.5 overflow-hidden rounded-full bg-muted forced-color-adjust-none">
-        {split.total > 0
-          ? split.segments
-              .filter((segment) => segment.value > 0)
-              .map((segment) => (
-                <span
-                  key={segment.key}
-                  className={splitSegmentClassNames[segment.key]}
-                  style={{ flexBasis: 0, flexGrow: segment.value }}
-                />
-              ))
-          : null}
+          ))}
+        </ToggleGroup>
       </div>
-      {isSingleDay && !showChart ? null : (
-      <ul className="grid gap-x-6 gap-y-2 sm:grid-cols-2 xl:grid-cols-3">
-        {split.segments.map((segment) => (
-          <li key={segment.key} className="flex min-w-0 items-baseline gap-2">
-            <span aria-hidden="true" className={cn("size-3 shrink-0 self-center rounded-xs", splitSegmentClassNames[segment.key])} />
-            <span className={cn("min-w-0 text-sm font-semibold", splitTextClassNames[segment.key])}>{splitLabel(copy, segment.key, segment.label)}</span>
-            <span className="text-sm text-muted-foreground tabular-nums">{formatPercent(segment.share)}</span>
-            <span className={cn("ml-auto font-heading text-base font-semibold tabular-nums", splitTextClassNames[segment.key])}>{formatKip(segment.value)}</span>
-          </li>
+      <dl className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+        {summaries.map(({ key, label, value, icon: Icon, tone }) => (
+          <div key={key} className={cn("flex min-w-0 items-start gap-3 rounded-xl p-3 sm:flex-col 2xl:flex-row", tone)}>
+            <span aria-hidden="true" className="flex size-10 shrink-0 items-center justify-center rounded-full bg-card"><Icon className="size-5" /></span>
+            <div className="min-w-0">
+              <dt className="text-sm font-semibold">{label}</dt>
+              <dd className="mt-1 font-heading text-2xl leading-snug font-bold tabular-nums wrap-anywhere">{formatKip(value)}</dd>
+            </div>
+          </div>
         ))}
-      </ul>
-      )}
+      </dl>
+      {additional.length ? (
+        <ul className="flex flex-wrap gap-x-5 gap-y-2 rounded-lg bg-muted px-3 py-2">
+          {additional.map((segment) => (
+            <li key={segment.key} className="flex min-w-0 flex-wrap items-center gap-2 text-xs text-foreground tabular-nums">
+              <span aria-hidden="true" className={cn("size-3 shrink-0 rounded-xs", splitSegmentClassNames[segment.key])} />
+              {splitLabel(copy, segment.key, segment.label)}
+              <strong>{formatKip(segment.value)}</strong>
+            </li>
+          ))}
+        </ul>
+      ) : null}
       {splitWarning ? (
         <Alert>
           <AlertTriangle />
           <AlertDescription>
             <p>{copy.paymentSplitWarning}</p>
-            {paymentSummary.mixedTotal ? (
-              <p className="tabular-nums">{copy.mixedPayment}: {formatKip(paymentSummary.mixedTotal)}</p>
-            ) : null}
-            {paymentSummary.unallocatedMixedTotal ? (
-              <p className="tabular-nums">
-                {copy.unallocatedMixedPayment}: {formatKip(paymentSummary.unallocatedMixedTotal)}
-              </p>
-            ) : null}
+            {paymentSummary.mixedTotal > 0 ? <p className="tabular-nums">{copy.mixedPayment}: {formatKip(paymentSummary.mixedTotal)}</p> : null}
           </AlertDescription>
         </Alert>
       ) : null}
-      {showChart ? (
-        <>
-          <DailySalesChart
-            average={metric === "revenue" ? averageRevenue : averageOrders}
-            bucketed={isBucketed}
-            copy={copy}
-            labels={legendLabels}
-            metric={metric}
-            peakKey={peakKey}
-            rows={bucketed.rows}
-            tier={tier}
-          />
-          <div className="flex flex-wrap items-center gap-x-5 gap-y-2 text-sm text-muted-foreground tabular-nums">
-            {peakDay && plottedRevenue(peakDay) > 0 ? (
-              <span className="flex flex-wrap items-center gap-2">
-                <Badge className="h-auto py-0.5 text-2xs">
-                  <Trophy data-icon="inline-start" />
-                  {copy.peakDay}
-                </Badge>
-                <span>
-                  {peakDay.date} · {formatKip(plottedRevenue(peakDay))} · {formatNumber(peakDayOrders)} {copy.orders}
-                </span>
-              </span>
-            ) : null}
-            <span className="flex items-center gap-2">
-              <span aria-hidden="true" className="w-4 border-t-2 border-dashed border-foreground" />
-              {copy.dailyAverage}: {metric === "revenue" ? formatKip(averageRevenue) : `${formatNumber(averageOrders, 1)} ${copy.orders}`}
-            </span>
-          </div>
-          {/* sr-only on a wrapper, not the table: a table never shrinks below its content width,
-              so a clipped 1px table would still widen the page. */}
-          <div className="sr-only">
-            <table>
-              <caption>{copy.dailyTable}</caption>
-              <thead>
-                <tr>
-                  <th scope="col">{copy.startDate}</th>
-                  <th scope="col">{legendLabels.cash}</th>
-                  <th scope="col">{legendLabels.transfer}</th>
-                  <th scope="col">{legendLabels.debt}</th>
-                  <th scope="col">{copy.revenue}</th>
-                  <th scope="col">{copy.orders}</th>
-                </tr>
-              </thead>
-              <tbody>
-                {bucketed.rows.map((row) => (
-                  <tr key={row.key}>
-                    <th scope="row">{isBucketed ? `${row.label} · ${formatNumber(row.days)} ${copy.days}` : row.date}</th>
-                    <td>{formatKip(row.cash)}</td>
-                    <td>{formatKip(row.transfer)}</td>
-                    <td>{formatKip(row.debt)}</td>
-                    <td>{formatKip(plottedRevenue(row))}</td>
-                    <td>{formatNumber(row.orders)}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </>
-      ) : isSingleDay ? (
-        // One day has no trend to draw (a one-bar chart says nothing). The payment methods take the
-        // room as large tiles — they are this card's legend too — and the month is one tap away.
-        <>
-          <ul className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-            {split.segments.map((segment) => (
-              <li
-                key={segment.key}
-                className={cn("relative flex min-h-28 flex-col justify-between gap-3 overflow-hidden rounded-xl p-4", splitTileClassNames[segment.key])}
-              >
-                <span aria-hidden="true" className={cn("absolute inset-x-0 top-0 h-1.5", splitSegmentClassNames[segment.key])} />
-                <span className={cn("flex items-center gap-2 text-sm font-semibold", splitTextClassNames[segment.key])}>
-                  <span aria-hidden="true" className={cn("size-3 shrink-0 rounded-xs", splitSegmentClassNames[segment.key])} />
-                  {splitLabel(copy, segment.key, segment.label)}
-                </span>
-                <span className={cn("flex flex-col gap-1", splitTextClassNames[segment.key])}>
-                  <span className="font-heading text-3xl leading-none font-bold font-stretch-semi-condensed tabular-nums">
-                    {formatPercent(segment.share)}
-                  </span>
-                  <span className="font-heading text-base font-semibold tabular-nums wrap-anywhere">{formatKip(segment.value)}</span>
-                </span>
-                <span aria-hidden="true" className="flex h-2 overflow-hidden rounded-full bg-card">
-                  <span className={splitSegmentClassNames[segment.key]} style={{ width: `${Math.min(100, segment.share)}%` }} />
-                </span>
+      <div className="flex flex-col gap-3">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <p className="text-xs text-muted-foreground">{t("dashboard.groupingLoadedRange")}</p>
+          <ToggleGroup
+            type="single" variant="outline" spacing={0} aria-label={t("dashboard.chartMetric")}
+            value={metric} onValueChange={(value) => { if (value) setMetric(value as TrendMetric); }}
+          >
+            <ToggleGroupItem value="revenue" className="pointer-coarse:min-h-11 data-[state=on]:bg-primary data-[state=on]:text-primary-foreground data-[state=on]:hover:bg-primary data-[state=on]:hover:text-primary-foreground">{copy.revenue}</ToggleGroupItem>
+            <ToggleGroupItem value="orders" className="pointer-coarse:min-h-11 data-[state=on]:bg-primary data-[state=on]:text-primary-foreground data-[state=on]:hover:bg-primary data-[state=on]:hover:text-primary-foreground">{copy.orders}</ToggleGroupItem>
+          </ToggleGroup>
+        </div>
+        {metric === "revenue" ? (
+          <ul className="flex flex-wrap justify-center gap-x-5 gap-y-2 text-xs font-semibold tabular-nums">
+            {(["cash", "transfer", "collected"] as const).map((key) => (
+              <li key={key} className="flex min-w-0 flex-wrap items-center gap-2">
+                <span aria-hidden="true" className={cn(key === "collected" ? "h-0.5 w-5 bg-success" : "size-2.5 rounded-full", key === "cash" && "bg-chart-cat-1", key === "transfer" && "bg-chart-cat-2")} />
+                <span className="text-foreground">{labels[key]} {formatKip(key === "cash" ? cash : key === "transfer" ? transfer : collected)}</span>
               </li>
             ))}
+            {revenueSource.some((row) => row.debt > 0) ? <li className="flex items-center gap-2 text-foreground"><span aria-hidden="true" className="size-3 rounded-xs bg-hatch text-chart-cat-3" />{labels.debt}</li> : null}
+            {revenueSource.some((row) => unsplitRevenue(row) > 0) ? <li className="flex items-center gap-2 text-foreground"><span aria-hidden="true" className="size-2.5 rounded-full bg-muted-foreground" />{labels.other}</li> : null}
           </ul>
-        <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg bg-muted px-3 py-2">
-          <span className="text-sm text-foreground">{copy.singleDayHint}</span>
-          <Button type="button" variant="outline" className="pointer-coarse:h-10" onClick={onThisMonth}>
-            <CalendarRange data-icon="inline-start" />
-            {t("dashboard.viewMonthTrend")}
-          </Button>
-        </div>
-        </>
-      ) : (
-        <EmptyPanel label={copy.noData} />
-      )}
-    </SectionCard>
+        ) : null}
+        {source.length ? (
+          <>
+            <DailySalesChart average={average} bucketed={isBucketed} copy={copy} labels={labels} metric={metric} peakKey={peakKey} rows={bucketed.rows} tier={tier} />
+            <div className="sr-only">
+              <table>
+                <caption>{copy.dailyTable}</caption>
+                <thead><tr><th scope="col">{copy.startDate}</th><th scope="col">{labels.cash}</th><th scope="col">{labels.transfer}</th><th scope="col">{labels.collected}</th><th scope="col">{labels.debt}</th><th scope="col">{copy.revenue}</th><th scope="col">{copy.orders}</th></tr></thead>
+                <tbody>{bucketed.rows.map((row) => (
+                  <tr key={row.key}>
+                    <th scope="row">{isBucketed ? `${row.label} · ${formatNumber(row.days)} ${copy.days}` : row.date}</th>
+                    <td>{formatKip(row.cash)}</td><td>{formatKip(row.transfer)}</td><td>{formatKip(row.cash + row.transfer)}</td><td>{formatKip(row.debt)}</td><td>{formatKip(plottedRevenue(row))}</td><td>{formatNumber(row.orders)}</td>
+                  </tr>
+                ))}</tbody>
+              </table>
+            </div>
+          </>
+        ) : <div className="flex min-h-40 items-center justify-center rounded-xl border border-dashed border-border"><EmptyPanel label={copy.noData} /></div>}
+        {isSingleDay ? (
+          <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg bg-muted px-3 py-2">
+            <span className="text-xs text-muted-foreground">{copy.singleDayHint}</span>
+            <Button type="button" variant="outline" className="pointer-coarse:min-h-11" onClick={onThisMonth}>
+              <CalendarRange data-icon="inline-start" />{t("dashboard.viewMonthTrend")}
+            </Button>
+          </div>
+        ) : null}
+      </div>
+      <OrderChannelsSummary copy={copy} mainChannelKey={mainChannelKey} rows={channelRows} />
+    </DashboardCard>
   );
 }
 
-// ---------------------------------------------------------------------------
-// Accounting as a till receipt: dotted leaders, a gross-to-net bar under each line when the
-// rows add up, a perforation, and the net amount stamped in the theme colour.
+const ledgerIcons: Record<string, LucideIcon> = {
+  gross: Coins, discount: Tag, subtotal: Percent, service: Settings2,
+  before_vat: ReceiptText, vat: Calculator, total: Coins,
+};
 
 function AccountingCard({ copy, rows }: { copy: DashboardCopy; rows: AccountingRow[] }) {
   const { t } = useTranslation();
+  const titleId = useId();
   const ledger = useMemo(() => buildLedgerSteps(rows), [rows]);
   const last = rows.length - 1;
   const stamped = rows.length > 1 && rows[last].important;
   const listed = stamped ? rows.slice(0, last) : rows;
 
   return (
-    <SectionCard icon={ReceiptText} title={copy.accounting} description={copy.ledger}>
-      {rows.length ? (
-        <>
-          {/* dt/dd stay direct children of each group div (the only wrapper a dl allows); the
-              dotted leader and the gross-to-net bar live inside the dd. */}
-          <dl className="flex flex-col">
-            {listed.map((row, index) => {
-              const step = ledger.steps[index];
-              return (
-                <div key={row.key} className="grid grid-cols-[auto_minmax(0,1fr)] items-baseline gap-x-2 py-1.5">
-                  <dt className={cn("text-sm", row.important ? "font-semibold text-primary-text" : "text-muted-foreground")}>
-                    {row.label}
-                  </dt>
-                  <dd className="flex min-w-0 items-baseline gap-2">
-                    <span aria-hidden="true" className="mb-1 min-w-4 flex-1 border-b border-dotted border-border" />
-                    <span className={cn("font-heading text-sm font-semibold tabular-nums", row.negative ? "text-destructive" : row.important && "text-primary-text")}>
-                      {row.negative ? "− " : ""}
-                      {formatKip(row.value)}
-                    </span>
-                  </dd>
-                  {step ? (
-                    <dd aria-hidden="true" className="relative col-span-2 mt-1 h-1.5 rounded-full bg-muted forced-color-adjust-none">
-                      <span
-                        className={cn("absolute inset-y-0 rounded-full", step.kind === "total" ? "bg-primary" : row.negative ? "bg-destructive" : "bg-muted-foreground")}
-                        style={{ left: `${step.from}%`, width: `${Math.max(step.to - step.from, 0.5)}%` }}
-                      />
+    <DashboardCard role="region" aria-labelledby={titleId} className="min-w-0 gap-0 rounded-2xl py-0">
+      <div className="flex items-start gap-3 bg-primary px-4 py-5 text-primary-foreground sm:px-5">
+        <span aria-hidden="true" className="flex size-12 shrink-0 items-center justify-center rounded-full bg-primary-foreground text-primary"><Calculator className="size-6" /></span>
+        <div className="min-w-0">
+          <h2 id={titleId} className="font-heading text-lg font-bold">{copy.accounting}</h2>
+          <p className="mt-1 text-xs">{copy.ledger}</p>
+        </div>
+      </div>
+      <div className="flex min-w-0 flex-1 flex-col gap-5 p-4 sm:p-5">
+        {rows.length ? (
+          <>
+            <dl className="flex flex-col gap-1">
+              {listed.map((row, index) => {
+                const Icon = ledgerIcons[row.key] ?? ReceiptText;
+                return (
+                  <div key={row.key} className={cn("grid min-w-0 grid-cols-[minmax(0,1fr)_auto] items-center gap-3 border-b border-border px-2 py-3", index === 0 && "rounded-xl border-b-0 bg-success/10", row.important && "text-success-text")}>
+                    <dt className="flex min-w-0 items-center gap-3 text-sm font-medium">
+                      <span aria-hidden="true" className={cn("flex size-8 shrink-0 items-center justify-center rounded-full", row.important ? "bg-card text-success-text" : "bg-muted text-muted-foreground")}><Icon className="size-4" /></span>
+                      <span className="min-w-0 wrap-anywhere">{row.label}</span>
+                    </dt>
+                    <dd className={cn("max-w-48 text-right font-heading text-base font-bold tabular-nums wrap-anywhere", row.negative ? "text-destructive" : row.important ? "text-success-text" : "text-foreground")}>
+                      {row.negative ? "− " : ""}{formatKip(row.negative ? Math.abs(row.value) : row.value)}
                     </dd>
-                  ) : null}
-                </div>
-              );
-            })}
-          </dl>
-          {stamped ? (
-            <>
-              <div aria-hidden="true" className="h-2 bg-perforation" />
-              <div className="flex items-baseline justify-between gap-3 rounded-lg bg-primary px-4 py-3 text-primary-foreground">
-                <span className="min-w-0 text-sm font-semibold">{rows[last].label}</span>
-                <span className="font-heading text-xl font-bold font-stretch-semi-condensed tabular-nums">
-                  {formatKip(rows[last].value)}
-                </span>
+                  </div>
+                );
+              })}
+            </dl>
+            {stamped ? (
+              <div className="mt-auto flex flex-col gap-5 pt-2">
+                <div aria-hidden="true" className="h-2 bg-perforation" />
+                <dl className="rounded-xl bg-primary p-4 text-primary-foreground">
+                  <div className="flex flex-wrap items-center justify-between gap-3">
+                    <dt className="flex min-w-0 items-center gap-3 text-sm font-bold"><Coins aria-hidden="true" className="size-6 shrink-0" />{rows[last].label}</dt>
+                    <dd className="font-heading text-3xl font-bold tabular-nums wrap-anywhere">{rows[last].negative ? "− " : ""}{formatKip(rows[last].negative ? Math.abs(rows[last].value) : rows[last].value)}</dd>
+                  </div>
+                </dl>
               </div>
-            </>
-          ) : null}
-          {ledger.reconciles && ledger.gap > 1 ? (
-            <p className="text-2xs text-muted-foreground">{t("dashboard.ledgerGap", { amount: formatKip(ledger.gap) })}</p>
-          ) : null}
-        </>
-      ) : (
-        <EmptyPanel label={copy.noData} />
-      )}
-    </SectionCard>
+            ) : null}
+            {ledger.reconciles && ledger.gap > 1 ? <p className="text-2xs text-muted-foreground">{t("dashboard.ledgerGap", { amount: formatKip(ledger.gap) })}</p> : null}
+          </>
+        ) : <EmptyPanel label={copy.noData} />}
+      </div>
+    </DashboardCard>
   );
 }
 
-// ---------------------------------------------------------------------------
-// Channels as lanes: revenue share against order share, so a channel that brings bigger or
-// smaller bills than the rest stands out. No categorical colour: icon and name identify it.
-
-// Status tokens, not the --chart-cat payment colours, so a channel never reads as a payment method.
-function channelTone(key: string) {
+function channelStyle(key: string) {
   const channel = key.toUpperCase();
-  if (channel === "DINE_IN") return "bg-info/15 text-info-text";
-  if (channel === "TAKEAWAY") return "bg-warning/15 text-warning-text";
-  if (channel === "DELIVERY") return "bg-success/15 text-success";
-  return "bg-primary/10 text-primary-text";
-}
-
-function channelText(key: string) {
-  const channel = key.toUpperCase();
-  if (channel === "DINE_IN") return "text-info-text";
-  if (channel === "TAKEAWAY") return "text-warning-text";
-  if (channel === "DELIVERY") return "text-success-text";
-  return "text-primary-text";
+  if (channel === "DINE_IN") return { tone: "bg-success/10 text-success-text", stroke: "var(--success)" };
+  if (channel === "TAKEAWAY") return { tone: "bg-info/10 text-info-text", stroke: "var(--info)" };
+  if (channel === "DELIVERY") return { tone: "bg-warning/10 text-warning-text", stroke: "var(--warning)" };
+  return { tone: "bg-primary/10 text-primary-text", stroke: "var(--primary)" };
 }
 
 function channelIcon(key: string): LucideIcon {
@@ -501,96 +406,62 @@ function channelIcon(key: string): LucideIcon {
   return Store;
 }
 
-function OrderChannelsCard({
-  copy,
-  mainChannelKey,
-  rows,
-}: {
+function OrderChannelsSummary({ copy, mainChannelKey, rows }: {
   copy: DashboardCopy;
   mainChannelKey: string | null;
   rows: BreakdownRow[];
 }) {
-  const revenueTotal = rows.reduce((sum, row) => sum + row.value, 0);
+  const { t } = useTranslation();
+  const titleId = useId();
   const orderTotal = rows.reduce((sum, row) => sum + (row.count ?? 0), 0);
+  const cumulative = cumulativeShares(rows.map((row) => row.count ?? 0));
+  const segments = rows.map((row, index) => ({
+    key: row.key,
+    offset: index === 0 ? 0 : cumulative[index - 1],
+    percent: share(row.count ?? 0, orderTotal),
+    stroke: channelStyle(row.key).stroke,
+  }));
 
   return (
-    <SectionCard
-      icon={Store}
-      title={copy.orderChannels}
-      description={`${formatNumber(rows.length)} ${copy.channels} · ${formatKip(revenueTotal)}`}
-    >
+    <section aria-labelledby={titleId} className="min-w-0 rounded-xl border border-border p-3 sm:p-4">
+      <h3 id={titleId} className="flex items-center gap-2 font-heading text-base font-bold text-foreground">
+        <span aria-hidden="true" className="flex size-9 shrink-0 items-center justify-center rounded-full bg-success/10 text-success-text"><Utensils className="size-5" /></span>
+        {copy.orderChannels}
+      </h3>
       {rows.length ? (
-        <ul className="flex flex-col divide-y divide-border">
-          {rows.map((row) => {
-            const Icon = channelIcon(row.key);
-            const count = row.count ?? 0;
-            const active = count > 0 || row.value > 0;
-            const revenueShare = share(row.value, revenueTotal);
-            const orderShare = share(count, orderTotal);
-            const isMain = mainChannelKey !== null && row.key.toUpperCase() === mainChannelKey.toUpperCase();
-
-            return (
-              <li key={row.key} className="grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-x-3 gap-y-2 py-3 first:pt-0 last:pb-0">
-                <span
-                  aria-hidden="true"
-                  className={cn(
-                    "flex size-9 items-center justify-center rounded-lg",
-                    active ? channelTone(row.key) : "bg-muted text-muted-foreground",
-                  )}
-                >
-                  <Icon className="size-4" />
-                </span>
-                <span className="flex min-w-0 flex-wrap items-center gap-2">
-                  <span className={cn("text-sm font-semibold", active ? channelText(row.key) : "text-muted-foreground")}>{row.label}</span>
-                  {isMain && active ? (
-                    <Badge variant="secondary" className="h-auto py-0.5 text-2xs">
-                      {copy.mainChannel}
-                    </Badge>
-                  ) : null}
-                </span>
-                <span className={cn("font-heading text-base font-semibold tabular-nums", active ? channelText(row.key) : "text-muted-foreground")}>
-                  {formatKip(row.value)}
-                </span>
-                {active ? (
-                  <div className="col-span-2 col-start-2 flex flex-col gap-1.5">
-                    <ShareMeter label={copy.revenueShare} meterClassName="*:data-[slot=progress-indicator]:bg-primary" textClassName={channelText(row.key)} value={revenueShare} />
-                    <ShareMeter label={copy.orderShare} meterClassName="*:data-[slot=progress-indicator]:bg-muted-foreground" textClassName="text-foreground" value={orderShare} />
-                    <span className="text-xs text-muted-foreground tabular-nums">
-                      {formatNumber(count)} {copy.orders}
-                      {count > 0 ? ` · ${copy.avgBill} ${formatKip(row.value / count)}` : ""}
-                    </span>
-                  </div>
-                ) : (
-                  <span className="col-span-2 col-start-2 text-xs text-muted-foreground">{copy.noData}</span>
-                )}
-              </li>
-            );
-          })}
-        </ul>
-      ) : (
-        <EmptyPanel label={copy.noData} />
-      )}
-    </SectionCard>
-  );
-}
-
-function ShareMeter({
-  label,
-  meterClassName,
-  textClassName,
-  value,
-}: {
-  label: string;
-  meterClassName: string;
-  textClassName: string;
-  value: number;
-}) {
-  return (
-    <div className="grid grid-cols-[minmax(0,7rem)_minmax(0,1fr)_3.5rem] items-center gap-2 text-xs">
-      <span className="truncate text-muted-foreground">{label}</span>
-      <Progress aria-hidden="true" value={value} className={cn("h-1.5", meterClassName)} />
-      <span className={cn("text-right font-semibold tabular-nums", textClassName)}>{formatPercent(value)}</span>
-    </div>
+        <div className="mt-4 grid min-w-0 items-center gap-4 lg:grid-cols-[8.5rem_minmax(0,1fr)] 2xl:grid-cols-[10rem_minmax(0,1fr)]">
+          <div className="relative mx-auto size-36 2xl:size-40">
+            <svg aria-hidden="true" viewBox="0 0 120 120" className="size-full forced-color-adjust-none">
+              <circle cx="60" cy="60" r="50" fill="none" strokeWidth="11" style={{ stroke: "var(--muted)" }} />
+              {segments.filter((segment) => segment.percent > 0).map((segment) => (
+                <circle key={segment.key} cx="60" cy="60" r="50" pathLength="100" fill="none" strokeWidth="11" transform="rotate(-90 60 60)"
+                  strokeDasharray={`${segment.percent} ${100 - segment.percent}`} strokeDashoffset={-segment.offset} style={{ stroke: segment.stroke }} />
+              ))}
+            </svg>
+            <div className="absolute inset-5 flex flex-col items-center justify-center gap-1 text-center">
+              <span className="text-xs text-muted-foreground">{t("dashboard.totalOrders")}</span>
+              <strong className="font-heading text-3xl font-bold text-foreground tabular-nums">{formatNumber(orderTotal)}</strong>
+              <span className="text-xs text-muted-foreground">{copy.orders}</span>
+            </div>
+          </div>
+          <ul className="grid min-w-0 grid-cols-1 gap-3 sm:grid-cols-3">
+            {rows.map((row) => {
+              const Icon = channelIcon(row.key);
+              const count = row.count ?? 0;
+              const isMain = count > 0 && mainChannelKey?.toUpperCase() === row.key.toUpperCase();
+              return (
+                <li key={row.key} className={cn("flex min-w-0 flex-col gap-2 rounded-xl p-3", channelStyle(row.key).tone)}>
+                  <span aria-hidden="true" className="flex size-9 shrink-0 items-center justify-center rounded-full bg-card"><Icon className="size-5" /></span>
+                  <span className="flex min-w-0 flex-wrap items-center gap-1.5 text-sm font-bold">{row.label}{isMain ? <Badge variant="secondary" className="h-auto py-0.5 text-2xs">{copy.mainChannel}</Badge> : null}</span>
+                  <span className="text-xs text-foreground tabular-nums">{formatNumber(count)} {copy.orders} ({formatPercent(share(count, orderTotal))})</span>
+                  <strong className="mt-auto font-heading text-xl font-bold tabular-nums wrap-anywhere">{formatKip(row.value)}</strong>
+                </li>
+              );
+            })}
+          </ul>
+        </div>
+      ) : <EmptyPanel label={copy.noData} />}
+    </section>
   );
 }
 
@@ -621,20 +492,21 @@ export const DashboardSalesRow = memo(function DashboardSalesRow({
 }) {
   return (
     <div className={cn("grid grid-cols-1 gap-4 xl:grid-cols-12 xl:gap-5", entranceClassName(tier))}>
-      <div className="grid min-w-0 content-start gap-4 xl:col-span-8 xl:gap-5">
+      <div className="grid min-w-0 xl:col-span-8">
         <SalesCard
+          channelRows={channelRows}
           copy={copy}
+          isSingleDay={isSingleDay}
+          mainChannelKey={mainOrderChannel?.key ?? null}
           onThisMonth={onThisMonth}
           paymentSummary={paymentSummary}
           paymentSummaryCards={paymentSummaryCards}
           paymentTrendRows={paymentTrendRows}
-          isSingleDay={isSingleDay}
           tier={tier}
           trendRows={trendRows}
         />
-        <OrderChannelsCard copy={copy} mainChannelKey={mainOrderChannel?.key ?? null} rows={channelRows} />
       </div>
-      <div className="grid min-w-0 content-start xl:col-span-4">
+      <div className="grid min-w-0 xl:col-span-4">
         <AccountingCard copy={copy} rows={accountingRows} />
       </div>
     </div>

@@ -3,11 +3,12 @@
 import { useId } from "react";
 import {
   Bar,
-  BarChart,
   BarStack,
   CartesianGrid,
   Cell,
+  ComposedChart,
   Label,
+  Line,
   ReferenceDot,
   ReferenceLine,
   XAxis,
@@ -32,11 +33,12 @@ import {
 } from "@/features/dashboard/overview/dashboard-view-model";
 
 // The only module on the dashboard that imports recharts (see dashboard-chart-boundary.test.ts):
-// it is fetched only when the period has at least two days to compare.
+// it is fetched only when the selected range contains observed trend rows.
 //
 // Dataviz notes: revenue stacks one segment per payment method on a single money axis, so the
 // bar height reads as the day's total and the segments as the split. Debt is hatched as well
-// as coloured (the same "owed" pattern as the plate). The bill view is one neutral series with
+// as coloured (the same "owed" pattern as the plate). The line is cash + transfer collected,
+// deliberately excluding debt and unallocated payments. The bill view is one neutral series with
 // the busiest day in the theme primary. Nothing here relies on opacity: Android compat mode
 // forces SVG opacity to 1.
 
@@ -48,11 +50,12 @@ const animationByTier = {
 } as const;
 
 // "other" is revenue the cash/transfer/debt split does not cover, so every bar is as tall as the
-// day's revenue — the same total the average line, the peak dot and the payment-split bar use.
+// day's revenue — the same total the average line and peak dot use.
 const segmentKeys = ["cash", "transfer", "debt", "other"] as const;
 type SegmentKey = (typeof segmentKeys)[number];
 
-const swatchClassNames: Record<SegmentKey, string> = {
+const swatchClassNames: Record<SegmentKey | "collected", string> = {
+  collected: "bg-success",
   cash: "bg-chart-cat-1",
   debt: "bg-hatch text-chart-cat-3",
   other: "bg-muted-foreground",
@@ -84,7 +87,7 @@ export function DailySalesChart({
   /** Rows are weekly/monthly sums: the daily average line and peak dot would not match them. */
   bucketed: boolean;
   copy: DashboardCopy;
-  labels: Record<SegmentKey, string>;
+  labels: Record<SegmentKey | "collected", string>;
   metric: TrendMetric;
   peakKey: string | null;
   rows: TrendBucket[];
@@ -95,13 +98,15 @@ export function DailySalesChart({
   const animate = tier !== "static";
   const timing = tier === "static" ? null : animationByTier[tier];
   const isRevenue = metric === "revenue";
-  const data = rows.map((row) => ({ ...row, other: unsplitRevenue(row) }));
+  const data = rows.map((row) => ({ ...row, collected: row.cash + row.transfer, other: unsplitRevenue(row) }));
+  const hasValue = data.some((row) => (isRevenue ? plottedRevenue(row) : row.orders) > 0);
   const hasOther = data.some((row) => row.other > 0);
   const stackKeys = hasOther ? segmentKeys : segmentKeys.filter((key) => key !== "other");
   const bucketByKey = new Map(rows.map((row) => [row.key, row]));
   const peak = peakKey ? bucketByKey.get(peakKey) : undefined;
   const config = {
     cash: { color: "var(--chart-cat-1)", label: labels.cash },
+    collected: { color: "var(--success)", label: labels.collected },
     debt: { color: "var(--chart-cat-3)", label: labels.debt },
     orders: { color: "var(--muted-foreground)", label: copy.orders },
     other: { color: "var(--muted-foreground)", label: labels.other },
@@ -114,9 +119,8 @@ export function DailySalesChart({
   const bucketLabel = (key: unknown) => bucketByKey.get(String(key))?.label ?? String(key);
 
   return (
-    // On xl the card is as tall as the ledger + channels rail beside it; the chart takes that room.
-    <ChartContainer config={config} className="aspect-auto h-64 w-full lg:h-80 xl:h-auto xl:min-h-80 xl:flex-1">
-      <BarChart accessibilityLayer data={data} barCategoryGap="20%" margin={{ left: 0, right: 8, top: 24 }}>
+    <ChartContainer config={config} className="aspect-auto h-56 w-full sm:h-64 lg:h-72">
+      <ComposedChart accessibilityLayer data={data} barCategoryGap="20%" margin={{ left: 0, right: 12, top: 24, bottom: 4 }}>
         <defs>
           {/* var() only resolves in CSS, not in SVG presentation attributes, hence style. */}
           <pattern id={hatchId} width="6" height="6" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
@@ -124,11 +128,12 @@ export function DailySalesChart({
             <line x1="0" y1="0" x2="0" y2="6" strokeWidth="3" style={{ stroke: "var(--color-debt)" }} />
           </pattern>
         </defs>
-        <CartesianGrid vertical={false} />
+        <CartesianGrid vertical={false} stroke="var(--border)" strokeDasharray="3 4" />
         <XAxis
           dataKey="key"
           axisLine={false}
           tickLine={false}
+          tick={{ style: { fill: "var(--muted-foreground)" } }}
           tickMargin={8}
           minTickGap={12}
           interval="preserveStartEnd"
@@ -137,8 +142,11 @@ export function DailySalesChart({
         <YAxis
           axisLine={false}
           tickLine={false}
-          width={44}
-          tickFormatter={(value: number) => compactNumber.format(value)}
+          tick={{ style: { fill: "var(--muted-foreground)" } }}
+          width={58}
+          domain={hasValue ? [0, "auto"] : [0, isRevenue ? 50_000 : 5]}
+          allowDecimals={false}
+          tickFormatter={(value: number) => `${compactNumber.format(value)}${isRevenue ? " ₭" : ""}`}
         />
         <ChartTooltip
           cursor={{ fill: "var(--muted)" }}
@@ -151,7 +159,7 @@ export function DailySalesChart({
                 return bucketed ? `${bucket.label} · ${formatNumber(bucket.days)} ${copy.days}` : bucket.date;
               }}
               formatter={(value, name) => {
-                const key = String(name) as SegmentKey | "orders";
+                const key = String(name) as SegmentKey | "collected" | "orders";
                 return key === "orders" ? (
                   <TooltipRow label={copy.orders} swatch="bg-muted-foreground" value={formatValue(value)} />
                 ) : (
@@ -193,6 +201,19 @@ export function DailySalesChart({
             ))}
           </Bar>
         )}
+        {isRevenue ? (
+          <Line
+            dataKey="collected"
+            type="linear"
+            stroke="var(--color-collected)"
+            strokeWidth={2.5}
+            dot={{ r: rows.length > 62 ? 2 : 3, fill: "var(--card)", stroke: "var(--color-collected)", strokeWidth: 2 }}
+            activeDot={{ r: 5, fill: "var(--color-collected)", stroke: "var(--card)", strokeWidth: 2 }}
+            isAnimationActive={animate}
+            animationDuration={timing?.duration}
+            animationEasing="ease-out"
+          />
+        ) : null}
         {!bucketed && rows.length > 1 && average > 0 ? (
           <ReferenceLine y={average} stroke="var(--foreground)" strokeDasharray="4 4" ifOverflow="extendDomain">
             <Label
@@ -207,7 +228,7 @@ export function DailySalesChart({
             <Label value={compactNumber.format(peakValue)} position="top" offset={8} className="fill-foreground text-2xs font-semibold" />
           </ReferenceDot>
         ) : null}
-      </BarChart>
+      </ComposedChart>
     </ChartContainer>
   );
 }
