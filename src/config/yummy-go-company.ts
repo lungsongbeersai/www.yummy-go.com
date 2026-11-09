@@ -8,7 +8,7 @@ export interface YummyGoCompany {
   whatsappUrl: string;
 }
 
-const phone = "020 52 222 795";
+const phone = "020 99 177 793";
 const internationalPhone = `856${phone.replace(/\D/g, "").replace(/^0/, "")}`;
 
 export const YUMMY_GO_COMPANY: YummyGoCompany = {
