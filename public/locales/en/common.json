@@ -4250,6 +4250,12 @@
     "catalogReadOnlyHint": "Management maintains the shared catalog. You can use its items to issue documents for your branch.",
     "documentStore": "Store for documents",
     "documentBranch": "Branch for documents",
-    "documentScopeHint": "Store and branch selection applies to document creation and history. The catalog is shared."
+    "documentScopeHint": "Store and branch selection applies to document creation and history. The catalog is shared.",
+    "detailsTab": "Details",
+    "previewTab": "Preview",
+    "livePreview": "Live document preview",
+    "livePreviewHint": "A4 preview updates as you type",
+    "draft": "DRAFT / Not issued",
+    "editorHint": "Review the live preview while editing. The document is issued and receives a number only when you save."
   }
 }

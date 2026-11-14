@@ -36,7 +36,9 @@ export function newCommercialLine(item?: CatalogItem): CommercialDraftLine {
   return {
     key: `commercial-line-${++draftLineSequence}`, item_uuid: item?.item_uuid,
     name: item?.name ?? "", description: item?.description ?? "", unit: item?.unit ?? "",
-    quantity: "1", unit_price: String(item?.unit_price ?? 0), show_image: item?.image_visible ?? true, image_url: item?.image_url,
+    quantity: "1", unit_price: String(item?.unit_price ?? 0), show_image: item?.image_visible ?? true,
+    // A document cannot re-enable a catalogue photo hidden by its manager.
+    image_url: item?.image_visible === false ? null : item?.image_url,
   };
 }
 
