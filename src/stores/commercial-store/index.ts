@@ -24,6 +24,7 @@ interface CommercialState extends AsyncSlice {
   paymentProfilesError: string | null;
   loadPaymentProfiles: () => Promise<void>;
   savePaymentProfile: (input: commercial.SaveCommercialPaymentProfileInput) => Promise<commercial.CommercialPaymentProfile | null>;
+  savePaymentProfiles: (inputs: commercial.SaveCommercialPaymentProfileInput[]) => Promise<commercial.CommercialPaymentProfile[] | null>;
   stores: BranchManagementStore[];
   branches: Branch[];
   storeUuid: string;
@@ -204,6 +205,24 @@ export const useCommercialStore = create<CommercialState>((set, get) => {
         paymentRequest += 1;
         set((state) => ({ paymentProfiles: [row, ...state.paymentProfiles.filter((profile) => profile.profile_uuid !== row.profile_uuid)], paymentProfilesSaving: false, paymentProfilesLoading: false }));
         return row;
+      } catch (error) {
+        if (current()) set({ paymentProfilesSaving: false, paymentProfilesError: errorMessage(error), ...(error instanceof ServiceError && error.statusCode === 403 ? { paymentProfiles: [], paymentProfilesReady: false } : {}) });
+        throw error;
+      }
+    },
+    savePaymentProfiles: async (inputs) => {
+      const current = paymentOwner();
+      set({ paymentProfilesSaving: true, paymentProfilesError: null });
+      try {
+        const rows = await commercial.saveCommercialPaymentProfiles(inputs);
+        if (!current()) return null;
+        const identities = new Set(rows.map((row) => row.profile_uuid));
+        if (!inputs.length || rows.length !== inputs.length || identities.size !== inputs.length || inputs.some((input) => !input.profile_uuid || !identities.has(input.profile_uuid))) {
+          throw new ServiceError("The saved accounts do not match the requested rows. Please try again", 409);
+        }
+        paymentRequest += 1;
+        set((state) => ({ paymentProfiles: [...rows, ...state.paymentProfiles.filter((profile) => !identities.has(profile.profile_uuid))], paymentProfilesSaving: false, paymentProfilesLoading: false }));
+        return rows;
       } catch (error) {
         if (current()) set({ paymentProfilesSaving: false, paymentProfilesError: errorMessage(error), ...(error instanceof ServiceError && error.statusCode === 403 ? { paymentProfiles: [], paymentProfilesReady: false } : {}) });
         throw error;

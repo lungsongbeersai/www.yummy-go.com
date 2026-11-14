@@ -16,8 +16,8 @@ export interface CommercialPaymentProfile extends ApiEntity {
 
 export interface SaveCommercialPaymentProfileInput extends ApiEntity {
   profile_uuid?: string;
-  label: string;
-  bank_name: string;
+  label?: string;
+  bank_name?: string;
   account_name: string;
   account_number: string;
   currency: CommercialPaymentCurrency;

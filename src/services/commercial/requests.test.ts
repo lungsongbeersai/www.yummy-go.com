@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import { apiRequest } from "@/lib/api";
-import { convertQuotation, createCommercialDocument, getCommercialCatalog, getCommercialDocument, getCommercialDocumentRevision, getCommercialDocumentRevisions, getCommercialPaymentProfiles, saveCommercialPaymentProfile, saveCatalogItem, updateCommercialDocument, type CreateCommercialDocumentInput } from "@/services/commercial";
+import { convertQuotation, createCommercialDocument, getCommercialCatalog, getCommercialDocument, getCommercialDocumentRevision, getCommercialDocumentRevisions, getCommercialPaymentProfiles, saveCommercialPaymentProfile, saveCommercialPaymentProfiles, saveCatalogItem, updateCommercialDocument, type CreateCommercialDocumentInput } from "@/services/commercial";
 
 vi.mock("@/lib/api", () => ({ apiRequest: vi.fn() }));
 
@@ -14,13 +14,30 @@ describe("commercial API contract", () => {
   it("sends reusable account edits and optional QR as multipart", async () => {
     vi.mocked(apiRequest).mockResolvedValueOnce({ status: "success", data: { profile_uuid: "saved" } });
     const qr = new File(["qr"], "bank.png", { type: "image/png" });
-    await saveCommercialPaymentProfile({ profile_uuid: "saved", label: "Bank", bank_name: "Bank", account_name: "Owner", account_number: "001-234", currency: "THB", qr_image: qr, remove_qr: false });
+    await saveCommercialPaymentProfile({ profile_uuid: "saved", account_name: "Owner", account_number: "001-234", currency: "THB", qr_image: qr, remove_qr: false });
     const form = vi.mocked(apiRequest).mock.calls.at(-1)?.[2]?.data as FormData;
     expect(form).toBeInstanceOf(FormData);
     expect(form.get("qr_image")).toBe(qr);
     expect(form.get("account_number")).toBe("001-234");
     expect(form.get("remove_qr")).toBe("false");
     expect(form.has("branch_uuid")).toBe(false);
+    expect(form.has("label")).toBe(false);
+    expect(form.has("bank_name")).toBe(false);
+  });
+
+  it("keeps each batch QR bound to its stable account row without including private files in JSON", async () => {
+    vi.mocked(apiRequest).mockResolvedValueOnce({ status: "success", data: [] });
+    const qr = new File(["cropped QR"], "cropped.png", { type: "image/png" });
+    const rows = [{ profile_uuid: "first", account_name: "Owner", account_number: "000001", currency: "LAK" as const },
+      { profile_uuid: "second", account_name: "Owner", account_number: "000002", currency: "THB" as const, qr_image: qr }];
+    await saveCommercialPaymentProfiles(rows);
+    const call = vi.mocked(apiRequest).mock.calls.at(-1);
+    expect(call?.slice(0, 2)).toEqual(["post", "/api/v1/commercial/payment-profiles/save-batch"]);
+    const form = call?.[2]?.data as FormData;
+    expect(JSON.parse(String(form.get("profiles")))).toEqual([rows[0], { ...rows[1], qr_image: undefined }]);
+    expect(form.get("qr_image_1")).toBe(qr);
+    expect(form.has("qr_image_0")).toBe(false);
+    expect(rows[1].qr_image).toBe(qr);
   });
 
   it("hydrates the exact branch-authorized historical version before viewing", async () => {

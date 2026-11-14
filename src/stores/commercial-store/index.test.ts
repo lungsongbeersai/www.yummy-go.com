@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { getBranchManagementStoreOptions, getBranchOptions } from "@/services/branch";
-import { createCommercialDocument, getCommercialCatalog, getCommercialDocument, getCommercialDocumentRevision, getCommercialDocumentRevisions, getCommercialDocuments, getCommercialPaymentProfiles, saveCommercialPaymentProfile, saveCatalogItem, updateCommercialDocument, type CatalogItem, type CommercialDocument, type CommercialDocumentRevision, type CommercialPaymentProfile, type CreateCommercialDocumentInput, type UpdateCommercialDocumentInput } from "@/services/commercial";
+import { createCommercialDocument, getCommercialCatalog, getCommercialDocument, getCommercialDocumentRevision, getCommercialDocumentRevisions, getCommercialDocuments, getCommercialPaymentProfiles, saveCommercialPaymentProfile, saveCommercialPaymentProfiles, saveCatalogItem, updateCommercialDocument, type CatalogItem, type CommercialDocument, type CommercialDocumentRevision, type CommercialPaymentProfile, type CreateCommercialDocumentInput, type UpdateCommercialDocumentInput } from "@/services/commercial";
 import { ServiceError } from "@/lib/api";
 import { commercialLineInput, newCommercialLine } from "@/features/commercial/commercial-domain";
 import { useAuthStore, type AuthUser } from "@/stores/auth-store";
@@ -8,7 +8,7 @@ import { useCommercialStore } from "@/stores/commercial-store";
 import { resetSessionStores } from "@/stores/session-store-registry";
 
 vi.mock("@/services/branch", () => ({ getBranchManagementStoreOptions: vi.fn(), getBranchOptions: vi.fn() }));
-vi.mock("@/services/commercial", () => ({ getCommercialPaymentProfiles: vi.fn(), saveCommercialPaymentProfile: vi.fn(), getCommercialCatalog: vi.fn(), getCommercialDocuments: vi.fn(), getCommercialDocument: vi.fn(), getCommercialDocumentRevision: vi.fn(), getCommercialDocumentRevisions: vi.fn(), updateCommercialDocument: vi.fn(), saveCatalogItem: vi.fn(), createCommercialDocument: vi.fn(), convertQuotation: vi.fn() }));
+vi.mock("@/services/commercial", () => ({ getCommercialPaymentProfiles: vi.fn(), saveCommercialPaymentProfile: vi.fn(), saveCommercialPaymentProfiles: vi.fn(), getCommercialCatalog: vi.fn(), getCommercialDocuments: vi.fn(), getCommercialDocument: vi.fn(), getCommercialDocumentRevision: vi.fn(), getCommercialDocumentRevisions: vi.fn(), updateCommercialDocument: vi.fn(), saveCatalogItem: vi.fn(), createCommercialDocument: vi.fn(), convertQuotation: vi.fn() }));
 
 const user: AuthUser = { uuid: "user", email: "test@example.test", status: 2, profile: "", branch_uuid: "a", branch_name: "A", branch_tel: "", branch_address: "", store_uuid: "store", store_name: "Store", store_logo: "", store_table_status: 1 };
 const branches = [{ branch_uuid: "a", store_uuid_fk: "store" }, { branch_uuid: "b", store_uuid_fk: "store" }];
@@ -42,7 +42,7 @@ describe("commercial request scope ownership", () => {
   beforeEach(() => {
     vi.resetAllMocks();
     useCommercialStore.getState().reset();
-    useAuthStore.setState({ user });
+    useAuthStore.setState({ user, token: "session-token" });
     useCommercialStore.setState({ catalogOwnerUuid: "store", storeUuid: "store", branchUuid: "a", branches });
   });
 
@@ -106,6 +106,43 @@ describe("commercial request scope ownership", () => {
     vi.mocked(saveCommercialPaymentProfile).mockResolvedValueOnce(paymentProfile);
     expect(await useCommercialStore.getState().savePaymentProfile(profileInput)).toEqual(paymentProfile);
     expect(useCommercialStore.getState().documents).toEqual([]);
+  });
+
+  it("merges a saved account batch once and prevents an older read from erasing it", async () => {
+    const read = deferred<CommercialPaymentProfile[]>();
+    vi.mocked(getCommercialPaymentProfiles).mockReturnValueOnce(read.promise);
+    const loading = useCommercialStore.getState().loadPaymentProfiles();
+    const rows = [paymentProfile, { ...paymentProfile, profile_uuid: "second", currency: "THB" as const }];
+    const inputs = rows.map((row) => ({ ...profileInput, profile_uuid: row.profile_uuid, currency: row.currency }));
+    vi.mocked(saveCommercialPaymentProfiles).mockResolvedValue(rows);
+    expect(await useCommercialStore.getState().savePaymentProfiles(inputs)).toEqual(rows);
+    read.resolve([]); await loading;
+    await useCommercialStore.getState().savePaymentProfiles(inputs);
+    expect(useCommercialStore.getState().paymentProfiles).toEqual(rows);
+    expect(useCommercialStore.getState().documents).toEqual([]);
+  });
+
+  it.each(["user", "store", "token"])("discards a private account batch after the authenticated %s changes", async (identity) => {
+    const response = deferred<CommercialPaymentProfile[]>();
+    vi.mocked(saveCommercialPaymentProfiles).mockReturnValueOnce(response.promise);
+    const saving = useCommercialStore.getState().savePaymentProfiles([{ ...profileInput, profile_uuid: "profile" }]);
+    if (identity === "token") useAuthStore.setState({ token: "new-batch-session" });
+    else useAuthStore.setState({ user: { ...user, ...(identity === "user" ? { uuid: "new-user" } : { store_uuid: "new-store" }) } });
+    response.resolve([paymentProfile]);
+    expect(await saving).toBeNull();
+    expect(useCommercialStore.getState()).toMatchObject({ paymentProfiles: [], paymentProfilesSaving: false, paymentOwnerUuid: "" });
+  });
+
+  it("retains saved profiles and reports a failed or mismatched account batch without a partial local success", async () => {
+    vi.mocked(getCommercialPaymentProfiles).mockResolvedValueOnce([paymentProfile]);
+    await useCommercialStore.getState().loadPaymentProfiles();
+    const inputs = [{ ...profileInput, profile_uuid: "new-profile" }];
+    vi.mocked(saveCommercialPaymentProfiles).mockRejectedValueOnce(new ServiceError("Batch rejected", 422));
+    await expect(useCommercialStore.getState().savePaymentProfiles(inputs)).rejects.toThrow("Batch rejected");
+    expect(useCommercialStore.getState()).toMatchObject({ paymentProfiles: [paymentProfile], paymentProfilesSaving: false, paymentProfilesError: "Batch rejected" });
+    vi.mocked(saveCommercialPaymentProfiles).mockResolvedValueOnce([paymentProfile]);
+    await expect(useCommercialStore.getState().savePaymentProfiles(inputs)).rejects.toThrow("do not match");
+    expect(useCommercialStore.getState().paymentProfiles).toEqual([paymentProfile]);
   });
 
   it("preserves hydrated same-version QR data when a document list summary finishes later", async () => {

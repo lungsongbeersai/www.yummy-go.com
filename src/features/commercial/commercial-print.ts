@@ -85,7 +85,7 @@ function paymentHtml(document: CommercialDocument, options: CommercialPrintOptio
     const qr = showQr ? commercialPaymentQrUrl(account.qr_image) : null;
     if (!showAccounts && !qr) return "";
     return `<div class="payment-account"><p class="payment-currency strong">${escapeHtml(account.currency)}</p>
-      ${showAccounts ? `${account.bank_name ? `<p class="strong">${escapeHtml(account.bank_name)}</p>` : ""}${account.account_name ? `<p>${escapeHtml(account.account_name)}</p>` : ""}${account.account_number ? `<p class="account-number">${escapeHtml(account.account_number)}</p>` : ""}` : ""}
+      ${showAccounts ? `${account.account_name ? `<p>${escapeHtml(account.account_name)}</p>` : ""}${account.account_number ? `<p class="account-number">${escapeHtml(account.account_number)}</p>` : ""}` : ""}
       ${qr ? `<img class="payment-qr" src="${escapeHtml(qr)}" alt="${escapeHtml(`${account.currency} payment QR`)}" />` : ""}</div>`;
   }).filter(Boolean);
   const legacy = showAccounts && document.issuer.bank_details ? `<p class="legacy-bank">${escapeHtml(document.issuer.bank_details)}</p>` : "";
