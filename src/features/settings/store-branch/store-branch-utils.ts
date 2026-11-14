@@ -87,11 +87,12 @@ export function isStoreActive(row: StoreBranchRow) {
 }
 
 /** The summary cards double as list filters: one per store type, plus open/closed. */
-export type StoreCardFilter = StoreType | "active" | "inactive";
+export type StoreCardFilter = StoreType | "active" | "active_non_demo" | "inactive";
 
 export function storeMatchesCardFilter(row: StoreBranchRow, filter: StoreCardFilter | null) {
   if (!filter) return true;
   if (filter === "active") return isStoreActive(row);
+  if (filter === "active_non_demo") return isStoreActive(row) && !isStoreTest(row);
   if (filter === "inactive") return !isStoreActive(row);
   return storeType(row) === filter;
 }
@@ -99,6 +100,13 @@ export function storeMatchesCardFilter(row: StoreBranchRow, filter: StoreCardFil
 function summaryCount(value: unknown) {
   const count = Number(value);
   return Number.isFinite(count) && count > 0 ? Math.trunc(count) : 0;
+}
+
+function optionalSummaryCount(value: unknown) {
+  if (typeof value !== "number" && typeof value !== "string") return null;
+  if (typeof value === "string" && !value.trim()) return null;
+  const count = Number(value);
+  return Number.isSafeInteger(count) && count >= 0 ? count : null;
 }
 
 export function normalizeStoreReportSummary(value: unknown): StoreReportSummary {
@@ -112,6 +120,8 @@ export function normalizeStoreReportSummary(value: unknown): StoreReportSummary 
     plc: summaryCount(source.plc),
     test: summaryCount(source.test),
     active: summaryCount(source.active),
+    // The Demo total also includes closed stores; it cannot be subtracted from active.
+    active_non_demo: optionalSummaryCount(source.active_non_demo),
     inactive: summaryCount(source.inactive)
   };
 }

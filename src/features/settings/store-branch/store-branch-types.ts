@@ -23,6 +23,8 @@ export interface StoreBranchLabels {
   categories: Record<StoreCategory, string>;
   annualDue: string;
   activeStores: string;
+  activeNonDemoStores: string;
+  summaryUnavailable: string;
   cancel: string;
   cancelImage: string;
   charge: string;

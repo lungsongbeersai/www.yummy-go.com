@@ -24,6 +24,7 @@ export interface StoreReportSummary extends ApiEntity {
   plc: number;
   test: number;
   active: number;
+  active_non_demo?: number | null;
   inactive: number;
 }
 export interface StoreResponse extends ApiListResponse<Store> {

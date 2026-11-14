@@ -34,6 +34,8 @@ export function useStoreBranchLabels(): StoreBranchLabels {
     },
     annualDue: t("settings.storeBranch.annualDue"),
     activeStores: t("settings.storeBranch.activeStores"),
+    activeNonDemoStores: t("settings.storeBranch.activeNonDemoStores"),
+    summaryUnavailable: t("settings.storeBranch.summaryUnavailable"),
     cancel: t("actions.cancel"),
     cancelImage: t("settings.storeBranch.cancelImage"),
     charge: t("settings.storeBranch.charge"),

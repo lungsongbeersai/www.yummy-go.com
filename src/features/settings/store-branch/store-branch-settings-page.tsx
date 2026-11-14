@@ -168,9 +168,13 @@ function StoreSettingsPage({ initialPagination }: { initialPagination: UrlPagina
     : canCreate
       ? controllerTotalPages
       : 1;
+  useEffect(() => {
+    if (activeFilter && !backgroundLoading && !fullLoading && page > totalPages) setPage(totalPages);
+  }, [activeFilter, backgroundLoading, fullLoading, page, setPage, totalPages]);
   const { start: pageStart, end: pageEnd } = optionPageRange(visibleRows.length, page, pageSize);
   const filterLabels: Record<StoreCardFilter, string> = {
     active: labels.activeStores,
+    active_non_demo: labels.activeNonDemoStores,
     general: labels.generalStores,
     inactive: labels.inactiveStores,
     plc: labels.plcStores,
