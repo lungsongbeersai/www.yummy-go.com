@@ -2,6 +2,57 @@ import type { ApiEntity } from "@/services/shared/types";
 
 export type CommercialDocumentType = "quotation" | "receipt";
 export type CommercialDiscountType = "amount" | "percent";
+export type CommercialPaymentCurrency = "LAK" | "THB" | "USD";
+
+export interface CommercialPaymentProfile extends ApiEntity {
+  profile_uuid: string;
+  label: string;
+  bank_name: string;
+  account_name: string;
+  account_number: string;
+  currency: CommercialPaymentCurrency;
+  qr_image?: string | null;
+}
+
+export interface SaveCommercialPaymentProfileInput extends ApiEntity {
+  profile_uuid?: string;
+  label: string;
+  bank_name: string;
+  account_name: string;
+  account_number: string;
+  currency: CommercialPaymentCurrency;
+  qr_image?: File;
+  remove_qr?: boolean;
+}
+
+export interface CommercialPaymentAccountReference {
+  profile_uuid?: string;
+  snapshot_uuid?: string;
+}
+
+export interface CommercialPaymentDetailsInput {
+  show_accounts: boolean;
+  show_qr: boolean;
+  accounts: CommercialPaymentAccountReference[];
+}
+
+export interface CommercialPaymentAccountSnapshot {
+  snapshot_uuid: string;
+  profile_uuid?: string | null;
+  label: string;
+  bank_name: string;
+  account_name: string;
+  account_number?: string;
+  currency: CommercialPaymentCurrency;
+  qr_image?: string | null;
+  has_qr?: boolean;
+}
+
+export interface CommercialPaymentDetails {
+  show_accounts: boolean;
+  show_qr: boolean;
+  accounts: CommercialPaymentAccountSnapshot[];
+}
 
 export interface CatalogItem extends ApiEntity {
   item_uuid: string;
@@ -72,6 +123,7 @@ export interface CommercialDocument extends ApiEntity {
   notes: string;
   payment_method: string;
   show_images: boolean;
+  payment_details?: CommercialPaymentDetails;
   tax_rate: 0 | 10;
   discount_type: CommercialDiscountType | null;
   discount_value: number;
@@ -101,6 +153,7 @@ export interface CreateCommercialDocumentInput extends ApiEntity {
   notes?: string;
   payment_method?: string;
   show_images: boolean;
+  payment_details?: CommercialPaymentDetailsInput;
   tax_rate: 0 | 10;
   discount_type?: CommercialDiscountType | null;
   discount_value?: number;

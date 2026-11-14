@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import type { CatalogItem, CommercialDocument } from "@/services/commercial";
 import { LAO_FONTS } from "@/stores/app-store";
-import { commercialAmountWords, commercialImageUrl, renderCommercialCatalog, renderCommercialDocument } from "./commercial-print";
+import { commercialAmountWords, commercialImageUrl, commercialPaymentQrUrl, renderCommercialCatalog, renderCommercialDocument } from "./commercial-print";
 
 const document: CommercialDocument = {
   document_uuid: "document", branch_uuid: "branch", number: "QT-20261114-0001", document_type: "quotation",
@@ -87,6 +87,42 @@ describe("commercial print documents", () => {
       source_quotation_uuid: "quote", source_quotation_number: "QT-2026-00009 <old>", source_quotation_version: 2 });
     expect(html).toContain(`${document.number} · ສະບັບ 4`);
     expect(html).toContain("QT-2026-00009 &lt;old&gt; · ສະບັບ 2");
+  });
+
+  it("requires saved opt-in before including private bank information or QR bytes", () => {
+    const qr = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+a7WQAAAAASUVORK5CYII=";
+    const privateDocument: CommercialDocument = { ...document, issuer: { ...document.issuer, bank_details: "Legacy private details" }, payment_details: {
+      show_accounts: false, show_qr: false, accounts: [{ snapshot_uuid: "saved-account", profile_uuid: "profile", label: "Personal", bank_name: "Private bank <test>", account_name: "Private owner", account_number: "123456789", currency: "LAK", qr_image: qr }],
+    } };
+    const hidden = renderCommercialDocument(privateDocument, { showPaymentAccounts: true, showPaymentQr: true });
+    expect(hidden).not.toContain(qr);
+    expect(hidden).not.toContain("Private owner");
+    expect(hidden).not.toContain("123456789");
+    expect(hidden).not.toContain("Legacy private details");
+    expect(renderCommercialDocument({ ...document, issuer: privateDocument.issuer })).toContain("Legacy private details");
+    expect(renderCommercialDocument({ ...document, issuer: privateDocument.issuer }, { showPaymentAccounts: false })).not.toContain("Legacy private details");
+    const visible = { ...privateDocument, payment_details: { ...privateDocument.payment_details!, show_accounts: true, show_qr: true } };
+    const html = renderCommercialDocument(visible);
+    expect(html).toContain('class="payment-qr"');
+    expect(html).toContain(qr);
+    expect(html).toContain("123456789");
+    expect(html).toContain("Private bank &lt;test&gt;");
+    const qrOnly = renderCommercialDocument(visible, { showPaymentAccounts: false });
+    expect(qrOnly).toContain(qr);
+    expect(qrOnly).not.toContain("123456789");
+    expect(qrOnly).not.toContain("Private owner");
+    expect(qrOnly).not.toContain("Legacy private details");
+    const accountOnly = renderCommercialDocument(visible, { showPaymentQr: false });
+    expect(accountOnly).toContain("123456789");
+    expect(accountOnly).not.toContain(qr);
+  });
+
+  it("only accepts canonical private PNG QR images, without loosening product image validation", () => {
+    expect(commercialPaymentQrUrl("data:image/svg+xml;base64,iVBORw0KGgo=")).toBeNull();
+    expect(commercialPaymentQrUrl("https://example.com/private-qr.png")).toBeNull();
+    expect(commercialPaymentQrUrl('data:image/png;base64,iVBORw0KGgo\" onerror=\"alert(1)')).toBeNull();
+    expect(commercialPaymentQrUrl("data:image/png;base64,invalid")).toBeNull();
+    expect(commercialImageUrl("data:image/png;base64,iVBORw0KGgo=")).toBeNull();
   });
 });
 

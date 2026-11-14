@@ -1,5 +1,6 @@
 import { COMMERCIAL_MAX_MONEY, commercialTotals, validCommercialDate, validCommercialDiscount, validCommercialDocumentItems, type CommercialDraftLine } from "@/features/commercial/commercial-domain";
 import type { CommercialParty, CreateCommercialDocumentInput } from "@/services/commercial";
+import { validCommercialPaymentDetails } from "@/features/commercial/commercial-payment";
 
 export const COMMERCIAL_WIZARD_LAST_STEP = 4;
 
@@ -27,7 +28,7 @@ export function validateCommercialStep(step: number, input: CreateCommercialDocu
   if (step === 4) {
     const discount = { discountType: input.discount_type, discountValue: input.discount_value };
     const totals = commercialTotals(draftLines ?? previewLines(input), input.tax_rate, discount);
-    return [0, 10].includes(input.tax_rate) && validCommercialDiscount(totals.subtotal, discount) &&
+    return [0, 10].includes(input.tax_rate) && validCommercialPaymentDetails(input.payment_details, input.issuer.bank_details) && validCommercialDiscount(totals.subtotal, discount) &&
       Object.values(totals).every((amount) => Number.isSafeInteger(amount) && amount >= 0 && amount <= COMMERCIAL_MAX_MONEY) &&
       (input.notes?.length ?? 0) <= 5000;
   }

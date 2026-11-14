@@ -6,6 +6,8 @@ export interface CommercialPrintOptions {
   autoPrint?: boolean;
   showImages?: boolean;
   showLogo?: boolean;
+  showPaymentAccounts?: boolean;
+  showPaymentQr?: boolean;
   baseUrl?: string;
   laoFont?: LaoFont;
 }
@@ -64,6 +66,30 @@ function imageHtml(value: string | null | undefined, className: string, alt: str
   return src ? `<img class="${className}" src="${escapeHtml(src)}" alt="${escapeHtml(alt)}" />` : "";
 }
 
+// Private QR images are canonical PNG bytes returned by the authenticated API.
+// Keep this separate from product URLs so arbitrary data/SVG URLs remain blocked.
+export function commercialPaymentQrUrl(value: string | null | undefined): string | null {
+  return value && value.length <= 7_000_000 && /^data:image\/png;base64,iVBORw0KGgo[A-Za-z0-9+/]*={0,2}$/.test(value) ? value : null;
+}
+
+function paymentHtml(document: CommercialDocument, options: CommercialPrintOptions): string {
+  const details = document.payment_details;
+  // Output controls may hide saved information; revealing it requires editing
+  // the document and explicitly saving that choice first.
+  const showAccounts = (details ? details.show_accounts === true : Boolean(document.issuer.bank_details)) && options.showPaymentAccounts !== false;
+  const showQr = details?.show_qr === true && options.showPaymentQr !== false;
+  if (!showAccounts && !showQr) return "";
+  const cards = (details?.accounts ?? []).slice(0, 3).map(account => {
+    const qr = showQr ? commercialPaymentQrUrl(account.qr_image) : null;
+    if (!showAccounts && !qr) return "";
+    return `<div class="payment-account"><p class="payment-currency strong">${escapeHtml(account.currency)}</p>
+      ${showAccounts ? `${account.bank_name ? `<p class="strong">${escapeHtml(account.bank_name)}</p>` : ""}${account.account_name ? `<p>${escapeHtml(account.account_name)}</p>` : ""}${account.account_number ? `<p class="account-number">${escapeHtml(account.account_number)}</p>` : ""}` : ""}
+      ${qr ? `<img class="payment-qr" src="${escapeHtml(qr)}" alt="${escapeHtml(`${account.currency} payment QR`)}" />` : ""}</div>`;
+  }).filter(Boolean);
+  const legacy = showAccounts && document.issuer.bank_details ? `<p class="legacy-bank">${escapeHtml(document.issuer.bank_details)}</p>` : "";
+  return cards.length || legacy ? `<section class="payment-details"><p class="payment-heading strong">ຂໍ້ມູນຊຳລະ / PAYMENT DETAILS</p>${legacy}${cards.length ? `<div class="payment-accounts" style="grid-template-columns:repeat(${cards.length},minmax(0,1fr))">${cards.join("")}</div>` : ""}</section>` : "";
+}
+
 function partyHtml(party: CommercialParty, label?: string): string {
   return `<div class="party">${label ? `<p class="strong">${escapeHtml(label)}</p>` : ""}
     <p class="strong">${escapeHtml(party.name)}</p>
@@ -76,23 +102,23 @@ function partyHtml(party: CommercialParty, label?: string): string {
 // these print-only rules never enter the application's light/dark theme.
 const styles = `
   @page { size: A4; margin: 14mm 12mm; }
-  * { box-sizing: border-box; }
+  * { box-sizing: border-box; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
   html, body { margin: 0; padding: 0; background: #fff; color: #111; }
   body { font-size: 12px; line-height: 1.5; }
   .paper { width: 100%; max-width: 186mm; margin: 0 auto; padding: 5mm 0; }
   .heading { display: flex; align-items: center; justify-content: space-between; gap: 6mm; margin-bottom: 4mm; }
-  .logo { width: 29mm; height: 29mm; object-fit: contain; }
+  .logo { width: 26mm; height: 26mm; object-fit: contain; }
   h1 { margin: 0; font-size: 20px; line-height: 1.5; font-weight: 700; text-align: center; flex: 1; }
   p { margin: 0 0 0.5mm; white-space: pre-wrap; overflow-wrap: anywhere; }
   .strong { font-weight: 700; }
   .parties { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 6mm; margin-bottom: 3mm; }
   .meta { text-align: right; min-width: 45mm; }
   .customer { margin: 3mm 0; }
-  .paper { --table-border: #b8bec6; --row-border: #d9dde2; --table-fill: #f4f5f7; }
+  .paper { --table-border: #9ca5af; --row-border: #cbd1d8; --table-fill: #e9ecef; }
   table { width: 100%; border-collapse: separate; border-spacing: 0; table-layout: fixed; border: 0.2mm solid var(--table-border); }
   th, td { border: 0; border-right: 0.2mm solid var(--table-border); padding: 2.5mm 2mm; vertical-align: top; overflow-wrap: anywhere; }
   th:last-child, td:last-child { border-right: 0; }
-  th { border-bottom: 0.2mm solid var(--table-border); background: var(--table-fill); text-align: center; vertical-align: middle; padding: 2.5mm 2mm; font-weight: 600; }
+  th { border-bottom: 0.3mm solid var(--table-border); background: var(--table-fill); text-align: center; vertical-align: middle; padding: 3mm 2mm; font-weight: 700; }
   th:first-child { padding-inline: 1mm; white-space: nowrap; }
   tbody tr:not(:last-child) > td { border-bottom: 0.2mm solid var(--row-border); }
   .number { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
@@ -109,12 +135,20 @@ const styles = `
   .total-row:last-child { border-bottom: 0; font-weight: 700; background: var(--table-fill); font-size: 12px; }
   .total-amount { display: flex; align-items: baseline; justify-content: space-between; gap: 1mm; }
   .currency { font-size: 10px; font-weight: 400; }
-  .amount-words { margin-top: 7mm; font-weight: 700; }
-  .notes { margin-top: 5mm; }
-  .signatures { display: flex; justify-content: space-between; gap: 12mm; margin-top: 10mm; break-inside: avoid; }
+  .amount-words { margin-top: 4mm; font-weight: 700; }
+  .notes { margin-top: 2mm; }
+  .payment-details { margin-top: 3mm; break-inside: avoid; page-break-inside: avoid; }
+  .payment-heading { font-size: 10px; letter-spacing: 0.2px; margin-bottom: 2mm; }
+  .payment-accounts { display: grid; gap: 3mm; }
+  .payment-account { min-width: 0; padding: 2.5mm; border: 0.2mm solid var(--table-border); border-radius: 1mm; text-align: center; font-size: 10px; }
+  .payment-currency { font-size: 11px; margin-bottom: 1mm; }
+  .account-number { font-variant-numeric: tabular-nums; letter-spacing: 0.3px; }
+  .payment-qr { display: block; width: 34mm; height: 42mm; max-width: 100%; margin: 2mm auto 0; object-fit: contain; image-rendering: crisp-edges; }
+  .legacy-bank { font-size: 11px; margin-bottom: 2mm; }
+  .signatures { display: flex; justify-content: space-between; gap: 12mm; margin-top: 5mm; break-inside: avoid; }
   .signature { text-align: center; min-width: 55mm; }
-  .signature-line { margin-top: 8mm; border-top: 0.2mm solid var(--table-border); padding-top: 1.5mm; color: #4b5563; }
-  .footer { margin-top: 6mm; font-size: 10px; color: #4b5563; text-align: center; }
+  .signature-line { margin-top: 6mm; border-top: 0.2mm solid var(--table-border); padding-top: 1.5mm; color: #4b5563; }
+  .footer { margin-top: 3mm; font-size: 10px; color: #4b5563; text-align: center; }
   #print-error { padding: 4mm; border: 1px solid #111; }
   thead { display: table-header-group; }
   tr { break-inside: avoid; page-break-inside: avoid; }
@@ -159,16 +193,16 @@ export function renderCommercialDocument(document: CommercialDocument, options: 
     <div class="parties">${partyHtml(document.issuer)}<div class="meta"><p>ເລກທີ: <strong>${escapeHtml(document.number)}</strong></p><p>ວັນທີ: ${escapeHtml(displayDate(document.issued_on))}</p>
     ${document.valid_until && !receipt ? `<p>ມີຜົນເຖິງ: ${escapeHtml(displayDate(document.valid_until))}</p>` : ""}</div></div>
     <section class="customer">${partyHtml(document.customer, "ລູກຄ້າ / CUSTOMER")}</section>
-    <table><colgroup><col style="width:5%" /><col style="width:40%" /><col style="width:9%" /><col style="width:9%" /><col style="width:18%" /><col style="width:19%" /></colgroup>
-    <thead><tr><th>ລ/ດ</th><th>ລາຍການ</th><th>ຫົວໜ່ວຍ</th><th>ຈຳນວນ</th><th>ລາຄາ</th><th>ລາຄາລວມ</th></tr></thead><tbody>${rows}</tbody></table>
+    <table><colgroup><col style="width:7%" /><col style="width:38%" /><col style="width:9%" /><col style="width:9%" /><col style="width:18%" /><col style="width:19%" /></colgroup>
+    <thead><tr><th>ລຳດັບ</th><th>ລາຍການ</th><th>ຫົວໜ່ວຍ</th><th>ຈຳນວນ</th><th>ລາຄາ</th><th>ລາຄາລວມ</th></tr></thead><tbody>${rows}</tbody></table>
     <section class="totals"><div class="total-row"><span>ລວມທັງໝົດ</span><span class="number">${commercialMoney(document.subtotal)}</span></div>
     ${discount}
     <div class="total-row"><span>ອາກອນ (${document.tax_rate}%)</span><span class="number">${commercialMoney(document.tax_amount)}</span></div>
     <div class="total-row"><span>${receipt ? "ຮັບເງິນທັງໝົດ" : "ລວມຍອດທັງໝົດ"}</span><span class="number total-amount"><span class="currency">LAK</span> ${commercialMoney(document.total)}</span></div></section>
     <p class="amount-words">ຈຳນວນເງິນ: ${escapeHtml(commercialAmountWords(document.total))}</p>
     ${receipt && document.payment_method ? `<p>ວິທີຊຳລະ: ${escapeHtml(paymentLabel)}</p>` : ""}
-    ${document.issuer.bank_details ? `<p>ຂໍ້ມູນທະນາຄານ: ${escapeHtml(document.issuer.bank_details)}</p>` : ""}
     ${document.notes ? `<section class="notes"><p class="strong">ໝາຍເຫດ</p><p>${escapeHtml(document.notes)}</p></section>` : ""}
+    ${paymentHtml(document, options)}
     <section class="signatures"><div class="signature"><p>${receipt ? "ຜູ້ຈ່າຍເງິນ" : "ຜູ້ຮັບໃບສະເໜີລາຄາ"}</p><p class="signature-line">ລາຍເຊັນ / ວັນທີ</p></div>
     <div class="signature"><p>${receipt ? "ຜູ້ຮັບເງິນ" : "ຜູ້ສະເໜີລາຄາ"}</p><p class="signature-line">ລາຍເຊັນ / ວັນທີ</p></div></section>
     <p class="footer">${escapeHtml(document.number)}${document.version > 1 ? ` · ສະບັບ ${document.version}` : ""}${document.source_quotation_uuid ? ` · ອ້າງອີງ ${escapeHtml(document.source_quotation_number || "ໃບສະເໜີລາຄາ")}${document.source_quotation_version ? ` · ສະບັບ ${document.source_quotation_version}` : ""}` : ""}</p>`;
@@ -179,6 +213,6 @@ export function renderCommercialCatalog(items: CatalogItem[], branchName: string
   const rows = items.filter(item => item.active).map((item, index) => `<tr><td class="center">${index + 1}</td><td><div class="item">${options.showImages !== false && item.image_visible ? imageHtml(item.image_url, "item-image", item.name) : ""}<div><p>${escapeHtml(item.name)}</p>${item.description ? `<p class="description">${escapeHtml(item.description)}</p>` : ""}</div></div></td><td class="center">${escapeHtml(item.unit)}</td><td class="number">${commercialMoney(item.unit_price)}</td></tr>`).join("");
   const body = `<header class="heading">${options.showLogo !== false && issuer ? imageHtml(issuer.logo_url, "logo", issuer.name) : ""}<h1>ລາຍການສິນຄ້າ / PRICE LIST</h1></header>
     ${issuer ? partyHtml(issuer) : ""}<p class="customer strong">ລາຍການລາຄາ: ${escapeHtml(branchName)} · LAK</p>
-    <table><colgroup><col style="width:6%" /><col style="width:60%" /><col style="width:12%" /><col style="width:22%" /></colgroup><thead><tr><th>ລ/ດ</th><th>ລາຍການ</th><th>ຫົວໜ່ວຍ</th><th>ລາຄາ (LAK)</th></tr></thead><tbody>${rows}</tbody></table>`;
+    <table><colgroup><col style="width:7%" /><col style="width:59%" /><col style="width:12%" /><col style="width:22%" /></colgroup><thead><tr><th>ລຳດັບ</th><th>ລາຍການ</th><th>ຫົວໜ່ວຍ</th><th>ລາຄາ (LAK)</th></tr></thead><tbody>${rows}</tbody></table>`;
   return htmlDocument(`PRICE LIST ${branchName}`, body, options);
 }
