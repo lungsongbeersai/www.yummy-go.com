@@ -1,6 +1,10 @@
 "use client";
 
 import { useRef, useState, type ReactNode } from "react";
+import Link from "next/link";
+import { usePathname } from "next/navigation";
+import { commercialEditHref } from "@/features/commercial/commercial-routes";
+import { internalRoute } from "@/lib/routes";
 import { useTranslation } from "react-i18next";
 import { Download, Printer } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
@@ -83,12 +87,14 @@ function CommercialOutputFrame({ title, onClose, initialShowImages, render, tool
 
 export function CommercialDocumentOutput({ document, onClose, readOnly = false }: { document: CommercialDocument; onClose: () => void; readOnly?: boolean }) {
   const l = useCommercialLabels();
-  const beginEdit = useCommercialStore((state) => state.beginEdit);
+  const storeUuid = useCommercialStore((state) => state.storeUuid);
+  const pathname = usePathname();
+  const alreadyEditing = pathname.endsWith("/edit");
   const openRevisions = useCommercialStore((state) => state.openRevisions);
   const loading = useCommercialStore((state) => state.loading);
   const saving = useCommercialStore((state) => state.saving);
   return <CommercialOutputFrame title={`${document.number} · ${l("version")} ${document.version}`} onClose={onClose} initialShowImages={document.show_images}
-    toolbar={!readOnly ? <><Button variant="outline" className="min-h-11" disabled={loading || saving} onClick={() => { void beginEdit(document.document_uuid).catch(() => {}); }}>{l("editDocument")}</Button><Button variant="outline" className="min-h-11" disabled={loading || saving} onClick={() => { void openRevisions(document.document_uuid).catch(() => {}); }}>{l("revisionHistory")}</Button></> : null}
+    toolbar={!readOnly ? <>{!alreadyEditing ? <Button asChild variant="outline" className="min-h-11"><Link href={internalRoute(commercialEditHref({ storeUuid, branchUuid: document.branch_uuid }, document.document_uuid))}>{l("editDocument")}</Link></Button> : null}<Button variant="outline" className="min-h-11" disabled={loading || saving} onClick={() => { void openRevisions(document.document_uuid).catch(() => {}); }}>{l("revisionHistory")}</Button></> : null}
     metadata={<div className="grid gap-1 font-lao text-xs text-muted-foreground"><p>{l("version")} {document.version} · {l("updatedOn")}: {new Date(document.updated_at || document.created_at).toLocaleString()}{readOnly ? ` · ${l("readOnlyRevision")}` : ""}</p>{document.source_quotation_version ? <p>{l("sourceQuotationVersion")} {document.source_quotation_number || ""} · {l("version")} {document.source_quotation_version}</p> : null}{document.document_type === "quotation" && document.receipt_uuid && document.version > 1 ? <p>{l("linkedReceiptUnchanged")}</p> : null}</div>}
     render={options => renderCommercialDocument(document, options)} />;
 }

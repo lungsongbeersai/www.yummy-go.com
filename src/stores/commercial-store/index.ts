@@ -56,6 +56,8 @@ interface CommercialState extends AsyncSlice {
   convertQuotation: (input: commercial.ConvertQuotationInput) => Promise<commercial.CommercialDocument | null>;
   closeDocument: () => void;
   clearError: () => void;
+  enterRoute: () => number;
+  leaveRoute: (lease: number) => void;
   reset: () => void;
 }
 
@@ -66,6 +68,8 @@ let documentsRequest = 0;
 let detailRequest = 0;
 let editRequest = 0;
 let revisionRequest = 0;
+let routeGeneration = 0;
+let activeRouteLease = 0;
 
 const emptyDocumentWorkspace = {
   documents: [], selectedDocument: null, documentsLoading: false, documentsError: null,
@@ -78,11 +82,22 @@ const emptyWorkspace = {
   catalogReady: false, catalogOwnerUuid: "", catalogSaving: false,
 };
 
+const emptyRouteState = {
+  selectedDocument: null, editingDocument: null, editConflict: false, error: null, loading: false,
+  revisionDocumentUuid: null, revisions: [], revisionsLoading: false, revisionsError: null,
+};
+
 export const useCommercialStore = create<CommercialState>((set, get) => {
   function scopeGuard(branchUuid = get().branchUuid) {
     const generation = scopeGeneration;
     const session = createSessionGuard();
     return () => session() && generation === scopeGeneration && branchUuid === get().branchUuid;
+  }
+
+  function documentMutationGuard(branchUuid: string) {
+    const current = scopeGuard(branchUuid);
+    const lease = activeRouteLease;
+    return () => current() && lease === activeRouteLease;
   }
 
   function requireBranch(branchUuid: string) {
@@ -224,7 +239,7 @@ export const useCommercialStore = create<CommercialState>((set, get) => {
     },
     createDocument: async (input) => {
       requireBranch(input.branch_uuid);
-      const current = scopeGuard(input.branch_uuid);
+      const current = documentMutationGuard(input.branch_uuid);
       set({ saving: true, error: null });
       try {
         const row = await commercial.createCommercialDocument(input);
@@ -261,7 +276,7 @@ export const useCommercialStore = create<CommercialState>((set, get) => {
     closeEditor: () => { editRequest += 1; set({ editingDocument: null, editConflict: false, error: null, loading: false }); },
     updateDocument: async (input) => {
       requireBranch(input.branch_uuid);
-      const current = scopeGuard(input.branch_uuid);
+      const current = documentMutationGuard(input.branch_uuid);
       set({ saving: true, error: null, editConflict: false });
       try {
         const row = await commercial.updateCommercialDocument(input);
@@ -318,7 +333,7 @@ export const useCommercialStore = create<CommercialState>((set, get) => {
     },
     convertQuotation: async (input) => {
       requireBranch(input.branch_uuid);
-      const current = scopeGuard(input.branch_uuid);
+      const current = documentMutationGuard(input.branch_uuid);
       set({ saving: true, error: null });
       try {
         const row = await commercial.convertQuotation(input);
@@ -337,7 +352,20 @@ export const useCommercialStore = create<CommercialState>((set, get) => {
     },
     closeDocument: () => { detailRequest += 1; set({ selectedDocument: null, loading: false }); },
     clearError: () => set({ error: null }),
+    enterRoute: () => {
+      activeRouteLease = ++routeGeneration;
+      detailRequest += 1; editRequest += 1; revisionRequest += 1;
+      set({ ...emptyRouteState, saving: get().catalogSaving });
+      return activeRouteLease;
+    },
+    leaveRoute: (lease) => {
+      if (lease !== activeRouteLease) return;
+      activeRouteLease = ++routeGeneration;
+      detailRequest += 1; editRequest += 1; revisionRequest += 1;
+      set({ ...emptyRouteState, saving: get().catalogSaving });
+    },
     reset: () => {
+      activeRouteLease = ++routeGeneration;
       scopeGeneration += 1;
       catalogGeneration += 1;
       catalogRequest += 1;

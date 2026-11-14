@@ -4279,6 +4279,13 @@
     "linkedReceiptUnchanged": "The linked receipt keeps its earlier details. Open and edit the receipt separately if it also needs to change.",
     "sourceQuotationVersion": "Source quotation",
     "createRecoveryHint": "Retry to recover the document before making further changes. You can edit it after saving.",
-    "recoverDocument": "Retry to recover document"
+    "recoverDocument": "Retry to recover document",
+    "searchStore": "Search stores",
+    "searchBranch": "Search branches",
+    "selectStore": "Select store",
+    "back": "Back",
+    "backToDocuments": "Back to documents",
+    "routeScopeUnavailable": "The store or branch in this link is outside your access. Return to documents and select an accessible branch.",
+    "documentUnavailable": "This document is unavailable in the selected branch"
   }
 }

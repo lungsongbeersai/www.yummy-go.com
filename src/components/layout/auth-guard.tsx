@@ -12,10 +12,10 @@ import { useIsCapacitorNativeApp } from "@/hooks/use-capacitor-native-app";
 import { authStoreUuid, useAuthStore } from "@/stores/auth-store";
 import { usePermissionsSidebarStore } from "@/stores/permissions-sidebar-store";
 
-export function unauthenticatedEntryPath(pathname: string, nativeApp: boolean, contractExpired = false) {
+export function unauthenticatedEntryPath(pathname: string, nativeApp: boolean, contractExpired = false, search = "") {
   if (contractExpired) return "/subscription-expired";
   const entryPath = nativeApp ? "/login" : "/home";
-  return `${entryPath}?redirect=${encodeURIComponent(pathname)}`;
+  return `${entryPath}?redirect=${encodeURIComponent(pathname + search)}`;
 }
 
 export function AuthGuard({ children }: { children: React.ReactNode }) {
@@ -34,7 +34,9 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
     if (!hydrated) return;
     if (!isLoggedIn) {
       // Native app ต้องเปิดฟังก์ชัน POS ให้ผู้ตรวจ/พนักงานเข้าถึงตรง ๆ; หน้าแนะนำบริษัทยังคงใช้บนเว็บ
-      router.replace(internalRoute(unauthenticatedEntryPath(pathname, isCapacitorNativeApp(), Boolean(contractExpiry))));
+      // Preserve document type and authorized destination when a shared link
+      // needs authentication before its page can initialize.
+      router.replace(internalRoute(unauthenticatedEntryPath(pathname, isCapacitorNativeApp(), Boolean(contractExpiry), window.location.search)));
     }
   }, [hydrated, isLoggedIn, pathname, router, contractExpiry]);
 

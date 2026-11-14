@@ -1,11 +1,11 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { Eye, FileText, Plus, Trash2, X } from "lucide-react";
+import Link from "next/link";
+import { ArrowLeft, Eye, FileText, Plus, Trash2 } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Field, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -21,11 +21,12 @@ import { useCommercialStore } from "@/stores/commercial-store";
 import { useToastStore } from "@/stores/toast-store";
 import { createMutationUuid } from "@/lib/pos/mutation-identity";
 import { ServiceError } from "@/lib/api";
+import { internalRoute } from "@/lib/routes";
 import { commercialUpdateAttempt } from "@/features/commercial/commercial-mutation-identity";
 
-interface CommercialDocumentEditorProps { branchUuid: string; documentType: CommercialDocumentType; existing?: CommercialDocument; onClose: () => void }
+interface CommercialDocumentEditorProps { branchUuid: string; documentType: CommercialDocumentType; existing?: CommercialDocument; backHref: string; onSaved: (document: CommercialDocument) => void }
 
-export function CommercialDocumentEditor({ branchUuid, documentType, existing, onClose }: CommercialDocumentEditorProps) {
+export function CommercialDocumentEditor({ branchUuid, documentType, existing, backHref, onSaved }: CommercialDocumentEditorProps) {
   const l = useCommercialLabels();
   const catalog = useCommercialStore((state) => state.catalog);
   const catalogLoading = useCommercialStore((state) => state.catalogLoading);
@@ -59,28 +60,10 @@ export function CommercialDocumentEditor({ branchUuid, documentType, existing, o
   const [createRecovery, setCreateRecovery] = useState(false);
   const [pane, setPane] = useState("details");
   const form = useRef<HTMLFormElement>(null);
-  const content = useRef<HTMLDivElement>(null);
   const savePaint = useRef(0);
   const draft = buildCommercialDraftPreview({ branchUuid, documentType, issuedOn, validUntil, customer, issuer, notes, paymentMethod, showImages, taxRate, discountType, discountValue, lines, draftLabel: existing?.number ?? l("draft"), version: existing?.version, sourceQuotationUuid: existing?.source_quotation_uuid, sourceQuotationVersion: existing?.source_quotation_version, sourceQuotationNumber: existing?.source_quotation_number });
 
-  useEffect(() => {
-    const viewport = window.visualViewport;
-    const resize = () => {
-      if (!content.current) return;
-      content.current.style.height = `${Math.floor(viewport?.height ?? window.innerHeight)}px`;
-      content.current.style.top = `${Math.floor(viewport?.offsetTop ?? 0)}px`;
-    };
-    resize();
-    viewport?.addEventListener("resize", resize);
-    viewport?.addEventListener("scroll", resize);
-    window.addEventListener("resize", resize);
-    return () => {
-      cancelAnimationFrame(savePaint.current);
-      viewport?.removeEventListener("resize", resize);
-      viewport?.removeEventListener("scroll", resize);
-      window.removeEventListener("resize", resize);
-    };
-  }, []);
+  useEffect(() => () => cancelAnimationFrame(savePaint.current), []);
 
   function requestSave() {
     if (saving) return;
@@ -112,7 +95,7 @@ export function CommercialDocumentEditor({ branchUuid, documentType, existing, o
       const document = existing ? await updateDocument({ ...input, document_uuid: existing.document_uuid, expected_version: existing.version, request_uuid: updateAttempt.current.requestUuid }) : await createDocument(input);
       if (!document) return;
       showToast({ title: l("saved"), description: document.number, tone: "success" });
-      onClose();
+      onSaved(document);
     } catch (failure) {
       if (!existing) {
         const definitive = failure instanceof ServiceError && failure.statusCode >= 400 && failure.statusCode < 500 && ![408, 409, 425, 429].includes(failure.statusCode);
@@ -125,11 +108,10 @@ export function CommercialDocumentEditor({ branchUuid, documentType, existing, o
   }
 
   return (
-    <Dialog open onOpenChange={(open) => { if (!open && !saving) onClose(); }}>
-      <DialogContent ref={content} className="inset-0 top-0 left-0 flex h-dvh max-h-dvh w-screen max-w-none translate-x-0 translate-y-0 flex-col gap-0 overflow-hidden rounded-none border-0 p-0 font-lao sm:max-w-none" showCloseButton={false}>
-        <DialogHeader className="shrink-0 rounded-none px-3 pt-[max(0.75rem,env(safe-area-inset-top))] pb-3 sm:px-5">
-          <div className="flex items-start justify-between gap-3"><div className="min-w-0"><DialogTitle>{existing ? `${l("editDocument")} · ${existing.number}` : l(documentType === "quotation" ? "newQuotation" : "newReceipt")}</DialogTitle><DialogDescription className="mt-1">{existing ? `${l("editDocumentHint")} · ${l("version")} ${existing.version}` : l("editorHint")}</DialogDescription></div><Button type="button" variant="outline" size="icon" className="size-11 shrink-0" disabled={saving} aria-label={l("close")} onClick={onClose}><X /></Button></div>
-        </DialogHeader>
+    <section className="flex h-full min-h-0 min-w-0 flex-col overflow-hidden bg-background font-lao">
+        <header className="shrink-0 border-b bg-card px-3 py-3 sm:px-5">
+          <div className="flex items-start justify-between gap-3"><div className="min-w-0"><h1 className="font-heading text-lg font-semibold">{existing ? `${l("editDocument")} · ${existing.number}` : l(documentType === "quotation" ? "newQuotation" : "newReceipt")}</h1><p className="mt-1 text-xs text-muted-foreground">{existing ? `${l("editDocumentHint")} · ${l("version")} ${existing.version}` : l("editorHint")}</p></div><Button asChild variant="outline" size="icon" className="size-11 shrink-0"><Link href={internalRoute(backHref)} aria-label={l("backToDocuments")} aria-disabled={saving} onClick={(event) => { if (saving) event.preventDefault(); }}><ArrowLeft /></Link></Button></div>
+        </header>
         {validation || error ? <div className="shrink-0 px-3 pt-3 sm:px-5"><Alert variant="destructive"><AlertDescription>{validation || error}</AlertDescription></Alert></div> : null}
         {createRecovery ? <div className="shrink-0 px-3 pt-3 sm:px-5"><Alert><AlertDescription>{l("createRecoveryHint")}</AlertDescription></Alert></div> : null}
         {existing && editConflict ? <div className="shrink-0 px-3 pt-3 sm:px-5"><Alert variant="destructive"><AlertDescription><p>{l("versionConflict")}</p><div className="flex flex-wrap gap-2"><Button type="button" variant="outline" className="min-h-11" disabled={saving || documentLoading} onClick={() => { void openDocument(existing.document_uuid).catch(() => {}); }}>{l("viewLatest")}</Button><Button type="button" variant="outline" className="min-h-11" disabled={saving || documentLoading} onClick={() => setReloadOpen(true)}>{l("reloadLatest")}</Button></div></AlertDescription></Alert></div> : null}
@@ -171,11 +153,10 @@ export function CommercialDocumentEditor({ branchUuid, documentType, existing, o
             <TabsContent value="preview" forceMount className="m-0 flex min-h-0 min-w-0 flex-col overflow-hidden bg-muted/40 data-[state=inactive]:hidden lg:data-[state=inactive]:flex"><CommercialLivePreview document={draft} statusLabel={existing ? l("unsavedChanges") : undefined} /></TabsContent>
           </div>
         </Tabs>
-        <DialogFooter className="shrink-0 flex-row items-center gap-3 rounded-none px-3 py-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] sm:px-5"><p className="mr-auto hidden text-sm sm:block">{l("total")}: <strong className="tabular-nums">{formatCommercialMoney(totals.total)} {l("lak")}</strong></p><Button type="button" variant="outline" onClick={onClose} disabled={saving}>{l("close")}</Button><Button type="button" className="min-h-11 flex-1 whitespace-normal sm:flex-none" disabled={saving || documentLoading} onClick={requestSave}>{l(saving ? "saving" : existing ? "saveChanges" : createRecovery ? "recoverDocument" : "saveDocument")}</Button></DialogFooter>
+        <footer className="flex shrink-0 flex-row items-center gap-3 border-t bg-card px-3 py-3 pb-[calc(0.75rem+max(var(--app-shell-bottom-nav-height,0px),var(--pos-system-bottom-safe-area,0px)))] sm:px-5"><p className="mr-auto hidden text-sm sm:block">{l("total")}: <strong className="tabular-nums">{formatCommercialMoney(totals.total)} {l("lak")}</strong></p><Button asChild variant="outline" className="min-h-11"><Link href={internalRoute(backHref)} aria-disabled={saving} onClick={(event) => { if (saving) event.preventDefault(); }}>{l("back")}</Link></Button><Button type="button" className="min-h-11 flex-1 whitespace-normal sm:flex-none" disabled={saving || documentLoading} onClick={requestSave}>{l(saving ? "saving" : existing ? "saveChanges" : createRecovery ? "recoverDocument" : "saveDocument")}</Button></footer>
         <AlertDialog open={reloadOpen} onOpenChange={setReloadOpen}><AlertDialogContent className="font-lao"><AlertDialogHeader><AlertDialogTitle>{l("reloadLatest")}</AlertDialogTitle><AlertDialogDescription>{l("reloadLatestConfirm")}</AlertDialogDescription></AlertDialogHeader><AlertDialogFooter><AlertDialogCancel>{l("cancel")}</AlertDialogCancel><AlertDialogAction onClick={() => { if (existing) void beginEdit(existing.document_uuid).catch(() => {}); }}>{l("reloadLatest")}</AlertDialogAction></AlertDialogFooter></AlertDialogContent></AlertDialog>
         <AlertDialog open={Boolean(removeLine)} onOpenChange={(open) => { if (!open) setRemoveLine(null); }}><AlertDialogContent className="font-lao"><AlertDialogHeader><AlertDialogTitle>{l("removeLine")}</AlertDialogTitle><AlertDialogDescription>{l("removeLineConfirm")}</AlertDialogDescription></AlertDialogHeader><AlertDialogFooter><AlertDialogCancel>{l("cancel")}</AlertDialogCancel><AlertDialogAction variant="destructive" onClick={() => { setLines((current) => current.filter((line) => line.key !== removeLine)); setRemoveLine(null); }}>{l("remove")}</AlertDialogAction></AlertDialogFooter></AlertDialogContent></AlertDialog>
-      </DialogContent>
-    </Dialog>
+    </section>
   );
 }
 

@@ -124,6 +124,12 @@ describe("shouldShowNativeTopBar", () => {
 });
 
 describe("isFixedDataScreen", () => {
+  it("keeps commercial editor pages inside the normal shell's available height", () => {
+    expect(isFixedDataScreen("/commercial")).toBe(true);
+    expect(isFixedDataScreen("/commercial/new")).toBe(true);
+    expect(isFixedDataScreen("/commercial/document-id/edit")).toBe(true);
+    expect(isFixedDataScreen("/commercial-unrelated")).toBe(false);
+  });
   it("covers listed paths, prefixes, and immersive screens", () => {
     expect(isFixedDataScreen("/products")).toBe(true);
     expect(isFixedDataScreen("/settings/category")).toBe(true);
