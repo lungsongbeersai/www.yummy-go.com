@@ -84,7 +84,6 @@ export function buildCommercialPages(template: HTMLElement, host: HTMLElement): 
     }
     for (const page of pages) {
       const body = page.querySelector("tbody")!;
-      const previous = body.lastElementChild as HTMLTableRowElement | null;
       const filler = template.ownerDocument.createElement("tr");
       filler.className = "table-fill";
       filler.setAttribute("aria-hidden", "true");
@@ -95,11 +94,6 @@ export function buildCommercialPages(template: HTMLElement, host: HTMLElement): 
         filler.append(cell);
       }
       body.append(filler);
-      // Adding a last row can introduce the existing previous-row border. At an
-      // exact page boundary retain its original border-free edge instead.
-      if (page.getBoundingClientRect().height > maximumHeight && previous) {
-        Array.from(previous.cells).forEach(cell => { cell.style.borderBottom = "0"; });
-      }
       let spare = Math.max(0, maximumHeight - page.getBoundingClientRect().height);
       filler.style.height = `${spare}px`;
       const excess = page.getBoundingClientRect().height - maximumHeight;
