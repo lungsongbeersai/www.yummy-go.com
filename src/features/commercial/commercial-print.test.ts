@@ -83,11 +83,30 @@ describe("commercial print documents", () => {
     expect(percentage).toContain("ສ່ວນຫຼຸດ (12.35%)");
   });
 
-  it("identifies edited versions and the original quotation revision in receipt output", () => {
+  it("keeps the original quotation revision in receipt metadata without a repeated document footer", () => {
     const html = renderCommercialDocument({ ...document, document_type: "receipt", version: 4,
       source_quotation_uuid: "quote", source_quotation_number: "QT-2026-00009 <old>", source_quotation_version: 2 });
-    expect(html).toContain(`${document.number} · ສະບັບ 4`);
-    expect(html).toContain("QT-2026-00009 &lt;old&gt; · ສະບັບ 2");
+    expect(html).not.toContain('class="footer"');
+    expect(html).not.toContain("ສະບັບ 4");
+    expect(html).toContain("ອ້າງອີງ: QT-2026-00009 &lt;old&gt; · ສະບັບ 2</p></div></div>");
+    expect(html.match(/QT-2026-00009/g)).toHaveLength(1);
+  });
+
+  it("groups the receipt method with opted-in payment details while retaining a method without private fields", () => {
+    const receipt: CommercialDocument = { ...document, document_type: "receipt", payment_method: "transfer",
+      issuer: { ...document.issuer, bank_details: "Saved bank details" } };
+    const visible = renderCommercialDocument(receipt);
+    const section = visible.match(/<section class="payment-details">([\s\S]*?)<\/section>/)?.[1];
+    expect(section).toContain("Bank transfer");
+    expect(section).toContain("Saved bank details");
+    expect(visible.match(/ວິທີຊຳລະ:/g)).toHaveLength(1);
+    expect(visible.match(/Saved bank details/g)).toHaveLength(1);
+    const hidden = renderCommercialDocument({ ...receipt, payment_details: { show_accounts: false, show_qr: false, accounts: [] } }, { showPaymentAccounts: true });
+    expect(hidden).toContain('class="payment-method">ວິທີຊຳລະ: ໂອນເງິນ / Bank transfer');
+    expect(hidden).not.toContain("Saved bank details");
+    expect(renderCommercialDocument({ ...receipt, payment_method: "<custom> & method" })).toContain("&lt;custom&gt; &amp; method");
+    expect(renderCommercialDocument({ ...receipt, payment_method: "", issuer: document.issuer })).not.toContain('class="payment-details"');
+    expect(renderCommercialDocument(document)).not.toContain('class="payment-method"');
   });
 
   it("requires saved opt-in before including private bank information or QR bytes", () => {

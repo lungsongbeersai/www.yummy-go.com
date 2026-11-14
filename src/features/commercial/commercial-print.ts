@@ -74,11 +74,13 @@ export function commercialPaymentQrUrl(value: string | null | undefined): string
 
 function paymentHtml(document: CommercialDocument, options: CommercialPrintOptions): string {
   const details = document.payment_details;
+  const method = document.document_type === "receipt" ? document.payment_method : "";
+  const paymentLabel = ({ cash: "ເງິນສົດ / Cash", transfer: "ໂອນເງິນ / Bank transfer", other: "ອື່ນໆ / Other" } as Record<string, string>)[method] ?? method;
   // Output controls may hide saved information; revealing it requires editing
   // the document and explicitly saving that choice first.
   const showAccounts = (details ? details.show_accounts === true : Boolean(document.issuer.bank_details)) && options.showPaymentAccounts !== false;
   const showQr = details?.show_qr === true && options.showPaymentQr !== false;
-  if (!showAccounts && !showQr) return "";
+  if (!method && !showAccounts && !showQr) return "";
   const cards = (details?.accounts ?? []).slice(0, 3).map(account => {
     const qr = showQr ? commercialPaymentQrUrl(account.qr_image) : null;
     if (!showAccounts && !qr) return "";
@@ -87,7 +89,7 @@ function paymentHtml(document: CommercialDocument, options: CommercialPrintOptio
       ${qr ? `<img class="payment-qr" src="${escapeHtml(qr)}" alt="${escapeHtml(`${account.currency} payment QR`)}" />` : ""}</div>`;
   }).filter(Boolean);
   const legacy = showAccounts && document.issuer.bank_details ? `<p class="legacy-bank">${escapeHtml(document.issuer.bank_details)}</p>` : "";
-  return cards.length || legacy ? `<section class="payment-details"><p class="payment-heading strong">ຂໍ້ມູນຊຳລະ / PAYMENT DETAILS</p>${legacy}${cards.length ? `<div class="payment-accounts" style="grid-template-columns:repeat(${cards.length},minmax(0,1fr))">${cards.join("")}</div>` : ""}</section>` : "";
+  return method || cards.length || legacy ? `<section class="payment-details"><p class="payment-heading strong">ຂໍ້ມູນຊຳລະ / PAYMENT DETAILS</p>${method ? `<p class="payment-method">ວິທີຊຳລະ: ${escapeHtml(paymentLabel)}</p>` : ""}${legacy}${cards.length ? `<div class="payment-accounts" style="grid-template-columns:repeat(${cards.length},minmax(0,1fr))">${cards.join("")}</div>` : ""}</section>` : "";
 }
 
 function partyHtml(party: CommercialParty, label?: string): string {
@@ -141,6 +143,8 @@ const styles = `
   .notes { margin-top: 2mm; }
   .payment-details { margin-top: 3mm; break-inside: avoid; page-break-inside: avoid; }
   .payment-heading { font-size: 10px; letter-spacing: 0.2px; margin-bottom: 2mm; }
+  .payment-method { margin-bottom: 2mm; }
+  .payment-method:last-child { margin-bottom: 0; }
   .payment-accounts { display: grid; gap: 3mm; }
   .payment-account { min-width: 0; padding: 2.5mm; border: 0.2mm solid var(--table-border); border-radius: 1mm; text-align: center; font-size: 10px; }
   .payment-currency { font-size: 11px; margin-bottom: 1mm; }
@@ -150,7 +154,6 @@ const styles = `
   .signatures { display: flex; justify-content: space-between; gap: 12mm; margin-top: 5mm; break-inside: avoid; }
   .signature { text-align: center; min-width: 55mm; }
   .signature-line { margin-top: 6mm; border-top: 0.2mm solid var(--table-border); padding-top: 1.5mm; color: #4b5563; }
-  .footer { margin-top: 3mm; font-size: 10px; color: #4b5563; text-align: center; }
   #print-error { padding: 4mm; border: 1px solid #111; }
   thead { display: table-header-group; }
   tr { break-inside: avoid; page-break-inside: avoid; }
@@ -196,7 +199,6 @@ export function renderCommercialDocument(document: CommercialDocument, options: 
   const showImages = options.showImages ?? document.show_images;
   const quantityFormat = new Intl.NumberFormat("en-US", { maximumFractionDigits: 3 });
   const wideQuantity = document.items.some(item => quantityFormat.format(item.quantity).length > 7);
-  const paymentLabel = ({ cash: "ເງິນສົດ / Cash", transfer: "ໂອນເງິນ / Bank transfer", other: "ອື່ນໆ / Other" } as Record<string, string>)[document.payment_method] ?? document.payment_method;
   const logo = options.showLogo === false ? "" : imageHtml(document.issuer.logo_url, "logo", document.issuer.name);
   const discount = Number(document.discount_value) > 0 || Number(document.discount_amount) > 0
     ? `<div class="total-row discount-row"><span>ສ່ວນຫຼຸດ${document.discount_type === "percent" ? ` (${new Intl.NumberFormat("en-US", { maximumFractionDigits: 2 }).format(document.discount_value)}%)` : ""}</span><span class="number">−${commercialMoney(document.discount_amount)}</span></div>` : "";
@@ -206,7 +208,8 @@ export function renderCommercialDocument(document: CommercialDocument, options: 
     <td class="number">${commercialMoney(item.unit_price)}</td><td class="number">${commercialMoney(item.line_total)}</td></tr>`).join("");
   const body = `<header class="heading">${logo}<h1>${title}</h1></header>
     <div class="parties">${partyHtml(document.issuer)}<div class="meta"><p>ເລກທີ: <strong>${escapeHtml(document.number)}</strong></p><p>ວັນທີ: ${escapeHtml(displayDate(document.issued_on))}</p>
-    ${document.valid_until && !receipt ? `<p>ມີຜົນເຖິງ: ${escapeHtml(displayDate(document.valid_until))}</p>` : ""}</div></div>
+    ${document.valid_until && !receipt ? `<p>ມີຜົນເຖິງ: ${escapeHtml(displayDate(document.valid_until))}</p>` : ""}
+    ${receipt && document.source_quotation_uuid ? `<p>ອ້າງອີງ: ${escapeHtml(document.source_quotation_number || "ໃບສະເໜີລາຄາ")}${document.source_quotation_version ? ` · ສະບັບ ${document.source_quotation_version}` : ""}</p>` : ""}</div></div>
     <section class="customer">${partyHtml(document.customer, "ລູກຄ້າ / CUSTOMER")}</section>
     <table><colgroup><col style="width:7%" /><col style="width:${wideQuantity ? 31 : 35}%" /><col style="width:11%" /><col style="width:${wideQuantity ? 13 : 9}%" /><col style="width:18%" /><col style="width:20%" /></colgroup>
     <thead><tr><th>ລຳດັບ</th><th>ລາຍການ</th><th>ຫົວໜ່ວຍ</th><th>ຈຳນວນ</th><th>ລາຄາ</th><th>ລາຄາລວມ</th></tr></thead><tbody>${rows}</tbody></table>
@@ -215,12 +218,10 @@ export function renderCommercialDocument(document: CommercialDocument, options: 
     <div class="total-row"><span>ອາກອນ (${document.tax_rate}%)</span><span class="number">${commercialMoney(document.tax_amount)}</span></div>
     <div class="total-row${commercialMoney(document.total).length > 12 ? " compact-total" : ""}"><span>${receipt ? "ຮັບເງິນທັງໝົດ" : "ລວມຍອດທັງໝົດ"}</span><span class="number total-amount"><span class="currency">LAK</span> <span class="total-value">${commercialMoney(document.total)}</span></span></div></section>
     <p class="amount-words">( ${escapeHtml(commercialAmountWords(document.total))} )</p>
-    ${receipt && document.payment_method ? `<p>ວິທີຊຳລະ: ${escapeHtml(paymentLabel)}</p>` : ""}
     ${document.notes ? `<section class="notes"><p class="strong">ໝາຍເຫດ</p><p>${escapeHtml(document.notes)}</p></section>` : ""}
     ${paymentHtml(document, options)}
     <section class="signatures"><div class="signature"><p>${receipt ? "ຜູ້ຈ່າຍເງິນ" : "ຜູ້ຮັບໃບສະເໜີລາຄາ"}</p><p class="signature-line">ລາຍເຊັນ / ວັນທີ</p></div>
-    <div class="signature"><p>${receipt ? "ຜູ້ຮັບເງິນ" : "ຜູ້ສະເໜີລາຄາ"}</p><p class="signature-line">ລາຍເຊັນ / ວັນທີ</p></div></section>
-    <p class="footer">${escapeHtml(document.number)}${document.version > 1 ? ` · ສະບັບ ${document.version}` : ""}${document.source_quotation_uuid ? ` · ອ້າງອີງ ${escapeHtml(document.source_quotation_number || "ໃບສະເໜີລາຄາ")}${document.source_quotation_version ? ` · ສະບັບ ${document.source_quotation_version}` : ""}` : ""}</p>`;
+    <div class="signature"><p>${receipt ? "ຜູ້ຮັບເງິນ" : "ຜູ້ສະເໜີລາຄາ"}</p><p class="signature-line">ລາຍເຊັນ / ວັນທີ</p></div></section>`;
   return htmlDocument(`${title} ${document.number}`, body, options);
 }
 
