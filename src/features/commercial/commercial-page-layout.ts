@@ -1,3 +1,5 @@
+import { COMMERCIAL_PAPER, commercialContentHeightForWidth } from "./commercial-paper";
+
 export class CommercialPageLayoutError extends Error {
   constructor(message: string) {
     super(message);
@@ -29,7 +31,7 @@ export function buildCommercialPages(template: HTMLElement, host: HTMLElement): 
     if (tableIndex < 0) throw new CommercialPageLayoutError("Unsupported document layout");
     const width = template.getBoundingClientRect().width;
     if (!Number.isFinite(width) || width <= 0) throw new CommercialPageLayoutError("The document width is not ready");
-    const maximumHeight = width * 269 / 186 - 2;
+    const maximumHeight = commercialContentHeightForWidth(width) - 2;
     const before = children.slice(0, tableIndex);
     const after = children.slice(tableIndex + 1);
     const columns = Math.max(...Array.from(table.tHead.rows, row => Array.from(row.cells).reduce((sum, cell) => sum + cell.colSpan, 0)));
@@ -131,12 +133,12 @@ export async function updateCommercialPreview(doc: Document, isCurrent: () => bo
     if (!isCurrent()) return null;
     host = doc.createElement("div");
     host.setAttribute("aria-hidden", "true");
-    host.style.cssText = "position:fixed;left:-20000px;top:0;width:186mm;pointer-events:none;";
+    host.style.cssText = `position:fixed;left:-20000px;top:0;width:${COMMERCIAL_PAPER.contentWidthMm}mm;pointer-events:none;`;
     doc.body.append(host);
     const template = source.cloneNode(true) as HTMLElement;
     template.removeAttribute("data-commercial-source");
     template.removeAttribute("hidden");
-    template.style.cssText = "position:static;width:186mm;max-width:none;height:auto;min-height:0;margin:0;padding:0;display:flow-root;box-sizing:border-box;";
+    template.style.cssText = `position:static;width:${COMMERCIAL_PAPER.contentWidthMm}mm;max-width:none;height:auto;min-height:0;margin:0;padding:0;display:flow-root;box-sizing:border-box;`;
     template.style.fontFamily = family;
     host.append(template);
     const pages = buildCommercialPages(template, host);
@@ -152,7 +154,7 @@ export async function updateCommercialPreview(doc: Document, isCurrent: () => bo
     if (!isCurrent()) return null;
     if (!sourceStyles.has(source)) sourceStyles.set(source, { style: source.getAttribute("style"), ariaHidden: source.getAttribute("aria-hidden") });
     source.dataset.commercialSource = "true";
-    source.style.cssText = "position:fixed;left:-20000px;top:0;width:186mm;max-width:none;margin:0;padding:0;display:flow-root;pointer-events:none;";
+    source.style.cssText = `position:fixed;left:-20000px;top:0;width:${COMMERCIAL_PAPER.contentWidthMm}mm;max-width:none;margin:0;padding:0;display:flow-root;pointer-events:none;`;
     source.setAttribute("aria-hidden", "true");
     const previous = doc.querySelector<HTMLElement>("[data-commercial-pages]");
     if (previous) previous.replaceWith(wrapper);

@@ -1,6 +1,7 @@
 import type { CatalogItem, CommercialDocument, CommercialParty } from "@/services/commercial";
 import { escapeHtml } from "@/services/printer/invoice-print-window";
 import type { LaoFont } from "@/stores/app-store";
+import { COMMERCIAL_PAPER } from "./commercial-paper";
 
 export interface CommercialPrintOptions {
   autoPrint?: boolean;
@@ -103,11 +104,11 @@ function partyHtml(party: CommercialParty, label?: string): string {
 // The isolated document needs fixed paper dimensions and monochrome colours;
 // these print-only rules never enter the application's light/dark theme.
 const styles = `
-  @page { size: A4; margin: 14mm 12mm; }
+  @page { size: A4; margin: ${COMMERCIAL_PAPER.verticalMarginMm}mm ${COMMERCIAL_PAPER.horizontalMarginMm}mm; }
   * { box-sizing: border-box; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
   html, body { margin: 0; padding: 0; background: #fff; color: #111; }
   body { font-size: 12px; line-height: 1.5; }
-  .paper { width: 100%; max-width: 186mm; margin: 0 auto; padding: 5mm 0; }
+  .paper { width: 100%; max-width: ${COMMERCIAL_PAPER.contentWidthMm}mm; margin: 0 auto; padding: 5mm 0; }
   .heading { display: flex; align-items: center; justify-content: space-between; gap: 6mm; margin-bottom: 4mm; }
   .logo { width: 26mm; height: 26mm; object-fit: contain; }
   h1 { margin: 0; font-size: 20px; line-height: 1.5; font-weight: 700; text-align: center; flex: 1; }
@@ -159,15 +160,15 @@ const styles = `
   tr { break-inside: avoid; page-break-inside: avoid; }
   @media screen { body { padding: 5mm; } }
   body.commercial-paginated { padding: 0; }
-  .commercial-pages { width: 210mm; margin: 0 auto; }
-  .commercial-preview-page { width: 210mm; min-height: 297mm; padding: 14mm 12mm; background: #fff; }
+  .commercial-pages { width: ${COMMERCIAL_PAPER.widthMm}mm; margin: 0 auto; }
+  .commercial-preview-page { width: ${COMMERCIAL_PAPER.widthMm}mm; min-height: ${COMMERCIAL_PAPER.heightMm}mm; padding: ${COMMERCIAL_PAPER.verticalMarginMm}mm ${COMMERCIAL_PAPER.horizontalMarginMm}mm; background: #fff; }
   .commercial-preview-page + .commercial-preview-page { margin-top: 5mm; }
-  .commercial-preview-page > .paper { width: 186mm; max-width: none; margin: 0; padding: 0; display: flow-root; }
+  .commercial-preview-page > .paper { width: ${COMMERCIAL_PAPER.contentWidthMm}mm; max-width: none; margin: 0; padding: 0; display: flow-root; }
   @media print {
     .paper { padding: 0; }
     #print-error, .commercial-paginated > [data-commercial-source] { display: none !important; }
-    .commercial-pages { width: 186mm; margin: 0; }
-    .commercial-preview-page { width: 186mm; min-height: 0; height: 269mm; margin: 0 !important; padding: 0; break-after: page; page-break-after: always; }
+    .commercial-pages { width: ${COMMERCIAL_PAPER.contentWidthMm}mm; margin: 0; }
+    .commercial-preview-page { width: ${COMMERCIAL_PAPER.contentWidthMm}mm; min-height: 0; height: ${COMMERCIAL_PAPER.contentHeightMm}mm; margin: 0 !important; padding: 0; break-after: page; page-break-after: always; }
     .commercial-preview-page:last-child { break-after: auto; page-break-after: auto; }
   }
 `;
