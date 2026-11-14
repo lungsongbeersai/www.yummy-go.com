@@ -70,6 +70,11 @@ const Menu: MenuItem[] = [
     children: [
       { path: "/settings/store", title: "store", allowedStatus: STORE_BRANCH_VIEW_STATUSES },
       { path: "/settings/branch", title: "branch", allowedStatus: STORE_BRANCH_VIEW_STATUSES },
+      {
+        path: "/commercial",
+        title: "commercial",
+        allowedStatus: [ROLE_STATUS.SUPER_ADMIN, ROLE_STATUS.HEAD_OFFICE_ADMIN, ROLE_STATUS.BRANCH_ADMIN]
+      },
       { path: "/settings/bank", title: "bank", allowedStatus: STORE_BRANCH_VIEW_STATUSES },
       { path: "/settings/account", title: "transfer_account", allowedStatus: STORE_BRANCH_VIEW_STATUSES },
       { path: "/settings/province", title: "province" },

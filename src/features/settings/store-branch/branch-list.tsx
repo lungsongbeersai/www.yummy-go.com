@@ -1,11 +1,17 @@
 "use client";
 
 import Image from "next/image";
-import { MapPin, QrCode, Store as StoreIcon } from "lucide-react";
+import Link from "next/link";
+import { FileText, MapPin, QrCode, Store as StoreIcon } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import type { ReactNode } from "react";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
+import { menuGrantsPath } from "@/components/layout/shell-menu-helpers";
+import { useSidebarPermissionAccess } from "@/hooks/use-sidebar-permission-access";
+import { internalRoute } from "@/lib/routes";
+import { usePermissionsSidebarStore } from "@/stores/permissions-sidebar-store";
 import {
   Item,
   ItemActions,
@@ -42,6 +48,30 @@ type BranchListProps = {
   showContract?: boolean;
   onToggleSelected: (id: string, checked: boolean) => void;
 };
+
+function useCommercialDocumentsAccess() {
+  const sidebarError = usePermissionsSidebarStore((state) => state.error);
+  const { keyMatches, loading, menuItems } = useSidebarPermissionAccess();
+  return keyMatches && !loading && !sidebarError && menuGrantsPath(menuItems, "/commercial");
+}
+
+function BranchCommercialDocumentsLink({ allowed, row }: { allowed: boolean; row: StoreBranchSettingsRow }) {
+  const { t } = useTranslation();
+  const storeUuid = storeBranchValue(row, "store_uuid_fk").trim();
+  const branchUuid = storeBranchId(row, "branch").trim();
+  if (!allowed || !storeUuid || !branchUuid) return null;
+
+  const query = new URLSearchParams({ store_uuid: storeUuid, branch_uuid: branchUuid });
+
+  return (
+    <Button asChild variant="outline" className="min-h-11 font-lao">
+      <Link href={internalRoute(`/commercial?${query.toString()}`)}>
+        <FileText aria-hidden />
+        {t("settings.storeBranch.commercialDocuments")}
+      </Link>
+    </Button>
+  );
+}
 
 // The branch's payment QR: a square thumbnail (a QR in a circle would crop its corners),
 // or a muted QR icon when the branch has none yet.
@@ -117,6 +147,7 @@ export function BranchTable({
 }: BranchListProps & { allSelected: boolean; onToggleAllSelected: (checked: boolean) => void }) {
   const { activeId, imageUrl, labels, pageStart, rowActions, rows, selectedRows, showStoreName, showContract, onToggleSelected } = props;
   const { i18n, t } = useTranslation();
+  const commercialDocumentsAllowed = useCommercialDocumentsAccess();
 
   return (
     <Table containerClassName="min-h-0 flex-1 overflow-auto">
@@ -186,7 +217,12 @@ export function BranchTable({
                 <TableCell className="text-muted-foreground"><BranchContractDate row={row} field="contract_start_on" language={i18n.language} labels={labels} /></TableCell>
                 <TableCell><BranchContractEnd row={row} language={i18n.language} labels={labels} /></TableCell>
               </> : null}
-              <TableCell className="text-right">{rowActions(row)}</TableCell>
+              <TableCell className="text-right">
+                <div className="flex items-center justify-end gap-2">
+                  <BranchCommercialDocumentsLink allowed={commercialDocumentsAllowed} row={row} />
+                  {rowActions(row)}
+                </div>
+              </TableCell>
             </TableRow>
           );
         })}
@@ -199,6 +235,7 @@ export function BranchTable({
 // Two columns once there is room for them.
 export function BranchMobileList({ activeId, imageUrl, labels, rowActions, rows, selectedRows, showStoreName, showContract, onToggleSelected }: BranchListProps) {
   const { i18n, t } = useTranslation();
+  const commercialDocumentsAllowed = useCommercialDocumentsAccess();
 
   return (
     <ItemGroup className="@xl:grid @xl:grid-cols-2">
@@ -231,6 +268,7 @@ export function BranchMobileList({ activeId, imageUrl, labels, rowActions, rows,
                 <BranchVat labels={labels} row={row} />
                 <BranchCharge labels={labels} row={row} />
               </span>
+              <BranchCommercialDocumentsLink allowed={commercialDocumentsAllowed} row={row} />
               {showContract ? (
                 <div className="flex w-full flex-col gap-3 border-t border-border pt-3">
                   <div className="flex flex-wrap items-center justify-between gap-2">
