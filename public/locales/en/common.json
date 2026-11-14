@@ -4286,6 +4286,14 @@
     "back": "Back",
     "backToDocuments": "Back to documents",
     "routeScopeUnavailable": "The store or branch in this link is outside your access. Return to documents and select an accessible branch.",
-    "documentUnavailable": "This document is unavailable in the selected branch"
+    "documentUnavailable": "This document is unavailable in the selected branch",
+    "wizardProgress": "Document steps",
+    "wizardDocument": "Document details",
+    "wizardItems": "Items / photos",
+    "wizardReview": "Review",
+    "wizardPrevious": "Previous",
+    "wizardNext": "Next",
+    "wizardStepRequired": "Check the details in this step",
+    "wizardReviewHint": "Review the discount, VAT, notes and document preview before saving. You can return to earlier steps to make changes."
   }
 }
