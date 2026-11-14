@@ -68,7 +68,7 @@ describe("commercial live draft previews", () => {
     ] }));
     expect(preview.items.map((item) => item.line_total)).toEqual([101, 1, 5]);
     expect(preview).toMatchObject({ subtotal: 107, tax_amount: 11, total: 118 });
-    expect(renderCommercialDocument(preview)).toContain('class="currency">LAK</span> 118');
+    expect(renderCommercialDocument(preview)).toContain('class="total-value">118</span>');
   });
 
   it.each(["", " \t\n "])("matches the saved document's generic unit for a blank optional unit %j", (unit) => {
