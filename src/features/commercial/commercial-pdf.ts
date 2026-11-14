@@ -1,6 +1,6 @@
 "use client";
 
-import { buildCommercialPages, CommercialPageLayoutError } from "./commercial-page-layout";
+import { updateCommercialPreview, CommercialPageLayoutError } from "./commercial-page-layout";
 
 export class CommercialPdfError extends Error {
   constructor(readonly code: "layout" | "image" | "font", message: string) {
@@ -93,8 +93,7 @@ async function prepareDrawingFonts(source: Document) {
   }
 }
 
-async function normalizeImages(element: HTMLElement, document: Document) {
-  const cache = new Map<string, Promise<string>>();
+async function normalizeImages(element: HTMLElement, document: Document, cache: Map<string, Promise<string>>) {
   for (const image of element.querySelectorAll("img")) {
     const url = new URL(image.currentSrc || image.getAttribute("src") || "", document.baseURI).href;
     let encoded = cache.get(url);
@@ -132,7 +131,7 @@ async function normalizeImages(element: HTMLElement, document: Document) {
   }
 }
 
-/** Measure and capture independent A4 pages, keeping every table row intact. */
+/** Capture the exact prepared pages used by preview and the Print button. */
 export async function downloadCommercialPdf(sourceDocument: Document, fileName: string): Promise<{ pageCount: number }> {
   const source = sourceDocument.querySelector<HTMLElement>("[data-commercial-source]") ?? sourceDocument.querySelector<HTMLElement>(".paper");
   const view = sourceDocument.defaultView;
@@ -141,10 +140,6 @@ export async function downloadCommercialPdf(sourceDocument: Document, fileName: 
   host.setAttribute("aria-hidden", "true");
   host.style.cssText = "position:fixed;left:-20000px;top:0;width:186mm;pointer-events:none;";
   sourceDocument.body.append(host);
-  const template = source.cloneNode(true) as HTMLElement;
-  template.removeAttribute("data-commercial-source");
-  template.style.cssText = "width:186mm;max-width:none;margin:0;padding:0;display:flow-root;box-sizing:border-box;";
-  host.append(template);
   try {
     const stylesheets = Array.from(sourceDocument.querySelectorAll<HTMLLinkElement>('link[rel="stylesheet"]'));
     await bounded(Promise.all(stylesheets.map((link) => link.sheet ? Promise.resolve() : new Promise<void>((resolve, reject) => {
@@ -152,19 +147,34 @@ export async function downloadCommercialPdf(sourceDocument: Document, fileName: 
       link.addEventListener("error", () => reject(new CommercialPdfError("font", "Unable to load document fonts")), { once: true });
     }))), "font");
     await prepareDrawingFonts(sourceDocument);
-    // Cloned stylesheets may still be loading when html2canvas reads styles.
-    // Pin the resolved family so an unresolved CSS variable cannot become Times.
-    template.style.fontFamily = view.getComputedStyle(source).fontFamily;
-    await normalizeImages(template, sourceDocument);
-    let pages: HTMLElement[];
+    let printPages = Array.from(sourceDocument.querySelectorAll<HTMLElement>("[data-commercial-pages] [data-commercial-page]"));
     try {
-      pages = buildCommercialPages(template, host);
+      if (!printPages.length) {
+        await updateCommercialPreview(sourceDocument);
+        printPages = Array.from(sourceDocument.querySelectorAll<HTMLElement>("[data-commercial-pages] [data-commercial-page]"));
+      }
     } catch (error) {
       throw error instanceof CommercialPageLayoutError ? new CommercialPdfError("layout", error.message) : error;
     }
-    const maximumHeight = template.getBoundingClientRect().width * 269 / 186 - 1;
-    const fits = (page: HTMLElement) => page.getBoundingClientRect().height <= maximumHeight && page.scrollWidth <= page.clientWidth + 1;
-    template.remove();
+    if (!printPages.length) throw new CommercialPdfError("layout", "The print pages are not ready");
+    const imageCache = new Map<string, Promise<string>>();
+    const pages: HTMLElement[] = [];
+    for (const printPage of printPages) {
+      const original = printPage.getBoundingClientRect();
+      const page = printPage.cloneNode(true) as HTMLElement;
+      // Freeze the already arranged print page instead of independently
+      // rebuilding its rows, filler and ending from the canonical source.
+      page.style.cssText = "width:186mm;max-width:none;height:auto;min-height:0;margin:0;padding:0;display:flow-root;box-sizing:border-box;";
+      page.style.fontFamily = view.getComputedStyle(printPage).fontFamily;
+      host.append(page);
+      await normalizeImages(page, sourceDocument, imageCache);
+      const copy = page.getBoundingClientRect();
+      if (original.width <= 0 || Math.abs(copy.width - original.width) > 1 || Math.abs(copy.height - original.height) > 1) {
+        throw new CommercialPdfError("layout", "The print layout changed before export; refresh the preview and try again");
+      }
+      pages.push(page);
+    }
+    const fits = (page: HTMLElement) => page.getBoundingClientRect().height <= page.getBoundingClientRect().width * 269 / 186 - 1 && page.scrollWidth <= page.clientWidth + 1;
     const [{ jsPDF }, { default: html2canvas }] = await Promise.all([import("jspdf"), import("html2canvas-pro")]);
     const pdf = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4", compress: true });
     pdf.setProperties({ title: sourceDocument.title, creator: "Yummy Go" });

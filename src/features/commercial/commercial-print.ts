@@ -137,7 +137,7 @@ const styles = `
   .total-value { margin-left: auto; }
   .currency { font-size: 12px; font-weight: 700; }
   .compact-total .total-value { font-size: 14px; }
-  .amount-words { margin-top: 4mm; font-weight: 700; }
+  .amount-words { margin-top: 2mm; padding-right: 2.2mm; font-weight: 700; text-align: right; }
   .notes { margin-top: 2mm; }
   .payment-details { margin-top: 3mm; break-inside: avoid; page-break-inside: avoid; }
   .payment-heading { font-size: 10px; letter-spacing: 0.2px; margin-bottom: 2mm; }
@@ -214,7 +214,7 @@ export function renderCommercialDocument(document: CommercialDocument, options: 
     ${discount}
     <div class="total-row"><span>ອາກອນ (${document.tax_rate}%)</span><span class="number">${commercialMoney(document.tax_amount)}</span></div>
     <div class="total-row${commercialMoney(document.total).length > 12 ? " compact-total" : ""}"><span>${receipt ? "ຮັບເງິນທັງໝົດ" : "ລວມຍອດທັງໝົດ"}</span><span class="number total-amount"><span class="currency">LAK</span> <span class="total-value">${commercialMoney(document.total)}</span></span></div></section>
-    <p class="amount-words">ຈຳນວນເງິນ: ${escapeHtml(commercialAmountWords(document.total))}</p>
+    <p class="amount-words">( ${escapeHtml(commercialAmountWords(document.total))} )</p>
     ${receipt && document.payment_method ? `<p>ວິທີຊຳລະ: ${escapeHtml(paymentLabel)}</p>` : ""}
     ${document.notes ? `<section class="notes"><p class="strong">ໝາຍເຫດ</p><p>${escapeHtml(document.notes)}</p></section>` : ""}
     ${paymentHtml(document, options)}
