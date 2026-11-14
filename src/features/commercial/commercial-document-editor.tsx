@@ -1,7 +1,7 @@
 "use client";
 
-import { useState } from "react";
-import { Plus, Trash2 } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
+import { Eye, FileText, Plus, Trash2, X } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
@@ -11,6 +11,9 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { CommercialLivePreview } from "@/features/commercial/commercial-live-preview";
+import { buildCommercialDraftPreview } from "@/features/commercial/commercial-draft-preview";
 import { commercialLineInput, commercialToday, commercialTotals, formatCommercialMoney, newCommercialLine, PLC_ISSUER, validCommercialDocument, type CommercialDraftLine } from "@/features/commercial/commercial-domain";
 import { useCommercialLabels, type CommercialLabels } from "@/features/commercial/commercial.locale";
 import type { CommercialDocumentType, CommercialParty, CreateCommercialDocumentInput } from "@/services/commercial";
@@ -40,6 +43,38 @@ export function CommercialDocumentEditor({ branchUuid, documentType, onClose }: 
   const [removeLine, setRemoveLine] = useState<string | null>(null);
   const [validation, setValidation] = useState<string | null>(null);
   const [requestUuid] = useState(createMutationUuid);
+  const [pane, setPane] = useState("details");
+  const form = useRef<HTMLFormElement>(null);
+  const content = useRef<HTMLDivElement>(null);
+  const savePaint = useRef(0);
+  const draft = buildCommercialDraftPreview({ branchUuid, documentType, issuedOn, validUntil, customer, issuer, notes, paymentMethod, showImages, taxRate, lines, draftLabel: l("draft") });
+
+  useEffect(() => {
+    const viewport = window.visualViewport;
+    const resize = () => {
+      if (!content.current) return;
+      content.current.style.height = `${Math.floor(viewport?.height ?? window.innerHeight)}px`;
+      content.current.style.top = `${Math.floor(viewport?.offsetTop ?? 0)}px`;
+    };
+    resize();
+    viewport?.addEventListener("resize", resize);
+    viewport?.addEventListener("scroll", resize);
+    window.addEventListener("resize", resize);
+    return () => {
+      cancelAnimationFrame(savePaint.current);
+      viewport?.removeEventListener("resize", resize);
+      viewport?.removeEventListener("scroll", resize);
+      window.removeEventListener("resize", resize);
+    };
+  }, []);
+
+  function requestSave() {
+    if (saving) return;
+    setPane("details");
+    // Reveal the one form before native validation focuses required fields.
+    cancelAnimationFrame(savePaint.current);
+    savePaint.current = requestAnimationFrame(() => form.current?.requestSubmit());
+  }
   const totals = commercialTotals(lines, taxRate);
   const activeCatalog = catalog.filter((item) => item.active);
 
@@ -55,7 +90,7 @@ export function CommercialDocumentEditor({ branchUuid, documentType, onClose }: 
       ...(documentType === "quotation" ? { valid_until: validUntil || null } : { payment_method: paymentMethod }),
       customer, issuer, notes, show_images: showImages, tax_rate: taxRate, items: lines.map(commercialLineInput),
     };
-    if (!validCommercialDocument(input)) { setValidation(l("documentRequired")); return; }
+    if (!validCommercialDocument(input)) { setPane("details"); setValidation(l("documentRequired")); return; }
     setValidation(null);
     try {
       const document = await createDocument(input);
@@ -69,15 +104,21 @@ export function CommercialDocumentEditor({ branchUuid, documentType, onClose }: 
 
   return (
     <Dialog open onOpenChange={(open) => { if (!open && !saving) onClose(); }}>
-      <DialogContent className="font-lao sm:max-w-5xl" showCloseButton={!saving}>
-        <DialogHeader><DialogTitle>{l(documentType === "quotation" ? "newQuotation" : "newReceipt")}</DialogTitle><DialogDescription>{l("immutableHint")}</DialogDescription></DialogHeader>
-        <form className="grid min-w-0 gap-6" onSubmit={submit}>
-          {validation || error ? <Alert variant="destructive"><AlertDescription>{validation || error}</AlertDescription></Alert> : null}
+      <DialogContent ref={content} className="inset-0 top-0 left-0 flex h-dvh max-h-dvh w-screen max-w-none translate-x-0 translate-y-0 flex-col gap-0 overflow-hidden rounded-none border-0 p-0 font-lao sm:max-w-none" showCloseButton={false}>
+        <DialogHeader className="shrink-0 rounded-none px-3 pt-[max(0.75rem,env(safe-area-inset-top))] pb-3 sm:px-5">
+          <div className="flex items-start justify-between gap-3"><div className="min-w-0"><DialogTitle>{l(documentType === "quotation" ? "newQuotation" : "newReceipt")}</DialogTitle><DialogDescription className="mt-1">{l("editorHint")}</DialogDescription></div><Button type="button" variant="outline" size="icon" className="size-11 shrink-0" disabled={saving} aria-label={l("close")} onClick={onClose}><X /></Button></div>
+        </DialogHeader>
+        {validation || error ? <div className="shrink-0 px-3 pt-3 sm:px-5"><Alert variant="destructive"><AlertDescription>{validation || error}</AlertDescription></Alert></div> : null}
+        <Tabs value={pane} onValueChange={setPane} className="min-h-0 flex-1 gap-0 overflow-hidden">
+          <TabsList className="mx-3 my-2 grid min-h-12 w-auto shrink-0 grid-cols-2 lg:hidden"><TabsTrigger className="min-h-11 gap-2" value="details"><FileText />{l("detailsTab")}</TabsTrigger><TabsTrigger className="min-h-11 gap-2" value="preview"><Eye />{l("previewTab")}</TabsTrigger></TabsList>
+          <div className="grid min-h-0 min-w-0 flex-1 grid-cols-1 overflow-hidden lg:grid-cols-[minmax(0,0.48fr)_minmax(0,0.52fr)]">
+            <TabsContent value="details" forceMount className="m-0 min-h-0 min-w-0 overflow-y-auto overscroll-contain px-3 py-4 data-[state=inactive]:hidden sm:px-5 lg:border-r lg:data-[state=inactive]:block">
+              <form ref={form} id="commercial-document-draft" className="grid min-w-0 gap-5 [&_input]:min-h-11 [&_textarea]:min-h-24" onSubmit={submit} onInvalidCapture={() => setPane("details")}>
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <Field><FieldLabel htmlFor="commercial-issued-on">{l("issuedOn")} *</FieldLabel><Input id="commercial-issued-on" type="date" value={issuedOn} onChange={(event) => setIssuedOn(event.target.value)} required min="2000-01-01" max="2199-12-31" disabled={saving} /></Field>
             {documentType === "quotation" ? <Field><FieldLabel htmlFor="commercial-valid-until">{l("validUntil")}</FieldLabel><Input id="commercial-valid-until" type="date" value={validUntil} min={issuedOn} max="2199-12-31" onChange={(event) => setValidUntil(event.target.value)} disabled={saving} /></Field> : <CommercialPaymentField value={paymentMethod} onChange={setPaymentMethod} disabled={saving} l={l} />}
           </div>
-          <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
+          <div className="grid grid-cols-1 gap-5">
             <PartyFields id="commercial-customer" title={l("customer")} value={customer} onChange={setCustomer} disabled={saving} l={l} />
             <PartyFields id="commercial-issuer" title={l("issuer")} value={issuer} onChange={setIssuer} disabled={saving} l={l} issuer />
           </div>
@@ -97,9 +138,13 @@ export function CommercialDocumentEditor({ branchUuid, documentType, onClose }: 
               <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">{line.image_url ? <label className="flex min-h-11 cursor-pointer items-center gap-3"><Switch checked={line.show_image} onCheckedChange={(checked) => changeLine(line.key, { show_image: checked })} disabled={saving} /><span className="text-xs">{l("showItemImage")}</span></label> : <span />}<p className="text-right font-semibold tabular-nums">{formatCommercialMoney(commercialTotals([line], 0).subtotal)} {l("lak")}</p></div>
             </div>)}
           </section>
-          <div className="grid grid-cols-1 gap-5 md:grid-cols-2"><Field><FieldLabel htmlFor="commercial-notes">{l("notes")}</FieldLabel><Textarea id="commercial-notes" className="min-h-28" value={notes} maxLength={5000} disabled={saving} onChange={(event) => setNotes(event.target.value)} /></Field><div className="grid content-start gap-3 rounded-lg border bg-muted/40 p-4"><div className="flex justify-between gap-3"><span>{l("subtotal")}</span><span className="tabular-nums">{formatCommercialMoney(totals.subtotal)}</span></div><Field orientation="horizontal" className="justify-between"><FieldLabel htmlFor="commercial-tax">{l("tax")}</FieldLabel><Select value={String(taxRate)} onValueChange={(value) => setTaxRate(value === "10" ? 10 : 0)} disabled={saving}><SelectTrigger id="commercial-tax" className="h-11"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="0">{l("noTax")}</SelectItem><SelectItem value="10">10%</SelectItem></SelectContent></Select></Field><div className="flex justify-between gap-3 text-muted-foreground"><span>{l("tax")}</span><span className="tabular-nums">{formatCommercialMoney(totals.taxAmount)}</span></div><div className="flex justify-between gap-3 border-t pt-3 text-base font-semibold"><span>{l("total")}</span><span className="tabular-nums">{formatCommercialMoney(totals.total)} {l("lak")}</span></div></div></div>
-          <DialogFooter><Button type="button" variant="outline" onClick={onClose} disabled={saving}>{l("close")}</Button><Button type="submit" disabled={saving || !lines.length}>{l(saving ? "saving" : "saveDocument")}</Button></DialogFooter>
-        </form>
+          <div className="grid grid-cols-1 gap-5"><Field><FieldLabel htmlFor="commercial-notes">{l("notes")}</FieldLabel><Textarea id="commercial-notes" className="min-h-28" value={notes} maxLength={5000} disabled={saving} onChange={(event) => setNotes(event.target.value)} /></Field><div className="grid content-start gap-3 rounded-lg border bg-muted/40 p-4"><div className="flex justify-between gap-3"><span>{l("subtotal")}</span><span className="tabular-nums">{formatCommercialMoney(totals.subtotal)}</span></div><Field orientation="horizontal" className="justify-between"><FieldLabel htmlFor="commercial-tax">{l("tax")}</FieldLabel><Select value={String(taxRate)} onValueChange={(value) => setTaxRate(value === "10" ? 10 : 0)} disabled={saving}><SelectTrigger id="commercial-tax" className="h-11"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="0">{l("noTax")}</SelectItem><SelectItem value="10">10%</SelectItem></SelectContent></Select></Field><div className="flex justify-between gap-3 text-muted-foreground"><span>{l("tax")}</span><span className="tabular-nums">{formatCommercialMoney(totals.taxAmount)}</span></div><div className="flex justify-between gap-3 border-t pt-3 text-base font-semibold"><span>{l("total")}</span><span className="tabular-nums">{formatCommercialMoney(totals.total)} {l("lak")}</span></div></div></div>
+              </form>
+            </TabsContent>
+            <TabsContent value="preview" forceMount className="m-0 flex min-h-0 min-w-0 flex-col overflow-hidden bg-muted/40 data-[state=inactive]:hidden lg:data-[state=inactive]:flex"><CommercialLivePreview document={draft} /></TabsContent>
+          </div>
+        </Tabs>
+        <DialogFooter className="shrink-0 flex-row items-center gap-3 rounded-none px-3 py-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] sm:px-5"><p className="mr-auto hidden text-sm sm:block">{l("total")}: <strong className="tabular-nums">{formatCommercialMoney(totals.total)} {l("lak")}</strong></p><Button type="button" variant="outline" onClick={onClose} disabled={saving}>{l("close")}</Button><Button type="button" className="min-h-11 flex-1 whitespace-normal sm:flex-none" disabled={saving} onClick={requestSave}>{l(saving ? "saving" : "saveDocument")}</Button></DialogFooter>
         <AlertDialog open={Boolean(removeLine)} onOpenChange={(open) => { if (!open) setRemoveLine(null); }}><AlertDialogContent className="font-lao"><AlertDialogHeader><AlertDialogTitle>{l("removeLine")}</AlertDialogTitle><AlertDialogDescription>{l("removeLineConfirm")}</AlertDialogDescription></AlertDialogHeader><AlertDialogFooter><AlertDialogCancel>{l("cancel")}</AlertDialogCancel><AlertDialogAction variant="destructive" onClick={() => { setLines((current) => current.filter((line) => line.key !== removeLine)); setRemoveLine(null); }}>{l("remove")}</AlertDialogAction></AlertDialogFooter></AlertDialogContent></AlertDialog>
       </DialogContent>
     </Dialog>

@@ -4,6 +4,9 @@ import { useTranslation } from "react-i18next";
 
 const la = {
   title: "ສິນຄ້າ ແລະ ເອກະສານການຄ້າ",
+  detailsTab: "ລາຍລະອຽດ", previewTab: "ເບິ່ງຕົວຢ່າງ", livePreview: "ຕົວຢ່າງເອກະສານ",
+  livePreviewHint: "ຕົວຢ່າງ A4 ປ່ຽນຕາມຂໍ້ມູນທີ່ກໍາລັງພິມ", draft: "ຮ່າງ / DRAFT",
+  editorHint: "ເບິ່ງຕົວຢ່າງຂະນະກໍາລັງແກ້ໄຂ. ເອກະສານຈະຖືກອອກ ແລະ ໄດ້ຮັບເລກທີເມື່ອກົດບັນທຶກເທົ່ານັ້ນ",
   printBlocked: "ບໍ່ສາມາດເປີດໜ້າພິມໄດ້. ກະລຸນາອະນຸຍາດໜ້າຕ່າງປັອບອັບແລ້ວລອງໃໝ່.",
   printHint: "ເອກະສານ A4 · ເລືອກ Save as PDF ໃນໜ້າຕ່າງພິມເພື່ອບັນທຶກໄຟລ໌.",
   showLogo: "ສະແດງໂລໂກ້", printPdf: "ພິມ / ບັນທຶກ PDF",
@@ -35,6 +38,8 @@ const la = {
 
 const en: Record<keyof typeof la, string> = {
   title: "Catalog & commercial documents", subtitle: "Save prices once and reuse them across every store and branch you manage",
+  detailsTab: "Details", previewTab: "Preview", livePreview: "Live document preview", livePreviewHint: "A4 preview updates as you type", draft: "DRAFT / Not issued",
+  editorHint: "Review the live preview while editing. The document is issued and receives a number only when you save.",
   sharedCatalog: "Shared catalog", sharedCatalogHint: "Save items, prices and photos once to reuse in documents for every store and branch you manage.",
   catalogReadOnlyHint: "Management maintains the shared catalog. You can use its items to issue documents for your branch.",
   documentStore: "Store for documents", documentBranch: "Branch for documents", documentScopeHint: "Store and branch selection applies to document creation and history. The catalog is shared.",
