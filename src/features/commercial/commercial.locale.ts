@@ -3,6 +3,16 @@
 import { useTranslation } from "react-i18next";
 
 const la = {
+  nativePdfSaveHint: "ເລືອກໂຟນເດີເພື່ອບັນທຶກ PDF ໃນອຸປະກອນຂອງທ່ານ",
+  nativePdfSave: "ບັນທຶກ PDF",
+  nativePdfSaving: "ກໍາລັງລໍຖ້າເລືອກບ່ອນບັນທຶກ…",
+  nativePdfSaveFailed: "ບໍ່ສາມາດບັນທຶກ PDF ໄດ້. ກະລຸນາລອງອີກຄັ້ງ",
+  nativePdfReadyHint: "ບັນທຶກ PDF ເພື່ອເລືອກໂຟນເດີ. ແຊຣ໌ PDF ເພື່ອເປີດເມນູເລືອກແອັບ Android",
+  openPdf: "ເປີດ PDF",
+  pdfReady: "PDF ພ້ອມໃຊ້",
+  downloadReadyHint: "ກຽມ PDF ໃຫ້ພ້ອມ ແລ້ວເລືອກວິທີບັນທຶກ ຫຼື ເປີດໄຟລ໌",
+  downloadOpenHint: "ຫາກດາວໂຫຼດບໍ່ເລີ່ມ ໃຫ້ເປີດ PDF ແລ້ວໃຊ້ເມນູບັນທຶກ ຫຼື ແຊຣ໌ຂອງເບຣົາເຊີ",
+  androidPdfUpdateHint: "ອັບເດດແອັບ Android ເພື່ອບັນທຶກ ແລະ ແຊຣ໌ PDF. ແອັບລຸ້ນທີ່ຕິດຕັ້ງນີ້ຕ້ອງການລະບົບໄຟລ໌ໃໝ່",
   sharePdf: "ແຊຣ໌ PDF",
   shareChannelsHint: "ແຊຣ໌ PDF ຜ່ານ WhatsApp, LINE, Telegram, ອີເມວ ຫຼື ແອັບທີ່ຕິດຕັ້ງ ແລະ ຮອງຮັບການແຊຣ໌ໄຟລ໌",
   shareVisibleDetailsHint: "PDF ຈະລວມຂໍ້ມູນທີ່ກໍາລັງສະແດງໃນຕົວຢ່າງເອກະສານ",
@@ -68,6 +78,16 @@ const la = {
 } as const;
 
 const en: Record<keyof typeof la, string> = {
+  nativePdfSaveHint: "Choose a folder to save this PDF on your device.",
+  nativePdfSave: "Save PDF",
+  nativePdfSaving: "Waiting for the save location…",
+  nativePdfSaveFailed: "Could not save the PDF. Try again.",
+  nativePdfReadyHint: "Save PDF lets you choose a folder. Share PDF opens the Android app chooser.",
+  openPdf: "Open PDF",
+  pdfReady: "PDF ready",
+  downloadReadyHint: "Prepare the PDF, then choose how to save or open it.",
+  downloadOpenHint: "If the download does not start, open the PDF and use the browser’s Save or Share menu.",
+  androidPdfUpdateHint: "Update the Android app to save and share PDFs. This installed version needs the new file support.",
   sharePdf: "Share PDF",
   shareChannelsHint: "Share the PDF through WhatsApp, LINE, Telegram, email or installed apps that support file sharing.",
   shareVisibleDetailsHint: "The PDF includes the information currently visible in the document preview.",

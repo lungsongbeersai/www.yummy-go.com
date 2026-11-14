@@ -4151,6 +4151,16 @@
     }
   },
   "commercial": {
+    "nativePdfSaveHint": "ເລືອກໂຟນເດີເພື່ອບັນທຶກ PDF ໃນອຸປະກອນຂອງທ່ານ",
+    "nativePdfSave": "ບັນທຶກ PDF",
+    "nativePdfSaving": "ກໍາລັງລໍຖ້າເລືອກບ່ອນບັນທຶກ…",
+    "nativePdfSaveFailed": "ບໍ່ສາມາດບັນທຶກ PDF ໄດ້. ກະລຸນາລອງອີກຄັ້ງ",
+    "nativePdfReadyHint": "ບັນທຶກ PDF ເພື່ອເລືອກໂຟນເດີ. ແຊຣ໌ PDF ເພື່ອເປີດເມນູເລືອກແອັບ Android",
+    "openPdf": "ເປີດ PDF",
+    "pdfReady": "PDF ພ້ອມໃຊ້",
+    "downloadReadyHint": "ກຽມ PDF ໃຫ້ພ້ອມ ແລ້ວເລືອກວິທີບັນທຶກ ຫຼື ເປີດໄຟລ໌",
+    "downloadOpenHint": "ຫາກດາວໂຫຼດບໍ່ເລີ່ມ ໃຫ້ເປີດ PDF ແລ້ວໃຊ້ເມນູບັນທຶກ ຫຼື ແຊຣ໌ຂອງເບຣົາເຊີ",
+    "androidPdfUpdateHint": "ອັບເດດແອັບ Android ເພື່ອບັນທຶກ ແລະ ແຊຣ໌ PDF. ແອັບລຸ້ນທີ່ຕິດຕັ້ງນີ້ຕ້ອງການລະບົບໄຟລ໌ໃໝ່",
     "sharePdf": "ແຊຣ໌ PDF",
     "shareChannelsHint": "ແຊຣ໌ PDF ຜ່ານ WhatsApp, LINE, Telegram, ອີເມວ ຫຼື ແອັບທີ່ຕິດຕັ້ງ ແລະ ຮອງຮັບການແຊຣ໌ໄຟລ໌",
     "shareVisibleDetailsHint": "PDF ຈະລວມຂໍ້ມູນທີ່ກໍາລັງສະແດງໃນຕົວຢ່າງເອກະສານ",

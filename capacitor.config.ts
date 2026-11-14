@@ -23,6 +23,8 @@ const config: CapacitorConfig = {
 
   android: {
     appendUserAgent: "YummyGoCapacitorAndroid",
+    // Private PDF chunks must not be included in Capacitor bridge debug logs.
+    loggingBehavior: "none",
     backgroundColor: "#16a34a",
     // เปิดเฉพาะตอนทดสอบเครื่องจริงผ่าน USB (มี CAPACITOR_SERVER_URL เท่านั้น) — ให้ต่อ
     // chrome://inspect ดู console/network ของ WebView ได้ ส่วน production build (ไม่มี
