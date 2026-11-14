@@ -3702,6 +3702,8 @@
       "bankSaved": "ບັນທຶກທະນາຄານແລ້ວ",
       "annualDue": "ວັນຄົບກຳນົດ 1 ປີ",
       "activeStores": "ຮ້ານທີ່ເປີດໃຊ້ງານ",
+      "activeNonDemoStores": "ເປີດໃຊ້ງານ (ບໍ່ລວມ Demo)",
+      "summaryUnavailable": "ຍັງບໍ່ມີຂໍ້ມູນຈໍານວນຮ້ານ",
       "charge": "ຄ່າບໍລິການ",
       "chargePercent": "ຄ່າບໍລິການ %",
       "closed": "ປິດ",

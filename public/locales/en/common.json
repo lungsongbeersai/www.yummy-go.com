@@ -3702,6 +3702,8 @@
       "bankSaved": "Bank saved",
       "annualDue": "1-year due date",
       "activeStores": "Active stores",
+      "activeNonDemoStores": "Enabled stores (excluding Demo)",
+      "summaryUnavailable": "Count unavailable",
       "charge": "Service charge",
       "chargePercent": "Service charge %",
       "closed": "Closed",

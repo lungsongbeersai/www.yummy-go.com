@@ -268,20 +268,32 @@ describe("store branch utils", () => {
         plc: "2",
         test: 3,
         active: "10",
+        active_non_demo: "9",
         inactive: 2
       })
-    ).toEqual({ total: 12, general: 7, plc: 2, test: 3, active: 10, inactive: 2 });
+    ).toEqual({ total: 12, general: 7, plc: 2, test: 3, active: 10, active_non_demo: 9, inactive: 2 });
     expect(normalizeStoreReportSummary(null)).toEqual({
       total: 0,
       general: 0,
       plc: 0,
       test: 0,
       active: 0,
+      active_non_demo: null,
       inactive: 0
     });
     expect(branchContractDaysRemaining({ contract_days_remaining: "14" })).toBe(14);
     expect(branchContractDaysRemaining({ contract_days_remaining: -3 })).toBe(-3);
     expect(branchContractDaysRemaining({ contract_days_remaining: null })).toBeNull();
+  });
+
+  it("uses the supplied enabled non-Demo count without subtracting all Demo stores", () => {
+    // Two of these three Demo stores are closed, so 10 - 3 would undercount.
+    expect(normalizeStoreReportSummary({ active: 10, test: 3, active_non_demo: 9 }).active_non_demo).toBe(9);
+    expect(normalizeStoreReportSummary({ active: 10, test: 3 }).active_non_demo).toBeNull();
+    expect(normalizeStoreReportSummary({ active_non_demo: 0 }).active_non_demo).toBe(0);
+    for (const value of [null, "", "  ", "unavailable", true, -1, 1.5, Infinity]) {
+      expect(normalizeStoreReportSummary({ active_non_demo: value }).active_non_demo).toBeNull();
+    }
   });
 
   it("keeps the contract calendar date when viewed west of UTC", () => {
@@ -349,6 +361,23 @@ describe("store branch utils", () => {
     expect(rows.filter((row) => storeMatchesCardFilter(row, "general"))).toEqual([generalClosed]);
     expect(rows.filter((row) => storeMatchesCardFilter(row, "test"))).toEqual([testOpen]);
     expect(rows.filter((row) => storeMatchesCardFilter(row, "active"))).toEqual([plcOpen, testOpen]);
+    expect(rows.filter((row) => storeMatchesCardFilter(row, "active_non_demo"))).toEqual([plcOpen]);
     expect(rows.filter((row) => storeMatchesCardFilter(row, "inactive"))).toEqual([generalClosed]);
+  });
+
+  it("includes enabled PLC and ordinary stores while excluding both enabled and closed Demo stores", () => {
+    const rows = [
+      { store_status: 1, store_active: 1 },
+      { store_status: 2, store_active: 1 },
+      { store_status: null, store_active: null },
+      { store_status: 99, store_active: 1 },
+      { store_status: "2", store_active: "1" },
+      { store_status: 3, store_active: 1 },
+      { store_status: "3", store_active: "1" },
+      { store_status: 3, store_active: 2 },
+      { store_status: 1, store_active: 2 },
+      { store_status: 2, store_active: 2 }
+    ];
+    expect(rows.filter(row => storeMatchesCardFilter(row, "active_non_demo"))).toEqual(rows.slice(0, 5));
   });
 });

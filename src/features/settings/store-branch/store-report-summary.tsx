@@ -6,6 +6,7 @@ import {
   CircleOff,
   FlaskConical,
   ShieldCheck,
+  Store,
   type LucideIcon
 } from "lucide-react";
 import { Card, CardAction, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -33,7 +34,7 @@ interface SummaryCard {
   key: StoreCardFilter;
   label: string;
   tone: keyof typeof tones;
-  value: number;
+  value: number | null | undefined;
 }
 
 // Each card is also a filter toggle: press it to show only that kind of store, press it again
@@ -56,10 +57,9 @@ export function StoreReportSummaryCards({
     { icon: ShieldCheck, key: "plc", label: labels.plcStores, tone: "primary", value: summary.plc },
     { icon: FlaskConical, key: "test", label: labels.testStores, tone: "primary", value: summary.test },
     { icon: CircleCheckBig, key: "active", label: labels.activeStores, tone: "success", value: summary.active },
-    // Inactive stores only turn red when there are some. On the 2-column phone grid it is the
-    // odd fifth card, so it spans the row instead of sitting alone next to a gap.
+    { icon: Store, key: "active_non_demo", label: labels.activeNonDemoStores, tone: "success", value: summary.active_non_demo },
+    // Inactive stores only turn red when there are some.
     {
-      className: "col-span-2 @xl:col-span-1",
       icon: CircleOff,
       key: "inactive",
       label: labels.inactiveStores,
@@ -69,7 +69,7 @@ export function StoreReportSummaryCards({
   ];
 
   return (
-    <section aria-label={labels.storeSummary} className="grid shrink-0 grid-cols-2 gap-4 @xl:grid-cols-3 @5xl:grid-cols-5">
+    <section aria-label={labels.storeSummary} className="grid shrink-0 grid-cols-2 gap-4 @xl:grid-cols-3 @5xl:grid-cols-6">
       {cards.map((card) => {
         const selected = filter === card.key;
 
@@ -78,7 +78,8 @@ export function StoreReportSummaryCards({
             key={card.key}
             type="button"
             aria-pressed={selected}
-            className={cn("rounded-lg text-left outline-none focus-visible:ring-3 focus-visible:ring-ring/50", card.className)}
+            disabled={card.value == null}
+            className={cn("rounded-lg text-left outline-none focus-visible:ring-3 focus-visible:ring-ring/50 disabled:cursor-default disabled:opacity-70", card.className)}
             onClick={() => onFilterChange(selected ? null : card.key)}
           >
             <Card
@@ -89,14 +90,14 @@ export function StoreReportSummaryCards({
                 selected && "ring-2 ring-primary hover:ring-primary"
               )}
             >
-              <CardHeader>
+              <CardHeader className="flex-1">
                 <CardDescription>{card.label}</CardDescription>
                 <CardAction>
                   <span aria-hidden className={cn("flex size-8 items-center justify-center rounded-lg", tones[card.tone].icon)}>
                     <card.icon className="size-4" />
                   </span>
                 </CardAction>
-                <CardTitle className="text-2xl font-semibold tabular-nums">{card.value.toLocaleString("en-US")}</CardTitle>
+                <CardTitle className="self-end text-2xl font-semibold tabular-nums">{card.value == null ? <span aria-label={labels.summaryUnavailable}>—</span> : card.value.toLocaleString("en-US")}</CardTitle>
               </CardHeader>
             </Card>
           </button>
