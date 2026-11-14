@@ -112,7 +112,7 @@ describe("commercial print documents", () => {
   it("requires saved opt-in before including private bank information or QR bytes", () => {
     const qr = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+a7WQAAAAASUVORK5CYII=";
     const privateDocument: CommercialDocument = { ...document, issuer: { ...document.issuer, bank_details: "Legacy private details" }, payment_details: {
-      show_accounts: false, show_qr: false, accounts: [{ snapshot_uuid: "saved-account", profile_uuid: "profile", label: "Personal", bank_name: "Private bank <test>", account_name: "Private owner", account_number: "123456789", currency: "LAK", qr_image: qr }],
+      show_accounts: false, show_qr: false, accounts: [{ snapshot_uuid: "saved-account", profile_uuid: "profile", label: "Personal", bank_name: "Private bank <test>", account_name: "Private owner <test>", account_number: "123456789", currency: "LAK", qr_image: qr }],
     } };
     const hidden = renderCommercialDocument(privateDocument, { showPaymentAccounts: true, showPaymentQr: true });
     expect(hidden).not.toContain(qr);
@@ -126,7 +126,8 @@ describe("commercial print documents", () => {
     expect(html).toContain('class="payment-qr"');
     expect(html).toContain(qr);
     expect(html).toContain("123456789");
-    expect(html).toContain("Private bank &lt;test&gt;");
+    expect(html).toContain("Private owner &lt;test&gt;");
+    expect(html).not.toContain("Private bank");
     const qrOnly = renderCommercialDocument(visible, { showPaymentAccounts: false });
     expect(qrOnly).toContain(qr);
     expect(qrOnly).not.toContain("123456789");

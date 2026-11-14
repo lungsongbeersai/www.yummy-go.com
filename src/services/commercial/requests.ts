@@ -1,4 +1,5 @@
 import { apiRequest } from "@/lib/api";
+import { toFormData } from "@/lib/form-data";
 import { fetchAll, saveEntity } from "@/services/shared/crud";
 import type { ApiDataResponse } from "@/services/shared/types";
 import type {
@@ -21,6 +22,20 @@ export function getCommercialPaymentProfiles() {
 
 export function saveCommercialPaymentProfile(input: SaveCommercialPaymentProfileInput) {
   return saveEntity<CommercialPaymentProfile>(`${BASE_PATH}/payment-profiles/save`, { ...input }, undefined, true);
+}
+
+export async function saveCommercialPaymentProfiles(inputs: SaveCommercialPaymentProfileInput[]) {
+  // A batch binds each private upload to its row; the generic array serializer
+  // cannot preserve nested metadata or those file identities.
+  const profiles = inputs.map((input) => {
+    const profile = { ...input };
+    delete profile.qr_image;
+    return profile;
+  });
+  const payload: Record<string, unknown> = { profiles: JSON.stringify(profiles) };
+  inputs.forEach((input, index) => { if (input.qr_image) payload[`qr_image_${index}`] = input.qr_image; });
+  const result = await apiRequest<ApiDataResponse<CommercialPaymentProfile[]>>("post", `${BASE_PATH}/payment-profiles/save-batch`, { data: toFormData(payload) });
+  return result.data;
 }
 
 export function getCommercialCatalog(branchUuid: string) {
