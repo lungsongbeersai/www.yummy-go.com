@@ -22,3 +22,19 @@ export function commercialBranches(branches: Branch[], storeUuid: string, status
 export function commercialBranchRows<T extends CommercialDocument>(rows: T[], branchUuid: string) {
   return rows.filter((row) => Boolean(branchUuid) && row.branch_uuid === branchUuid);
 }
+
+export function newestCommercialDocument(rows: CommercialDocument[], incoming: CommercialDocument) {
+  let latest = incoming;
+  let receiptUuid = incoming.receipt_uuid;
+  for (const row of rows) {
+    if (row.document_uuid !== incoming.document_uuid) continue;
+    if (row.version > latest.version) latest = row;
+    receiptUuid ||= row.receipt_uuid;
+  }
+  // Receipt conversion adds a permanent link without changing quote version.
+  return !latest.receipt_uuid && receiptUuid ? { ...latest, receipt_uuid: receiptUuid } : latest;
+}
+
+export function mergeCommercialDocument(rows: CommercialDocument[], incoming: CommercialDocument) {
+  return [newestCommercialDocument(rows, incoming), ...rows.filter((row) => row.document_uuid !== incoming.document_uuid)];
+}

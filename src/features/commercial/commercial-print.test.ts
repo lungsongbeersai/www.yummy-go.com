@@ -7,9 +7,9 @@ const document: CommercialDocument = {
   document_uuid: "document", branch_uuid: "branch", number: "QT-20261114-0001", document_type: "quotation",
   issued_on: "2026-11-14", valid_until: null, customer: { name: "Customer <script>unsafe()</script>" },
   issuer: { name: "PLC", logo_url: "/brand/plc-logo.png" }, notes: "Terms & conditions", payment_method: "cash",
-  show_images: true, tax_rate: 0, subtotal: 18400000, tax_amount: 0, total: 18400000,
-  source_quotation_uuid: null, receipt_uuid: null, created_at: "2026-11-14T00:00:00Z",
-  items: [{ item_uuid: "printer", name: "Printer", description: "<b>Original model</b>", unit: "ເຄື່ອງ", quantity: 1, unit_price: 950000, line_total: 950000, image_url: "https://example.com/printer.png", show_image: true }],
+  show_images: true, tax_rate: 0, discount_type: null, discount_value: 0, discount_amount: 0, subtotal: 18400000, tax_amount: 0, total: 18400000,
+  source_quotation_uuid: null, source_quotation_version: null, receipt_uuid: null, created_at: "2026-11-14T00:00:00Z", version: 1, updated_at: "2026-11-14T00:00:00Z", updated_by: "issuer",
+  items: [{ line_uuid: "line", item_uuid: "printer", name: "Printer", description: "<b>Original model</b>", unit: "ເຄື່ອງ", quantity: 1, unit_price: 950000, line_total: 950000, image_url: "https://example.com/printer.png", show_image: true }],
 };
 
 describe("commercial print documents", () => {
@@ -70,6 +70,23 @@ describe("commercial print documents", () => {
     expect(html).not.toContain('class="totals"');
     expect(html).toContain("ລາຍການລາຄາ: Catalog owner");
     expect(html).not.toContain("ສາຂາ:");
+  });
+
+  it("only prints an entered footer discount, before the tax row", () => {
+    expect(renderCommercialDocument(document)).not.toContain('class="total-row discount-row"');
+    const fixed = renderCommercialDocument({ ...document, discount_type: "amount", discount_value: 400000, discount_amount: 400000, total: 18000000 });
+    expect(fixed).toContain('class="number">−400,000');
+    expect(fixed.indexOf('class="total-row discount-row"')).toBeLessThan(fixed.indexOf("ອາກອນ"));
+    expect(fixed).toContain('class="currency">LAK</span> 18,000,000');
+    const percentage = renderCommercialDocument({ ...document, discount_type: "percent", discount_value: 12.35, discount_amount: 2272400 });
+    expect(percentage).toContain("ສ່ວນຫຼຸດ (12.35%)");
+  });
+
+  it("identifies edited versions and the original quotation revision in receipt output", () => {
+    const html = renderCommercialDocument({ ...document, document_type: "receipt", version: 4,
+      source_quotation_uuid: "quote", source_quotation_number: "QT-2026-00009 <old>", source_quotation_version: 2 });
+    expect(html).toContain(`${document.number} · ສະບັບ 4`);
+    expect(html).toContain("QT-2026-00009 &lt;old&gt; · ສະບັບ 2");
   });
 });
 

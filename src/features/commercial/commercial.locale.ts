@@ -4,6 +4,18 @@ import { useTranslation } from "react-i18next";
 
 const la = {
   title: "ສິນຄ້າ ແລະ ເອກະສານການຄ້າ",
+  createRecoveryHint: "ກະລຸນາລອງບັນທຶກອີກຄັ້ງເພື່ອຮັບເອກະສານເດີມກ່ອນແກ້ໄຂເພີ່ມ. ຫຼັງບັນທຶກສໍາເລັດ ທ່ານສາມາດເປີດແກ້ໄຂໄດ້",
+  recoverDocument: "ລອງບັນທຶກເພື່ອຮັບເອກະສານເດີມ",
+  editDocument: "ແກ້ໄຂເອກະສານ", saveChanges: "ບັນທຶກການແກ້ໄຂ", unsavedChanges: "ກໍາລັງແກ້ໄຂ / ຍັງບໍ່ບັນທຶກ",
+  editDocumentHint: "ແກ້ໄຂສະເພາະເອກະສານນີ້. ເລກທີເອກະສານຄົງເດີມ ແລະ ເກັບປະຫວັດທຸກຄັ້ງທີ່ບັນທຶກ",
+  discount: "ສ່ວນຫຼຸດ", discountOptional: "ສ່ວນຫຼຸດ (ບໍ່ບັງຄັບ)", discountType: "ປະເພດສ່ວນຫຼຸດ",
+  discountHint: "ຫັກກ່ອນຄິດ VAT. ປ່ອຍວ່າງ ຫຼື ໃສ່ 0 ເພື່ອບໍ່ສະແດງໃນເອກະສານ",
+  version: "ສະບັບ", updatedOn: "ແກ້ໄຂລ່າສຸດ", revisionHistory: "ປະຫວັດການແກ້ໄຂ", viewRevision: "ເບິ່ງສະບັບນີ້", noRevisions: "ຍັງບໍ່ມີປະຫວັດ", readOnlyRevision: "ສະບັບປະຫວັດ · ອ່ານຢ່າງດຽວ",
+  revisionHistoryHint: "ເບິ່ງເອກະສານແຕ່ລະສະບັບທີ່ບັນທຶກໄວ້. ສະບັບເກົ່າບໍ່ສາມາດແກ້ໄຂໄດ້",
+  versionConflict: "ເອກະສານມີການປ່ຽນແປງຈາກສະບັບທີ່ທ່ານເປີດ. ຮ່າງຂອງທ່ານຍັງຢູ່ ກະລຸນາເບິ່ງສະບັບລ່າສຸດກ່ອນ",
+  viewLatest: "ເບິ່ງສະບັບລ່າສຸດ", reloadLatest: "ໂຫຼດສະບັບລ່າສຸດ", reloadLatestConfirm: "ປະຖິ້ມການແກ້ໄຂທີ່ຍັງບໍ່ບັນທຶກ ແລະ ໂຫຼດເອກະສານສະບັບລ່າສຸດແທນ?",
+  linkedReceiptUnchanged: "ໃບຮັບເງິນທີ່ເຊື່ອມໄວ້ຍັງໃຊ້ຂໍ້ມູນສະບັບເດີມ. ຫາກຕ້ອງການປ່ຽນ ໃຫ້ເປີດແກ້ໄຂໃບຮັບເງິນແຍກຕ່າງຫາກ",
+  sourceQuotationVersion: "ອ້າງອີງໃບສະເໜີລາຄາ",
   detailsTab: "ລາຍລະອຽດ", previewTab: "ເບິ່ງຕົວຢ່າງ", livePreview: "ຕົວຢ່າງເອກະສານ",
   livePreviewHint: "ຕົວຢ່າງ A4 ປ່ຽນຕາມຂໍ້ມູນທີ່ກໍາລັງພິມ", draft: "ຮ່າງ / DRAFT",
   editorHint: "ເບິ່ງຕົວຢ່າງຂະນະກໍາລັງແກ້ໄຂ. ເອກະສານຈະຖືກອອກ ແລະ ໄດ້ຮັບເລກທີເມື່ອກົດບັນທຶກເທົ່ານັ້ນ",
@@ -31,13 +43,18 @@ const la = {
   issuedOn: "ວັນທີອອກເອກະສານ", validUntil: "ລາຄາມີຜົນຮອດ", notes: "ໝາຍເຫດ / ເງື່ອນໄຂ", paymentMethod: "ວິທີຊໍາລະ", cash: "ເງິນສົດ", transfer: "ໂອນເງິນ", otherPayment: "ອື່ນໆ",
   items: "ລາຍການ", chooseItem: "ເລືອກຈາກລາຍການສິນຄ້າ", customLine: "ເພີ່ມລາຍການເອງ", removeLine: "ລຶບລາຍການ", removeLineConfirm: "ລຶບລາຍການນີ້ຈາກເອກະສານທີ່ກໍາລັງສ້າງ?",
   subtotal: "ລວມກ່ອນອາກອນ", tax: "ອາກອນ VAT", noTax: "ບໍ່ຄິດ VAT", total: "ລວມທັງໝົດ", lak: "ກີບ",
-  saveDocument: "ບັນທຶກ ແລະ ເບິ່ງເອກະສານ", immutableHint: "ຫຼັງບັນທຶກ ລາຄາ ແລະ ຂໍ້ມູນໃນເອກະສານຈະຖືກເກັບໄວ້ຕາມເວລາອອກເອກະສານ",
+  saveDocument: "ບັນທຶກ ແລະ ເບິ່ງເອກະສານ", immutableHint: "ແຕ່ລະສະບັບທີ່ບັນທຶກຈະເກັບລາຄາ ແລະ ຂໍ້ມູນໃນເວລານັ້ນໄວ້ໃນປະຫວັດ",
   documentRequired: "ກະລຸນາລະບຸລູກຄ້າ ຜູ້ອອກ ວັນທີ ແລະ ລາຍການທີ່ຖືກຕ້ອງ (ຈໍານວນຫຼາຍກວ່າ 0, ລາຄາເຕັມກີບ)",
   emptyDocuments: "ຍັງບໍ່ມີເອກະສານ", emptyDocumentsHint: "ສ້າງເອກະສານໃໝ່ ຫຼື ເລືອກສາຂາອື່ນ", number: "ເລກທີ", viewDocument: "ເບິ່ງ / ພິມ / PDF", createReceipt: "ອອກໃບຮັບເງິນ", viewReceipt: "ເບິ່ງໃບຮັບເງິນ", receiptHint: "ຢືນຢັນວັນທີ ແລະ ວິທີຊໍາລະຂອງເງິນທີ່ໄດ້ຮັບ ໃບຮັບເງິນຈະເຊື່ອມກັບໃບສະເໜີລາຄານີ້", linkedQuotation: "ຈາກໃບສະເໜີລາຄາ", noResults: "ບໍ່ພົບລາຍການ", noPermission: "ທ່ານບໍ່ມີສິດເຂົ້າໃຊ້ໜ້ານີ້",
 } as const;
 
 const en: Record<keyof typeof la, string> = {
   title: "Catalog & commercial documents", subtitle: "Save prices once and reuse them across every store and branch you manage",
+  createRecoveryHint: "Retry to recover the document before making further changes. You can edit it after saving.", recoverDocument: "Retry to recover document",
+  editDocument: "Edit document", saveChanges: "Save changes", unsavedChanges: "Unsaved changes", editDocumentHint: "Edit this document while keeping its number. Every save retains its revision history.",
+  discount: "Discount", discountOptional: "Discount (optional)", discountType: "Discount type", discountHint: "Applied before VAT. Leave blank or enter 0 to hide it from the document.",
+  version: "Version", updatedOn: "Last updated", revisionHistory: "Revision history", viewRevision: "View version", noRevisions: "No revisions yet", readOnlyRevision: "Historical version · read only", revisionHistoryHint: "View each saved document version. Previous versions cannot be edited.",
+  versionConflict: "This document changed after you opened it. Your draft is preserved. Review the latest saved version before continuing.", viewLatest: "View latest version", reloadLatest: "Reload latest version", reloadLatestConfirm: "Discard your unsaved changes and replace them with the latest saved version?", linkedReceiptUnchanged: "The linked receipt keeps its earlier details. Open and edit the receipt separately if it also needs to change.", sourceQuotationVersion: "Source quotation",
   detailsTab: "Details", previewTab: "Preview", livePreview: "Live document preview", livePreviewHint: "A4 preview updates as you type", draft: "DRAFT / Not issued",
   editorHint: "Review the live preview while editing. The document is issued and receives a number only when you save.",
   sharedCatalog: "Shared catalog", sharedCatalogHint: "Save items, prices and photos once to reuse in documents for every store and branch you manage.",
@@ -49,7 +66,7 @@ const en: Record<keyof typeof la, string> = {
   name: "Item name", description: "Description", unit: "Unit", price: "Unit price (LAK)", quantity: "Quantity", amount: "Amount (LAK)", photo: "Item photo", photoHint: "Optional JPEG, PNG or WebP, up to 5 MB", photoInvalid: "Choose a JPEG, PNG or WebP image up to 5 MB", removePhoto: "Remove photo", removePhotoConfirm: "Remove this photo when the item is saved?", remove: "Remove", cancel: "Cancel",
   showImages: "Show images", showItemImage: "Show image in documents", active: "Active", inactive: "Inactive", showInactive: "Include inactive items", search: "Search name or description", emptyCatalog: "No saved items", emptyCatalogHint: "Add items and prices once to reuse in documents for every store and branch you manage", saved: "Saved successfully", itemRequired: "Enter a name and a whole LAK price of zero or more", catalogOutput: "Print / PDF price list", sample: "PLC examples", sampleHint: "Choose an example, review it and save it yourself",
   newQuotation: "Create quotation", newReceipt: "Create receipt", customer: "Customer", issuer: "Issuer", companyName: "Name / company", address: "Address", phone: "Phone", taxId: "Tax ID", bankDetails: "Bank details", logoUrl: "Logo image URL", issuedOn: "Issue date", validUntil: "Valid until", notes: "Notes / terms", paymentMethod: "Payment method", cash: "Cash", transfer: "Bank transfer", otherPayment: "Other",
-  items: "Items", chooseItem: "Add from catalog", customLine: "Add custom line", removeLine: "Remove line", removeLineConfirm: "Remove this line from the document draft?", subtotal: "Subtotal", tax: "VAT", noTax: "No VAT", total: "Total", lak: "LAK", saveDocument: "Save & view document", immutableHint: "Saved documents keep the prices and details as they were when issued", documentRequired: "Enter customer, issuer, dates and valid items (quantity above zero, whole LAK prices)", emptyDocuments: "No documents yet", emptyDocumentsHint: "Create a document or select another branch", number: "Number", viewDocument: "View / print / PDF", createReceipt: "Issue receipt", viewReceipt: "View receipt", receiptHint: "Confirm the date and payment method of the payment received. The receipt will be linked to this quotation", linkedQuotation: "From quotation", noResults: "No matching items", noPermission: "You do not have access to this page",
+  items: "Items", chooseItem: "Add from catalog", customLine: "Add custom line", removeLine: "Remove line", removeLineConfirm: "Remove this line from the document draft?", subtotal: "Subtotal", tax: "VAT", noTax: "No VAT", total: "Total", lak: "LAK", saveDocument: "Save & view document", immutableHint: "Each saved version retains its prices and details in revision history", documentRequired: "Enter customer, issuer, dates and valid items (quantity above zero, whole LAK prices)", emptyDocuments: "No documents yet", emptyDocumentsHint: "Create a document or select another branch", number: "Number", viewDocument: "View / print / PDF", createReceipt: "Issue receipt", viewReceipt: "View receipt", receiptHint: "Confirm the date and payment method of the payment received. The receipt will be linked to this quotation", linkedQuotation: "From quotation", noResults: "No matching items", noPermission: "You do not have access to this page",
 };
 
 export const commercialLocales = { la, en };

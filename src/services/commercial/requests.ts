@@ -4,9 +4,11 @@ import type { ApiDataResponse } from "@/services/shared/types";
 import type {
   CatalogItem,
   CommercialDocument,
+  CommercialDocumentRevision,
   ConvertQuotationInput,
   CreateCommercialDocumentInput,
   SaveCatalogItemInput,
+  UpdateCommercialDocumentInput,
 } from "@/services/commercial/types";
 
 const BASE_PATH = "/api/v1/commercial";
@@ -35,6 +37,16 @@ export async function getCommercialDocument(branchUuid: string, documentUuid: st
 
 export function createCommercialDocument(input: CreateCommercialDocumentInput) {
   return saveEntity<CommercialDocument>(`${BASE_PATH}/documents/create`, { ...input });
+}
+
+export async function updateCommercialDocument(input: UpdateCommercialDocumentInput) {
+  const { document_uuid, ...data } = input;
+  const result = await apiRequest<ApiDataResponse<CommercialDocument>>("post", `${BASE_PATH}/documents/${encodeURIComponent(document_uuid)}/update`, { data });
+  return result.data;
+}
+
+export function getCommercialDocumentRevisions(branchUuid: string, documentUuid: string) {
+  return fetchAll<CommercialDocumentRevision>(`${BASE_PATH}/documents/${encodeURIComponent(documentUuid)}/revisions`, { branch_uuid: branchUuid });
 }
 
 export async function convertQuotation(input: ConvertQuotationInput) {

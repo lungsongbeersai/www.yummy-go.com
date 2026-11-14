@@ -1,5 +1,14 @@
 # Decisions
 
+## Issued commercial documents support explicit versioned edits
+
+- **Date:** 2026-11-14.
+- **Decision:** A saved quotation or receipt can be reopened from a fresh backend snapshot and edited under its existing UUID and number. Every successful update creates an immutable audit revision with the actor and timestamp. Updates require the loaded `expected_version` and an idempotent operation UUID; conflicts preserve the user's draft instead of overwriting a newer version.
+- **Boundary:** Editing affects one document. A linked receipt retains its own values and pinned source quotation number/version until separately edited. Existing line identities preserve original item prices, names and images even after catalog changes or deactivation; newly added lines still follow current catalog access. History snapshots are read-only. Cached newer versions and permanent receipt links cannot be demoted by older responses.
+- **Discount:** The optional document-level LAK or percent discount is applied before VAT. Blank or zero values omit its row from preview, printing and PDF. A positive entered percentage remains visible even if its rounded LAK discount is zero.
+- **Retry:** Identical failed update attempts reuse their operation UUID; changing the attempted payload creates a new operation while retaining the loaded expected version. An ambiguous create failure locks the original attempted content until retry recovers the issued document, so later edits cannot be silently discarded or create an accidental second issue.
+- **Authorization:** The user explicitly requested editing already-issued documents and an optional footer discount that appears only when entered.
+
 ## Commercial catalog ownership is independent of document destinations
 
 - **Date:** 2026-11-14.

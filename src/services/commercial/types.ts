@@ -1,6 +1,7 @@
 import type { ApiEntity } from "@/services/shared/types";
 
 export type CommercialDocumentType = "quotation" | "receipt";
+export type CommercialDiscountType = "amount" | "percent";
 
 export interface CatalogItem extends ApiEntity {
   item_uuid: string;
@@ -41,6 +42,7 @@ export interface CommercialParty {
 }
 
 export interface CommercialDocumentItemInput {
+  line_uuid?: string;
   item_uuid?: string;
   name: string;
   description?: string;
@@ -51,6 +53,7 @@ export interface CommercialDocumentItemInput {
 }
 
 export interface CommercialDocumentItem extends Omit<CommercialDocumentItemInput, "item_uuid" | "show_image"> {
+  line_uuid: string;
   item_uuid: string | null;
   line_total: number;
   image_url: string | null;
@@ -70,13 +73,21 @@ export interface CommercialDocument extends ApiEntity {
   payment_method: string;
   show_images: boolean;
   tax_rate: 0 | 10;
+  discount_type: CommercialDiscountType | null;
+  discount_value: number;
+  discount_amount: number;
   subtotal: number;
   tax_amount: number;
   total: number;
   source_quotation_uuid: string | null;
+  source_quotation_version: number | null;
+  source_quotation_number?: string | null;
   receipt_uuid: string | null;
   items: CommercialDocumentItem[];
   created_at: string;
+  version: number;
+  updated_at: string;
+  updated_by: string;
 }
 
 export interface CreateCommercialDocumentInput extends ApiEntity {
@@ -91,7 +102,23 @@ export interface CreateCommercialDocumentInput extends ApiEntity {
   payment_method?: string;
   show_images: boolean;
   tax_rate: 0 | 10;
+  discount_type?: CommercialDiscountType | null;
+  discount_value?: number;
   items: CommercialDocumentItemInput[];
+}
+
+export interface UpdateCommercialDocumentInput extends CreateCommercialDocumentInput {
+  document_uuid: string;
+  request_uuid: string;
+  expected_version: number;
+}
+
+export interface CommercialDocumentRevision extends ApiEntity {
+  version: number;
+  request_uuid: string | null;
+  changed_at: string;
+  changed_by: string;
+  snapshot: CommercialDocument;
 }
 
 export interface ConvertQuotationInput {
@@ -100,4 +127,5 @@ export interface ConvertQuotationInput {
   issued_on?: string;
   payment_method?: string;
   notes?: string;
+  expected_version?: number;
 }

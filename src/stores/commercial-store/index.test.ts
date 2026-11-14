@@ -1,13 +1,14 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { getBranchManagementStoreOptions, getBranchOptions } from "@/services/branch";
-import { createCommercialDocument, getCommercialCatalog, getCommercialDocument, getCommercialDocuments, saveCatalogItem, type CatalogItem, type CommercialDocument, type CreateCommercialDocumentInput } from "@/services/commercial";
+import { createCommercialDocument, getCommercialCatalog, getCommercialDocument, getCommercialDocumentRevisions, getCommercialDocuments, saveCatalogItem, updateCommercialDocument, type CatalogItem, type CommercialDocument, type CommercialDocumentRevision, type CreateCommercialDocumentInput, type UpdateCommercialDocumentInput } from "@/services/commercial";
+import { ServiceError } from "@/lib/api";
 import { commercialLineInput, newCommercialLine } from "@/features/commercial/commercial-domain";
 import { useAuthStore, type AuthUser } from "@/stores/auth-store";
 import { useCommercialStore } from "@/stores/commercial-store";
 import { resetSessionStores } from "@/stores/session-store-registry";
 
 vi.mock("@/services/branch", () => ({ getBranchManagementStoreOptions: vi.fn(), getBranchOptions: vi.fn() }));
-vi.mock("@/services/commercial", () => ({ getCommercialCatalog: vi.fn(), getCommercialDocuments: vi.fn(), getCommercialDocument: vi.fn(), saveCatalogItem: vi.fn(), createCommercialDocument: vi.fn(), convertQuotation: vi.fn() }));
+vi.mock("@/services/commercial", () => ({ getCommercialCatalog: vi.fn(), getCommercialDocuments: vi.fn(), getCommercialDocument: vi.fn(), getCommercialDocumentRevisions: vi.fn(), updateCommercialDocument: vi.fn(), saveCatalogItem: vi.fn(), createCommercialDocument: vi.fn(), convertQuotation: vi.fn() }));
 
 const user: AuthUser = { uuid: "user", email: "test@example.test", status: 2, profile: "", branch_uuid: "a", branch_name: "A", branch_tel: "", branch_address: "", store_uuid: "store", store_name: "Store", store_logo: "", store_table_status: 1 };
 const branches = [{ branch_uuid: "a", store_uuid_fk: "store" }, { branch_uuid: "b", store_uuid_fk: "store" }];
@@ -25,9 +26,10 @@ function deferred<T>() {
 
 const input: CreateCommercialDocumentInput = { branch_uuid: "a", document_type: "quotation", issued_on: "2026-11-14", customer: { name: "Customer" }, issuer: { name: "PLC" }, show_images: true, tax_rate: 0, items: [{ name: "Printer", quantity: 1, unit_price: 950000 }] };
 const saveInput = { branch_uuid: "a", name: "Printer", unit_price: 950000, active: true, image_visible: true };
+const updateInput: UpdateCommercialDocumentInput = { ...input, document_uuid: "document", expected_version: 1, request_uuid: "operation-1", items: [{ ...input.items[0], line_uuid: "line-1" }] };
 
 function document(branchUuid = "a"): CommercialDocument {
-  return { ...input, branch_uuid: branchUuid, document_uuid: "document", number: "QT-1", valid_until: null, notes: "", payment_method: "", subtotal: 950000, tax_amount: 0, total: 950000, source_quotation_uuid: null, receipt_uuid: null, created_at: "2026-11-14", items: [{ item_uuid: "item", name: "Printer", quantity: 1, unit_price: 950000, line_total: 950000, image_url: item().image_url, show_image: true }] };
+  return { ...input, version: 1, updated_at: "2026-11-14", updated_by: "operator", discount_type: null, discount_value: 0, discount_amount: 0, source_quotation_version: null, branch_uuid: branchUuid, document_uuid: "document", number: "QT-1", valid_until: null, notes: "", payment_method: "", subtotal: 950000, tax_amount: 0, total: 950000, source_quotation_uuid: null, receipt_uuid: null, created_at: "2026-11-14", items: [{ line_uuid: "line-1", item_uuid: "item", name: "Printer", quantity: 1, unit_price: 950000, line_total: 950000, image_url: item().image_url, show_image: true }] };
 }
 
 describe("commercial request scope ownership", () => {
@@ -236,5 +238,124 @@ describe("commercial request scope ownership", () => {
     expect(await opening).toBeNull();
     expect(await saving).toBeNull();
     expect(useCommercialStore.getState()).toMatchObject({ branchUuid: "b", documents: [], selectedDocument: null, saving: false });
+  });
+
+  it("fetches a fresh document for editing and preserves its saved line snapshots", async () => {
+    useCommercialStore.setState({ documents: [document()], selectedDocument: document(), catalog: [{ ...item(), active: false, unit_price: 1 }] });
+    const fresh = { ...document(), version: 3, notes: "Latest saved notes" };
+    vi.mocked(getCommercialDocument).mockResolvedValueOnce(fresh);
+    await useCommercialStore.getState().beginEdit("document");
+    expect(getCommercialDocument).toHaveBeenCalledWith("a", "document");
+    expect(useCommercialStore.getState()).toMatchObject({ editingDocument: fresh, selectedDocument: null, loading: false });
+    expect(useCommercialStore.getState().editingDocument?.items[0]).toMatchObject({ line_uuid: "line-1", unit_price: 950000, image_url: item().image_url });
+  });
+
+  it("does not reopen a cancelled or foreign-branch edit preparation", async () => {
+    const pending = deferred<CommercialDocument>();
+    vi.mocked(getCommercialDocument).mockReturnValueOnce(pending.promise);
+    const editing = useCommercialStore.getState().beginEdit("document");
+    useCommercialStore.getState().closeEditor();
+    pending.resolve(document()); await editing;
+    expect(useCommercialStore.getState().editingDocument).toBeNull();
+    vi.mocked(getCommercialDocument).mockResolvedValueOnce(document("b"));
+    await expect(useCommercialStore.getState().beginEdit("document")).rejects.toThrow("another branch");
+    expect(useCommercialStore.getState().editingDocument).toBeNull();
+  });
+
+  it("merges an authoritative update without modifying a linked receipt", async () => {
+    const quote = { ...document(), receipt_uuid: "receipt" };
+    const receipt: CommercialDocument = { ...document(), document_uuid: "receipt", document_type: "receipt", source_quotation_uuid: "document", source_quotation_version: 1 };
+    useCommercialStore.setState({ documents: [quote, receipt], editingDocument: quote });
+    const updated = { ...quote, version: 2, notes: "Edited quotation", discount_type: "amount" as const, discount_value: 1000, discount_amount: 1000, total: 949000 };
+    vi.mocked(updateCommercialDocument).mockResolvedValueOnce(updated);
+    expect(await useCommercialStore.getState().updateDocument(updateInput)).toEqual(updated);
+    expect(updateCommercialDocument).toHaveBeenCalledWith(updateInput);
+    expect(useCommercialStore.getState()).toMatchObject({ selectedDocument: updated, editingDocument: null, saving: false });
+    expect(useCommercialStore.getState().documents.find((row) => row.document_uuid === "receipt")).toEqual(receipt);
+  });
+
+  it("keeps the loaded editing snapshot and expected version after a conflict", async () => {
+    const original = document();
+    useCommercialStore.setState({ documents: [original], editingDocument: original });
+    vi.mocked(updateCommercialDocument).mockRejectedValueOnce(new ServiceError("Version conflict", 409));
+    await expect(useCommercialStore.getState().updateDocument(updateInput)).rejects.toThrow("Version conflict");
+    expect(useCommercialStore.getState()).toMatchObject({ editingDocument: original, documents: [original], editConflict: true, saving: false, error: "Version conflict" });
+    expect(useCommercialStore.getState().editingDocument).toBe(original);
+  });
+
+  it("retries a lost update with the same operation instead of inventing a local version", async () => {
+    useCommercialStore.setState({ documents: [document()], editingDocument: document() });
+    vi.mocked(updateCommercialDocument).mockRejectedValueOnce(new Error("Connection lost")).mockResolvedValueOnce({ ...document(), version: 2 });
+    await expect(useCommercialStore.getState().updateDocument(updateInput)).rejects.toThrow("Connection lost");
+    expect(useCommercialStore.getState().documents[0].version).toBe(1);
+    await useCommercialStore.getState().updateDocument(updateInput);
+    expect(vi.mocked(updateCommercialDocument).mock.calls.map(([payload]) => payload.request_uuid)).toEqual(["operation-1", "operation-1"]);
+    expect(useCommercialStore.getState().documents[0].version).toBe(2);
+  });
+
+  it("does not demote a newer cached version on an idempotent old-revision replay", async () => {
+    const newest = { ...document(), version: 4, notes: "A later saved version" };
+    useCommercialStore.setState({ documents: [newest], editingDocument: document() });
+    vi.mocked(updateCommercialDocument).mockResolvedValueOnce({ ...document(), version: 2 });
+    expect(await useCommercialStore.getState().updateDocument(updateInput)).toEqual(newest);
+    expect(useCommercialStore.getState()).toMatchObject({ documents: [newest], selectedDocument: newest });
+  });
+
+  it("does not demote a fresh detail or editing snapshot when an older list finishes", async () => {
+    const pending = deferred<CommercialDocument[]>();
+    vi.mocked(getCommercialDocuments).mockReturnValueOnce(pending.promise);
+    const list = useCommercialStore.getState().loadDocuments();
+    const fresh = { ...document(), version: 3, notes: "Fresh saved content" };
+    vi.mocked(getCommercialDocument).mockResolvedValueOnce(fresh);
+    await useCommercialStore.getState().beginEdit("document");
+    pending.resolve([document()]); await list;
+    expect(useCommercialStore.getState()).toMatchObject({ documents: [fresh], editingDocument: fresh, documentsLoading: false });
+  });
+
+  it("preserves a permanent receipt link when an equal-version replay predates conversion", async () => {
+    useCommercialStore.setState({ documents: [{ ...document(), version: 2, receipt_uuid: "linked-receipt" }] });
+    vi.mocked(updateCommercialDocument).mockResolvedValueOnce({ ...document(), version: 2, receipt_uuid: null });
+    const saved = await useCommercialStore.getState().updateDocument(updateInput);
+    expect(saved?.receipt_uuid).toBe("linked-receipt");
+    expect(useCommercialStore.getState().documents[0].receipt_uuid).toBe("linked-receipt");
+  });
+
+  it("rejects document-update responses with a wrong identity or branch", async () => {
+    vi.mocked(updateCommercialDocument).mockResolvedValueOnce({ ...document(), document_uuid: "foreign" }).mockResolvedValueOnce(document("b"));
+    await expect(useCommercialStore.getState().updateDocument(updateInput)).rejects.toThrow("another document");
+    await expect(useCommercialStore.getState().updateDocument(updateInput)).rejects.toThrow("another branch");
+    expect(useCommercialStore.getState().documents).toEqual([]);
+  });
+
+  it("ignores late updates after a branch change or logout", async () => {
+    const pending = deferred<CommercialDocument>();
+    vi.mocked(updateCommercialDocument).mockReturnValueOnce(pending.promise);
+    const update = useCommercialStore.getState().updateDocument(updateInput);
+    useCommercialStore.getState().selectBranch("b");
+    pending.resolve({ ...document(), version: 2 });
+    expect(await update).toBeNull();
+    expect(useCommercialStore.getState()).toMatchObject({ branchUuid: "b", documents: [], selectedDocument: null, editingDocument: null });
+    useCommercialStore.setState({ branchUuid: "a", branches });
+    const oldSession = deferred<CommercialDocument>();
+    vi.mocked(updateCommercialDocument).mockReturnValueOnce(oldSession.promise);
+    const oldUpdate = useCommercialStore.getState().updateDocument(updateInput);
+    resetSessionStores(); oldSession.resolve({ ...document(), version: 2 });
+    expect(await oldUpdate).toBeNull();
+    expect(useCommercialStore.getState().documents).toEqual([]);
+  });
+
+  it("loads only matching read-only revision snapshots and cancels late results", async () => {
+    const revision: CommercialDocumentRevision = { version: 1, request_uuid: null, changed_at: "2026-11-14", changed_by: "operator", snapshot: document() };
+    vi.mocked(getCommercialDocumentRevisions).mockResolvedValueOnce([revision]);
+    await useCommercialStore.getState().openRevisions("document");
+    expect(useCommercialStore.getState()).toMatchObject({ revisions: [revision], revisionsLoading: false });
+    vi.mocked(getCommercialDocumentRevisions).mockResolvedValueOnce([{ ...revision, snapshot: document("b") }]);
+    await expect(useCommercialStore.getState().openRevisions("document")).rejects.toThrow("another branch");
+    expect(useCommercialStore.getState().revisions).toEqual([]);
+    const pending = deferred<CommercialDocumentRevision[]>();
+    vi.mocked(getCommercialDocumentRevisions).mockReturnValueOnce(pending.promise);
+    const load = useCommercialStore.getState().openRevisions("document");
+    useCommercialStore.getState().closeRevisions(); pending.resolve([revision]); await load;
+    expect(useCommercialStore.getState()).toMatchObject({ revisions: [], revisionDocumentUuid: null });
   });
 });

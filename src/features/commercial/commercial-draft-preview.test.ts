@@ -165,4 +165,33 @@ describe("commercial live draft previews", () => {
     expect(html).not.toContain("<script>unsafe()");
     expect(html).not.toContain("window.print()");
   });
+
+  it("previews the entered discount before VAT and hides a cleared optional discount", () => {
+    const discounted = buildCommercialDraftPreview(draft({ taxRate: 10, discountType: "percent", discountValue: "10", lines: [line({ unit_price: "1000" })] }));
+    expect(discounted).toMatchObject({ subtotal: 1000, discount_type: "percent", discount_value: 10, discount_amount: 100, tax_amount: 90, total: 990, preview_invalid: false });
+    expect(renderCommercialDocument(discounted)).toContain('class="total-row discount-row"');
+    const cleared = buildCommercialDraftPreview(draft({ discountType: "amount", discountValue: "" }));
+    expect(cleared).toMatchObject({ discount_type: null, discount_value: 0, discount_amount: 0, total: 950000, preview_invalid: false });
+    expect(renderCommercialDocument(cleared)).not.toContain('class="total-row discount-row"');
+    const tiny = buildCommercialDraftPreview(draft({ discountType: "percent", discountValue: "0.01", lines: [line({ unit_price: "1" })] }));
+    expect(tiny).toMatchObject({ discount_value: 0.01, discount_amount: 0, total: 1 });
+    expect(renderCommercialDocument(tiny)).toContain("(0.01%)");
+  });
+
+  it.each(["-1", "1000000", "1.5", "NaN", "Infinity"])("keeps an invalid fixed discount %j renderable and flags the draft", (discountValue) => {
+    const preview = buildCommercialDraftPreview(draft({ discountType: "amount", discountValue }));
+    expect(preview).toMatchObject({ total: 0, discount_value: 0, discount_amount: 0, preview_invalid: true });
+    expect(renderCommercialDocument(preview)).not.toMatch(/NaN|Infinity/);
+  });
+
+  it("retains saved row IDs, document number and receipt source version when editing", () => {
+    const preview = buildCommercialDraftPreview(draft({ documentType: "receipt", draftLabel: "RC-2026-00012", version: 3,
+      sourceQuotationUuid: "quote", sourceQuotationVersion: 2, sourceQuotationNumber: "QT-2026-00009", lines: [line({ line_uuid: "original-line" })] }));
+    expect(preview).toMatchObject({ number: "RC-2026-00012", version: 3, source_quotation_uuid: "quote", source_quotation_version: 2, source_quotation_number: "QT-2026-00009" });
+    expect(preview.items[0].line_uuid).toBe("original-line");
+    const html = renderCommercialDocument(preview);
+    expect(html).toContain("RC-2026-00012 · ສະບັບ 3");
+    expect(html).toContain("QT-2026-00009 · ສະບັບ 2");
+    expect(html).not.toContain(draftLabel);
+  });
 });
