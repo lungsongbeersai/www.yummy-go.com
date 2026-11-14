@@ -16,7 +16,8 @@ describe("commercial print documents", () => {
   it("uses saved totals and Lao A4 headers, while escaping customer and item text", () => {
     const html = renderCommercialDocument(document);
     expect(html).toContain("QUOTATION");
-    expect(html).toContain('class="currency">LAK</span> 18,400,000');
+    expect(html).toContain('class="total-value">18,400,000</span>');
+    expect(html).toContain('class="currency">LAK</span>');
     expect(html).toContain("14/11/2026");
     expect(html).toContain("&lt;script&gt;unsafe()&lt;/script&gt;");
     expect(html).toContain("&lt;b&gt;Original model&lt;/b&gt;");
@@ -77,7 +78,7 @@ describe("commercial print documents", () => {
     const fixed = renderCommercialDocument({ ...document, discount_type: "amount", discount_value: 400000, discount_amount: 400000, total: 18000000 });
     expect(fixed).toContain('class="number">−400,000');
     expect(fixed.indexOf('class="total-row discount-row"')).toBeLessThan(fixed.indexOf("ອາກອນ"));
-    expect(fixed).toContain('class="currency">LAK</span> 18,000,000');
+    expect(fixed).toContain('class="total-value">18,000,000</span>');
     const percentage = renderCommercialDocument({ ...document, discount_type: "percent", discount_value: 12.35, discount_amount: 2272400 });
     expect(percentage).toContain("ສ່ວນຫຼຸດ (12.35%)");
   });
