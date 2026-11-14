@@ -118,9 +118,8 @@ const styles = `
   table { width: 100%; border-collapse: separate; border-spacing: 0; table-layout: fixed; border: 0.2mm solid var(--table-border); }
   th, td { border: 0; border-right: 0.2mm solid var(--table-border); padding: 2.5mm 2mm; vertical-align: top; overflow-wrap: anywhere; }
   th:last-child, td:last-child { border-right: 0; }
-  th { border-bottom: 0.3mm solid var(--table-border); background: var(--table-fill); text-align: center; vertical-align: middle; padding: 3mm 1mm; font-size: 14px; font-weight: 700; }
+  th { border-right: 0; border-bottom: 0.3mm solid var(--table-border); background: var(--table-fill); text-align: center; vertical-align: middle; padding: 3mm 1mm; font-size: 14px; font-weight: 700; }
   th:first-child { padding-inline: 0.5mm; white-space: nowrap; }
-  tbody tr:not(:last-child) > td { border-bottom: 0.2mm solid var(--row-border); }
   .table-fill > td { padding: 0; font-size: 0; line-height: 0; }
   .number { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
   .center { text-align: center; }
