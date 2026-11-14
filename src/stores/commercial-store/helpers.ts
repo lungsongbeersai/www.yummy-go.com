@@ -1,5 +1,5 @@
 import type { Branch, BranchManagementStoreOptions } from "@/services/branch";
-import type { CatalogItem, CommercialDocument } from "@/services/commercial";
+import type { CommercialDocument } from "@/services/commercial";
 import { ROLE_STATUS } from "@/lib/permissions";
 
 export function commercialStores(options: BranchManagementStoreOptions) {
@@ -19,6 +19,6 @@ export function commercialBranches(branches: Branch[], storeUuid: string, status
   );
 }
 
-export function commercialBranchRows<T extends CatalogItem | CommercialDocument>(rows: T[], branchUuid: string) {
+export function commercialBranchRows<T extends CommercialDocument>(rows: T[], branchUuid: string) {
   return rows.filter((row) => Boolean(branchUuid) && row.branch_uuid === branchUuid);
 }

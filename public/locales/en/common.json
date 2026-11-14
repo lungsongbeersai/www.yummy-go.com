@@ -4153,7 +4153,7 @@
   },
   "commercial": {
     "title": "Catalog & commercial documents",
-    "subtitle": "Branch prices and PLC quotations and payment receipts",
+    "subtitle": "Save prices once and reuse them across every store and branch you manage",
     "printBlocked": "Unable to open the print window. Allow pop-ups and try again.",
     "printHint": "A4 document · Choose Save as PDF in the print dialog to save a file.",
     "showLogo": "Show logo",
@@ -4194,7 +4194,7 @@
     "showInactive": "Include inactive items",
     "search": "Search name or description",
     "emptyCatalog": "No saved items",
-    "emptyCatalogHint": "Add items and prices to reuse in this branch's documents",
+    "emptyCatalogHint": "Add items and prices once to reuse in documents for every store and branch you manage",
     "saved": "Saved successfully",
     "itemRequired": "Enter a name and a whole LAK price of zero or more",
     "catalogOutput": "Print / PDF price list",
@@ -4244,6 +4244,12 @@
     "print": "Print",
     "downloadPdf": "Download PDF",
     "printFailed": "Printing failed. Download the PDF and print from the file.",
-    "pdfFailed": "Could not create PDF. Check the images and item lengths, then try again."
+    "pdfFailed": "Could not create PDF. Check the images and item lengths, then try again.",
+    "sharedCatalog": "Shared catalog",
+    "sharedCatalogHint": "Save items, prices and photos once to reuse in documents for every store and branch you manage.",
+    "catalogReadOnlyHint": "Management maintains the shared catalog. You can use its items to issue documents for your branch.",
+    "documentStore": "Store for documents",
+    "documentBranch": "Branch for documents",
+    "documentScopeHint": "Store and branch selection applies to document creation and history. The catalog is shared."
   }
 }

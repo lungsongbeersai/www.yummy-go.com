@@ -62,12 +62,14 @@ describe("commercial print documents", () => {
   });
 
   it("renders price lists without summing prices as a bill", () => {
-    const item: CatalogItem = { item_uuid: "item", branch_uuid: "branch", name: "Visible item", description: "", unit: "unit", unit_price: 950000, image_url: null, image_visible: true, active: true, created_at: "", updated_at: "" };
-    const html = renderCommercialCatalog([item, { ...item, item_uuid: "hidden", name: "Inactive item", active: false }], "Branch A", document.issuer);
+    const item: CatalogItem = { item_uuid: "item", catalog_store_uuid: "catalog-owner", branch_uuid: "origin-branch", name: "Visible item", description: "", unit: "unit", unit_price: 950000, image_url: null, image_visible: true, active: true, created_at: "", updated_at: "" };
+    const html = renderCommercialCatalog([item, { ...item, item_uuid: "hidden", name: "Inactive item", active: false }], "Catalog owner", document.issuer);
     expect(html).toContain("PRICE LIST");
     expect(html).toContain("950,000");
     expect(html).not.toContain("Inactive item");
     expect(html).not.toContain('class="totals"');
+    expect(html).toContain("ລາຍການລາຄາ: Catalog owner");
+    expect(html).not.toContain("ສາຂາ:");
   });
 });
 

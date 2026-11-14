@@ -2,9 +2,10 @@
 
 import { create } from "zustand";
 import { ServiceError } from "@/lib/api";
+import { canViewStoreBranch } from "@/lib/permissions";
 import { getBranchManagementStoreOptions, getBranchOptions, type Branch, type BranchManagementStore } from "@/services/branch";
 import * as commercial from "@/services/commercial";
-import { useAuthStore } from "@/stores/auth-store";
+import { authStoreUuid, useAuthStore } from "@/stores/auth-store";
 import { commercialBranches, commercialBranchRows, commercialStores } from "@/stores/commercial-store/helpers";
 import { createSessionGuard, registerSessionStoreReset } from "@/stores/session-store-registry";
 import { errorMessage, type AsyncSlice } from "@/stores/store-utils";
@@ -23,6 +24,9 @@ interface CommercialState extends AsyncSlice {
   optionsLoading: boolean;
   optionsError: string | null;
   catalogLoading: boolean;
+  catalogReady: boolean;
+  catalogOwnerUuid: string;
+  catalogSaving: boolean;
   documentsLoading: boolean;
   catalogError: string | null;
   documentsError: string | null;
@@ -44,14 +48,18 @@ interface CommercialState extends AsyncSlice {
 }
 
 let scopeGeneration = 0;
+let catalogGeneration = 0;
 let catalogRequest = 0;
 let documentsRequest = 0;
 let detailRequest = 0;
 
-const emptyWorkspace = {
-  catalog: [], documents: [], selectedDocument: null,
-  catalogLoading: false, documentsLoading: false, catalogError: null, documentsError: null,
+const emptyDocumentWorkspace = {
+  documents: [], selectedDocument: null, documentsLoading: false, documentsError: null,
   saving: false, loading: false, error: null,
+};
+const emptyWorkspace = {
+  ...emptyDocumentWorkspace, catalog: [], catalogLoading: false, catalogError: null,
+  catalogReady: false, catalogOwnerUuid: "", catalogSaving: false,
 };
 
 export const useCommercialStore = create<CommercialState>((set, get) => {
@@ -67,7 +75,23 @@ export const useCommercialStore = create<CommercialState>((set, get) => {
     }
   }
 
-  function requireReturnedBranch(row: commercial.CatalogItem | commercial.CommercialDocument, branchUuid: string) {
+  function catalogOwner() {
+    const ownerUuid = authStoreUuid(useAuthStore.getState().user);
+    if (!ownerUuid || ownerUuid !== get().catalogOwnerUuid) throw new ServiceError("The catalogue owner must match the authenticated store", 403);
+    return ownerUuid;
+  }
+
+  function catalogGuard(ownerUuid: string) {
+    const generation = catalogGeneration;
+    const session = createSessionGuard();
+    return () => session() && generation === catalogGeneration && ownerUuid === get().catalogOwnerUuid && ownerUuid === authStoreUuid(useAuthStore.getState().user);
+  }
+
+  function requireCatalogOwner(row: commercial.CatalogItem, ownerUuid: string) {
+    if (row.catalog_store_uuid !== ownerUuid) throw new ServiceError("The catalogue response belongs to another store", 403);
+  }
+
+  function requireReturnedBranch(row: commercial.CommercialDocument, branchUuid: string) {
     if (row.branch_uuid !== branchUuid) throw new ServiceError("The response belongs to another branch", 403);
   }
 
@@ -77,9 +101,12 @@ export const useCommercialStore = create<CommercialState>((set, get) => {
     optionsLoading: false, optionsError: null,
     initialize: async (input = {}) => {
       const generation = ++scopeGeneration;
+      catalogGeneration += 1;
       const session = createSessionGuard();
-      set({ ...emptyWorkspace, stores: [], branches: [], storeUuid: "", branchUuid: "", optionsLoading: true, optionsError: null, canSelectStore: false });
+      const ownerUuid = authStoreUuid(useAuthStore.getState().user);
+      set({ ...emptyWorkspace, catalogOwnerUuid: ownerUuid, stores: [], branches: [], storeUuid: "", branchUuid: "", optionsLoading: true, optionsError: null, canSelectStore: false });
       try {
+        if (!ownerUuid) throw new ServiceError("No authenticated catalogue owner is available", 403);
         const options = await getBranchManagementStoreOptions();
         if (generation !== scopeGeneration || !session()) return;
         const stores = commercialStores(options);
@@ -98,7 +125,7 @@ export const useCommercialStore = create<CommercialState>((set, get) => {
       const generation = ++scopeGeneration;
       const session = createSessionGuard();
       const user = useAuthStore.getState().user;
-      set({ ...emptyWorkspace, storeUuid, branchUuid: "", branches: [], optionsLoading: true, optionsError: null });
+      set({ ...emptyDocumentWorkspace, saving: get().catalogSaving, storeUuid, branchUuid: "", branches: [], optionsLoading: true, optionsError: null });
       try {
         const rows = await getBranchOptions(storeUuid);
         if (generation !== scopeGeneration || !session()) return;
@@ -114,19 +141,28 @@ export const useCommercialStore = create<CommercialState>((set, get) => {
     selectBranch: (branchUuid) => {
       if (!get().branches.some((branch) => branch.branch_uuid === branchUuid) || branchUuid === get().branchUuid) return;
       scopeGeneration += 1;
-      set({ ...emptyWorkspace, branchUuid });
+      set({ ...emptyDocumentWorkspace, saving: get().catalogSaving, branchUuid });
     },
     loadCatalog: async () => {
       const branchUuid = get().branchUuid;
       requireBranch(branchUuid);
+      const ownerUuid = catalogOwner();
       const request = ++catalogRequest;
-      const current = scopeGuard(branchUuid);
+      const current = catalogGuard(ownerUuid);
       set({ catalogLoading: true, catalogError: null });
       try {
         const rows = await commercial.getCommercialCatalog(branchUuid);
-        if (request === catalogRequest && current()) set({ catalog: commercialBranchRows(rows, branchUuid), catalogLoading: false });
+        rows.forEach((row) => requireCatalogOwner(row, ownerUuid));
+        if (request === catalogRequest && current()) set({ catalog: rows, catalogReady: true, catalogLoading: false });
       } catch (error) {
-        if (request === catalogRequest && current()) set({ catalogLoading: false, catalogError: errorMessage(error) });
+        if (request === catalogRequest && current()) {
+          const forbidden = error instanceof ServiceError && error.statusCode === 403;
+          if (forbidden) { catalogGeneration += 1; catalogRequest += 1; }
+          set({
+            catalogLoading: false, catalogError: errorMessage(error),
+            ...(forbidden ? { catalog: [], catalogReady: false, catalogSaving: false, saving: get().catalogSaving ? false : get().saving } : {}),
+          });
+        }
         throw error;
       }
     },
@@ -146,17 +182,27 @@ export const useCommercialStore = create<CommercialState>((set, get) => {
     },
     saveItem: async (input) => {
       requireBranch(input.branch_uuid);
-      const current = scopeGuard(input.branch_uuid);
-      set({ saving: true, error: null });
+      if (!canViewStoreBranch(useAuthStore.getState().user?.status)) throw new ServiceError("Catalogue changes require management access", 403);
+      const ownerUuid = catalogOwner();
+      const current = catalogGuard(ownerUuid);
+      const currentDocumentScope = scopeGuard(input.branch_uuid);
+      set({ saving: true, catalogSaving: true, error: null });
       try {
         const row = await commercial.saveCatalogItem(input);
-        requireReturnedBranch(row, input.branch_uuid);
+        requireCatalogOwner(row, ownerUuid);
         if (!current()) return null;
         catalogRequest += 1;
-        set((state) => ({ catalog: [row, ...state.catalog.filter((item) => item.item_uuid !== row.item_uuid)], catalogLoading: false, saving: false }));
-        return row;
+        set((state) => ({ catalog: [row, ...state.catalog.filter((item) => item.item_uuid !== row.item_uuid)], catalogLoading: false, catalogSaving: false, saving: false }));
+        return currentDocumentScope() ? row : null;
       } catch (error) {
-        if (current()) set({ saving: false, error: errorMessage(error) });
+        if (current()) {
+          const forbidden = error instanceof ServiceError && error.statusCode === 403;
+          if (forbidden) { catalogGeneration += 1; catalogRequest += 1; }
+          set({
+            saving: false, catalogSaving: false, error: errorMessage(error),
+            ...(forbidden ? { catalog: [], catalogReady: false, catalogLoading: false, catalogError: errorMessage(error) } : {}),
+          });
+        }
         throw error;
       }
     },
@@ -216,6 +262,7 @@ export const useCommercialStore = create<CommercialState>((set, get) => {
     clearError: () => set({ error: null }),
     reset: () => {
       scopeGeneration += 1;
+      catalogGeneration += 1;
       catalogRequest += 1;
       documentsRequest += 1;
       detailRequest += 1;
