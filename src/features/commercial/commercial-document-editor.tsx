@@ -14,40 +14,54 @@ import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { CommercialLivePreview } from "@/features/commercial/commercial-live-preview";
 import { buildCommercialDraftPreview } from "@/features/commercial/commercial-draft-preview";
-import { commercialLineInput, commercialToday, commercialTotals, formatCommercialMoney, newCommercialLine, PLC_ISSUER, validCommercialDocument, type CommercialDraftLine } from "@/features/commercial/commercial-domain";
+import { commercialDocumentLines, commercialLineInput, commercialToday, commercialTotals, formatCommercialMoney, newCommercialLine, PLC_ISSUER, validCommercialDocument, type CommercialDraftLine } from "@/features/commercial/commercial-domain";
 import { useCommercialLabels, type CommercialLabels } from "@/features/commercial/commercial.locale";
-import type { CommercialDocumentType, CommercialParty, CreateCommercialDocumentInput } from "@/services/commercial";
+import type { CommercialDiscountType, CommercialDocument, CommercialDocumentType, CommercialParty, CreateCommercialDocumentInput } from "@/services/commercial";
 import { useCommercialStore } from "@/stores/commercial-store";
 import { useToastStore } from "@/stores/toast-store";
 import { createMutationUuid } from "@/lib/pos/mutation-identity";
+import { ServiceError } from "@/lib/api";
+import { commercialUpdateAttempt } from "@/features/commercial/commercial-mutation-identity";
 
-interface CommercialDocumentEditorProps { branchUuid: string; documentType: CommercialDocumentType; onClose: () => void }
+interface CommercialDocumentEditorProps { branchUuid: string; documentType: CommercialDocumentType; existing?: CommercialDocument; onClose: () => void }
 
-export function CommercialDocumentEditor({ branchUuid, documentType, onClose }: CommercialDocumentEditorProps) {
+export function CommercialDocumentEditor({ branchUuid, documentType, existing, onClose }: CommercialDocumentEditorProps) {
   const l = useCommercialLabels();
   const catalog = useCommercialStore((state) => state.catalog);
   const catalogLoading = useCommercialStore((state) => state.catalogLoading);
   const createDocument = useCommercialStore((state) => state.createDocument);
+  const updateDocument = useCommercialStore((state) => state.updateDocument);
+  const openDocument = useCommercialStore((state) => state.openDocument);
+  const beginEdit = useCommercialStore((state) => state.beginEdit);
+  const documentLoading = useCommercialStore((state) => state.loading);
+  const editConflict = useCommercialStore((state) => state.editConflict);
   const saving = useCommercialStore((state) => state.saving);
   const error = useCommercialStore((state) => state.error);
   const showToast = useToastStore((state) => state.show);
-  const [customer, setCustomer] = useState<CommercialParty>({ name: "" });
-  const [issuer, setIssuer] = useState<CommercialParty>({ ...PLC_ISSUER });
-  const [issuedOn, setIssuedOn] = useState(commercialToday);
-  const [validUntil, setValidUntil] = useState("");
-  const [paymentMethod, setPaymentMethod] = useState("cash");
-  const [notes, setNotes] = useState("");
-  const [showImages, setShowImages] = useState(true);
-  const [taxRate, setTaxRate] = useState<0 | 10>(0);
-  const [lines, setLines] = useState<CommercialDraftLine[]>([]);
+  const [customer, setCustomer] = useState<CommercialParty>(() => existing ? { ...existing.customer } : { name: "" });
+  const [issuer, setIssuer] = useState<CommercialParty>(() => ({ ...(existing?.issuer ?? PLC_ISSUER) }));
+  const [issuedOn, setIssuedOn] = useState(() => existing?.issued_on ?? commercialToday());
+  const [validUntil, setValidUntil] = useState(existing?.valid_until ?? "");
+  const [paymentMethod, setPaymentMethod] = useState(existing?.payment_method || "cash");
+  const [notes, setNotes] = useState(existing?.notes ?? "");
+  const [showImages, setShowImages] = useState(existing?.show_images ?? true);
+  const [taxRate, setTaxRate] = useState<0 | 10>(existing?.tax_rate ?? 0);
+  const [discountType, setDiscountType] = useState<CommercialDiscountType>(existing?.discount_type ?? "amount");
+  const [discountValue, setDiscountValue] = useState(existing?.discount_value ? String(existing.discount_value) : "");
+  const [reloadOpen, setReloadOpen] = useState(false);
+  const [lines, setLines] = useState<CommercialDraftLine[]>(() => existing ? commercialDocumentLines(existing) : []);
   const [removeLine, setRemoveLine] = useState<string | null>(null);
   const [validation, setValidation] = useState<string | null>(null);
   const [requestUuid] = useState(createMutationUuid);
+  const updateAttempt = useRef({ requestUuid, payload: null as string | null });
+  const createUuid = useRef(requestUuid);
+  const createAttempt = useRef<CreateCommercialDocumentInput | null>(null);
+  const [createRecovery, setCreateRecovery] = useState(false);
   const [pane, setPane] = useState("details");
   const form = useRef<HTMLFormElement>(null);
   const content = useRef<HTMLDivElement>(null);
   const savePaint = useRef(0);
-  const draft = buildCommercialDraftPreview({ branchUuid, documentType, issuedOn, validUntil, customer, issuer, notes, paymentMethod, showImages, taxRate, lines, draftLabel: l("draft") });
+  const draft = buildCommercialDraftPreview({ branchUuid, documentType, issuedOn, validUntil, customer, issuer, notes, paymentMethod, showImages, taxRate, discountType, discountValue, lines, draftLabel: existing?.number ?? l("draft"), version: existing?.version, sourceQuotationUuid: existing?.source_quotation_uuid, sourceQuotationVersion: existing?.source_quotation_version, sourceQuotationNumber: existing?.source_quotation_number });
 
   useEffect(() => {
     const viewport = window.visualViewport;
@@ -75,7 +89,7 @@ export function CommercialDocumentEditor({ branchUuid, documentType, onClose }: 
     cancelAnimationFrame(savePaint.current);
     savePaint.current = requestAnimationFrame(() => form.current?.requestSubmit());
   }
-  const totals = commercialTotals(lines, taxRate);
+  const totals = commercialTotals(lines, taxRate, { discountType, discountValue });
   const activeCatalog = catalog.filter((item) => item.active);
 
   function changeLine(key: string, patch: Partial<CommercialDraftLine>) {
@@ -85,20 +99,28 @@ export function CommercialDocumentEditor({ branchUuid, documentType, onClose }: 
   async function submit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (saving) return;
-    const input: CreateCommercialDocumentInput = {
-      request_uuid: requestUuid, branch_uuid: branchUuid, document_type: documentType, issued_on: issuedOn,
+    const input: CreateCommercialDocumentInput = !existing && createRecovery && createAttempt.current ? createAttempt.current : {
+      request_uuid: existing ? requestUuid : createUuid.current, branch_uuid: branchUuid, document_type: documentType, issued_on: issuedOn,
       ...(documentType === "quotation" ? { valid_until: validUntil || null } : { payment_method: paymentMethod }),
-      customer, issuer, notes, show_images: showImages, tax_rate: taxRate, items: lines.map(commercialLineInput),
+      customer, issuer, notes, show_images: showImages, tax_rate: taxRate, discount_type: Number(discountValue) > 0 ? discountType : null, discount_value: Number(discountValue || 0), items: lines.map(commercialLineInput),
     };
     if (!validCommercialDocument(input)) { setPane("details"); setValidation(l("documentRequired")); return; }
     setValidation(null);
     try {
-      const document = await createDocument(input);
+      if (existing) updateAttempt.current = commercialUpdateAttempt(updateAttempt.current, input, createMutationUuid);
+      else createAttempt.current = input;
+      const document = existing ? await updateDocument({ ...input, document_uuid: existing.document_uuid, expected_version: existing.version, request_uuid: updateAttempt.current.requestUuid }) : await createDocument(input);
       if (!document) return;
       showToast({ title: l("saved"), description: document.number, tone: "success" });
       onClose();
-    } catch {
-      // Keep the draft and server error visible so the user can correct it.
+    } catch (failure) {
+      if (!existing) {
+        const definitive = failure instanceof ServiceError && failure.statusCode >= 400 && failure.statusCode < 500 && ![408, 409, 425, 429].includes(failure.statusCode);
+        if (definitive) { createAttempt.current = null; createUuid.current = createMutationUuid(); }
+        setCreateRecovery(!definitive);
+      }
+      // Update conflicts keep all edits. Ambiguous creates recover the exact
+      // attempted document before the user makes further changes to it.
     }
   }
 
@@ -106,14 +128,18 @@ export function CommercialDocumentEditor({ branchUuid, documentType, onClose }: 
     <Dialog open onOpenChange={(open) => { if (!open && !saving) onClose(); }}>
       <DialogContent ref={content} className="inset-0 top-0 left-0 flex h-dvh max-h-dvh w-screen max-w-none translate-x-0 translate-y-0 flex-col gap-0 overflow-hidden rounded-none border-0 p-0 font-lao sm:max-w-none" showCloseButton={false}>
         <DialogHeader className="shrink-0 rounded-none px-3 pt-[max(0.75rem,env(safe-area-inset-top))] pb-3 sm:px-5">
-          <div className="flex items-start justify-between gap-3"><div className="min-w-0"><DialogTitle>{l(documentType === "quotation" ? "newQuotation" : "newReceipt")}</DialogTitle><DialogDescription className="mt-1">{l("editorHint")}</DialogDescription></div><Button type="button" variant="outline" size="icon" className="size-11 shrink-0" disabled={saving} aria-label={l("close")} onClick={onClose}><X /></Button></div>
+          <div className="flex items-start justify-between gap-3"><div className="min-w-0"><DialogTitle>{existing ? `${l("editDocument")} · ${existing.number}` : l(documentType === "quotation" ? "newQuotation" : "newReceipt")}</DialogTitle><DialogDescription className="mt-1">{existing ? `${l("editDocumentHint")} · ${l("version")} ${existing.version}` : l("editorHint")}</DialogDescription></div><Button type="button" variant="outline" size="icon" className="size-11 shrink-0" disabled={saving} aria-label={l("close")} onClick={onClose}><X /></Button></div>
         </DialogHeader>
         {validation || error ? <div className="shrink-0 px-3 pt-3 sm:px-5"><Alert variant="destructive"><AlertDescription>{validation || error}</AlertDescription></Alert></div> : null}
+        {createRecovery ? <div className="shrink-0 px-3 pt-3 sm:px-5"><Alert><AlertDescription>{l("createRecoveryHint")}</AlertDescription></Alert></div> : null}
+        {existing && editConflict ? <div className="shrink-0 px-3 pt-3 sm:px-5"><Alert variant="destructive"><AlertDescription><p>{l("versionConflict")}</p><div className="flex flex-wrap gap-2"><Button type="button" variant="outline" className="min-h-11" disabled={saving || documentLoading} onClick={() => { void openDocument(existing.document_uuid).catch(() => {}); }}>{l("viewLatest")}</Button><Button type="button" variant="outline" className="min-h-11" disabled={saving || documentLoading} onClick={() => setReloadOpen(true)}>{l("reloadLatest")}</Button></div></AlertDescription></Alert></div> : null}
+        {existing?.document_type === "quotation" && existing.receipt_uuid ? <p className="shrink-0 border-b px-3 py-2 text-xs text-muted-foreground sm:px-5">{l("linkedReceiptUnchanged")}</p> : null}
         <Tabs value={pane} onValueChange={setPane} className="min-h-0 flex-1 gap-0 overflow-hidden">
           <TabsList className="mx-3 my-2 grid min-h-12 w-auto shrink-0 grid-cols-2 lg:hidden"><TabsTrigger className="min-h-11 gap-2" value="details"><FileText />{l("detailsTab")}</TabsTrigger><TabsTrigger className="min-h-11 gap-2" value="preview"><Eye />{l("previewTab")}</TabsTrigger></TabsList>
           <div className="grid min-h-0 min-w-0 flex-1 grid-cols-1 overflow-hidden lg:grid-cols-[minmax(0,0.48fr)_minmax(0,0.52fr)]">
             <TabsContent value="details" forceMount className="m-0 min-h-0 min-w-0 overflow-y-auto overscroll-contain px-3 py-4 data-[state=inactive]:hidden sm:px-5 lg:border-r lg:data-[state=inactive]:block">
               <form ref={form} id="commercial-document-draft" className="grid min-w-0 gap-5 [&_input]:min-h-11 [&_textarea]:min-h-24" onSubmit={submit} onInvalidCapture={() => setPane("details")}>
+          <fieldset disabled={saving || createRecovery} className="contents">
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <Field><FieldLabel htmlFor="commercial-issued-on">{l("issuedOn")} *</FieldLabel><Input id="commercial-issued-on" type="date" value={issuedOn} onChange={(event) => setIssuedOn(event.target.value)} required min="2000-01-01" max="2199-12-31" disabled={saving} /></Field>
             {documentType === "quotation" ? <Field><FieldLabel htmlFor="commercial-valid-until">{l("validUntil")}</FieldLabel><Input id="commercial-valid-until" type="date" value={validUntil} min={issuedOn} max="2199-12-31" onChange={(event) => setValidUntil(event.target.value)} disabled={saving} /></Field> : <CommercialPaymentField value={paymentMethod} onChange={setPaymentMethod} disabled={saving} l={l} />}
@@ -138,13 +164,15 @@ export function CommercialDocumentEditor({ branchUuid, documentType, onClose }: 
               <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">{line.image_url ? <label className="flex min-h-11 cursor-pointer items-center gap-3"><Switch checked={line.show_image} onCheckedChange={(checked) => changeLine(line.key, { show_image: checked })} disabled={saving} /><span className="text-xs">{l("showItemImage")}</span></label> : <span />}<p className="text-right font-semibold tabular-nums">{formatCommercialMoney(commercialTotals([line], 0).subtotal)} {l("lak")}</p></div>
             </div>)}
           </section>
-          <div className="grid grid-cols-1 gap-5"><Field><FieldLabel htmlFor="commercial-notes">{l("notes")}</FieldLabel><Textarea id="commercial-notes" className="min-h-28" value={notes} maxLength={5000} disabled={saving} onChange={(event) => setNotes(event.target.value)} /></Field><div className="grid content-start gap-3 rounded-lg border bg-muted/40 p-4"><div className="flex justify-between gap-3"><span>{l("subtotal")}</span><span className="tabular-nums">{formatCommercialMoney(totals.subtotal)}</span></div><Field orientation="horizontal" className="justify-between"><FieldLabel htmlFor="commercial-tax">{l("tax")}</FieldLabel><Select value={String(taxRate)} onValueChange={(value) => setTaxRate(value === "10" ? 10 : 0)} disabled={saving}><SelectTrigger id="commercial-tax" className="h-11"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="0">{l("noTax")}</SelectItem><SelectItem value="10">10%</SelectItem></SelectContent></Select></Field><div className="flex justify-between gap-3 text-muted-foreground"><span>{l("tax")}</span><span className="tabular-nums">{formatCommercialMoney(totals.taxAmount)}</span></div><div className="flex justify-between gap-3 border-t pt-3 text-base font-semibold"><span>{l("total")}</span><span className="tabular-nums">{formatCommercialMoney(totals.total)} {l("lak")}</span></div></div></div>
+          <div className="grid grid-cols-1 gap-5"><Field><FieldLabel htmlFor="commercial-notes">{l("notes")}</FieldLabel><Textarea id="commercial-notes" className="min-h-28" value={notes} maxLength={5000} disabled={saving} onChange={(event) => setNotes(event.target.value)} /></Field><div className="grid content-start gap-3 rounded-lg border bg-muted/40 p-4"><div className="flex justify-between gap-3"><span>{l("subtotal")}</span><span className="tabular-nums">{formatCommercialMoney(totals.subtotal)}</span></div><Field><FieldLabel htmlFor="commercial-discount">{l("discountOptional")}</FieldLabel><div className="flex min-w-0 gap-2"><Input id="commercial-discount" type="number" inputMode={discountType === "amount" ? "numeric" : "decimal"} min="0" max={discountType === "percent" ? 100 : totals.subtotal} step={discountType === "percent" ? "0.01" : "1"} placeholder="0" value={discountValue} disabled={saving} onChange={(event) => setDiscountValue(event.target.value)} /><Select value={discountType} onValueChange={(value) => setDiscountType(value === "percent" ? "percent" : "amount")} disabled={saving}><SelectTrigger className="h-11 shrink-0" aria-label={l("discountType")}><SelectValue /></SelectTrigger><SelectContent><SelectItem value="amount">{l("lak")}</SelectItem><SelectItem value="percent">%</SelectItem></SelectContent></Select></div><p className="text-xs text-muted-foreground">{l("discountHint")}</p></Field>{Number(discountValue) > 0 ? <div className="flex justify-between gap-3"><span>{l("discount")}{discountType === "percent" ? ` (${discountValue}%)` : ""}</span><span className="tabular-nums">−{formatCommercialMoney(totals.discountAmount)}</span></div> : null}<Field orientation="horizontal" className="justify-between"><FieldLabel htmlFor="commercial-tax">{l("tax")}</FieldLabel><Select value={String(taxRate)} onValueChange={(value) => setTaxRate(value === "10" ? 10 : 0)} disabled={saving}><SelectTrigger id="commercial-tax" className="h-11"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="0">{l("noTax")}</SelectItem><SelectItem value="10">10%</SelectItem></SelectContent></Select></Field><div className="flex justify-between gap-3 text-muted-foreground"><span>{l("tax")}</span><span className="tabular-nums">{formatCommercialMoney(totals.taxAmount)}</span></div><div className="flex justify-between gap-3 border-t pt-3 text-base font-semibold"><span>{l("total")}</span><span className="tabular-nums">{formatCommercialMoney(totals.total)} {l("lak")}</span></div></div></div>
+          </fieldset>
               </form>
             </TabsContent>
-            <TabsContent value="preview" forceMount className="m-0 flex min-h-0 min-w-0 flex-col overflow-hidden bg-muted/40 data-[state=inactive]:hidden lg:data-[state=inactive]:flex"><CommercialLivePreview document={draft} /></TabsContent>
+            <TabsContent value="preview" forceMount className="m-0 flex min-h-0 min-w-0 flex-col overflow-hidden bg-muted/40 data-[state=inactive]:hidden lg:data-[state=inactive]:flex"><CommercialLivePreview document={draft} statusLabel={existing ? l("unsavedChanges") : undefined} /></TabsContent>
           </div>
         </Tabs>
-        <DialogFooter className="shrink-0 flex-row items-center gap-3 rounded-none px-3 py-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] sm:px-5"><p className="mr-auto hidden text-sm sm:block">{l("total")}: <strong className="tabular-nums">{formatCommercialMoney(totals.total)} {l("lak")}</strong></p><Button type="button" variant="outline" onClick={onClose} disabled={saving}>{l("close")}</Button><Button type="button" className="min-h-11 flex-1 whitespace-normal sm:flex-none" disabled={saving} onClick={requestSave}>{l(saving ? "saving" : "saveDocument")}</Button></DialogFooter>
+        <DialogFooter className="shrink-0 flex-row items-center gap-3 rounded-none px-3 py-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] sm:px-5"><p className="mr-auto hidden text-sm sm:block">{l("total")}: <strong className="tabular-nums">{formatCommercialMoney(totals.total)} {l("lak")}</strong></p><Button type="button" variant="outline" onClick={onClose} disabled={saving}>{l("close")}</Button><Button type="button" className="min-h-11 flex-1 whitespace-normal sm:flex-none" disabled={saving || documentLoading} onClick={requestSave}>{l(saving ? "saving" : existing ? "saveChanges" : createRecovery ? "recoverDocument" : "saveDocument")}</Button></DialogFooter>
+        <AlertDialog open={reloadOpen} onOpenChange={setReloadOpen}><AlertDialogContent className="font-lao"><AlertDialogHeader><AlertDialogTitle>{l("reloadLatest")}</AlertDialogTitle><AlertDialogDescription>{l("reloadLatestConfirm")}</AlertDialogDescription></AlertDialogHeader><AlertDialogFooter><AlertDialogCancel>{l("cancel")}</AlertDialogCancel><AlertDialogAction onClick={() => { if (existing) void beginEdit(existing.document_uuid).catch(() => {}); }}>{l("reloadLatest")}</AlertDialogAction></AlertDialogFooter></AlertDialogContent></AlertDialog>
         <AlertDialog open={Boolean(removeLine)} onOpenChange={(open) => { if (!open) setRemoveLine(null); }}><AlertDialogContent className="font-lao"><AlertDialogHeader><AlertDialogTitle>{l("removeLine")}</AlertDialogTitle><AlertDialogDescription>{l("removeLineConfirm")}</AlertDialogDescription></AlertDialogHeader><AlertDialogFooter><AlertDialogCancel>{l("cancel")}</AlertDialogCancel><AlertDialogAction variant="destructive" onClick={() => { setLines((current) => current.filter((line) => line.key !== removeLine)); setRemoveLine(null); }}>{l("remove")}</AlertDialogAction></AlertDialogFooter></AlertDialogContent></AlertDialog>
       </DialogContent>
     </Dialog>

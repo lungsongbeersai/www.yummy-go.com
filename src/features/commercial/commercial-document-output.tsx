@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useRef, useState, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 import { Download, Printer } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
@@ -8,6 +8,8 @@ import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { isCapacitorNativeApp } from "@/lib/capacitor-platform";
+import { useCommercialLabels } from "@/features/commercial/commercial.locale";
+import { useCommercialStore } from "@/stores/commercial-store";
 import { useAppStore } from "@/stores/app-store";
 import type { CatalogItem, CommercialDocument, CommercialParty } from "@/services/commercial";
 import { renderCommercialCatalog, renderCommercialDocument, type CommercialPrintOptions } from "./commercial-print";
@@ -17,9 +19,11 @@ interface OutputFrameProps {
   onClose: () => void;
   initialShowImages: boolean;
   render: (options: CommercialPrintOptions) => string;
+  toolbar?: ReactNode;
+  metadata?: ReactNode;
 }
 
-function CommercialOutputFrame({ title, onClose, initialShowImages, render }: OutputFrameProps) {
+function CommercialOutputFrame({ title, onClose, initialShowImages, render, toolbar, metadata }: OutputFrameProps) {
   const { t } = useTranslation();
   const laoFont = useAppStore(state => state.laoFont);
   const [showImages, setShowImages] = useState(initialShowImages);
@@ -64,10 +68,11 @@ function CommercialOutputFrame({ title, onClose, initialShowImages, render }: Ou
         <DialogTitle className="font-lao">{title}</DialogTitle>
         <DialogDescription className="font-lao">{t("commercial.documentOutputHint", { defaultValue: "ເອກະສານ A4 · ເລືອກສະແດງຮູບ ແລ້ວພິມ ຫຼື ດາວໂຫຼດ PDF." })}</DialogDescription>
       </DialogHeader>
+      {metadata}
       <div className="flex flex-wrap items-center gap-4 font-lao">
         <label className="flex min-h-11 cursor-pointer items-center gap-2"><Checkbox disabled={exporting} checked={showImages} onCheckedChange={value => setShowImages(value === true)} />{t("commercial.showImages", { defaultValue: "ສະແດງຮູບສິນຄ້າ" })}</label>
         <label className="flex min-h-11 cursor-pointer items-center gap-2"><Checkbox disabled={exporting} checked={showLogo} onCheckedChange={value => setShowLogo(value === true)} />{t("commercial.showLogo", { defaultValue: "ສະແດງໂລໂກ້" })}</label>
-        <div className="flex flex-wrap gap-2 sm:ml-auto">{!isCapacitorNativeApp() ? <Button type="button" variant="outline" className="min-h-11" disabled={exporting || !previewReady} onClick={() => { void print(); }}><Printer />{t("commercial.print", { defaultValue: "ພິມ" })}</Button> : null}
+        <div className="flex flex-wrap gap-2 sm:ml-auto">{!exporting ? toolbar : null}{!isCapacitorNativeApp() ? <Button type="button" variant="outline" className="min-h-11" disabled={exporting || !previewReady} onClick={() => { void print(); }}><Printer />{t("commercial.print", { defaultValue: "ພິມ" })}</Button> : null}
         <Button type="button" className="min-h-11" disabled={exporting || !previewReady} onClick={() => { void download(); }}><Download />{t(exporting ? "commercial.saving" : "commercial.downloadPdf", { defaultValue: exporting ? "ກໍາລັງບັນທຶກ…" : "ດາວໂຫຼດ PDF" })}</Button></div>
       </div>
       {error ? <Alert variant="destructive"><AlertDescription>{error}</AlertDescription></Alert> : null}
@@ -76,8 +81,16 @@ function CommercialOutputFrame({ title, onClose, initialShowImages, render }: Ou
   </Dialog>;
 }
 
-export function CommercialDocumentOutput({ document, onClose }: { document: CommercialDocument; onClose: () => void }) {
-  return <CommercialOutputFrame title={document.number} onClose={onClose} initialShowImages={document.show_images} render={options => renderCommercialDocument(document, options)} />;
+export function CommercialDocumentOutput({ document, onClose, readOnly = false }: { document: CommercialDocument; onClose: () => void; readOnly?: boolean }) {
+  const l = useCommercialLabels();
+  const beginEdit = useCommercialStore((state) => state.beginEdit);
+  const openRevisions = useCommercialStore((state) => state.openRevisions);
+  const loading = useCommercialStore((state) => state.loading);
+  const saving = useCommercialStore((state) => state.saving);
+  return <CommercialOutputFrame title={`${document.number} · ${l("version")} ${document.version}`} onClose={onClose} initialShowImages={document.show_images}
+    toolbar={!readOnly ? <><Button variant="outline" className="min-h-11" disabled={loading || saving} onClick={() => { void beginEdit(document.document_uuid).catch(() => {}); }}>{l("editDocument")}</Button><Button variant="outline" className="min-h-11" disabled={loading || saving} onClick={() => { void openRevisions(document.document_uuid).catch(() => {}); }}>{l("revisionHistory")}</Button></> : null}
+    metadata={<div className="grid gap-1 font-lao text-xs text-muted-foreground"><p>{l("version")} {document.version} · {l("updatedOn")}: {new Date(document.updated_at || document.created_at).toLocaleString()}{readOnly ? ` · ${l("readOnlyRevision")}` : ""}</p>{document.source_quotation_version ? <p>{l("sourceQuotationVersion")} {document.source_quotation_number || ""} · {l("version")} {document.source_quotation_version}</p> : null}{document.document_type === "quotation" && document.receipt_uuid && document.version > 1 ? <p>{l("linkedReceiptUnchanged")}</p> : null}</div>}
+    render={options => renderCommercialDocument(document, options)} />;
 }
 
 export function CommercialCatalogOutput({ items, branchName, issuer, onClose, showImages = true }: { items: CatalogItem[]; branchName: string; issuer?: CommercialParty; onClose: () => void; showImages?: boolean }) {

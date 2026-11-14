@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import { apiRequest } from "@/lib/api";
-import { createCommercialDocument, getCommercialCatalog, getCommercialDocument, saveCatalogItem, type CreateCommercialDocumentInput } from "@/services/commercial";
+import { convertQuotation, createCommercialDocument, getCommercialCatalog, getCommercialDocument, getCommercialDocumentRevisions, saveCatalogItem, updateCommercialDocument, type CreateCommercialDocumentInput } from "@/services/commercial";
 
 vi.mock("@/lib/api", () => ({ apiRequest: vi.fn() }));
 
@@ -34,5 +34,21 @@ describe("commercial API contract", () => {
     vi.mocked(apiRequest).mockResolvedValueOnce({ status: "success", data: { document_uuid: "saved" } });
     await getCommercialDocument("branch", "document");
     expect(apiRequest).toHaveBeenLastCalledWith("get", "/api/v1/commercial/documents/document", { params: { branch_uuid: "branch" } });
+  });
+
+  it("updates an existing identity with its expected version and saved line identities", async () => {
+    const input: CreateCommercialDocumentInput = { branch_uuid: "branch", document_type: "quotation", issued_on: "2026-11-14", customer: { name: "Customer" }, issuer: { name: "PLC" }, tax_rate: 10, show_images: true, discount_type: "percent", discount_value: 5.25, items: [{ line_uuid: "saved-line", item_uuid: "inactive-item", name: "Original printer", quantity: 1, unit_price: 950000 }] };
+    vi.mocked(apiRequest).mockResolvedValueOnce({ status: "success", data: { document_uuid: "saved", version: 2 } });
+    await updateCommercialDocument({ ...input, document_uuid: "saved", expected_version: 1, request_uuid: "operation" });
+    expect(apiRequest).toHaveBeenLastCalledWith("post", "/api/v1/commercial/documents/saved/update", { data: { ...input, expected_version: 1, request_uuid: "operation" } });
+  });
+
+  it("loads branch-authorized revisions and pins the displayed quotation version on conversion", async () => {
+    vi.mocked(apiRequest).mockResolvedValueOnce({ status: "success", data: [] });
+    await getCommercialDocumentRevisions("branch", "saved");
+    expect(apiRequest).toHaveBeenLastCalledWith("get", "/api/v1/commercial/documents/saved/revisions", { params: { lang: "la", branch_uuid: "branch" } }, "Failed to fetch options");
+    vi.mocked(apiRequest).mockResolvedValueOnce({ status: "success", data: { document_uuid: "receipt" } });
+    await convertQuotation({ branch_uuid: "branch", document_uuid: "saved", expected_version: 3, payment_method: "cash" });
+    expect(apiRequest).toHaveBeenLastCalledWith("post", "/api/v1/commercial/documents/saved/convert", { data: { branch_uuid: "branch", expected_version: 3, payment_method: "cash" } });
   });
 });

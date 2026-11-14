@@ -149,6 +149,8 @@ export function renderCommercialDocument(document: CommercialDocument, options: 
   const showImages = options.showImages ?? document.show_images;
   const paymentLabel = ({ cash: "ເງິນສົດ / Cash", transfer: "ໂອນເງິນ / Bank transfer", other: "ອື່ນໆ / Other" } as Record<string, string>)[document.payment_method] ?? document.payment_method;
   const logo = options.showLogo === false ? "" : imageHtml(document.issuer.logo_url, "logo", document.issuer.name);
+  const discount = Number(document.discount_value) > 0 || Number(document.discount_amount) > 0
+    ? `<div class="total-row discount-row"><span>ສ່ວນຫຼຸດ${document.discount_type === "percent" ? ` (${new Intl.NumberFormat("en-US", { maximumFractionDigits: 2 }).format(document.discount_value)}%)` : ""}</span><span class="number">−${commercialMoney(document.discount_amount)}</span></div>` : "";
   const rows = document.items.map((item, index) => `<tr><td class="center">${index + 1}</td>
     <td><div class="item">${showImages && item.show_image ? imageHtml(item.image_url, "item-image", item.name) : ""}<div><p>${escapeHtml(item.name)}</p>${item.description ? `<p class="description">${escapeHtml(item.description)}</p>` : ""}</div></div></td>
     <td class="center">${escapeHtml(item.unit ?? "")}</td><td class="number center">${new Intl.NumberFormat("en-US", { maximumFractionDigits: 3 }).format(item.quantity)}</td>
@@ -160,6 +162,7 @@ export function renderCommercialDocument(document: CommercialDocument, options: 
     <table><colgroup><col style="width:5%" /><col style="width:40%" /><col style="width:9%" /><col style="width:9%" /><col style="width:18%" /><col style="width:19%" /></colgroup>
     <thead><tr><th>ລ/ດ</th><th>ລາຍການ</th><th>ຫົວໜ່ວຍ</th><th>ຈຳນວນ</th><th>ລາຄາ</th><th>ລາຄາລວມ</th></tr></thead><tbody>${rows}</tbody></table>
     <section class="totals"><div class="total-row"><span>ລວມທັງໝົດ</span><span class="number">${commercialMoney(document.subtotal)}</span></div>
+    ${discount}
     <div class="total-row"><span>ອາກອນ (${document.tax_rate}%)</span><span class="number">${commercialMoney(document.tax_amount)}</span></div>
     <div class="total-row"><span>${receipt ? "ຮັບເງິນທັງໝົດ" : "ລວມຍອດທັງໝົດ"}</span><span class="number total-amount"><span class="currency">LAK</span> ${commercialMoney(document.total)}</span></div></section>
     <p class="amount-words">ຈຳນວນເງິນ: ${escapeHtml(commercialAmountWords(document.total))}</p>
@@ -168,7 +171,7 @@ export function renderCommercialDocument(document: CommercialDocument, options: 
     ${document.notes ? `<section class="notes"><p class="strong">ໝາຍເຫດ</p><p>${escapeHtml(document.notes)}</p></section>` : ""}
     <section class="signatures"><div class="signature"><p>${receipt ? "ຜູ້ຈ່າຍເງິນ" : "ຜູ້ຮັບໃບສະເໜີລາຄາ"}</p><p class="signature-line">ລາຍເຊັນ / ວັນທີ</p></div>
     <div class="signature"><p>${receipt ? "ຜູ້ຮັບເງິນ" : "ຜູ້ສະເໜີລາຄາ"}</p><p class="signature-line">ລາຍເຊັນ / ວັນທີ</p></div></section>
-    <p class="footer">${escapeHtml(document.number)}${document.source_quotation_uuid ? " · ອ້າງອີງໃບສະເໜີລາຄາ" : ""}</p>`;
+    <p class="footer">${escapeHtml(document.number)}${document.version > 1 ? ` · ສະບັບ ${document.version}` : ""}${document.source_quotation_uuid ? ` · ອ້າງອີງ ${escapeHtml(document.source_quotation_number || "ໃບສະເໜີລາຄາ")}${document.source_quotation_version ? ` · ສະບັບ ${document.source_quotation_version}` : ""}` : ""}</p>`;
   return htmlDocument(`${title} ${document.number}`, body, options);
 }
 

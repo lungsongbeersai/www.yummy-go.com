@@ -6,7 +6,7 @@ import { canViewStoreBranch } from "@/lib/permissions";
 import { getBranchManagementStoreOptions, getBranchOptions, type Branch, type BranchManagementStore } from "@/services/branch";
 import * as commercial from "@/services/commercial";
 import { authStoreUuid, useAuthStore } from "@/stores/auth-store";
-import { commercialBranches, commercialBranchRows, commercialStores } from "@/stores/commercial-store/helpers";
+import { commercialBranches, commercialBranchRows, commercialStores, mergeCommercialDocument, newestCommercialDocument } from "@/stores/commercial-store/helpers";
 import { createSessionGuard, registerSessionStoreReset } from "@/stores/session-store-registry";
 import { errorMessage, type AsyncSlice } from "@/stores/store-utils";
 
@@ -33,6 +33,13 @@ interface CommercialState extends AsyncSlice {
   catalog: commercial.CatalogItem[];
   documents: commercial.CommercialDocument[];
   selectedDocument: commercial.CommercialDocument | null;
+  editingDocument: commercial.CommercialDocument | null;
+  editorGeneration: number;
+  editConflict: boolean;
+  revisionDocumentUuid: string | null;
+  revisions: commercial.CommercialDocumentRevision[];
+  revisionsLoading: boolean;
+  revisionsError: string | null;
   initialize: (input?: CommercialScopeInput) => Promise<void>;
   selectStore: (storeUuid: string, branchUuid?: string) => Promise<void>;
   selectBranch: (branchUuid: string) => void;
@@ -40,6 +47,11 @@ interface CommercialState extends AsyncSlice {
   loadDocuments: () => Promise<void>;
   saveItem: (input: commercial.SaveCatalogItemInput) => Promise<commercial.CatalogItem | null>;
   createDocument: (input: commercial.CreateCommercialDocumentInput) => Promise<commercial.CommercialDocument | null>;
+  beginEdit: (documentUuid: string) => Promise<void>;
+  closeEditor: () => void;
+  updateDocument: (input: commercial.UpdateCommercialDocumentInput) => Promise<commercial.CommercialDocument | null>;
+  openRevisions: (documentUuid: string) => Promise<void>;
+  closeRevisions: () => void;
   openDocument: (documentUuid: string) => Promise<commercial.CommercialDocument | null>;
   convertQuotation: (input: commercial.ConvertQuotationInput) => Promise<commercial.CommercialDocument | null>;
   closeDocument: () => void;
@@ -52,9 +64,13 @@ let catalogGeneration = 0;
 let catalogRequest = 0;
 let documentsRequest = 0;
 let detailRequest = 0;
+let editRequest = 0;
+let revisionRequest = 0;
 
 const emptyDocumentWorkspace = {
   documents: [], selectedDocument: null, documentsLoading: false, documentsError: null,
+  editingDocument: null, editorGeneration: 0, editConflict: false,
+  revisionDocumentUuid: null, revisions: [], revisionsLoading: false, revisionsError: null,
   saving: false, loading: false, error: null,
 };
 const emptyWorkspace = {
@@ -174,7 +190,7 @@ export const useCommercialStore = create<CommercialState>((set, get) => {
       set({ documentsLoading: true, documentsError: null });
       try {
         const rows = await commercial.getCommercialDocuments(branchUuid);
-        if (request === documentsRequest && current()) set({ documents: commercialBranchRows(rows, branchUuid), documentsLoading: false });
+        if (request === documentsRequest && current()) set((state) => ({ documents: commercialBranchRows(rows, branchUuid).map((row) => newestCommercialDocument(state.documents, row)), documentsLoading: false }));
       } catch (error) {
         if (request === documentsRequest && current()) set({ documentsLoading: false, documentsError: errorMessage(error) });
         throw error;
@@ -215,13 +231,73 @@ export const useCommercialStore = create<CommercialState>((set, get) => {
         requireReturnedBranch(row, input.branch_uuid);
         if (!current()) return null;
         documentsRequest += 1;
-        set((state) => ({ documents: [row, ...state.documents.filter((document) => document.document_uuid !== row.document_uuid)], selectedDocument: row, documentsLoading: false, saving: false }));
-        return row;
+        const latest = newestCommercialDocument(get().documents, row);
+        set((state) => ({ documents: mergeCommercialDocument(state.documents, latest), selectedDocument: latest, documentsLoading: false, saving: false }));
+        return latest;
       } catch (error) {
         if (current()) set({ saving: false, error: errorMessage(error) });
         throw error;
       }
     },
+    beginEdit: async (documentUuid) => {
+      const branchUuid = get().branchUuid;
+      requireBranch(branchUuid);
+      const request = ++editRequest;
+      detailRequest += 1;
+      const current = scopeGuard(branchUuid);
+      set({ loading: true, error: null });
+      try {
+        const row = await commercial.getCommercialDocument(branchUuid, documentUuid);
+        requireReturnedBranch(row, branchUuid);
+        if (row.document_uuid !== documentUuid || !Number.isInteger(row.version) || row.version < 1) throw new ServiceError("The document version is unavailable", 409);
+        if (request !== editRequest || !current()) return;
+        const fresh = newestCommercialDocument(get().documents, row);
+        set((state) => ({ documents: mergeCommercialDocument(state.documents, fresh), editingDocument: fresh, editorGeneration: request, selectedDocument: null, editConflict: false, loading: false }));
+      } catch (error) {
+        if (request === editRequest && current()) set({ loading: false, error: errorMessage(error) });
+        throw error;
+      }
+    },
+    closeEditor: () => { editRequest += 1; set({ editingDocument: null, editConflict: false, error: null, loading: false }); },
+    updateDocument: async (input) => {
+      requireBranch(input.branch_uuid);
+      const current = scopeGuard(input.branch_uuid);
+      set({ saving: true, error: null, editConflict: false });
+      try {
+        const row = await commercial.updateCommercialDocument(input);
+        requireReturnedBranch(row, input.branch_uuid);
+        if (row.document_uuid !== input.document_uuid) throw new ServiceError("The response belongs to another document", 403);
+        if (!current()) return null;
+        documentsRequest += 1;
+        detailRequest += 1;
+        editRequest += 1;
+        const latest = newestCommercialDocument(get().documents, row);
+        set((state) => ({ documents: mergeCommercialDocument(state.documents, latest), selectedDocument: latest, editingDocument: null, editConflict: false, documentsLoading: false, saving: false }));
+        return latest;
+      } catch (error) {
+        if (current()) set({ saving: false, error: errorMessage(error), editConflict: error instanceof ServiceError && error.statusCode === 409 });
+        throw error;
+      }
+    },
+    openRevisions: async (documentUuid) => {
+      const branchUuid = get().branchUuid;
+      requireBranch(branchUuid);
+      const request = ++revisionRequest;
+      const current = scopeGuard(branchUuid);
+      set({ revisionDocumentUuid: documentUuid, revisions: [], revisionsLoading: true, revisionsError: null });
+      try {
+        const rows = await commercial.getCommercialDocumentRevisions(branchUuid, documentUuid);
+        for (const row of rows) {
+          requireReturnedBranch(row.snapshot, branchUuid);
+          if (row.snapshot.document_uuid !== documentUuid || row.snapshot.version !== row.version) throw new ServiceError("The revision belongs to another document", 403);
+        }
+        if (request === revisionRequest && current()) set({ revisions: rows, revisionsLoading: false });
+      } catch (error) {
+        if (request === revisionRequest && current()) set({ revisionsLoading: false, revisionsError: errorMessage(error) });
+        throw error;
+      }
+    },
+    closeRevisions: () => { revisionRequest += 1; set({ revisionDocumentUuid: null, revisions: [], revisionsLoading: false, revisionsError: null }); },
     openDocument: async (documentUuid) => {
       const branchUuid = get().branchUuid;
       requireBranch(branchUuid);
@@ -232,8 +308,9 @@ export const useCommercialStore = create<CommercialState>((set, get) => {
         const row = await commercial.getCommercialDocument(branchUuid, documentUuid);
         requireReturnedBranch(row, branchUuid);
         if (request !== detailRequest || !current()) return null;
-        set({ selectedDocument: row, loading: false });
-        return row;
+        const latest = newestCommercialDocument(get().documents, row);
+        set((state) => ({ documents: mergeCommercialDocument(state.documents, latest), selectedDocument: latest, loading: false }));
+        return latest;
       } catch (error) {
         if (request === detailRequest && current()) set({ loading: false, error: errorMessage(error) });
         throw error;
@@ -249,8 +326,8 @@ export const useCommercialStore = create<CommercialState>((set, get) => {
         if (!current()) return null;
         documentsRequest += 1;
         set((state) => ({
-          documents: [row, ...state.documents.filter((document) => document.document_uuid !== row.document_uuid).map((document) => document.document_uuid === input.document_uuid ? { ...document, receipt_uuid: row.document_uuid } : document)],
-          selectedDocument: row, documentsLoading: false, saving: false,
+          documents: mergeCommercialDocument(state.documents, row).map((document) => document.document_uuid === input.document_uuid ? { ...document, receipt_uuid: row.document_uuid } : document),
+          selectedDocument: newestCommercialDocument(state.documents, row), documentsLoading: false, saving: false,
         }));
         return row;
       } catch (error) {
@@ -266,6 +343,8 @@ export const useCommercialStore = create<CommercialState>((set, get) => {
       catalogRequest += 1;
       documentsRequest += 1;
       detailRequest += 1;
+      editRequest += 1;
+      revisionRequest += 1;
       set({ ...emptyWorkspace, stores: [], branches: [], storeUuid: "", branchUuid: "", canSelectStore: false, optionsLoading: false, optionsError: null });
     },
   };

@@ -7,13 +7,13 @@ import { useCommercialLabels } from "@/features/commercial/commercial.locale";
 import type { CommercialDocument } from "@/services/commercial";
 import { useAppStore } from "@/stores/app-store";
 
-interface CommercialLivePreviewProps { document: CommercialDocument }
+interface CommercialLivePreviewProps { document: CommercialDocument; statusLabel?: string }
 
 const A4_WIDTH = 794;
 const A4_MIN_HEIGHT = 1123;
 const PAGE_PADDING = 14 * 96 / 25.4;
 
-export function CommercialLivePreview({ document }: CommercialLivePreviewProps) {
+export function CommercialLivePreview({ document, statusLabel }: CommercialLivePreviewProps) {
   const l = useCommercialLabels();
   const laoFont = useAppStore((state) => state.laoFont);
   const frame = useRef<HTMLIFrameElement>(null);
@@ -68,7 +68,7 @@ export function CommercialLivePreview({ document }: CommercialLivePreviewProps) 
   }, [document, laoFont, ready]);
 
   return <section className="flex min-h-0 min-w-0 flex-1 flex-col" aria-label={l("livePreview")}>
-    <div className="flex shrink-0 flex-wrap items-center justify-between gap-2 border-b bg-card px-4 py-3"><div><h2 className="font-semibold">{l("livePreview")}</h2><p className="text-xs text-muted-foreground">{l("livePreviewHint")}</p></div><Badge variant="secondary">{l("draft")}</Badge></div>
+    <div className="flex shrink-0 flex-wrap items-center justify-between gap-2 border-b bg-card px-4 py-3"><div><h2 className="font-semibold">{l("livePreview")}</h2><p className="text-xs text-muted-foreground">{l("livePreviewHint")}</p></div><Badge variant="secondary">{statusLabel ?? l("draft")}</Badge></div>
     <div tabIndex={0} role="region" aria-label={l("livePreview")} className="min-h-0 flex-1 overflow-y-auto overscroll-contain p-3 outline-none [scrollbar-gutter:stable] focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring sm:p-4">
       <div ref={viewport} className="w-full min-w-0">
         <div className="relative mx-auto max-w-full overflow-hidden rounded-sm bg-card shadow-sm ring-1 ring-border" style={{ width: A4_WIDTH * size.scale, height: size.height * size.scale }}>

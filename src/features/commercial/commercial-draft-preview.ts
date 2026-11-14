@@ -1,4 +1,4 @@
-import { commercialLineInput, commercialTotals, type CommercialDraftLine } from "@/features/commercial/commercial-domain";
+import { commercialLineInput, commercialTotals, validCommercialDiscount, type CommercialDraftLine, type CommercialDiscountOptions } from "@/features/commercial/commercial-domain";
 import type { CommercialDocument, CommercialDocumentItem, CommercialDocumentType, CommercialParty } from "@/services/commercial";
 
 export interface CommercialDraftPreviewInput {
@@ -14,6 +14,12 @@ export interface CommercialDraftPreviewInput {
   taxRate: number;
   lines: CommercialDraftLine[];
   draftLabel: string;
+  discountType?: CommercialDiscountOptions["discountType"];
+  discountValue?: string | number;
+  version?: number;
+  sourceQuotationUuid?: string | null;
+  sourceQuotationVersion?: number | null;
+  sourceQuotationNumber?: string | null;
 }
 
 export interface CommercialDraftPreviewDocument extends CommercialDocument {
@@ -36,6 +42,7 @@ function previewLine(line: CommercialDraftLine) {
   if (!amountValid) normalized.quantity = "0";
   const item: CommercialDocumentItem = {
     ...input,
+    line_uuid: line.line_uuid ?? "",
     item_uuid: input.item_uuid ?? null,
     name: line.name,
     description: line.description,
@@ -52,10 +59,14 @@ function previewLine(line: CommercialDraftLine) {
 export function buildCommercialDraftPreview(input: CommercialDraftPreviewInput): CommercialDraftPreviewDocument {
   const lines = input.lines.map(previewLine);
   const taxRate = input.taxRate === 10 ? 10 : 0;
-  const calculated = commercialTotals(lines.map((line) => line.normalized), taxRate);
-  const totalsValid = Object.values(calculated).every(safeAmount);
-  const totals = totalsValid ? calculated : { subtotal: 0, taxAmount: 0, total: 0 };
+  const discount = { discountType: input.discountType, discountValue: input.discountValue };
+  const calculated = commercialTotals(lines.map((line) => line.normalized), taxRate, discount);
+  const discountValid = validCommercialDiscount(calculated.subtotal, discount);
+  const totalsValid = Object.values(calculated).every(safeAmount) && discountValid;
+  const totals = totalsValid ? calculated : { subtotal: 0, discountAmount: 0, taxAmount: 0, total: 0 };
   const receipt = input.documentType === "receipt";
+  const version = input.version ?? 1;
+  const discountValue = discountValid ? Number(input.discountValue ?? 0) : 0;
   return {
     document_uuid: "",
     branch_uuid: input.branchUuid,
@@ -69,13 +80,21 @@ export function buildCommercialDraftPreview(input: CommercialDraftPreviewInput):
     payment_method: receipt ? input.paymentMethod : "",
     show_images: input.showImages,
     tax_rate: taxRate,
+    discount_type: discountValue > 0 ? input.discountType ?? "amount" : null,
+    discount_value: discountValue,
+    discount_amount: totals.discountAmount,
     subtotal: totals.subtotal,
     tax_amount: totals.taxAmount,
     total: totals.total,
-    source_quotation_uuid: null,
+    source_quotation_uuid: input.sourceQuotationUuid ?? null,
+    source_quotation_version: input.sourceQuotationVersion ?? null,
+    source_quotation_number: input.sourceQuotationNumber ?? null,
     receipt_uuid: null,
     items: lines.map((line) => line.item),
     created_at: "",
+    version: Number.isSafeInteger(version) && version > 0 ? version : 1,
+    updated_at: "",
+    updated_by: "",
     preview_invalid: ![0, 10].includes(input.taxRate) || !totalsValid || lines.some((line) => line.invalid),
   };
 }

@@ -15,6 +15,7 @@ import { CommercialCatalog } from "@/features/commercial/commercial-catalog";
 import { CommercialDocumentEditor } from "@/features/commercial/commercial-document-editor";
 import { CommercialDocumentOutput } from "@/features/commercial/commercial-document-output";
 import { CommercialHistory } from "@/features/commercial/commercial-history";
+import { CommercialRevisions } from "@/features/commercial/commercial-revisions";
 import { useCommercialLabels } from "@/features/commercial/commercial.locale";
 import { useSidebarPermissionAccess } from "@/hooks/use-sidebar-permission-access";
 import { canViewBranchSettings } from "@/lib/permissions";
@@ -40,7 +41,7 @@ export function CommercialPage() {
 
 function CommercialWorkspace() {
   const l = useCommercialLabels();
-  const { stores, branches, storeUuid, branchUuid, canSelectStore, optionsLoading, optionsError, error, loading, selectedDocument, initialize, selectStore, selectBranch, loadCatalog, loadDocuments, closeDocument, clearError, reset } = useCommercialStore();
+  const { stores, branches, storeUuid, branchUuid, canSelectStore, optionsLoading, optionsError, error, loading, selectedDocument, editingDocument, editorGeneration, revisionDocumentUuid, initialize, selectStore, selectBranch, loadCatalog, loadDocuments, closeDocument, closeEditor, clearError, reset } = useCommercialStore();
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -66,7 +67,9 @@ function CommercialWorkspace() {
       {initialLoading ? <div className="grid gap-4"><Skeleton className="h-12 w-full" /><Skeleton className="h-48 w-full" /></div> : branchUuid ? <CommercialBranchWorkspace key={branchUuid} branchUuid={branchUuid} /> : !optionsError ? <Empty className="min-h-64 border"><EmptyHeader><EmptyTitle>{l("noBranches")}</EmptyTitle></EmptyHeader></Empty> : null}
     </div>
     {loading ? <div role="status" aria-label={l("viewDocument")} className="fixed right-4 bottom-24 z-40 rounded-md border bg-card p-3 shadow-lg"><Skeleton className="h-6 w-32" /></div> : null}
-    {selectedDocument ? <CommercialDocumentOutput document={selectedDocument} onClose={closeDocument} /> : null}
+    {editingDocument ? <CommercialDocumentEditor key={`${editingDocument.document_uuid}:${editorGeneration}`} branchUuid={branchUuid} documentType={editingDocument.document_type} existing={editingDocument} onClose={closeEditor} /> : null}
+    {selectedDocument ? <CommercialDocumentOutput key={`${selectedDocument.document_uuid}:${selectedDocument.version}`} document={selectedDocument} onClose={closeDocument} /> : null}
+    {revisionDocumentUuid ? <CommercialRevisions /> : null}
   </div>;
 }
 
