@@ -5,7 +5,6 @@ import Link from "next/link";
 import { Bell, Check, Clock, MapPinPlus, Plus, Search, UserRound } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { EmptyState } from "@/components/common/empty-state";
-import { HorizontalScrollArrows } from "@/components/common/horizontal-scroll-arrows";
 import { usePullToRefresh } from "@/components/layout/capacitor/use-pull-to-refresh";
 import { NativePullToRefreshIndicator } from "@/components/layout/capacitor/pull-to-refresh-indicator";
 import { LoadingState } from "@/components/common/loading-state";
@@ -23,6 +22,7 @@ import { cn } from "@/lib/utils";
 import { zoneOrderAlertCount } from "@/lib/pos/order-alerts";
 import type { PosTable, PosZone } from "@/services/pos";
 import type { TableStatusFilter } from "./types";
+import { TableFilterRail } from "./table-filter-rail";
 import {
   filterZones,
   tableCheckInTime,
@@ -88,10 +88,6 @@ export function TableListSection({
     if (element) zoneSectionRefs.current.set(zoneUuid, element);
     else zoneSectionRefs.current.delete(zoneUuid);
   }, []);
-  const zoneRailRef = useRef<HTMLDivElement | null>(null);
-  const statusRailRef = useRef<HTMLDivElement | null>(null);
-  const [zoneRailOverflowing, setZoneRailOverflowing] = useState(false);
-  const [statusRailOverflowing, setStatusRailOverflowing] = useState(false);
   // Keep typing immediate on large grids. Realtime occupancy and status filters
   // still use the current zones/status; only text filtering can yield to input.
   const deferredSearch = useDeferredValue(search);
@@ -144,18 +140,12 @@ export function TableListSection({
     <div className="flex min-h-0 flex-1 flex-col bg-table-canvas">
       <div className="flex shrink-0 flex-col gap-1.5 border-b border-border bg-card px-0 py-1.5 shadow-xs sm:px-4 xl:px-5 dark:bg-background dark:shadow-sm">
         <div className="flex items-center gap-2">
-          <div className="relative min-w-0 flex-1">
-            {/* Keep the arrow outside the scrolling viewport so chips never pass underneath. */}
-            <div
-              ref={zoneRailRef}
-              className={cn(
-                "-mx-1 overflow-x-auto overflow-y-hidden px-1 py-1",
-                zoneRailOverflowing && "mr-12"
-              )}
-            >
+          <div className="min-w-0 flex-1">
+            <TableFilterRail selectedValue={selectedZoneUuid || ZONE_ALL_VALUE}>
               <ToggleGroup
                 aria-label={t("pos.zoneJumpAria")}
                 className="w-max justify-start"
+                dir="ltr"
                 type="single"
                 value={selectedZoneUuid || ZONE_ALL_VALUE}
                 onValueChange={(value) => {
@@ -184,12 +174,7 @@ export function TableListSection({
                   );
                 })}
               </ToggleGroup>
-            </div>
-            <HorizontalScrollArrows
-              placement="single-end"
-              scrollRef={zoneRailRef}
-              onOverflowChange={setZoneRailOverflowing}
-            />
+            </TableFilterRail>
           </div>
           {canAddZone || canAddTable ? (
             <div className="hidden shrink-0 gap-2 sm:flex">
@@ -215,17 +200,12 @@ export function TableListSection({
           ) : null}
         </div>
         <div className="flex flex-col gap-1.5 xl:flex-row xl:items-center xl:justify-between">
-          <div className="relative min-w-0">
-            <div
-              ref={statusRailRef}
-              className={cn(
-                "-mx-1 overflow-x-auto overflow-y-hidden px-1 py-1",
-                statusRailOverflowing && "mr-12"
-              )}
-            >
+          <div className="min-w-0 xl:flex-1">
+            <TableFilterRail selectedValue={statusFilter}>
               <ToggleGroup
                 aria-label={t("pos.statusFilterAria")}
                 className="w-max justify-start"
+                dir="ltr"
                 type="single"
                 value={statusFilter}
                 onValueChange={(value) => {
@@ -237,12 +217,7 @@ export function TableListSection({
                 <StatusToggleItem active={statusFilter === "busy"} dot="busy" label={t("common.busy")} value="busy" valueCount={statusCounts.busy} />
                 <StatusToggleItem active={statusFilter === "update"} dot="update" label={t("pos.tableStatusNewOrderAlert")} value="update" valueCount={statusCounts.update} />
               </ToggleGroup>
-            </div>
-            <HorizontalScrollArrows
-              placement="single-end"
-              scrollRef={statusRailRef}
-              onOverflowChange={setStatusRailOverflowing}
-            />
+            </TableFilterRail>
           </div>
           <div className="flex w-full min-w-0 items-center gap-2 xl:w-auto">
           <div className="relative min-w-0 flex-1 xl:w-[280px]">
