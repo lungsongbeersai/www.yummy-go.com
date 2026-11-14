@@ -259,14 +259,15 @@ export const useAuthStore = create<AuthState>()(
             const roleId = typeof session.login_status === "number" && Number.isInteger(session.login_status) && session.login_status > 0
               ? session.login_status : current.user.status;
             const roleChanged = current.user.status !== roleId;
+            const classificationChanged = current.user.store_status !== storeStatus;
             // Session dates belong to the verified branch, regardless of any
             // customer selected on the management screen or a later reassignment.
             const sameBranch = session.branch_uuid === current.user.branch_uuid &&
               session.store_uuid_fk === authStoreUuid(current.user);
             const contractEndOn = sameBranch ? session.contract_end_on ?? null : null;
             const contractDaysRemaining = sameBranch ? session.contract_days_remaining ?? null : null;
-            // Cached data and pending requests belong to the role that loaded them.
-            if (roleChanged) resetSessionStores();
+            // Classification and role both determine the live permission scope.
+            if (roleChanged || classificationChanged) resetSessionStores();
             if (roleChanged || current.user.name !== displayName || current.user.store_status !== storeStatus ||
               current.user.contract_end_on !== contractEndOn || current.user.contract_days_remaining !== contractDaysRemaining) {
               set({ user: normalizeAuthUser({ ...current.user, name: displayName, status: roleId, store_status: storeStatus,
@@ -323,7 +324,10 @@ export const useAuthStore = create<AuthState>()(
       clearContractExpiry: () => set({ contractExpiry: null }),
       updateUser: (updates) => {
         const user = get().user;
-        if (user) set({ user: normalizeAuthUser({ ...user, ...updates }) });
+        if (!user) return;
+        const nextUser = normalizeAuthUser({ ...user, ...updates });
+        if (nextUser?.status !== user.status || nextUser?.store_status !== user.store_status) resetSessionStores();
+        set({ user: nextUser });
       },
       setHydrated: (hydrated) => set({ hydrated })
     }),

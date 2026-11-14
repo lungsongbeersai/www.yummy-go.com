@@ -35,6 +35,7 @@ import {
   WEB_APP_VERSION,
 } from "@/lib/installed-app-version";
 import { internalRoute } from "@/lib/routes";
+import { canUseCommercial, commercialMenuItems, isCommercialPath } from "@/lib/commercial-permissions";
 import { safeInternalRedirect } from "@/lib/safe-internal-redirect";
 import { normalizeLoginEmail } from "@/lib/login-email";
 import { isContractExpiredError } from "@/lib/contract-expiry";
@@ -63,7 +64,7 @@ async function resolveLandingPath(
   // /login?redirect=%2F ด้วย — ถ้า honor ค่านี้ตรง ๆ จะวนกลับไป Dashboard ทุกครั้งไม่ต่างจากเดิม
   // เพราะ "/" ไม่เคยเป็น deep link ที่ผู้ใช้ตั้งใจไปจริง ๆ จึงต้องข้ามค่านี้แล้วคำนวณจากสิทธิ์แทน
   const explicitRedirect = redirectParam ? safeInternalRedirect(redirectParam) : null;
-  if (explicitRedirect && explicitRedirect !== "/") return explicitRedirect;
+  if (explicitRedirect && explicitRedirect !== "/" && (!isCommercialPath(explicitRedirect) || canUseCommercial(user))) return explicitRedirect;
   if (!user) return "/";
 
   const storeUuid = authStoreUuid(user);
@@ -75,7 +76,7 @@ async function resolveLandingPath(
     return "/";
   }
 
-  const items = usePermissionsSidebarStore.getState().items;
+  const items = commercialMenuItems(usePermissionsSidebarStore.getState().items, user);
   const path = firstNavigablePath(items);
   return path ? internalRoute(path) : "/";
 }

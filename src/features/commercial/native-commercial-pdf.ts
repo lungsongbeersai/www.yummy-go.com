@@ -1,6 +1,7 @@
 import { Capacitor, registerPlugin } from "@capacitor/core";
 import { isCapacitorAndroidApp } from "@/lib/capacitor-platform";
-import { authStoreUuid, useAuthStore } from "@/stores/auth-store";
+import { useAuthStore } from "@/stores/auth-store";
+import { commercialSessionIdentity } from "@/lib/commercial-permissions";
 
 export interface AndroidCommercialPdfPlugin {
   beginPdf(options: { fileName: string; sizeBytes: number }): Promise<{ handle: string }>;
@@ -138,7 +139,7 @@ export async function stageAndroidCommercialPdf(file: File, bridge: AndroidComme
 
 function identity() {
   const { user, token } = useAuthStore.getState();
-  return JSON.stringify([user?.uuid, authStoreUuid(user), token]);
+  return commercialSessionIdentity(user, token);
 }
 
 export function prepareAndroidCommercialPdf(file: File, isCurrent: () => boolean): Promise<PreparedAndroidCommercialPdf> {

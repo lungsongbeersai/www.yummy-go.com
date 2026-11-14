@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useCommercialLabels } from "@/features/commercial/commercial.locale";
 import { useSidebarPermissionAccess } from "@/hooks/use-sidebar-permission-access";
-import { canViewBranchSettings } from "@/lib/permissions";
+import { canUseCommercial, commercialSessionIdentity } from "@/lib/commercial-permissions";
 import { authStoreUuid, useAuthStore } from "@/stores/auth-store";
 import { usePermissionsSidebarStore } from "@/stores/permissions-sidebar-store";
 
@@ -24,9 +24,9 @@ export function CommercialAccessGate({ children }: { children: ReactNode }) {
   const { keyMatches, loading, menuItems } = useSidebarPermissionAccess();
   const error = usePermissionsSidebarStore((state) => state.error);
   const load = usePermissionsSidebarStore((state) => state.load);
-  if (!canViewBranchSettings(user?.status)) return <Alert className="m-4 font-lao" variant="destructive"><AlertDescription>{l("noPermission")}</AlertDescription></Alert>;
+  if (!canUseCommercial(user)) return <Alert className="m-4 font-lao" variant="destructive"><AlertDescription>{l("noPermission")}</AlertDescription></Alert>;
   if (loading) return <CommercialLoading />;
   if (keyMatches && error) return <Alert className="m-4 font-lao" variant="destructive"><AlertTitle>{l("error")}</AlertTitle><AlertDescription><p>{error}</p><Button variant="outline" className="min-h-11" onClick={() => { if (user) void load(authStoreUuid(user), user.status, i18n.language); }}>{l("retry")}</Button></AlertDescription></Alert>;
   if (!keyMatches || !menuGrantsPath(menuItems, "/commercial")) return <Alert className="m-4 font-lao" variant="destructive"><AlertDescription>{l("noPermission")}</AlertDescription></Alert>;
-  return <Fragment key={`${token}:${user?.uuid}:${user?.status}:${authStoreUuid(user)}:${user?.branch_uuid}`}>{children}</Fragment>;
+  return <Fragment key={commercialSessionIdentity(user, token)}>{children}</Fragment>;
 }
