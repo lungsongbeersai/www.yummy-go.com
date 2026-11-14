@@ -358,4 +358,43 @@ describe("commercial request scope ownership", () => {
     useCommercialStore.getState().closeRevisions(); pending.resolve([revision]); await load;
     expect(useCommercialStore.getState()).toMatchObject({ revisions: [], revisionDocumentUuid: null });
   });
+
+  it("clears route-only state while retaining the verified scope and shared catalogue", () => {
+    useCommercialStore.setState({ catalog: [item()], catalogReady: true, selectedDocument: document(), editingDocument: document(), editConflict: true, error: "Old error" });
+    useCommercialStore.getState().enterRoute();
+    expect(useCommercialStore.getState()).toMatchObject({ storeUuid: "store", branchUuid: "a", branches, catalog: [item()], catalogReady: true, selectedDocument: null, editingDocument: null, editConflict: false, error: null });
+  });
+
+  it("does not let an older page cleanup clear a newer route's state", () => {
+    const oldLease = useCommercialStore.getState().enterRoute();
+    useCommercialStore.getState().enterRoute();
+    useCommercialStore.setState({ selectedDocument: document(), error: "Current route error" });
+    useCommercialStore.getState().leaveRoute(oldLease);
+    expect(useCommercialStore.getState()).toMatchObject({ selectedDocument: document(), error: "Current route error", branchUuid: "a" });
+  });
+
+  it("ignores stale details and edits after navigation within the same branch", async () => {
+    useCommercialStore.getState().enterRoute();
+    const detail = deferred<CommercialDocument>();
+    const editing = deferred<CommercialDocument>();
+    vi.mocked(getCommercialDocument).mockReturnValueOnce(detail.promise).mockReturnValueOnce(editing.promise);
+    const opening = useCommercialStore.getState().openDocument("document");
+    const preparing = useCommercialStore.getState().beginEdit("document");
+    useCommercialStore.getState().enterRoute();
+    detail.resolve(document()); editing.resolve(document());
+    expect(await opening).toBeNull(); await preparing;
+    expect(useCommercialStore.getState()).toMatchObject({ selectedDocument: null, editingDocument: null, loading: false, branchUuid: "a" });
+  });
+
+  it("does not reopen an old result after leaving a page with a pending save", async () => {
+    const lease = useCommercialStore.getState().enterRoute();
+    const pending = deferred<CommercialDocument>();
+    vi.mocked(updateCommercialDocument).mockReturnValueOnce(pending.promise);
+    const saving = useCommercialStore.getState().updateDocument(updateInput);
+    useCommercialStore.getState().leaveRoute(lease);
+    useCommercialStore.getState().enterRoute();
+    pending.resolve({ ...document(), version: 2 });
+    expect(await saving).toBeNull();
+    expect(useCommercialStore.getState()).toMatchObject({ selectedDocument: null, editingDocument: null, saving: false, branchUuid: "a" });
+  });
 });

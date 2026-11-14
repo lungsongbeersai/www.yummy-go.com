@@ -1,6 +1,9 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
+import { commercialCreateHref, commercialEditHref } from "@/features/commercial/commercial-routes";
+import { internalRoute } from "@/lib/routes";
 import { FileText, Plus, RefreshCw } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
@@ -19,9 +22,9 @@ import type { CommercialDocument, CommercialDocumentType } from "@/services/comm
 import { useCommercialStore } from "@/stores/commercial-store";
 import { useToastStore } from "@/stores/toast-store";
 
-interface CommercialHistoryProps { documentType: CommercialDocumentType; onCreate: () => void }
+interface CommercialHistoryProps { documentType: CommercialDocumentType }
 
-export function CommercialHistory({ documentType, onCreate }: CommercialHistoryProps) {
+export function CommercialHistory({ documentType }: CommercialHistoryProps) {
   const l = useCommercialLabels();
   const documents = useCommercialStore((state) => state.documents);
   const loading = useCommercialStore((state) => state.documentsLoading);
@@ -30,11 +33,13 @@ export function CommercialHistory({ documentType, onCreate }: CommercialHistoryP
   const error = useCommercialStore((state) => state.documentsError);
   const load = useCommercialStore((state) => state.loadDocuments);
   const openDocument = useCommercialStore((state) => state.openDocument);
-  const beginEdit = useCommercialStore((state) => state.beginEdit);
+  const storeUuid = useCommercialStore((state) => state.storeUuid);
+  const branchUuid = useCommercialStore((state) => state.branchUuid);
   const openRevisions = useCommercialStore((state) => state.openRevisions);
   const clearError = useCommercialStore((state) => state.clearError);
   const [search, setSearch] = useState("");
   const [conversion, setConversion] = useState<CommercialDocument | null>(null);
+  const createHref = internalRoute(commercialCreateHref({ storeUuid, branchUuid }, documentType));
   const normalizedSearch = search.trim().toLocaleLowerCase();
   const rows = documents.filter((document) => document.document_type === documentType && `${document.number} ${document.customer.name}`.toLocaleLowerCase().includes(normalizedSearch)).sort((left, right) => right.created_at.localeCompare(left.created_at));
   const disabled = loading || detailLoading || saving;
@@ -42,9 +47,9 @@ export function CommercialHistory({ documentType, onCreate }: CommercialHistoryP
   function view(documentUuid: string) { void openDocument(documentUuid).catch(() => {}); }
 
   return <section className="grid gap-4">
-    <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between"><Input className="h-11 sm:max-w-sm" value={search} onChange={(event) => setSearch(event.target.value)} placeholder={`${l("number")} / ${l("customer")}`} aria-label={`${l("number")} / ${l("customer")}`} /><div className="flex flex-wrap gap-2"><Button variant="outline" className="min-h-11" onClick={() => { void load().catch(() => {}); }} disabled={disabled}><RefreshCw />{l("refresh")}</Button><Button className="min-h-11" onClick={onCreate} disabled={saving}><Plus />{l(documentType === "quotation" ? "newQuotation" : "newReceipt")}</Button></div></div>
+    <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between"><Input className="h-11 sm:max-w-sm" value={search} onChange={(event) => setSearch(event.target.value)} placeholder={`${l("number")} / ${l("customer")}`} aria-label={`${l("number")} / ${l("customer")}`} /><div className="flex flex-wrap gap-2"><Button variant="outline" className="min-h-11" onClick={() => { void load().catch(() => {}); }} disabled={disabled}><RefreshCw />{l("refresh")}</Button><Button asChild className="min-h-11"><Link href={createHref}><Plus />{l(documentType === "quotation" ? "newQuotation" : "newReceipt")}</Link></Button></div></div>
     {error ? <Alert variant="destructive"><AlertDescription>{error}<Button variant="outline" disabled={loading} onClick={() => { void load().catch(() => {}); }}>{l("retry")}</Button></AlertDescription></Alert> : null}
-    {loading ? <div className="grid gap-3">{Array.from({ length: 3 }, (_, index) => <Skeleton key={index} className="h-32 rounded-lg" />)}</div> : rows.length ? <div className="grid gap-3">{rows.map((document) => <Card key={document.document_uuid}><CardContent className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between"><div className="grid min-w-0 flex-1 gap-1"><div className="flex flex-wrap items-center gap-2"><h2 className="break-all font-semibold">{document.number}</h2><Badge variant="outline">{l("version")} {document.version}</Badge>{document.source_quotation_uuid ? <Badge variant="secondary">{l("linkedQuotation")}</Badge> : null}</div><p className="break-words">{document.customer.name}</p><p className="text-xs text-muted-foreground">{l("issuedOn")}: {document.issued_on}</p>{document.source_quotation_version ? <p className="text-xs text-muted-foreground">{l("sourceQuotationVersion")} {document.source_quotation_number || ""} · {l("version")} {document.source_quotation_version}</p> : null}{document.document_type === "quotation" && document.receipt_uuid && document.version > 1 ? <p className="text-xs text-muted-foreground">{l("linkedReceiptUnchanged")}</p> : null}</div><p className="text-lg font-semibold tabular-nums">{formatCommercialMoney(document.total)} <span className="text-xs font-normal">{l("lak")}</span></p><div className="flex flex-wrap gap-2"><Button variant="outline" className="min-h-11" disabled={disabled} onClick={() => { void beginEdit(document.document_uuid).catch(() => {}); }}>{l("editDocument")}</Button><Button variant="outline" className="min-h-11" disabled={disabled} onClick={() => { void openRevisions(document.document_uuid).catch(() => {}); }}>{l("revisionHistory")}</Button><Button variant="outline" className="min-h-11" onClick={() => view(document.document_uuid)} disabled={disabled}>{l("viewDocument")}</Button>{documentType === "quotation" ? <Button className="min-h-11" variant={document.receipt_uuid ? "secondary" : "default"} disabled={disabled} onClick={() => { if (document.receipt_uuid) view(document.receipt_uuid); else { clearError(); setConversion(document); } }}>{l(document.receipt_uuid ? "viewReceipt" : "createReceipt")}</Button> : null}</div></CardContent></Card>)}</div> : !error ? <Empty className="min-h-64 border"><EmptyHeader><EmptyMedia variant="icon"><FileText /></EmptyMedia><EmptyTitle>{l(search ? "noResults" : "emptyDocuments")}</EmptyTitle><EmptyDescription>{l("emptyDocumentsHint")}</EmptyDescription></EmptyHeader><Button className="min-h-11" onClick={onCreate}><Plus />{l(documentType === "quotation" ? "newQuotation" : "newReceipt")}</Button></Empty> : null}
+    {loading ? <div className="grid gap-3">{Array.from({ length: 3 }, (_, index) => <Skeleton key={index} className="h-32 rounded-lg" />)}</div> : rows.length ? <div className="grid gap-3">{rows.map((document) => <Card key={document.document_uuid}><CardContent className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between"><div className="grid min-w-0 flex-1 gap-1"><div className="flex flex-wrap items-center gap-2"><h2 className="break-all font-semibold">{document.number}</h2><Badge variant="outline">{l("version")} {document.version}</Badge>{document.source_quotation_uuid ? <Badge variant="secondary">{l("linkedQuotation")}</Badge> : null}</div><p className="break-words">{document.customer.name}</p><p className="text-xs text-muted-foreground">{l("issuedOn")}: {document.issued_on}</p>{document.source_quotation_version ? <p className="text-xs text-muted-foreground">{l("sourceQuotationVersion")} {document.source_quotation_number || ""} · {l("version")} {document.source_quotation_version}</p> : null}{document.document_type === "quotation" && document.receipt_uuid && document.version > 1 ? <p className="text-xs text-muted-foreground">{l("linkedReceiptUnchanged")}</p> : null}</div><p className="text-lg font-semibold tabular-nums">{formatCommercialMoney(document.total)} <span className="text-xs font-normal">{l("lak")}</span></p><div className="flex flex-wrap gap-2"><Button asChild variant="outline" className="min-h-11"><Link href={internalRoute(commercialEditHref({ storeUuid, branchUuid }, document.document_uuid))}>{l("editDocument")}</Link></Button><Button variant="outline" className="min-h-11" disabled={disabled} onClick={() => { void openRevisions(document.document_uuid).catch(() => {}); }}>{l("revisionHistory")}</Button><Button variant="outline" className="min-h-11" onClick={() => view(document.document_uuid)} disabled={disabled}>{l("viewDocument")}</Button>{documentType === "quotation" ? <Button className="min-h-11" variant={document.receipt_uuid ? "secondary" : "default"} disabled={disabled} onClick={() => { if (document.receipt_uuid) view(document.receipt_uuid); else { clearError(); setConversion(document); } }}>{l(document.receipt_uuid ? "viewReceipt" : "createReceipt")}</Button> : null}</div></CardContent></Card>)}</div> : !error ? <Empty className="min-h-64 border"><EmptyHeader><EmptyMedia variant="icon"><FileText /></EmptyMedia><EmptyTitle>{l(search ? "noResults" : "emptyDocuments")}</EmptyTitle><EmptyDescription>{l("emptyDocumentsHint")}</EmptyDescription></EmptyHeader><Button asChild className="min-h-11"><Link href={createHref}><Plus />{l(documentType === "quotation" ? "newQuotation" : "newReceipt")}</Link></Button></Empty> : null}
     {conversion ? <QuotationReceiptDialog document={conversion} onClose={() => setConversion(null)} /> : null}
   </section>;
 }

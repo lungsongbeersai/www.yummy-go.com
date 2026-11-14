@@ -4,6 +4,8 @@ import { useTranslation } from "react-i18next";
 
 const la = {
   title: "ສິນຄ້າ ແລະ ເອກະສານການຄ້າ",
+  searchStore: "ຄົ້ນຫາຮ້ານ", searchBranch: "ຄົ້ນຫາສາຂາ", selectStore: "ເລືອກຮ້ານ",
+  back: "ກັບຄືນ", backToDocuments: "ກັບໄປໜ້າເອກະສານ", routeScopeUnavailable: "ຮ້ານ ຫຼື ສາຂາໃນລິ້ງນີ້ບໍ່ຢູ່ໃນສິດຂອງທ່ານ. ກະລຸນາກັບໄປເລືອກສາຂາທີ່ເຂົ້າເຖິງໄດ້", documentUnavailable: "ບໍ່ພົບເອກະສານໃນສາຂານີ້",
   createRecoveryHint: "ກະລຸນາລອງບັນທຶກອີກຄັ້ງເພື່ອຮັບເອກະສານເດີມກ່ອນແກ້ໄຂເພີ່ມ. ຫຼັງບັນທຶກສໍາເລັດ ທ່ານສາມາດເປີດແກ້ໄຂໄດ້",
   recoverDocument: "ລອງບັນທຶກເພື່ອຮັບເອກະສານເດີມ",
   editDocument: "ແກ້ໄຂເອກະສານ", saveChanges: "ບັນທຶກການແກ້ໄຂ", unsavedChanges: "ກໍາລັງແກ້ໄຂ / ຍັງບໍ່ບັນທຶກ",
@@ -50,6 +52,7 @@ const la = {
 
 const en: Record<keyof typeof la, string> = {
   title: "Catalog & commercial documents", subtitle: "Save prices once and reuse them across every store and branch you manage",
+  searchStore: "Search stores", searchBranch: "Search branches", selectStore: "Select store", back: "Back", backToDocuments: "Back to documents", routeScopeUnavailable: "The store or branch in this link is outside your access. Return to documents and select an accessible branch.", documentUnavailable: "This document is unavailable in the selected branch",
   createRecoveryHint: "Retry to recover the document before making further changes. You can edit it after saving.", recoverDocument: "Retry to recover document",
   editDocument: "Edit document", saveChanges: "Save changes", unsavedChanges: "Unsaved changes", editDocumentHint: "Edit this document while keeping its number. Every save retains its revision history.",
   discount: "Discount", discountOptional: "Discount (optional)", discountType: "Discount type", discountHint: "Applied before VAT. Leave blank or enter 0 to hide it from the document.",

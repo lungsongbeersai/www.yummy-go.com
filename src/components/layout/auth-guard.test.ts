@@ -17,4 +17,11 @@ describe("unauthenticatedEntryPath", () => {
   it.each([true, false])("sends expired contracts directly to renewal instead of the normal %s entry", (nativeApp) => {
     expect(unauthenticatedEntryPath("/posAll/tables", nativeApp, true)).toBe("/subscription-expired");
   });
+
+  it.each([true, false])("retains a commercial document link's type and destination after %s entry", (nativeApp) => {
+    const search = "?type=receipt&store_uuid=authorized-store&branch_uuid=authorized-branch";
+    const entry = unauthenticatedEntryPath("/commercial/new", nativeApp, false, search);
+    expect(new URL(entry, "https://example.test").searchParams.get("redirect")).toBe(`/commercial/new${search}`);
+    expect(entry.startsWith(nativeApp ? "/login?" : "/home?")).toBe(true);
+  });
 });
