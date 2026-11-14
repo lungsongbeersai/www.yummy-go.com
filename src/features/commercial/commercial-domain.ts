@@ -65,7 +65,7 @@ export interface CommercialDiscountOptions {
   discountValue?: number | string;
 }
 
-const maxMoney = 9_000_000_000_000;
+export const COMMERCIAL_MAX_MONEY = 9_000_000_000_000;
 
 function discountForSubtotal(subtotal: bigint, options: CommercialDiscountOptions): bigint | null {
   if (options.discountType != null && !["amount", "percent"].includes(options.discountType)) return null;
@@ -79,14 +79,14 @@ function discountForSubtotal(subtotal: bigint, options: CommercialDiscountOption
     const basisPoints = BigInt(match[1]) * BigInt(100) + BigInt((match[2] ?? "").padEnd(2, "0"));
     discount = (subtotal * basisPoints + BigInt(5000)) / BigInt(10000);
   } else {
-    if (!Number.isSafeInteger(value) || value > maxMoney) return null;
+    if (!Number.isSafeInteger(value) || value > COMMERCIAL_MAX_MONEY) return null;
     discount = BigInt(value);
   }
   return discount <= subtotal ? discount : null;
 }
 
 export function validCommercialDiscount(subtotal: number, options: CommercialDiscountOptions = {}) {
-  return Number.isSafeInteger(subtotal) && subtotal >= 0 && subtotal <= maxMoney &&
+  return Number.isSafeInteger(subtotal) && subtotal >= 0 && subtotal <= COMMERCIAL_MAX_MONEY &&
     discountForSubtotal(BigInt(subtotal), options) !== null;
 }
 
@@ -109,10 +109,18 @@ function lineTotal(quantity: string | number, price: string | number) {
     ? (BigInt(unitPrice) * scaledQuantity + BigInt(500)) / BigInt(1000) : BigInt(0);
 }
 
-function validCommercialDate(value: string) {
+export function validCommercialDate(value: string) {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(value) || value < "2000-01-01" || value > "2199-12-31") return false;
   const date = new Date(`${value}T00:00:00Z`);
   return Number.isFinite(date.getTime()) && date.toISOString().slice(0, 10) === value;
+}
+
+export function validCommercialDocumentItems(items: CommercialDocumentItemInput[]) {
+  const subtotal = items.reduce((sum, line) => sum + lineTotal(line.quantity, line.unit_price), BigInt(0));
+  return items.length > 0 && items.length <= 100 && items.every((line) =>
+    line.name.trim() && quantityThousandths(line.quantity) !== null &&
+    Number.isSafeInteger(line.unit_price) && line.unit_price >= 0 && line.unit_price <= COMMERCIAL_MAX_MONEY,
+  ) && subtotal <= BigInt(COMMERCIAL_MAX_MONEY);
 }
 
 export function validCommercialDocument(input: CreateCommercialDocumentInput) {
@@ -124,10 +132,8 @@ export function validCommercialDocument(input: CreateCommercialDocumentInput) {
   const total = net + (net * BigInt(input.tax_rate) + BigInt(50)) / BigInt(100);
   return Boolean(input.branch_uuid && input.customer.name.trim() && input.issuer.name.trim() &&
     validCommercialDate(input.issued_on) &&
-    (!input.valid_until || (validCommercialDate(input.valid_until) && input.valid_until >= input.issued_on)) && input.items.length > 0 && input.items.length <= 100 && input.items.every((line) =>
-      line.name.trim() && quantityThousandths(line.quantity) !== null &&
-      Number.isSafeInteger(line.unit_price) && line.unit_price >= 0 && line.unit_price <= 9_000_000_000_000,
-    ) && subtotal <= BigInt(maxMoney) && total <= BigInt(maxMoney));
+    (!input.valid_until || (validCommercialDate(input.valid_until) && input.valid_until >= input.issued_on)) &&
+    validCommercialDocumentItems(input.items) && total <= BigInt(COMMERCIAL_MAX_MONEY));
 }
 
 export function commercialTotals(lines: CommercialDraftLine[], taxRate: number, discount: CommercialDiscountOptions = {}) {

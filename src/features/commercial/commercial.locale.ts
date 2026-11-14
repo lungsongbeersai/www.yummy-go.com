@@ -4,6 +4,8 @@ import { useTranslation } from "react-i18next";
 
 const la = {
   title: "ສິນຄ້າ ແລະ ເອກະສານການຄ້າ",
+  wizardProgress: "ຂັ້ນຕອນສ້າງເອກະສານ", wizardDocument: "ຂໍ້ມູນເອກະສານ", wizardItems: "ລາຍການ / ຮູບ", wizardReview: "ກວດສອບ", wizardPrevious: "ກ່ອນໜ້າ", wizardNext: "ຖັດໄປ",
+  wizardStepRequired: "ກະລຸນາກວດສອບຂໍ້ມູນໃນຂັ້ນຕອນນີ້", wizardReviewHint: "ກວດສອບສ່ວນຫຼຸດ, VAT, ໝາຍເຫດ ແລະ ຕົວຢ່າງເອກະສານກ່ອນບັນທຶກ. ທ່ານສາມາດກັບໄປແກ້ໄຂຂັ້ນຕອນທີ່ຜ່ານມາໄດ້",
   searchStore: "ຄົ້ນຫາຮ້ານ", searchBranch: "ຄົ້ນຫາສາຂາ", selectStore: "ເລືອກຮ້ານ",
   back: "ກັບຄືນ", backToDocuments: "ກັບໄປໜ້າເອກະສານ", routeScopeUnavailable: "ຮ້ານ ຫຼື ສາຂາໃນລິ້ງນີ້ບໍ່ຢູ່ໃນສິດຂອງທ່ານ. ກະລຸນາກັບໄປເລືອກສາຂາທີ່ເຂົ້າເຖິງໄດ້", documentUnavailable: "ບໍ່ພົບເອກະສານໃນສາຂານີ້",
   createRecoveryHint: "ກະລຸນາລອງບັນທຶກອີກຄັ້ງເພື່ອຮັບເອກະສານເດີມກ່ອນແກ້ໄຂເພີ່ມ. ຫຼັງບັນທຶກສໍາເລັດ ທ່ານສາມາດເປີດແກ້ໄຂໄດ້",
@@ -51,6 +53,8 @@ const la = {
 } as const;
 
 const en: Record<keyof typeof la, string> = {
+  wizardProgress: "Document steps", wizardDocument: "Document details", wizardItems: "Items / photos", wizardReview: "Review", wizardPrevious: "Previous", wizardNext: "Next",
+  wizardStepRequired: "Check the details in this step", wizardReviewHint: "Review the discount, VAT, notes and document preview before saving. You can return to earlier steps to make changes.",
   title: "Catalog & commercial documents", subtitle: "Save prices once and reuse them across every store and branch you manage",
   searchStore: "Search stores", searchBranch: "Search branches", selectStore: "Select store", back: "Back", backToDocuments: "Back to documents", routeScopeUnavailable: "The store or branch in this link is outside your access. Return to documents and select an accessible branch.", documentUnavailable: "This document is unavailable in the selected branch",
   createRecoveryHint: "Retry to recover the document before making further changes. You can edit it after saving.", recoverDocument: "Retry to recover document",

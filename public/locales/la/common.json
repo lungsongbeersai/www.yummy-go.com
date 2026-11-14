@@ -4285,6 +4285,14 @@
     "back": "ກັບຄືນ",
     "backToDocuments": "ກັບໄປໜ້າເອກະສານ",
     "routeScopeUnavailable": "ຮ້ານ ຫຼື ສາຂາໃນລິ້ງນີ້ບໍ່ຢູ່ໃນສິດຂອງທ່ານ. ກະລຸນາກັບໄປເລືອກສາຂາທີ່ເຂົ້າເຖິງໄດ້",
-    "documentUnavailable": "ບໍ່ພົບເອກະສານໃນສາຂານີ້"
+    "documentUnavailable": "ບໍ່ພົບເອກະສານໃນສາຂານີ້",
+    "wizardProgress": "ຂັ້ນຕອນສ້າງເອກະສານ",
+    "wizardDocument": "ຂໍ້ມູນເອກະສານ",
+    "wizardItems": "ລາຍການ / ຮູບ",
+    "wizardReview": "ກວດສອບ",
+    "wizardPrevious": "ກ່ອນໜ້າ",
+    "wizardNext": "ຖັດໄປ",
+    "wizardStepRequired": "ກະລຸນາກວດສອບຂໍ້ມູນໃນຂັ້ນຕອນນີ້",
+    "wizardReviewHint": "ກວດສອບສ່ວນຫຼຸດ, VAT, ໝາຍເຫດ ແລະ ຕົວຢ່າງເອກະສານກ່ອນບັນທຶກ. ທ່ານສາມາດກັບໄປແກ້ໄຂຂັ້ນຕອນທີ່ຜ່ານມາໄດ້"
   }
 }
