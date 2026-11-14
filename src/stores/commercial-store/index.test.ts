@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { getBranchManagementStoreOptions, getBranchOptions } from "@/services/branch";
-import { createCommercialDocument, getCommercialCatalog, getCommercialDocument, getCommercialDocumentRevisions, getCommercialDocuments, saveCatalogItem, updateCommercialDocument, type CatalogItem, type CommercialDocument, type CommercialDocumentRevision, type CreateCommercialDocumentInput, type UpdateCommercialDocumentInput } from "@/services/commercial";
+import { createCommercialDocument, getCommercialCatalog, getCommercialDocument, getCommercialDocumentRevision, getCommercialDocumentRevisions, getCommercialDocuments, getCommercialPaymentProfiles, saveCommercialPaymentProfile, saveCatalogItem, updateCommercialDocument, type CatalogItem, type CommercialDocument, type CommercialDocumentRevision, type CommercialPaymentProfile, type CreateCommercialDocumentInput, type UpdateCommercialDocumentInput } from "@/services/commercial";
 import { ServiceError } from "@/lib/api";
 import { commercialLineInput, newCommercialLine } from "@/features/commercial/commercial-domain";
 import { useAuthStore, type AuthUser } from "@/stores/auth-store";
@@ -8,7 +8,7 @@ import { useCommercialStore } from "@/stores/commercial-store";
 import { resetSessionStores } from "@/stores/session-store-registry";
 
 vi.mock("@/services/branch", () => ({ getBranchManagementStoreOptions: vi.fn(), getBranchOptions: vi.fn() }));
-vi.mock("@/services/commercial", () => ({ getCommercialCatalog: vi.fn(), getCommercialDocuments: vi.fn(), getCommercialDocument: vi.fn(), getCommercialDocumentRevisions: vi.fn(), updateCommercialDocument: vi.fn(), saveCatalogItem: vi.fn(), createCommercialDocument: vi.fn(), convertQuotation: vi.fn() }));
+vi.mock("@/services/commercial", () => ({ getCommercialPaymentProfiles: vi.fn(), saveCommercialPaymentProfile: vi.fn(), getCommercialCatalog: vi.fn(), getCommercialDocuments: vi.fn(), getCommercialDocument: vi.fn(), getCommercialDocumentRevision: vi.fn(), getCommercialDocumentRevisions: vi.fn(), updateCommercialDocument: vi.fn(), saveCatalogItem: vi.fn(), createCommercialDocument: vi.fn(), convertQuotation: vi.fn() }));
 
 const user: AuthUser = { uuid: "user", email: "test@example.test", status: 2, profile: "", branch_uuid: "a", branch_name: "A", branch_tel: "", branch_address: "", store_uuid: "store", store_name: "Store", store_logo: "", store_table_status: 1 };
 const branches = [{ branch_uuid: "a", store_uuid_fk: "store" }, { branch_uuid: "b", store_uuid_fk: "store" }];
@@ -27,9 +27,15 @@ function deferred<T>() {
 const input: CreateCommercialDocumentInput = { branch_uuid: "a", document_type: "quotation", issued_on: "2026-11-14", customer: { name: "Customer" }, issuer: { name: "PLC" }, show_images: true, tax_rate: 0, items: [{ name: "Printer", quantity: 1, unit_price: 950000 }] };
 const saveInput = { branch_uuid: "a", name: "Printer", unit_price: 950000, active: true, image_visible: true };
 const updateInput: UpdateCommercialDocumentInput = { ...input, document_uuid: "document", expected_version: 1, request_uuid: "operation-1", items: [{ ...input.items[0], line_uuid: "line-1" }] };
+const paymentProfile: CommercialPaymentProfile = { profile_uuid: "profile", label: "Private", bank_name: "Bank", account_name: "Owner", account_number: "001234", currency: "LAK", qr_image: "data:image/png;base64,QUJD" };
+const profileInput = { label: "Private", bank_name: "Bank", account_name: "Owner", account_number: "001234", currency: "LAK" as const };
+
+function paymentDocument(version = 1, hydrated = true): CommercialDocument {
+  return { ...document(), version, payment_details: { show_accounts: true, show_qr: true, accounts: [{ snapshot_uuid: `snapshot-v${version}`, profile_uuid: "profile", label: "Private", bank_name: "Bank", account_name: "Owner", account_number: "001234", currency: "LAK", has_qr: true, ...(hydrated ? { qr_image: "data:image/png;base64,QUJD" } : {}) }] } };
+}
 
 function document(branchUuid = "a"): CommercialDocument {
-  return { ...input, version: 1, updated_at: "2026-11-14", updated_by: "operator", discount_type: null, discount_value: 0, discount_amount: 0, source_quotation_version: null, branch_uuid: branchUuid, document_uuid: "document", number: "QT-1", valid_until: null, notes: "", payment_method: "", subtotal: 950000, tax_amount: 0, total: 950000, source_quotation_uuid: null, receipt_uuid: null, created_at: "2026-11-14", items: [{ line_uuid: "line-1", item_uuid: "item", name: "Printer", quantity: 1, unit_price: 950000, line_total: 950000, image_url: item().image_url, show_image: true }] };
+  return { ...input, payment_details: undefined, version: 1, updated_at: "2026-11-14", updated_by: "operator", discount_type: null, discount_value: 0, discount_amount: 0, source_quotation_version: null, branch_uuid: branchUuid, document_uuid: "document", number: "QT-1", valid_until: null, notes: "", payment_method: "", subtotal: 950000, tax_amount: 0, total: 950000, source_quotation_uuid: null, receipt_uuid: null, created_at: "2026-11-14", items: [{ line_uuid: "line-1", item_uuid: "item", name: "Printer", quantity: 1, unit_price: 950000, line_total: 950000, image_url: item().image_url, show_image: true }] };
 }
 
 describe("commercial request scope ownership", () => {
@@ -38,6 +44,106 @@ describe("commercial request scope ownership", () => {
     useCommercialStore.getState().reset();
     useAuthStore.setState({ user });
     useCommercialStore.setState({ catalogOwnerUuid: "store", storeUuid: "store", branchUuid: "a", branches });
+  });
+
+  it("keeps private profiles reusable across selected target branches and customer stores", async () => {
+    vi.mocked(getCommercialPaymentProfiles).mockResolvedValueOnce([paymentProfile]);
+    await useCommercialStore.getState().loadPaymentProfiles();
+    useCommercialStore.getState().selectBranch("b");
+    useCommercialStore.setState({ stores: [{ store_uuid: "store" }, { store_uuid: "customer-store" }] });
+    vi.mocked(getBranchOptions).mockResolvedValueOnce([{ branch_uuid: "customer-branch", store_uuid_fk: "customer-store" }]);
+    await useCommercialStore.getState().selectStore("customer-store", "customer-branch");
+    expect(useCommercialStore.getState()).toMatchObject({ paymentOwnerUuid: "user:store", paymentProfiles: [paymentProfile], paymentProfilesReady: true });
+    expect(getCommercialPaymentProfiles).toHaveBeenCalledWith();
+  });
+
+  it("clears private numbers and QR immediately when another user in the same store signs in", async () => {
+    vi.mocked(getCommercialPaymentProfiles).mockResolvedValueOnce([paymentProfile]);
+    await useCommercialStore.getState().loadPaymentProfiles();
+    useAuthStore.setState({ user: { ...user, uuid: "another-user" } });
+    expect(useCommercialStore.getState()).toMatchObject({ paymentOwnerUuid: "", paymentProfiles: [], paymentProfilesReady: false, paymentProfilesError: null });
+  });
+
+  it.each(["user", "store", "token"])("ignores private profile reads and writes after the authenticated %s changes", async (identity) => {
+    const read = deferred<CommercialPaymentProfile[]>();
+    const write = deferred<CommercialPaymentProfile>();
+    vi.mocked(getCommercialPaymentProfiles).mockReturnValueOnce(read.promise);
+    vi.mocked(saveCommercialPaymentProfile).mockReturnValueOnce(write.promise);
+    const reading = useCommercialStore.getState().loadPaymentProfiles();
+    const saving = useCommercialStore.getState().savePaymentProfile(profileInput);
+    if (identity === "token") useAuthStore.setState({ token: "different-session-token" });
+    else useAuthStore.setState({ user: { ...user, ...(identity === "user" ? { uuid: "another-user" } : { store_uuid: "another-store" }) } });
+    read.resolve([paymentProfile]); write.resolve(paymentProfile);
+    await reading;
+    expect(await saving).toBeNull();
+    expect(useCommercialStore.getState()).toMatchObject({ paymentProfiles: [], paymentProfilesLoading: false, paymentProfilesSaving: false, paymentOwnerUuid: "" });
+  });
+
+  it("clears private profiles on logout or authenticated store reassignment", async () => {
+    vi.mocked(getCommercialPaymentProfiles).mockResolvedValue([paymentProfile]);
+    await useCommercialStore.getState().loadPaymentProfiles();
+    useAuthStore.setState({ user: { ...user, store_uuid: "another-authenticated-store" } });
+    expect(useCommercialStore.getState().paymentProfiles).toEqual([]);
+    await useCommercialStore.getState().loadPaymentProfiles();
+    resetSessionStores();
+    expect(useCommercialStore.getState()).toMatchObject({ paymentProfiles: [], paymentProfilesReady: false });
+  });
+
+  it("prevents an older private profile read from erasing a saved QR edit", async () => {
+    const pending = deferred<CommercialPaymentProfile[]>();
+    vi.mocked(getCommercialPaymentProfiles).mockReturnValueOnce(pending.promise);
+    const read = useCommercialStore.getState().loadPaymentProfiles();
+    const edited = { ...paymentProfile, account_number: "Saved new account" };
+    vi.mocked(saveCommercialPaymentProfile).mockResolvedValueOnce(edited);
+    expect(await useCommercialStore.getState().savePaymentProfile(profileInput)).toEqual(edited);
+    pending.resolve([]); await read;
+    expect(useCommercialStore.getState().paymentProfiles).toEqual([edited]);
+  });
+
+  it("allows a branch administrator to save only their private payment profiles without a target branch", async () => {
+    useAuthStore.setState({ user: { ...user, status: 3 } });
+    useCommercialStore.setState({ branchUuid: "", branches: [] });
+    vi.mocked(saveCommercialPaymentProfile).mockResolvedValueOnce(paymentProfile);
+    expect(await useCommercialStore.getState().savePaymentProfile(profileInput)).toEqual(paymentProfile);
+    expect(useCommercialStore.getState().documents).toEqual([]);
+  });
+
+  it("preserves hydrated same-version QR data when a document list summary finishes later", async () => {
+    useCommercialStore.setState({ documents: [paymentDocument()] });
+    vi.mocked(getCommercialDocuments).mockResolvedValueOnce([paymentDocument(1, false)]);
+    await useCommercialStore.getState().loadDocuments();
+    expect(useCommercialStore.getState().documents[0].payment_details?.accounts[0].qr_image).toBe(paymentProfile.qr_image);
+  });
+
+  it("hydrates a newer cached summary before presenting an older full read as an editable document", async () => {
+    useCommercialStore.setState({ documents: [paymentDocument(2, false)] });
+    vi.mocked(getCommercialDocument).mockResolvedValueOnce(paymentDocument(1)).mockResolvedValueOnce(paymentDocument(2));
+    await useCommercialStore.getState().beginEdit("document");
+    expect(getCommercialDocument).toHaveBeenCalledTimes(2);
+    expect(useCommercialStore.getState().editingDocument).toEqual(paymentDocument(2));
+  });
+
+  it("fails visibly if the latest version still lacks its authorized QR after hydration", async () => {
+    useCommercialStore.setState({ documents: [paymentDocument(2, false)] });
+    vi.mocked(getCommercialDocument).mockResolvedValueOnce(paymentDocument(1)).mockResolvedValueOnce(paymentDocument(2, false));
+    await expect(useCommercialStore.getState().openDocument("document")).rejects.toThrow("latest document details");
+    expect(useCommercialStore.getState().selectedDocument).toBeNull();
+  });
+
+  it("hydrates the requested historical version and rejects mismatched or closed revision requests", async () => {
+    useCommercialStore.setState({ revisionDocumentUuid: "document" });
+    const revision = { version: 1, request_uuid: null, changed_at: "2026-11-14", changed_by: "operator", snapshot: paymentDocument(1) };
+    vi.mocked(getCommercialDocumentRevision).mockResolvedValueOnce(revision);
+    await useCommercialStore.getState().openRevision(1);
+    expect(getCommercialDocumentRevision).toHaveBeenCalledWith("a", "document", 1);
+    expect(useCommercialStore.getState().revisionSnapshot).toEqual(revision.snapshot);
+    vi.mocked(getCommercialDocumentRevision).mockResolvedValueOnce({ ...revision, snapshot: paymentDocument(2) });
+    await expect(useCommercialStore.getState().openRevision(1)).rejects.toThrow("requested document version");
+    const pending = deferred<CommercialDocumentRevision>();
+    vi.mocked(getCommercialDocumentRevision).mockReturnValueOnce(pending.promise);
+    const read = useCommercialStore.getState().openRevision(1);
+    useCommercialStore.getState().closeRevisions(); pending.resolve(revision); await read;
+    expect(useCommercialStore.getState()).toMatchObject({ revisionSnapshot: null, revisionSnapshotLoading: false });
   });
 
   it("accepts a pending shared catalogue read after selecting another branch", async () => {

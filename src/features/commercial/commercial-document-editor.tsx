@@ -25,6 +25,8 @@ import { internalRoute } from "@/lib/routes";
 import { commercialUpdateAttempt } from "@/features/commercial/commercial-mutation-identity";
 import { CommercialWizardStepper } from "@/features/commercial/commercial-wizard-stepper";
 import { COMMERCIAL_WIZARD_LAST_STEP, firstInvalidCommercialStep, validateCommercialStep } from "@/features/commercial/commercial-wizard";
+import { CommercialPaymentFields } from "@/features/commercial/commercial-payment-fields";
+import { commercialPaymentDraft, commercialPaymentInput, commercialPaymentPreview, validCommercialPaymentDraft } from "@/features/commercial/commercial-payment";
 
 interface CommercialDocumentEditorProps { branchUuid: string; documentType: CommercialDocumentType; existing?: CommercialDocument; backHref: string; onSaved: (document: CommercialDocument) => void }
 
@@ -48,6 +50,7 @@ export function CommercialDocumentEditor({ branchUuid, documentType, existing, b
   const [paymentMethod, setPaymentMethod] = useState(existing?.payment_method || "cash");
   const [notes, setNotes] = useState(existing?.notes ?? "");
   const [showImages, setShowImages] = useState(existing?.show_images ?? true);
+  const [payment, setPayment] = useState(() => commercialPaymentDraft(existing?.payment_details, existing?.issuer.bank_details));
   const [taxRate, setTaxRate] = useState<0 | 10>(existing?.tax_rate ?? 0);
   const [discountType, setDiscountType] = useState<CommercialDiscountType>(existing?.discount_type ?? "amount");
   const [discountValue, setDiscountValue] = useState(existing?.discount_value ? String(existing.discount_value) : "");
@@ -67,7 +70,7 @@ export function CommercialDocumentEditor({ branchUuid, documentType, existing, b
   const details = useRef<HTMLDivElement>(null);
   const savePaint = useRef(0);
   const steps = [l("wizardDocument"), l("customer"), l("issuer"), l("wizardItems"), l("wizardReview")];
-  const draft = buildCommercialDraftPreview({ branchUuid, documentType, issuedOn, validUntil, customer, issuer, notes, paymentMethod, showImages, taxRate, discountType, discountValue, lines, draftLabel: existing?.number ?? l("draft"), version: existing?.version, sourceQuotationUuid: existing?.source_quotation_uuid, sourceQuotationVersion: existing?.source_quotation_version, sourceQuotationNumber: existing?.source_quotation_number });
+  const draft = buildCommercialDraftPreview({ branchUuid, documentType, issuedOn, validUntil, customer, issuer, notes, paymentMethod, showImages, paymentDetails: commercialPaymentPreview(payment), taxRate, discountType, discountValue, lines, draftLabel: existing?.number ?? l("draft"), version: existing?.version, sourceQuotationUuid: existing?.source_quotation_uuid, sourceQuotationVersion: existing?.source_quotation_version, sourceQuotationNumber: existing?.source_quotation_number });
 
   useEffect(() => () => cancelAnimationFrame(savePaint.current), []);
 
@@ -87,6 +90,7 @@ export function CommercialDocumentEditor({ branchUuid, documentType, existing, b
       request_uuid: existing ? requestUuid : createUuid.current, branch_uuid: branchUuid, document_type: documentType, issued_on: issuedOn,
       ...(documentType === "quotation" ? { valid_until: validUntil || null } : { payment_method: paymentMethod }),
       customer, issuer, notes, show_images: showImages, tax_rate: taxRate, discount_type: Number(discountValue) > 0 ? discountType : null, discount_value: Number(discountValue || 0), items: lines.map(commercialLineInput),
+      payment_details: commercialPaymentInput(payment),
     };
   }
 
@@ -103,8 +107,10 @@ export function CommercialDocumentEditor({ branchUuid, documentType, existing, b
       details.current?.scrollTo({ top: 0 });
       if (!invalid) return;
       const fields = stepFields(step);
-      const field = fields.find((control) => !control.checkValidity()) ?? fields.find((control) => !control.matches(":disabled"));
-      const fallback = form.current?.querySelector<HTMLElement>(`[data-commercial-step="${step}"] [data-step-focus]`);
+      const paymentControl = step === 4 && !validCommercialPaymentDraft(payment, issuer.bank_details)
+        ? Array.from(form.current?.querySelectorAll<HTMLElement>("[data-payment-focus]") ?? []).find((control) => !control.matches(":disabled")) : undefined;
+      const field = paymentControl ? undefined : fields.find((control) => !control.checkValidity()) ?? fields.find((control) => !control.matches(":disabled"));
+      const fallback = paymentControl ?? form.current?.querySelector<HTMLElement>(`[data-commercial-step="${step}"] [data-step-focus]`);
       (field ?? fallback)?.focus({ preventScroll: true });
       (field ?? fallback)?.scrollIntoView({ block: "center" });
       field?.reportValidity();
@@ -112,7 +118,7 @@ export function CommercialDocumentEditor({ branchUuid, documentType, existing, b
   }
 
   function stepValid(step: number, input: CreateCommercialDocumentInput) {
-    return validateCommercialStep(step, input, lines) && stepFields(step).every((control) => control.checkValidity());
+    return validateCommercialStep(step, input, lines) && (step !== 4 || validCommercialPaymentDraft(payment, issuer.bank_details)) && stepFields(step).every((control) => control.checkValidity());
   }
 
   function showStepError(step: number) {
@@ -138,7 +144,7 @@ export function CommercialDocumentEditor({ branchUuid, documentType, existing, b
     if (saving) return;
     if (currentStep < COMMERCIAL_WIZARD_LAST_STEP) { goToStep(currentStep + 1); return; }
     const input = documentInput();
-    const invalidDataStep = firstInvalidCommercialStep(input, lines);
+    const invalidDataStep = firstInvalidCommercialStep(input, lines) ?? (validCommercialPaymentDraft(payment, issuer.bank_details) ? null : 4);
     const invalidStep = steps.findIndex((_, step) => step === invalidDataStep || !stepFields(step).every((control) => control.checkValidity()));
     if (invalidStep >= 0) { showStepError(invalidStep); return; }
     if (!validCommercialDocument(input)) { setValidation(l("documentRequired")); revealStep(COMMERCIAL_WIZARD_LAST_STEP, true); return; }
@@ -214,6 +220,7 @@ export function CommercialDocumentEditor({ branchUuid, documentType, existing, b
           </fieldset>
           <fieldset data-commercial-step="4" hidden={currentStep !== 4} aria-label={steps[4]} className={currentStep === 4 ? "grid min-w-0 gap-5" : "hidden"}>
           <p className="text-sm text-muted-foreground">{l("wizardReviewHint")}</p>
+          <CommercialPaymentFields value={payment} onChange={setPayment} active={currentStep === 4} disabled={saving || createRecovery} legacyBankDetails={issuer.bank_details} />
           <div className="grid grid-cols-1 gap-5"><Field><FieldLabel htmlFor="commercial-notes">{l("notes")}</FieldLabel><Textarea id="commercial-notes" className="min-h-28" value={notes} maxLength={5000} disabled={saving} onChange={(event) => setNotes(event.target.value)} /></Field><div className="grid content-start gap-3 rounded-lg border bg-muted/40 p-4"><div className="flex justify-between gap-3"><span>{l("subtotal")}</span><span className="tabular-nums">{formatCommercialMoney(totals.subtotal)}</span></div><Field><FieldLabel htmlFor="commercial-discount">{l("discountOptional")}</FieldLabel><div className="flex min-w-0 gap-2"><Input id="commercial-discount" type="number" inputMode={discountType === "amount" ? "numeric" : "decimal"} min="0" max={discountType === "percent" ? 100 : totals.subtotal} step={discountType === "percent" ? "0.01" : "1"} placeholder="0" value={discountValue} disabled={saving} onChange={(event) => setDiscountValue(event.target.value)} /><Select value={discountType} onValueChange={(value) => setDiscountType(value === "percent" ? "percent" : "amount")} disabled={saving}><SelectTrigger className="h-11 shrink-0" aria-label={l("discountType")}><SelectValue /></SelectTrigger><SelectContent><SelectItem value="amount">{l("lak")}</SelectItem><SelectItem value="percent">%</SelectItem></SelectContent></Select></div><p className="text-xs text-muted-foreground">{l("discountHint")}</p></Field>{Number(discountValue) > 0 ? <div className="flex justify-between gap-3"><span>{l("discount")}{discountType === "percent" ? ` (${discountValue}%)` : ""}</span><span className="tabular-nums">−{formatCommercialMoney(totals.discountAmount)}</span></div> : null}<Field orientation="horizontal" className="justify-between"><FieldLabel htmlFor="commercial-tax">{l("tax")}</FieldLabel><Select value={String(taxRate)} onValueChange={(value) => setTaxRate(value === "10" ? 10 : 0)} disabled={saving}><SelectTrigger id="commercial-tax" className="h-11"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="0">{l("noTax")}</SelectItem><SelectItem value="10">10%</SelectItem></SelectContent></Select></Field><div className="flex justify-between gap-3 text-muted-foreground"><span>{l("tax")}</span><span className="tabular-nums">{formatCommercialMoney(totals.taxAmount)}</span></div><div className="flex justify-between gap-3 border-t pt-3 text-base font-semibold"><span>{l("total")}</span><span className="tabular-nums">{formatCommercialMoney(totals.total)} {l("lak")}</span></div></div></div>
           </fieldset>
           </fieldset>

@@ -1,10 +1,33 @@
 import { describe, expect, it, vi } from "vitest";
 import { apiRequest } from "@/lib/api";
-import { convertQuotation, createCommercialDocument, getCommercialCatalog, getCommercialDocument, getCommercialDocumentRevisions, saveCatalogItem, updateCommercialDocument, type CreateCommercialDocumentInput } from "@/services/commercial";
+import { convertQuotation, createCommercialDocument, getCommercialCatalog, getCommercialDocument, getCommercialDocumentRevision, getCommercialDocumentRevisions, getCommercialPaymentProfiles, saveCommercialPaymentProfile, saveCatalogItem, updateCommercialDocument, type CreateCommercialDocumentInput } from "@/services/commercial";
 
 vi.mock("@/lib/api", () => ({ apiRequest: vi.fn() }));
 
 describe("commercial API contract", () => {
+  it("loads private payment profiles without sending a chosen store, branch or owner", async () => {
+    vi.mocked(apiRequest).mockResolvedValueOnce({ status: "success", data: [] });
+    await getCommercialPaymentProfiles();
+    expect(apiRequest).toHaveBeenLastCalledWith("get", "/api/v1/commercial/payment-profiles", { params: { lang: "la" } }, "Failed to fetch options");
+  });
+
+  it("sends reusable account edits and optional QR as multipart", async () => {
+    vi.mocked(apiRequest).mockResolvedValueOnce({ status: "success", data: { profile_uuid: "saved" } });
+    const qr = new File(["qr"], "bank.png", { type: "image/png" });
+    await saveCommercialPaymentProfile({ profile_uuid: "saved", label: "Bank", bank_name: "Bank", account_name: "Owner", account_number: "001-234", currency: "THB", qr_image: qr, remove_qr: false });
+    const form = vi.mocked(apiRequest).mock.calls.at(-1)?.[2]?.data as FormData;
+    expect(form).toBeInstanceOf(FormData);
+    expect(form.get("qr_image")).toBe(qr);
+    expect(form.get("account_number")).toBe("001-234");
+    expect(form.get("remove_qr")).toBe("false");
+    expect(form.has("branch_uuid")).toBe(false);
+  });
+
+  it("hydrates the exact branch-authorized historical version before viewing", async () => {
+    vi.mocked(apiRequest).mockResolvedValueOnce({ status: "success", data: { version: 2, snapshot: {} } });
+    await getCommercialDocumentRevision("branch", "document", 2);
+    expect(apiRequest).toHaveBeenLastCalledWith("get", "/api/v1/commercial/documents/document/revisions/2", { params: { branch_uuid: "branch" } });
+  });
   it("requests inactive catalog items only within the explicit branch", async () => {
     vi.mocked(apiRequest).mockResolvedValueOnce({ status: "success", data: [] });
     await getCommercialCatalog("branch");

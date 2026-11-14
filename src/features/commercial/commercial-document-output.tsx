@@ -22,23 +22,27 @@ interface OutputFrameProps {
   title: string;
   onClose: () => void;
   initialShowImages: boolean;
+  paymentVisibility?: { accounts: boolean; qr: boolean };
   render: (options: CommercialPrintOptions) => string;
   toolbar?: ReactNode;
   metadata?: ReactNode;
 }
 
-function CommercialOutputFrame({ title, onClose, initialShowImages, render, toolbar, metadata }: OutputFrameProps) {
+function CommercialOutputFrame({ title, onClose, initialShowImages, paymentVisibility, render, toolbar, metadata }: OutputFrameProps) {
   const { t } = useTranslation();
+  const l = useCommercialLabels();
   const laoFont = useAppStore(state => state.laoFont);
   const [showImages, setShowImages] = useState(initialShowImages);
   const [showLogo, setShowLogo] = useState(true);
+  const [showPaymentAccounts, setShowPaymentAccounts] = useState(true);
+  const [showPaymentQr, setShowPaymentQr] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [exporting, setExporting] = useState(false);
   const [loadedPreview, setLoadedPreview] = useState<string | null>(null);
   const frame = useRef<HTMLIFrameElement>(null);
-  const previewKey = `${title}:${laoFont}:${showImages}:${showLogo}`;
+  const previewKey = `${title}:${laoFont}:${showImages}:${showLogo}:${showPaymentAccounts}:${showPaymentQr}`;
   const previewReady = loadedPreview === previewKey;
-  const options: CommercialPrintOptions = { showImages, showLogo, laoFont, baseUrl: typeof window === "undefined" ? undefined : window.location.origin };
+  const options: CommercialPrintOptions = { showImages, showLogo, showPaymentAccounts, showPaymentQr, laoFont, baseUrl: typeof window === "undefined" ? undefined : window.location.origin };
   const print = async () => {
     setError(null);
     try {
@@ -76,6 +80,8 @@ function CommercialOutputFrame({ title, onClose, initialShowImages, render, tool
       <div className="flex flex-wrap items-center gap-4 font-lao">
         <label className="flex min-h-11 cursor-pointer items-center gap-2"><Checkbox disabled={exporting} checked={showImages} onCheckedChange={value => setShowImages(value === true)} />{t("commercial.showImages", { defaultValue: "ສະແດງຮູບສິນຄ້າ" })}</label>
         <label className="flex min-h-11 cursor-pointer items-center gap-2"><Checkbox disabled={exporting} checked={showLogo} onCheckedChange={value => setShowLogo(value === true)} />{t("commercial.showLogo", { defaultValue: "ສະແດງໂລໂກ້" })}</label>
+        {paymentVisibility?.accounts ? <label className="flex min-h-11 cursor-pointer items-center gap-2"><Checkbox disabled={exporting} checked={showPaymentAccounts} onCheckedChange={value => setShowPaymentAccounts(value === true)} />{l("showPaymentAccounts")}</label> : null}
+        {paymentVisibility?.qr ? <label className="flex min-h-11 cursor-pointer items-center gap-2"><Checkbox disabled={exporting} checked={showPaymentQr} onCheckedChange={value => setShowPaymentQr(value === true)} />{l("showPaymentQr")}</label> : null}
         <div className="flex flex-wrap gap-2 sm:ml-auto">{!exporting ? toolbar : null}{!isCapacitorNativeApp() ? <Button type="button" variant="outline" className="min-h-11" disabled={exporting || !previewReady} onClick={() => { void print(); }}><Printer />{t("commercial.print", { defaultValue: "ພິມ" })}</Button> : null}
         <Button type="button" className="min-h-11" disabled={exporting || !previewReady} onClick={() => { void download(); }}><Download />{t(exporting ? "commercial.saving" : "commercial.downloadPdf", { defaultValue: exporting ? "ກໍາລັງບັນທຶກ…" : "ດາວໂຫຼດ PDF" })}</Button></div>
       </div>
@@ -94,6 +100,7 @@ export function CommercialDocumentOutput({ document, onClose, readOnly = false }
   const loading = useCommercialStore((state) => state.loading);
   const saving = useCommercialStore((state) => state.saving);
   return <CommercialOutputFrame title={`${document.number} · ${l("version")} ${document.version}`} onClose={onClose} initialShowImages={document.show_images}
+    paymentVisibility={{ accounts: document.payment_details ? document.payment_details.show_accounts === true : Boolean(document.issuer.bank_details), qr: document.payment_details?.show_qr === true }}
     toolbar={!readOnly ? <>{!alreadyEditing ? <Button asChild variant="outline" className="min-h-11"><Link href={internalRoute(commercialEditHref({ storeUuid, branchUuid: document.branch_uuid }, document.document_uuid))}>{l("editDocument")}</Link></Button> : null}<Button variant="outline" className="min-h-11" disabled={loading || saving} onClick={() => { void openRevisions(document.document_uuid).catch(() => {}); }}>{l("revisionHistory")}</Button></> : null}
     metadata={<div className="grid gap-1 font-lao text-xs text-muted-foreground"><p>{l("version")} {document.version} · {l("updatedOn")}: {new Date(document.updated_at || document.created_at).toLocaleString()}{readOnly ? ` · ${l("readOnlyRevision")}` : ""}</p>{document.source_quotation_version ? <p>{l("sourceQuotationVersion")} {document.source_quotation_number || ""} · {l("version")} {document.source_quotation_version}</p> : null}{document.document_type === "quotation" && document.receipt_uuid && document.version > 1 ? <p>{l("linkedReceiptUnchanged")}</p> : null}</div>}
     render={options => renderCommercialDocument(document, options)} />;

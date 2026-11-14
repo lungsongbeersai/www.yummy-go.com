@@ -1,4 +1,5 @@
 import type { CatalogItem, CommercialDocument, CommercialDocumentItemInput, CommercialParty, CreateCommercialDocumentInput } from "@/services/commercial";
+import { validCommercialPaymentDetails } from "@/features/commercial/commercial-payment";
 
 export const PLC_ISSUER: CommercialParty = {
   name: "ບໍລິສັດ ພີແອວຊີ ລາວ ຈໍາກັດຜູ້ດຽວ",
@@ -124,7 +125,7 @@ export function validCommercialDocumentItems(items: CommercialDocumentItemInput[
 }
 
 export function validCommercialDocument(input: CreateCommercialDocumentInput) {
-  if (![0, 10].includes(input.tax_rate)) return false;
+  if (![0, 10].includes(input.tax_rate) || !validCommercialPaymentDetails(input.payment_details, input.issuer.bank_details)) return false;
   const subtotal = input.items.reduce((sum, line) => sum + lineTotal(line.quantity, line.unit_price), BigInt(0));
   const discount = discountForSubtotal(subtotal, { discountType: input.discount_type, discountValue: input.discount_value });
   if (discount === null) return false;

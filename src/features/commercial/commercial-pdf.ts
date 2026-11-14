@@ -39,6 +39,7 @@ async function normalizeImages(element: HTMLElement, document: Document) {
         try {
           const context = canvas.getContext("2d");
           if (!context) throw new Error("Canvas unavailable");
+          if (image.classList.contains("payment-qr")) context.imageSmoothingEnabled = false;
           context.drawImage(safeImage, 0, 0, canvas.width, canvas.height);
           return canvas.toDataURL("image/png");
         } finally { canvas.width = 0; canvas.height = 0; }
@@ -147,7 +148,8 @@ export async function downloadCommercialPdf(sourceDocument: Document, fileName: 
       });
       try {
         if (index > 0) pdf.addPage();
-        pdf.addImage(canvas.toDataURL("image/jpeg", 0.94), "JPEG", 12, 14, 186, canvas.height * 186 / canvas.width);
+        // Lossless pages preserve small Lao glyphs, table rules and QR modules.
+        pdf.addImage(canvas.toDataURL("image/png"), "PNG", 12, 14, 186, canvas.height * 186 / canvas.width);
       } finally { canvas.width = 0; canvas.height = 0; }
     }
     await pdf.save(fileName.toLowerCase().endsWith(".pdf") ? fileName : `${fileName}.pdf`, { returnPromise: true });

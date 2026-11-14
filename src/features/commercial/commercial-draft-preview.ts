@@ -1,5 +1,6 @@
 import { commercialLineInput, commercialTotals, validCommercialDiscount, type CommercialDraftLine, type CommercialDiscountOptions } from "@/features/commercial/commercial-domain";
-import type { CommercialDocument, CommercialDocumentItem, CommercialDocumentType, CommercialParty } from "@/services/commercial";
+import { commercialPaymentPreview } from "@/features/commercial/commercial-payment";
+import type { CommercialDocument, CommercialDocumentItem, CommercialDocumentType, CommercialParty, CommercialPaymentDetails } from "@/services/commercial";
 
 export interface CommercialDraftPreviewInput {
   branchUuid: string;
@@ -11,6 +12,7 @@ export interface CommercialDraftPreviewInput {
   notes: string;
   paymentMethod: string;
   showImages: boolean;
+  paymentDetails?: CommercialPaymentDetails;
   taxRate: number;
   lines: CommercialDraftLine[];
   draftLabel: string;
@@ -79,6 +81,7 @@ export function buildCommercialDraftPreview(input: CommercialDraftPreviewInput):
     notes: input.notes,
     payment_method: receipt ? input.paymentMethod : "",
     show_images: input.showImages,
+    payment_details: input.paymentDetails ? commercialPaymentPreview(input.paymentDetails) : undefined,
     tax_rate: taxRate,
     discount_type: discountValue > 0 ? input.discountType ?? "amount" : null,
     discount_value: discountValue,

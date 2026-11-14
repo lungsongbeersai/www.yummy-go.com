@@ -5,13 +5,23 @@ import type {
   CatalogItem,
   CommercialDocument,
   CommercialDocumentRevision,
+  CommercialPaymentProfile,
   ConvertQuotationInput,
   CreateCommercialDocumentInput,
   SaveCatalogItemInput,
+  SaveCommercialPaymentProfileInput,
   UpdateCommercialDocumentInput,
 } from "@/services/commercial/types";
 
 const BASE_PATH = "/api/v1/commercial";
+
+export function getCommercialPaymentProfiles() {
+  return fetchAll<CommercialPaymentProfile>(`${BASE_PATH}/payment-profiles`);
+}
+
+export function saveCommercialPaymentProfile(input: SaveCommercialPaymentProfileInput) {
+  return saveEntity<CommercialPaymentProfile>(`${BASE_PATH}/payment-profiles/save`, { ...input }, undefined, true);
+}
 
 export function getCommercialCatalog(branchUuid: string) {
   return fetchAll<CatalogItem>(`${BASE_PATH}/catalog`, {
@@ -47,6 +57,11 @@ export async function updateCommercialDocument(input: UpdateCommercialDocumentIn
 
 export function getCommercialDocumentRevisions(branchUuid: string, documentUuid: string) {
   return fetchAll<CommercialDocumentRevision>(`${BASE_PATH}/documents/${encodeURIComponent(documentUuid)}/revisions`, { branch_uuid: branchUuid });
+}
+
+export async function getCommercialDocumentRevision(branchUuid: string, documentUuid: string, version: number) {
+  const result = await apiRequest<ApiDataResponse<CommercialDocumentRevision>>("get", `${BASE_PATH}/documents/${encodeURIComponent(documentUuid)}/revisions/${version}`, { params: { branch_uuid: branchUuid } });
+  return result.data;
 }
 
 export async function convertQuotation(input: ConvertQuotationInput) {

@@ -17,6 +17,17 @@ const draft = (patch: Partial<CommercialDraftPreviewInput> = {}): CommercialDraf
 });
 
 describe("commercial live draft previews", () => {
+  it("copies only explicitly visible bank fields into the live document snapshot", () => {
+    const account = { snapshot_uuid: "saved-bank", profile_uuid: "private-bank", label: "Bank", bank_name: "Bank", account_name: "Owner", account_number: "001234", currency: "LAK" as const, qr_image: "data:image/png;base64,QUJD" };
+    const input = draft({ paymentDetails: { show_accounts: true, show_qr: false, accounts: [account] } });
+    const preview = buildCommercialDraftPreview(input);
+    expect(preview.payment_details?.accounts[0]).toMatchObject({ account_number: "001234" });
+    expect(preview.payment_details?.accounts[0]).not.toHaveProperty("qr_image");
+    account.account_number = "Changed private account";
+    expect(preview.payment_details?.accounts[0].account_number).toBe("001234");
+    const hidden = buildCommercialDraftPreview(draft({ paymentDetails: { show_accounts: false, show_qr: false, accounts: [account] } }));
+    expect(hidden.payment_details?.accounts).toEqual([]);
+  });
   it("renders empty and partial drafts without creating an issued identity or number", () => {
     const preview = buildCommercialDraftPreview(draft({ branchUuid: "", issuedOn: "", validUntil: "",
       customer: { name: "" }, issuer: { name: "" }, notes: "", lines: [] }));

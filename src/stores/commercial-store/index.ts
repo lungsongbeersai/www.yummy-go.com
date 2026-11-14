@@ -6,7 +6,7 @@ import { canViewStoreBranch } from "@/lib/permissions";
 import { getBranchManagementStoreOptions, getBranchOptions, type Branch, type BranchManagementStore } from "@/services/branch";
 import * as commercial from "@/services/commercial";
 import { authStoreUuid, useAuthStore } from "@/stores/auth-store";
-import { commercialBranches, commercialBranchRows, commercialStores, mergeCommercialDocument, newestCommercialDocument } from "@/stores/commercial-store/helpers";
+import { commercialBranches, commercialBranchRows, commercialDocumentNeedsHydration, commercialStores, mergeCommercialDocument, newestCommercialDocument } from "@/stores/commercial-store/helpers";
 import { createSessionGuard, registerSessionStoreReset } from "@/stores/session-store-registry";
 import { errorMessage, type AsyncSlice } from "@/stores/store-utils";
 
@@ -16,6 +16,14 @@ interface CommercialScopeInput {
 }
 
 interface CommercialState extends AsyncSlice {
+  paymentProfiles: commercial.CommercialPaymentProfile[];
+  paymentOwnerUuid: string;
+  paymentProfilesLoading: boolean;
+  paymentProfilesReady: boolean;
+  paymentProfilesSaving: boolean;
+  paymentProfilesError: string | null;
+  loadPaymentProfiles: () => Promise<void>;
+  savePaymentProfile: (input: commercial.SaveCommercialPaymentProfileInput) => Promise<commercial.CommercialPaymentProfile | null>;
   stores: BranchManagementStore[];
   branches: Branch[];
   storeUuid: string;
@@ -40,6 +48,8 @@ interface CommercialState extends AsyncSlice {
   revisions: commercial.CommercialDocumentRevision[];
   revisionsLoading: boolean;
   revisionsError: string | null;
+  revisionSnapshot: commercial.CommercialDocument | null;
+  revisionSnapshotLoading: boolean;
   initialize: (input?: CommercialScopeInput) => Promise<void>;
   selectStore: (storeUuid: string, branchUuid?: string) => Promise<void>;
   selectBranch: (branchUuid: string) => void;
@@ -52,6 +62,8 @@ interface CommercialState extends AsyncSlice {
   updateDocument: (input: commercial.UpdateCommercialDocumentInput) => Promise<commercial.CommercialDocument | null>;
   openRevisions: (documentUuid: string) => Promise<void>;
   closeRevisions: () => void;
+  openRevision: (version: number) => Promise<void>;
+  closeRevision: () => void;
   openDocument: (documentUuid: string) => Promise<commercial.CommercialDocument | null>;
   convertQuotation: (input: commercial.ConvertQuotationInput) => Promise<commercial.CommercialDocument | null>;
   closeDocument: () => void;
@@ -68,26 +80,56 @@ let documentsRequest = 0;
 let detailRequest = 0;
 let editRequest = 0;
 let revisionRequest = 0;
+let revisionDetailRequest = 0;
 let routeGeneration = 0;
 let activeRouteLease = 0;
+let paymentGeneration = 0;
+let paymentRequest = 0;
+
+const emptyPayments = {
+  paymentProfiles: [], paymentOwnerUuid: "", paymentProfilesLoading: false,
+  paymentProfilesReady: false, paymentProfilesSaving: false, paymentProfilesError: null,
+};
 
 const emptyDocumentWorkspace = {
   documents: [], selectedDocument: null, documentsLoading: false, documentsError: null,
   editingDocument: null, editorGeneration: 0, editConflict: false,
-  revisionDocumentUuid: null, revisions: [], revisionsLoading: false, revisionsError: null,
+  revisionDocumentUuid: null, revisions: [], revisionsLoading: false, revisionsError: null, revisionSnapshot: null, revisionSnapshotLoading: false,
   saving: false, loading: false, error: null,
 };
 const emptyWorkspace = {
-  ...emptyDocumentWorkspace, catalog: [], catalogLoading: false, catalogError: null,
+  ...emptyDocumentWorkspace, ...emptyPayments, catalog: [], catalogLoading: false, catalogError: null,
   catalogReady: false, catalogOwnerUuid: "", catalogSaving: false,
 };
 
 const emptyRouteState = {
   selectedDocument: null, editingDocument: null, editConflict: false, error: null, loading: false,
-  revisionDocumentUuid: null, revisions: [], revisionsLoading: false, revisionsError: null,
+  revisionDocumentUuid: null, revisions: [], revisionsLoading: false, revisionsError: null, revisionSnapshot: null, revisionSnapshotLoading: false,
 };
 
 export const useCommercialStore = create<CommercialState>((set, get) => {
+  function paymentOwner() {
+    const { user, token } = useAuthStore.getState();
+    const storeUuid = authStoreUuid(user);
+    if (!user?.uuid || !storeUuid) {
+      paymentGeneration += 1;
+      set(emptyPayments);
+      throw new ServiceError("No authenticated payment profile owner is available", 403);
+    }
+    const owner = `${user.uuid}:${storeUuid}`;
+    if (get().paymentOwnerUuid !== owner) {
+      paymentGeneration += 1;
+      set({ ...emptyPayments, paymentOwnerUuid: owner });
+    }
+    const generation = paymentGeneration;
+    const session = createSessionGuard();
+    return () => {
+      const current = useAuthStore.getState();
+      return session() && generation === paymentGeneration && current.user?.uuid === user.uuid &&
+        authStoreUuid(current.user) === storeUuid && current.token === token && get().paymentOwnerUuid === owner;
+    };
+  }
+
   function scopeGuard(branchUuid = get().branchUuid) {
     const generation = scopeGeneration;
     const session = createSessionGuard();
@@ -126,13 +168,52 @@ export const useCommercialStore = create<CommercialState>((set, get) => {
     if (row.branch_uuid !== branchUuid) throw new ServiceError("The response belongs to another branch", 403);
   }
 
+  async function fullDocument(row: commercial.CommercialDocument, branchUuid: string) {
+    let latest = newestCommercialDocument(get().documents, row);
+    if (!commercialDocumentNeedsHydration(latest)) return latest;
+    const hydrated = await commercial.getCommercialDocument(branchUuid, row.document_uuid);
+    requireReturnedBranch(hydrated, branchUuid);
+    if (hydrated.document_uuid !== row.document_uuid) throw new ServiceError("The response belongs to another document", 403);
+    latest = newestCommercialDocument(get().documents, hydrated);
+    if (commercialDocumentNeedsHydration(latest)) throw new ServiceError("The latest document details could not be loaded. Please try again", 409);
+    return latest;
+  }
+
   return {
     ...emptyWorkspace,
     stores: [], branches: [], storeUuid: "", branchUuid: "", canSelectStore: false,
     optionsLoading: false, optionsError: null,
+    loadPaymentProfiles: async () => {
+      const current = paymentOwner();
+      const request = ++paymentRequest;
+      set({ paymentProfilesLoading: true, paymentProfilesError: null });
+      try {
+        const rows = await commercial.getCommercialPaymentProfiles();
+        if (request === paymentRequest && current()) set({ paymentProfiles: rows, paymentProfilesLoading: false, paymentProfilesReady: true });
+      } catch (error) {
+        if (request === paymentRequest && current()) set({ paymentProfiles: [], paymentProfilesLoading: false, paymentProfilesReady: false, paymentProfilesError: errorMessage(error) });
+        throw error;
+      }
+    },
+    savePaymentProfile: async (input) => {
+      const current = paymentOwner();
+      set({ paymentProfilesSaving: true, paymentProfilesError: null });
+      try {
+        const row = await commercial.saveCommercialPaymentProfile(input);
+        if (!current()) return null;
+        paymentRequest += 1;
+        set((state) => ({ paymentProfiles: [row, ...state.paymentProfiles.filter((profile) => profile.profile_uuid !== row.profile_uuid)], paymentProfilesSaving: false, paymentProfilesLoading: false }));
+        return row;
+      } catch (error) {
+        if (current()) set({ paymentProfilesSaving: false, paymentProfilesError: errorMessage(error), ...(error instanceof ServiceError && error.statusCode === 403 ? { paymentProfiles: [], paymentProfilesReady: false } : {}) });
+        throw error;
+      }
+    },
     initialize: async (input = {}) => {
       const generation = ++scopeGeneration;
       catalogGeneration += 1;
+      paymentGeneration += 1;
+      paymentRequest += 1;
       const session = createSessionGuard();
       const ownerUuid = authStoreUuid(useAuthStore.getState().user);
       set({ ...emptyWorkspace, catalogOwnerUuid: ownerUuid, stores: [], branches: [], storeUuid: "", branchUuid: "", optionsLoading: true, optionsError: null, canSelectStore: false });
@@ -246,7 +327,8 @@ export const useCommercialStore = create<CommercialState>((set, get) => {
         requireReturnedBranch(row, input.branch_uuid);
         if (!current()) return null;
         documentsRequest += 1;
-        const latest = newestCommercialDocument(get().documents, row);
+        const latest = await fullDocument(row, input.branch_uuid);
+        if (!current()) return null;
         set((state) => ({ documents: mergeCommercialDocument(state.documents, latest), selectedDocument: latest, documentsLoading: false, saving: false }));
         return latest;
       } catch (error) {
@@ -266,7 +348,8 @@ export const useCommercialStore = create<CommercialState>((set, get) => {
         requireReturnedBranch(row, branchUuid);
         if (row.document_uuid !== documentUuid || !Number.isInteger(row.version) || row.version < 1) throw new ServiceError("The document version is unavailable", 409);
         if (request !== editRequest || !current()) return;
-        const fresh = newestCommercialDocument(get().documents, row);
+        const fresh = await fullDocument(row, branchUuid);
+        if (request !== editRequest || !current()) return;
         set((state) => ({ documents: mergeCommercialDocument(state.documents, fresh), editingDocument: fresh, editorGeneration: request, selectedDocument: null, editConflict: false, loading: false }));
       } catch (error) {
         if (request === editRequest && current()) set({ loading: false, error: errorMessage(error) });
@@ -286,7 +369,8 @@ export const useCommercialStore = create<CommercialState>((set, get) => {
         documentsRequest += 1;
         detailRequest += 1;
         editRequest += 1;
-        const latest = newestCommercialDocument(get().documents, row);
+        const latest = await fullDocument(row, input.branch_uuid);
+        if (!current()) return null;
         set((state) => ({ documents: mergeCommercialDocument(state.documents, latest), selectedDocument: latest, editingDocument: null, editConflict: false, documentsLoading: false, saving: false }));
         return latest;
       } catch (error) {
@@ -299,7 +383,8 @@ export const useCommercialStore = create<CommercialState>((set, get) => {
       requireBranch(branchUuid);
       const request = ++revisionRequest;
       const current = scopeGuard(branchUuid);
-      set({ revisionDocumentUuid: documentUuid, revisions: [], revisionsLoading: true, revisionsError: null });
+      revisionDetailRequest += 1;
+      set({ revisionDocumentUuid: documentUuid, revisions: [], revisionsLoading: true, revisionsError: null, revisionSnapshot: null, revisionSnapshotLoading: false });
       try {
         const rows = await commercial.getCommercialDocumentRevisions(branchUuid, documentUuid);
         for (const row of rows) {
@@ -312,7 +397,26 @@ export const useCommercialStore = create<CommercialState>((set, get) => {
         throw error;
       }
     },
-    closeRevisions: () => { revisionRequest += 1; set({ revisionDocumentUuid: null, revisions: [], revisionsLoading: false, revisionsError: null }); },
+    openRevision: async (version) => {
+      const branchUuid = get().branchUuid;
+      const documentUuid = get().revisionDocumentUuid;
+      requireBranch(branchUuid);
+      if (!documentUuid || !Number.isInteger(version) || version < 1) throw new ServiceError("Choose an available document version", 400);
+      const request = ++revisionDetailRequest;
+      const current = scopeGuard(branchUuid);
+      set({ revisionSnapshot: null, revisionSnapshotLoading: true, revisionsError: null });
+      try {
+        const revision = await commercial.getCommercialDocumentRevision(branchUuid, documentUuid, version);
+        requireReturnedBranch(revision.snapshot, branchUuid);
+        if (revision.version !== version || revision.snapshot.version !== version || revision.snapshot.document_uuid !== documentUuid || commercialDocumentNeedsHydration(revision.snapshot)) throw new ServiceError("The requested document version could not be loaded", 409);
+        if (request === revisionDetailRequest && current() && get().revisionDocumentUuid === documentUuid) set({ revisionSnapshot: revision.snapshot, revisionSnapshotLoading: false });
+      } catch (error) {
+        if (request === revisionDetailRequest && current() && get().revisionDocumentUuid === documentUuid) set({ revisionSnapshotLoading: false, revisionsError: errorMessage(error) });
+        throw error;
+      }
+    },
+    closeRevision: () => { revisionDetailRequest += 1; set({ revisionSnapshot: null, revisionSnapshotLoading: false }); },
+    closeRevisions: () => { revisionRequest += 1; revisionDetailRequest += 1; set({ revisionDocumentUuid: null, revisions: [], revisionsLoading: false, revisionsError: null, revisionSnapshot: null, revisionSnapshotLoading: false }); },
     openDocument: async (documentUuid) => {
       const branchUuid = get().branchUuid;
       requireBranch(branchUuid);
@@ -323,7 +427,8 @@ export const useCommercialStore = create<CommercialState>((set, get) => {
         const row = await commercial.getCommercialDocument(branchUuid, documentUuid);
         requireReturnedBranch(row, branchUuid);
         if (request !== detailRequest || !current()) return null;
-        const latest = newestCommercialDocument(get().documents, row);
+        const latest = await fullDocument(row, branchUuid);
+        if (request !== detailRequest || !current()) return null;
         set((state) => ({ documents: mergeCommercialDocument(state.documents, latest), selectedDocument: latest, loading: false }));
         return latest;
       } catch (error) {
@@ -340,11 +445,13 @@ export const useCommercialStore = create<CommercialState>((set, get) => {
         requireReturnedBranch(row, input.branch_uuid);
         if (!current()) return null;
         documentsRequest += 1;
+        const latest = await fullDocument(row, input.branch_uuid);
+        if (!current()) return null;
         set((state) => ({
-          documents: mergeCommercialDocument(state.documents, row).map((document) => document.document_uuid === input.document_uuid ? { ...document, receipt_uuid: row.document_uuid } : document),
-          selectedDocument: newestCommercialDocument(state.documents, row), documentsLoading: false, saving: false,
+          documents: mergeCommercialDocument(state.documents, latest).map((document) => document.document_uuid === input.document_uuid ? { ...document, receipt_uuid: row.document_uuid } : document),
+          selectedDocument: latest, documentsLoading: false, saving: false,
         }));
-        return row;
+        return latest;
       } catch (error) {
         if (current()) set({ saving: false, error: errorMessage(error) });
         throw error;
@@ -355,6 +462,7 @@ export const useCommercialStore = create<CommercialState>((set, get) => {
     enterRoute: () => {
       activeRouteLease = ++routeGeneration;
       detailRequest += 1; editRequest += 1; revisionRequest += 1;
+      revisionDetailRequest += 1;
       set({ ...emptyRouteState, saving: get().catalogSaving });
       return activeRouteLease;
     },
@@ -362,6 +470,7 @@ export const useCommercialStore = create<CommercialState>((set, get) => {
       if (lease !== activeRouteLease) return;
       activeRouteLease = ++routeGeneration;
       detailRequest += 1; editRequest += 1; revisionRequest += 1;
+      revisionDetailRequest += 1;
       set({ ...emptyRouteState, saving: get().catalogSaving });
     },
     reset: () => {
@@ -373,9 +482,19 @@ export const useCommercialStore = create<CommercialState>((set, get) => {
       detailRequest += 1;
       editRequest += 1;
       revisionRequest += 1;
+      revisionDetailRequest += 1;
+      paymentGeneration += 1;
+      paymentRequest += 1;
       set({ ...emptyWorkspace, stores: [], branches: [], storeUuid: "", branchUuid: "", canSelectStore: false, optionsLoading: false, optionsError: null });
     },
   };
 });
 
 registerSessionStoreReset("commercial", () => useCommercialStore.getState().reset());
+
+useAuthStore.subscribe((current, previous) => {
+  if (current.user?.uuid === previous.user?.uuid && authStoreUuid(current.user) === authStoreUuid(previous.user) && current.token === previous.token) return;
+  paymentGeneration += 1;
+  paymentRequest += 1;
+  useCommercialStore.setState(emptyPayments);
+});
