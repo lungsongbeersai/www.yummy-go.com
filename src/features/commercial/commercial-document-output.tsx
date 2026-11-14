@@ -20,7 +20,8 @@ import { authStoreUuid, useAuthStore } from "@/stores/auth-store";
 import type { CatalogItem, CommercialDocument, CommercialParty } from "@/services/commercial";
 import { renderCommercialCatalog, renderCommercialDocument, type CommercialPrintOptions } from "./commercial-print";
 import { updateCommercialPreview } from "./commercial-page-layout";
-import type { CommercialPdfDownload } from "./commercial-pdf-download";
+import { createCommercialPdfLease, type CommercialPdfLease } from "./commercial-pdf-download";
+import { getCommercialPdfAndroidSupport, prepareAndroidCommercialPdf, type PreparedAndroidCommercialPdf } from "./native-commercial-pdf";
 
 interface OutputFrameProps {
   title: string;
@@ -58,13 +59,18 @@ function CommercialOutputContent({ title, onClose, initialShowImages, paymentVis
   const [loadedPreview, setLoadedPreview] = useState<string | null>(null);
   const [shareOpen, setShareOpen] = useState(false);
   const [shareFile, setShareFile] = useState<File | null>(null);
+  const [shareLease, setShareLease] = useState<CommercialPdfLease | null>(null);
+  const [nativePdf, setNativePdf] = useState<PreparedAndroidCommercialPdf | null>(null);
+  const androidSupport = getCommercialPdfAndroidSupport();
+  const [shareMode, setShareMode] = useState<"share" | "download">("share");
   const [sharePreparing, setSharePreparing] = useState(false);
   const [shareError, setShareError] = useState<string | null>(null);
   const frame = useRef<HTMLIFrameElement>(null);
   const mounted = useRef(false);
   const exportingNow = useRef(false);
   const shareRequest = useRef(0);
-  const downloads = useRef(new Set<CommercialPdfDownload>());
+  const preparedLease = useRef<CommercialPdfLease | null>(null);
+  const preparedNative = useRef<PreparedAndroidCommercialPdf | null>(null);
   const options: CommercialPrintOptions = { showImages, showLogo, showPaymentAccounts, showPaymentQr, laoFont, baseUrl: typeof window === "undefined" ? undefined : window.location.origin };
   const html = render(options);
   const [preview, setPreview] = useState({ html, generation: 0 });
@@ -73,6 +79,8 @@ function CommercialOutputContent({ title, onClose, initialShowImages, paymentVis
     setLoadedPreview(null);
     setShareOpen(false);
     setShareFile(null);
+    setShareLease(null);
+    setNativePdf(null);
     setShareError(null);
     setSharePreparing(false);
   }
@@ -80,8 +88,12 @@ function CommercialOutputContent({ title, onClose, initialShowImages, paymentVis
   const previewReady = loadedPreview === previewKey;
   useLayoutEffect(() => {
     shareRequest.current += 1;
-    const activeDownloads = downloads.current;
-    return () => { activeDownloads.forEach(download => download.dispose()); activeDownloads.clear(); };
+    return () => {
+      preparedLease.current?.release();
+      preparedLease.current = null;
+      preparedNative.current?.release();
+      preparedNative.current = null;
+    };
   }, [previewKey]);
   useEffect(() => {
     mounted.current = true;
@@ -115,43 +127,49 @@ function CommercialOutputContent({ title, onClose, initialShowImages, paymentVis
       setError(t("commercial.printFailed", { defaultValue: "ພິມບໍ່ສໍາເລັດ. ກະລຸນາດາວໂຫຼດ PDF ແລ້ວພິມຈາກໄຟລ໌." }));
     }
   };
-  const download = async () => {
-    if (exportingNow.current || !previewReady) return;
-    setError(null);
-    exportingNow.current = true;
-    setExporting(true);
-    const identity = outputIdentity();
-    try {
-      const source = frame.current?.contentDocument;
-      if (!source) throw new Error("preview_unavailable");
-      const { downloadCommercialPdf } = await import("@/features/commercial/commercial-pdf");
-      if (!mounted.current || identity !== outputIdentity()) return;
-      const result = await downloadCommercialPdf(source, title, () => mounted.current && identity === outputIdentity() && frame.current?.contentDocument === source);
-      downloads.current.add(result.download);
-      void result.download.released.then(() => downloads.current.delete(result.download));
-    } catch (failure) {
-      const detail = failure instanceof Error ? failure.message : "";
-      if (mounted.current && identity === outputIdentity()) setError(`${t("commercial.pdfFailed", { defaultValue: "ສ້າງ PDF ບໍ່ສໍາເລັດ. ກະລຸນາກວດຮູບ ແລະ ຄວາມຍາວຂອງລາຍການ ແລ້ວລອງໃໝ່." })}${detail ? ` (${detail})` : ""}`);
-    } finally { exportingNow.current = false; if (mounted.current) setExporting(false); }
-  };
 
   const prepareShare = async () => {
     if (exportingNow.current || !previewReady) return;
+    if (androidSupport === "update-required") return;
+    const cachedFile = shareError ? null : shareFile;
     const request = ++shareRequest.current;
     const identity = outputIdentity();
     const source = frame.current?.contentDocument;
     const current = () => mounted.current && request === shareRequest.current && identity === outputIdentity() && frame.current?.contentDocument === source;
+    preparedLease.current?.release();
+    preparedLease.current = null;
+    preparedNative.current?.release();
+    preparedNative.current = null;
+    setNativePdf(null);
     setShareFile(null);
+    setShareLease(null);
     setShareError(null);
     setSharePreparing(true);
     setExporting(true);
     exportingNow.current = true;
     try {
       if (!source) throw new Error("preview_unavailable");
-      const { createCommercialPdf } = await import("@/features/commercial/commercial-pdf");
+      let file = cachedFile;
+      if (!file) {
+        const { createCommercialPdf } = await import("@/features/commercial/commercial-pdf");
+        if (!current()) return;
+        file = (await createCommercialPdf(source, title, current)).file;
+      }
       if (!current()) return;
-      const result = await createCommercialPdf(source, title, current);
-      if (current()) setShareFile(result.file);
+      if (androidSupport === "supported") {
+        const native = await prepareAndroidCommercialPdf(file, current);
+        if (!current()) { native.release(); return; }
+        preparedNative.current = native;
+        setNativePdf(native);
+      } else {
+        const lease = createCommercialPdfLease(file, {
+          isCurrent: current,
+          watchIdentity: invalidate => useAuthStore.subscribe(() => { if (identity !== outputIdentity()) invalidate(); }),
+        });
+        preparedLease.current = lease;
+        setShareLease(lease);
+      }
+      setShareFile(file);
     } catch (failure) {
       if (current()) setShareError(`${t("commercial.pdfFailed")} (${failure instanceof Error ? failure.message : "pdf_unavailable"})`);
     } finally {
@@ -161,10 +179,24 @@ function CommercialOutputContent({ title, onClose, initialShowImages, paymentVis
     }
   };
 
+  const openExport = (mode: "share" | "download") => {
+    if (exportingNow.current || !previewReady) return;
+    setError(null);
+    setShareMode(mode);
+    setShareOpen(true);
+    if (androidSupport !== "update-required" && (!shareFile || (androidSupport === "supported" ? !nativePdf : !shareLease?.isAvailable()))) void prepareShare();
+  };
+
   const closeShare = () => {
     shareRequest.current += 1;
+    preparedLease.current?.release();
+    preparedLease.current = null;
+    preparedNative.current?.release();
+    preparedNative.current = null;
+    setNativePdf(null);
     setShareOpen(false);
     setShareFile(null);
+    setShareLease(null);
     setShareError(null);
     setSharePreparing(false);
   };
@@ -181,13 +213,13 @@ function CommercialOutputContent({ title, onClose, initialShowImages, paymentVis
         {paymentVisibility?.accounts ? <label className="flex min-h-11 cursor-pointer items-center gap-2"><Checkbox disabled={exporting} checked={showPaymentAccounts} onCheckedChange={value => setShowPaymentAccounts(value === true)} />{l("showPaymentAccounts")}</label> : null}
         {paymentVisibility?.qr ? <label className="flex min-h-11 cursor-pointer items-center gap-2"><Checkbox disabled={exporting} checked={showPaymentQr} onCheckedChange={value => setShowPaymentQr(value === true)} />{l("showPaymentQr")}</label> : null}
         <div className="flex flex-wrap gap-2 sm:ml-auto">{!exporting ? toolbar : null}{!isCapacitorNativeApp() ? <Button type="button" variant="outline" className="min-h-11" disabled={exporting || !previewReady} onClick={() => { void print(); }}><Printer />{t("commercial.print", { defaultValue: "ພິມ" })}</Button> : null}
-        <Button type="button" variant="outline" className="min-h-11" disabled={exporting || !previewReady} onClick={() => { if (!exportingNow.current && previewReady) { setShareOpen(true); void prepareShare(); } }}><Share2 />{l("sharePdf")}</Button>
-        <Button type="button" className="min-h-11" disabled={exporting || !previewReady} onClick={() => { void download(); }}><Download />{t(exporting ? "commercial.saving" : "commercial.downloadPdf", { defaultValue: exporting ? "ກໍາລັງບັນທຶກ…" : "ດາວໂຫຼດ PDF" })}</Button></div>
+        <Button type="button" variant="outline" className="min-h-11" disabled={exporting || !previewReady} onClick={() => openExport("share")}><Share2 />{l("sharePdf")}</Button>
+        <Button type="button" className="min-h-11" disabled={exporting || !previewReady} onClick={() => openExport("download")}><Download />{t(exporting ? "commercial.saving" : "commercial.downloadPdf", { defaultValue: exporting ? "ກໍາລັງບັນທຶກ…" : "ດາວໂຫຼດ PDF" })}</Button></div>
       </div>
       {error ? <Alert variant="destructive"><AlertDescription>{error}</AlertDescription></Alert> : null}
       <iframe key={previewKey} ref={frame} title={title} srcDoc={html} onLoad={preparePreview} sandbox="allow-same-origin allow-modals" className="h-[62dvh] w-full rounded-md border border-border bg-background" />
     </DialogContent>
-    {shareOpen ? <CommercialShareDialog title={title} file={shareFile} preparing={sharePreparing} error={shareError} onPrepare={() => { void prepareShare(); }} onClose={closeShare} /> : null}
+    {shareOpen ? <CommercialShareDialog title={title} mode={shareMode} file={shareFile} lease={shareLease} nativePdf={nativePdf} preparing={sharePreparing} error={shareError} onPrepare={() => { void prepareShare(); }} onClose={closeShare} /> : null}
   </Dialog>;
 }
 

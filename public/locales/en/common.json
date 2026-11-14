@@ -4152,6 +4152,16 @@
     }
   },
   "commercial": {
+    "nativePdfSaveHint": "Choose a folder to save this PDF on your device.",
+    "nativePdfSave": "Save PDF",
+    "nativePdfSaving": "Waiting for the save location…",
+    "nativePdfSaveFailed": "Could not save the PDF. Try again.",
+    "nativePdfReadyHint": "Save PDF lets you choose a folder. Share PDF opens the Android app chooser.",
+    "openPdf": "Open PDF",
+    "pdfReady": "PDF ready",
+    "downloadReadyHint": "Prepare the PDF, then choose how to save or open it.",
+    "downloadOpenHint": "If the download does not start, open the PDF and use the browser’s Save or Share menu.",
+    "androidPdfUpdateHint": "Update the Android app to save and share PDFs. This installed version needs the new file support.",
     "sharePdf": "Share PDF",
     "shareChannelsHint": "Share the PDF through WhatsApp, LINE, Telegram, email or installed apps that support file sharing.",
     "shareVisibleDetailsHint": "The PDF includes the information currently visible in the document preview.",

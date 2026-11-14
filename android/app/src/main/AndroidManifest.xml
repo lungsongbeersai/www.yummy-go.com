@@ -28,6 +28,13 @@
             android:grantUriPermissions="true">
             <meta-data android:name="android.support.FILE_PROVIDER_PATHS" android:resource="@xml/file_paths" />
         </provider>
+        <provider
+            android:name=".CommercialPdfProvider"
+            android:authorities="${applicationId}.commercialpdf"
+            android:exported="false"
+            android:grantUriPermissions="true">
+            <meta-data android:name="android.support.FILE_PROVIDER_PATHS" android:resource="@xml/commercial_pdf_paths" />
+        </provider>
     </application>
 
     <!-- Permissions -->
