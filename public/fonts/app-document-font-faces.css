@@ -1,0 +1,54 @@
+/* Face declarations only: safe to load in the application and isolated A4 documents.
+   Aliases reuse the same files and weight registrations as src/design-system/fonts.ts.
+   The two Noto Sans faces intentionally omit the weight descriptor like the app. */
+@font-face {
+  font-family: "App Document Noto Sans";
+  src: url("./Noto_Sans/NotoSans-VariableFont_wdth,wght.ttf") format("truetype");
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "App Document Noto Sans Lao";
+  src: url("./Noto_Sans_Lao/NotoSansLao-VariableFont_wdth,wght.ttf") format("truetype");
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "App Document Noto Serif Lao";
+  src: url("./Noto_Serif_Lao/NotoSerifLao-VariableFont_wdth,wght.ttf") format("truetype");
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "App Document Phetsarath";
+  src: url("./Phetsarath/Phetsarath-Regular.ttf") format("truetype");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "App Document Phetsarath";
+  src: url("./Phetsarath/Phetsarath-Bold.ttf") format("truetype");
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "App Document Saysettha";
+  src: url("./saysettha_ot.ttf") format("truetype");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+/* Match the app's local Arial face so missing Latin glyphs use the same synthetic bold. */
+@font-face {
+  font-family: "App Document Phetsarath Fallback";
+  src: local("Arial");
+}

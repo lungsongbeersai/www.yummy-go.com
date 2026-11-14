@@ -18,6 +18,74 @@ async function bounded<T>(work: Promise<T>, code: "image" | "font") {
   }
 }
 
+interface DrawingFontStylesheet { link: HTMLLinkElement; ready: Promise<void> }
+const drawingFontStylesheets = new WeakMap<Document, DrawingFontStylesheet>();
+const fontFacesPath = `${process.env.NEXT_PUBLIC_BASE_PATH ?? ""}/fonts/app-document-font-faces.css`;
+const latinFont = "App Document Noto Sans";
+
+function laoDocumentFont(source: Document) {
+  switch (source.documentElement.dataset.laoFont) {
+    case "noto-serif": return "App Document Noto Serif Lao";
+    case "phetsarath": return "App Document Phetsarath";
+    case "saysettha": return "App Document Saysettha";
+    default: return "App Document Noto Sans Lao";
+  }
+}
+
+async function prepareDrawingFonts(source: Document) {
+  // html2canvas creates canvases in its module's document (the app), while the
+  // preview's @font-face declarations belong to a separate iframe document.
+  const drawingDocument = globalThis.document;
+  let drawingStylesheet: DrawingFontStylesheet | undefined;
+  if (drawingDocument !== source) {
+    drawingStylesheet = drawingFontStylesheets.get(drawingDocument);
+    if (!drawingStylesheet) {
+      const link = drawingDocument.createElement("link");
+      link.rel = "stylesheet";
+      link.href = new URL(fontFacesPath, source.baseURI).href;
+      link.dataset.commercialPdfFonts = "true";
+      const ready = bounded(new Promise<void>((resolve, reject) => {
+        link.addEventListener("load", () => resolve(), { once: true });
+        link.addEventListener("error", () => reject(new CommercialPdfError("font", "Unable to load document font definitions")), { once: true });
+        drawingDocument.head.append(link);
+      }), "font").catch((error: unknown) => {
+        drawingFontStylesheets.delete(drawingDocument);
+        link.remove();
+        throw error;
+      });
+      drawingStylesheet = { link, ready };
+      drawingFontStylesheets.set(drawingDocument, drawingStylesheet);
+    }
+    await drawingStylesheet.ready;
+  }
+  const requestedFonts = [[laoDocumentFont(source), "ລາຍການຈຳນວນ"], [latinFont, "ABC0123456789"]] as const;
+  try {
+    await Promise.all(Array.from(new Set([source, drawingDocument]), async (target) => {
+      for (const [family, sample] of requestedFonts) {
+        for (const weight of [400, 700]) {
+          const faces = await bounded(target.fonts.load(`${weight} 12px "${family}"`, sample), "font");
+          // A mixed-script fallback load can succeed without the chosen Lao face.
+          if (!faces.some((face) => face.family.replace(/^["']|["']$/g, "") === family && face.status === "loaded")) {
+            throw new CommercialPdfError("font", `Document font is unavailable: ${family}`);
+          }
+        }
+      }
+      if (source.documentElement.dataset.laoFont === "phetsarath") {
+        // Match the UI's regular Arial fallback, including synthesized bold.
+        // Some platforms lack local Arial and use their native fallback instead.
+        await Promise.all([400, 700].map((weight) => bounded(target.fonts.load(`${weight} 12px "App Document Phetsarath Fallback"`, "ABC"), "font").catch(() => {})));
+      }
+      await bounded(target.fonts.ready, "font");
+    }));
+  } catch (error) {
+    if (drawingStylesheet && drawingFontStylesheets.get(drawingDocument) === drawingStylesheet) {
+      drawingFontStylesheets.delete(drawingDocument);
+      drawingStylesheet.link.remove();
+    }
+    throw error instanceof CommercialPdfError ? error : new CommercialPdfError("font", "Unable to load document fonts");
+  }
+}
+
 async function normalizeImages(element: HTMLElement, document: Document) {
   const cache = new Map<string, Promise<string>>();
   for (const image of element.querySelectorAll("img")) {
@@ -75,10 +143,7 @@ export async function downloadCommercialPdf(sourceDocument: Document, fileName: 
       link.addEventListener("load", () => resolve(), { once: true });
       link.addEventListener("error", () => reject(new CommercialPdfError("font", "Unable to load document fonts")), { once: true });
     }))), "font");
-    const font = view.getComputedStyle(template).fontFamily;
-    const loaded = await bounded(Promise.all([sourceDocument.fonts.load(`400 12px ${font}`, "ລາຍການ LAK"), sourceDocument.fonts.load(`700 22px ${font}`, "ລາຍການ LAK")]), "font");
-    if (loaded.some((faces) => !faces.length)) throw new CommercialPdfError("font", "Document fonts are unavailable");
-    await bounded(sourceDocument.fonts.ready, "font");
+    await prepareDrawingFonts(sourceDocument);
     await normalizeImages(template, sourceDocument);
     const table = template.querySelector<HTMLTableElement>("table");
     if (!table?.tHead || table.tBodies.length !== 1) throw new CommercialPdfError("layout", "The document table is not ready");
