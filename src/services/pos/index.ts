@@ -3,3 +3,4 @@ export * from "@/services/pos/order-queue-requests";
 export * from "@/services/pos/order-queue-normalizers";
 export * from "@/services/pos/types";
 export * from "@/services/pos/my-sales";
+export * from "@/services/pos/employee-work";

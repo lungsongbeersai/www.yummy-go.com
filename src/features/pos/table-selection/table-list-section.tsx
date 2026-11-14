@@ -18,6 +18,7 @@ import { menuGrantsPath } from "@/components/layout/shell-menu-helpers";
 import { useSidebarPermissionAccess } from "@/hooks/use-sidebar-permission-access";
 import { useWaiterRequestsStore } from "@/stores/waiter-requests-store";
 import { StaffWaiterChatButton } from "@/features/waiter-requests/staff-waiter-chat-button";
+import { EmployeeWorkLauncher } from "@/features/pos/employee-work/employee-work-dialog";
 import { cn } from "@/lib/utils";
 import { zoneOrderAlertCount } from "@/lib/pos/order-alerts";
 import type { PosTable, PosZone } from "@/services/pos";
@@ -243,7 +244,8 @@ export function TableListSection({
               onOverflowChange={setStatusRailOverflowing}
             />
           </div>
-          <div className="relative min-w-0 w-full xl:w-[320px]">
+          <div className="flex w-full min-w-0 items-center gap-2 xl:w-auto">
+          <div className="relative min-w-0 flex-1 xl:w-[280px]">
             <Search aria-hidden="true" data-pos-table-search-icon="true" className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
             <Input
               aria-label={t("actions.search")}
@@ -253,6 +255,8 @@ export function TableListSection({
               value={search}
               onChange={(event) => onSearchChange(event.target.value)}
             />
+          </div>
+          <EmployeeWorkLauncher />
           </div>
         </div>
       </div>
