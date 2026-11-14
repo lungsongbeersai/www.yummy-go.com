@@ -82,14 +82,19 @@ function paymentHtml(document: CommercialDocument, options: CommercialPrintOptio
   const showAccounts = (details ? details.show_accounts === true : Boolean(document.issuer.bank_details)) && options.showPaymentAccounts !== false;
   const showQr = details?.show_qr === true && options.showPaymentQr !== false;
   if (!method && !showAccounts && !showQr) return "";
-  const cards = (details?.accounts ?? []).slice(0, 3).map(account => {
+  const accounts = (details?.accounts ?? []).slice(0, 3);
+  const hasStructuredNumbers = showAccounts && accounts.some(account => Boolean(account.account_number?.trim()));
+  const cards = accounts.map(account => {
     const qr = showQr ? commercialPaymentQrUrl(account.qr_image) : null;
+    const number = showAccounts ? account.account_number?.trim() : undefined;
     if (!showAccounts && !qr) return "";
     return `<div class="payment-account"><p class="payment-currency strong">${escapeHtml(account.currency)}</p>
-      ${showAccounts ? `${account.account_name ? `<p>${escapeHtml(account.account_name)}</p>` : ""}${account.account_number ? `<p class="account-number">${escapeHtml(account.account_number)}</p>` : ""}` : ""}
+      ${showAccounts ? `${account.account_name ? `<p>${escapeHtml(account.account_name)}</p>` : ""}${number ? `<p class="account-number">${escapeHtml(number)}</p>` : ""}` : ""}
       ${qr ? `<img class="payment-qr" src="${escapeHtml(qr)}" alt="${escapeHtml(`${account.currency} payment QR`)}" />` : ""}</div>`;
   }).filter(Boolean);
-  const legacy = showAccounts && document.issuer.bank_details ? `<p class="legacy-bank">${escapeHtml(document.issuer.bank_details)}</p>` : "";
+  // Selected accounts are the displayed source; legacy text is a fallback for
+  // documents without structured numbers, including older issued snapshots.
+  const legacy = showAccounts && !hasStructuredNumbers && document.issuer.bank_details ? `<p class="legacy-bank">${escapeHtml(document.issuer.bank_details)}</p>` : "";
   return method || cards.length || legacy ? `<section class="payment-details"><p class="payment-heading strong">ຂໍ້ມູນຊຳລະ / PAYMENT DETAILS</p>${method ? `<p class="payment-method">ວິທີຊຳລະ: ${escapeHtml(paymentLabel)}</p>` : ""}${legacy}${cards.length ? `<div class="payment-accounts" style="grid-template-columns:repeat(${cards.length},minmax(0,1fr))">${cards.join("")}</div>` : ""}</section>` : "";
 }
 

@@ -4331,7 +4331,7 @@
     "refreshPaymentProfile": "Use latest saved account details",
     "paymentNumberNotIncluded": "This version did not include the account number",
     "paymentSnapshotHint": "Saved document details do not change with your private accounts. Select the latest saved details again to add a number or QR that was not previously included.",
-    "legacyBankHint": "Bank details entered in the Issuer step appear only when Show account numbers is enabled.",
+    "legacyBankHint": "Legacy bank details appear when Show account numbers is enabled and the selected accounts contain no account numbers.",
     "paymentSelectionRequired": "Choose an account containing the number or QR you enabled. Details omitted from an earlier version must be selected again from your private accounts.",
     "paymentAccountRow": "Account",
     "addPaymentProfileRow": "Add account row",

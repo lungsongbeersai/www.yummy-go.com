@@ -128,6 +128,7 @@ describe("commercial print documents", () => {
     expect(html).toContain("123456789");
     expect(html).toContain("Private owner &lt;test&gt;");
     expect(html).not.toContain("Private bank");
+    expect(html).not.toContain("Legacy private details");
     const qrOnly = renderCommercialDocument(visible, { showPaymentAccounts: false });
     expect(qrOnly).toContain(qr);
     expect(qrOnly).not.toContain("123456789");
@@ -136,6 +137,44 @@ describe("commercial print documents", () => {
     const accountOnly = renderCommercialDocument(visible, { showPaymentQr: false });
     expect(accountOnly).toContain("123456789");
     expect(accountOnly).not.toContain(qr);
+  });
+
+  it.each(["quotation", "receipt"] as const)("shows selected account numbers once in a %s with legacy bank text", (documentType) => {
+    const qr = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+a7WQAAAAASUVORK5CYII=";
+    const accounts = (["LAK", "THB", "USD"] as const).map((currency, index) => ({ snapshot_uuid: `saved-${index}`, label: "", bank_name: "", account_name: "Synthetic recipient", account_number: `SAMPLE-${currency}-0000`, currency, qr_image: qr }));
+    const saved: CommercialDocument = { ...document, document_type: documentType,
+      issuer: { ...document.issuer, bank_details: accounts.map(account => `${account.currency}: ${account.account_number}`).join("\n") },
+      payment_details: { show_accounts: true, show_qr: true, accounts } };
+    const before = structuredClone(saved);
+    for (const options of [{}, { showPaymentQr: false }]) {
+      const html = renderCommercialDocument(saved, options);
+      for (const account of accounts) expect(html.match(new RegExp(account.account_number, "g"))).toHaveLength(1);
+      expect(html).not.toContain('class="legacy-bank"');
+      if (documentType === "receipt") expect(html.match(/ວິທີຊຳລະ:/g)).toHaveLength(1);
+    }
+    const qrOnly = renderCommercialDocument(saved, { showPaymentAccounts: false });
+    expect(qrOnly).toContain(qr);
+    expect(qrOnly).not.toContain("SAMPLE-");
+    expect(qrOnly).not.toContain("Synthetic recipient");
+    const hidden = renderCommercialDocument(saved, { showPaymentAccounts: false, showPaymentQr: false });
+    expect(hidden).not.toContain(qr);
+    expect(hidden).not.toContain("SAMPLE-");
+    expect(saved).toEqual(before);
+  });
+
+  it("retains legacy text when the displayed accounts contain no numbers, including QR-only snapshots", () => {
+    const qr = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+a7WQAAAAASUVORK5CYII=";
+    const account = { snapshot_uuid: "qr-only", label: "", bank_name: "", account_name: "Synthetic recipient", account_number: "   ", currency: "LAK" as const, qr_image: qr };
+    const saved: CommercialDocument = { ...document, issuer: { ...document.issuer, bank_details: "Legacy fallback account" },
+      payment_details: { show_accounts: true, show_qr: true, accounts: [account] } };
+    const html = renderCommercialDocument(saved);
+    expect(html).toContain("Legacy fallback account");
+    expect(html).toContain(qr);
+    expect(html).not.toContain('class="account-number"');
+    const capped = { ...saved, payment_details: { ...saved.payment_details!, accounts: [account, account, account, { ...account, account_number: "HIDDEN-FOURTH" }] } };
+    expect(renderCommercialDocument(capped)).toContain("Legacy fallback account");
+    expect(renderCommercialDocument(capped)).not.toContain("HIDDEN-FOURTH");
+    expect(renderCommercialDocument(saved, { showPaymentAccounts: false })).not.toContain("Legacy fallback account");
   });
 
   it("only accepts canonical private PNG QR images, without loosening product image validation", () => {
