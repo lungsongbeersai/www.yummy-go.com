@@ -201,7 +201,8 @@ describe("commercial live draft previews", () => {
     expect(preview).toMatchObject({ number: "RC-2026-00012", version: 3, source_quotation_uuid: "quote", source_quotation_version: 2, source_quotation_number: "QT-2026-00009" });
     expect(preview.items[0].line_uuid).toBe("original-line");
     const html = renderCommercialDocument(preview);
-    expect(html).toContain("RC-2026-00012 · ສະບັບ 3");
+    expect(html).toContain("ເລກທີ: <strong>RC-2026-00012</strong>");
+    expect(html).not.toContain("ສະບັບ 3");
     expect(html).toContain("QT-2026-00009 · ສະບັບ 2");
     expect(html).not.toContain(draftLabel);
   });
