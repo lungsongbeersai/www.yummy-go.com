@@ -3,6 +3,14 @@
 import { useTranslation } from "react-i18next";
 
 const la = {
+  status: "ສະຖານະ",
+  issued: "ອອກເອກະສານແລ້ວ",
+  receiptIssued: "ອອກໃບຮັບເງິນແລ້ວ",
+  documentActions: "ຈັດການເອກະສານ",
+  searchDocuments: "ຄົ້ນຫາເລກທີ ຫຼື ລູກຄ້າ",
+  openDocument: "ເບິ່ງເອກະສານ",
+  displayOptions: "ການສະແດງຜົນ",
+  documentDetails: "ຂໍ້ມູນເອກະສານ",
   nativePdfSaveHint: "ເລືອກໂຟນເດີເພື່ອບັນທຶກ PDF ໃນອຸປະກອນຂອງທ່ານ",
   nativePdfSave: "ບັນທຶກ PDF",
   nativePdfSaving: "ກໍາລັງລໍຖ້າເລືອກບ່ອນບັນທຶກ…",
@@ -78,6 +86,14 @@ const la = {
 } as const;
 
 const en: Record<keyof typeof la, string> = {
+  status: "Status",
+  issued: "Issued",
+  receiptIssued: "Receipt issued",
+  documentActions: "Document actions",
+  searchDocuments: "Search number or customer",
+  openDocument: "View document",
+  displayOptions: "Display options",
+  documentDetails: "Document details",
   nativePdfSaveHint: "Choose a folder to save this PDF on your device.",
   nativePdfSave: "Save PDF",
   nativePdfSaving: "Waiting for the save location…",

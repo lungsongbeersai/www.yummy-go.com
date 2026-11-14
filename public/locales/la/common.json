@@ -4151,6 +4151,14 @@
     }
   },
   "commercial": {
+    "status": "ສະຖານະ",
+    "issued": "ອອກເອກະສານແລ້ວ",
+    "receiptIssued": "ອອກໃບຮັບເງິນແລ້ວ",
+    "documentActions": "ຈັດການເອກະສານ",
+    "searchDocuments": "ຄົ້ນຫາເລກທີ ຫຼື ລູກຄ້າ",
+    "openDocument": "ເບິ່ງເອກະສານ",
+    "displayOptions": "ການສະແດງຜົນ",
+    "documentDetails": "ຂໍ້ມູນເອກະສານ",
     "nativePdfSaveHint": "ເລືອກໂຟນເດີເພື່ອບັນທຶກ PDF ໃນອຸປະກອນຂອງທ່ານ",
     "nativePdfSave": "ບັນທຶກ PDF",
     "nativePdfSaving": "ກໍາລັງລໍຖ້າເລືອກບ່ອນບັນທຶກ…",

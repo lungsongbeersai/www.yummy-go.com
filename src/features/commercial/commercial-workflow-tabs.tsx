@@ -9,13 +9,12 @@ const sections = ["catalog", "quotations", "receipts"] as const;
 
 export function CommercialWorkflowTabs({ value }: { value: CommercialTab }) {
   const l = useCommercialLabels();
-  const current = sections.indexOf(value);
 
-  return <TabsList aria-label={l("title")} className="grid w-full grid-cols-3 gap-0 rounded-xl border bg-card p-3 group-data-horizontal/tabs:h-auto sm:p-4">
-    {sections.map((section, index) => <TabsTrigger key={section} value={section} aria-current={section === value ? "step" : undefined} className="relative h-auto min-w-0 flex-col gap-3 rounded-lg border-0 bg-transparent px-1 py-2 text-center whitespace-normal after:hidden hover:bg-transparent data-active:bg-transparent data-active:text-primary-text dark:data-active:border-transparent dark:data-active:bg-transparent dark:data-active:text-primary-text">
-      {index < sections.length - 1 ? <span aria-hidden="true" className="pointer-events-none absolute top-8 left-1/2 h-0.5 w-full bg-border"><span className={cn("block h-full origin-left bg-primary-text transition-transform motion-reduce:transition-none", index < current ? "scale-x-100" : "scale-x-0")} /></span> : null}
-      <span aria-hidden="true" className={cn("relative z-10 grid size-12 shrink-0 place-items-center rounded-full border-2 bg-card text-xl font-semibold transition-[border-color,box-shadow,color] motion-reduce:transition-none", index <= current ? "border-primary-text text-primary-text" : "border-border text-muted-foreground", section === value && "ring-4 ring-primary-text/15")}>{index + 1}</span>
-      <span className={cn("relative min-w-0 text-xs leading-snug font-semibold break-words sm:text-sm", index <= current ? "text-primary-text" : "text-muted-foreground")}>{l(section)}</span>
+  return <TabsList aria-label={l("title")} className="grid w-full grid-cols-3 gap-3 rounded-none bg-transparent p-0 group-data-horizontal/tabs:h-auto sm:max-w-2xl">
+    {sections.map((section, index) => <TabsTrigger key={section} value={section} aria-current={section === value ? "step" : undefined} className="relative min-h-12 min-w-0 gap-2 rounded-md border border-transparent bg-transparent px-2 py-2 whitespace-normal after:hidden hover:bg-muted/60 data-active:border-primary-text/25 data-active:bg-primary/10 data-active:text-primary-text dark:data-active:border-primary-text/25 dark:data-active:bg-primary/10 dark:data-active:text-primary-text">
+      <span aria-hidden="true" className={cn("grid size-6 shrink-0 place-items-center rounded-full border text-xs font-semibold tabular-nums", section === value ? "border-primary-text bg-background text-primary-text" : "border-border bg-background text-muted-foreground")}>{index + 1}</span>
+      <span className="min-w-0 text-left text-xs leading-snug font-medium break-words sm:text-sm">{l(section)}</span>
+      {index < sections.length - 1 ? <span aria-hidden="true" className="pointer-events-none absolute top-1/2 -right-3 h-px w-3 bg-border" /> : null}
     </TabsTrigger>)}
   </TabsList>;
 }

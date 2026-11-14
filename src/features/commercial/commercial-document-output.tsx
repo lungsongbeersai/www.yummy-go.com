@@ -6,11 +6,13 @@ import { usePathname } from "next/navigation";
 import { commercialEditHref } from "@/features/commercial/commercial-routes";
 import { internalRoute } from "@/lib/routes";
 import { useTranslation } from "react-i18next";
-import { Download, Printer, Share2 } from "lucide-react";
+import { Download, History, Info, MoreHorizontal, Pencil, Printer, Share2, SlidersHorizontal, X } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { isCapacitorNativeApp } from "@/lib/capacitor-platform";
 import { useCommercialLabels } from "@/features/commercial/commercial.locale";
 import { CommercialShareDialog } from "@/features/commercial/commercial-share-dialog";
@@ -22,9 +24,12 @@ import { renderCommercialCatalog, renderCommercialDocument, type CommercialPrint
 import { updateCommercialPreview } from "./commercial-page-layout";
 import { createCommercialPdfLease, type CommercialPdfLease } from "./commercial-pdf-download";
 import { getCommercialPdfAndroidSupport, prepareAndroidCommercialPdf, type PreparedAndroidCommercialPdf } from "./native-commercial-pdf";
+import { COMMERCIAL_PAPER } from "./commercial-paper";
 
 interface OutputFrameProps {
   title: string;
+  heading?: string;
+  subtitle?: string;
   onClose: () => void;
   initialShowImages: boolean;
   paymentVisibility?: { accounts: boolean; qr: boolean };
@@ -32,6 +37,9 @@ interface OutputFrameProps {
   toolbar?: ReactNode;
   metadata?: ReactNode;
 }
+
+const PREVIEW_WIDTH = Math.ceil(COMMERCIAL_PAPER.widthMm * 96 / 25.4);
+const PREVIEW_HEIGHT = Math.ceil(COMMERCIAL_PAPER.heightMm * 96 / 25.4);
 
 function outputIdentity() {
   const { user, token } = useAuthStore.getState();
@@ -46,7 +54,7 @@ function CommercialOutputFrame(props: OutputFrameProps) {
   return <CommercialOutputContent key={`${props.title}:${session.generation}`} {...props} />;
 }
 
-function CommercialOutputContent({ title, onClose, initialShowImages, paymentVisibility, render, toolbar, metadata }: OutputFrameProps) {
+function CommercialOutputContent({ title, heading, subtitle, onClose, initialShowImages, paymentVisibility, render, toolbar, metadata }: OutputFrameProps) {
   const { t } = useTranslation();
   const l = useCommercialLabels();
   const laoFont = useAppStore(state => state.laoFont);
@@ -66,6 +74,8 @@ function CommercialOutputContent({ title, onClose, initialShowImages, paymentVis
   const [sharePreparing, setSharePreparing] = useState(false);
   const [shareError, setShareError] = useState<string | null>(null);
   const frame = useRef<HTMLIFrameElement>(null);
+  const viewport = useRef<HTMLDivElement>(null);
+  const [previewSize, setPreviewSize] = useState({ scale: 1, height: PREVIEW_HEIGHT });
   const mounted = useRef(false);
   const exportingNow = useRef(false);
   const shareRequest = useRef(0);
@@ -99,6 +109,21 @@ function CommercialOutputContent({ title, onClose, initialShowImages, paymentVis
     mounted.current = true;
     return () => { mounted.current = false; shareRequest.current += 1; };
   }, []);
+  useEffect(() => {
+    const target = viewport.current;
+    if (!target) return;
+    const measure = () => {
+      if (!target.clientWidth) return;
+      const pages = frame.current?.contentDocument?.querySelector<HTMLElement>("[data-commercial-pages]");
+      const height = Math.max(PREVIEW_HEIGHT, Math.ceil(pages?.getBoundingClientRect().height ?? PREVIEW_HEIGHT));
+      const scale = Math.min(1, target.clientWidth / PREVIEW_WIDTH);
+      setPreviewSize(previous => previous.height === height && previous.scale === scale ? previous : { scale, height });
+    };
+    const observer = new ResizeObserver(measure);
+    observer.observe(target);
+    measure();
+    return () => observer.disconnect();
+  }, [previewKey, previewReady]);
   const preparePreview = () => {
     const target = frame.current?.contentDocument;
     if (!target) return;
@@ -201,23 +226,43 @@ function CommercialOutputContent({ title, onClose, initialShowImages, paymentVis
     setSharePreparing(false);
   };
   return <Dialog open onOpenChange={open => { if (!open && !exporting) onClose(); }}>
-    <DialogContent showCloseButton={!exporting} className="w-[calc(100%-1rem)] max-w-6xl gap-3 p-3 sm:max-w-6xl sm:p-5">
-      <DialogHeader>
-        <DialogTitle className="font-lao">{title}</DialogTitle>
-        <DialogDescription className="font-lao">{t("commercial.documentOutputHint", { defaultValue: "ເອກະສານ A4 · ເລືອກສະແດງຮູບ ແລ້ວພິມ ຫຼື ດາວໂຫຼດ PDF." })}</DialogDescription>
-      </DialogHeader>
-      {metadata}
-      <div className="flex flex-wrap items-center gap-4 font-lao">
-        <label className="flex min-h-11 cursor-pointer items-center gap-2"><Checkbox disabled={exporting} checked={showImages} onCheckedChange={value => setShowImages(value === true)} />{t("commercial.showImages", { defaultValue: "ສະແດງຮູບສິນຄ້າ" })}</label>
-        <label className="flex min-h-11 cursor-pointer items-center gap-2"><Checkbox disabled={exporting} checked={showLogo} onCheckedChange={value => setShowLogo(value === true)} />{t("commercial.showLogo", { defaultValue: "ສະແດງໂລໂກ້" })}</label>
-        {paymentVisibility?.accounts ? <label className="flex min-h-11 cursor-pointer items-center gap-2"><Checkbox disabled={exporting} checked={showPaymentAccounts} onCheckedChange={value => setShowPaymentAccounts(value === true)} />{l("showPaymentAccounts")}</label> : null}
-        {paymentVisibility?.qr ? <label className="flex min-h-11 cursor-pointer items-center gap-2"><Checkbox disabled={exporting} checked={showPaymentQr} onCheckedChange={value => setShowPaymentQr(value === true)} />{l("showPaymentQr")}</label> : null}
-        <div className="flex flex-wrap gap-2 sm:ml-auto">{!exporting ? toolbar : null}{!isCapacitorNativeApp() ? <Button type="button" variant="outline" className="min-h-11" disabled={exporting || !previewReady} onClick={() => { void print(); }}><Printer />{t("commercial.print", { defaultValue: "ພິມ" })}</Button> : null}
-        <Button type="button" variant="outline" className="min-h-11" disabled={exporting || !previewReady} onClick={() => openExport("share")}><Share2 />{l("sharePdf")}</Button>
-        <Button type="button" className="min-h-11" disabled={exporting || !previewReady} onClick={() => openExport("download")}><Download />{t(exporting ? "commercial.saving" : "commercial.downloadPdf", { defaultValue: exporting ? "ກໍາລັງບັນທຶກ…" : "ດາວໂຫຼດ PDF" })}</Button></div>
+    <DialogContent showCloseButton={false} className="flex h-[calc(100dvh-1rem)] max-h-[calc(100dvh-1rem)] w-[calc(100%-1rem)] max-w-7xl flex-col gap-0 overflow-hidden rounded-lg p-0 font-lao sm:h-[calc(100dvh-3rem)] sm:max-h-[calc(100dvh-3rem)] sm:max-w-7xl">
+      <div className="flex shrink-0 items-center gap-3 border-b bg-card px-3 py-2 sm:px-5 sm:py-3">
+        <DialogHeader className="min-w-0 flex-1 gap-0.5 rounded-none border-0 bg-transparent p-0">
+          <DialogTitle className="truncate font-lao text-base tabular-nums">{heading ?? title}</DialogTitle>
+          <DialogDescription className="truncate text-xs">{subtitle ?? l("catalogOutput")} · A4</DialogDescription>
+        </DialogHeader>
+        <Button type="button" variant="ghost" size="icon" className="size-11 shrink-0 rounded-md" aria-label={l("close")} disabled={exporting} onClick={onClose}><X /></Button>
       </div>
-      {error ? <Alert variant="destructive"><AlertDescription>{error}</AlertDescription></Alert> : null}
-      <iframe key={previewKey} ref={frame} title={title} srcDoc={html} onLoad={preparePreview} sandbox="allow-same-origin allow-modals" className="h-[62dvh] w-full rounded-md border border-border bg-background" />
+      <div className="flex shrink-0 flex-wrap items-center justify-between gap-2 border-b bg-card px-2 py-2 sm:px-4">
+        <div className="flex items-center gap-1">
+          <Popover>
+            <PopoverTrigger asChild><Button type="button" variant="ghost" className="min-h-11 min-w-11 px-3" aria-label={l("displayOptions")} disabled={exporting}><SlidersHorizontal /><span className="hidden sm:inline">{l("displayOptions")}</span></Button></PopoverTrigger>
+            <PopoverContent align="start" className="max-w-[calc(100vw-2rem)] gap-0 p-3 font-lao text-sm">
+              <p className="mb-1 px-1 text-xs font-medium text-muted-foreground">{l("displayOptions")}</p>
+              <label className="flex min-h-11 cursor-pointer items-center justify-between gap-4 px-1"><span>{t("commercial.showImages", { defaultValue: "ສະແດງຮູບສິນຄ້າ" })}</span><Checkbox disabled={exporting} checked={showImages} onCheckedChange={value => setShowImages(value === true)} /></label>
+              <label className="flex min-h-11 cursor-pointer items-center justify-between gap-4 px-1"><span>{l("showLogo")}</span><Checkbox disabled={exporting} checked={showLogo} onCheckedChange={value => setShowLogo(value === true)} /></label>
+              {paymentVisibility?.accounts ? <label className="flex min-h-11 cursor-pointer items-center justify-between gap-4 px-1"><span>{l("showPaymentAccounts")}</span><Checkbox disabled={exporting} checked={showPaymentAccounts} onCheckedChange={value => setShowPaymentAccounts(value === true)} /></label> : null}
+              {paymentVisibility?.qr ? <label className="flex min-h-11 cursor-pointer items-center justify-between gap-4 px-1"><span>{l("showPaymentQr")}</span><Checkbox disabled={exporting} checked={showPaymentQr} onCheckedChange={value => setShowPaymentQr(value === true)} /></label> : null}
+            </PopoverContent>
+          </Popover>
+          {metadata ? <Popover><PopoverTrigger asChild><Button type="button" variant="ghost" className="min-h-11 min-w-11 px-3" aria-label={l("documentDetails")}><Info /><span className="hidden lg:inline">{l("documentDetails")}</span></Button></PopoverTrigger><PopoverContent align="start" className="w-80 max-w-[calc(100vw-2rem)] gap-2 p-4 font-lao"><p className="text-sm font-medium">{l("documentDetails")}</p>{metadata}</PopoverContent></Popover> : null}
+          {!exporting ? toolbar : null}
+        </div>
+        <div className="flex items-center gap-1 sm:gap-2">
+          {!isCapacitorNativeApp() ? <Button type="button" variant="ghost" className="min-h-11 min-w-11 px-3" aria-label={t("commercial.print", { defaultValue: "ພິມ" })} disabled={exporting || !previewReady} onClick={() => { void print(); }}><Printer /><span className="hidden sm:inline">{t("commercial.print", { defaultValue: "ພິມ" })}</span></Button> : null}
+          <Button type="button" variant="outline" className="min-h-11 min-w-11 px-3" aria-label={l("sharePdf")} disabled={exporting || !previewReady} onClick={() => openExport("share")}><Share2 /><span className="hidden sm:inline">{l("sharePdf")}</span></Button>
+          <Button type="button" className="min-h-11 px-3 sm:px-4" aria-label={l("downloadPdf")} disabled={exporting || !previewReady} onClick={() => openExport("download")}><Download /><span className="sm:hidden">PDF</span><span className="hidden sm:inline">{t(exporting ? "commercial.saving" : "commercial.downloadPdf", { defaultValue: exporting ? "ກໍາລັງບັນທຶກ…" : "ດາວໂຫຼດ PDF" })}</span></Button>
+        </div>
+      </div>
+      {error ? <Alert variant="destructive" className="m-3 w-auto shrink-0"><AlertDescription>{error}</AlertDescription></Alert> : null}
+      <div role="region" tabIndex={0} aria-label={l("previewTab")} className="min-h-0 flex-1 overflow-y-auto overscroll-contain bg-muted/50 p-3 outline-none [scrollbar-gutter:stable] focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring sm:p-5">
+        <div ref={viewport} className="w-full min-w-0">
+          <div className="relative mx-auto max-w-full overflow-hidden bg-background shadow-sm ring-1 ring-border" style={{ width: PREVIEW_WIDTH * previewSize.scale, height: previewSize.height * previewSize.scale }}>
+            <iframe key={previewKey} ref={frame} title={title} srcDoc={html} onLoad={preparePreview} sandbox="allow-same-origin allow-modals" tabIndex={-1} scrolling="no" className="pointer-events-none absolute top-0 left-0 border-0" style={{ width: PREVIEW_WIDTH, height: previewSize.height, transform: `scale(${previewSize.scale})`, transformOrigin: "top left" }} />
+          </div>
+        </div>
+      </div>
     </DialogContent>
     {shareOpen ? <CommercialShareDialog title={title} mode={shareMode} file={shareFile} lease={shareLease} nativePdf={nativePdf} preparing={sharePreparing} error={shareError} onPrepare={() => { void prepareShare(); }} onClose={closeShare} /> : null}
   </Dialog>;
@@ -231,10 +276,21 @@ export function CommercialDocumentOutput({ document, onClose, readOnly = false }
   const openRevisions = useCommercialStore((state) => state.openRevisions);
   const loading = useCommercialStore((state) => state.loading);
   const saving = useCommercialStore((state) => state.saving);
-  return <CommercialOutputFrame title={`${document.number} · ${l("version")} ${document.version}`} onClose={onClose} initialShowImages={document.show_images}
+  const actionsTrigger = useRef<HTMLButtonElement>(null);
+  const openRevisionsAfterMenu = useRef(false);
+  return <CommercialOutputFrame title={`${document.number} · ${l("version")} ${document.version}`} heading={document.number} subtitle={`${l(document.document_type === "quotation" ? "quotations" : "receipts")} · ${l("version")} ${document.version}${readOnly ? ` · ${l("readOnlyRevision")}` : ""}`} onClose={onClose} initialShowImages={document.show_images}
     paymentVisibility={{ accounts: document.payment_details ? document.payment_details.show_accounts === true : Boolean(document.issuer.bank_details), qr: document.payment_details?.show_qr === true }}
-    toolbar={!readOnly ? <>{!alreadyEditing ? <Button asChild variant="outline" className="min-h-11"><Link href={internalRoute(commercialEditHref({ storeUuid, branchUuid: document.branch_uuid }, document.document_uuid))}>{l("editDocument")}</Link></Button> : null}<Button variant="outline" className="min-h-11" disabled={loading || saving} onClick={() => { void openRevisions(document.document_uuid).catch(() => {}); }}>{l("revisionHistory")}</Button></> : null}
-    metadata={<div className="grid gap-1 font-lao text-xs text-muted-foreground"><p>{l("version")} {document.version} · {l("updatedOn")}: {new Date(document.updated_at || document.created_at).toLocaleString()}{readOnly ? ` · ${l("readOnlyRevision")}` : ""}</p>{document.source_quotation_version ? <p>{l("sourceQuotationVersion")} {document.source_quotation_number || ""} · {l("version")} {document.source_quotation_version}</p> : null}{document.document_type === "quotation" && document.receipt_uuid && document.version > 1 ? <p>{l("linkedReceiptUnchanged")}</p> : null}</div>}
+    toolbar={!readOnly ? <DropdownMenu><DropdownMenuTrigger asChild><Button ref={actionsTrigger} type="button" variant="ghost" size="icon" className="size-11" aria-label={l("documentActions")} disabled={loading || saving}><MoreHorizontal /></Button></DropdownMenuTrigger><DropdownMenuContent align="start" className="w-64 font-lao" onCloseAutoFocus={event => {
+      if (!openRevisionsAfterMenu.current) return;
+      openRevisionsAfterMenu.current = false;
+      const trigger = actionsTrigger.current;
+      if (!trigger?.isConnected || trigger.disabled || !trigger.getClientRects().length) return;
+      // Let the revision dialog capture the persistent button, not a removed menu item.
+      event.preventDefault();
+      trigger.focus({ preventScroll: true });
+      void openRevisions(document.document_uuid).catch(() => {});
+    }}>{!alreadyEditing ? <DropdownMenuItem asChild className="min-h-11 text-sm"><Link href={internalRoute(commercialEditHref({ storeUuid, branchUuid: document.branch_uuid }, document.document_uuid))}><Pencil />{l("editDocument")}</Link></DropdownMenuItem> : null}<DropdownMenuItem className="min-h-11 text-sm" disabled={loading || saving} onSelect={() => { openRevisionsAfterMenu.current = true; }}><History />{l("revisionHistory")}</DropdownMenuItem></DropdownMenuContent></DropdownMenu> : null}
+    metadata={<div className="grid gap-2 break-words text-xs text-muted-foreground"><p className="text-sm text-foreground">{document.customer.name}</p><p>{l("updatedOn")}: {new Date(document.updated_at || document.created_at).toLocaleString()}</p>{document.source_quotation_version ? <p>{l("sourceQuotationVersion")} {document.source_quotation_number || ""} · {l("version")} {document.source_quotation_version}</p> : null}{document.document_type === "quotation" && document.receipt_uuid && document.version > 1 ? <p>{l("linkedReceiptUnchanged")}</p> : null}</div>}
     render={options => renderCommercialDocument(document, options)} />;
 }
 

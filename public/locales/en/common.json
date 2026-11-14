@@ -4152,6 +4152,14 @@
     }
   },
   "commercial": {
+    "status": "Status",
+    "issued": "Issued",
+    "receiptIssued": "Receipt issued",
+    "documentActions": "Document actions",
+    "searchDocuments": "Search number or customer",
+    "openDocument": "View document",
+    "displayOptions": "Display options",
+    "documentDetails": "Document details",
     "nativePdfSaveHint": "Choose a folder to save this PDF on your device.",
     "nativePdfSave": "Save PDF",
     "nativePdfSaving": "Waiting for the save location…",
