@@ -32,31 +32,36 @@ function laoDocumentFont(source: Document) {
   }
 }
 
+async function ensureDrawingFontStylesheet(target: Document, baseUri: string) {
+  let stylesheet = drawingFontStylesheets.get(target);
+  if (!stylesheet) {
+    const link = target.createElement("link");
+    link.rel = "stylesheet";
+    link.href = new URL(fontFacesPath, baseUri).href;
+    link.dataset.commercialPdfFonts = "true";
+    const ready = bounded(new Promise<void>((resolve, reject) => {
+      link.addEventListener("load", () => resolve(), { once: true });
+      link.addEventListener("error", () => reject(new CommercialPdfError("font", "Unable to load document font definitions")), { once: true });
+      target.head.append(link);
+    }), "font").catch((error: unknown) => {
+      drawingFontStylesheets.delete(target);
+      link.remove();
+      throw error;
+    });
+    stylesheet = { link, ready };
+    drawingFontStylesheets.set(target, stylesheet);
+  }
+  await stylesheet.ready;
+  return stylesheet;
+}
+
 async function prepareDrawingFonts(source: Document) {
   // html2canvas creates canvases in its module's document (the app), while the
   // preview's @font-face declarations belong to a separate iframe document.
   const drawingDocument = globalThis.document;
   let drawingStylesheet: DrawingFontStylesheet | undefined;
   if (drawingDocument !== source) {
-    drawingStylesheet = drawingFontStylesheets.get(drawingDocument);
-    if (!drawingStylesheet) {
-      const link = drawingDocument.createElement("link");
-      link.rel = "stylesheet";
-      link.href = new URL(fontFacesPath, source.baseURI).href;
-      link.dataset.commercialPdfFonts = "true";
-      const ready = bounded(new Promise<void>((resolve, reject) => {
-        link.addEventListener("load", () => resolve(), { once: true });
-        link.addEventListener("error", () => reject(new CommercialPdfError("font", "Unable to load document font definitions")), { once: true });
-        drawingDocument.head.append(link);
-      }), "font").catch((error: unknown) => {
-        drawingFontStylesheets.delete(drawingDocument);
-        link.remove();
-        throw error;
-      });
-      drawingStylesheet = { link, ready };
-      drawingFontStylesheets.set(drawingDocument, drawingStylesheet);
-    }
-    await drawingStylesheet.ready;
+    drawingStylesheet = await ensureDrawingFontStylesheet(drawingDocument, source.baseURI);
   }
   const requestedFonts = [[laoDocumentFont(source), "ລາຍການຈຳນວນ"], [latinFont, "ABC0123456789"]] as const;
   try {
@@ -144,6 +149,9 @@ export async function downloadCommercialPdf(sourceDocument: Document, fileName: 
       link.addEventListener("error", () => reject(new CommercialPdfError("font", "Unable to load document fonts")), { once: true });
     }))), "font");
     await prepareDrawingFonts(sourceDocument);
+    // Cloned stylesheets may still be loading when html2canvas reads styles.
+    // Pin the resolved family so an unresolved CSS variable cannot become Times.
+    template.style.fontFamily = view.getComputedStyle(source).fontFamily;
     await normalizeImages(template, sourceDocument);
     const table = template.querySelector<HTMLTableElement>("table");
     if (!table?.tHead || table.tBodies.length !== 1) throw new CommercialPdfError("layout", "The document table is not ready");
@@ -204,11 +212,21 @@ export async function downloadCommercialPdf(sourceDocument: Document, fileName: 
       await Promise.all(Array.from(page.querySelectorAll("img"), (image) => bounded(image.decode(), "image")));
       if (!fits(page)) throw new CommercialPdfError("layout", "The document layout changed before export");
       const canvas = await html2canvas(page, {
-        scale: 2.5, backgroundColor: "#ffffff", useCORS: false, allowTaint: false, logging: false,
+        // 96 CSS pixels per inch × 3.125 gives 300 dpi at the fixed A4 width.
+        scale: 3.125, backgroundColor: "#ffffff", useCORS: false, allowTaint: false, logging: false,
         windowWidth: 1280, windowHeight: 1400, scrollX: 0, scrollY: 0,
-        onclone: (_, element) => {
+        onclone: async (clonedDocument, element) => {
           const parent = element.parentElement;
           if (parent) { parent.style.left = "0"; parent.style.top = "0"; }
+          // Its clone is a third document, with an independent FontFaceSet.
+          try {
+            await ensureDrawingFontStylesheet(clonedDocument, sourceDocument.baseURI);
+            await prepareDrawingFonts(clonedDocument);
+          } catch (error) {
+            // html2canvas has not entered its render cleanup when onclone fails.
+            clonedDocument.defaultView?.frameElement?.remove();
+            throw error;
+          }
         },
       });
       try {
