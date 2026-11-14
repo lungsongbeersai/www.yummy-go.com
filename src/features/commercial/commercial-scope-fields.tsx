@@ -31,11 +31,11 @@ function ScopeSearch({ id, label, searchLabel, placeholder, emptyLabel, value, o
   const [open, setOpen] = useState(false);
   const selected = options.find((option) => option.value === value);
 
-  return <Field className="min-w-0">
-    <FieldLabel htmlFor={id}>{label}</FieldLabel>
+  return <Field className="min-w-0 gap-1.5">
+    <FieldLabel htmlFor={id} className="text-xs font-medium text-muted-foreground">{label}</FieldLabel>
     <Popover open={open && !disabled} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
-        <Button id={id} type="button" variant="outline" role="combobox" aria-expanded={open && !disabled} aria-label={searchLabel} disabled={disabled} className="h-12 w-full min-w-0 justify-between gap-3 px-3 text-sm">
+        <Button id={id} type="button" variant="outline" role="combobox" aria-expanded={open && !disabled} aria-label={searchLabel} disabled={disabled} className="h-11 min-h-11 w-full min-w-0 justify-between gap-2 px-3 text-sm font-normal">
           <span className="min-w-0 truncate text-left" title={selected?.label}>{selected?.label || placeholder}</span>
           <Search aria-hidden="true" className="size-4 shrink-0 text-muted-foreground" />
         </Button>
@@ -74,7 +74,7 @@ export function CommercialScopeFields() {
     label: branch.branch_name || branch.branch_name_la || branch.branch_name_eng || branch.branch_uuid,
     keywords: [branch.branch_name_la || "", branch.branch_name_eng || "", branch.branch_tel || "", branch.branch_address || ""] }));
 
-  return <div className="grid min-w-0 grid-cols-1 gap-4 sm:grid-cols-2">
+  return <div className="grid min-w-0 grid-cols-2 gap-3">
     <ScopeSearch id="commercial-store" label={l("documentStore")} searchLabel={l("searchStore")} placeholder={l("selectStore")} emptyLabel={l("noResults")} value={storeUuid} options={storeOptions} disabled={loading || !canSelectStore || !storeOptions.length} onSelect={(next) => { void selectStore(next).catch(() => {}); }} />
     <ScopeSearch id="commercial-branch" label={l("documentBranch")} searchLabel={l("searchBranch")} placeholder={l("selectBranch")} emptyLabel={l("noResults")} value={branchUuid} options={branchOptions} disabled={loading || !branchOptions.length} onSelect={selectBranch} />
   </div>;

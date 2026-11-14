@@ -2,7 +2,6 @@
 
 import { Suspense, useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { FileText } from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Empty, EmptyHeader, EmptyTitle } from "@/components/ui/empty";
@@ -58,11 +57,14 @@ function CommercialWorkspace() {
 
   const initialLoading = !ready || optionsLoading || (!stores.length && !optionsError);
   return <div className="flex h-full min-h-0 min-w-0 flex-col overflow-y-auto bg-background font-lao">
-    <header className="grid shrink-0 gap-4 border-b bg-card p-4 sm:p-5"><div className="flex items-start gap-3"><span className="grid size-11 shrink-0 place-items-center rounded-lg bg-primary/10 text-primary"><FileText className="size-5" /></span><div className="min-w-0"><h1 className="font-heading text-lg font-semibold sm:text-xl">{l("title")}</h1><p className="mt-1 text-xs text-muted-foreground sm:text-sm">{l("subtitle")}</p></div></div><CommercialScopeFields /><p className="text-xs text-muted-foreground">{l("documentScopeHint")}</p></header>
-    <div className="grid min-w-0 gap-4 p-3 pb-24 sm:p-5 sm:pb-24">
+    <header className="grid shrink-0 gap-3 border-b border-border bg-card px-4 py-4 sm:px-5">
+      <div className="min-w-0"><h1 className="font-heading text-lg font-semibold">{l("title")}</h1><p className="mt-1 max-w-3xl text-xs leading-relaxed text-muted-foreground">{l("documentScopeHint")}</p></div>
+      <CommercialScopeFields />
+    </header>
+    <div className="grid min-w-0 gap-4 p-3 pb-24 sm:px-5 sm:py-4 sm:pb-24">
       {optionsError ? <Alert variant="destructive"><AlertTitle>{l("error")}</AlertTitle><AlertDescription><p>{optionsError}</p><Button variant="outline" className="min-h-11" onClick={() => { void initialize({ storeUuid, branchUuid }).catch(() => {}); }}>{l("retry")}</Button></AlertDescription></Alert> : null}
-      {error ? <Alert variant="destructive"><AlertTitle>{l("error")}</AlertTitle><AlertDescription><p>{error}</p><Button variant="outline" onClick={clearError}>{l("close")}</Button></AlertDescription></Alert> : null}
-      {initialLoading ? <CommercialLoading /> : branchUuid ? <Tabs value={tab} onValueChange={(value) => router.replace(internalRoute(commercialHistoryHref({ storeUuid, branchUuid }, commercialTab(value))), { scroll: false })} className="min-w-0 gap-5"><CommercialWorkflowTabs value={tab} /><TabsContent value="catalog"><CommercialCatalog key={branchUuid} branchUuid={branchUuid} /></TabsContent><TabsContent value="quotations"><CommercialHistory documentType="quotation" /></TabsContent><TabsContent value="receipts"><CommercialHistory documentType="receipt" /></TabsContent></Tabs> : !optionsError ? <Empty className="min-h-64 border"><EmptyHeader><EmptyTitle>{l("noBranches")}</EmptyTitle></EmptyHeader></Empty> : null}
+      {error ? <Alert variant="destructive"><AlertTitle>{l("error")}</AlertTitle><AlertDescription><p>{error}</p><Button variant="outline" className="min-h-11" onClick={clearError}>{l("close")}</Button></AlertDescription></Alert> : null}
+      {initialLoading ? <CommercialLoading /> : branchUuid ? <Tabs value={tab} onValueChange={(value) => router.replace(internalRoute(commercialHistoryHref({ storeUuid, branchUuid }, commercialTab(value))), { scroll: false })} className="min-w-0 gap-4"><CommercialWorkflowTabs value={tab} /><TabsContent value="catalog"><CommercialCatalog key={branchUuid} branchUuid={branchUuid} /></TabsContent><TabsContent value="quotations"><CommercialHistory documentType="quotation" /></TabsContent><TabsContent value="receipts"><CommercialHistory documentType="receipt" /></TabsContent></Tabs> : !optionsError ? <Empty className="min-h-64 border"><EmptyHeader><EmptyTitle>{l("noBranches")}</EmptyTitle></EmptyHeader></Empty> : null}
     </div>
     {loading ? <div role="status" aria-label={l("viewDocument")} className="fixed right-4 bottom-24 z-40 rounded-md border bg-card p-3 shadow-lg">{l("viewDocument")}</div> : null}
     {selectedDocument ? <CommercialDocumentOutput key={`${selectedDocument.document_uuid}:${selectedDocument.version}`} document={selectedDocument} onClose={() => { closeDocument(); router.replace(internalRoute(commercialHistoryHref({ storeUuid, branchUuid }, tab)), { scroll: false }); }} /> : null}
