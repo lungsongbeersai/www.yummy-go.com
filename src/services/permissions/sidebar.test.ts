@@ -116,6 +116,13 @@ describe("sidebar menu service helpers", () => {
     expect(menus).toEqual([]);
   });
 
+  it.each([1, 2, 3])("allows only checked active/default submenus or role1-only submenus for role %s", roleId => {
+    const statuses = [null, undefined, 1, "1", 2, "2", 0, 3, "garbage", ""];
+    const menus = normalizeSidebarPermissionMenuResponse({ roles: [{ role_id: roleId, menus: [{ menu_id: "settings", menu_title: "Settings", menu_is_dropdown: true,
+      sub_detail: statuses.map((sub_status, index) => ({ checked: true, sub_status, sub_id: `sub-${index}`, sub_title: `Sub ${index}`, sub_path: `/settings/${index}`, sub_sort: index })) }] }] }, roleId);
+    expect(menus[0]?.children?.map(item => item.path)).toEqual(["/settings/0", "/settings/1", "/settings/2", "/settings/3", ...(roleId === 1 ? ["/settings/4", "/settings/5"] : [])]);
+  });
+
   it("filters submenu visibility with sub_status and role status", () => {
     const response = {
       roles: [1, 2].map((roleId) => ({

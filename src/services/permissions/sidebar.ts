@@ -70,10 +70,11 @@ function requiredNumber(value: unknown, field: string) {
 }
 
 function subStatusValue(value: unknown) {
-  const normalized = String(value ?? "").trim();
-  if (!normalized) return 1;
+  if (value === null || value === undefined) return 1;
+  const normalized = String(value).trim();
+  if (!normalized) return 0;
   const next = Number(normalized);
-  return Number.isFinite(next) ? next : 1;
+  return Number.isFinite(next) ? next : 0;
 }
 
 function responseRoles(response: SidebarPermissionMenuResponse) {
@@ -92,7 +93,8 @@ function sortByOrder<T>(
 
 function canShowSubMenu(submenu: RawSidebarPermissionSubMenu, roleId: number) {
   if (!booleanFlag(submenu.checked)) return false;
-  return subStatusValue(submenu.sub_status) !== 2 || roleId === PLC_ROLE_STATUS;
+  const status = subStatusValue(submenu.sub_status);
+  return status === 1 || (status === 2 && roleId === PLC_ROLE_STATUS);
 }
 
 function normalizeSubMenu(

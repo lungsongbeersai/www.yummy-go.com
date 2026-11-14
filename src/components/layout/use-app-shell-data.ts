@@ -71,13 +71,15 @@ export function useAppShellData() {
       clearSidebarMenu();
       return;
     }
-    void loadSidebarMenu(storeUuid, user.status, i18n.language);
+    if (!sidebarKeyMatches) void loadSidebarMenu(storeUuid, user.status, i18n.language);
   }, [
     clearSidebarMenu,
     i18n.language,
     loadSidebarMenu,
+    sidebarKeyMatches,
     storeUuid,
     user?.status,
+    user?.store_status,
   ]);
 
   function retrySidebarMenu() {

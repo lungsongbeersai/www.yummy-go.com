@@ -10,7 +10,7 @@ import { resetSessionStores } from "@/stores/session-store-registry";
 vi.mock("@/services/branch", () => ({ getBranchManagementStoreOptions: vi.fn(), getBranchOptions: vi.fn() }));
 vi.mock("@/services/commercial", () => ({ getCommercialPaymentProfiles: vi.fn(), saveCommercialPaymentProfile: vi.fn(), saveCommercialPaymentProfiles: vi.fn(), getCommercialCatalog: vi.fn(), getCommercialDocuments: vi.fn(), getCommercialDocument: vi.fn(), getCommercialDocumentRevision: vi.fn(), getCommercialDocumentRevisions: vi.fn(), updateCommercialDocument: vi.fn(), saveCatalogItem: vi.fn(), createCommercialDocument: vi.fn(), convertQuotation: vi.fn() }));
 
-const user: AuthUser = { uuid: "user", email: "test@example.test", status: 2, profile: "", branch_uuid: "a", branch_name: "A", branch_tel: "", branch_address: "", store_uuid: "store", store_name: "Store", store_logo: "", store_table_status: 1 };
+const user: AuthUser = { uuid: "user", email: "test@example.test", status: 2, store_status: 1, profile: "", branch_uuid: "a", branch_name: "A", branch_tel: "", branch_address: "", store_uuid: "store", store_name: "Store", store_logo: "", store_table_status: 1 };
 const branches = [{ branch_uuid: "a", store_uuid_fk: "store" }, { branch_uuid: "b", store_uuid_fk: "store" }];
 
 function item(branchUuid = "a", ownerUuid = "store"): CatalogItem {
@@ -44,6 +44,40 @@ describe("commercial request scope ownership", () => {
     useCommercialStore.getState().reset();
     useAuthStore.setState({ user, token: "session-token" });
     useCommercialStore.setState({ catalogOwnerUuid: "store", storeUuid: "store", branchUuid: "a", branches });
+  });
+
+  it("clears all commercial snapshots and drops pending reads/writes across PLC revocation and return with the same actor/token", async () => {
+    const catalog = deferred<CatalogItem[]>();
+    const profiles = deferred<CommercialPaymentProfile[]>();
+    const detail = deferred<CommercialDocument>();
+    const issuing = deferred<CommercialDocument>();
+    const profileWrite = deferred<CommercialPaymentProfile[]>();
+    vi.mocked(getCommercialCatalog).mockReturnValueOnce(catalog.promise);
+    vi.mocked(getCommercialPaymentProfiles).mockReturnValueOnce(profiles.promise);
+    vi.mocked(getCommercialDocument).mockReturnValueOnce(detail.promise);
+    vi.mocked(createCommercialDocument).mockReturnValueOnce(issuing.promise);
+    vi.mocked(saveCommercialPaymentProfiles).mockReturnValueOnce(profileWrite.promise);
+    useCommercialStore.setState({ catalog: [item()], catalogReady: true, documents: [paymentDocument()], selectedDocument: paymentDocument(), editingDocument: paymentDocument(), revisions: [{ version: 1, request_uuid: null, changed_at: "2026-11-14", changed_by: "operator", snapshot: paymentDocument() }], revisionSnapshot: paymentDocument(), paymentProfiles: [paymentProfile] });
+    const readingCatalog = useCommercialStore.getState().loadCatalog();
+    const readingProfiles = useCommercialStore.getState().loadPaymentProfiles();
+    const readingDocument = useCommercialStore.getState().openDocument("document");
+    const creating = useCommercialStore.getState().createDocument(input);
+    const savingProfiles = useCommercialStore.getState().savePaymentProfiles([{ ...profileInput, profile_uuid: "profile" }]);
+
+    useAuthStore.getState().updateUser({ store_status: 2 });
+    expect(useCommercialStore.getState()).toMatchObject({ catalog: [], documents: [], selectedDocument: null, editingDocument: null, revisions: [], revisionSnapshot: null, paymentProfiles: [], branchUuid: "", storeUuid: "" });
+    useAuthStore.getState().updateUser({ store_status: 1 });
+    // A fresh authorized scope may already be active before the old requests finish.
+    useCommercialStore.setState({ catalogOwnerUuid: "store", storeUuid: "store", branchUuid: "a", branches });
+    catalog.resolve([item()]); profiles.resolve([paymentProfile]); detail.resolve(document()); issuing.resolve(document()); profileWrite.resolve([paymentProfile]);
+    await Promise.all([readingCatalog, readingProfiles, readingDocument]);
+    expect(await creating).toBeNull();
+    expect(await savingProfiles).toBeNull();
+    expect(useCommercialStore.getState()).toMatchObject({ catalog: [], catalogReady: false, documents: [], selectedDocument: null, editingDocument: null, paymentProfiles: [], paymentProfilesReady: false, saving: false });
+    vi.mocked(getCommercialCatalog).mockResolvedValueOnce([item()]);
+    vi.mocked(getCommercialPaymentProfiles).mockResolvedValueOnce([paymentProfile]);
+    await Promise.all([useCommercialStore.getState().loadCatalog(), useCommercialStore.getState().loadPaymentProfiles()]);
+    expect(useCommercialStore.getState()).toMatchObject({ catalog: [item()], paymentProfiles: [paymentProfile] });
   });
 
   it("keeps private profiles reusable across selected target branches and customer stores", async () => {

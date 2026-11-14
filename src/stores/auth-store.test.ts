@@ -12,6 +12,9 @@ import { useReferenceStore } from "@/stores/reference-store";
 import { usePermissionsSidebarStore } from "@/stores/permissions-sidebar-store";
 import { usePermissionsAccessStore } from "@/stores/permissions-access-store";
 import { ServiceError } from "@/lib/api";
+import { createSessionGuard } from "@/stores/session-store-registry";
+import { commercialSessionIdentity } from "@/lib/commercial-permissions";
+import { createCommercialPdfLease } from "@/features/commercial/commercial-pdf-download";
 
 vi.mock("@/lib/socket", () => ({
   disconnectSocket: vi.fn()
@@ -325,6 +328,56 @@ describe("auth store session isolation", () => {
     });
     await useAuthStore.getState().validateSession();
     expect(useAuthStore.getState().user?.store_status).toBe(2);
+  });
+
+  it.each([2, 3])("clears verified permissions and invalidates pending work when live PLC classification becomes %s", async store_status => {
+    useAuthStore.getState().login("token-1", { ...authUser("user-1"), name: "Noy", store_status: 1 });
+    const menu = [{ title: "commercial", label: "Commercial", path: "/commercial", source: "permission-api" as const }];
+    usePermissionsSidebarStore.setState({ items: menu, cache: { "user-1-store:1:la": menu }, requestKey: "user-1-store:1:la" });
+    const pending = createSessionGuard();
+    validateLoginSessionMock.mockResolvedValueOnce({ uuid: "user-1", login_email: "user-1@example.com", login_name: "Noy",
+      branch_uuid: "user-1-branch", store_uuid_fk: "user-1-store", login_status: 1, store_status });
+    await useAuthStore.getState().validateSession();
+    expect(pending()).toBe(false);
+    expect(usePermissionsSidebarStore.getState()).toMatchObject({ items: [], cache: {}, requestKey: "" });
+    expect(useAuthStore.getState()).toMatchObject({ token: "token-1", isLoggedIn: true, user: { status: 1, store_status } });
+    const revoked = createSessionGuard();
+    useAuthStore.getState().updateUser({ store_status: 1 });
+    expect(revoked()).toBe(false);
+    expect(pending()).toBe(false);
+    expect(usePermissionsSidebarStore.getState().items).toEqual([]);
+  });
+
+  it("retains session work on metadata-only profile updates but invalidates it on local classification revocation", () => {
+    useAuthStore.getState().login("token-1", { ...authUser("user-1"), store_status: 1 });
+    const pending = createSessionGuard();
+    useAuthStore.getState().updateUser({ name: "Renamed operator", contract_days_remaining: 5 });
+    expect(pending()).toBe(true);
+    useAuthStore.getState().updateUser({ store_status: 2 });
+    expect(pending()).toBe(false);
+    useAuthStore.getState().updateUser({ store_status: 1 });
+    expect(pending()).toBe(false);
+  });
+
+  it("revokes a handed-off private PDF on PLC revocation even when classification immediately returns", async () => {
+    useAuthStore.getState().login("token-1", { ...authUser("user-1"), store_status: 1 });
+    const identity = () => {
+      const { user, token } = useAuthStore.getState();
+      return commercialSessionIdentity(user, token);
+    };
+    const owner = identity();
+    const lease = createCommercialPdfLease(new File(["%PDF-synthetic"], "synthetic.pdf", { type: "application/pdf" }), {
+      owner: {}, watchIdentity: invalidate => useAuthStore.subscribe(() => { if (owner !== identity()) invalidate(); }),
+    });
+    expect(lease.transfer()).toBe(true);
+    lease.release();
+    useAuthStore.getState().updateUser({ name: "Renamed operator" });
+    expect(lease.isAvailable()).toBe(true);
+    useAuthStore.getState().updateUser({ store_status: 2 });
+    useAuthStore.getState().updateUser({ store_status: 1 });
+    await lease.released;
+    expect(lease.isAvailable()).toBe(false);
+    expect(lease.transfer()).toBe(false);
   });
 
   it("does not apply an older session's PLC classification to a new login", async () => {

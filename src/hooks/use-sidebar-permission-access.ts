@@ -1,8 +1,10 @@
 "use client";
 
+import { useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { resolveSidebarPermissionAccess } from "@/hooks/sidebar-permission-access-state";
 import type { MenuItem } from "@/config/menu";
+import { commercialMenuItems } from "@/lib/commercial-permissions";
 import { authStoreUuid, useAuthStore } from "@/stores/auth-store";
 import {
   sidebarMenuCacheKey,
@@ -22,6 +24,7 @@ export function useSidebarPermissionAccess(): {
   const items = usePermissionsSidebarStore((state) => state.items);
   const loading = usePermissionsSidebarStore((state) => state.loading);
   const requestKey = usePermissionsSidebarStore((state) => state.requestKey);
+  const visibleItems = useMemo(() => commercialMenuItems(items, user), [items, user]);
 
   const storeUuid = authStoreUuid(user);
   const targetRequestKey =
@@ -29,7 +32,7 @@ export function useSidebarPermissionAccess(): {
       ? sidebarMenuCacheKey(storeUuid, user.status, i18n.language)
       : "";
   return resolveSidebarPermissionAccess({
-    items,
+    items: visibleItems,
     loading,
     requestKey,
     targetRequestKey,

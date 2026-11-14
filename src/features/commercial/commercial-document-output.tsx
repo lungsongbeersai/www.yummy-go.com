@@ -18,7 +18,9 @@ import { useCommercialLabels } from "@/features/commercial/commercial.locale";
 import { CommercialShareDialog } from "@/features/commercial/commercial-share-dialog";
 import { useCommercialStore } from "@/stores/commercial-store";
 import { useAppStore } from "@/stores/app-store";
-import { authStoreUuid, useAuthStore } from "@/stores/auth-store";
+import { useAuthStore } from "@/stores/auth-store";
+import { createSessionGuard } from "@/stores/session-store-registry";
+import { commercialSessionIdentity } from "@/lib/commercial-permissions";
 import type { CatalogItem, CommercialDocument, CommercialParty } from "@/services/commercial";
 import { renderCommercialCatalog, renderCommercialDocument, type CommercialPrintOptions } from "./commercial-print";
 import { updateCommercialPreview } from "./commercial-page-layout";
@@ -43,11 +45,11 @@ const PREVIEW_HEIGHT = Math.ceil(COMMERCIAL_PAPER.heightMm * 96 / 25.4);
 
 function outputIdentity() {
   const { user, token } = useAuthStore.getState();
-  return JSON.stringify([user?.uuid, authStoreUuid(user), token]);
+  return commercialSessionIdentity(user, token);
 }
 
 function CommercialOutputFrame(props: OutputFrameProps) {
-  const identity = useAuthStore(state => JSON.stringify([state.user?.uuid, authStoreUuid(state.user), state.token]));
+  const identity = useAuthStore(state => commercialSessionIdentity(state.user, state.token));
   const [session, setSession] = useState({ identity, generation: 0 });
   if (session.identity !== identity) setSession({ identity, generation: session.generation + 1 });
   // Drop prepared private files before a different session can interact with them.
@@ -127,7 +129,8 @@ function CommercialOutputContent({ title, heading, subtitle, onClose, initialSho
   const preparePreview = () => {
     const target = frame.current?.contentDocument;
     if (!target) return;
-    const current = () => frame.current?.contentDocument === target;
+    const sessionCurrent = createSessionGuard();
+    const current = () => sessionCurrent() && frame.current?.contentDocument === target;
     setError(null);
     setLoadedPreview(null);
     void updateCommercialPreview(target, current).then(result => {
@@ -140,16 +143,17 @@ function CommercialOutputContent({ title, heading, subtitle, onClose, initialSho
     if (exportingNow.current || !previewReady) return;
     setError(null);
     const identity = outputIdentity();
+    const sessionCurrent = createSessionGuard();
     try {
       const target = frame.current?.contentWindow;
       if (!target || !frame.current?.contentDocument) throw new Error("preview_unavailable");
       await target.document.fonts.ready;
       await Promise.all(Array.from(target.document.images, image => image.decode()));
-      if (!mounted.current || identity !== outputIdentity() || frame.current?.contentWindow !== target) return;
+      if (!sessionCurrent() || !mounted.current || identity !== outputIdentity() || frame.current?.contentWindow !== target) return;
       target.focus();
       target.print();
     } catch {
-      setError(t("commercial.printFailed", { defaultValue: "ພິມບໍ່ສໍາເລັດ. ກະລຸນາດາວໂຫຼດ PDF ແລ້ວພິມຈາກໄຟລ໌." }));
+      if (sessionCurrent() && mounted.current && identity === outputIdentity()) setError(t("commercial.printFailed", { defaultValue: "ພິມບໍ່ສໍາເລັດ. ກະລຸນາດາວໂຫຼດ PDF ແລ້ວພິມຈາກໄຟລ໌." }));
     }
   };
 
@@ -159,8 +163,9 @@ function CommercialOutputContent({ title, heading, subtitle, onClose, initialSho
     const cachedFile = shareError ? null : shareFile;
     const request = ++shareRequest.current;
     const identity = outputIdentity();
+    const sessionCurrent = createSessionGuard();
     const source = frame.current?.contentDocument;
-    const current = () => mounted.current && request === shareRequest.current && identity === outputIdentity() && frame.current?.contentDocument === source;
+    const current = () => sessionCurrent() && mounted.current && request === shareRequest.current && identity === outputIdentity() && frame.current?.contentDocument === source;
     preparedLease.current?.release();
     preparedLease.current = null;
     preparedNative.current?.release();
