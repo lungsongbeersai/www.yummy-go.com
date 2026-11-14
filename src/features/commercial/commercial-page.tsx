@@ -6,12 +6,13 @@ import { FileText } from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Empty, EmptyHeader, EmptyTitle } from "@/components/ui/empty";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Tabs, TabsContent } from "@/components/ui/tabs";
 import { CommercialAccessGate, CommercialLoading } from "@/features/commercial/commercial-access";
 import { CommercialCatalog } from "@/features/commercial/commercial-catalog";
 import { CommercialDocumentOutput } from "@/features/commercial/commercial-document-output";
 import { CommercialHistory } from "@/features/commercial/commercial-history";
 import { CommercialRevisions } from "@/features/commercial/commercial-revisions";
+import { CommercialWorkflowTabs } from "@/features/commercial/commercial-workflow-tabs";
 import { commercialHistoryHref, commercialRequestedScopeMatches, commercialTab } from "@/features/commercial/commercial-routes";
 import { CommercialScopeFields } from "@/features/commercial/commercial-scope-fields";
 import { useCommercialRouteScope } from "@/features/commercial/use-commercial-route-scope";
@@ -61,7 +62,7 @@ function CommercialWorkspace() {
     <div className="grid min-w-0 gap-4 p-3 pb-24 sm:p-5 sm:pb-24">
       {optionsError ? <Alert variant="destructive"><AlertTitle>{l("error")}</AlertTitle><AlertDescription><p>{optionsError}</p><Button variant="outline" className="min-h-11" onClick={() => { void initialize({ storeUuid, branchUuid }).catch(() => {}); }}>{l("retry")}</Button></AlertDescription></Alert> : null}
       {error ? <Alert variant="destructive"><AlertTitle>{l("error")}</AlertTitle><AlertDescription><p>{error}</p><Button variant="outline" onClick={clearError}>{l("close")}</Button></AlertDescription></Alert> : null}
-      {initialLoading ? <CommercialLoading /> : branchUuid ? <Tabs value={tab} onValueChange={(value) => router.replace(internalRoute(commercialHistoryHref({ storeUuid, branchUuid }, commercialTab(value))), { scroll: false })} className="min-w-0 gap-5"><TabsList className="grid min-h-12 w-full grid-cols-3 sm:w-fit"><TabsTrigger className="min-h-11 px-2 sm:px-4" value="catalog">{l("catalog")}</TabsTrigger><TabsTrigger className="min-h-11 px-2 sm:px-4" value="quotations">{l("quotations")}</TabsTrigger><TabsTrigger className="min-h-11 px-2 sm:px-4" value="receipts">{l("receipts")}</TabsTrigger></TabsList><TabsContent value="catalog"><CommercialCatalog key={branchUuid} branchUuid={branchUuid} /></TabsContent><TabsContent value="quotations"><CommercialHistory documentType="quotation" /></TabsContent><TabsContent value="receipts"><CommercialHistory documentType="receipt" /></TabsContent></Tabs> : !optionsError ? <Empty className="min-h-64 border"><EmptyHeader><EmptyTitle>{l("noBranches")}</EmptyTitle></EmptyHeader></Empty> : null}
+      {initialLoading ? <CommercialLoading /> : branchUuid ? <Tabs value={tab} onValueChange={(value) => router.replace(internalRoute(commercialHistoryHref({ storeUuid, branchUuid }, commercialTab(value))), { scroll: false })} className="min-w-0 gap-5"><CommercialWorkflowTabs value={tab} /><TabsContent value="catalog"><CommercialCatalog key={branchUuid} branchUuid={branchUuid} /></TabsContent><TabsContent value="quotations"><CommercialHistory documentType="quotation" /></TabsContent><TabsContent value="receipts"><CommercialHistory documentType="receipt" /></TabsContent></Tabs> : !optionsError ? <Empty className="min-h-64 border"><EmptyHeader><EmptyTitle>{l("noBranches")}</EmptyTitle></EmptyHeader></Empty> : null}
     </div>
     {loading ? <div role="status" aria-label={l("viewDocument")} className="fixed right-4 bottom-24 z-40 rounded-md border bg-card p-3 shadow-lg">{l("viewDocument")}</div> : null}
     {selectedDocument ? <CommercialDocumentOutput key={`${selectedDocument.document_uuid}:${selectedDocument.version}`} document={selectedDocument} onClose={() => { closeDocument(); router.replace(internalRoute(commercialHistoryHref({ storeUuid, branchUuid }, tab)), { scroll: false }); }} /> : null}
