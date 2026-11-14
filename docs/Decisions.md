@@ -1,5 +1,13 @@
 # Decisions
 
+## Commercial A4 documents follow the selected system font
+
+- **Date:** 2026-11-14.
+- **Decision:** Commercial quotations, payment receipts and price lists use the current `app-store` `laoFont` choice in preview, browser printing and PDF downloads. Their isolated iframe loads the existing approved local font files through `public/fonts/app-document-fonts.css`; Latin text and figures use Noto Sans.
+- **Reason:** The owner explicitly requested the system font after reviewing a quotation rendered with the legacy Saysettha/Times receipt stylesheet. An iframe cannot inherit the parent page's `next/font` classes or appearance attribute.
+- **Boundary:** This supersedes the fixed-export-font trade-off only for the commercial A4 workspace. Restaurant receipt/kitchen printing and existing report exports keep their current font contracts.
+- **Authorization:** The user's request in this conversation: use the system font and improve the document table lines.
+
 ## Browser billing documents use the Auto Print raster
 
 - **Date:** 2026-11-06.

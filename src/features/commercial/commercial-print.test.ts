@@ -1,0 +1,81 @@
+import { describe, it, expect } from "vitest";
+import type { CatalogItem, CommercialDocument } from "@/services/commercial";
+import { LAO_FONTS } from "@/stores/app-store";
+import { commercialAmountWords, commercialImageUrl, renderCommercialCatalog, renderCommercialDocument } from "./commercial-print";
+
+const document: CommercialDocument = {
+  document_uuid: "document", branch_uuid: "branch", number: "QT-20261114-0001", document_type: "quotation",
+  issued_on: "2026-11-14", valid_until: null, customer: { name: "Customer <script>unsafe()</script>" },
+  issuer: { name: "PLC", logo_url: "/brand/plc-logo.png" }, notes: "Terms & conditions", payment_method: "cash",
+  show_images: true, tax_rate: 0, subtotal: 18400000, tax_amount: 0, total: 18400000,
+  source_quotation_uuid: null, receipt_uuid: null, created_at: "2026-11-14T00:00:00Z",
+  items: [{ item_uuid: "printer", name: "Printer", description: "<b>Original model</b>", unit: "ເຄື່ອງ", quantity: 1, unit_price: 950000, line_total: 950000, image_url: "https://example.com/printer.png", show_image: true }],
+};
+
+describe("commercial print documents", () => {
+  it("uses saved totals and Lao A4 headers, while escaping customer and item text", () => {
+    const html = renderCommercialDocument(document);
+    expect(html).toContain("QUOTATION");
+    expect(html).toContain('class="currency">LAK</span> 18,400,000');
+    expect(html).toContain("14/11/2026");
+    expect(html).toContain("&lt;script&gt;unsafe()&lt;/script&gt;");
+    expect(html).toContain("&lt;b&gt;Original model&lt;/b&gt;");
+    expect(html).not.toContain("<script>unsafe()");
+    expect(html).toContain("size: A4");
+    expect(html).not.toContain("window.print()");
+  });
+
+  it("passes the system Lao font choice to both document and price-list previews", () => {
+    expect(renderCommercialDocument(document)).toContain('data-lao-font="noto-sans"');
+    for (const laoFont of LAO_FONTS) {
+      for (const html of [renderCommercialDocument(document, { laoFont }), renderCommercialCatalog([], "Branch", undefined, { laoFont })]) {
+        expect(html).toContain(`data-lao-font="${laoFont}"`);
+        expect(html).toContain("/fonts/app-document-fonts.css");
+        expect(html).not.toContain("window-open-fonts");
+      }
+    }
+  });
+
+  it("honours both global and per-item image visibility without changing the saved document", () => {
+    expect(renderCommercialDocument(document)).toContain('src="https://example.com/printer.png"');
+    expect(renderCommercialDocument(document, { showImages: false })).not.toContain('src="https://example.com/printer.png"');
+    expect(renderCommercialDocument({ ...document, items: document.items.map(item => ({ ...item, show_image: false })) })).not.toContain('src="https://example.com/printer.png"');
+    expect(document.show_images).toBe(true);
+  });
+
+  it("rejects executable and protocol-relative image URLs", () => {
+    expect(commercialImageUrl("javascript:alert(1)")).toBeNull();
+    expect(commercialImageUrl("data:image/svg+xml,unsafe")).toBeNull();
+    expect(commercialImageUrl("//example.com/logo.png")).toBeNull();
+    expect(commercialImageUrl("https://user:secret@example.com/logo.png")).toBeNull();
+    expect(commercialImageUrl("/brand/plc-logo.png")).toBe("/brand/plc-logo.png");
+  });
+
+  it("renders receipts with payment and receiver fields instead of quote validity", () => {
+    const html = renderCommercialDocument({ ...document, document_type: "receipt", valid_until: "2026-12-01" }, { autoPrint: true });
+    expect(html).toContain("RECEIPT");
+    expect(html).toContain("ຜູ້ຮັບເງິນ");
+    expect(html).toContain("ເງິນສົດ / Cash");
+    expect(html).not.toContain("01/12/2026");
+    expect(html).toContain("document.fonts");
+    expect(html).toContain("image.decode()");
+  });
+
+  it("renders price lists without summing prices as a bill", () => {
+    const item: CatalogItem = { item_uuid: "item", branch_uuid: "branch", name: "Visible item", description: "", unit: "unit", unit_price: 950000, image_url: null, image_visible: true, active: true, created_at: "", updated_at: "" };
+    const html = renderCommercialCatalog([item, { ...item, item_uuid: "hidden", name: "Inactive item", active: false }], "Branch A", document.issuer);
+    expect(html).toContain("PRICE LIST");
+    expect(html).toContain("950,000");
+    expect(html).not.toContain("Inactive item");
+    expect(html).not.toContain('class="totals"');
+  });
+});
+
+describe("Lao amount words", () => {
+  it("formats the user's reference total and zero", () => {
+    expect(commercialAmountWords(18400000)).toBe("ສິບແປດລ້ານສີ່ແສນກີບຖ້ວນ");
+    expect(commercialAmountWords(0)).toBe("ສູນກີບຖ້ວນ");
+    expect(commercialAmountWords(21)).toBe("ຊາວເອັດກີບຖ້ວນ");
+    expect(commercialAmountWords(-1)).toBe("");
+  });
+});

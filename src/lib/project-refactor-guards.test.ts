@@ -349,6 +349,8 @@ describe("project refactor guards", () => {
   it("keeps raw image tags limited to generated print templates", () => {
     const allowedRawImageFiles = new Set([
       "services/printer/invoice-print-window.ts",
+      // Commercial A4 HTML runs outside React in an isolated print document.
+      "features/commercial/commercial-print.ts",
       "features/pos/table-selection/table-qr-printing.ts"
     ]);
     const disallowedRawImages = matchesInFiles(srcDir, rawImageTagPattern)

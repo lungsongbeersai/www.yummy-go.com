@@ -1,0 +1,74 @@
+/* Isolated A4 documents reuse the font files registered in src/design-system/fonts.ts.
+   They cannot inherit the parent page's next/font classes across an iframe. */
+@font-face {
+  font-family: "App Document Noto Sans";
+  src: url("./Noto_Sans/NotoSans-VariableFont_wdth,wght.ttf") format("truetype");
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "App Document Noto Sans Lao";
+  src: url("./Noto_Sans_Lao/NotoSansLao-VariableFont_wdth,wght.ttf") format("truetype");
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+  unicode-range: U+0E80-0EFF;
+}
+
+@font-face {
+  font-family: "App Document Noto Serif Lao";
+  src: url("./Noto_Serif_Lao/NotoSerifLao-VariableFont_wdth,wght.ttf") format("truetype");
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+  unicode-range: U+0E80-0EFF;
+}
+
+@font-face {
+  font-family: "App Document Phetsarath";
+  src: url("./Phetsarath/Phetsarath-Regular.ttf") format("truetype");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+  unicode-range: U+0E80-0EFF;
+}
+
+@font-face {
+  font-family: "App Document Phetsarath";
+  src: url("./Phetsarath/Phetsarath-Bold.ttf") format("truetype");
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+  unicode-range: U+0E80-0EFF;
+}
+
+@font-face {
+  font-family: "App Document Saysettha";
+  src: url("./saysettha_ot.ttf") format("truetype");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+  unicode-range: U+0E80-0EFF;
+}
+
+html {
+  --font-lao-ui: "App Document Noto Sans Lao";
+}
+
+html[data-lao-font="noto-serif"] {
+  --font-lao-ui: "App Document Noto Serif Lao";
+}
+
+html[data-lao-font="phetsarath"] {
+  --font-lao-ui: "App Document Phetsarath";
+}
+
+html[data-lao-font="saysettha"] {
+  --font-lao-ui: "App Document Saysettha";
+}
+
+body {
+  font-family: var(--font-lao-ui), "App Document Noto Sans", sans-serif;
+}

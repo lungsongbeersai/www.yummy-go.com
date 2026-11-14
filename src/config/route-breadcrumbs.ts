@@ -3,6 +3,7 @@ import type { MenuItem } from "@/config/menu";
 export type RouteBreadcrumbItem = Pick<MenuItem, "disabled" | "label" | "path" | "title">;
 
 export const routeBreadcrumbs: Record<string, RouteBreadcrumbItem[]> = {
+  "/commercial": [{ path: "/commercial", title: "commercial" }],
   "/package": [{ path: "/package", title: "package_management" }],
   "/my_orders": [{ path: "/my_orders", title: "my_orders" }],
   "/products/form": [
