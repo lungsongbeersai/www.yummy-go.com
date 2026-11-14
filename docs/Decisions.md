@@ -1,5 +1,14 @@
 # Decisions
 
+## Commercial catalog ownership is independent of document destinations
+
+- **Date:** 2026-11-14.
+- **Decision:** Commercial catalog items, prices and photos belong to the authenticated actor's store through `catalog_store_uuid`. They are saved once and reused across every document destination that actor is authorized to manage. PLC operators retain their own catalog when selecting customer stores, while customer-store users retain their own tenant catalog. Selected store/branch controls affect document creation and history; quotations and receipts remain target-branch scoped immutable snapshots.
+- **Reason:** The owner clarified that managing another branch must not require entering the same price list and photos again. Catalog creation-branch provenance is insufficient as an ownership boundary for this workflow.
+- **Access:** Roles 1 and 2 can change shared catalog data; role 3 can read it and issue documents for its authorized branch. The server derives ownership from the live authenticated actor, and the frontend rejects a whole wrong-owner response instead of silently hiding individual rows. Catalog requests retain an authorized target branch as context, never as ownership authority.
+- **Lifetime:** Same-owner destination changes retain catalog state and reset document state. Session/owner changes invalidate catalog work; stale document responses cannot populate a new target. Existing issued item/image snapshots are preserved when catalog data changes.
+- **Authorization:** The user's correction in this conversation: save the catalog once and reuse it across all stores and branches the operator can manage.
+
 ## Commercial A4 documents follow the selected system font
 
 - **Date:** 2026-11-14.

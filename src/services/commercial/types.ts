@@ -4,6 +4,8 @@ export type CommercialDocumentType = "quotation" | "receipt";
 
 export interface CatalogItem extends ApiEntity {
   item_uuid: string;
+  catalog_store_uuid: string;
+  /** Creation provenance only; catalogue ownership is catalog_store_uuid. */
   branch_uuid: string;
   name: string;
   description: string;

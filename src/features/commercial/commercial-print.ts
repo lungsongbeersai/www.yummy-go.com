@@ -175,7 +175,7 @@ export function renderCommercialDocument(document: CommercialDocument, options: 
 export function renderCommercialCatalog(items: CatalogItem[], branchName: string, issuer: CommercialParty | undefined, options: CommercialPrintOptions = {}): string {
   const rows = items.filter(item => item.active).map((item, index) => `<tr><td class="center">${index + 1}</td><td><div class="item">${options.showImages !== false && item.image_visible ? imageHtml(item.image_url, "item-image", item.name) : ""}<div><p>${escapeHtml(item.name)}</p>${item.description ? `<p class="description">${escapeHtml(item.description)}</p>` : ""}</div></div></td><td class="center">${escapeHtml(item.unit)}</td><td class="number">${commercialMoney(item.unit_price)}</td></tr>`).join("");
   const body = `<header class="heading">${options.showLogo !== false && issuer ? imageHtml(issuer.logo_url, "logo", issuer.name) : ""}<h1>ລາຍການສິນຄ້າ / PRICE LIST</h1></header>
-    ${issuer ? partyHtml(issuer) : ""}<p class="customer strong">ສາຂາ: ${escapeHtml(branchName)} · LAK</p>
+    ${issuer ? partyHtml(issuer) : ""}<p class="customer strong">ລາຍການລາຄາ: ${escapeHtml(branchName)} · LAK</p>
     <table><colgroup><col style="width:6%" /><col style="width:60%" /><col style="width:12%" /><col style="width:22%" /></colgroup><thead><tr><th>ລ/ດ</th><th>ລາຍການ</th><th>ຫົວໜ່ວຍ</th><th>ລາຄາ (LAK)</th></tr></thead><tbody>${rows}</tbody></table>`;
   return htmlDocument(`PRICE LIST ${branchName}`, body, options);
 }

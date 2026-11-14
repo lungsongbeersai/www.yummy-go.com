@@ -49,31 +49,33 @@ function CommercialWorkspace() {
   }, [initialize, reset]);
 
   useEffect(() => {
-    if (branchUuid) void Promise.allSettled([loadCatalog(), loadDocuments()]);
+    if (!branchUuid) return;
+    const requests = [loadDocuments()];
+    const catalog = useCommercialStore.getState();
+    if (!catalog.catalogReady && !catalog.catalogLoading) requests.push(loadCatalog());
+    void Promise.allSettled(requests);
   }, [branchUuid, loadCatalog, loadDocuments]);
 
-  const branch = branches.find((row) => row.branch_uuid === branchUuid);
-  const branchName = branch?.branch_name || branch?.branch_name_la || branch?.branch_name_eng || branchUuid;
   const initialLoading = optionsLoading || (!stores.length && !optionsError);
 
   return <div className="flex h-full min-h-0 min-w-0 flex-col overflow-y-auto bg-background font-lao">
-    <header className="grid shrink-0 gap-4 border-b bg-card p-4 sm:p-5"><div className="flex items-start gap-3"><span className="grid size-11 shrink-0 place-items-center rounded-lg bg-primary/10 text-primary"><FileText className="size-5" /></span><div className="min-w-0"><h1 className="font-heading text-lg font-semibold sm:text-xl">{l("title")}</h1><p className="mt-1 text-xs text-muted-foreground sm:text-sm">{l("subtitle")}</p></div></div><div className="grid grid-cols-1 gap-3 sm:max-w-2xl sm:grid-cols-2">{canSelectStore ? <Field><FieldLabel htmlFor="commercial-store">{l("store")}</FieldLabel><Select value={storeUuid} disabled={optionsLoading} onValueChange={(value) => { void selectStore(value).catch(() => {}); }}><SelectTrigger id="commercial-store" className="h-11 w-full"><SelectValue /></SelectTrigger><SelectContent>{stores.map((store) => <SelectItem key={store.store_uuid} value={store.store_uuid} className="min-h-11">{store.store_name_la || store.store_name_eng || store.store_uuid}</SelectItem>)}</SelectContent></Select></Field> : null}<Field><FieldLabel htmlFor="commercial-branch">{l("branch")}</FieldLabel><Select value={branchUuid} disabled={optionsLoading || !branches.length} onValueChange={selectBranch}><SelectTrigger id="commercial-branch" className="h-11 w-full"><SelectValue placeholder={l("selectBranch")} /></SelectTrigger><SelectContent>{branches.map((row) => <SelectItem key={row.branch_uuid} value={row.branch_uuid} className="min-h-11">{row.branch_name || row.branch_name_la || row.branch_name_eng || row.branch_uuid}</SelectItem>)}</SelectContent></Select></Field></div></header>
+    <header className="grid shrink-0 gap-4 border-b bg-card p-4 sm:p-5"><div className="flex items-start gap-3"><span className="grid size-11 shrink-0 place-items-center rounded-lg bg-primary/10 text-primary"><FileText className="size-5" /></span><div className="min-w-0"><h1 className="font-heading text-lg font-semibold sm:text-xl">{l("title")}</h1><p className="mt-1 text-xs text-muted-foreground sm:text-sm">{l("subtitle")}</p></div></div><div className="grid grid-cols-1 gap-3 sm:max-w-2xl sm:grid-cols-2">{canSelectStore ? <Field><FieldLabel htmlFor="commercial-store">{l("documentStore")}</FieldLabel><Select value={storeUuid} disabled={optionsLoading} onValueChange={(value) => { void selectStore(value).catch(() => {}); }}><SelectTrigger id="commercial-store" className="h-11 w-full"><SelectValue /></SelectTrigger><SelectContent>{stores.map((store) => <SelectItem key={store.store_uuid} value={store.store_uuid} className="min-h-11">{store.store_name_la || store.store_name_eng || store.store_uuid}</SelectItem>)}</SelectContent></Select></Field> : null}<Field><FieldLabel htmlFor="commercial-branch">{l("documentBranch")}</FieldLabel><Select value={branchUuid} disabled={optionsLoading || !branches.length} onValueChange={selectBranch}><SelectTrigger id="commercial-branch" className="h-11 w-full"><SelectValue placeholder={l("selectBranch")} /></SelectTrigger><SelectContent>{branches.map((row) => <SelectItem key={row.branch_uuid} value={row.branch_uuid} className="min-h-11">{row.branch_name || row.branch_name_la || row.branch_name_eng || row.branch_uuid}</SelectItem>)}</SelectContent></Select></Field></div><p className="text-xs text-muted-foreground">{l("documentScopeHint")}</p></header>
     <div className="grid min-w-0 gap-4 p-3 pb-24 sm:p-5 sm:pb-24">
       {optionsError ? <Alert variant="destructive"><AlertTitle>{l("error")}</AlertTitle><AlertDescription><p>{optionsError}</p><Button variant="outline" className="min-h-11" onClick={() => { void initialize({ storeUuid, branchUuid }).catch(() => {}); }}>{l("retry")}</Button></AlertDescription></Alert> : null}
       {error ? <Alert variant="destructive"><AlertTitle>{l("error")}</AlertTitle><AlertDescription><p>{error}</p><Button variant="outline" onClick={clearError}>{l("close")}</Button></AlertDescription></Alert> : null}
-      {initialLoading ? <div className="grid gap-4"><Skeleton className="h-12 w-full" /><Skeleton className="h-48 w-full" /></div> : branchUuid ? <CommercialBranchWorkspace key={branchUuid} branchUuid={branchUuid} branchName={branchName} /> : !optionsError ? <Empty className="min-h-64 border"><EmptyHeader><EmptyTitle>{l("noBranches")}</EmptyTitle></EmptyHeader></Empty> : null}
+      {initialLoading ? <div className="grid gap-4"><Skeleton className="h-12 w-full" /><Skeleton className="h-48 w-full" /></div> : branchUuid ? <CommercialBranchWorkspace key={branchUuid} branchUuid={branchUuid} /> : !optionsError ? <Empty className="min-h-64 border"><EmptyHeader><EmptyTitle>{l("noBranches")}</EmptyTitle></EmptyHeader></Empty> : null}
     </div>
     {loading ? <div role="status" aria-label={l("viewDocument")} className="fixed right-4 bottom-24 z-40 rounded-md border bg-card p-3 shadow-lg"><Skeleton className="h-6 w-32" /></div> : null}
     {selectedDocument ? <CommercialDocumentOutput document={selectedDocument} onClose={closeDocument} /> : null}
   </div>;
 }
 
-interface CommercialBranchWorkspaceProps { branchUuid: string; branchName: string }
+interface CommercialBranchWorkspaceProps { branchUuid: string }
 
-function CommercialBranchWorkspace({ branchUuid, branchName }: CommercialBranchWorkspaceProps) {
+function CommercialBranchWorkspace({ branchUuid }: CommercialBranchWorkspaceProps) {
   const l = useCommercialLabels();
   const clearError = useCommercialStore((state) => state.clearError);
   const [editor, setEditor] = useState<CommercialDocumentType | null>(null);
   function create(type: CommercialDocumentType) { clearError(); setEditor(type); }
-  return <><Tabs defaultValue="catalog" className="min-w-0 gap-5"><TabsList className="grid min-h-12 w-full grid-cols-3 sm:w-fit"><TabsTrigger className="min-h-11 px-2 sm:px-4" value="catalog">{l("catalog")}</TabsTrigger><TabsTrigger className="min-h-11 px-2 sm:px-4" value="quotations">{l("quotations")}</TabsTrigger><TabsTrigger className="min-h-11 px-2 sm:px-4" value="receipts">{l("receipts")}</TabsTrigger></TabsList><TabsContent value="catalog"><CommercialCatalog branchUuid={branchUuid} branchName={branchName} /></TabsContent><TabsContent value="quotations"><CommercialHistory documentType="quotation" onCreate={() => create("quotation")} /></TabsContent><TabsContent value="receipts"><CommercialHistory documentType="receipt" onCreate={() => create("receipt")} /></TabsContent></Tabs>{editor ? <CommercialDocumentEditor branchUuid={branchUuid} documentType={editor} onClose={() => setEditor(null)} /> : null}</>;
+  return <><Tabs defaultValue="catalog" className="min-w-0 gap-5"><TabsList className="grid min-h-12 w-full grid-cols-3 sm:w-fit"><TabsTrigger className="min-h-11 px-2 sm:px-4" value="catalog">{l("catalog")}</TabsTrigger><TabsTrigger className="min-h-11 px-2 sm:px-4" value="quotations">{l("quotations")}</TabsTrigger><TabsTrigger className="min-h-11 px-2 sm:px-4" value="receipts">{l("receipts")}</TabsTrigger></TabsList><TabsContent value="catalog"><CommercialCatalog branchUuid={branchUuid} /></TabsContent><TabsContent value="quotations"><CommercialHistory documentType="quotation" onCreate={() => create("quotation")} /></TabsContent><TabsContent value="receipts"><CommercialHistory documentType="receipt" onCreate={() => create("receipt")} /></TabsContent></Tabs>{editor ? <CommercialDocumentEditor branchUuid={branchUuid} documentType={editor} onClose={() => setEditor(null)} /> : null}</>;
 }
