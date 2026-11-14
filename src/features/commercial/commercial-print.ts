@@ -88,14 +88,14 @@ function paymentHtml(document: CommercialDocument, options: CommercialPrintOptio
     const qr = showQr ? commercialPaymentQrUrl(account.qr_image) : null;
     const number = showAccounts ? account.account_number?.trim() : undefined;
     if (!showAccounts && !qr) return "";
-    return `<div class="payment-account"><p class="payment-currency strong">${escapeHtml(account.currency)}</p>
-      ${showAccounts ? `${account.account_name ? `<p>${escapeHtml(account.account_name)}</p>` : ""}${number ? `<p class="account-number">${escapeHtml(number)}</p>` : ""}` : ""}
-      ${qr ? `<img class="payment-qr" src="${escapeHtml(qr)}" alt="${escapeHtml(`${account.currency} payment QR`)}" />` : ""}</div>`;
+    return `<div class="payment-account">${qr ? `<img class="payment-qr" src="${escapeHtml(qr)}" alt="${escapeHtml(`${account.currency} payment QR`)}" />` : ""}
+      <div class="payment-account-details"><p class="payment-currency strong">${escapeHtml(account.currency)}</p>
+      ${showAccounts ? `${account.account_name ? `<p>${escapeHtml(account.account_name)}</p>` : ""}${number ? `<p class="account-number">${escapeHtml(number)}</p>` : ""}` : ""}</div></div>`;
   }).filter(Boolean);
   // Selected accounts are the displayed source; legacy text is a fallback for
   // documents without structured numbers, including older issued snapshots.
   const legacy = showAccounts && !hasStructuredNumbers && document.issuer.bank_details ? `<p class="legacy-bank">${escapeHtml(document.issuer.bank_details)}</p>` : "";
-  return method || cards.length || legacy ? `<section class="payment-details"><p class="payment-heading strong">ຂໍ້ມູນຊຳລະ / PAYMENT DETAILS</p>${method ? `<p class="payment-method">ວິທີຊຳລະ: ${escapeHtml(paymentLabel)}</p>` : ""}${legacy}${cards.length ? `<div class="payment-accounts" style="grid-template-columns:repeat(${cards.length},minmax(0,1fr))">${cards.join("")}</div>` : ""}</section>` : "";
+  return method || cards.length || legacy ? `<section class="payment-details"><p class="payment-heading strong">ຂໍ້ມູນຊຳລະ / PAYMENT DETAILS</p>${method ? `<p class="payment-method">ວິທີຊຳລະ: ${escapeHtml(paymentLabel)}</p>` : ""}${legacy}${cards.length ? `<div class="payment-accounts">${cards.join("")}</div>` : ""}</section>` : "";
 }
 
 function partyHtml(party: CommercialParty, label?: string): string {
@@ -151,11 +151,13 @@ const styles = `
   .payment-heading { font-size: 10px; letter-spacing: 0.2px; margin-bottom: 2mm; }
   .payment-method { margin-bottom: 2mm; }
   .payment-method:last-child { margin-bottom: 0; }
-  .payment-accounts { display: grid; gap: 3mm; }
-  .payment-account { min-width: 0; padding: 2.5mm; border: 0.2mm solid var(--table-border); border-radius: 1mm; text-align: center; font-size: 10px; }
+  .payment-accounts { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); border-top: 0.2mm solid var(--row-border); border-bottom: 0.2mm solid var(--row-border); }
+  .payment-account { display: flex; align-items: center; gap: 2.5mm; min-width: 0; padding: 2mm 2.5mm; text-align: left; font-size: 10px; }
+  .payment-account + .payment-account { border-left: 0.2mm solid var(--row-border); }
+  .payment-account-details { flex: 1; min-width: 0; }
   .payment-currency { font-size: 11px; margin-bottom: 1mm; }
   .account-number { font-variant-numeric: tabular-nums; letter-spacing: 0.3px; }
-  .payment-qr { display: block; width: 34mm; height: 42mm; max-width: 100%; margin: 2mm auto 0; object-fit: contain; image-rendering: crisp-edges; }
+  .payment-qr { display: block; flex: none; width: 28mm; height: 34mm; object-fit: contain; image-rendering: crisp-edges; }
   .legacy-bank { font-size: 11px; margin-bottom: 2mm; }
   .signatures { display: flex; justify-content: space-between; gap: 12mm; margin-top: 5mm; break-inside: avoid; }
   .signature { text-align: center; min-width: 55mm; }
