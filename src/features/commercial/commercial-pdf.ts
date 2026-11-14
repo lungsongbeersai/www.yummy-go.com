@@ -1,5 +1,7 @@
 "use client";
 
+import { buildCommercialPages, CommercialPageLayoutError } from "./commercial-page-layout";
+
 export class CommercialPdfError extends Error {
   constructor(readonly code: "layout" | "image" | "font", message: string) {
     super(message);
@@ -132,7 +134,7 @@ async function normalizeImages(element: HTMLElement, document: Document) {
 
 /** Measure and capture independent A4 pages, keeping every table row intact. */
 export async function downloadCommercialPdf(sourceDocument: Document, fileName: string): Promise<{ pageCount: number }> {
-  const source = sourceDocument.querySelector<HTMLElement>(".paper");
+  const source = sourceDocument.querySelector<HTMLElement>("[data-commercial-source]") ?? sourceDocument.querySelector<HTMLElement>(".paper");
   const view = sourceDocument.defaultView;
   if (!source || !view) throw new CommercialPdfError("layout", "The document preview is not ready");
   const host = sourceDocument.createElement("div");
@@ -140,6 +142,7 @@ export async function downloadCommercialPdf(sourceDocument: Document, fileName: 
   host.style.cssText = "position:fixed;left:-20000px;top:0;width:186mm;pointer-events:none;";
   sourceDocument.body.append(host);
   const template = source.cloneNode(true) as HTMLElement;
+  template.removeAttribute("data-commercial-source");
   template.style.cssText = "width:186mm;max-width:none;margin:0;padding:0;display:flow-root;box-sizing:border-box;";
   host.append(template);
   try {
@@ -153,57 +156,14 @@ export async function downloadCommercialPdf(sourceDocument: Document, fileName: 
     // Pin the resolved family so an unresolved CSS variable cannot become Times.
     template.style.fontFamily = view.getComputedStyle(source).fontFamily;
     await normalizeImages(template, sourceDocument);
-    const table = template.querySelector<HTMLTableElement>("table");
-    if (!table?.tHead || table.tBodies.length !== 1) throw new CommercialPdfError("layout", "The document table is not ready");
-    const children = Array.from(template.children);
-    const tableIndex = children.indexOf(table);
-    if (tableIndex < 0) throw new CommercialPdfError("layout", "Unsupported document layout");
-    const before = children.slice(0, tableIndex);
-    const after = children.slice(tableIndex + 1);
-    const maximumHeight = template.getBoundingClientRect().width * 269 / 186 - 2;
-    const pages: HTMLElement[] = [];
-    const makePage = (includeEnd = false) => {
-      const page = template.cloneNode(false) as HTMLElement;
-      before.forEach((node) => page.append(node.cloneNode(true)));
-      const pageTable = table.cloneNode(true) as HTMLTableElement;
-      pageTable.tBodies[0].replaceChildren();
-      page.append(pageTable);
-      if (includeEnd) after.forEach((node) => page.append(node.cloneNode(true)));
-      host.append(page);
-      return page;
-    };
+    let pages: HTMLElement[];
+    try {
+      pages = buildCommercialPages(template, host);
+    } catch (error) {
+      throw error instanceof CommercialPageLayoutError ? new CommercialPdfError("layout", error.message) : error;
+    }
+    const maximumHeight = template.getBoundingClientRect().width * 269 / 186 - 1;
     const fits = (page: HTMLElement) => page.getBoundingClientRect().height <= maximumHeight && page.scrollWidth <= page.clientWidth + 1;
-    let current = makePage();
-    if (!fits(current)) throw new CommercialPdfError("layout", "The document header is too tall for A4");
-    for (const [index, row] of Array.from(table.tBodies[0].rows).entries()) {
-      const clone = row.cloneNode(true) as HTMLTableRowElement;
-      current.querySelector("tbody")!.append(clone);
-      if (!fits(current)) {
-        clone.remove();
-        pages.push(current);
-        current = makePage();
-        current.querySelector("tbody")!.append(clone);
-        if (!fits(current)) throw new CommercialPdfError("layout", `Item ${index + 1} is too tall or wide for A4; shorten its description`);
-      }
-    }
-    pages.push(current);
-    const ending = after.map((node) => node.cloneNode(true) as Element);
-    current.append(...ending);
-    if (!fits(current)) {
-      ending.forEach((node) => node.remove());
-      const finalPage = makePage(true);
-      if (!fits(finalPage)) throw new CommercialPdfError("layout", "The totals, notes and signatures exceed one A4 page; shorten the notes");
-      // Move a contiguous suffix onto the final page so totals/signatures stay
-      // together, with the last item rows whenever there is enough space.
-      while (pages.length) {
-        const previous = pages[pages.length - 1];
-        const row = previous.querySelector("tbody")!.lastElementChild;
-        if (!row) { previous.remove(); pages.pop(); continue; }
-        finalPage.querySelector("tbody")!.prepend(row);
-        if (!fits(finalPage)) { previous.querySelector("tbody")!.append(row); break; }
-      }
-      pages.push(finalPage);
-    }
     template.remove();
     const [{ jsPDF }, { default: html2canvas }] = await Promise.all([import("jspdf"), import("html2canvas-pro")]);
     const pdf = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4", compress: true });
