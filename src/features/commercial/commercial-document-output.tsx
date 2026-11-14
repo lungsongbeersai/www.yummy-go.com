@@ -17,6 +17,7 @@ import { useCommercialStore } from "@/stores/commercial-store";
 import { useAppStore } from "@/stores/app-store";
 import type { CatalogItem, CommercialDocument, CommercialParty } from "@/services/commercial";
 import { renderCommercialCatalog, renderCommercialDocument, type CommercialPrintOptions } from "./commercial-print";
+import { updateCommercialPreview } from "./commercial-page-layout";
 
 interface OutputFrameProps {
   title: string;
@@ -43,6 +44,18 @@ function CommercialOutputFrame({ title, onClose, initialShowImages, paymentVisib
   const previewKey = `${title}:${laoFont}:${showImages}:${showLogo}:${showPaymentAccounts}:${showPaymentQr}`;
   const previewReady = loadedPreview === previewKey;
   const options: CommercialPrintOptions = { showImages, showLogo, showPaymentAccounts, showPaymentQr, laoFont, baseUrl: typeof window === "undefined" ? undefined : window.location.origin };
+  const preparePreview = () => {
+    const target = frame.current?.contentDocument;
+    if (!target) return;
+    const current = () => frame.current?.contentDocument === target;
+    setError(null);
+    setLoadedPreview(null);
+    void updateCommercialPreview(target, current).then(result => {
+      if (result && current()) setLoadedPreview(previewKey);
+    }).catch((failure: unknown) => {
+      if (current()) setError(`${t("commercial.pdfFailed")} (${failure instanceof Error ? failure.message : "preview_unavailable"})`);
+    });
+  };
   const print = async () => {
     setError(null);
     try {
@@ -86,7 +99,7 @@ function CommercialOutputFrame({ title, onClose, initialShowImages, paymentVisib
         <Button type="button" className="min-h-11" disabled={exporting || !previewReady} onClick={() => { void download(); }}><Download />{t(exporting ? "commercial.saving" : "commercial.downloadPdf", { defaultValue: exporting ? "ກໍາລັງບັນທຶກ…" : "ດາວໂຫຼດ PDF" })}</Button></div>
       </div>
       {error ? <Alert variant="destructive"><AlertDescription>{error}</AlertDescription></Alert> : null}
-      <iframe key={previewKey} ref={frame} title={title} srcDoc={render(options)} onLoad={() => setLoadedPreview(previewKey)} sandbox="allow-same-origin allow-modals" className="h-[62dvh] w-full rounded-md border border-border bg-background" />
+      <iframe key={previewKey} ref={frame} title={title} srcDoc={render(options)} onLoad={preparePreview} sandbox="allow-same-origin allow-modals" className="h-[62dvh] w-full rounded-md border border-border bg-background" />
     </DialogContent>
   </Dialog>;
 }

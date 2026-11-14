@@ -118,10 +118,10 @@ const styles = `
   table { width: 100%; border-collapse: separate; border-spacing: 0; table-layout: fixed; border: 0.2mm solid var(--table-border); }
   th, td { border: 0; border-right: 0.2mm solid var(--table-border); padding: 2.5mm 2mm; vertical-align: top; overflow-wrap: anywhere; }
   th:last-child, td:last-child { border-right: 0; }
-  th { border-bottom: 0.3mm solid var(--table-border); background: var(--table-fill); text-align: center; vertical-align: middle; padding: 3mm 2mm; font-weight: 700; }
-  th:first-child { padding-inline: 1mm; white-space: nowrap; }
-  th:nth-child(3) { padding-inline: 1mm; }
+  th { border-bottom: 0.3mm solid var(--table-border); background: var(--table-fill); text-align: center; vertical-align: middle; padding: 3mm 1mm; font-size: 14px; font-weight: 700; }
+  th:first-child { padding-inline: 0.5mm; white-space: nowrap; }
   tbody tr:not(:last-child) > td { border-bottom: 0.2mm solid var(--row-border); }
+  .table-fill > td { padding: 0; font-size: 0; line-height: 0; }
   .number { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
   .center { text-align: center; }
   td.center, td.number { vertical-align: middle; }
@@ -130,13 +130,14 @@ const styles = `
   .item-image { width: 21mm; height: 21mm; object-fit: contain; flex: none; }
   .description { margin-top: 1mm; font-size: 11px; color: #4b5563; }
   .totals { width: 100%; border: 0.2mm solid var(--table-border); border-top: 0; break-inside: avoid; }
-  .total-row { display: grid; grid-template-columns: minmax(0, 81fr) minmax(0, 19fr); border-bottom: 0.2mm solid var(--row-border); }
+  .total-row { display: grid; grid-template-columns: minmax(0, 80fr) minmax(0, 20fr); border-bottom: 0.2mm solid var(--row-border); }
   .total-row > span { padding: 1.8mm 2mm; }
   .total-row > span:first-child { border-right: 0.2mm solid var(--table-border); text-align: right; }
-  .total-row:last-child { border-bottom: 0; font-weight: 700; background: var(--table-fill); font-size: 12px; }
+  .total-row:last-child { border-bottom: 0; font-weight: 700; background: var(--table-fill); font-size: 16px; }
   .total-amount { display: flex; align-items: baseline; justify-content: space-between; flex-wrap: wrap; gap: 0 1mm; }
   .total-value { margin-left: auto; }
-  .currency { font-size: 10px; font-weight: 400; }
+  .currency { font-size: 12px; font-weight: 700; }
+  .compact-total .total-value { font-size: 14px; }
   .amount-words { margin-top: 4mm; font-weight: 700; }
   .notes { margin-top: 2mm; }
   .payment-details { margin-top: 3mm; break-inside: avoid; page-break-inside: avoid; }
@@ -155,7 +156,18 @@ const styles = `
   thead { display: table-header-group; }
   tr { break-inside: avoid; page-break-inside: avoid; }
   @media screen { body { padding: 5mm; } }
-  @media print { .paper { padding: 0; } #print-error { display: none; } }
+  body.commercial-paginated { padding: 0; }
+  .commercial-pages { width: 210mm; margin: 0 auto; }
+  .commercial-preview-page { width: 210mm; min-height: 297mm; padding: 14mm 12mm; background: #fff; }
+  .commercial-preview-page + .commercial-preview-page { margin-top: 5mm; }
+  .commercial-preview-page > .paper { width: 186mm; max-width: none; margin: 0; padding: 0; display: flow-root; }
+  @media print {
+    .paper { padding: 0; }
+    #print-error, .commercial-paginated > [data-commercial-source] { display: none !important; }
+    .commercial-pages { width: 186mm; margin: 0; }
+    .commercial-preview-page { width: 186mm; min-height: 0; height: 269mm; margin: 0 !important; padding: 0; break-after: page; page-break-after: always; }
+    .commercial-preview-page:last-child { break-after: auto; page-break-after: auto; }
+  }
 `;
 
 const printScript = `window.addEventListener("load", async () => {
@@ -175,7 +187,7 @@ function htmlDocument(title: string, body: string, options: CommercialPrintOptio
   const base = options.baseUrl && commercialImageUrl(options.baseUrl);
   return `<!doctype html><html lang="lo" data-lao-font="${escapeHtml(options.laoFont ?? "noto-sans")}"><head><meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
     ${base ? `<base href="${escapeHtml(base)}" />` : ""}<title>${escapeHtml(title)}</title><link rel="stylesheet" href="${escapeHtml(fontStylesheet)}" />
-    <style>${styles}</style></head><body><p id="print-error" hidden>ບໍ່ສາມາດໂຫຼດຮູບໄດ້. ກະລຸນາລອງໃໝ່ກ່ອນພິມ.</p><main class="paper">${body}</main>
+    <style>${styles}</style></head><body><p id="print-error" hidden>ບໍ່ສາມາດໂຫຼດຮູບໄດ້. ກະລຸນາລອງໃໝ່ກ່ອນພິມ.</p><main class="paper" data-commercial-source>${body}</main>
     ${options.autoPrint ? `<script>${printScript}</script>` : ""}</body></html>`;
 }
 
@@ -197,12 +209,12 @@ export function renderCommercialDocument(document: CommercialDocument, options: 
     <div class="parties">${partyHtml(document.issuer)}<div class="meta"><p>ເລກທີ: <strong>${escapeHtml(document.number)}</strong></p><p>ວັນທີ: ${escapeHtml(displayDate(document.issued_on))}</p>
     ${document.valid_until && !receipt ? `<p>ມີຜົນເຖິງ: ${escapeHtml(displayDate(document.valid_until))}</p>` : ""}</div></div>
     <section class="customer">${partyHtml(document.customer, "ລູກຄ້າ / CUSTOMER")}</section>
-    <table><colgroup><col style="width:7%" /><col style="width:${wideQuantity ? 34 : 38}%" /><col style="width:9%" /><col style="width:${wideQuantity ? 13 : 9}%" /><col style="width:18%" /><col style="width:19%" /></colgroup>
+    <table><colgroup><col style="width:7%" /><col style="width:${wideQuantity ? 31 : 35}%" /><col style="width:11%" /><col style="width:${wideQuantity ? 13 : 9}%" /><col style="width:18%" /><col style="width:20%" /></colgroup>
     <thead><tr><th>ລຳດັບ</th><th>ລາຍການ</th><th>ຫົວໜ່ວຍ</th><th>ຈຳນວນ</th><th>ລາຄາ</th><th>ລາຄາລວມ</th></tr></thead><tbody>${rows}</tbody></table>
     <section class="totals"><div class="total-row"><span>ລວມທັງໝົດ</span><span class="number">${commercialMoney(document.subtotal)}</span></div>
     ${discount}
     <div class="total-row"><span>ອາກອນ (${document.tax_rate}%)</span><span class="number">${commercialMoney(document.tax_amount)}</span></div>
-    <div class="total-row"><span>${receipt ? "ຮັບເງິນທັງໝົດ" : "ລວມຍອດທັງໝົດ"}</span><span class="number total-amount"><span class="currency">LAK</span> <span class="total-value">${commercialMoney(document.total)}</span></span></div></section>
+    <div class="total-row${commercialMoney(document.total).length > 12 ? " compact-total" : ""}"><span>${receipt ? "ຮັບເງິນທັງໝົດ" : "ລວມຍອດທັງໝົດ"}</span><span class="number total-amount"><span class="currency">LAK</span> <span class="total-value">${commercialMoney(document.total)}</span></span></div></section>
     <p class="amount-words">ຈຳນວນເງິນ: ${escapeHtml(commercialAmountWords(document.total))}</p>
     ${receipt && document.payment_method ? `<p>ວິທີຊຳລະ: ${escapeHtml(paymentLabel)}</p>` : ""}
     ${document.notes ? `<section class="notes"><p class="strong">ໝາຍເຫດ</p><p>${escapeHtml(document.notes)}</p></section>` : ""}
