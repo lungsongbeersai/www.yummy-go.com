@@ -1,60 +1,9 @@
-/* Isolated A4 documents reuse the font files registered in src/design-system/fonts.ts.
-   They cannot inherit the parent page's next/font classes across an iframe. */
-@font-face {
-  font-family: "App Document Noto Sans";
-  src: url("./Noto_Sans/NotoSans-VariableFont_wdth,wght.ttf") format("truetype");
-  font-weight: 100 900;
-  font-style: normal;
-  font-display: swap;
-}
+@import url("./app-document-font-faces.css");
 
-@font-face {
-  font-family: "App Document Noto Sans Lao";
-  src: url("./Noto_Sans_Lao/NotoSansLao-VariableFont_wdth,wght.ttf") format("truetype");
-  font-weight: 100 900;
-  font-style: normal;
-  font-display: swap;
-  unicode-range: U+0E80-0EFF;
-}
-
-@font-face {
-  font-family: "App Document Noto Serif Lao";
-  src: url("./Noto_Serif_Lao/NotoSerifLao-VariableFont_wdth,wght.ttf") format("truetype");
-  font-weight: 100 900;
-  font-style: normal;
-  font-display: swap;
-  unicode-range: U+0E80-0EFF;
-}
-
-@font-face {
-  font-family: "App Document Phetsarath";
-  src: url("./Phetsarath/Phetsarath-Regular.ttf") format("truetype");
-  font-weight: 400;
-  font-style: normal;
-  font-display: swap;
-  unicode-range: U+0E80-0EFF;
-}
-
-@font-face {
-  font-family: "App Document Phetsarath";
-  src: url("./Phetsarath/Phetsarath-Bold.ttf") format("truetype");
-  font-weight: 700;
-  font-style: normal;
-  font-display: swap;
-  unicode-range: U+0E80-0EFF;
-}
-
-@font-face {
-  font-family: "App Document Saysettha";
-  src: url("./saysettha_ot.ttf") format("truetype");
-  font-weight: 400;
-  font-style: normal;
-  font-display: swap;
-  unicode-range: U+0E80-0EFF;
-}
-
+/* Document-only selection rules must not be loaded into the application shell. */
 html {
   --font-lao-ui: "App Document Noto Sans Lao";
+  --font-document-fallback: "App Document Noto Sans";
 }
 
 html[data-lao-font="noto-serif"] {
@@ -63,6 +12,7 @@ html[data-lao-font="noto-serif"] {
 
 html[data-lao-font="phetsarath"] {
   --font-lao-ui: "App Document Phetsarath";
+  --font-document-fallback: "App Document Phetsarath Fallback";
 }
 
 html[data-lao-font="saysettha"] {
@@ -70,5 +20,5 @@ html[data-lao-font="saysettha"] {
 }
 
 body {
-  font-family: var(--font-lao-ui), "App Document Noto Sans", sans-serif;
+  font-family: var(--font-lao-ui), var(--font-document-fallback), sans-serif;
 }
