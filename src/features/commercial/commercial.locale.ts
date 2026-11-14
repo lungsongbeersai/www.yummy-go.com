@@ -3,6 +3,16 @@
 import { useTranslation } from "react-i18next";
 
 const la = {
+  sharePdf: "ແຊຣ໌ PDF",
+  shareChannelsHint: "ແຊຣ໌ PDF ຜ່ານ WhatsApp, LINE, Telegram, ອີເມວ ຫຼື ແອັບທີ່ຕິດຕັ້ງ ແລະ ຮອງຮັບການແຊຣ໌ໄຟລ໌",
+  shareVisibleDetailsHint: "PDF ຈະລວມຂໍ້ມູນທີ່ກໍາລັງສະແດງໃນຕົວຢ່າງເອກະສານ",
+  sharePreparing: "ກໍາລັງກຽມ PDF…",
+  shareReady: "PDF ພ້ອມແຊຣ໌",
+  shareNativeHint: "ກົດແຊຣ໌ ແລ້ວເລືອກແອັບທີ່ຮອງຮັບໃນອຸປະກອນຂອງທ່ານ",
+  shareFallbackHint: "ອຸປະກອນນີ້ບໍ່ສາມາດແຊຣ໌ PDF ໂດຍກົງໄດ້. ດາວໂຫຼດ PDF ແລ້ວແນບໄຟລ໌ໃນ WhatsApp, LINE, Telegram, ອີເມວ ຫຼື ແອັບທີ່ຕ້ອງການ",
+  shareFailed: "ບໍ່ສາມາດເປີດເມນູແຊຣ໌ໄດ້. ລອງອີກຄັ້ງ ຫຼື ດາວໂຫຼດ PDF ເພື່ອແນບໄຟລ໌ເອງ",
+  shareOpening: "ກໍາລັງເປີດເມນູແຊຣ໌…",
+  downloadPdf: "ດາວໂຫຼດ PDF",
   paymentAccountRow: "ບັນຊີ", addPaymentProfileRow: "ເພີ່ມແຖວບັນຊີ", removePaymentProfileRow: "ລຶບແຖວບັນຊີ", removePaymentProfileRowConfirm: "ລຶບແຖວບັນຊີນີ້ ແລະ ຂໍ້ມູນທີ່ຍັງບໍ່ບັນທຶກ?", savePaymentProfiles: "ບັນທຶກທຸກບັນຊີ", paymentProfilesBatchHint: "ເພີ່ມໄດ້ຄັ້ງລະສູງສຸດ 3 ບັນຊີ ແລະ ບັນທຶກບັນຊີສ່ວນຕົວໄດ້ລວມ 20 ບັນຊີ", paymentProfilesChooseAfterSave: "ຫຼັງບັນທຶກ ໃຫ້ເລືອກບັນຊີທີ່ຕ້ອງການໃຊ້ໃນເອກະສານ", paymentProfilesLimit: "ບັນທຶກໄດ້ຄັ້ງລະ 1–3 ບັນຊີ ແລະ ລວມບໍ່ເກີນ 20 ບັນຊີ", paymentQrBusy: "ກະລຸນາຢືນຢັນ ຫຼື ຍົກເລີກການຕັດຮູບ QR ກ່ອນບັນທຶກບັນຊີ",
   cropQr: "ຕັດຮູບ QR", qrCropHint: "ລາກ ແລະ ຊູມເພື່ອເລືອກກອບສີ່ຫຼ່ຽມ. ຮັກສາຂອບສີຂາວຮອບ QR. ການປ່ຽນແປງຈະໃຊ້ເມື່ອຢືນຢັນ", qrImageInvalid: "ເລືອກ PNG, JPEG ຫຼື WebP ບໍ່ເກີນ 5 MB ແລະ 8 ລ້ານພິກເຊວ", qrCropTooLarge: "ຮູບທີ່ຕັດເກີນ 8 ລ້ານພິກເຊວ ຫຼື 2 MB. ເລືອກກອບນ້ອຍລົງ ຫຼື ຮູບອື່ນ", qrCropFailed: "ບໍ່ສາມາດອ່ານ ຫຼື ຕັດຮູບນີ້ໄດ້. ກະລຸນາເລືອກຮູບອື່ນ", qrZoom: "ຊູມ", qrReset: "ສະແດງຮູບເຕັມ", qrConfirm: "ໃຊ້ຮູບ QR ທີ່ຕັດ",
   title: "ສິນຄ້າ ແລະ ເອກະສານການຄ້າ",
@@ -58,6 +68,16 @@ const la = {
 } as const;
 
 const en: Record<keyof typeof la, string> = {
+  sharePdf: "Share PDF",
+  shareChannelsHint: "Share the PDF through WhatsApp, LINE, Telegram, email or installed apps that support file sharing.",
+  shareVisibleDetailsHint: "The PDF includes the information currently visible in the document preview.",
+  sharePreparing: "Preparing PDF…",
+  shareReady: "PDF ready to share",
+  shareNativeHint: "Select Share PDF, then choose a compatible app installed on your device.",
+  shareFallbackHint: "This device cannot share PDF files directly. Download the PDF, then attach it in WhatsApp, LINE, Telegram, email or your preferred app.",
+  shareFailed: "Unable to open the share menu. Try again or download the PDF to attach it manually.",
+  shareOpening: "Opening share menu…",
+  downloadPdf: "Download PDF",
   paymentAccountRow: "Account", addPaymentProfileRow: "Add account row", removePaymentProfileRow: "Remove account row", removePaymentProfileRowConfirm: "Remove this account row and its unsaved details?", savePaymentProfiles: "Save all accounts", paymentProfilesBatchHint: "Add up to 3 accounts together. You can save up to 20 private accounts.", paymentProfilesChooseAfterSave: "After saving, choose the accounts to include in this document.", paymentProfilesLimit: "Save 1–3 accounts at a time, within the limit of 20 saved accounts.", paymentQrBusy: "Confirm or cancel the QR crop before saving the accounts.",
   cropQr: "Crop QR image", qrCropHint: "Drag and zoom to choose a square. Keep the white border around the QR. Changes apply only after confirmation.", qrImageInvalid: "Choose PNG, JPEG or WebP up to 5 MB and 8 megapixels.", qrCropTooLarge: "This crop exceeds 8 megapixels or 2 MB. Choose a smaller area or another image.", qrCropFailed: "Could not read or crop this image. Try another image.", qrZoom: "Zoom", qrReset: "Show full image", qrConfirm: "Use cropped QR",
   paymentFooter: "Payment details in document footer", privatePaymentHint: "Your saved bank accounts are private to you and can be reused.", paymentSharingHint: "Enable only the details you want document readers to see. Choose up to 3 accounts.", showPaymentAccounts: "Show account numbers", showPaymentQr: "Show payment QR", addPaymentProfile: "Add account", editPaymentProfile: "Edit account", savePaymentProfile: "Save account", managePaymentProfiles: "Manage private accounts", choosePaymentProfile: "Choose saved account", emptyPaymentProfiles: "No private accounts saved yet", paymentProfileLabel: "Account label", bankName: "Bank name", accountName: "Account holder", accountNumber: "Account number", currency: "Currency", paymentQr: "Payment QR", paymentQrHint: "PNG, JPEG or WebP, up to 5 MB. QR sharpness is preserved.", paymentProfileRequired: "Enter an account holder and account number for every row.", removeQr: "Remove QR image", removeQrConfirm: "Remove this QR image when the account is saved?", removePaymentAccount: "Remove account from draft", removePaymentAccountConfirm: "Remove this account from the document draft? Your saved private account is kept.", savedPaymentSnapshot: "Details from the saved document", refreshPaymentProfile: "Use latest saved account details", paymentNumberNotIncluded: "This version did not include the account number", paymentSnapshotHint: "Saved document details do not change with your private accounts. Select the latest saved details again to add a number or QR that was not previously included.", legacyBankHint: "Bank details entered in the Issuer step appear only when Show account numbers is enabled.", paymentSelectionRequired: "Choose an account containing the number or QR you enabled. Details omitted from an earlier version must be selected again from your private accounts.",

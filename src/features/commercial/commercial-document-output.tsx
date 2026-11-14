@@ -1,23 +1,26 @@
 "use client";
 
-import { useRef, useState, type ReactNode } from "react";
+import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { commercialEditHref } from "@/features/commercial/commercial-routes";
 import { internalRoute } from "@/lib/routes";
 import { useTranslation } from "react-i18next";
-import { Download, Printer } from "lucide-react";
+import { Download, Printer, Share2 } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { isCapacitorNativeApp } from "@/lib/capacitor-platform";
 import { useCommercialLabels } from "@/features/commercial/commercial.locale";
+import { CommercialShareDialog } from "@/features/commercial/commercial-share-dialog";
 import { useCommercialStore } from "@/stores/commercial-store";
 import { useAppStore } from "@/stores/app-store";
+import { authStoreUuid, useAuthStore } from "@/stores/auth-store";
 import type { CatalogItem, CommercialDocument, CommercialParty } from "@/services/commercial";
 import { renderCommercialCatalog, renderCommercialDocument, type CommercialPrintOptions } from "./commercial-print";
 import { updateCommercialPreview } from "./commercial-page-layout";
+import type { CommercialPdfDownload } from "./commercial-pdf-download";
 
 interface OutputFrameProps {
   title: string;
@@ -29,7 +32,20 @@ interface OutputFrameProps {
   metadata?: ReactNode;
 }
 
-function CommercialOutputFrame({ title, onClose, initialShowImages, paymentVisibility, render, toolbar, metadata }: OutputFrameProps) {
+function outputIdentity() {
+  const { user, token } = useAuthStore.getState();
+  return JSON.stringify([user?.uuid, authStoreUuid(user), token]);
+}
+
+function CommercialOutputFrame(props: OutputFrameProps) {
+  const identity = useAuthStore(state => JSON.stringify([state.user?.uuid, authStoreUuid(state.user), state.token]));
+  const [session, setSession] = useState({ identity, generation: 0 });
+  if (session.identity !== identity) setSession({ identity, generation: session.generation + 1 });
+  // Drop prepared private files before a different session can interact with them.
+  return <CommercialOutputContent key={`${props.title}:${session.generation}`} {...props} />;
+}
+
+function CommercialOutputContent({ title, onClose, initialShowImages, paymentVisibility, render, toolbar, metadata }: OutputFrameProps) {
   const { t } = useTranslation();
   const l = useCommercialLabels();
   const laoFont = useAppStore(state => state.laoFont);
@@ -40,10 +56,37 @@ function CommercialOutputFrame({ title, onClose, initialShowImages, paymentVisib
   const [error, setError] = useState<string | null>(null);
   const [exporting, setExporting] = useState(false);
   const [loadedPreview, setLoadedPreview] = useState<string | null>(null);
+  const [shareOpen, setShareOpen] = useState(false);
+  const [shareFile, setShareFile] = useState<File | null>(null);
+  const [sharePreparing, setSharePreparing] = useState(false);
+  const [shareError, setShareError] = useState<string | null>(null);
   const frame = useRef<HTMLIFrameElement>(null);
-  const previewKey = `${title}:${laoFont}:${showImages}:${showLogo}:${showPaymentAccounts}:${showPaymentQr}`;
-  const previewReady = loadedPreview === previewKey;
+  const mounted = useRef(false);
+  const exportingNow = useRef(false);
+  const shareRequest = useRef(0);
+  const downloads = useRef(new Set<CommercialPdfDownload>());
   const options: CommercialPrintOptions = { showImages, showLogo, showPaymentAccounts, showPaymentQr, laoFont, baseUrl: typeof window === "undefined" ? undefined : window.location.origin };
+  const html = render(options);
+  const [preview, setPreview] = useState({ html, generation: 0 });
+  if (preview.html !== html) {
+    setPreview({ html, generation: preview.generation + 1 });
+    setLoadedPreview(null);
+    setShareOpen(false);
+    setShareFile(null);
+    setShareError(null);
+    setSharePreparing(false);
+  }
+  const previewKey = `${title}:${preview.generation}`;
+  const previewReady = loadedPreview === previewKey;
+  useLayoutEffect(() => {
+    shareRequest.current += 1;
+    const activeDownloads = downloads.current;
+    return () => { activeDownloads.forEach(download => download.dispose()); activeDownloads.clear(); };
+  }, [previewKey]);
+  useEffect(() => {
+    mounted.current = true;
+    return () => { mounted.current = false; shareRequest.current += 1; };
+  }, []);
   const preparePreview = () => {
     const target = frame.current?.contentDocument;
     if (!target) return;
@@ -57,12 +100,15 @@ function CommercialOutputFrame({ title, onClose, initialShowImages, paymentVisib
     });
   };
   const print = async () => {
+    if (exportingNow.current || !previewReady) return;
     setError(null);
+    const identity = outputIdentity();
     try {
       const target = frame.current?.contentWindow;
       if (!target || !frame.current?.contentDocument) throw new Error("preview_unavailable");
       await target.document.fonts.ready;
       await Promise.all(Array.from(target.document.images, image => image.decode()));
+      if (!mounted.current || identity !== outputIdentity() || frame.current?.contentWindow !== target) return;
       target.focus();
       target.print();
     } catch {
@@ -70,18 +116,57 @@ function CommercialOutputFrame({ title, onClose, initialShowImages, paymentVisib
     }
   };
   const download = async () => {
-    if (exporting) return;
+    if (exportingNow.current || !previewReady) return;
     setError(null);
+    exportingNow.current = true;
     setExporting(true);
+    const identity = outputIdentity();
     try {
       const source = frame.current?.contentDocument;
       if (!source) throw new Error("preview_unavailable");
       const { downloadCommercialPdf } = await import("@/features/commercial/commercial-pdf");
-      await downloadCommercialPdf(source, title.replace(/[\\/:*?"<>|]/g, "-") || "commercial-document");
+      if (!mounted.current || identity !== outputIdentity()) return;
+      const result = await downloadCommercialPdf(source, title, () => mounted.current && identity === outputIdentity() && frame.current?.contentDocument === source);
+      downloads.current.add(result.download);
+      void result.download.released.then(() => downloads.current.delete(result.download));
     } catch (failure) {
       const detail = failure instanceof Error ? failure.message : "";
-      setError(`${t("commercial.pdfFailed", { defaultValue: "ສ້າງ PDF ບໍ່ສໍາເລັດ. ກະລຸນາກວດຮູບ ແລະ ຄວາມຍາວຂອງລາຍການ ແລ້ວລອງໃໝ່." })}${detail ? ` (${detail})` : ""}`);
-    } finally { setExporting(false); }
+      if (mounted.current && identity === outputIdentity()) setError(`${t("commercial.pdfFailed", { defaultValue: "ສ້າງ PDF ບໍ່ສໍາເລັດ. ກະລຸນາກວດຮູບ ແລະ ຄວາມຍາວຂອງລາຍການ ແລ້ວລອງໃໝ່." })}${detail ? ` (${detail})` : ""}`);
+    } finally { exportingNow.current = false; if (mounted.current) setExporting(false); }
+  };
+
+  const prepareShare = async () => {
+    if (exportingNow.current || !previewReady) return;
+    const request = ++shareRequest.current;
+    const identity = outputIdentity();
+    const source = frame.current?.contentDocument;
+    const current = () => mounted.current && request === shareRequest.current && identity === outputIdentity() && frame.current?.contentDocument === source;
+    setShareFile(null);
+    setShareError(null);
+    setSharePreparing(true);
+    setExporting(true);
+    exportingNow.current = true;
+    try {
+      if (!source) throw new Error("preview_unavailable");
+      const { createCommercialPdf } = await import("@/features/commercial/commercial-pdf");
+      if (!current()) return;
+      const result = await createCommercialPdf(source, title, current);
+      if (current()) setShareFile(result.file);
+    } catch (failure) {
+      if (current()) setShareError(`${t("commercial.pdfFailed")} (${failure instanceof Error ? failure.message : "pdf_unavailable"})`);
+    } finally {
+      exportingNow.current = false;
+      if (mounted.current) setExporting(false);
+      if (current()) setSharePreparing(false);
+    }
+  };
+
+  const closeShare = () => {
+    shareRequest.current += 1;
+    setShareOpen(false);
+    setShareFile(null);
+    setShareError(null);
+    setSharePreparing(false);
   };
   return <Dialog open onOpenChange={open => { if (!open && !exporting) onClose(); }}>
     <DialogContent showCloseButton={!exporting} className="w-[calc(100%-1rem)] max-w-6xl gap-3 p-3 sm:max-w-6xl sm:p-5">
@@ -96,11 +181,13 @@ function CommercialOutputFrame({ title, onClose, initialShowImages, paymentVisib
         {paymentVisibility?.accounts ? <label className="flex min-h-11 cursor-pointer items-center gap-2"><Checkbox disabled={exporting} checked={showPaymentAccounts} onCheckedChange={value => setShowPaymentAccounts(value === true)} />{l("showPaymentAccounts")}</label> : null}
         {paymentVisibility?.qr ? <label className="flex min-h-11 cursor-pointer items-center gap-2"><Checkbox disabled={exporting} checked={showPaymentQr} onCheckedChange={value => setShowPaymentQr(value === true)} />{l("showPaymentQr")}</label> : null}
         <div className="flex flex-wrap gap-2 sm:ml-auto">{!exporting ? toolbar : null}{!isCapacitorNativeApp() ? <Button type="button" variant="outline" className="min-h-11" disabled={exporting || !previewReady} onClick={() => { void print(); }}><Printer />{t("commercial.print", { defaultValue: "ພິມ" })}</Button> : null}
+        <Button type="button" variant="outline" className="min-h-11" disabled={exporting || !previewReady} onClick={() => { if (!exportingNow.current && previewReady) { setShareOpen(true); void prepareShare(); } }}><Share2 />{l("sharePdf")}</Button>
         <Button type="button" className="min-h-11" disabled={exporting || !previewReady} onClick={() => { void download(); }}><Download />{t(exporting ? "commercial.saving" : "commercial.downloadPdf", { defaultValue: exporting ? "ກໍາລັງບັນທຶກ…" : "ດາວໂຫຼດ PDF" })}</Button></div>
       </div>
       {error ? <Alert variant="destructive"><AlertDescription>{error}</AlertDescription></Alert> : null}
-      <iframe key={previewKey} ref={frame} title={title} srcDoc={render(options)} onLoad={preparePreview} sandbox="allow-same-origin allow-modals" className="h-[62dvh] w-full rounded-md border border-border bg-background" />
+      <iframe key={previewKey} ref={frame} title={title} srcDoc={html} onLoad={preparePreview} sandbox="allow-same-origin allow-modals" className="h-[62dvh] w-full rounded-md border border-border bg-background" />
     </DialogContent>
+    {shareOpen ? <CommercialShareDialog title={title} file={shareFile} preparing={sharePreparing} error={shareError} onPrepare={() => { void prepareShare(); }} onClose={closeShare} /> : null}
   </Dialog>;
 }
 

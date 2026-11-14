@@ -4152,6 +4152,15 @@
     }
   },
   "commercial": {
+    "sharePdf": "Share PDF",
+    "shareChannelsHint": "Share the PDF through WhatsApp, LINE, Telegram, email or installed apps that support file sharing.",
+    "shareVisibleDetailsHint": "The PDF includes the information currently visible in the document preview.",
+    "sharePreparing": "Preparing PDF…",
+    "shareReady": "PDF ready to share",
+    "shareNativeHint": "Select Share PDF, then choose a compatible app installed on your device.",
+    "shareFallbackHint": "This device cannot share PDF files directly. Download the PDF, then attach it in WhatsApp, LINE, Telegram, email or your preferred app.",
+    "shareFailed": "Unable to open the share menu. Try again or download the PDF to attach it manually.",
+    "shareOpening": "Opening share menu…",
     "title": "Catalog & commercial documents",
     "subtitle": "Save prices once and reuse them across every store and branch you manage",
     "printBlocked": "Unable to open the print window. Allow pop-ups and try again.",

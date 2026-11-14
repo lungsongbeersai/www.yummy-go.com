@@ -1,6 +1,9 @@
 "use client";
 
+import type { jsPDF as PdfDocument } from "jspdf";
 import { updateCommercialPreview, CommercialPageLayoutError } from "./commercial-page-layout";
+import { COMMERCIAL_PAPER, commercialContentHeightForWidth } from "./commercial-paper";
+import { downloadCommercialPdfFile, type CommercialPdfDownload } from "./commercial-pdf-download";
 
 export class CommercialPdfError extends Error {
   constructor(readonly code: "layout" | "image" | "font", message: string) {
@@ -131,14 +134,16 @@ async function normalizeImages(element: HTMLElement, document: Document, cache: 
   }
 }
 
-/** Capture the exact prepared pages used by preview and the Print button. */
-export async function downloadCommercialPdf(sourceDocument: Document, fileName: string): Promise<{ pageCount: number }> {
+/** Capture the exact prepared pages used by preview, printing and sharing. */
+async function buildCommercialPdf(sourceDocument: Document, isCurrent: () => boolean): Promise<{ pdf: PdfDocument; pageCount: number }> {
+  const assertCurrent = () => { if (!isCurrent()) throw new DOMException("Document export cancelled", "AbortError"); };
+  assertCurrent();
   const source = sourceDocument.querySelector<HTMLElement>("[data-commercial-source]") ?? sourceDocument.querySelector<HTMLElement>(".paper");
   const view = sourceDocument.defaultView;
   if (!source || !view) throw new CommercialPdfError("layout", "The document preview is not ready");
   const host = sourceDocument.createElement("div");
   host.setAttribute("aria-hidden", "true");
-  host.style.cssText = "position:fixed;left:-20000px;top:0;width:186mm;pointer-events:none;";
+  host.style.cssText = `position:fixed;left:-20000px;top:0;width:${COMMERCIAL_PAPER.contentWidthMm}mm;pointer-events:none;`;
   sourceDocument.body.append(host);
   try {
     const stylesheets = Array.from(sourceDocument.querySelectorAll<HTMLLinkElement>('link[rel="stylesheet"]'));
@@ -147,6 +152,7 @@ export async function downloadCommercialPdf(sourceDocument: Document, fileName: 
       link.addEventListener("error", () => reject(new CommercialPdfError("font", "Unable to load document fonts")), { once: true });
     }))), "font");
     await prepareDrawingFonts(sourceDocument);
+    assertCurrent();
     let printPages = Array.from(sourceDocument.querySelectorAll<HTMLElement>("[data-commercial-pages] [data-commercial-page]"));
     try {
       if (!printPages.length) {
@@ -160,25 +166,28 @@ export async function downloadCommercialPdf(sourceDocument: Document, fileName: 
     const imageCache = new Map<string, Promise<string>>();
     const pages: HTMLElement[] = [];
     for (const printPage of printPages) {
+      assertCurrent();
       const original = printPage.getBoundingClientRect();
       const page = printPage.cloneNode(true) as HTMLElement;
       // Freeze the already arranged print page instead of independently
       // rebuilding its rows, filler and ending from the canonical source.
-      page.style.cssText = "width:186mm;max-width:none;height:auto;min-height:0;margin:0;padding:0;display:flow-root;box-sizing:border-box;";
+      page.style.cssText = `width:${COMMERCIAL_PAPER.contentWidthMm}mm;max-width:none;height:auto;min-height:0;margin:0;padding:0;display:flow-root;box-sizing:border-box;`;
       page.style.fontFamily = view.getComputedStyle(printPage).fontFamily;
       host.append(page);
       await normalizeImages(page, sourceDocument, imageCache);
+      assertCurrent();
       const copy = page.getBoundingClientRect();
       if (original.width <= 0 || Math.abs(copy.width - original.width) > 1 || Math.abs(copy.height - original.height) > 1) {
         throw new CommercialPdfError("layout", "The print layout changed before export; refresh the preview and try again");
       }
       pages.push(page);
     }
-    const fits = (page: HTMLElement) => page.getBoundingClientRect().height <= page.getBoundingClientRect().width * 269 / 186 - 1 && page.scrollWidth <= page.clientWidth + 1;
+    const fits = (page: HTMLElement) => page.getBoundingClientRect().height <= commercialContentHeightForWidth(page.getBoundingClientRect().width) - 1 && page.scrollWidth <= page.clientWidth + 1;
     const [{ jsPDF }, { default: html2canvas }] = await Promise.all([import("jspdf"), import("html2canvas-pro")]);
     const pdf = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4", compress: true });
     pdf.setProperties({ title: sourceDocument.title, creator: "Yummy Go" });
     for (const [index, page] of pages.entries()) {
+      assertCurrent();
       await Promise.all(Array.from(page.querySelectorAll("img"), (image) => bounded(image.decode(), "image")));
       if (!fits(page)) throw new CommercialPdfError("layout", "The document layout changed before export");
       const canvas = await html2canvas(page, {
@@ -200,12 +209,29 @@ export async function downloadCommercialPdf(sourceDocument: Document, fileName: 
         },
       });
       try {
+        assertCurrent();
         if (index > 0) pdf.addPage();
         // Lossless pages preserve small Lao glyphs, table rules and QR modules.
-        pdf.addImage(canvas.toDataURL("image/png"), "PNG", 12, 14, 186, canvas.height * 186 / canvas.width);
+        pdf.addImage(canvas.toDataURL("image/png"), "PNG", COMMERCIAL_PAPER.horizontalMarginMm, COMMERCIAL_PAPER.verticalMarginMm, COMMERCIAL_PAPER.contentWidthMm, canvas.height * COMMERCIAL_PAPER.contentWidthMm / canvas.width);
       } finally { canvas.width = 0; canvas.height = 0; }
     }
-    await pdf.save(fileName.toLowerCase().endsWith(".pdf") ? fileName : `${fileName}.pdf`, { returnPromise: true });
-    return { pageCount: pages.length };
+    return { pdf, pageCount: pages.length };
   } finally { host.remove(); }
+}
+
+function pdfFileName(fileName: string) {
+  const name = fileName.replace(/[\\/:*?"<>|\u0000-\u001f]/g, "-").trim() || "commercial-document";
+  return name.toLowerCase().endsWith(".pdf") ? name : `${name}.pdf`;
+}
+
+export async function createCommercialPdf(sourceDocument: Document, fileName: string, isCurrent: () => boolean = () => true): Promise<{ file: File; pageCount: number }> {
+  const { pdf, pageCount } = await buildCommercialPdf(sourceDocument, isCurrent);
+  if (!isCurrent()) throw new DOMException("Document export cancelled", "AbortError");
+  return { file: new File([pdf.output("blob")], pdfFileName(fileName), { type: "application/pdf" }), pageCount };
+}
+
+export async function downloadCommercialPdf(sourceDocument: Document, fileName: string, isCurrent: () => boolean = () => true): Promise<{ pageCount: number; download: CommercialPdfDownload }> {
+  const { file, pageCount } = await createCommercialPdf(sourceDocument, fileName, isCurrent);
+  if (!isCurrent()) throw new DOMException("Document export cancelled", "AbortError");
+  return { pageCount, download: downloadCommercialPdfFile(file, isCurrent) };
 }
