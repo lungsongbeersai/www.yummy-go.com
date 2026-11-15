@@ -4210,7 +4210,21 @@
     "reportPrinted": "Report printed",
     "reportPrinterUnavailable": "Set up a report printer for this device to print from the app.",
     "printDeliveryUnknown": "Print result not confirmed. Check the printer before trying again.",
-    "reportPrintFailed": "Could not print. Check the report printer and connection."
+    "reportPrintFailed": "Could not print. Check the report printer and connection.",
+    "printEscpos": "ESC/POS",
+    "printPdfOption": "PDF / A4",
+    "browserReportTitle": "My orders · PDF / A4",
+    "invalidReportLink": "This report link is invalid. Open PDF again from My orders.",
+    "reportAccountMismatch": "Sign in with the same employee account and branch as the app to open this report.",
+    "reportDayMismatch": "The business day has changed. Open PDF again from My orders.",
+    "downloadPdf": "Download PDF",
+    "openPdf": "Open PDF",
+    "printPdf": "Print / Save PDF",
+    "preparePdf": "Prepare PDF",
+    "pdfReady": "PDF ready",
+    "backToTables": "Back to tables",
+    "pdfBrowserFailed": "Could not open PDF. Allow a new browser window and try again.",
+    "signInAppAccount": "Switch to the app account"
   },
   "mySales": {
     "title": "My orders",

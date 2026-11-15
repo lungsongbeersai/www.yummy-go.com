@@ -3,7 +3,7 @@ import { ServiceError } from "@/lib/api";
 import type { EmployeeWorkItem, EmployeeWorkOrder, EmployeeWorkResponse } from "@/services/pos";
 import type { KitchenPrintResult } from "@/services/printer";
 import { employeeWorkPeriod } from "./employee-work-period";
-import { buildEmployeeWorkReportOps, EmployeeWorkPrintError, printEmployeeWorkOnNative, type EmployeeWorkNativePrintInput, type EmployeeWorkPrintTransport } from "./employee-work-report-printer";
+import { buildEmployeeWorkReportOps, EmployeeWorkPrintError, printEmployeeWorkEscpos, type EmployeeWorkEscposPrintInput, type EmployeeWorkPrintTransport } from "./employee-work-report-printer";
 
 const system = vi.hoisted(() => ({ print: vi.fn() }));
 vi.mock("@/lib/android-system-print", () => ({ printHtmlWithAndroidSystemPrint: system.print }));
@@ -47,11 +47,11 @@ function setup(value = report()) {
     executeReport: vi.fn<EmployeeWorkPrintTransport["executeReport"]>().mockResolvedValue({ total: 1, successCount: 1, failedCount: 0 }),
   };
   let current = true;
-  const input: EmployeeWorkNativePrintInput = { report: value, html: "<!doctype html><p>Synthetic private A4</p>", jobName: "Synthetic own report", label, language: "la", isCurrent: () => current, transport };
+  const input: EmployeeWorkEscposPrintInput = { report: value, jobName: "Synthetic own report", label, language: "la", isCurrent: () => current, transport };
   return { input, transport, invalidate: () => { current = false; } };
 }
 
-beforeEach(() => { vi.clearAllMocks(); system.print.mockResolvedValue(false); });
+beforeEach(() => { vi.clearAllMocks(); system.print.mockRejectedValue(new Error("System printing must not be selected by ESC/POS")); });
 
 describe("complete employee report printer operations", () => {
   it("includes all25 own records, filters/time/employee, warnings and only own amounts", () => {
@@ -102,84 +102,71 @@ describe("complete employee report printer operations", () => {
     if (limit === "total-text") for (const order of value.data) order.items[0].note = "x".repeat(4400);
     const { input, transport } = setup(value);
     if (limit === "column") input.label = key => key === "unitPrice" ? "x".repeat(2501) : label(key);
-    await expect(printEmployeeWorkOnNative(input)).rejects.toMatchObject({ code: "report-too-large", mayHavePrinted: false });
+    await expect(printEmployeeWorkEscpos(input)).rejects.toMatchObject({ code: "report-too-large", mayHavePrinted: false });
     expect(transport.resolveDeviceIdentity).not.toHaveBeenCalled();
     expect(transport.submitReportPrint).not.toHaveBeenCalled();
     expect(transport.executeReport).not.toHaveBeenCalled();
   });
 });
 
-describe("installed-shell employee report transport", () => {
-  it("keeps an available Android system dialog and never queues another printer", async () => {
+describe("explicit ESC/POS employee report transport", () => {
+  it.each(["android", "browser", "electron"])("uses the supplied printer queue on %s even if system printing is available", async platform => {
     system.print.mockResolvedValue(true);
     const { input, transport } = setup();
-    await expect(printEmployeeWorkOnNative(input)).resolves.toEqual({ status: "system-dialog" });
-    expect(system.print).toHaveBeenCalledWith({ html: input.html, jobName: input.jobName });
-    expect(transport.resolveDeviceIdentity).not.toHaveBeenCalled(); expect(transport.submitReportPrint).not.toHaveBeenCalled();
+    transport.resolveDeviceIdentity.mockResolvedValue({ device_code: `${platform}-device` });
+    transport.submitReportPrint.mockResolvedValue({ pending_query: { print_job_uuid: `${platform}-job`, login_uuid_fk: "employee", device_code: `${platform}-device` } });
+    await expect(printEmployeeWorkEscpos(input)).resolves.toEqual({ status: "printed" });
+    expect(transport.submitReportPrint).toHaveBeenCalledOnce();
+    expect(transport.submitReportPrint.mock.calls[0][0].device_code).toBe(`${platform}-device`);
+    expect(transport.executeReport).toHaveBeenCalledOnce();
+    expect(system.print).not.toHaveBeenCalled();
   });
 
-  it("keeps available A4 system printing independent of receipt operation limits", async () => {
-    system.print.mockResolvedValue(true);
-    const { input, transport } = setup(report(200));
-    await expect(printEmployeeWorkOnNative(input)).resolves.toEqual({ status: "system-dialog" });
-    expect(transport.submitReportPrint).not.toHaveBeenCalled();
-  });
-
-  it("missing system plugin uses the configured existing report queue/ACK transport without sending private A4 HTML", async () => {
+  it("explicit ESC/POS always uses the configured report queue/ACK transport without A4 HTML", async () => {
     const { input, transport } = setup(report(25));
-    await expect(printEmployeeWorkOnNative(input)).resolves.toEqual({ status: "printed" });
+    await expect(printEmployeeWorkEscpos(input)).resolves.toEqual({ status: "printed" });
     const submitted = transport.submitReportPrint.mock.calls[0][0];
     expect(submitted).toMatchObject({ device_code: "current-device", report_key: "employee_work", report_title: input.jobName, lang: "la", print_document: { paper_width_mm: 80, copies: 1, cut_mode: "per_ticket" } });
     expect(submitted.print_document.ops.filter(op => op.text?.startsWith("Owned product"))).toHaveLength(25);
     expect(submitted.print_document.browser_payload).toBeUndefined(); expect(submitted.report_payload).toBeUndefined();
-    expect(JSON.stringify(submitted)).not.toContain("Synthetic private A4");
+    expect(system.print).not.toHaveBeenCalled();
+    expect(JSON.stringify(submitted)).not.toContain("<html");
     expect(transport.executeReport).toHaveBeenCalledOnce();
     expect(transport.executeReport).toHaveBeenCalledWith(expect.objectContaining({ login_uuid_fk: "employee", pending_query: expect.objectContaining({ print_job_uuid: "job", login_uuid_fk: "employee" }) }));
   });
 
-  it("does not fall through to another transport when an available system plugin fails", async () => {
-    system.print.mockRejectedValue(new Error("private native implementation details"));
-    const { input, transport } = setup();
-    await expect(printEmployeeWorkOnNative(input)).rejects.toMatchObject({ code: "print-failed", mayHavePrinted: true, message: "print-failed" });
-    expect(transport.submitReportPrint).not.toHaveBeenCalled();
-  });
-
-  it.each(["system", "identity", "queue"])("drops the previous report/session after awaited %s preparation", async phase => {
+  it.each(["identity", "queue"])("drops the previous report/session after awaited %s preparation", async phase => {
     const { input, transport, invalidate } = setup();
-    if (phase === "system") system.print.mockImplementationOnce(async () => { invalidate(); return false; });
     if (phase === "identity") transport.resolveDeviceIdentity.mockImplementationOnce(async () => { invalidate(); return { device_code: "current-device" }; });
     if (phase === "queue") transport.submitReportPrint.mockImplementationOnce(async () => { invalidate(); return { pending_query: { print_job_uuid: "job", login_uuid_fk: "employee" } }; });
-    await expect(printEmployeeWorkOnNative(input)).rejects.toMatchObject({ code: "stale" });
+    await expect(printEmployeeWorkEscpos(input)).rejects.toMatchObject({ code: "stale" });
     if (phase !== "queue") expect(transport.submitReportPrint).not.toHaveBeenCalled();
     expect(transport.executeReport).not.toHaveBeenCalled();
   });
 
-  it("checks stale identity again after the print dialog/executor resolves", async () => {
-    const systemCase = setup();
-    system.print.mockImplementationOnce(async () => { systemCase.invalidate(); return true; });
-    await expect(printEmployeeWorkOnNative(systemCase.input)).rejects.toMatchObject({ code: "stale" });
+  it("checks stale identity again after the printer executor resolves", async () => {
     const queuedCase = setup();
     queuedCase.transport.executeReport.mockImplementationOnce(async () => { queuedCase.invalidate(); return { total: 1, successCount: 1, failedCount: 0 }; });
-    await expect(printEmployeeWorkOnNative(queuedCase.input)).rejects.toMatchObject({ code: "stale" });
+    await expect(printEmployeeWorkEscpos(queuedCase.input)).rejects.toMatchObject({ code: "stale" });
   });
 
   it.each(["no-device", "no-printer"])("reports %s without fake success or browser fallback", async missing => {
     const { input, transport } = setup();
     if (missing === "no-device") transport.resolveDeviceIdentity.mockResolvedValue({ device_code: "" });
     else transport.submitReportPrint.mockResolvedValue({ pending_query: undefined, reason: "unconfigured report role" });
-    await expect(printEmployeeWorkOnNative(input)).rejects.toMatchObject({ code: "report-printer-unavailable", mayHavePrinted: false });
+    await expect(printEmployeeWorkEscpos(input)).rejects.toMatchObject({ code: "report-printer-unavailable", mayHavePrinted: false });
     expect(transport.executeReport).not.toHaveBeenCalled();
   });
 
   it("rejects a mismatched queue actor but preserves legitimate branch Shared target metadata", async () => {
     const mismatch = setup();
     mismatch.transport.submitReportPrint.mockResolvedValue({ pending_query: { print_job_uuid: "job", login_uuid_fk: "other-employee", device_code: "current-device" } });
-    await expect(printEmployeeWorkOnNative(mismatch.input)).rejects.toMatchObject({ code: "delivery-unknown", mayHavePrinted: true });
+    await expect(printEmployeeWorkEscpos(mismatch.input)).rejects.toMatchObject({ code: "delivery-unknown", mayHavePrinted: true });
     expect(mismatch.transport.executeReport).not.toHaveBeenCalled();
     const shared = setup();
     const pending = { print_job_uuid: "shared-job", login_uuid_fk: "employee", device_code: "owner-device", agent_id: "owner-agent", remote_shared_print: true };
     shared.transport.submitReportPrint.mockResolvedValue({ pending_query: pending });
-    await expect(printEmployeeWorkOnNative(shared.input)).resolves.toEqual({ status: "printed" });
+    await expect(printEmployeeWorkEscpos(shared.input)).resolves.toEqual({ status: "printed" });
     expect(shared.transport.executeReport.mock.calls[0][0].pending_query).toBe(pending);
   });
 
@@ -190,26 +177,26 @@ describe("installed-shell employee report transport", () => {
     { total: Infinity, successCount: Infinity, failedCount: 0 },
   ] satisfies KitchenPrintResult[])("does not label partial/pending/malformed result %j as printed or automatically retry", async result => {
     const { input, transport } = setup(); transport.executeReport.mockResolvedValue(result);
-    await expect(printEmployeeWorkOnNative(input)).rejects.toMatchObject({ code: "delivery-unknown", mayHavePrinted: true });
-    expect(system.print).toHaveBeenCalledOnce(); expect(transport.submitReportPrint).toHaveBeenCalledOnce(); expect(transport.executeReport).toHaveBeenCalledOnce();
+    await expect(printEmployeeWorkEscpos(input)).rejects.toMatchObject({ code: "delivery-unknown", mayHavePrinted: true });
+    expect(system.print).not.toHaveBeenCalled(); expect(transport.submitReportPrint).toHaveBeenCalledOnce(); expect(transport.executeReport).toHaveBeenCalledOnce();
   });
 
   it("keeps ambiguous submission failure unknown and never submits a second job", async () => {
     const { input, transport } = setup(); transport.submitReportPrint.mockRejectedValue(new Error("transport lost after commit"));
-    await expect(printEmployeeWorkOnNative(input)).rejects.toMatchObject({ code: "delivery-unknown", mayHavePrinted: true });
+    await expect(printEmployeeWorkEscpos(input)).rejects.toMatchObject({ code: "delivery-unknown", mayHavePrinted: true });
     expect(transport.submitReportPrint).toHaveBeenCalledOnce(); expect(transport.executeReport).not.toHaveBeenCalled();
   });
 
   it("reports explicit413 without treating it as uncertain paper delivery", async () => {
     const { input, transport } = setup(); transport.submitReportPrint.mockRejectedValue(new ServiceError("too large", 413));
-    await expect(printEmployeeWorkOnNative(input)).rejects.toMatchObject({ code: "report-too-large", mayHavePrinted: false });
+    await expect(printEmployeeWorkEscpos(input)).rejects.toMatchObject({ code: "report-too-large", mayHavePrinted: false });
   });
 
   it("deduplicates an in-flight report even while the first identity lookup is pending", async () => {
     const { input, transport } = setup();
     let resolve: ((value: { device_code: string }) => void) | undefined;
     transport.resolveDeviceIdentity.mockImplementationOnce(() => new Promise(done => { resolve = done; }));
-    const first = printEmployeeWorkOnNative(input), second = printEmployeeWorkOnNative(input);
+    const first = printEmployeeWorkEscpos(input), second = printEmployeeWorkEscpos(input);
     expect(first).toBe(second);
     await vi.waitFor(() => expect(resolve).toBeDefined()); resolve?.({ device_code: "current-device" });
     await expect(first).resolves.toEqual({ status: "printed" });
@@ -218,9 +205,9 @@ describe("installed-shell employee report transport", () => {
 
   it("rejects stale/invalid report before crossing either native or network boundary", async () => {
     const stale = setup(); stale.invalidate();
-    await expect(printEmployeeWorkOnNative(stale.input)).rejects.toMatchObject({ code: "stale" });
+    await expect(printEmployeeWorkEscpos(stale.input)).rejects.toMatchObject({ code: "stale" });
     const invalid = setup(); invalid.input.report.report.complete = false;
-    await expect(printEmployeeWorkOnNative(invalid.input)).rejects.toBeInstanceOf(EmployeeWorkPrintError);
+    await expect(printEmployeeWorkEscpos(invalid.input)).rejects.toBeInstanceOf(EmployeeWorkPrintError);
     expect(system.print).not.toHaveBeenCalled(); expect(invalid.transport.submitReportPrint).not.toHaveBeenCalled();
   });
 });

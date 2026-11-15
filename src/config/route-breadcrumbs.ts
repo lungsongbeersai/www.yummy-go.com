@@ -6,6 +6,7 @@ export const routeBreadcrumbs: Record<string, RouteBreadcrumbItem[]> = {
   "/commercial": [{ path: "/commercial", title: "commercial" }],
   "/package": [{ path: "/package", title: "package_management" }],
   "/my_orders": [{ path: "/my_orders", title: "my_orders" }],
+  "/my_work/report": [{ path: "/my_work/report", title: "my_orders" }],
   "/products/form": [
     { path: "/products", title: "menu_add_item" },
     { path: "/products/form", title: "product_form" }

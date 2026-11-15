@@ -1,7 +1,7 @@
 "use client";
 
 import axios, { AxiosError, type AxiosInstance, type InternalAxiosRequestConfig } from "axios";
-import { shouldLogoutForUnauthorized } from "@/lib/unauthorized-session";
+import { shouldLogoutForUnauthorized, unauthorizedLoginPath } from "@/lib/unauthorized-session";
 import { contractExpiryFromPayload } from "@/lib/contract-expiry";
 import { internalRoute } from "@/lib/routes";
 import { useAuthStore } from "@/stores/auth-store";
@@ -80,8 +80,9 @@ function createClient(authenticated: boolean): AxiosInstance {
           })
         ) {
           const expiry = contractExpiryFromPayload(error.response?.data);
+          const destination = internalRoute(expiry ? "/subscription-expired" : typeof window !== "undefined"
+            ? unauthorizedLoginPath(window.location.pathname, window.location.search) : "/login");
           if (expiry) expireContract(expiry); else logout();
-          const destination = internalRoute(expiry ? "/subscription-expired" : "/login");
           if (typeof window !== "undefined") window.location.assign(destination);
         }
         return Promise.reject(error);

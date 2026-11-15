@@ -4210,7 +4210,21 @@
     "reportPrinted": "ພິມລາຍງານສຳເລັດ",
     "reportPrinterUnavailable": "ກະລຸນາຕັ້ງຄ່າເຄື່ອງພິມລາຍງານສຳລັບອຸປະກອນນີ້.",
     "printDeliveryUnknown": "ຍັງຢືນຢັນຜົນການພິມບໍ່ໄດ້. ກວດເຄື່ອງພິມກ່ອນລອງໃໝ່.",
-    "reportPrintFailed": "ພິມບໍ່ສຳເລັດ. ກະລຸນາກວດເຄື່ອງພິມລາຍງານ ແລະ ການເຊື່ອມຕໍ່."
+    "reportPrintFailed": "ພິມບໍ່ສຳເລັດ. ກະລຸນາກວດເຄື່ອງພິມລາຍງານ ແລະ ການເຊື່ອມຕໍ່.",
+    "printEscpos": "ESC/POS",
+    "printPdfOption": "PDF / A4",
+    "browserReportTitle": "ອໍເດີຂອງຂ້ອຍ · PDF / A4",
+    "invalidReportLink": "ລິ້ງລາຍງານບໍ່ຖືກຕ້ອງ. ກະລຸນາເປີດ PDF ຈາກອໍເດີຂອງຂ້ອຍອີກຄັ້ງ.",
+    "reportAccountMismatch": "ກະລຸນາເຂົ້າບັນຊີພະນັກງານ ແລະ ສາຂາດຽວກັບໃນແອັບ ເພື່ອເປີດລາຍງານນີ້.",
+    "reportDayMismatch": "ປ່ຽນຮອບວັນເຮັດວຽກແລ້ວ. ກະລຸນາເປີດ PDF ຈາກອໍເດີຂອງຂ້ອຍອີກຄັ້ງ.",
+    "downloadPdf": "ດາວໂຫຼດ PDF",
+    "openPdf": "ເປີດ PDF",
+    "printPdf": "ພິມ / ບັນທຶກ PDF",
+    "preparePdf": "ກະກຽມ PDF",
+    "pdfReady": "PDF ພ້ອມແລ້ວ",
+    "backToTables": "ກັບໄປໜ້າໂຕະ",
+    "pdfBrowserFailed": "ເປີດ PDF ບໍ່ໄດ້. ກະລຸນາອະນຸຍາດໃຫ້ເປີດໜ້າຕ່າງເບຣົາເຊີໃໝ່ ແລ້ວລອງອີກຄັ້ງ.",
+    "signInAppAccount": "ປ່ຽນໄປໃຊ້ບັນຊີດຽວກັບແອັບ"
   },
   "mySales": {
     "title": "ອໍເດີຂອງຂ້ອຍ",

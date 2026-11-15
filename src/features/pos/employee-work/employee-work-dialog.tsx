@@ -1,7 +1,9 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { Clock3, Info, Inbox, LoaderCircle, Printer, RefreshCw, UserRound, X } from "lucide-react";
+import { AppLauncher } from "@capacitor/app-launcher";
+import { Capacitor } from "@capacitor/core";
+import { Clock3, Info, Inbox, RefreshCw, UserRound, X } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { AppPagination } from "@/components/common/app-pagination";
 import { LoadingState } from "@/components/common/loading-state";
@@ -13,6 +15,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { formatReportDate, formatReportDateTime } from "@/features/report/shared/report-date-format";
 import { isCapacitorNativeApp, openWindowOutsideNativeApp } from "@/lib/capacitor-platform";
 import { ServiceError } from "@/lib/api";
+import { cn } from "@/lib/utils";
 import { useAppStore } from "@/stores/app-store";
 import { useAuthStore } from "@/stores/auth-store";
 import { employeeWorkIdentity } from "@/stores/employee-work-helpers";
@@ -23,45 +26,10 @@ import type { EmployeeWorkResponse } from "@/services/pos";
 import { employeeWorkScopeLabel } from "./employee-work-format";
 import { EmployeeWorkScopes } from "./components/employee-work-scopes";
 import { EmployeeWorkToolbar } from "./components/employee-work-toolbar";
+import { EmployeeWorkPrintMenu } from "./components/employee-work-print-menu";
 import { EmployeeWorkOrders } from "./employee-work-orders";
-import { renderEmployeeWorkReport } from "./employee-work-print";
-import { EmployeeWorkPrintError, printEmployeeWorkOnNative } from "./employee-work-report-printer";
-
-async function waitForPrintFonts(target: Window, failedMessage: string) {
-  let timer: number | undefined;
-  const removeListeners: (() => void)[] = [];
-  const selectedFamily = () => target.getComputedStyle(target.document.body).fontFamily.split(",")[0].trim().replace(/^["']|["']$/g, "");
-  const definitionsReady = () => {
-    const family = selectedFamily();
-    const registered = new Set(Array.from(target.document.fonts, face => face.family.replace(/^["']|["']$/g, "")));
-    return family.startsWith("App Document ") && registered.has(family) && registered.has("App Document Noto Sans");
-  };
-  try {
-    await Promise.race([
-      (async () => {
-        const stylesheets = Array.from(target.document.querySelectorAll<HTMLLinkElement>('link[rel="stylesheet"]'));
-        if (!stylesheets.length) throw new Error(failedMessage);
-        await Promise.all(stylesheets.map(stylesheet => {
-          if (stylesheet.sheet && definitionsReady()) return;
-          return new Promise<void>((resolve, reject) => {
-            const loaded = () => resolve();
-            const failed = () => reject(new Error(failedMessage));
-            stylesheet.addEventListener("load", loaded, { once: true });
-            stylesheet.addEventListener("error", failed, { once: true });
-            removeListeners.push(() => { stylesheet.removeEventListener("load", loaded); stylesheet.removeEventListener("error", failed); });
-            if (stylesheet.sheet && definitionsReady()) loaded();
-          });
-        }));
-        const family = target.getComputedStyle(target.document.body).fontFamily;
-        if (!definitionsReady()) throw new Error(failedMessage);
-        const faces = await Promise.all([target.document.fonts.load(`400 12px ${family}`, "ລາຍງານ ABC 0123456789"), target.document.fonts.load(`700 12px ${family}`, "ລາຍງານ ABC 0123456789")]);
-        await target.document.fonts.ready;
-        if (faces.some(loaded => !loaded.some(face => face.family.replace(/^["']|["']$/g, "") === selectedFamily() && face.status === "loaded"))) throw new Error(failedMessage);
-      })(),
-      new Promise<never>((_, reject) => { timer = window.setTimeout(() => reject(new Error(failedMessage)), 15_000); }),
-    ]);
-  } finally { window.clearTimeout(timer); removeListeners.forEach(remove => remove()); }
-}
+import { EmployeeWorkPrintError, printEmployeeWorkEscpos } from "./employee-work-report-printer";
+import { employeeWorkBrowserPdfUrl, employeeWorkReportHref, type EmployeeWorkReportDestination } from "./employee-work-report-link";
 
 export function EmployeeWorkLauncher() {
   const identity = useAuthStore(state => employeeWorkIdentity(state.user, state.token));
@@ -80,20 +48,20 @@ function EmployeeWorkPanel() {
   const l = (key: string) => key === "all" ? t("common.all") : t(`employeeWork.${key}`);
   const language = useAppStore(state => state.language);
   const laoFont = useAppStore(state => state.laoFont);
+  const decorated = useAppStore(state => state.decorBackground);
   const state = useEmployeeWorkStore();
   const { enter, leave, load, checkRollover, boundaryDelay } = state;
   const [search, setSearch] = useState("");
   const [printError, setPrintError] = useState<string | null>(null);
-  const [printPending, setPrintPending] = useState(false);
+  const [outputPending, setOutputPending] = useState<"escpos" | "pdf" | null>(null);
   const mounted = useRef(false);
   const printing = useRef(false);
-  const printWindow = useRef<Window | null>(null);
   const response = state.response;
 
   useEffect(() => {
     mounted.current = true;
     const lease = enter();
-    return () => { mounted.current = false; printWindow.current?.close(); printWindow.current = null; leave(lease); };
+    return () => { mounted.current = false; leave(lease); };
   }, [enter, leave]);
   useEffect(() => { void load({ lang: language }).catch(() => {}); }, [language, load]);
   useEffect(() => {
@@ -113,44 +81,57 @@ function EmployeeWorkPanel() {
     if (response && !state.loading && response.pagination.page > Math.max(1, response.pagination.total_pages)) void load({ page: Math.max(1, response.pagination.total_pages) }).catch(() => {});
   }, [load, response, state.loading]);
 
-  async function print() {
+  async function printEscpos() {
     if (printing.current || state.loading || state.reportLoading) return;
     printing.current = true;
-    setPrintPending(true);
+    setOutputPending("escpos");
     setPrintError(null);
-    const native = isCapacitorNativeApp();
-    const target = native ? null : openWindowOutsideNativeApp("", "_blank", "width=1000,height=800");
-    if (!native && !target) { setPrintError(l("printPopupBlocked")); printing.current = false; setPrintPending(false); return; }
-    printWindow.current = target;
-    if (target) { target.document.title = l("reportTitle"); target.document.body.textContent = l("printPreparing"); }
     let preparedReport: EmployeeWorkResponse | null = null;
     try {
       preparedReport = await useEmployeeWorkStore.getState().loadReport();
       const report = preparedReport;
-      if (!report || !mounted.current || !useEmployeeWorkStore.getState().isCurrentReport(report)) { target?.close(); return; }
-      const html = renderEmployeeWorkReport(report, l, laoFont, `${window.location.origin}/`);
-      if (native) {
-        const printer = usePrinterStore.getState();
-        const result = await printEmployeeWorkOnNative({
-          report, html, jobName: l("reportTitle"), label: l, language,
-          isCurrent: () => mounted.current && useEmployeeWorkStore.getState().isCurrentReport(report),
-          transport: { resolveDeviceIdentity: printer.resolveDeviceIdentity, submitReportPrint: printer.submitReportPrint, executeReport: printer.executeReport },
-        });
-        if (result.status === "printed" && mounted.current && useEmployeeWorkStore.getState().isCurrentReport(report)) useToastStore.getState().show({ title: l("reportPrinted"), tone: "success" });
-      } else if (target && !target.closed) {
-        target.document.open(); target.document.write(html); target.document.close();
-        await waitForPrintFonts(target, l("reportFailed"));
-        if (!mounted.current || target.closed || !useEmployeeWorkStore.getState().isCurrentReport(report)) { target.close(); return; }
-        target.focus(); target.print();
-      }
+      if (!report || !mounted.current || !useEmployeeWorkStore.getState().isCurrentReport(report)) return;
+      const printer = usePrinterStore.getState();
+      await printEmployeeWorkEscpos({
+        report, jobName: l("reportTitle"), label: l, language,
+        isCurrent: () => mounted.current && useEmployeeWorkStore.getState().isCurrentReport(report),
+        transport: { resolveDeviceIdentity: printer.resolveDeviceIdentity, submitReportPrint: printer.submitReportPrint, executeReport: printer.executeReport },
+      });
+      if (mounted.current && useEmployeeWorkStore.getState().isCurrentReport(report)) useToastStore.getState().show({ title: l("reportPrinted"), tone: "success" });
     } catch (error) {
-      target?.close();
       if (mounted.current && (!preparedReport || useEmployeeWorkStore.getState().isCurrentReport(preparedReport))) {
         if (error instanceof EmployeeWorkPrintError) {
           if (error.code !== "stale") setPrintError(l(error.code === "report-printer-unavailable" ? "reportPrinterUnavailable" : error.code === "report-too-large" ? "reportTooLarge" : error.mayHavePrinted ? "printDeliveryUnknown" : "reportPrintFailed"));
         } else setPrintError(error instanceof ServiceError && error.statusCode === 413 ? l("reportTooLarge") : error instanceof Error ? error.message : l("reportFailed"));
       }
-    } finally { printing.current = false; if (mounted.current) setPrintPending(false); }
+    } finally { printing.current = false; if (mounted.current) setOutputPending(null); }
+  }
+
+  async function openPdf() {
+    const current = useEmployeeWorkStore.getState();
+    const snapshot = current.response;
+    if (printing.current || current.loading || current.reportLoading || !snapshot || checkRollover()) return;
+    printing.current = true;
+    setOutputPending("pdf"); setPrintError(null);
+    try {
+      const destination: EmployeeWorkReportDestination = {
+        employeeUuid: snapshot.employee.login_uuid, branchUuid: snapshot.employee.branch_uuid,
+        businessDate: snapshot.business_day.date, scope: current.params.scope ?? "current",
+        kitchenStatus: current.params.kitchen_status ?? "all", paymentStatus: current.params.payment_status ?? "all",
+        search: current.params.search ?? "", language, laoFont,
+      };
+      if (isCapacitorNativeApp()) {
+        if (!Capacitor.isPluginAvailable("AppLauncher")) throw new Error("Browser launcher unavailable");
+        const result = await AppLauncher.openUrl({ url: employeeWorkBrowserPdfUrl(window.location.origin, destination) });
+        if (!result.completed) throw new Error("Browser could not be opened");
+      } else {
+        const target = openWindowOutsideNativeApp(employeeWorkReportHref(destination), "_blank");
+        if (!target) throw new Error("Print window blocked");
+        target.opener = null;
+      }
+    } catch {
+      if (mounted.current) setPrintError(l("pdfBrowserFailed"));
+    } finally { printing.current = false; if (mounted.current) setOutputPending(null); }
   }
 
   const scope = state.params.scope ?? "current";
@@ -159,20 +140,20 @@ function EmployeeWorkPanel() {
   const updatedAt = response ? formatReportDateTime(response.server_now) : "";
   const updatedTime = updatedAt.split(" ")[1]?.slice(0, 5) ?? "—";
   return <DialogContent showCloseButton={false} className="inset-0 top-0 left-0 flex h-dvh max-h-dvh w-full max-w-none translate-x-0 translate-y-0 flex-col gap-0 overflow-hidden rounded-none p-0 font-lao sm:inset-auto sm:top-1/2 sm:left-1/2 sm:h-[min(90dvh,900px)] sm:max-h-[90dvh] sm:w-[calc(100%-2rem)] sm:max-w-6xl sm:-translate-x-1/2 sm:-translate-y-1/2 sm:rounded-xl">
-    <div className="flex shrink-0 items-start justify-between gap-2 border-b border-primary/15 bg-primary/10 px-3 py-2 pt-[max(0.5rem,env(safe-area-inset-top,0px))] sm:px-5 sm:py-3">
-      <DialogHeader className="min-w-0 flex-1 gap-1 rounded-none border-0 bg-transparent p-0 text-left">
-        <DialogTitle className="flex min-h-9 items-center gap-2 text-base text-primary-text"><UserRound className="size-4 shrink-0" /><span className="truncate">{l("title")}</span></DialogTitle>
+    <DialogHeader className={cn("shrink-0 flex-row items-start justify-between gap-2 rounded-none border-b px-3 py-2 pt-[max(0.5rem,env(safe-area-inset-top,0px))] sm:px-5 sm:py-3", decorated ? "pos-decor-surface border-primary-foreground/20 text-primary-foreground" : "border-border bg-card text-card-foreground")}>
+      <div className="flex min-w-0 flex-1 flex-col gap-1 text-left">
+        <DialogTitle className="flex min-h-9 items-center gap-2 text-base text-inherit"><UserRound className="size-4 shrink-0" /><span className="truncate">{l("title")}</span></DialogTitle>
         <DialogDescription className="sr-only">{l("description")}</DialogDescription>
-        {response ? <div className="flex min-w-0 items-center justify-between gap-3 text-xs text-muted-foreground"><span className="truncate" title={response.employee.display_name}>{response.employee.display_name}</span><span className="shrink-0 tabular-nums">{formatReportDate(response.business_day.date)}</span></div> : null}
-      </DialogHeader>
+        {response ? <div className={cn("flex min-w-0 items-center justify-between gap-3 text-xs", decorated ? "text-primary-foreground/80" : "text-muted-foreground")}><span className="truncate" title={response.employee.display_name}>{response.employee.display_name}</span><span className="shrink-0 tabular-nums">{formatReportDate(response.business_day.date)}</span></div> : null}
+      </div>
       <div className="flex shrink-0 gap-1">
-        <Popover><PopoverTrigger asChild><Button type="button" variant="ghost" size="icon" className="size-11 rounded-full text-primary-text hover:bg-primary/10" aria-label={l("details")}><Info className="size-4" /></Button></PopoverTrigger><PopoverContent align="end" className="w-80 max-w-[calc(100vw-2rem)] gap-3 p-4 font-lao">
+        <Popover><PopoverTrigger asChild><Button type="button" variant="ghost" size="icon" className={cn("size-11 rounded-full", decorated ? "text-primary-foreground hover:bg-primary-foreground/15 hover:text-primary-foreground" : "text-muted-foreground")} aria-label={l("details")}><Info className="size-4" /></Button></PopoverTrigger><PopoverContent align="end" className="w-80 max-w-[calc(100vw-2rem)] gap-3 p-4 font-lao">
           {response ? <><p className="text-sm font-medium">{response.employee.display_name}</p>{response.employee.branch_name ? <p>{response.employee.branch_name}</p> : null}<p className="tabular-nums">{formatReportDateTime(response.business_day.starts_at)} – {formatReportDateTime(new Date(Date.parse(response.business_day.ends_at) - 1).toISOString())}</p></> : null}
           <p className="text-muted-foreground">{l("amountsHint")}</p>
         </PopoverContent></Popover>
         <DialogClose asChild><Button type="button" variant="outline" size="icon" className="ui-overlay-close-button size-12! min-h-12! min-w-12! shrink-0 rounded-full border-border bg-popover text-foreground shadow-sm hover:bg-accent [&_svg:not([class*='size-'])]:size-5" aria-label={t("actions.close")}><X /></Button></DialogClose>
       </div>
-    </div>
+    </DialogHeader>
     <EmployeeWorkScopes scope={scope} counts={response?.scope_summary} onChange={value => void load({ scope: value, page: 1 }).catch(() => {})} toolbar={
       <EmployeeWorkToolbar response={response} params={state.params} search={search} onSearchChange={setSearch} onSearch={() => void load({ search: search.trim(), page: 1 }).catch(() => {})} onFilterChange={params => void load(params).catch(() => {})} />
     }>
@@ -189,7 +170,7 @@ function EmployeeWorkPanel() {
       {state.reportError || printError ? <Alert variant="destructive" className="px-3 py-2"><AlertDescription className="break-words text-xs">{printError || state.reportError}</AlertDescription></Alert> : null}
       <div className="flex items-center justify-between gap-3">
         <time dateTime={response?.server_now} title={updatedAt} aria-label={`${l("refreshedAt")}: ${updatedAt}`} className="flex shrink-0 items-center gap-1.5 text-xs text-muted-foreground tabular-nums"><Clock3 aria-hidden="true" className="size-3.5 text-primary-text" />{updatedTime}</time>
-        <div className="flex min-w-0 flex-1 justify-end gap-2"><Button type="button" variant="outline" size="icon" className="size-11 shrink-0" aria-label={t("actions.refresh")} disabled={state.loading || printPending} onClick={() => { if (!checkRollover()) void load().catch(() => {}); }}><RefreshCw className="size-4" /></Button><Button type="button" className="min-h-11 min-w-0 gap-2 px-3" disabled={!response || state.loading || state.reportLoading || printPending} aria-busy={printPending || state.reportLoading} aria-label={l(printPending ? "printingShort" : state.reportLoading ? "printPreparing" : "printOwnReport")} onClick={() => void print()}>{printPending ? <LoaderCircle className="size-4 shrink-0 animate-spin motion-reduce:animate-none" /> : <Printer className="size-4 shrink-0" />}<span className="truncate">{l(printPending ? "printingShort" : "printShort")}</span></Button></div>
+        <div className="flex min-w-0 flex-1 justify-end gap-2"><Button type="button" variant="outline" size="icon" className="size-11 shrink-0" aria-label={t("actions.refresh")} disabled={state.loading || outputPending !== null} onClick={() => { if (!checkRollover()) void load().catch(() => {}); }}><RefreshCw className="size-4" /></Button><EmployeeWorkPrintMenu disabled={!response || state.loading || state.reportLoading} pending={outputPending} onEscpos={() => void printEscpos()} onPdf={() => void openPdf()} /></div>
       </div>
     </div>
   </DialogContent>;
