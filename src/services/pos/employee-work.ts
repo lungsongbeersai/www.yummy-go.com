@@ -38,37 +38,34 @@ export interface EmployeeWorkItem {
   order_it_uuid: string;
   product_name: string;
   size_name: string | null;
-  quantity: number;
-  price: number;
-  item_discount_amount: number;
-  total: number;
-  financial_quantity: number;
+  quantity: number | null;
+  price: number | null;
+  item_discount_amount: number | null;
+  total: number | null;
+  financial_quantity: number | null;
   is_set_component: boolean;
   status: number;
   kitchen_sent: boolean;
   kitchen_confirmed_at: string | null;
   created_at: string | null;
+  created_at_source: "item_audit" | "stored_item_time" | "unknown";
+  business_date: string | null;
+  financial_warning: "ITEM_FINANCIAL_INCOMPLETE" | "SET_OWNERSHIP_AMBIGUOUS" | null;
   created_by: string | null;
   created_by_name: string;
   note: string;
-  toppings: { topping_name: string; quantity: number; price: number }[];
+  toppings: { topping_name: string; quantity: number | null; price: number | null }[];
   print_status: "acknowledged" | "partial" | "queued" | "failed" | "skipped" | "unknown";
 }
 
-export interface EmployeeWorkTotals {
-  source: "stored_bill" | "unknown";
+export interface EmployeeWorkOwnTotals {
+  source: "employee_items" | "unknown";
   currency: "LAK";
-  quantity: number;
+  item_count: number;
+  quantity: number | null;
   gross_amount: number | null;
   item_discount_amount: number | null;
-  subtotal: number | null;
-  discount_amount: number | null;
-  service_amount: number | null;
-  vat_amount: number | null;
-  grand_total: number | null;
-  received_total: number | null;
-  balance_amount: number | null;
-  credit_balance: number | null;
+  total_amount: number | null;
 }
 
 export interface EmployeeWorkOrder {
@@ -79,15 +76,10 @@ export interface EmployeeWorkOrder {
   zone_name: string | null;
   order_created_by: string;
   creator_name: string;
-  order_date: string | null;
-  opened_at: string | null;
-  opened_at_source: "order_audit" | "first_item" | "unknown";
-  opened_at_exact: boolean;
-  business_date: string | null;
-  time_warning: "FIRST_SURVIVING_ITEM_ESTIMATE" | "HISTORICAL_OPEN_TIME_UNKNOWN" | null;
-  financial_warning: "BILL_SNAPSHOT_INCOMPLETE" | "PAYMENT_SNAPSHOT_INCOMPLETE" | "BILL_ITEMS_MISSING" | null;
-  date_time_payment: string | null;
-  payment_time_source: "database_timestamp" | "unknown";
+  first_item_at: string | null;
+  last_item_at: string | null;
+  time_warning: "ITEM_TIME_UNVERIFIED" | "ITEM_TIME_IS_RECORD_TIME" | null;
+  financial_warning: "ITEM_FINANCIAL_INCOMPLETE" | "SET_OWNERSHIP_AMBIGUOUS" | null;
   scope: EmployeeWorkScope;
   order_check_bill: number;
   order_status: number;
@@ -96,12 +88,14 @@ export interface EmployeeWorkOrder {
   check_bill_requested: boolean;
   kitchen_status: EmployeeWorkKitchenStatus;
   payment_status: EmployeeWorkPaymentStatus;
-  totals: EmployeeWorkTotals;
+  own_totals: EmployeeWorkOwnTotals;
   items: EmployeeWorkItem[];
 }
 
 export interface EmployeeWorkSummary {
   order_count: number;
+  item_count: number;
+  quantity: number | null;
   open_count: number;
   pending_kitchen_count: number;
   sent_kitchen_count: number;
@@ -112,21 +106,20 @@ export interface EmployeeWorkSummary {
   cancelled_count: number;
   financial_unknown_count: number;
   total_amount: number | null;
-  balance_amount: number | null;
-  credit_balance_amount: number | null;
 }
 
 export interface EmployeeWorkResponse {
   status: string;
   message: string;
   server_now: string;
-  ownership_mode: "bill_opener";
+  ownership_mode: "item_creator";
+  totals_basis: "item_net_before_bill_adjustments";
   employee: EmployeeWorkEmployee;
   business_day: EmployeeWorkBusinessDay;
   filters: Required<Pick<EmployeeWorkParams, "business_date" | "scope" | "search" | "kitchen_status" | "payment_status" | "lang">>;
   data: EmployeeWorkOrder[];
   summary: EmployeeWorkSummary;
-  scope_summary: Record<EmployeeWorkScope, { order_count: number; financial_unknown_count: number; total_amount: number | null; balance_amount: number | null }>;
+  scope_summary: Record<EmployeeWorkScope, { order_count: number; item_count: number; financial_unknown_count: number; total_amount: number | null }>;
   pagination: { page: number; limit: number; total: number; total_pages: number };
   report: { complete: boolean; max_orders: number };
   warnings: string[];
