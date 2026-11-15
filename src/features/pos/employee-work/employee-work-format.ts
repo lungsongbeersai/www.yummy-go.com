@@ -1,4 +1,4 @@
-import type { EmployeeWorkBillState, EmployeeWorkKitchenStatus, EmployeeWorkPaymentStatus, EmployeeWorkScope, EmployeeWorkTotals } from "@/services/pos";
+import type { EmployeeWorkBillState, EmployeeWorkKitchenStatus, EmployeeWorkPaymentStatus, EmployeeWorkScope } from "@/services/pos";
 
 export const EMPLOYEE_WORK_SCOPES: readonly EmployeeWorkScope[] = ["current", "carryover", "undated"];
 export const EMPLOYEE_WORK_KITCHEN: readonly ("all" | EmployeeWorkKitchenStatus)[] = ["all", "pending", "partial", "sent", "served", "cancelled", "empty"];
@@ -26,9 +26,4 @@ export function employeeWorkPrintLabel(status: string) {
 
 export function employeeWorkQuantity(value: number) {
   return new Intl.NumberFormat("en-US", { maximumFractionDigits: 3 }).format(value);
-}
-
-export function employeeWorkAdjustments(totals: EmployeeWorkTotals) {
-  const fields: [string, number | null][] = [["itemDiscount", totals.item_discount_amount], ["billDiscount", totals.discount_amount], ["serviceCharge", totals.service_amount], ["vat", totals.vat_amount]];
-  return fields.flatMap(([label, value]) => value === null || value === 0 ? [] : [{ label, value }]);
 }
