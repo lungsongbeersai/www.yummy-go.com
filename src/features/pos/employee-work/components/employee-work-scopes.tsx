@@ -66,10 +66,10 @@ export function EmployeeWorkScopes({ scope, counts, toolbar, children, onChange 
   }}>
     <div className="shrink-0 px-3 pt-2 pb-3 sm:px-5">
       <div ref={railRef} data-slot="employee-work-tab-rail" className="overflow-x-auto overflow-y-hidden scroll-px-1 touch-pan-x [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-        <TabsList ref={listRef} aria-label={t("employeeWork.title")} className="relative isolate h-13 w-max min-w-full justify-start gap-1 rounded-lg bg-muted/65 p-1 group-data-horizontal/tabs:h-13">
-          <span aria-hidden="true" className="pointer-events-none absolute inset-y-1 left-0 rounded-md bg-card shadow-xs transition-[transform,width] duration-200 ease-out motion-reduce:transition-none" style={{ width: indicator.width, transform: `translateX(${indicator.left}px)` }} />
+        <TabsList ref={listRef} aria-label={t("employeeWork.title")} className="relative isolate h-13 w-max min-w-full justify-start gap-1 rounded-lg bg-primary/5 p-1 ring-1 ring-inset ring-primary/10 group-data-horizontal/tabs:h-13">
+          <span aria-hidden="true" className="pointer-events-none absolute inset-y-1 left-0 rounded-md border border-primary/20 bg-primary/10 shadow-xs transition-[transform,width] duration-200 ease-out motion-reduce:transition-none" style={{ width: indicator.width, transform: `translateX(${indicator.left}px)` }} />
           {EMPLOYEE_WORK_SCOPES.map(value => <TabsTrigger key={value} value={value} className="z-10 h-11 min-h-11 min-w-max flex-1 gap-2 px-3 text-xs whitespace-nowrap data-active:border-transparent data-active:bg-transparent data-active:text-primary-text dark:data-active:border-transparent dark:data-active:bg-transparent dark:data-active:text-primary-text sm:text-sm">
-            {t(`employeeWork.${labels[value]}`)}<span className="rounded-full bg-muted px-1.5 text-xs tabular-nums">{counts?.[value].order_count ?? "—"}</span>
+            {t(`employeeWork.${labels[value]}`)}<span className={cn("rounded-full px-1.5 text-xs tabular-nums", value === scope ? "bg-primary/15 text-primary-text" : "bg-muted/70 text-muted-foreground")}>{counts?.[value].order_count ?? "—"}</span>
           </TabsTrigger>)}
         </TabsList>
       </div>

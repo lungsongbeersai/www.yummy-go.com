@@ -1,4 +1,5 @@
 import { Capacitor, registerPlugin } from "@capacitor/core";
+import { isCapacitorAndroidApp } from "@/lib/capacitor-platform";
 
 interface AndroidSystemPrintPlugin {
   printHtml(options: {
@@ -11,7 +12,8 @@ interface AndroidSystemPrintPlugin {
 const AndroidSystemPrint = registerPlugin<AndroidSystemPrintPlugin>("AndroidSystemPrint");
 
 export function canUseAndroidSystemPrint() {
-  return Capacitor.isNativePlatform() && Capacitor.getPlatform() === "android";
+  // Remote web updates cannot add plugins to an already installed Play build.
+  return isCapacitorAndroidApp() && Capacitor.isPluginAvailable("AndroidSystemPrint");
 }
 
 export async function printHtmlWithAndroidSystemPrint({
