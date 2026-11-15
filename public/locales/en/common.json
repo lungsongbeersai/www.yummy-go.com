@@ -4205,7 +4205,12 @@
     "totalShort": "My total",
     "itemsShort": "Items",
     "unclosedShort": "Open bills",
-    "printShort": "Print report"
+    "printShort": "Print report",
+    "printingShort": "Printing…",
+    "reportPrinted": "Report printed",
+    "reportPrinterUnavailable": "Set up a report printer for this device to print from the app.",
+    "printDeliveryUnknown": "Print result not confirmed. Check the printer before trying again.",
+    "reportPrintFailed": "Could not print. Check the report printer and connection."
   },
   "mySales": {
     "title": "My orders",

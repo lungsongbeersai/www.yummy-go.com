@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { Clock3, Info, Inbox, Printer, RefreshCw, UserRound, X } from "lucide-react";
+import { Clock3, Info, Inbox, LoaderCircle, Printer, RefreshCw, UserRound, X } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { AppPagination } from "@/components/common/app-pagination";
 import { LoadingState } from "@/components/common/loading-state";
@@ -11,19 +11,21 @@ import { Dialog, DialogClose, DialogContent, DialogDescription, DialogHeader, Di
 import { Empty, EmptyHeader, EmptyMedia, EmptyTitle } from "@/components/ui/empty";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { formatReportDate, formatReportDateTime } from "@/features/report/shared/report-date-format";
-import { printHtmlWithAndroidSystemPrint } from "@/lib/android-system-print";
 import { isCapacitorNativeApp, openWindowOutsideNativeApp } from "@/lib/capacitor-platform";
 import { ServiceError } from "@/lib/api";
 import { useAppStore } from "@/stores/app-store";
 import { useAuthStore } from "@/stores/auth-store";
 import { employeeWorkIdentity } from "@/stores/employee-work-helpers";
 import { useEmployeeWorkStore } from "@/stores/employee-work-store";
+import { usePrinterStore } from "@/stores/printer-store";
+import { useToastStore } from "@/stores/toast-store";
 import type { EmployeeWorkResponse } from "@/services/pos";
 import { employeeWorkScopeLabel } from "./employee-work-format";
 import { EmployeeWorkScopes } from "./components/employee-work-scopes";
 import { EmployeeWorkToolbar } from "./components/employee-work-toolbar";
 import { EmployeeWorkOrders } from "./employee-work-orders";
 import { renderEmployeeWorkReport } from "./employee-work-print";
+import { EmployeeWorkPrintError, printEmployeeWorkOnNative } from "./employee-work-report-printer";
 
 async function waitForPrintFonts(target: Window, failedMessage: string) {
   let timer: number | undefined;
@@ -82,6 +84,7 @@ function EmployeeWorkPanel() {
   const { enter, leave, load, checkRollover, boundaryDelay } = state;
   const [search, setSearch] = useState("");
   const [printError, setPrintError] = useState<string | null>(null);
+  const [printPending, setPrintPending] = useState(false);
   const mounted = useRef(false);
   const printing = useRef(false);
   const printWindow = useRef<Window | null>(null);
@@ -113,10 +116,11 @@ function EmployeeWorkPanel() {
   async function print() {
     if (printing.current || state.loading || state.reportLoading) return;
     printing.current = true;
+    setPrintPending(true);
     setPrintError(null);
     const native = isCapacitorNativeApp();
     const target = native ? null : openWindowOutsideNativeApp("", "_blank", "width=1000,height=800");
-    if (!native && !target) { setPrintError(l("printPopupBlocked")); printing.current = false; return; }
+    if (!native && !target) { setPrintError(l("printPopupBlocked")); printing.current = false; setPrintPending(false); return; }
     printWindow.current = target;
     if (target) { target.document.title = l("reportTitle"); target.document.body.textContent = l("printPreparing"); }
     let preparedReport: EmployeeWorkResponse | null = null;
@@ -126,7 +130,13 @@ function EmployeeWorkPanel() {
       if (!report || !mounted.current || !useEmployeeWorkStore.getState().isCurrentReport(report)) { target?.close(); return; }
       const html = renderEmployeeWorkReport(report, l, laoFont, `${window.location.origin}/`);
       if (native) {
-        if (!await printHtmlWithAndroidSystemPrint({ html, jobName: l("reportTitle") })) throw new Error(l("reportFailed"));
+        const printer = usePrinterStore.getState();
+        const result = await printEmployeeWorkOnNative({
+          report, html, jobName: l("reportTitle"), label: l, language,
+          isCurrent: () => mounted.current && useEmployeeWorkStore.getState().isCurrentReport(report),
+          transport: { resolveDeviceIdentity: printer.resolveDeviceIdentity, submitReportPrint: printer.submitReportPrint, executeReport: printer.executeReport },
+        });
+        if (result.status === "printed" && mounted.current && useEmployeeWorkStore.getState().isCurrentReport(report)) useToastStore.getState().show({ title: l("reportPrinted"), tone: "success" });
       } else if (target && !target.closed) {
         target.document.open(); target.document.write(html); target.document.close();
         await waitForPrintFonts(target, l("reportFailed"));
@@ -135,8 +145,12 @@ function EmployeeWorkPanel() {
       }
     } catch (error) {
       target?.close();
-      if (mounted.current && (!preparedReport || useEmployeeWorkStore.getState().isCurrentReport(preparedReport))) setPrintError(error instanceof ServiceError && error.statusCode === 413 ? l("reportTooLarge") : error instanceof Error ? error.message : l("reportFailed"));
-    } finally { printing.current = false; }
+      if (mounted.current && (!preparedReport || useEmployeeWorkStore.getState().isCurrentReport(preparedReport))) {
+        if (error instanceof EmployeeWorkPrintError) {
+          if (error.code !== "stale") setPrintError(l(error.code === "report-printer-unavailable" ? "reportPrinterUnavailable" : error.code === "report-too-large" ? "reportTooLarge" : error.mayHavePrinted ? "printDeliveryUnknown" : "reportPrintFailed"));
+        } else setPrintError(error instanceof ServiceError && error.statusCode === 413 ? l("reportTooLarge") : error instanceof Error ? error.message : l("reportFailed"));
+      }
+    } finally { printing.current = false; if (mounted.current) setPrintPending(false); }
   }
 
   const scope = state.params.scope ?? "current";
@@ -145,18 +159,18 @@ function EmployeeWorkPanel() {
   const updatedAt = response ? formatReportDateTime(response.server_now) : "";
   const updatedTime = updatedAt.split(" ")[1]?.slice(0, 5) ?? "—";
   return <DialogContent showCloseButton={false} className="inset-0 top-0 left-0 flex h-dvh max-h-dvh w-full max-w-none translate-x-0 translate-y-0 flex-col gap-0 overflow-hidden rounded-none p-0 font-lao sm:inset-auto sm:top-1/2 sm:left-1/2 sm:h-[min(90dvh,900px)] sm:max-h-[90dvh] sm:w-[calc(100%-2rem)] sm:max-w-6xl sm:-translate-x-1/2 sm:-translate-y-1/2 sm:rounded-xl">
-    <div className="flex shrink-0 items-start justify-between gap-2 border-b bg-card px-3 py-2 pt-[max(0.5rem,env(safe-area-inset-top,0px))] sm:px-5 sm:py-3">
+    <div className="flex shrink-0 items-start justify-between gap-2 border-b border-primary/15 bg-primary/10 px-3 py-2 pt-[max(0.5rem,env(safe-area-inset-top,0px))] sm:px-5 sm:py-3">
       <DialogHeader className="min-w-0 flex-1 gap-1 rounded-none border-0 bg-transparent p-0 text-left">
-        <DialogTitle className="flex min-h-9 items-center gap-2 text-base"><UserRound className="size-4 shrink-0 text-primary-text" /><span className="truncate">{l("title")}</span></DialogTitle>
+        <DialogTitle className="flex min-h-9 items-center gap-2 text-base text-primary-text"><UserRound className="size-4 shrink-0" /><span className="truncate">{l("title")}</span></DialogTitle>
         <DialogDescription className="sr-only">{l("description")}</DialogDescription>
         {response ? <div className="flex min-w-0 items-center justify-between gap-3 text-xs text-muted-foreground"><span className="truncate" title={response.employee.display_name}>{response.employee.display_name}</span><span className="shrink-0 tabular-nums">{formatReportDate(response.business_day.date)}</span></div> : null}
       </DialogHeader>
       <div className="flex shrink-0 gap-1">
-        <Popover><PopoverTrigger asChild><Button type="button" variant="ghost" size="icon" className="size-11 text-muted-foreground" aria-label={l("details")}><Info className="size-4" /></Button></PopoverTrigger><PopoverContent align="end" className="w-80 max-w-[calc(100vw-2rem)] gap-3 p-4 font-lao">
+        <Popover><PopoverTrigger asChild><Button type="button" variant="ghost" size="icon" className="size-11 rounded-full text-primary-text hover:bg-primary/10" aria-label={l("details")}><Info className="size-4" /></Button></PopoverTrigger><PopoverContent align="end" className="w-80 max-w-[calc(100vw-2rem)] gap-3 p-4 font-lao">
           {response ? <><p className="text-sm font-medium">{response.employee.display_name}</p>{response.employee.branch_name ? <p>{response.employee.branch_name}</p> : null}<p className="tabular-nums">{formatReportDateTime(response.business_day.starts_at)} – {formatReportDateTime(new Date(Date.parse(response.business_day.ends_at) - 1).toISOString())}</p></> : null}
           <p className="text-muted-foreground">{l("amountsHint")}</p>
         </PopoverContent></Popover>
-        <DialogClose asChild><Button type="button" variant="ghost" size="icon" className="size-11" aria-label={t("actions.close")}><X /></Button></DialogClose>
+        <DialogClose asChild><Button type="button" variant="outline" size="icon" className="ui-overlay-close-button size-12! min-h-12! min-w-12! shrink-0 rounded-full border-border bg-popover text-foreground shadow-sm hover:bg-accent [&_svg:not([class*='size-'])]:size-5" aria-label={t("actions.close")}><X /></Button></DialogClose>
       </div>
     </div>
     <EmployeeWorkScopes scope={scope} counts={response?.scope_summary} onChange={value => void load({ scope: value, page: 1 }).catch(() => {})} toolbar={
@@ -171,11 +185,11 @@ function EmployeeWorkPanel() {
         {response && response.pagination.total > 0 ? <AppPagination disabled={state.loading} page={response.pagination.page} totalPages={response.pagination.total_pages} onPageChange={page => void load({ page }).catch(() => {})} rangeLabel={t("mySales.range", { start: rangeStart, end: rangeEnd, total: response.pagination.total })} /> : null}
       </div>
     </EmployeeWorkScopes>
-    <div className="grid shrink-0 gap-2 border-t bg-card px-3 py-2 pb-[max(0.5rem,env(safe-area-inset-bottom,0px))] sm:px-5">
-      {state.reportError || printError ? <p role="alert" className="break-words text-xs text-destructive">{l("reportFailed")}: {printError || state.reportError}</p> : null}
+    <div className="grid shrink-0 gap-2 border-t border-primary/15 bg-primary/5 px-3 py-2 pb-[max(0.5rem,env(safe-area-inset-bottom,0px))] sm:px-5">
+      {state.reportError || printError ? <Alert variant="destructive" className="px-3 py-2"><AlertDescription className="break-words text-xs">{printError || state.reportError}</AlertDescription></Alert> : null}
       <div className="flex items-center justify-between gap-3">
-        <time dateTime={response?.server_now} title={updatedAt} aria-label={`${l("refreshedAt")}: ${updatedAt}`} className="flex shrink-0 items-center gap-1.5 text-xs text-muted-foreground tabular-nums"><Clock3 aria-hidden="true" className="size-3.5" />{updatedTime}</time>
-        <div className="flex min-w-0 flex-1 justify-end gap-2"><Button type="button" variant="outline" size="icon" className="size-11 shrink-0" aria-label={t("actions.refresh")} disabled={state.loading} onClick={() => { if (!checkRollover()) void load().catch(() => {}); }}><RefreshCw className="size-4" /></Button><Button type="button" className="min-h-11 min-w-0 gap-2 px-3" disabled={!response || state.loading || state.reportLoading} aria-busy={state.reportLoading} aria-label={l(state.reportLoading ? "printPreparing" : "printOwnReport")} onClick={() => void print()}><Printer className="size-4 shrink-0" /><span className="truncate">{l("printShort")}</span></Button></div>
+        <time dateTime={response?.server_now} title={updatedAt} aria-label={`${l("refreshedAt")}: ${updatedAt}`} className="flex shrink-0 items-center gap-1.5 text-xs text-muted-foreground tabular-nums"><Clock3 aria-hidden="true" className="size-3.5 text-primary-text" />{updatedTime}</time>
+        <div className="flex min-w-0 flex-1 justify-end gap-2"><Button type="button" variant="outline" size="icon" className="size-11 shrink-0" aria-label={t("actions.refresh")} disabled={state.loading || printPending} onClick={() => { if (!checkRollover()) void load().catch(() => {}); }}><RefreshCw className="size-4" /></Button><Button type="button" className="min-h-11 min-w-0 gap-2 px-3" disabled={!response || state.loading || state.reportLoading || printPending} aria-busy={printPending || state.reportLoading} aria-label={l(printPending ? "printingShort" : state.reportLoading ? "printPreparing" : "printOwnReport")} onClick={() => void print()}>{printPending ? <LoaderCircle className="size-4 shrink-0 animate-spin motion-reduce:animate-none" /> : <Printer className="size-4 shrink-0" />}<span className="truncate">{l(printPending ? "printingShort" : "printShort")}</span></Button></div>
       </div>
     </div>
   </DialogContent>;

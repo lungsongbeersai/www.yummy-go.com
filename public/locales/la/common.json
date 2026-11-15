@@ -4205,7 +4205,12 @@
     "totalShort": "ຍອດຂອງຂ້ອຍ",
     "itemsShort": "ລາຍການ",
     "unclosedShort": "ຍັງບໍ່ປິດ",
-    "printShort": "ພິມລາຍງານ"
+    "printShort": "ພິມລາຍງານ",
+    "printingShort": "ກຳລັງພິມ…",
+    "reportPrinted": "ພິມລາຍງານສຳເລັດ",
+    "reportPrinterUnavailable": "ກະລຸນາຕັ້ງຄ່າເຄື່ອງພິມລາຍງານສຳລັບອຸປະກອນນີ້.",
+    "printDeliveryUnknown": "ຍັງຢືນຢັນຜົນການພິມບໍ່ໄດ້. ກວດເຄື່ອງພິມກ່ອນລອງໃໝ່.",
+    "reportPrintFailed": "ພິມບໍ່ສຳເລັດ. ກະລຸນາກວດເຄື່ອງພິມລາຍງານ ແລະ ການເຊື່ອມຕໍ່."
   },
   "mySales": {
     "title": "ອໍເດີຂອງຂ້ອຍ",
