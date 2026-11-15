@@ -4193,7 +4193,19 @@
     "sharedBillStatus": "Shared bill status",
     "recordedItemTime": "Day is based on the item’s recorded time. Later quantity changes may remain on the original item.",
     "unknownItemTime": "The original recording day of these items cannot be verified.",
-    "setOwnershipReview": "This set has multiple item creators. Review its amount; the set price has not been divided or counted again."
+    "setOwnershipReview": "This set has multiple item creators. Review its amount; the set price has not been divided or counted again.",
+    "tabToday": "Today",
+    "tabCarryover": "Carryover",
+    "tabUndated": "Check date",
+    "filters": "Filters",
+    "details": "Report details",
+    "searchShort": "Search…",
+    "kitchenShort": "Kitchen",
+    "settlementShort": "Settlement",
+    "totalShort": "My total",
+    "itemsShort": "Items",
+    "unclosedShort": "Open bills",
+    "printShort": "Print report"
   },
   "mySales": {
     "title": "My orders",

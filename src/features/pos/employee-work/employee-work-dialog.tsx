@@ -1,29 +1,27 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { Printer, RefreshCw, Search, UserRound, X } from "lucide-react";
+import { Clock3, Info, Inbox, Printer, RefreshCw, UserRound, X } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { AppPagination } from "@/components/common/app-pagination";
-import { EmptyState } from "@/components/common/empty-state";
 import { LoadingState } from "@/components/common/loading-state";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogClose, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { formatReportDateTime } from "@/features/report/shared/report-date-format";
+import { Empty, EmptyHeader, EmptyMedia, EmptyTitle } from "@/components/ui/empty";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { formatReportDate, formatReportDateTime } from "@/features/report/shared/report-date-format";
 import { printHtmlWithAndroidSystemPrint } from "@/lib/android-system-print";
 import { isCapacitorNativeApp, openWindowOutsideNativeApp } from "@/lib/capacitor-platform";
-import { money } from "@/lib/format";
 import { ServiceError } from "@/lib/api";
 import { useAppStore } from "@/stores/app-store";
 import { useAuthStore } from "@/stores/auth-store";
 import { employeeWorkIdentity } from "@/stores/employee-work-helpers";
 import { useEmployeeWorkStore } from "@/stores/employee-work-store";
 import type { EmployeeWorkResponse } from "@/services/pos";
-import { EMPLOYEE_WORK_KITCHEN, EMPLOYEE_WORK_PAYMENT, EMPLOYEE_WORK_SCOPES, employeeWorkKitchenLabel, employeeWorkPaymentLabels, employeeWorkScopeLabel } from "./employee-work-format";
+import { employeeWorkScopeLabel } from "./employee-work-format";
+import { EmployeeWorkScopes } from "./components/employee-work-scopes";
+import { EmployeeWorkToolbar } from "./components/employee-work-toolbar";
 import { EmployeeWorkOrders } from "./employee-work-orders";
 import { renderEmployeeWorkReport } from "./employee-work-print";
 
@@ -78,7 +76,6 @@ function EmployeeWorkSession() {
 function EmployeeWorkPanel() {
   const { t } = useTranslation();
   const l = (key: string) => key === "all" ? t("common.all") : t(`employeeWork.${key}`);
-  const showAmount = (value: number | null) => value === null ? l("unknown") : money(value);
   const language = useAppStore(state => state.language);
   const laoFont = useAppStore(state => state.laoFont);
   const state = useEmployeeWorkStore();
@@ -144,20 +141,42 @@ function EmployeeWorkPanel() {
 
   const scope = state.params.scope ?? "current";
   const rangeStart = response?.data.length ? (response.pagination.page - 1) * response.pagination.limit + 1 : 0;
-  const rangeEnd = response ? Math.min(response.pagination.total, rangeStart + response.data.length - 1) : 0;
+  const rangeEnd = response?.data.length ? Math.min(response.pagination.total, rangeStart + response.data.length - 1) : 0;
+  const updatedAt = response ? formatReportDateTime(response.server_now) : "";
+  const updatedTime = updatedAt.split(" ")[1]?.slice(0, 5) ?? "—";
   return <DialogContent showCloseButton={false} className="inset-0 top-0 left-0 flex h-dvh max-h-dvh w-full max-w-none translate-x-0 translate-y-0 flex-col gap-0 overflow-hidden rounded-none p-0 font-lao sm:inset-auto sm:top-1/2 sm:left-1/2 sm:h-[min(90dvh,900px)] sm:max-h-[90dvh] sm:w-[calc(100%-2rem)] sm:max-w-6xl sm:-translate-x-1/2 sm:-translate-y-1/2 sm:rounded-xl">
-    <div className="flex shrink-0 items-start justify-between gap-2 border-b bg-card px-3 py-2 pt-[max(0.5rem,env(safe-area-inset-top,0px))] sm:px-5 sm:py-3"><DialogHeader className="min-w-0 gap-1 rounded-none border-0 bg-transparent p-0"><DialogTitle className="flex items-center gap-2 text-base"><UserRound className="size-4 text-primary-text" />{l("title")}</DialogTitle><DialogDescription className="text-xs">{l("description")}</DialogDescription>{response ? <div className="grid gap-0.5 text-xs text-muted-foreground"><p>{l("responsibleEmployee")}: <strong className="text-foreground">{response.employee.display_name}</strong>{response.employee.branch_name ? ` · ${response.employee.branch_name}` : ""}</p><p>{formatReportDateTime(response.business_day.starts_at)} – {formatReportDateTime(new Date(Date.parse(response.business_day.ends_at) - 1).toISOString())}</p><p>{l("periodHint")}</p></div> : null}</DialogHeader><DialogClose asChild><Button type="button" variant="ghost" size="icon" className="size-11 shrink-0" aria-label={t("actions.close")}><X /></Button></DialogClose></div>
-    <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain p-3 sm:p-5">
-      <div className="grid gap-3"><Tabs value={scope} onValueChange={value => { if (EMPLOYEE_WORK_SCOPES.includes(value as typeof scope)) void load({ scope: value as typeof scope, page: 1 }).catch(() => {}); }}><TabsList className="h-auto w-full gap-1 rounded-lg p-1">{EMPLOYEE_WORK_SCOPES.map(value => <TabsTrigger key={value} value={value} className="min-h-11 flex-1 whitespace-normal px-2 text-xs sm:text-sm">{l(value === "carryover" ? "previousDay" : employeeWorkScopeLabel(value))}<span className="ml-1 tabular-nums">{response?.scope_summary[value].order_count ?? "—"}</span></TabsTrigger>)}</TabsList></Tabs>
-        {scope !== "current" ? <p className="text-xs text-muted-foreground">{l(scope === "carryover" ? "carryoverHint" : "undatedHint")}</p> : null}
-        <form className="flex gap-2" onSubmit={event => { event.preventDefault(); void load({ search: search.trim(), page: 1 }).catch(() => {}); }}><Input aria-label={l("search")} placeholder={l("search")} value={search} maxLength={120} className="min-h-11 min-w-0 flex-1" onChange={event => setSearch(event.target.value)} /><Button type="submit" variant="outline" className="size-11 shrink-0" aria-label={t("actions.search")}><Search className="size-4" /></Button></form>
-        <div className="grid grid-cols-2 gap-2"><div className="grid gap-1"><Label htmlFor="employee-work-kitchen">{l("kitchen")}</Label><Select value={state.params.kitchen_status ?? "all"} onValueChange={value => { const status = EMPLOYEE_WORK_KITCHEN.find(option => option === value); if (status) void load({ kitchen_status: status, page: 1 }).catch(() => {}); }}><SelectTrigger id="employee-work-kitchen" className="min-h-11 w-full"><SelectValue /></SelectTrigger><SelectContent className="font-lao">{EMPLOYEE_WORK_KITCHEN.map(status => <SelectItem key={status} value={status} className="min-h-11">{status === "all" ? t("common.all") : l(employeeWorkKitchenLabel(status))}</SelectItem>)}</SelectContent></Select></div><div className="grid gap-1"><Label htmlFor="employee-work-payment">{l("settlement")}</Label><Select value={state.params.payment_status ?? "all"} onValueChange={value => { const status = EMPLOYEE_WORK_PAYMENT.find(option => option === value); if (status) void load({ payment_status: status, page: 1 }).catch(() => {}); }}><SelectTrigger id="employee-work-payment" className="min-h-11 w-full"><SelectValue /></SelectTrigger><SelectContent className="font-lao">{EMPLOYEE_WORK_PAYMENT.map(status => <SelectItem key={status} value={status} className="min-h-11">{status === "all" ? t("common.all") : employeeWorkPaymentLabels(status).map(l).join(" · ")}</SelectItem>)}</SelectContent></Select></div></div>
-        {state.error ? <Alert variant="destructive"><AlertTitle>{l("loadFailed")}</AlertTitle><AlertDescription>{state.error}</AlertDescription><Button type="button" variant="outline" className="min-h-11" onClick={() => void load().catch(() => {})}>{t("mySales.retry")}</Button></Alert> : null}
-        {response ? <><div className="grid grid-cols-2 gap-2 sm:grid-cols-4">{[["bills", String(response.summary.order_count)], ["ownItems", String(response.summary.item_count)], ["ownTotal", showAmount(response.summary.total_amount)], ["unclosedBills", String(response.summary.open_count)]].map(([key, value]) => <div key={key} className="min-w-0 rounded-md border border-border bg-card p-2.5"><p className="text-xs text-muted-foreground">{l(key)}</p><p className="break-words text-sm font-semibold tabular-nums">{value}</p></div>)}</div><p className="text-xs text-muted-foreground">{l("amountsHint")}</p><p className="text-xs text-muted-foreground">{l("currentState")}</p>{response.summary.financial_unknown_count > 0 ? <p role="status" className="text-xs text-muted-foreground">{l("unknownAmounts")}</p> : null}</> : null}
-        <section aria-label={l(employeeWorkScopeLabel(scope))} aria-busy={state.loading}>{!response && (state.loading || state.rollover) ? <LoadingState label={l(state.rollover ? "rollover" : "title")} variant="table" /> : response?.data.length ? <EmployeeWorkOrders orders={response.data} /> : !state.error ? <EmptyState title={l("empty")} description={l("emptyHint")} /> : null}</section>
-        {response ? <AppPagination disabled={state.loading} page={response.pagination.page} totalPages={response.pagination.total_pages} onPageChange={page => void load({ page }).catch(() => {})} rangeLabel={t("mySales.range", { start: rangeStart, end: rangeEnd, total: response.pagination.total })} /> : null}
+    <div className="flex shrink-0 items-start justify-between gap-2 border-b bg-card px-3 py-2 pt-[max(0.5rem,env(safe-area-inset-top,0px))] sm:px-5 sm:py-3">
+      <DialogHeader className="min-w-0 flex-1 gap-1 rounded-none border-0 bg-transparent p-0 text-left">
+        <DialogTitle className="flex min-h-9 items-center gap-2 text-base"><UserRound className="size-4 shrink-0 text-primary-text" /><span className="truncate">{l("title")}</span></DialogTitle>
+        <DialogDescription className="sr-only">{l("description")}</DialogDescription>
+        {response ? <div className="flex min-w-0 items-center justify-between gap-3 text-xs text-muted-foreground"><span className="truncate" title={response.employee.display_name}>{response.employee.display_name}</span><span className="shrink-0 tabular-nums">{formatReportDate(response.business_day.date)}</span></div> : null}
+      </DialogHeader>
+      <div className="flex shrink-0 gap-1">
+        <Popover><PopoverTrigger asChild><Button type="button" variant="ghost" size="icon" className="size-11 text-muted-foreground" aria-label={l("details")}><Info className="size-4" /></Button></PopoverTrigger><PopoverContent align="end" className="w-80 max-w-[calc(100vw-2rem)] gap-3 p-4 font-lao">
+          {response ? <><p className="text-sm font-medium">{response.employee.display_name}</p>{response.employee.branch_name ? <p>{response.employee.branch_name}</p> : null}<p className="tabular-nums">{formatReportDateTime(response.business_day.starts_at)} – {formatReportDateTime(new Date(Date.parse(response.business_day.ends_at) - 1).toISOString())}</p></> : null}
+          <p className="text-muted-foreground">{l("amountsHint")}</p>
+        </PopoverContent></Popover>
+        <DialogClose asChild><Button type="button" variant="ghost" size="icon" className="size-11" aria-label={t("actions.close")}><X /></Button></DialogClose>
       </div>
     </div>
-    <div className="grid shrink-0 gap-2 border-t bg-card px-3 py-2 pb-[max(0.5rem,env(safe-area-inset-bottom,0px))] sm:px-5">{state.reportError || printError ? <p role="alert" className="break-words text-xs text-destructive">{l("reportFailed")}: {printError || state.reportError}</p> : null}<div className="flex items-center justify-between gap-2"><p className="min-w-0 text-xs text-muted-foreground">{response ? `${l("refreshedAt")}: ${formatReportDateTime(response.server_now)}` : ""}</p><div className="flex shrink-0 gap-2"><Button type="button" variant="outline" className="min-h-11 px-3" aria-label={t("actions.refresh")} disabled={state.loading} onClick={() => { if (!checkRollover()) void load().catch(() => {}); }}><RefreshCw className="size-4" /><span className="hidden sm:inline">{t("actions.refresh")}</span></Button><Button type="button" className="min-h-11 px-3" disabled={!response || state.loading || state.reportLoading} onClick={() => void print()}><Printer className="size-4" />{l(state.reportLoading ? "printPreparing" : "printOwnReport")}</Button></div></div></div>
+    <EmployeeWorkScopes scope={scope} counts={response?.scope_summary} onChange={value => void load({ scope: value, page: 1 }).catch(() => {})} toolbar={
+      <EmployeeWorkToolbar response={response} params={state.params} search={search} onSearchChange={setSearch} onSearch={() => void load({ search: search.trim(), page: 1 }).catch(() => {})} onFilterChange={params => void load(params).catch(() => {})} />
+    }>
+      <div className="grid gap-3">
+        {state.error ? <Alert variant="destructive"><AlertTitle>{l("loadFailed")}</AlertTitle><AlertDescription>{state.error}</AlertDescription><Button type="button" variant="outline" className="min-h-11" onClick={() => void load().catch(() => {})}>{t("mySales.retry")}</Button></Alert> : null}
+        {response && response.summary.financial_unknown_count > 0 ? <p role="status" className="text-xs text-muted-foreground">{l("unknownAmounts")}</p> : null}
+        <section aria-label={l(employeeWorkScopeLabel(scope))} aria-busy={state.loading}>
+          {!response && (state.loading || state.rollover) ? <LoadingState label={l(state.rollover ? "rollover" : "title")} variant="table" /> : response?.data.length ? <EmployeeWorkOrders orders={response.data} /> : !state.error ? <Empty className="min-h-36 py-8"><EmptyHeader><EmptyMedia variant="icon"><Inbox /></EmptyMedia><EmptyTitle>{l("empty")}</EmptyTitle></EmptyHeader></Empty> : null}
+        </section>
+        {response && response.pagination.total > 0 ? <AppPagination disabled={state.loading} page={response.pagination.page} totalPages={response.pagination.total_pages} onPageChange={page => void load({ page }).catch(() => {})} rangeLabel={t("mySales.range", { start: rangeStart, end: rangeEnd, total: response.pagination.total })} /> : null}
+      </div>
+    </EmployeeWorkScopes>
+    <div className="grid shrink-0 gap-2 border-t bg-card px-3 py-2 pb-[max(0.5rem,env(safe-area-inset-bottom,0px))] sm:px-5">
+      {state.reportError || printError ? <p role="alert" className="break-words text-xs text-destructive">{l("reportFailed")}: {printError || state.reportError}</p> : null}
+      <div className="flex items-center justify-between gap-3">
+        <time dateTime={response?.server_now} title={updatedAt} aria-label={`${l("refreshedAt")}: ${updatedAt}`} className="flex shrink-0 items-center gap-1.5 text-xs text-muted-foreground tabular-nums"><Clock3 aria-hidden="true" className="size-3.5" />{updatedTime}</time>
+        <div className="flex min-w-0 flex-1 justify-end gap-2"><Button type="button" variant="outline" size="icon" className="size-11 shrink-0" aria-label={t("actions.refresh")} disabled={state.loading} onClick={() => { if (!checkRollover()) void load().catch(() => {}); }}><RefreshCw className="size-4" /></Button><Button type="button" className="min-h-11 min-w-0 gap-2 px-3" disabled={!response || state.loading || state.reportLoading} aria-busy={state.reportLoading} aria-label={l(state.reportLoading ? "printPreparing" : "printOwnReport")} onClick={() => void print()}><Printer className="size-4 shrink-0" /><span className="truncate">{l("printShort")}</span></Button></div>
+      </div>
+    </div>
   </DialogContent>;
 }
