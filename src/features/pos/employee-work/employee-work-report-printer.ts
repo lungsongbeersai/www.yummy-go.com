@@ -1,4 +1,3 @@
-import { printHtmlWithAndroidSystemPrint } from "@/lib/android-system-print";
 import { ServiceError } from "@/lib/api";
 import type { EmployeeWorkResponse } from "@/services/pos";
 import type { AgentInfo, ExecuteReportPrintInput, KitchenPrintResult, PrintProgress } from "@/services/printer";
@@ -24,9 +23,8 @@ export interface EmployeeWorkPrintTransport {
   executeReport(input: ExecuteReportPrintInput): Promise<KitchenPrintResult>;
 }
 
-export interface EmployeeWorkNativePrintInput {
+export interface EmployeeWorkEscposPrintInput {
   report: EmployeeWorkResponse;
-  html: string;
   jobName: string;
   label: EmployeeWorkLabel;
   language: string;
@@ -35,7 +33,7 @@ export interface EmployeeWorkNativePrintInput {
   onProgress?: (progress: PrintProgress) => void;
 }
 
-export interface EmployeeWorkPrintOutcome { status: "system-dialog" | "printed" }
+export interface EmployeeWorkPrintOutcome { status: "printed" }
 
 const MAX_REPORT_BYTES = 2 * 1024 * 1024;
 const MAX_REPORT_ITEMS = 20_000;
@@ -139,24 +137,13 @@ export function buildEmployeeWorkReportOps(report: EmployeeWorkResponse, label: 
   return ops;
 }
 
-function assertCurrent(input: EmployeeWorkNativePrintInput) {
+function assertCurrent(input: EmployeeWorkEscposPrintInput) {
   if (!input.isCurrent()) throw new EmployeeWorkPrintError("stale");
 }
 
-async function performPrint(input: EmployeeWorkNativePrintInput): Promise<EmployeeWorkPrintOutcome> {
+async function performPrint(input: EmployeeWorkEscposPrintInput): Promise<EmployeeWorkPrintOutcome> {
   assertCurrent(input);
   completeReport(input.report);
-  // Availability is checked by this helper before crossing the native bridge.
-  // Errors from an available system plugin never fall through into a second print.
-  try {
-    const opened = await printHtmlWithAndroidSystemPrint({ html: input.html, jobName: input.jobName });
-    assertCurrent(input);
-    if (opened) return { status: "system-dialog" };
-  } catch (error) {
-    assertCurrent(input);
-    if (error instanceof EmployeeWorkPrintError) throw error;
-    throw new EmployeeWorkPrintError("print-failed", true);
-  }
   const ops = buildEmployeeWorkReportOps(input.report, input.label);
   assertCurrent(input);
   let identity: Pick<AgentInfo, "device_code">;
@@ -199,8 +186,8 @@ async function performPrint(input: EmployeeWorkNativePrintInput): Promise<Employ
   return { status: "printed" };
 }
 
-/** One execution per complete report object; preparation never triggers retries. */
-export function printEmployeeWorkOnNative(input: EmployeeWorkNativePrintInput): Promise<EmployeeWorkPrintOutcome> {
+/** Explicit ESC/POS on every platform; never selects a PDF/system-print fallback. */
+export function printEmployeeWorkEscpos(input: EmployeeWorkEscposPrintInput): Promise<EmployeeWorkPrintOutcome> {
   if (!input.isCurrent()) return Promise.reject(new EmployeeWorkPrintError("stale"));
   const existing = activePrints.get(input.report);
   if (existing) return existing;
