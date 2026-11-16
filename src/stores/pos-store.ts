@@ -58,6 +58,7 @@ import {
   emptyPosMenuBySort,
   firstPosMenuStatusWithProducts,
   nextPosMenuCategoryUuid,
+  preferredPosMenuStatus,
   updateZonesTableOrderState,
   updateZonesTableStatus,
   type PosMenuBySort
@@ -158,6 +159,7 @@ function textValue(value: unknown) {
 
 let posMenuLifecycleVersion = 0;
 let posMenuRequestVersion = 0;
+let posMenuSortSelectionVersion = 0;
 // เพิ่มทุกครั้งที่เรียก loadCart (ต่างจาก posMenuLifecycleVersion ที่เพิ่มเฉพาะตอน reset) — กัน
 // response ของ request เก่าที่ค้างอยู่ (เช่น สลับแท็บระหว่างที่ยิง updateQty ค้างอยู่) มาถึงหลัง
 // request ใหม่กว่าแล้วเขียนทับ cart ด้วยข้อมูลเก่ากว่า
@@ -240,6 +242,7 @@ interface PosState {
     cateUuid?: string;
     query?: string;
     refreshCategories?: boolean;
+    preferCategorySort?: boolean;
     // Silent refresh: keep the current menu on screen instead of flashing the
     // loading skeleton during a background reachability refresh.
     background?: boolean;
@@ -311,10 +314,15 @@ export const usePosStore = create<PosState>((set, get) => ({
   error: null,
   setZones: (zones) => set({ zones }),
   setProducts: (products) => set({ products }),
-  setActiveSort: (activeSort) => set((state) => ({
-    activeSort,
-    loadingMenu: state.pendingMenuSorts.includes(activeSort),
-  })),
+  setActiveSort: (activeSort) => {
+    // Even clicking the current tab is an explicit choice that a pending
+    // category load must not replace with its automatic default.
+    posMenuSortSelectionVersion += 1;
+    set((state) => ({
+      activeSort,
+      loadingMenu: state.pendingMenuSorts.includes(activeSort),
+    }));
+  },
   resetMenu: () => {
     posMenuLifecycleVersion += 1;
     clearProductItemCache();
@@ -450,11 +458,13 @@ export const usePosStore = create<PosState>((set, get) => ({
     cateUuid = "",
     query = "",
     refreshCategories = false,
+    preferCategorySort = false,
     background = false
   }) => {
     const isCurrentSession = createSessionGuard();
     const menuLifecycleVersion = posMenuLifecycleVersion;
     const menuRequestVersion = ++posMenuRequestVersion;
+    const menuSortSelectionVersion = posMenuSortSelectionVersion;
     const isCurrentMenuLifecycle = () =>
       isCurrentSession() &&
       menuLifecycleVersion === posMenuLifecycleVersion &&
@@ -501,6 +511,9 @@ export const usePosStore = create<PosState>((set, get) => ({
       }
 
       const searchQuery = nextQuery.trim();
+      const selectCategorySort = preferCategorySort && Boolean(nextCateUuid) && !searchQuery;
+      const hasManualSortSelection = () =>
+        menuSortSelectionVersion !== posMenuSortSelectionVersion;
       let menuBySort = emptyPosMenuBySort();
       if (nextCateUuid || searchQuery) {
         const publishMenuGroup = (
@@ -520,7 +533,9 @@ export const usePosStore = create<PosState>((set, get) => ({
               selectedCateUuid: nextCateUuid,
               submittedSearch: nextQuery,
               pendingMenuSorts,
-              loadingMenu: pendingMenuSorts.includes(state.activeSort),
+              loadingMenu: selectCategorySort && !hasManualSortSelection()
+                ? pendingMenuSorts.length > 0
+                : pendingMenuSorts.includes(state.activeSort),
             };
           });
         };
@@ -561,9 +576,13 @@ export const usePosStore = create<PosState>((set, get) => ({
       if (isCurrentMenuLifecycle()) {
         set((state) => ({
           activeSort:
-            countPosMenuProducts(menuBySort[state.activeSort]) > 0
-              ? state.activeSort
-              : firstPosMenuStatusWithProducts(menuBySort),
+            selectCategorySort
+              ? hasManualSortSelection()
+                ? state.activeSort
+                : preferredPosMenuStatus(menuBySort, state.activeSort)
+              : countPosMenuProducts(menuBySort[state.activeSort]) > 0
+                ? state.activeSort
+                : firstPosMenuStatusWithProducts(menuBySort),
           selectedCateUuid: nextCateUuid,
           submittedSearch: nextQuery,
           menuBySort
