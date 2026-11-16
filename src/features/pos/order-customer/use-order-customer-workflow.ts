@@ -301,11 +301,13 @@ export function useOrderCustomerWorkflow({
       cateUuid = "",
       query = "",
       refreshCategories = false,
+      preferCategorySort = false,
       background = false,
     }: {
       cateUuid?: string;
       query?: string;
       refreshCategories?: boolean;
+      preferCategorySort?: boolean;
       background?: boolean;
     } = {}) => {
       try {
@@ -315,6 +317,7 @@ export function useOrderCustomerWorkflow({
           cateUuid,
           query,
           refreshCategories,
+          preferCategorySort,
           background,
         });
       } catch (error) {
@@ -890,7 +893,7 @@ export function useOrderCustomerWorkflow({
 
   async function selectCategory(cateUuid: string) {
     setSearch("");
-    await loadMenu({ cateUuid, query: "" });
+    await loadMenu({ cateUuid, query: "", preferCategorySort: true });
   }
 
   async function submitSearch() {

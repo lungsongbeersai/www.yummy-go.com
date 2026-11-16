@@ -36,6 +36,28 @@ export function firstPosMenuStatusWithProducts(menuBySort: PosMenuBySort) {
   );
 }
 
+export function preferredPosMenuStatus(
+  menuBySort: PosMenuBySort,
+  activeSort: ProductSortStatusType,
+) {
+  let preferredSort = activeSort;
+  let greatestCount = countPosMenuProducts(menuBySort[activeSort]);
+
+  for (const status of [
+    ProductSortStatus.NORMAL,
+    ProductSortStatus.SET,
+    ProductSortStatus.PROMOTION,
+  ] as const) {
+    const count = countPosMenuProducts(menuBySort[status]);
+    if (count > greatestCount) {
+      preferredSort = status;
+      greatestCount = count;
+    }
+  }
+
+  return preferredSort;
+}
+
 export function nextPosMenuCategoryUuid({
   categories,
   defaultCateUuid,

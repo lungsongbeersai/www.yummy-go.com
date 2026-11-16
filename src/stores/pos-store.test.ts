@@ -102,6 +102,22 @@ function categoryWithProduct(cateUuid: string): CateWithProducts {
   };
 }
 
+function categoryWithProducts(
+  cateUuid: string,
+  statusSortFk: ProductSortStatus,
+  count: number,
+): CateWithProducts {
+  const base = categoryWithProduct(cateUuid);
+  return {
+    ...base,
+    products: Array.from({ length: count }, (_, index) => ({
+      ...base.products![0],
+      prodUuid: `${cateUuid}-${statusSortFk}-${index}`,
+      statusSortFk,
+    })),
+  };
+}
+
 describe("POS store session follow-up requests", () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -666,6 +682,110 @@ describe("POS store menu and table browse state", () => {
       statusSortFk: ProductSortStatus.NORMAL
     });
     expect(fetchCateProductsMock).toHaveBeenCalledTimes(3);
+  });
+
+  it("opens the SET tab when a selected category has eight sets and one normal product", async () => {
+    fetchCateProductsMock.mockImplementation(async ({ statusSortFk }) => ({
+      status: "success",
+      message: "ok",
+      categories: [categoryWithProducts("food-sets", statusSortFk!, statusSortFk === ProductSortStatus.SET ? 8 : statusSortFk === ProductSortStatus.NORMAL ? 1 : 0)],
+    }));
+
+    await usePosStore.getState().loadMenu({
+      branchUuid: "branch-1", language: "la", cateUuid: "food-sets",
+      preferCategorySort: true,
+    });
+
+    const state = usePosStore.getState();
+    expect(state.activeSort).toBe(ProductSortStatus.SET);
+    expect(state.menuBySort[state.activeSort][0].products).toHaveLength(8);
+    expect(state).toMatchObject({ selectedCateUuid: "food-sets", loadingMenu: false });
+    expect(fetchCateProductsMock).toHaveBeenCalledTimes(3);
+  });
+
+  it.each([false, true])("preserves a manually selected populated tab on refresh (background=%s)", async (background) => {
+    fetchCateProductsMock.mockImplementation(async ({ statusSortFk }) => ({
+      status: "success",
+      message: "ok",
+      categories: [categoryWithProducts("food-sets", statusSortFk!, statusSortFk === ProductSortStatus.SET ? 8 : 1)],
+    }));
+    usePosStore.getState().setActiveSort(ProductSortStatus.NORMAL);
+
+    await usePosStore.getState().loadMenu({
+      branchUuid: "branch-1", language: "la", cateUuid: "food-sets", background,
+    });
+
+    expect(usePosStore.getState().activeSort).toBe(ProductSortStatus.NORMAL);
+  });
+
+  it("does not apply category preference to cross-category search results", async () => {
+    fetchCateProductsMock.mockImplementation(async ({ statusSortFk }) => ({
+      status: "success",
+      message: "ok",
+      categories: [categoryWithProducts("matches", statusSortFk!, statusSortFk === ProductSortStatus.SET ? 8 : 1)],
+    }));
+
+    await usePosStore.getState().loadMenu({
+      branchUuid: "branch-1", language: "la", cateUuid: "food-sets", query: "tea",
+      preferCategorySort: true,
+    });
+
+    expect(usePosStore.getState().activeSort).toBe(ProductSortStatus.NORMAL);
+  });
+
+  it("waits for all category types before choosing its preferred tab", async () => {
+    const responses = Array.from({ length: 3 }, () => deferred<Awaited<ReturnType<typeof fetchCateProducts>>>());
+    for (const response of responses) fetchCateProductsMock.mockReturnValueOnce(response.promise);
+    const loading = usePosStore.getState().loadMenu({
+      branchUuid: "branch-1", language: "la", cateUuid: "food-sets",
+      preferCategorySort: true,
+    });
+    responses[0].resolve({ status: "success", message: "ok", categories: [categoryWithProducts("food-sets", ProductSortStatus.NORMAL, 1)] });
+    await vi.waitFor(() => expect(usePosStore.getState().pendingMenuSorts).not.toContain(ProductSortStatus.NORMAL));
+    expect(usePosStore.getState().loadingMenu).toBe(true);
+    responses[1].resolve({ status: "success", message: "ok", categories: [categoryWithProducts("food-sets", ProductSortStatus.SET, 8)] });
+    responses[2].resolve({ status: "success", message: "ok", categories: [] });
+    await loading;
+    expect(usePosStore.getState()).toMatchObject({ activeSort: ProductSortStatus.SET, loadingMenu: false });
+  });
+
+  it.each([ProductSortStatus.NORMAL, ProductSortStatus.PROMOTION])("respects an explicit tab choice while category requests are pending (tab=%s)", async (chosenSort) => {
+    const responses = Array.from({ length: 3 }, () => deferred<Awaited<ReturnType<typeof fetchCateProducts>>>());
+    for (const response of responses) fetchCateProductsMock.mockReturnValueOnce(response.promise);
+    const store = usePosStore.getState();
+    const loading = store.loadMenu({
+      branchUuid: "branch-1", language: "la", cateUuid: "food-sets",
+      preferCategorySort: true,
+    });
+    // Selecting NORMAL again is still an explicit choice; selecting an empty
+    // promotion tab must also survive the later SET response.
+    store.setActiveSort(chosenSort);
+    responses[0].resolve({ status: "success", message: "ok", categories: [categoryWithProducts("food-sets", ProductSortStatus.NORMAL, 1)] });
+    responses[1].resolve({ status: "success", message: "ok", categories: [categoryWithProducts("food-sets", ProductSortStatus.SET, 8)] });
+    responses[2].resolve({ status: "success", message: "ok", categories: [] });
+    await loading;
+    expect(usePosStore.getState()).toMatchObject({ activeSort: chosenSort, loadingMenu: false });
+  });
+
+  it("does not switch tabs when an obsolete category preference arrives late", async () => {
+    const responses = Array.from({ length: 3 }, () => deferred<Awaited<ReturnType<typeof fetchCateProducts>>>());
+    for (const response of responses) fetchCateProductsMock.mockReturnValueOnce(response.promise);
+    const store = usePosStore.getState();
+    const oldLoad = store.loadMenu({
+      branchUuid: "branch-1", language: "la", cateUuid: "old-sets", preferCategorySort: true,
+    });
+    fetchCateProductsMock.mockImplementation(async ({ statusSortFk }) => ({
+      status: "success", message: "ok",
+      categories: [categoryWithProducts("new-normal", statusSortFk!, statusSortFk === ProductSortStatus.NORMAL ? 2 : 0)],
+    }));
+    await store.loadMenu({
+      branchUuid: "branch-1", language: "la", cateUuid: "new-normal", preferCategorySort: true,
+    });
+    responses[0].resolve({ status: "success", message: "ok", categories: [] });
+    responses[1].resolve({ status: "success", message: "ok", categories: [categoryWithProducts("old-sets", ProductSortStatus.SET, 8)] });
+    responses[2].resolve({ status: "success", message: "ok", categories: [] });
+    await oldLoad;
+    expect(usePosStore.getState()).toMatchObject({ selectedCateUuid: "new-normal", activeSort: ProductSortStatus.NORMAL });
   });
 
   it("publishes the active normal menu before slower sorted groups finish", async () => {
