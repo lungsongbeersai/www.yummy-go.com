@@ -57,7 +57,20 @@ export function ProductPage({ initialPagination }: { initialPagination: UrlPagin
         >
           <TabsList aria-label={t("product.type")}>
             {product.statusTabs.map((tab) => (
-              <TabsTrigger key={tab.value} value={tab.value}>
+              <TabsTrigger
+                key={tab.value}
+                value={tab.value}
+                onMouseDown={(event) => {
+                  if (event.button === 0 && !event.ctrlKey && product.loading && tab.value === product.statusSortFk) {
+                    product.changeStatusSort(tab.value);
+                  }
+                }}
+                onKeyDown={(event) => {
+                  if ((event.key === "Enter" || event.key === " ") && product.loading && tab.value === product.statusSortFk) {
+                    product.changeStatusSort(tab.value);
+                  }
+                }}
+              >
                 {tab.label}
               </TabsTrigger>
             ))}

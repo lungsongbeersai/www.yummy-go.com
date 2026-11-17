@@ -64,6 +64,7 @@ import {
   ProductImportWorkbookError,
 } from "./product-import-workbook";
 import { exportProductTransfer } from "./product-transfer";
+import { createProductCategoryStatusSelection } from "./product-category-status-selection";
 import { createProductExportWorkbook } from "./product-export-workbook";
 import { loadProductMenuImages } from "./product-menu-images";
 import { DEFAULT_MENU_CATALOG_ROWS, DEFAULT_MENU_TEMPLATE_ID, type MenuCatalogRows, type MenuTemplateId } from "./product-menu-templates";
@@ -145,6 +146,7 @@ export function useProductListWorkflow(initialPagination: UrlPaginationState) {
   const setOrderBy = useProductStore((state) => state.setOrderBy);
   const setPageLimit = useProductStore((state) => state.setPageLimit);
   const loadProducts = useProductStore((state) => state.load);
+  const resolveCategoryStatus = useProductStore((state) => state.resolveCategoryStatus);
   const loadAllProductsForImport = useProductStore(
     (state) => state.loadAllForImport,
   );
@@ -224,6 +226,7 @@ export function useProductListWorkflow(initialPagination: UrlPaginationState) {
   const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false);
   const [bulkDeleting, setBulkDeleting] = useState(false);
   const [statusSortFk, setStatusSortFk] = useState(DEFAULT_STATUS_SORT);
+  const [categoryStatusSelection] = useState(createProductCategoryStatusSelection);
   const {
     changeLimit,
     goToPage,
@@ -309,6 +312,7 @@ export function useProductListWorkflow(initialPagination: UrlPaginationState) {
   const canSortProductDetails = !loading && !saving;
 
   const branchUuid = user?.branch_uuid ?? "";
+  const categoryStatusScope = JSON.stringify([storeUuid, branchUuid, cateUuidFk]);
   useResetOnDeps([storeUuid, branchUuid], resetImportState);
   const menuScopeKey = `${storeUuid}:${branchUuid}:${language}`;
   useResetOnChange(menuScopeKey, () => {
@@ -559,7 +563,26 @@ export function useProductListWorkflow(initialPagination: UrlPaginationState) {
   const load = useCallback(async () => {
     if (!branchUuid) return;
 
+    const request = categoryStatusSelection.begin(categoryStatusScope);
+
     try {
+      if (cateUuidFk && request.needsResolution) {
+        const keepCurrentStatus = await resolveCategoryStatus({
+          branch_uuid_fk: branchUuid,
+          cate_uuid_fk: cateUuidFk,
+          lang: language,
+        }, statusSortFk).then((preferredStatus) => {
+          if (preferredStatus === null || !categoryStatusSelection.complete(request)) return false;
+          if (preferredStatus === statusSortFk) return true;
+          setStatusSortFk(preferredStatus);
+          resetPage();
+          return false;
+        });
+        if (!keepCurrentStatus) return;
+      } else if (!categoryStatusSelection.complete(request)) {
+        return;
+      }
+
       await loadProducts({
         search: appliedSearch,
         page,
@@ -571,13 +594,14 @@ export function useProductListWorkflow(initialPagination: UrlPaginationState) {
         status_sort_fk: Number(statusSortFk)
       });
     } catch (error) {
+      if (!categoryStatusSelection.isCurrent(request)) return;
       showToast({
         title: t("product.loadFailed"),
         description: error instanceof Error ? error.message : "",
         tone: "error"
       });
     }
-  }, [appliedSearch, branchUuid, cateUuidFk, language, loadProducts, orderBy, page, pageLimit, showToast, statusSortFk, t]);
+  }, [appliedSearch, branchUuid, cateUuidFk, categoryStatusScope, categoryStatusSelection, language, loadProducts, orderBy, page, pageLimit, resetPage, resolveCategoryStatus, setStatusSortFk, showToast, statusSortFk, t]);
 
   useEffect(() => {
     loadStatusSorts(language).catch((error) => {
@@ -611,7 +635,8 @@ export function useProductListWorkflow(initialPagination: UrlPaginationState) {
 
   useEffect(() => {
     void load();
-  }, [load]);
+    return () => categoryStatusSelection.cancel();
+  }, [categoryStatusSelection, load]);
 
   // สินค้าที่พับไว้อาจหลุดจากรายการหลังกรอง/โหลดใหม่ ต้องตัดออก
   useResetOnChange(detailProductIds, () => {
@@ -644,7 +669,11 @@ export function useProductListWorkflow(initialPagination: UrlPaginationState) {
   }
 
   function changeStatusSort(value: string) {
-    if (value === statusSortFk) return;
+    categoryStatusSelection.selectManually(categoryStatusScope);
+    if (value === statusSortFk) {
+      void load();
+      return;
+    }
     setStatusSortFk(value);
     resetPage();
   }
@@ -652,6 +681,7 @@ export function useProductListWorkflow(initialPagination: UrlPaginationState) {
   function changeCategory(value: string) {
     const nextCategory = value === ALL_CATEGORIES_VALUE ? "" : value;
     if (nextCategory === cateUuidFk) return;
+    categoryStatusSelection.cancel();
     setCateUuidFk(nextCategory);
     resetPage();
   }
