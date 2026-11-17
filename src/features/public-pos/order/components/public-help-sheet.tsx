@@ -1,14 +1,14 @@
 "use client";
 
-import Image from "next/image";
 import { useEffect, useRef } from "react";
-import { ArrowUpRight, Bell, ChevronRight, CircleHelp, MessageCircle, Settings2, Utensils } from "lucide-react";
+import { Bell, ChevronRight, Info, Settings2, Utensils, X } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { Button } from "@/components/ui/button";
-import { Sheet, SheetClose, SheetContent, SheetDescription, SheetFooter, SheetHeader, SheetTitle } from "@/components/ui/sheet";
+import { Sheet, SheetClose, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { YUMMY_GO_COMPANY } from "@/config/yummy-go-company";
 import { PublicAboutYummyGoContent } from "./public-about-yummygo-content";
+import { PublicOwnerContactFooter, PublicOwnerIdentity, PublicRestaurantContactNote } from "./public-owner-contact";
 
 export type PublicHelpView = "help" | "about";
 
@@ -39,57 +39,35 @@ export function PublicHelpSheet({ open, view, viewOnly, onOpenChange, onViewChan
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent
         ref={contentRef}
+        data-testid="public-help-sheet"
+        data-view={view}
         side="bottom"
+        showCloseButton={false}
         onCloseAutoFocus={onCloseAutoFocus}
         onOpenAutoFocus={(event) => {
           event.preventDefault();
           contentRef.current?.querySelector<HTMLElement>('[data-slot="sheet-title"]')?.focus({ preventScroll: true });
         }}
-        className="mx-auto max-h-[min(90dvh,48rem)] w-full max-w-140 gap-0 overflow-hidden rounded-t-3xl border border-yg-divider bg-yg-bg2 p-0 font-yg-sans text-yg-ink [&>.ui-overlay-close-button]:size-11"
+        className="mx-auto max-h-[92dvh] w-full max-w-120 gap-0 overflow-hidden rounded-t-3xl border border-yg-divider bg-yg-bg2 p-0 font-yg-sans text-yg-ink ring-yg-divider sm:max-h-[min(90dvh,44rem)]"
       >
         {view === "about" ? <PublicAboutYummyGoContent onBack={() => onViewChange("help")} /> : (
           <>
-            <SheetHeader className="shrink-0 border-b border-yg-divider px-5 pt-5 pb-4 text-left">
-              <div className="flex min-w-0 items-center gap-3">
-                <span className="grid size-12 shrink-0 place-items-center rounded-2xl bg-yg-accent-soft text-yg-accent-strong"><CircleHelp className="size-6" aria-hidden="true" /></span>
-                <div className="flex min-w-0 flex-col gap-1">
-                  <SheetTitle tabIndex={-1} className="lao-tone-text font-yg-sans text-xl font-bold leading-7 text-yg-ink outline-none">{t("publicHelp.title")}</SheetTitle>
-                  <SheetDescription className="lao-tone-text text-xs leading-5 text-yg-muted">{t("publicHelp.description")}</SheetDescription>
-                </div>
-              </div>
+            <SheetHeader className="shrink-0 border-b border-yg-divider bg-yg-bg2 px-4 pt-4 pb-3 pr-16 text-left">
+              <SheetTitle tabIndex={-1} className="lao-tone-text font-yg-sans text-lg font-bold leading-7 text-yg-ink outline-none">{t("publicHelp.title")}</SheetTitle>
+              <SheetDescription className="sr-only">{t("publicHelp.description")}</SheetDescription>
             </SheetHeader>
 
-            <div className="flex min-h-0 flex-1 flex-col gap-5 overflow-y-auto overscroll-contain px-5 py-4">
-              <section aria-label={t("publicHelp.aboutSection")} className="flex flex-col gap-3 rounded-2xl border border-yg-accent bg-yg-accent p-4 text-yg-on-accent shadow-sm">
-                <div className="flex items-center gap-3">
-                  <span className="grid size-12 shrink-0 place-items-center rounded-2xl bg-yg-bg2 p-2"><Image src={YUMMY_GO_COMPANY.logo} width={36} height={36} alt="" className="rounded-lg object-contain" /></span>
-                  <span className="flex min-w-0 flex-col gap-0.5">
-                    <span className="lao-tone-text text-xs font-medium">{t("publicHelp.aboutSection")}</span>
-                    <span className="font-yg-sans text-xl font-bold leading-7">{YUMMY_GO_COMPANY.name}</span>
-                  </span>
-                </div>
-                <div className="flex flex-col gap-1">
-                  <h3 className="lao-tone-text text-base font-bold leading-6">{t("publicHelp.aboutHeadline", { name: YUMMY_GO_COMPANY.name })}</h3>
-                  <p className="lao-tone-text text-xs leading-5">{t("publicHelp.aboutDescription")}</p>
-                </div>
-                <Button asChild variant="outline" className="h-auto min-h-12 w-full justify-start gap-3 rounded-xl border-yg-line bg-yg-bg2 px-3 py-2 text-yg-ink hover:border-yg-accent-line hover:bg-yg-bg2 hover:text-yg-ink dark:border-yg-line dark:bg-yg-bg2 dark:text-yg-ink dark:hover:border-yg-accent-line dark:hover:bg-yg-bg2 dark:hover:text-yg-ink">
-                  <a href={YUMMY_GO_COMPANY.whatsappUrl} target="_blank" rel="noopener noreferrer" aria-label={t("publicCompany.contactAria", { name: YUMMY_GO_COMPANY.name, phone: YUMMY_GO_COMPANY.phone })}>
-                    <MessageCircle className="size-5 shrink-0 text-yg-accent-strong" aria-hidden="true" />
-                    <span className="flex min-w-0 flex-1 flex-col gap-0.5">
-                      <span className="lao-tone-text whitespace-normal text-xs leading-5 text-yg-muted">{t("publicCompany.contactLabel")}</span>
-                      <span className="font-yg-number text-base font-semibold text-yg-ink tabular-nums">{YUMMY_GO_COMPANY.phone}</span>
-                    </span>
-                    <ArrowUpRight className="size-4 shrink-0 text-yg-muted" aria-hidden="true" />
-                  </a>
-                </Button>
-                <Button type="button" variant="ghost" aria-label={t("publicCompany.title", { name: YUMMY_GO_COMPANY.name })} className="h-11 w-full justify-between gap-3 rounded-xl border-t border-yg-on-accent/25 px-2 text-yg-on-accent hover:bg-yg-on-accent/10 hover:text-yg-on-accent focus-visible:ring-yg-on-accent dark:text-yg-on-accent dark:hover:bg-yg-on-accent/10 dark:hover:text-yg-on-accent" onClick={() => onViewChange("about")}>
-                  <span className="lao-tone-text text-sm font-semibold">{t("publicHelp.aboutAction")}</span>
-                  <span className="grid size-7 shrink-0 place-items-center rounded-full bg-yg-on-accent/15"><ChevronRight className="size-4" aria-hidden="true" /></span>
-                </Button>
-              </section>
+            <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto overscroll-contain px-4 py-4">
+              <PublicOwnerIdentity />
+              <PublicRestaurantContactNote />
+              <Button type="button" variant="outline" className="h-auto min-h-11 w-full justify-start gap-2 whitespace-normal rounded-xl border-yg-line bg-yg-panel px-3 py-2 text-sm text-yg-ink hover:bg-yg-panel-hover hover:text-yg-ink focus-visible:ring-yg-accent/30" onClick={() => onViewChange("about")}>
+                <Info aria-hidden="true" className="size-4 shrink-0 text-yg-muted" />
+                <span className="lao-tone-text min-w-0 flex-1 text-left">{t("publicHelp.aboutAction", { name: YUMMY_GO_COMPANY.name })}</span>
+                <ChevronRight aria-hidden="true" className="size-4 shrink-0 text-yg-muted" />
+              </Button>
 
               <section className="flex flex-col gap-2">
-                <h3 className="lao-tone-text text-xs font-semibold text-yg-muted">{t("publicHelp.orderingTitle")}</h3>
+                <h3 className="lao-tone-text text-sm font-semibold text-yg-ink">{t("publicHelp.orderingTitle")}</h3>
                 <Accordion type="single" collapsible className="rounded-2xl border-yg-divider">
                   {topics.map(({ id, icon: Icon, question, answer }) => (
                     <AccordionItem key={id} value={id} className="border-yg-divider data-open:bg-yg-panel">
@@ -102,14 +80,15 @@ export function PublicHelpSheet({ open, view, viewOnly, onOpenChange, onViewChan
                   ))}
                 </Accordion>
               </section>
-
+              <SheetClose asChild><Button type="button" variant="ghost" className="min-h-11 w-full rounded-xl text-sm text-yg-muted hover:bg-yg-panel-hover hover:text-yg-ink">{t("publicCompany.returnToMenu")}</Button></SheetClose>
             </div>
 
-            <SheetFooter className="shrink-0 border-t border-yg-divider bg-yg-bg px-5 pt-4 pb-[max(1rem,env(safe-area-inset-bottom))]">
-              <SheetClose asChild><Button type="button" variant="outline" className="h-12 w-full rounded-xl border-yg-line bg-yg-panel text-sm font-semibold text-yg-ink hover:bg-yg-panel-hover hover:text-yg-ink">{t("publicCompany.returnToMenu")}</Button></SheetClose>
-            </SheetFooter>
+            <PublicOwnerContactFooter />
           </>
         )}
+        <SheetClose asChild>
+          <Button type="button" size="icon" variant="ghost" aria-label={t("actions.close")} className="absolute top-3 right-3 size-11 rounded-full text-yg-muted hover:bg-yg-panel-hover hover:text-yg-ink focus-visible:ring-yg-accent/30"><X aria-hidden="true" className="size-5" /></Button>
+        </SheetClose>
       </SheetContent>
     </Sheet>
   );

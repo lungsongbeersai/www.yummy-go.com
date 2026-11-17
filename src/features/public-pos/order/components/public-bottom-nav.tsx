@@ -2,7 +2,7 @@
 
 import type { ReactNode, RefObject } from "react";
 import { useTranslation } from "react-i18next";
-import { Bell, CircleHelp, ScanLine, Share2, ShoppingBag, Utensils } from "lucide-react";
+import { Bell, MessageCircle, ScanLine, Share2, ShoppingBag, Utensils } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Tooltip,
@@ -93,7 +93,7 @@ export function BottomNav({
           onClick={onCallStaff}
         />
       ) : null}
-      <NavButton icon={<CircleHelp className="size-5" />} label={t("publicHelp.nav")} ariaLabel={t("publicHelp.title")} onClick={onHelp} />
+      <NavButton icon={<MessageCircle className="size-5" />} label={t("publicHelp.nav")} ariaLabel={t("publicHelp.title")} onClick={onHelp} />
     </nav>
   );
 }
