@@ -3,8 +3,7 @@
 import { useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useTranslation } from "react-i18next";
-import { Bell, BellRing, ChevronRight, Settings2, UtensilsCrossed } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { Bell, ChevronRight, Settings2, UtensilsCrossed } from "lucide-react";
 import { collectOrderAlerts, type OrderAlertEntry } from "@/lib/pos/order-alerts";
 import { Badge } from "@/components/ui/badge";
 import { Button, type ButtonProps } from "@/components/ui/button";
@@ -53,7 +52,7 @@ export function NotificationMenu({
   const orderAlerts = useMemo(() => collectOrderAlerts(zoneOptions), [zoneOptions]);
 
   const pendingCount = orderAlerts.length;
-  const hasUnread = pendingCount > 0;
+  const hasPendingOrders = pendingCount > 0;
   const badgeText = pendingCount > 9 ? "9+" : String(pendingCount);
 
   function openTableOrder(alert: OrderAlertEntry) {
@@ -74,14 +73,10 @@ export function NotificationMenu({
                 variant={triggerVariant}
                 size={triggerSize}
                 aria-label={t("notifications.title")}
-                className={cn("relative", hasUnread && "notification-bell-alert", triggerClassName)}
+                className={triggerClassName}
               >
-                {hasUnread ? <BellRing data-icon="inline-start" /> : <Bell data-icon="inline-start" />}
-                {hasUnread ? (
-                  <Badge className="absolute right-2 top-2 h-4 min-w-4 justify-center bg-destructive px-1 text-2xs leading-none text-destructive-foreground sm:right-1 sm:top-1">
-                    {badgeText}
-                  </Badge>
-                ) : null}
+                {/* Order confirmations flag their table and zone; this list stays available on demand. */}
+                <Bell data-icon="inline-start" />
               </Button>
             </DropdownMenuTrigger>
           </TooltipTrigger>
@@ -101,15 +96,15 @@ export function NotificationMenu({
             <div className="flex min-w-0 flex-col gap-0.5">
               <DropdownMenuLabel className="p-0 text-sm font-semibold">{t("notifications.title")}</DropdownMenuLabel>
               <p className="text-xs text-muted-foreground">
-                {hasUnread ? t("notifications.pendingSummary", { count: pendingCount }) : t("notifications.empty")}
+                {hasPendingOrders ? t("notifications.pendingSummary", { count: pendingCount }) : t("notifications.empty")}
               </p>
             </div>
-            {hasUnread ? (
+            {hasPendingOrders ? (
               <Badge className="bg-destructive tabular-nums text-destructive-foreground">{badgeText}</Badge>
             ) : null}
           </div>
           <DropdownMenuSeparator className="my-0" />
-          {hasUnread ? (
+          {hasPendingOrders ? (
             <DropdownMenuGroup className="flex max-h-80 flex-col gap-1 overflow-y-auto p-1.5">
               {orderAlerts.map((alert) => (
                 <LiveOrderAlertRow key={alert.tableUuid} alert={alert} onSelect={() => openTableOrder(alert)} />

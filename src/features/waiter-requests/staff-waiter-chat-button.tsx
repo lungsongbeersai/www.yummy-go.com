@@ -5,8 +5,6 @@ import { useTranslation } from "react-i18next";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import { zoneOrderAlertCount } from "@/lib/pos/order-alerts";
-import { usePosStore } from "@/stores/pos-store";
 import { useAuthStore } from "@/stores/auth-store";
 import { useWaiterRequestsStore } from "@/stores/waiter-requests-store";
 
@@ -14,8 +12,6 @@ export function StaffWaiterChatButton() {
   const { t } = useTranslation();
   const branch = useAuthStore((state) => state.user?.branch_uuid ?? "");
   const requests = useWaiterRequestsStore((state) => state.staffRequests);
-  const zoneOptions = usePosStore((state) => state.zoneOptions);
-  const zones = usePosStore((state) => state.zones);
   const key = useWaiterRequestsStore((state) => state.staffKey);
   const panelOpen = useWaiterRequestsStore((state) => state.staffPanelOpen);
   const setPanelOpen = useWaiterRequestsStore((state) => state.setStaffPanelOpen);
@@ -23,10 +19,8 @@ export function StaffWaiterChatButton() {
   const count = key === branch ? requests.length : 0;
   const hasPending = count > 0;
   const hasError = Boolean(error && key === branch);
-  const hasNotice = hasPending ||
-    zoneOptions.some((zone) => zoneOrderAlertCount(zone) > 0) ||
-    zones.some((zone) => zoneOrderAlertCount(zone) > 0);
-  const animateNotice = hasNotice && !panelOpen;
+  // Order confirmations have their own table and zone indicators.
+  const animateNotice = hasPending && !panelOpen;
 
   if (!branch) return null;
 
