@@ -44,6 +44,10 @@ import {
   type EnsureProductImportReferencesInput,
   type ProductImportResolvedReferences,
 } from "@/stores/product-store/import-references";
+import {
+  PRODUCT_CATEGORY_STATUS_SORTS,
+  preferredProductCategoryStatus,
+} from "@/stores/product-store/category-status";
 
 interface ProductState {
   rows: Product[];
@@ -64,6 +68,10 @@ interface ProductState {
   setOrderBy: (orderBy: SortOrder) => void;
   setPageLimit: (pageLimit: PageLimit) => void;
   load: (params?: FetchProductsParams) => Promise<Product[]>;
+  resolveCategoryStatus: (
+    params: FetchProductsParams,
+    activeStatusSort: string,
+  ) => Promise<string | null>;
   loadAllForImport: (params: FetchProductsParams) => Promise<Product[]>;
   loadProductImage: (filename: string) => Promise<Blob>;
   loadStatusSorts: (lang?: string) => Promise<StatusSort[]>;
@@ -136,6 +144,38 @@ export const useProductStore = create<ProductState>((set, get) => ({
       if (requestId === productLoadRequestId && isCurrentSession()) {
         set({ error: errorMessage(error), loading: false });
       }
+      throw error;
+    }
+  },
+  resolveCategoryStatus: async (params, activeStatusSort) => {
+    if (!params.branch_uuid_fk || !params.cate_uuid_fk) return null;
+
+    const requestId = ++productLoadRequestId;
+    const isCurrentSession = createSessionGuard();
+    const isCurrentRequest = () =>
+      requestId === productLoadRequestId && isCurrentSession();
+    set({ loading: true, error: null });
+    try {
+      const totals = await Promise.all(PRODUCT_CATEGORY_STATUS_SORTS.map(async (statusSort) => {
+        // The API total counts products across the category. One row per
+        // type is sufficient, regardless of the list's page or search filter.
+        const result = await getProducts({
+          branch_uuid_fk: params.branch_uuid_fk,
+          cate_uuid_fk: params.cate_uuid_fk,
+          lang: params.lang,
+          status_sort_fk: Number(statusSort),
+          page: 1,
+          limit: 1,
+          search: "",
+        });
+        return { statusSort, total: result.total };
+      }));
+      if (!isCurrentRequest()) return null;
+      set({ loading: false });
+      return preferredProductCategoryStatus(totals, activeStatusSort);
+    } catch (error) {
+      if (!isCurrentRequest()) return null;
+      set({ error: errorMessage(error), loading: false });
       throw error;
     }
   },
