@@ -6,9 +6,14 @@ import { Button } from "@/components/ui/button";
 import { internalRoute } from "@/lib/routes";
 import { useAuthStore } from "@/stores/auth-store";
 
+// Keep the simulator entry points hidden until they are ready for public use.
+const SIMULATOR_LAUNCHER_ENABLED = false;
+
 export function SimulatorLauncher() {
   const branch = useAuthStore((state) => state.user?.branch_uuid);
   const [blocked, setBlocked] = useState(false);
+  if (!SIMULATOR_LAUNCHER_ENABLED) return null;
+
   return <div className="flex items-center gap-2">
     <Button type="button" aria-label="3D Simulator" title="3D Simulator" variant="secondary" className="h-10 gap-2" disabled={!branch} onClick={() => {
       // A same-origin opener copies sessionStorage for non-remembered logins.
