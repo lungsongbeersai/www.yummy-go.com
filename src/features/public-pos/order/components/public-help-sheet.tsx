@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Sheet, SheetClose, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { YUMMY_GO_COMPANY } from "@/config/yummy-go-company";
 import { PublicAboutYummyGoContent } from "./public-about-yummygo-content";
-import { PublicOwnerContactFooter, PublicOwnerIdentity, PublicRestaurantContactNote } from "./public-owner-contact";
+import { PublicOwnerContactFooter, PublicOwnerIdentity, PublicOwnerLinks, PublicRestaurantContactNote } from "./public-owner-contact";
 
 export type PublicHelpView = "help" | "about";
 
@@ -57,37 +57,44 @@ export function PublicHelpSheet({ open, view, viewOnly, onOpenChange, onViewChan
               <SheetDescription className="sr-only">{t("publicHelp.description")}</SheetDescription>
             </SheetHeader>
 
-            <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto overscroll-contain px-4 py-4">
+            <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto overscroll-contain px-4 py-4">
               <PublicOwnerIdentity />
+              <PublicOwnerLinks />
               <PublicRestaurantContactNote />
-              <Button type="button" variant="outline" className="h-auto min-h-11 w-full justify-start gap-2 whitespace-normal rounded-xl border-yg-line bg-yg-panel px-3 py-2 text-sm text-yg-ink hover:bg-yg-panel-hover hover:text-yg-ink focus-visible:ring-yg-accent/30" onClick={() => onViewChange("about")}>
-                <Info aria-hidden="true" className="size-4 shrink-0 text-yg-muted" />
+              <Button type="button" variant="ghost" className="h-auto min-h-11 w-full justify-start gap-2.5 whitespace-normal rounded-none border-0 border-b border-yg-line px-1 py-2 text-sm font-medium text-yg-accent-strong hover:bg-yg-panel-hover hover:text-yg-accent-strong focus-visible:ring-yg-accent/30" onClick={() => onViewChange("about")}>
+                <Info aria-hidden="true" className="size-4 shrink-0" />
                 <span className="lao-tone-text min-w-0 flex-1 text-left">{t("publicHelp.aboutAction", { name: YUMMY_GO_COMPANY.name })}</span>
-                <ChevronRight aria-hidden="true" className="size-4 shrink-0 text-yg-muted" />
+                <ChevronRight aria-hidden="true" className="size-4 shrink-0" />
               </Button>
 
-              <section className="flex flex-col gap-2">
-                <h3 className="lao-tone-text text-sm font-semibold text-yg-ink">{t("publicHelp.orderingTitle")}</h3>
-                <Accordion type="single" collapsible className="rounded-2xl border-yg-divider">
-                  {topics.map(({ id, icon: Icon, question, answer }) => (
-                    <AccordionItem key={id} value={id} className="border-yg-divider data-open:bg-yg-panel">
-                      <AccordionTrigger className="min-h-12 items-center gap-3 px-3 py-3 text-sm font-semibold leading-6 text-yg-ink hover:bg-yg-panel-hover hover:no-underline focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-yg-accent">
-                        <Icon className="size-5 shrink-0 text-yg-accent-strong" aria-hidden="true" />
-                        <span className="lao-tone-text min-w-0 flex-1">{t(`publicHelp.${question}`)}</span>
-                      </AccordionTrigger>
-                      <AccordionContent className="lao-tone-text h-auto px-1 pb-4 text-sm leading-6 text-yg-muted">{t(`publicHelp.${answer}`)}</AccordionContent>
-                    </AccordionItem>
-                  ))}
-                </Accordion>
-              </section>
-              <SheetClose asChild><Button type="button" variant="ghost" className="min-h-11 w-full rounded-xl text-sm text-yg-muted hover:bg-yg-panel-hover hover:text-yg-ink">{t("publicCompany.returnToMenu")}</Button></SheetClose>
+              <Accordion type="single" collapsible className="shrink-0 rounded-none border-0 border-b border-yg-line">
+                <AccordionItem value="menu-help" className="border-0 data-open:bg-transparent">
+                  <AccordionTrigger data-testid="public-menu-help-toggle" className="min-h-11 items-center gap-2.5 px-1 py-2 text-sm font-medium text-yg-ink hover:bg-yg-panel-hover hover:no-underline focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-yg-accent">
+                    <Utensils aria-hidden="true" className="size-4 shrink-0 text-yg-muted" />
+                    <span className="lao-tone-text min-w-0 flex-1">{t("publicHelp.orderingTitle")}</span>
+                  </AccordionTrigger>
+                  <AccordionContent className="h-auto px-0 pb-1">
+                    <Accordion type="single" collapsible className="rounded-none border-0">
+                      {topics.map(({ id, icon: Icon, question, answer }) => (
+                        <AccordionItem key={id} value={id} className="border-yg-divider data-open:bg-yg-panel">
+                          <AccordionTrigger className="min-h-11 items-center gap-2 px-1 py-2.5 text-sm font-semibold leading-6 text-yg-ink hover:bg-yg-panel-hover hover:no-underline focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-yg-accent">
+                            <Icon className="size-4 shrink-0 text-yg-muted" aria-hidden="true" />
+                            <span className="lao-tone-text min-w-0 flex-1">{t(`publicHelp.${question}`)}</span>
+                          </AccordionTrigger>
+                          <AccordionContent className="lao-tone-text h-auto px-1 pb-4 text-sm leading-6 text-yg-muted">{t(`publicHelp.${answer}`)}</AccordionContent>
+                        </AccordionItem>
+                      ))}
+                    </Accordion>
+                  </AccordionContent>
+                </AccordionItem>
+              </Accordion>
             </div>
 
             <PublicOwnerContactFooter />
           </>
         )}
         <SheetClose asChild>
-          <Button type="button" size="icon" variant="ghost" aria-label={t("actions.close")} className="absolute top-3 right-3 size-11 rounded-full text-yg-muted hover:bg-yg-panel-hover hover:text-yg-ink focus-visible:ring-yg-accent/30"><X aria-hidden="true" className="size-5" /></Button>
+          <Button type="button" size="icon" variant="ghost" aria-label={t("actions.close")} className="absolute top-3 right-3 size-11 rounded-full bg-yg-panel2 text-yg-ink hover:bg-yg-panel-hover hover:text-yg-ink focus-visible:ring-yg-accent/30"><X aria-hidden="true" className="size-5" /></Button>
         </SheetClose>
       </SheetContent>
     </Sheet>
