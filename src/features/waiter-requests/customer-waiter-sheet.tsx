@@ -8,6 +8,7 @@ import {
   LoaderCircle,
   MessagesSquare,
   Minus,
+  PencilLine,
   Plus,
   Receipt,
   RefreshCw,
@@ -36,7 +37,6 @@ import { cn } from "@/lib/utils";
 import type { WaiterRequestType } from "@/services/waiter-requests";
 import { useWaiterRequestsStore } from "@/stores/waiter-requests-store";
 import { PublicPullToRefresh } from "@/features/public-pos/order/components/public-pull-to-refresh";
-import { HorizontalScrollArrows } from "@/features/public-pos/order/components/horizontal-scroll-arrows";
 import {
   buildCustomerWaiterPayload,
   CUSTOMER_WAITER_KINDS,
@@ -53,6 +53,7 @@ const itemIcons = { bowl: Soup, spoon: Utensils, chopsticks: UtensilsCrossed } s
   CustomerWaiterKind,
   typeof Soup
 >;
+const BILL_QUICK_MESSAGE_KEYS = ["checkTable", "receipt", "readyToPay"] as const;
 
 // Customer-menu tokens also cover portals; the cashier's root .dark must not override them.
 const OUTLINE_ON_PANEL_CLASS =
@@ -78,7 +79,7 @@ export function CustomerWaiterSheet({ open, onOpenChange, token, branch, table, 
   const initialFocusFrame = useRef<number | null>(null);
   const requestTypeRefs = useRef<Record<WaiterRequestType, HTMLButtonElement | null>>({ staff: null, bill: null });
   const chatScrollRef = useRef<HTMLDivElement | null>(null);
-  const itemsScrollRef = useRef<HTMLDivElement | null>(null);
+  const pendingBillButtonRef = useRef<HTMLButtonElement | null>(null);
   const itemButtonRefs = useRef<Partial<Record<CustomerWaiterKind, HTMLButtonElement | null>>>({});
   const followLatest = useRef(true);
 
@@ -122,6 +123,13 @@ export function CustomerWaiterSheet({ open, onOpenChange, token, branch, table, 
   ), [quantities, note, t, isBill, requestType]);
   const selectedCount = payload.items.reduce((sum, item) => sum + item.qty, 0);
   const hasDetails = selectedCount > 0 || Boolean(note.trim());
+  const sendActionLabel = sending
+    ? t("common.loading")
+    : isBill
+      ? t("waiter.billSubmit")
+      : selectedCount
+        ? t("waiter.sendWithCount", { count: selectedCount })
+        : t(hasDetails ? "waiter.send" : "waiter.title");
   const canSend = !sending && (!isBill || (billEnabled && !loading && !pendingBill));
   const pendingCount = requests.filter((request) => request.status !== 2).length;
   // The API prioritizes an active bill; a conversation needs chronological order.
@@ -149,7 +157,10 @@ export function CustomerWaiterSheet({ open, onOpenChange, token, branch, table, 
     if (!isBill) setQuantities({});
     setNotes((current) => ({ ...current, [requestType]: "" }));
     followLatest.current = true;
-    window.requestAnimationFrame(scrollToLatest);
+    window.requestAnimationFrame(() => {
+      scrollToLatest();
+      if (isBill) pendingBillButtonRef.current?.focus({ preventScroll: true });
+    });
   };
 
   const formatTime = (value: string) =>
@@ -191,21 +202,21 @@ export function CustomerWaiterSheet({ open, onOpenChange, token, branch, table, 
           }
         }}
       >
-        <DrawerHandle aria-label={t("actions.close")} className="my-0 grid h-7 w-full place-items-center rounded-none bg-transparent after:h-1 after:w-10 after:rounded-full after:bg-yg-divider" />
-        <header className="flex shrink-0 items-center gap-3 border-b border-yg-line px-4 pb-4 sm:px-5">
-          <span className="grid size-11 shrink-0 place-items-center rounded-2xl bg-yg-accent-soft text-yg-accent-strong">
-            <MessagesSquare aria-hidden="true" className="size-5" />
+        <DrawerHandle aria-label={t("actions.close")} className="my-0 grid h-6 w-full place-items-center rounded-none bg-transparent after:h-1 after:w-10 after:rounded-full after:bg-yg-divider" />
+        <header className="flex shrink-0 items-center gap-2 border-b border-yg-line px-4 pb-3 sm:px-5">
+          <span className="grid size-9 shrink-0 place-items-center rounded-xl bg-yg-accent-soft text-yg-accent-strong">
+            <MessagesSquare aria-hidden="true" className="size-4" />
           </span>
           <div className="min-w-0 flex-1">
-            <DrawerTitle className="text-lg font-bold leading-tight text-yg-ink">{t("waiter.chat.customerTitle")}</DrawerTitle>
-            <DrawerDescription className="mt-1 text-xs leading-relaxed text-yg-muted">{t("waiter.serviceDescription")}</DrawerDescription>
+            <DrawerTitle className="text-base font-bold leading-snug text-yg-ink">{t("waiter.chat.customerTitle")}</DrawerTitle>
+            <DrawerDescription className="sr-only">{t("waiter.serviceDescription")}</DrawerDescription>
           </div>
           {pendingCount ? <Badge className="h-6 min-w-6 justify-center border-yg-accent-line bg-yg-accent-soft px-1.5 text-xs tabular-nums text-yg-accent-strong">{pendingCount}</Badge> : null}
-          <Button size="icon" variant="ghost" type="button" className="size-11 shrink-0 rounded-xl text-yg-muted hover:bg-yg-panel-hover hover:text-yg-ink dark:hover:bg-yg-panel-hover" disabled={loading} onClick={refresh} aria-label={t("actions.refresh")}>
+          <Button size="icon" variant="outline" type="button" className={cn("size-10 shrink-0 rounded-xl shadow-sm", OUTLINE_ON_PANEL_CLASS)} disabled={loading} onClick={refresh} aria-label={t("actions.refresh")}>
             <RefreshCw aria-hidden="true" className={cn("size-4", loading && "motion-safe:animate-spin")} />
           </Button>
           <DrawerClose asChild>
-            <Button type="button" variant="ghost" size="icon" aria-label={t("actions.close")} className="size-11 shrink-0 rounded-xl text-yg-muted hover:bg-yg-panel-hover hover:text-yg-ink dark:hover:bg-yg-panel-hover" disabled={sending}>
+            <Button type="button" variant="outline" size="icon" aria-label={t("actions.close")} className={cn("size-10 shrink-0 rounded-xl shadow-sm", OUTLINE_ON_PANEL_CLASS)} disabled={sending}>
               <X aria-hidden="true" />
             </Button>
           </DrawerClose>
@@ -280,7 +291,7 @@ export function CustomerWaiterSheet({ open, onOpenChange, token, branch, table, 
           </ol>
         </div>
 
-        <form className="flex max-h-[55dvh] shrink-0 flex-col gap-3 overflow-y-auto overscroll-contain border-t border-yg-line bg-yg-bg2 px-4 pt-3 pb-[max(16px,env(safe-area-inset-bottom))] sm:px-5" onSubmit={(event) => {
+        <form data-testid="customer-waiter-compose" className="flex max-h-[55dvh] shrink-0 flex-col gap-2 overflow-y-auto overscroll-contain border-t border-yg-line bg-yg-bg2 px-4 pt-2 pb-[max(12px,env(safe-area-inset-bottom))] sm:px-5" onSubmit={(event) => {
           event.preventDefault();
           void submit();
         }}>
@@ -292,7 +303,7 @@ export function CustomerWaiterSheet({ open, onOpenChange, token, branch, table, 
             {(["staff", "bill"] as const).map((type) => {
               const Icon = type === "bill" ? Receipt : Bell;
               return (
-                <ToggleGroupItem key={type} ref={(element) => { requestTypeRefs.current[type] = element; }} value={type} aria-label={t(type === "bill" ? "waiter.requestBill" : "waiter.requestStaff")} aria-describedby={`${choiceId}-${type}`} disabled={sending || (type === "bill" && !billEnabled && !pendingBill)} className="h-auto min-h-11 min-w-0 gap-2 whitespace-normal rounded-xl border border-yg-line bg-yg-bg2 px-2 py-2 text-xs text-yg-muted hover:bg-yg-panel-hover hover:text-yg-ink focus-visible:ring-yg-accent data-[state=on]:border-yg-accent-line data-[state=on]:bg-yg-accent-soft data-[state=on]:text-yg-accent-strong dark:bg-yg-bg2 dark:data-[state=on]:bg-yg-accent-soft dark:data-[state=on]:text-yg-accent-strong">
+                <ToggleGroupItem key={type} ref={(element) => { requestTypeRefs.current[type] = element; }} value={type} aria-label={t(type === "bill" ? "waiter.requestBill" : "waiter.requestStaff")} aria-describedby={`${choiceId}-${type}`} disabled={sending || (type === "bill" && !billEnabled && !pendingBill)} className="h-auto min-h-9 min-w-0 gap-2 whitespace-normal rounded-xl border border-yg-accent-line bg-yg-bg2 px-2 py-1.5 text-xs font-semibold text-yg-ink shadow-sm hover:bg-yg-panel-hover hover:text-yg-ink focus-visible:ring-yg-accent data-[state=on]:border-yg-accent data-[state=on]:bg-yg-accent data-[state=on]:text-yg-on-accent data-[state=on]:hover:bg-yg-accent-strong data-[state=on]:hover:text-yg-on-accent dark:bg-yg-bg2 dark:data-[state=on]:bg-yg-accent dark:data-[state=on]:text-yg-on-accent">
                   <Icon aria-hidden="true" className="size-4 shrink-0" />
                   <span>{t(type === "bill" ? "waiter.requestBill" : "waiter.requestStaff")}</span>
                   <span id={`${choiceId}-${type}`} className="sr-only">{t(type === "bill" ? "waiter.requestBillDescription" : "waiter.requestStaffDescription")}</span>
@@ -302,39 +313,77 @@ export function CustomerWaiterSheet({ open, onOpenChange, token, branch, table, 
           </ToggleGroup>
           {!loading && !billEnabled && !pendingBill ? <p className="text-xs leading-5 text-yg-muted">{t("waiter.billUnavailable")}</p> : null}
           {isBill ? (
-            <div className="rounded-xl border border-yg-accent-line bg-yg-accent-soft px-3 py-2.5 text-xs leading-relaxed text-yg-ink">
-              <p>{t(pendingBill ? "waiter.billPending" : "waiter.billNotice")}</p>
-              {pendingBill ? <p role="status" className="mt-1 font-semibold text-yg-accent-strong">{t(`waiter.billStatus${pendingBill.status}`)}</p> : null}
+            <div className="grid min-w-0 gap-1.5">
+              <p id={`${choiceId}-bill-messages-label`} className="text-xs font-medium text-yg-accent-strong">{t("waiter.billQuickMessagesLabel")}</p>
+              <div
+                data-testid="customer-bill-quick-messages"
+                data-vaul-no-drag
+                role="region"
+                aria-labelledby={`${choiceId}-bill-messages-label`}
+                tabIndex={0}
+                className="yg-rail snap-x snap-proximity overflow-x-auto overflow-y-hidden overscroll-x-contain rounded-xl px-0.5 py-1 outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-yg-accent"
+              >
+                <div className="flex w-max gap-1.5">
+                  {BILL_QUICK_MESSAGE_KEYS.map((preset) => {
+                    const message = t(`waiter.billQuickMessages.${preset}`);
+                    const selected = notes.bill === message;
+                    return (
+                      <Button
+                        key={preset}
+                        type="button"
+                        variant="outline"
+                        data-bill-message={preset}
+                        aria-pressed={selected}
+                        disabled={sending || loading || !billEnabled || Boolean(pendingBill)}
+                        className={cn(
+                          "h-9 snap-start gap-1.5 rounded-full px-3 text-xs font-medium shadow-sm focus-visible:ring-yg-accent",
+                          selected
+                            ? "border-yg-accent bg-yg-accent-soft text-yg-accent-strong hover:bg-yg-panel-hover hover:text-yg-accent-strong dark:bg-yg-accent-soft dark:hover:bg-yg-panel-hover"
+                            : OUTLINE_ON_PANEL_CLASS,
+                        )}
+                        onClick={() => {
+                          if (notes.bill === message) return;
+                          // A preset can match the default payload; preserve its retry UUID.
+                          setNotes((current) => ({ ...current, bill: message }));
+                        }}
+                      >
+                        {selected ? <CheckCircle2 aria-hidden="true" className="size-3.5" /> : <Receipt aria-hidden="true" className="size-3.5" />}
+                        {message}
+                      </Button>
+                    );
+                  })}
+                </div>
+              </div>
+              <div className="rounded-xl border border-yg-accent-line bg-yg-accent-soft px-3 py-2.5 text-xs leading-relaxed text-yg-ink">
+                <p>{t(pendingBill ? "waiter.billPending" : "waiter.billNotice")}</p>
+                {pendingBill ? <p role="status" className="mt-1 font-semibold text-yg-accent-strong">{t(`waiter.billStatus${pendingBill.status}`)}</p> : null}
+              </div>
             </div>
           ) : (
             <div className="min-w-0">
-              <div className="flex min-h-8 items-center justify-between gap-2">
-                <p id={`${choiceId}-items-label`} className="text-xs font-medium text-yg-muted">{t("waiter.quickSelect")}</p>
-                <HorizontalScrollArrows scrollRef={itemsScrollRef} variant="controls" className="rounded-full" />
-              </div>
+              <p id={`${choiceId}-items-label`} className="sr-only">{t("waiter.quickSelect")}</p>
               <div
-                ref={itemsScrollRef}
                 data-testid="customer-waiter-items"
                 data-vaul-no-drag
                 role="region"
                 aria-labelledby={`${choiceId}-items-label`}
                 tabIndex={0}
-                className="yg-rail snap-x snap-proximity overflow-x-auto overflow-y-hidden overscroll-x-contain rounded-xl px-1 py-1 outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-yg-accent"
+                className="yg-rail snap-x snap-proximity overflow-x-auto overflow-y-hidden overscroll-x-contain rounded-xl px-0.5 py-1 outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-yg-accent"
               >
-                <ul className="flex w-max items-center gap-2">
+                <ul className="flex w-max items-center gap-1.5">
                   {CUSTOMER_WAITER_KINDS.map((kind) => {
                     const Icon = itemIcons[kind];
                     const qty = quantities[kind] ?? 0;
                     const name = t(`waiter.${kind}`);
                     return (
-                      <li key={kind} className={cn("flex shrink-0 snap-start items-center rounded-full border", qty > 0 ? "border-yg-accent-line bg-yg-accent-soft" : "border-yg-line bg-yg-bg2")}>
+                      <li key={kind} className={cn("flex shrink-0 snap-start items-center rounded-full border shadow-sm", qty > 0 ? "border-yg-accent bg-yg-accent-soft" : "border-yg-accent-line bg-yg-bg2")}>
                         {qty > 0 ? (
                           <Button
                             type="button"
                             variant="ghost"
                             size="icon"
                             aria-label={t("waiter.decrease", { name })}
-                            className="size-11 rounded-full text-yg-accent-strong hover:bg-yg-panel-hover hover:text-yg-accent-strong focus-visible:ring-yg-accent dark:hover:bg-yg-panel-hover"
+                            className="size-9 rounded-full text-yg-accent-strong hover:bg-yg-panel-hover hover:text-yg-accent-strong focus-visible:ring-yg-accent dark:hover:bg-yg-panel-hover"
                             disabled={sending}
                             onClick={() => {
                               if (qty === 1) itemButtonRefs.current[kind]?.focus({ preventScroll: true });
@@ -348,7 +397,7 @@ export function CustomerWaiterSheet({ open, onOpenChange, token, branch, table, 
                           asChild
                           variant="outline"
                           className={cn(
-                            "h-11 min-w-32 cursor-pointer justify-start gap-2 rounded-full border-0 bg-transparent px-3 text-xs text-yg-ink hover:bg-yg-panel-hover focus-visible:ring-yg-accent disabled:cursor-not-allowed disabled:opacity-50 dark:bg-transparent dark:hover:bg-yg-panel-hover",
+                            "h-9 min-w-26 cursor-pointer justify-start gap-1.5 rounded-full border-0 bg-transparent px-2.5 text-xs text-yg-ink hover:bg-yg-panel-hover focus-visible:ring-yg-accent disabled:cursor-not-allowed disabled:opacity-50 dark:bg-transparent dark:hover:bg-yg-panel-hover",
                             qty > 0 && "text-yg-accent-strong",
                           )}
                         >
@@ -362,7 +411,7 @@ export function CustomerWaiterSheet({ open, onOpenChange, token, branch, table, 
                             <span className="text-yg-accent-strong"><Icon aria-hidden="true" className="size-4" /></span>
                             <span>{name}</span>
                             <output aria-live="polite" aria-label={name} className={cn("ml-auto min-w-4 text-center font-bold tabular-nums", qty === 0 && "text-yg-muted")}>{qty}</output>
-                            <span><Plus aria-hidden="true" className="size-3.5" /></span>
+                            <span className="grid size-5 shrink-0 place-items-center rounded-full bg-yg-accent text-yg-on-accent"><Plus aria-hidden="true" className="size-3.5" /></span>
                           </button>
                         </Badge>
                       </li>
@@ -372,25 +421,51 @@ export function CustomerWaiterSheet({ open, onOpenChange, token, branch, table, 
               </div>
             </div>
           )}
-          {!(isBill && pendingBill) ? (
-            <div>
-              <label htmlFor={`${choiceId}-message`} className="sr-only">{t("waiter.message")}</label>
-              <Textarea id={`${choiceId}-message`} value={note} disabled={sending} maxLength={MAX_CUSTOMER_WAITER_MESSAGE} rows={2} placeholder={t(isBill ? "waiter.billMessagePlaceholder" : "waiter.messagePlaceholder")} className="max-h-28 min-h-14 resize-none rounded-2xl border-yg-line bg-yg-bg2 px-3 py-2.5 text-base font-normal leading-relaxed text-yg-ink placeholder:text-yg-muted dark:bg-yg-bg2" onChange={(event) => {
-                dirty();
-                const value = event.target.value.slice(0, MAX_CUSTOMER_WAITER_MESSAGE);
-                setNotes((current) => ({ ...current, [requestType]: value }));
-              }} />
-              {note.length ? <p className="mt-1 text-right text-xs tabular-nums text-yg-muted">{note.length}/{MAX_CUSTOMER_WAITER_MESSAGE}</p> : null}
-            </div>
-          ) : null}
-          <Button type={isBill && pendingBill ? "button" : "submit"} className="h-auto min-h-12 w-full shrink-0 gap-2 whitespace-normal rounded-2xl bg-yg-accent px-3 py-3 text-sm font-semibold text-yg-on-accent shadow-sm hover:bg-yg-accent-strong" disabled={sending || (!(isBill && pendingBill) && !canSend)} onClick={() => {
-            if (isBill && pendingBill) {
+          {isBill && pendingBill ? (
+            <Button ref={pendingBillButtonRef} type="button" className="min-h-11 w-full gap-2 whitespace-normal rounded-xl bg-yg-accent px-3 py-2 text-sm font-semibold text-yg-on-accent shadow-sm hover:bg-yg-accent-strong" disabled={sending} onClick={() => {
               chatScrollRef.current?.querySelector<HTMLElement>(`[data-request-id="${pendingBill.request_uuid}"]`)?.scrollIntoView({ block: "nearest" });
-            }
-          }}>
-            {sending ? <LoaderCircle aria-hidden="true" className="size-4 motion-safe:animate-spin" /> : isBill ? <Receipt aria-hidden="true" className="size-4" /> : hasDetails ? <Send aria-hidden="true" className="size-4" /> : <Bell aria-hidden="true" className="size-4" />}
-            {sending ? t("common.loading") : isBill ? t(pendingBill ? "waiter.billViewHistory" : "waiter.billSubmit") : selectedCount ? t("waiter.sendWithCount", { count: selectedCount }) : hasDetails ? t("waiter.send") : t("waiter.title")}
-          </Button>
+            }}>
+              <Receipt aria-hidden="true" className="size-4" />
+              {t("waiter.billViewHistory")}
+            </Button>
+          ) : (
+            <div className="grid gap-1.5">
+              <div className="flex items-center justify-between gap-2">
+                <label htmlFor={`${choiceId}-message`} className="flex items-center gap-1.5 text-xs font-semibold text-yg-accent-strong">
+                  <PencilLine aria-hidden="true" className="size-3.5" />
+                  {t("waiter.message")}
+                </label>
+                {note.length ? <span className="shrink-0 text-xs tabular-nums text-yg-muted">{note.length}/{MAX_CUSTOMER_WAITER_MESSAGE}</span> : null}
+              </div>
+              <div className="flex items-end gap-2">
+                <Textarea
+                  id={`${choiceId}-message`}
+                  data-testid="customer-waiter-message"
+                  value={note}
+                  disabled={sending}
+                  maxLength={MAX_CUSTOMER_WAITER_MESSAGE}
+                  rows={1}
+                  placeholder={t(isBill ? "waiter.billMessagePlaceholder" : "waiter.chat.writePlaceholder")}
+                  className="max-h-24 min-h-11 min-w-0 flex-1 resize-none rounded-xl border-yg-accent/40 bg-yg-accent-soft/20 px-3 py-2 text-base font-normal leading-relaxed text-yg-ink shadow-inner placeholder:text-yg-muted focus-visible:border-yg-accent focus-visible:ring-yg-accent/25 dark:bg-yg-accent-soft/20"
+                  onChange={(event) => {
+                    dirty();
+                    const value = event.target.value.slice(0, MAX_CUSTOMER_WAITER_MESSAGE);
+                    setNotes((current) => ({ ...current, [requestType]: value }));
+                  }}
+                />
+                <Button
+                  type="submit"
+                  data-testid="customer-waiter-send"
+                  aria-label={`${t("waiter.chat.sendAction")}: ${sendActionLabel}`}
+                  className="h-11 min-w-17 shrink-0 gap-1.5 rounded-xl bg-yg-accent px-3 text-sm font-semibold text-yg-on-accent shadow-sm hover:bg-yg-accent-strong"
+                  disabled={!canSend}
+                >
+                  {sending ? <LoaderCircle aria-hidden="true" className="size-4 motion-safe:animate-spin" /> : <Send aria-hidden="true" className="size-4" />}
+                  {t("waiter.chat.sendAction")}
+                </Button>
+              </div>
+            </div>
+          )}
         </form>
       </DrawerContent>
     </Drawer>

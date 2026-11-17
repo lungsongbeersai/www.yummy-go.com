@@ -1,7 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useCallback, useEffect, useId, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
   AlertCircle, ArrowRight, Bell, BellRing, Check, CheckCheck, Clock3,
@@ -16,11 +15,9 @@ import { Sheet, SheetClose, SheetContent, SheetDescription, SheetHeader, SheetTi
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { cn } from "@/lib/utils";
-import { createMutationUuid } from "@/lib/pos/mutation-identity";
 import type { WaiterRequest } from "@/services/waiter-requests";
 import { useWaiterRequestsStore } from "@/stores/waiter-requests-store";
-import { useNavigationGuardStore } from "@/stores/navigation-guard-store";
-import { billRequestOrderUrl } from "./bill-request-navigation";
+import { useOpenBillRequest } from "./use-open-bill-request";
 
 interface StaffWaiterPanelProps {
   branch: string;
@@ -38,9 +35,8 @@ const itemIcons = {
 };
 
 export function StaffWaiterPanel({ branch, open, onOpenChange }: StaffWaiterPanelProps) {
-  const { t, i18n } = useTranslation();
-  const router = useRouter();
-  const runGuardedNavigation = useNavigationGuardStore((state) => state.run);
+  const { t } = useTranslation();
+  const openBillRequest = useOpenBillRequest(branch, onOpenChange);
   const storedRows = useWaiterRequestsStore((state) => state.staffRequests);
   const key = useWaiterRequestsStore((state) => state.staffKey);
   const rows = key === branch ? storedRows : [];
@@ -76,19 +72,6 @@ export function StaffWaiterPanel({ branch, open, onOpenChange }: StaffWaiterPane
     });
     return () => window.cancelAnimationFrame(frame);
   }, [open, filter, timelineVersion]);
-
-  function openBillRequest(request: WaiterRequest) {
-    const target = billRequestOrderUrl(request, i18n.language, createMutationUuid());
-    if (!target) return;
-    runGuardedNavigation(() => {
-      void (async () => {
-        if (request.status === 0 && !await handle(request.request_uuid, 1)) return;
-        if (useWaiterRequestsStore.getState().staffKey !== branch) return;
-        onOpenChange(false);
-        router.push(target);
-      })();
-    });
-  }
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
@@ -243,6 +226,7 @@ interface StaffRequestMessageProps {
 
 function StaffRequestMessage({ request, busy, onHandle, onOpenBill }: StaffRequestMessageProps) {
   const { t, i18n } = useTranslation();
+  const messageId = useId();
   const isBill = request.request_type === "bill";
   const RequestIcon = isBill ? Receipt : Bell;
   const requestTypeLabel = t(isBill ? "waiter.typeBill" : "waiter.typeStaff");
@@ -251,6 +235,41 @@ function StaffRequestMessage({ request, busy, onHandle, onOpenBill }: StaffReque
   const tableName = i18n.language === "en"
     ? request.table_name_eng || request.table_name_la
     : request.table_name_la || request.table_name_eng;
+  const canOpenBill = isBill && request.status !== 2 && Boolean(request.table_uuid.trim() && request.request_uuid.trim());
+  const messageBody = (
+    <>
+      <span className="flex flex-wrap items-center gap-2">
+        <Badge className={cn("h-auto min-h-6 max-w-full gap-1.5 whitespace-normal rounded-full border px-2 py-1 text-2xs", isBill ? "border-primary/20 bg-primary/10 text-primary-text" : "border-border bg-muted/50 text-muted-foreground")}>
+          <RequestIcon aria-hidden="true" className="size-3.5 shrink-0" />{requestTypeLabel}
+        </Badge>
+        {waiting || updating ? (
+          <span className={cn("inline-flex min-w-0 items-center gap-1.5 text-2xs font-medium", updating ? "text-muted-foreground" : "text-warning-text")}>
+            {updating ? <LoaderCircle aria-hidden="true" className="size-3.5 shrink-0 motion-safe:animate-spin" /> : <Clock3 aria-hidden="true" className="size-3.5 shrink-0" />}
+            {t(updating ? "waiter.panel.updating" : isBill ? "waiter.billStatus0" : "waiter.status0")}
+          </span>
+        ) : null}
+      </span>
+      {request.message.trim() ? <span id={messageId} className="whitespace-pre-wrap break-words text-sm font-normal leading-relaxed [overflow-wrap:anywhere]">{request.message}</span> : null}
+      {request.items.length ? (
+        <span role="list" aria-label={t("waiter.panel.items")} className="flex flex-wrap gap-1.5">
+          {request.items.map((item) => {
+            const Icon = itemIcons[item.kind];
+            return (
+              <span role="listitem" key={item.kind} className="flex min-w-0 items-center gap-1.5 rounded-xl border border-border/60 bg-muted/50 px-2.5 py-2 text-xs">
+                <Icon aria-hidden="true" className="size-3.5 shrink-0 text-primary-text" />
+                <span className="min-w-0 break-words font-medium">{t(`waiter.${item.kind}`)}</span>
+                <span className="shrink-0 font-bold tabular-nums">×{item.qty}</span>
+              </span>
+            );
+          })}
+        </span>
+      ) : null}
+      <time dateTime={request.created_at} className="self-end text-2xs font-normal tabular-nums text-muted-foreground">
+        {new Date(request.created_at).toLocaleString(i18n.language === "en" ? "en-GB" : "lo-LA", { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })}
+      </time>
+      {isBill ? <span className="flex items-center justify-between gap-2 border-t border-primary/15 pt-2 text-xs font-semibold text-primary-text"><span>{t("notifications.newOrderPopup.openTable")} · {tableName || t("nav.table")}</span><ArrowRight aria-hidden="true" className="size-4 shrink-0" /></span> : null}
+    </>
+  );
 
   return (
     <article
@@ -268,37 +287,22 @@ function StaffRequestMessage({ request, busy, onHandle, onOpenBill }: StaffReque
           <h3 className="max-w-full break-words text-xs font-semibold text-muted-foreground">
             {t("nav.table")} · {tableName || t("nav.table")}
           </h3>
-          <div className="flex w-full min-w-0 flex-col gap-3 rounded-2xl rounded-tl-sm border border-border/70 bg-card p-3.5 text-card-foreground shadow-sm">
-            <div className="flex flex-wrap items-center gap-2">
-              <Badge className={cn("h-auto min-h-6 max-w-full gap-1.5 whitespace-normal rounded-full border px-2 py-1 text-2xs", isBill ? "border-primary/20 bg-primary/10 text-primary-text" : "border-border bg-muted/50 text-muted-foreground")}>
-                <RequestIcon aria-hidden="true" className="size-3.5 shrink-0" />{requestTypeLabel}
-              </Badge>
-              {waiting || updating ? (
-                <span className={cn("inline-flex min-w-0 items-center gap-1.5 text-2xs font-medium", updating ? "text-muted-foreground" : "text-warning-text")}>
-                  {updating ? <LoaderCircle aria-hidden="true" className="size-3.5 shrink-0 motion-safe:animate-spin" /> : <Clock3 aria-hidden="true" className="size-3.5 shrink-0" />}
-                  {t(updating ? "waiter.panel.updating" : isBill ? "waiter.billStatus0" : "waiter.status0")}
-                </span>
-              ) : null}
-            </div>
-            {request.message.trim() ? <p className="whitespace-pre-wrap break-words text-sm leading-relaxed [overflow-wrap:anywhere]">{request.message}</p> : null}
-            {request.items.length ? (
-              <ul aria-label={t("waiter.panel.items")} className="flex flex-wrap gap-1.5">
-                {request.items.map((item) => {
-                  const Icon = itemIcons[item.kind];
-                  return (
-                    <li key={item.kind} className="flex min-w-0 items-center gap-1.5 rounded-xl border border-border/60 bg-muted/50 px-2.5 py-2 text-xs">
-                      <Icon aria-hidden="true" className="size-3.5 shrink-0 text-primary-text" />
-                      <span className="min-w-0 break-words font-medium">{t(`waiter.${item.kind}`)}</span>
-                      <span className="shrink-0 font-bold tabular-nums">×{item.qty}</span>
-                    </li>
-                  );
-                })}
-              </ul>
-            ) : null}
-            <time dateTime={request.created_at} className="self-end text-2xs tabular-nums text-muted-foreground">
-              {new Date(request.created_at).toLocaleString(i18n.language === "en" ? "en-GB" : "lo-LA", { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })}
-            </time>
-          </div>
+          {isBill ? (
+            <Button
+              type="button"
+              variant="outline"
+              data-testid={`staff-bill-open-${request.request_uuid}`}
+              aria-label={`${t("notifications.newOrderPopup.openTable")} · ${tableName || t("nav.table")}`}
+              aria-describedby={request.message.trim() ? messageId : undefined}
+              disabled={!!busy || !canOpenBill}
+              className="h-auto w-full min-w-0 flex-col items-stretch gap-3 whitespace-normal rounded-2xl rounded-tl-sm border-primary/25 bg-card p-3.5 text-left text-card-foreground shadow-sm hover:border-primary/50 hover:bg-primary/5 focus-visible:ring-primary-text/30"
+              onClick={() => onOpenBill(request)}
+            >
+              {messageBody}
+            </Button>
+          ) : (
+            <div className="flex w-full min-w-0 flex-col gap-3 rounded-2xl rounded-tl-sm border border-border/70 bg-card p-3.5 text-card-foreground shadow-sm">{messageBody}</div>
+          )}
         </div>
       </div>
 
@@ -314,8 +318,8 @@ function StaffRequestMessage({ request, busy, onHandle, onOpenBill }: StaffReque
 
       <div className="ml-11 flex flex-wrap gap-2">
         {waiting || (isBill && request.status === 1) ? (
-          <Button type="button" className="h-auto min-h-11 min-w-0 flex-1 gap-2 whitespace-normal rounded-xl px-3 py-2 text-xs font-semibold" disabled={!!busy || (isBill && !request.table_uuid.trim())} onClick={() => isBill ? onOpenBill(request) : void onHandle(request.request_uuid, 1)}>
-            <Check aria-hidden="true" className="size-4" /><span className="min-w-0 flex-1">{t(isBill ? waiting ? "waiter.billAccept" : "notifications.newOrderPopup.openTable" : "waiter.accept")}</span><ArrowRight aria-hidden="true" className="ml-auto size-3.5" />
+          <Button type="button" className="h-auto min-h-11 min-w-0 flex-1 gap-2 whitespace-normal rounded-xl px-3 py-2 text-xs font-semibold" disabled={!!busy || (isBill && !canOpenBill)} onClick={() => isBill ? onOpenBill(request) : void onHandle(request.request_uuid, 1)}>
+            {isBill ? <Receipt aria-hidden="true" className="size-4" /> : <Check aria-hidden="true" className="size-4" />}<span className="min-w-0 flex-1">{t(isBill ? "notifications.newOrderPopup.openTable" : "waiter.accept")}</span><ArrowRight aria-hidden="true" className="ml-auto size-3.5" />
           </Button>
         ) : null}
         <Button type="button" variant={waiting ? "outline" : "default"} className="h-auto min-h-11 min-w-0 flex-1 gap-2 whitespace-normal rounded-xl px-3 py-2 text-xs font-semibold" disabled={!!busy} onClick={() => void onHandle(request.request_uuid, 2)}>

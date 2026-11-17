@@ -4020,7 +4020,9 @@
       "you": "You",
       "welcome": "How can we help?",
       "hint": "Send a message or use the options below. Staff updates will appear in this conversation.",
-      "timelineLabel": "Customer conversation"
+      "timelineLabel": "Customer conversation",
+      "writePlaceholder": "Type a message…",
+      "sendAction": "Send"
     },
     "serviceTitle": "Table service",
     "serviceDescription": "Choose assistance or a bill request, then confirm below.",
@@ -4032,6 +4034,12 @@
     "billNotice": "This asks restaurant staff for the bill. Payment is completed with the restaurant.",
     "billDefaultMessage": "Please bring the bill to our table.",
     "billMessagePlaceholder": "For example: please bring the bill to our table",
+    "billQuickMessagesLabel": "Choose a message",
+    "billQuickMessages": {
+      "checkTable": "Please bring the bill to our table.",
+      "receipt": "Could I have a receipt, please?",
+      "readyToPay": "We would like to pay, please."
+    },
     "billSubmit": "Confirm bill request",
     "billSent": "Your bill request has been sent.",
     "billPending": "A bill request for this table is already in progress.",

@@ -11,6 +11,7 @@ import { useWaiterRequestsStore } from "@/stores/waiter-requests-store";
 import { createStaffRequestAlertTracker } from "./staff-request-alerts";
 import { StaffWaiterPanel } from "./staff-waiter-panel";
 import { useWaiterUpdates } from "./use-waiter-updates";
+import { useOpenBillRequest } from "./use-open-bill-request";
 
 export function StaffWaiterNotifications() {
   const branch = useAuthStore((state) => state.user?.branch_uuid ?? "");
@@ -23,6 +24,7 @@ function BranchWaiterNotifications({ branch }: { branch: string }) {
   const load = useWaiterRequestsStore((state) => state.loadStaff);
   const open = useWaiterRequestsStore((state) => state.staffPanelOpen);
   const setOpen = useWaiterRequestsStore((state) => state.setStaffPanelOpen);
+  const openBillRequest = useOpenBillRequest(branch, setOpen);
   const playAlertSound = useAlertSoundPlayer("waiter");
   const show = useToastStore((state) => state.show);
   const refresh = useCallback(() => { void load(branch); }, [branch, load]);
@@ -47,7 +49,9 @@ function BranchWaiterNotifications({ branch }: { branch: string }) {
           row.message,
         ].filter(Boolean).join(" · ").slice(0, 120),
         tone: "info",
-        action: { label: t("waiter.viewRequests"), onClick: () => setOpen(true) },
+        action: row.request_type === "bill" && row.table_uuid.trim()
+          ? { label: t("notifications.newOrderPopup.openTable"), onClick: () => openBillRequest(row) }
+          : { label: t("waiter.viewRequests"), onClick: () => setOpen(true) },
       });
     }
   });

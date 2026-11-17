@@ -1,12 +1,66 @@
 import { describe, expect, it } from "vitest";
 import type { WaiterRequest } from "@/services/waiter-requests";
-import { billRequestOrderUrl } from "./bill-request-navigation";
+import { billRequestOrderUrl, getActiveBillRequest, type StaffBillRequestSnapshot } from "./bill-request-navigation";
 
 const request: WaiterRequest = {
   request_uuid: "bill-1", table_uuid: "table-2", branch_uuid: "branch-1",
   request_type: "bill", table_name_la: "ໂຕະ 2 & 3", table_name_eng: "T02 / T03",
   status: 0, items: [], message: "Bill please", created_at: "2026-11-07T05:00:00Z",
 };
+
+function snapshot(overrides: Partial<StaffBillRequestSnapshot> = {}): StaffBillRequestSnapshot {
+  return {
+    staffKey: "branch-1", staffRequests: [request], handling: "",
+    staffLoading: false, staffError: null, ...overrides,
+  };
+}
+
+describe("active bill request lookup", () => {
+  it.each([0, 1] as const)("finds an active request with status %s", (status) => {
+    const active = { ...request, status };
+    expect(getActiveBillRequest("bill-1", "branch-1", snapshot({ staffRequests: [active] }))).toBe(active);
+  });
+
+  it("uses the latest row instead of the table or status captured by a toast", () => {
+    const latest = { ...request, table_uuid: "table-current", status: 1 as const };
+    expect(getActiveBillRequest(request.request_uuid, "branch-1", snapshot({
+      staffRequests: [{ ...request, request_uuid: "another-bill" }, latest],
+    }))).toBe(latest);
+  });
+
+  it("ignores a toast after its request leaves the active list", () => {
+    expect(getActiveBillRequest("bill-1", "branch-1", snapshot({ staffRequests: [] }))).toBeNull();
+    expect(getActiveBillRequest("unknown", "branch-1", snapshot())).toBeNull();
+  });
+
+  it.each([
+    { staffKey: "another-branch" },
+    { handling: "bill-1" },
+    { handling: "another-request" },
+    { staffLoading: true },
+    { staffError: "Unable to refresh requests" },
+  ])("rejects an unavailable branch snapshot: %j", (overrides) => {
+    expect(getActiveBillRequest("bill-1", "branch-1", snapshot(overrides))).toBeNull();
+  });
+
+  it.each([
+    { ...request, branch_uuid: "another-branch" },
+    { ...request, status: 2 as const },
+    { ...request, request_type: "staff" as const },
+    { ...request, request_type: undefined },
+    { ...request, table_uuid: " " },
+    { ...request, request_uuid: " " },
+  ])("rejects a completed, unrelated or incomplete current row: %j", (row) => {
+    expect(getActiveBillRequest("bill-1", "branch-1", snapshot({ staffRequests: [row] }))).toBeNull();
+  });
+
+  it("rejects blank identifiers even if the snapshot contains an unscoped row", () => {
+    expect(getActiveBillRequest(" ", "branch-1", snapshot())).toBeNull();
+    expect(getActiveBillRequest("bill-1", " ", snapshot({
+      staffKey: " ", staffRequests: [{ ...request, branch_uuid: " " }],
+    }))).toBeNull();
+  });
+});
 
 describe("bill request navigation", () => {
   it("opens the bill's own table with an encoded cart intent and localized name", () => {
