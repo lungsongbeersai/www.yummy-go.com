@@ -4,7 +4,6 @@ import { useTranslation } from "react-i18next";
 import {
   Bell,
   CheckCircle2,
-  ChevronDown,
   Clock3,
   LoaderCircle,
   MessagesSquare,
@@ -37,6 +36,7 @@ import { cn } from "@/lib/utils";
 import type { WaiterRequestType } from "@/services/waiter-requests";
 import { useWaiterRequestsStore } from "@/stores/waiter-requests-store";
 import { PublicPullToRefresh } from "@/features/public-pos/order/components/public-pull-to-refresh";
+import { HorizontalScrollArrows } from "@/features/public-pos/order/components/horizontal-scroll-arrows";
 import {
   buildCustomerWaiterPayload,
   CUSTOMER_WAITER_KINDS,
@@ -73,12 +73,13 @@ export function CustomerWaiterSheet({ open, onOpenChange, token, branch, table, 
   const [requestType, setRequestType] = useState<WaiterRequestType>(initialRequestType ?? "staff");
   const [quantities, setQuantities] = useState<Partial<Record<CustomerWaiterKind, number>>>({});
   const [notes, setNotes] = useState<Record<WaiterRequestType, string>>({ staff: "", bill: "" });
-  const [itemsOpen, setItemsOpen] = useState(false);
   const requestAttempt = useRef<CustomerWaiterAttempt | null>(null);
   const opener = useRef<HTMLElement | null>(null);
   const initialFocusFrame = useRef<number | null>(null);
   const requestTypeRefs = useRef<Record<WaiterRequestType, HTMLButtonElement | null>>({ staff: null, bill: null });
   const chatScrollRef = useRef<HTMLDivElement | null>(null);
+  const itemsScrollRef = useRef<HTMLDivElement | null>(null);
+  const itemButtonRefs = useRef<Partial<Record<CustomerWaiterKind, HTMLButtonElement | null>>>({});
   const followLatest = useRef(true);
 
   const storedRequests = useWaiterRequestsStore((s) => s.publicRequests);
@@ -147,7 +148,6 @@ export function CustomerWaiterSheet({ open, onOpenChange, token, branch, table, 
     requestAttempt.current = null;
     if (!isBill) setQuantities({});
     setNotes((current) => ({ ...current, [requestType]: "" }));
-    setItemsOpen(false);
     followLatest.current = true;
     window.requestAnimationFrame(scrollToLatest);
   };
@@ -307,31 +307,69 @@ export function CustomerWaiterSheet({ open, onOpenChange, token, branch, table, 
               {pendingBill ? <p role="status" className="mt-1 font-semibold text-yg-accent-strong">{t(`waiter.billStatus${pendingBill.status}`)}</p> : null}
             </div>
           ) : (
-            <div>
-              <Button type="button" variant="outline" className={cn("min-h-11 w-full justify-start gap-2 rounded-xl text-xs", OUTLINE_ON_PANEL_CLASS)} aria-expanded={itemsOpen} aria-controls={`${choiceId}-items`} disabled={sending} onClick={() => setItemsOpen((value) => !value)}>
-                <Plus aria-hidden="true" className="size-4" />{t("waiter.quickSelect")}
-                {selectedCount ? <Badge className="border-yg-accent-line bg-yg-accent-soft text-yg-accent-strong">{selectedCount}</Badge> : null}
-                <ChevronDown aria-hidden="true" className={cn("ml-auto size-4 transition-transform motion-reduce:transition-none", itemsOpen && "rotate-180")} />
-              </Button>
-              <fieldset id={`${choiceId}-items`} hidden={!itemsOpen} className="mt-2">
-                <legend className="sr-only">{t("waiter.quickSelect")}</legend>
-                <ul className="flex flex-col gap-1.5">
+            <div className="min-w-0">
+              <div className="flex min-h-8 items-center justify-between gap-2">
+                <p id={`${choiceId}-items-label`} className="text-xs font-medium text-yg-muted">{t("waiter.quickSelect")}</p>
+                <HorizontalScrollArrows scrollRef={itemsScrollRef} variant="controls" className="rounded-full" />
+              </div>
+              <div
+                ref={itemsScrollRef}
+                data-testid="customer-waiter-items"
+                data-vaul-no-drag
+                role="region"
+                aria-labelledby={`${choiceId}-items-label`}
+                tabIndex={0}
+                className="yg-rail snap-x snap-proximity overflow-x-auto overflow-y-hidden overscroll-x-contain rounded-xl px-1 py-1 outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-yg-accent"
+              >
+                <ul className="flex w-max items-center gap-2">
                   {CUSTOMER_WAITER_KINDS.map((kind) => {
                     const Icon = itemIcons[kind];
                     const qty = quantities[kind] ?? 0;
                     const name = t(`waiter.${kind}`);
                     return (
-                      <li key={kind} className={cn("flex items-center gap-2 rounded-xl border px-2 py-1", qty > 0 ? "border-yg-accent-line bg-yg-accent-soft" : "border-yg-line bg-yg-bg2")}>
-                        <Icon aria-hidden="true" className="size-4 shrink-0 text-yg-accent-strong" />
-                        <span className="min-w-0 flex-1 break-words text-xs font-medium">{name}</span>
-                        <Button type="button" variant="outline" size="icon" aria-label={t("waiter.decrease", { name })} className={cn("size-11 rounded-xl", OUTLINE_ON_PANEL_CLASS)} disabled={sending || qty === 0} onClick={() => changeQty(kind, -1)}><Minus aria-hidden="true" /></Button>
-                        <output aria-live="polite" aria-label={name} className={cn("w-6 shrink-0 text-center text-sm font-bold tabular-nums", qty === 0 && "text-yg-muted")}>{qty}</output>
-                        <Button type="button" size="icon" aria-label={t("waiter.increase", { name })} className="size-11 rounded-xl bg-yg-accent text-yg-on-accent hover:bg-yg-accent-strong" disabled={sending || qty >= MAX_CUSTOMER_WAITER_QTY} onClick={() => changeQty(kind, 1)}><Plus aria-hidden="true" /></Button>
+                      <li key={kind} className={cn("flex shrink-0 snap-start items-center rounded-full border", qty > 0 ? "border-yg-accent-line bg-yg-accent-soft" : "border-yg-line bg-yg-bg2")}>
+                        {qty > 0 ? (
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon"
+                            aria-label={t("waiter.decrease", { name })}
+                            className="size-11 rounded-full text-yg-accent-strong hover:bg-yg-panel-hover hover:text-yg-accent-strong focus-visible:ring-yg-accent dark:hover:bg-yg-panel-hover"
+                            disabled={sending}
+                            onClick={() => {
+                              if (qty === 1) itemButtonRefs.current[kind]?.focus({ preventScroll: true });
+                              changeQty(kind, -1);
+                            }}
+                          >
+                            <Minus aria-hidden="true" className="size-4" />
+                          </Button>
+                        ) : null}
+                        <Badge
+                          asChild
+                          variant="outline"
+                          className={cn(
+                            "h-11 min-w-32 cursor-pointer justify-start gap-2 rounded-full border-0 bg-transparent px-3 text-xs text-yg-ink hover:bg-yg-panel-hover focus-visible:ring-yg-accent disabled:cursor-not-allowed disabled:opacity-50 dark:bg-transparent dark:hover:bg-yg-panel-hover",
+                            qty > 0 && "text-yg-accent-strong",
+                          )}
+                        >
+                          <button
+                            ref={(element) => { itemButtonRefs.current[kind] = element; }}
+                            type="button"
+                            aria-label={t("waiter.increase", { name })}
+                            disabled={sending || qty >= MAX_CUSTOMER_WAITER_QTY}
+                            onClick={() => changeQty(kind, 1)}
+                          >
+                            <span className="text-yg-accent-strong"><Icon aria-hidden="true" className="size-4" /></span>
+                            <span>{name}</span>
+                            <output aria-live="polite" aria-label={name} className={cn("ml-auto min-w-4 text-center font-bold tabular-nums", qty === 0 && "text-yg-muted")}>{qty}</output>
+                            <span><Plus aria-hidden="true" className="size-3.5" /></span>
+                          </button>
+                        </Badge>
                       </li>
                     );
                   })}
                 </ul>
-              </fieldset>
+              </div>
             </div>
           )}
           {!(isBill && pendingBill) ? (
