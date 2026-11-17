@@ -3991,15 +3991,17 @@
     }
   },
   "waiter": {
-    "chatTitle": "All chats",
-    "chatOpen": "Open all chats ({{count}} pending requests)",
+    "chatTitle": "Table requests",
+    "chatOpen": "View table requests ({{count}} pending requests)",
     "viewRequests": "View requests",
     "panel": {
       "eyebrow": "CUSTOMER SERVICE",
       "subtitle": "Table requests and customer messages, together in one place.",
       "all": "All",
       "waiting": "Waiting",
-      "inProgress": "In progress",
+      "inProgress": "Accepted",
+      "completed": "Done",
+      "openTable": "Open table",
       "filterLabel": "Filter customer requests",
       "requests": "CUSTOMER REQUESTS",
       "items": "REQUESTED ITEMS",

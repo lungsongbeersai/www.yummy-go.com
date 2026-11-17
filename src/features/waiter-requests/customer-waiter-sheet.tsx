@@ -30,8 +30,8 @@ import {
   DrawerTitle,
 } from "@/components/ui/drawer";
 import { Empty, EmptyDescription, EmptyHeader, EmptyTitle } from "@/components/ui/empty";
+import { InputGroup, InputGroupAddon, InputGroupTextarea } from "@/components/ui/input-group";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Textarea } from "@/components/ui/textarea";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { cn } from "@/lib/utils";
 import type { WaiterRequestType } from "@/services/waiter-requests";
@@ -80,6 +80,7 @@ export function CustomerWaiterSheet({ open, onOpenChange, token, branch, table, 
   const requestTypeRefs = useRef<Record<WaiterRequestType, HTMLButtonElement | null>>({ staff: null, bill: null });
   const chatScrollRef = useRef<HTMLDivElement | null>(null);
   const pendingBillButtonRef = useRef<HTMLButtonElement | null>(null);
+  const messageInputRef = useRef<HTMLTextAreaElement | null>(null);
   const itemButtonRefs = useRef<Partial<Record<CustomerWaiterKind, HTMLButtonElement | null>>>({});
   const followLatest = useRef(true);
 
@@ -438,21 +439,50 @@ export function CustomerWaiterSheet({ open, onOpenChange, token, branch, table, 
                 {note.length ? <span className="shrink-0 text-xs tabular-nums text-yg-muted">{note.length}/{MAX_CUSTOMER_WAITER_MESSAGE}</span> : null}
               </div>
               <div className="flex items-end gap-2">
-                <Textarea
-                  id={`${choiceId}-message`}
-                  data-testid="customer-waiter-message"
-                  value={note}
-                  disabled={sending}
-                  maxLength={MAX_CUSTOMER_WAITER_MESSAGE}
-                  rows={1}
-                  placeholder={t(isBill ? "waiter.billMessagePlaceholder" : "waiter.chat.writePlaceholder")}
-                  className="max-h-24 min-h-11 min-w-0 flex-1 resize-none rounded-xl border-yg-accent/40 bg-yg-accent-soft/20 px-3 py-2 text-base font-normal leading-relaxed text-yg-ink shadow-inner placeholder:text-yg-muted focus-visible:border-yg-accent focus-visible:ring-yg-accent/25 dark:bg-yg-accent-soft/20"
-                  onChange={(event) => {
-                    dirty();
-                    const value = event.target.value.slice(0, MAX_CUSTOMER_WAITER_MESSAGE);
-                    setNotes((current) => ({ ...current, [requestType]: value }));
-                  }}
-                />
+                <InputGroup
+                  data-testid="customer-waiter-message-box"
+                  data-disabled={sending || undefined}
+                  aria-label={t("waiter.message")}
+                  className="h-auto min-w-0 flex-1 rounded-xl border-yg-accent/40 bg-yg-accent-soft/20 text-yg-ink shadow-inner has-data-[align=block-start]:rounded-xl has-[textarea]:rounded-xl has-[[data-slot=input-group-control]:focus-visible]:border-yg-accent has-[[data-slot=input-group-control]:focus-visible]:ring-yg-accent/25 dark:bg-yg-accent-soft/20"
+                >
+                  {!isBill && payload.items.length ? (
+                    <InputGroupAddon
+                      align="block-start"
+                      id={`${choiceId}-selected-items`}
+                      data-testid="customer-waiter-selected-items"
+                      className="flex-wrap gap-1.5 px-3 pb-0 pt-2 text-yg-ink"
+                      onClick={() => messageInputRef.current?.focus({ preventScroll: true })}
+                    >
+                      {payload.items.map((item) => {
+                        const Icon = item.kind === "staff" ? Bell : itemIcons[item.kind];
+                        return (
+                          <Badge key={item.kind} variant="outline" data-selected-item={item.kind} className="h-6 gap-1.5 rounded-lg border-yg-accent-line bg-yg-accent-soft px-2 text-xs text-yg-accent-strong dark:bg-yg-accent-soft">
+                            <span><Icon aria-hidden="true" className="size-3.5" /></span>
+                            {t(`waiter.${item.kind}`)}
+                            <span className="font-semibold tabular-nums">×{item.qty}</span>
+                          </Badge>
+                        );
+                      })}
+                    </InputGroupAddon>
+                  ) : null}
+                  <InputGroupTextarea
+                    ref={messageInputRef}
+                    id={`${choiceId}-message`}
+                    data-testid="customer-waiter-message"
+                    aria-describedby={!isBill && payload.items.length ? `${choiceId}-selected-items` : undefined}
+                    value={note}
+                    disabled={sending}
+                    maxLength={MAX_CUSTOMER_WAITER_MESSAGE}
+                    rows={1}
+                    placeholder={t(isBill ? "waiter.billMessagePlaceholder" : "waiter.chat.writePlaceholder")}
+                    className="max-h-24 min-h-11 min-w-0 w-full px-3 py-2 text-base font-normal leading-relaxed text-yg-ink placeholder:text-yg-muted"
+                    onChange={(event) => {
+                      dirty();
+                      const value = event.target.value.slice(0, MAX_CUSTOMER_WAITER_MESSAGE);
+                      setNotes((current) => ({ ...current, [requestType]: value }));
+                    }}
+                  />
+                </InputGroup>
                 <Button
                   type="submit"
                   data-testid="customer-waiter-send"
