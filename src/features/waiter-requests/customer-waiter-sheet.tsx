@@ -4,10 +4,10 @@ import { useTranslation } from "react-i18next";
 import {
   Bell,
   CheckCircle2,
+  ChevronDown,
   Clock3,
-  History,
   LoaderCircle,
-  MessageSquareText,
+  MessagesSquare,
   Minus,
   Plus,
   Receipt,
@@ -18,7 +18,6 @@ import {
   UtensilsCrossed,
   X,
 } from "lucide-react";
-import { PublicSuccessDialog } from "@/components/common/public-success-dialog";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -30,9 +29,8 @@ import {
   DrawerHandle,
   DrawerTitle,
 } from "@/components/ui/drawer";
-import { Empty, EmptyHeader, EmptyMedia, EmptyTitle } from "@/components/ui/empty";
+import { Empty, EmptyDescription, EmptyHeader, EmptyTitle } from "@/components/ui/empty";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { cn } from "@/lib/utils";
@@ -57,18 +55,8 @@ const itemIcons = { bowl: Soup, spoon: Utensils, chopsticks: UtensilsCrossed } s
 >;
 
 // Customer-menu tokens also cover portals; the cashier's root .dark must not override them.
-const TAB_TRIGGER_CLASS =
-  "h-11 min-w-0 gap-2 rounded-xl px-2 text-sm text-yg-muted hover:text-yg-ink data-active:bg-yg-bg2 data-active:text-yg-accent-strong data-active:shadow-sm dark:text-yg-muted dark:hover:text-yg-ink dark:data-active:border-transparent dark:data-active:bg-yg-bg2 dark:data-active:text-yg-accent-strong";
 const OUTLINE_ON_PANEL_CLASS =
   "border-yg-line bg-yg-bg2 text-yg-ink hover:bg-yg-panel-hover dark:border-yg-line dark:bg-yg-bg2 dark:hover:bg-yg-panel-hover";
-
-type Status = 0 | 1 | 2;
-const statusIcon: Record<Status, typeof Clock3> = { 0: Clock3, 1: Bell, 2: CheckCircle2 };
-const statusClass: Record<Status, string> = {
-  0: "border-yg-accent-line bg-yg-accent-soft text-yg-accent-strong",
-  1: "border-transparent bg-yg-accent text-yg-on-accent",
-  2: "border-yg-line bg-transparent text-yg-muted",
-};
 
 interface Props {
   open: boolean;
@@ -82,19 +70,16 @@ interface Props {
 export function CustomerWaiterSheet({ open, onOpenChange, token, branch, table, initialRequestType }: Props) {
   const { t, i18n } = useTranslation();
   const choiceId = useId();
-  const [tab, setTab] = useState<"send" | "history">("send");
   const [requestType, setRequestType] = useState<WaiterRequestType>(initialRequestType ?? "staff");
   const [quantities, setQuantities] = useState<Partial<Record<CustomerWaiterKind, number>>>({});
   const [notes, setNotes] = useState<Record<WaiterRequestType, string>>({ staff: "", bill: "" });
-  const [sent, setSent] = useState(false);
-  const [sentType, setSentType] = useState<WaiterRequestType>("staff");
+  const [itemsOpen, setItemsOpen] = useState(false);
   const requestAttempt = useRef<CustomerWaiterAttempt | null>(null);
   const opener = useRef<HTMLElement | null>(null);
   const initialFocusFrame = useRef<number | null>(null);
-  const sendTabRef = useRef<HTMLButtonElement | null>(null);
-  const historyTabRef = useRef<HTMLButtonElement | null>(null);
   const requestTypeRefs = useRef<Record<WaiterRequestType, HTMLButtonElement | null>>({ staff: null, bill: null });
-  const historyScrollRef = useRef<HTMLDivElement | null>(null);
+  const chatScrollRef = useRef<HTMLDivElement | null>(null);
+  const followLatest = useRef(true);
 
   const storedRequests = useWaiterRequestsStore((s) => s.publicRequests);
   const key = useWaiterRequestsStore((s) => s.publicKey);
@@ -113,6 +98,16 @@ export function CustomerWaiterSheet({ open, onOpenChange, token, branch, table, 
   useEffect(refresh, [refresh]);
   useWaiterUpdates(branch, refresh, table);
 
+  const scrollToLatest = useCallback(() => {
+    const scroll = chatScrollRef.current;
+    if (scroll) scroll.scrollTop = scroll.scrollHeight;
+  }, []);
+  useEffect(() => {
+    if (!open || !followLatest.current) return;
+    const frame = window.requestAnimationFrame(scrollToLatest);
+    return () => window.cancelAnimationFrame(frame);
+  }, [open, storedRequests, key, scrollToLatest]);
+
   const isBill = requestType === "bill";
   const note = notes[requestType];
   const pendingBill = findPendingBillRequest(requests);
@@ -128,8 +123,9 @@ export function CustomerWaiterSheet({ open, onOpenChange, token, branch, table, 
   const hasDetails = selectedCount > 0 || Boolean(note.trim());
   const canSend = !sending && (!isBill || (billEnabled && !loading && !pendingBill));
   const pendingCount = requests.filter((request) => request.status !== 2).length;
+  // The API prioritizes an active bill; a conversation needs chronological order.
+  const timeline = [...requests].sort((a, b) => Date.parse(a.created_at) - Date.parse(b.created_at));
 
-  // ค่าที่ส่งเปลี่ยน = คำขอใหม่ (client_request_uuid ใหม่) — กดส่งซ้ำค่าเดิมยังใช้ id เดิม กันคำขอซ้ำ
   const dirty = () => {
     requestAttempt.current = null;
   };
@@ -146,384 +142,219 @@ export function CustomerWaiterSheet({ open, onOpenChange, token, branch, table, 
     if (!canSend) return;
     const attempt = resolveCustomerWaiterAttempt(payload, requestAttempt.current, () => crypto.randomUUID());
     requestAttempt.current = attempt;
-    const ok = await send(token, {
-      client_request_uuid: attempt.id,
-      ...payload,
-    });
+    const ok = await send(token, { client_request_uuid: attempt.id, ...payload });
     if (!ok) return;
     requestAttempt.current = null;
     if (!isBill) setQuantities({});
     setNotes((current) => ({ ...current, [requestType]: "" }));
-    setSentType(requestType);
-    setSent(true);
-    // ส่งแล้วพาไปดูประวัติ ให้เห็นสถานะ "รอรับเรื่อง" ของคำขอที่เพิ่งส่ง
-    setTab("history");
+    setItemsOpen(false);
+    followLatest.current = true;
+    window.requestAnimationFrame(scrollToLatest);
   };
 
   const formatTime = (value: string) =>
     new Date(value).toLocaleString(i18n.language === "en" ? "en-GB" : "lo-LA", {
-      month: "short",
-      day: "numeric",
-      hour: "2-digit",
-      minute: "2-digit",
+      month: "short", day: "numeric", hour: "2-digit", minute: "2-digit",
     });
 
   return (
-    <>
-      <PublicSuccessDialog open={sent} onOpenChange={setSent} message={t(sentType === "bill" ? "waiter.billSent" : "publicSuccess.waiter")} />
-      <Drawer
-        open={open}
-        dismissible={!sending}
-        handleOnly
-        shouldScaleBackground={false}
-        onOpenChange={(next) => {
-          if (!sending) onOpenChange(next);
+    <Drawer open={open} dismissible={!sending} handleOnly shouldScaleBackground={false} onOpenChange={(next) => {
+      if (!sending) onOpenChange(next);
+    }}>
+      <DrawerContent
+        data-testid="customer-waiter-chat"
+        aria-busy={sending}
+        className="mx-auto flex h-[min(740px,92dvh)] w-full max-w-lg flex-col gap-0 overflow-hidden rounded-t-3xl border border-b-0 border-yg-line bg-yg-bg2 p-0 font-yg-sans text-yg-ink shadow-xl before:hidden data-[vaul-drawer-direction=bottom]:max-h-[92dvh] [&>div:first-child]:hidden"
+        onOpenAutoFocus={(event) => {
+          event.preventDefault();
+          opener.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+          const nextRequestType = initialRequestType ?? "staff";
+          if (requestType !== nextRequestType) requestAttempt.current = null;
+          setRequestType(nextRequestType);
+          followLatest.current = true;
+          initialFocusFrame.current = window.requestAnimationFrame(() => {
+            initialFocusFrame.current = null;
+            const choice = requestTypeRefs.current[nextRequestType];
+            const target = choice && !choice.disabled ? choice : chatScrollRef.current;
+            target?.focus({ preventScroll: true });
+            scrollToLatest();
+          });
+        }}
+        onCloseAutoFocus={(event) => {
+          if (initialFocusFrame.current !== null) {
+            window.cancelAnimationFrame(initialFocusFrame.current);
+            initialFocusFrame.current = null;
+          }
+          if (opener.current?.isConnected) {
+            event.preventDefault();
+            opener.current.focus();
+          }
         }}
       >
-        <DrawerContent
-          aria-busy={sending}
-          className="mx-auto flex h-[min(740px,92dvh)] w-full max-w-lg flex-col gap-0 overflow-hidden rounded-t-3xl border border-b-0 border-yg-line bg-yg-bg2 p-0 font-yg-sans text-yg-ink shadow-xl before:hidden data-[vaul-drawer-direction=bottom]:max-h-[92dvh] [&>div:first-child]:hidden"
-          onOpenAutoFocus={(event) => {
-            event.preventDefault();
-            opener.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
-            const nextRequestType = initialRequestType ?? "staff";
-            const showPendingBill = nextRequestType === "bill" && Boolean(pendingBill);
-            if (requestType !== nextRequestType) requestAttempt.current = null;
-            setRequestType(nextRequestType);
-            setTab(showPendingBill ? "history" : "send");
-            initialFocusFrame.current = window.requestAnimationFrame(() => {
-              initialFocusFrame.current = null;
-              const choice = requestTypeRefs.current[nextRequestType];
-              const target = showPendingBill
-                ? historyTabRef.current
-                : choice && !choice.disabled ? choice : sendTabRef.current;
-              target?.focus({ preventScroll: true });
-            });
-          }}
-          onCloseAutoFocus={(event) => {
-            if (initialFocusFrame.current !== null) {
-              window.cancelAnimationFrame(initialFocusFrame.current);
-              initialFocusFrame.current = null;
-            }
-            if (opener.current?.isConnected) {
-              event.preventDefault();
-              opener.current.focus();
-            }
-          }}
-        >
-          <DrawerHandle aria-label={t("actions.close")} className="my-0 grid h-11 w-full place-items-center rounded-none bg-transparent after:h-1 after:w-10 after:rounded-full after:bg-yg-divider" />
+        <DrawerHandle aria-label={t("actions.close")} className="my-0 grid h-7 w-full place-items-center rounded-none bg-transparent after:h-1 after:w-10 after:rounded-full after:bg-yg-divider" />
+        <header className="flex shrink-0 items-center gap-3 border-b border-yg-line px-4 pb-4 sm:px-5">
+          <span className="grid size-11 shrink-0 place-items-center rounded-2xl bg-yg-accent-soft text-yg-accent-strong">
+            <MessagesSquare aria-hidden="true" className="size-5" />
+          </span>
+          <div className="min-w-0 flex-1">
+            <DrawerTitle className="text-lg font-bold leading-tight text-yg-ink">{t("waiter.chat.customerTitle")}</DrawerTitle>
+            <DrawerDescription className="mt-1 text-xs leading-relaxed text-yg-muted">{t("waiter.serviceDescription")}</DrawerDescription>
+          </div>
+          {pendingCount ? <Badge className="h-6 min-w-6 justify-center border-yg-accent-line bg-yg-accent-soft px-1.5 text-xs tabular-nums text-yg-accent-strong">{pendingCount}</Badge> : null}
+          <Button size="icon" variant="ghost" type="button" className="size-11 shrink-0 rounded-xl text-yg-muted hover:bg-yg-panel-hover hover:text-yg-ink dark:hover:bg-yg-panel-hover" disabled={loading} onClick={refresh} aria-label={t("actions.refresh")}>
+            <RefreshCw aria-hidden="true" className={cn("size-4", loading && "motion-safe:animate-spin")} />
+          </Button>
+          <DrawerClose asChild>
+            <Button type="button" variant="ghost" size="icon" aria-label={t("actions.close")} className="size-11 shrink-0 rounded-xl text-yg-muted hover:bg-yg-panel-hover hover:text-yg-ink dark:hover:bg-yg-panel-hover" disabled={sending}>
+              <X aria-hidden="true" />
+            </Button>
+          </DrawerClose>
+        </header>
 
-          <header className="flex shrink-0 items-start gap-3 px-4 pb-4 sm:px-5">
-            <span className="grid size-12 shrink-0 place-items-center rounded-2xl border border-yg-accent-line bg-yg-accent-soft text-yg-accent-strong">
-              <Bell aria-hidden="true" className="size-6" />
-            </span>
-            <div className="min-w-0 flex-1">
-              <p className="mb-1 text-[10px] font-semibold tracking-wide text-yg-accent-strong">{t("waiter.panel.eyebrow")}</p>
-              <DrawerTitle className="text-xl font-bold leading-tight text-yg-ink">{t("waiter.serviceTitle")}</DrawerTitle>
-              <DrawerDescription className="mt-1.5 text-sm leading-relaxed text-yg-muted">
-                {t("waiter.serviceDescription")}
-              </DrawerDescription>
+        {error ? (
+          <Alert className="mx-4 mt-3 w-auto shrink-0 rounded-xl border-yg-accent-line bg-yg-accent-soft sm:mx-5">
+            <AlertDescription className="flex flex-wrap items-center justify-between gap-2 text-yg-ink">
+              {t("waiter.failed")}
+              <Button variant="outline" size="sm" className={cn("min-h-11 rounded-lg px-3", OUTLINE_ON_PANEL_CLASS)} disabled={loading || sending} onClick={refresh}>{t("actions.tryAgain")}</Button>
+            </AlertDescription>
+          </Alert>
+        ) : null}
+
+        <div ref={chatScrollRef} tabIndex={0} aria-label={t("waiter.chat.timelineLabel")} className="min-h-24 flex-1 overflow-y-auto overscroll-contain bg-yg-accent-soft/40 px-4 py-5 outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-yg-accent sm:px-5" onScroll={(event) => {
+          const scroll = event.currentTarget;
+          followLatest.current = scroll.scrollHeight - scroll.scrollTop - scroll.clientHeight < 64;
+        }}>
+          <PublicPullToRefresh scrollRef={chatScrollRef} onRefresh={refreshHistory} />
+          {loading && !requests.length ? (
+            <div role="status" aria-label={t("common.loading")} className="grid gap-4">
+              <Skeleton className="h-20 w-4/5 rounded-2xl bg-yg-accent-soft" />
+              <Skeleton className="ml-auto h-24 w-3/4 rounded-2xl bg-yg-accent-soft" />
             </div>
-            <DrawerClose asChild>
-              <Button
-                type="button"
-                variant="ghost"
-                size="icon"
-                aria-label={t("actions.close")}
-                className="size-11 shrink-0 rounded-xl border border-yg-line bg-yg-bg2 text-yg-muted hover:bg-yg-panel-hover hover:text-yg-ink dark:hover:bg-yg-panel-hover"
-                disabled={sending}
-              >
-                <X aria-hidden="true" />
-              </Button>
-            </DrawerClose>
-          </header>
-
-          {error ? (
-            <Alert className="mx-4 mb-3 w-auto rounded-xl border-yg-accent-line bg-yg-accent-soft sm:mx-5">
-              <AlertDescription className="flex flex-wrap items-center justify-between gap-2 text-yg-ink">
-                {t("waiter.failed")}
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className={cn("min-h-11 rounded-lg px-3", OUTLINE_ON_PANEL_CLASS)}
-                  disabled={loading || sending}
-                  onClick={refresh}
-                >
-                  {t("actions.tryAgain")}
-                </Button>
-              </AlertDescription>
-            </Alert>
           ) : null}
-
-          <Tabs
-            value={tab}
-            onValueChange={(value) => setTab(value === "history" ? "history" : "send")}
-            className="min-h-0 flex-1 gap-0 overflow-hidden"
-          >
-            <div className="shrink-0 border-b border-yg-line px-4 pb-4 sm:px-5">
-              <TabsList aria-label={t("waiter.serviceTitle")} className="grid h-13 w-full grid-cols-2 rounded-2xl border border-yg-line bg-yg-accent-soft p-1 group-data-horizontal/tabs:h-13">
-                <TabsTrigger ref={sendTabRef} value="send" className={TAB_TRIGGER_CLASS}>
-                  <Send aria-hidden="true" className="size-4 shrink-0" />
-                  <span className="min-w-0 whitespace-normal leading-tight">{t("waiter.sendTab")}</span>
-                </TabsTrigger>
-                <TabsTrigger ref={historyTabRef} value="history" className={TAB_TRIGGER_CLASS}>
-                  <History aria-hidden="true" className="size-4 shrink-0" />
-                  <span className="min-w-0 whitespace-normal leading-tight">{t("waiter.historyTab")}</span>
-                  {pendingCount ? (
-                    <Badge className="h-5 min-w-5 shrink-0 justify-center rounded-md bg-yg-accent px-1.5 tabular-nums text-yg-on-accent">
-                      {pendingCount}
-                    </Badge>
-                  ) : null}
-                </TabsTrigger>
-              </TabsList>
-            </div>
-
-            <TabsContent value="send" className="flex min-h-0 flex-col">
-              <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 py-4 sm:px-5">
-                <div className="mb-5 flex flex-col gap-3">
-                  <p id={`${choiceId}-label`} className="lao-tone-text text-sm font-semibold">{t("waiter.requestTypeLabel")}</p>
-                  <ToggleGroup
-                    type="single"
-                    orientation="vertical"
-                    value={requestType}
-                    aria-labelledby={`${choiceId}-label`}
-                    className="w-full gap-2.5"
-                    onValueChange={(value) => {
-                      if (value !== "staff" && value !== "bill") return;
-                      dirty();
-                      setRequestType(value);
-                    }}
-                  >
-                    {(["staff", "bill"] as const).map((type) => {
-                      const Icon = type === "bill" ? Receipt : Bell;
-                      const selected = requestType === type;
-                      return (
-                        <ToggleGroupItem
-                          key={type}
-                          ref={(element) => { requestTypeRefs.current[type] = element; }}
-                          value={type}
-                          aria-label={t(type === "bill" ? "waiter.requestBill" : "waiter.requestStaff")}
-                          aria-describedby={`${choiceId}-${type}`}
-                          disabled={sending || (type === "bill" && !billEnabled && !pendingBill)}
-                          className="h-auto min-h-20 w-full justify-start gap-3 whitespace-normal rounded-2xl border border-yg-line bg-yg-bg2 px-3 py-3 text-left text-yg-ink hover:bg-yg-panel-hover hover:text-yg-ink focus-visible:ring-yg-accent data-[state=on]:border-yg-accent-line data-[state=on]:bg-yg-accent-soft data-[state=on]:text-yg-ink dark:bg-yg-bg2 dark:data-[state=on]:bg-yg-accent-soft dark:data-[state=on]:text-yg-ink"
-                        >
-                          <span className="grid size-10 shrink-0 place-items-center rounded-xl bg-yg-accent-soft text-yg-accent-strong"><Icon className="size-5" aria-hidden="true" /></span>
-                          <span className="flex min-w-0 flex-1 flex-col gap-1">
-                            <span className="lao-tone-text text-sm font-semibold">{t(type === "bill" ? "waiter.requestBill" : "waiter.requestStaff")}</span>
-                            <span id={`${choiceId}-${type}`} className="lao-tone-text text-xs font-normal leading-5 text-yg-muted">{t(type === "bill" ? "waiter.requestBillDescription" : "waiter.requestStaffDescription")}</span>
-                          </span>
-                          <span aria-hidden="true" className={cn("grid size-5 shrink-0 place-items-center rounded-full", selected ? "text-yg-accent-strong" : "border border-yg-line")}>{selected ? <CheckCircle2 className="size-5" /> : null}</span>
-                        </ToggleGroupItem>
-                      );
-                    })}
-                  </ToggleGroup>
-                  {!loading && !billEnabled && !pendingBill ? <p className="lao-tone-text text-xs leading-5 text-yg-muted">{t("waiter.billUnavailable")}</p> : null}
-                </div>
-
-                {isBill ? (
-                  <div className="mb-5 flex flex-col gap-3 rounded-2xl border border-yg-accent-line bg-yg-accent-soft p-4">
-                    <p className="lao-tone-text text-sm leading-6 text-yg-ink">{t(pendingBill ? "waiter.billPending" : "waiter.billNotice")}</p>
-                    {pendingBill ? <span role="status" className="lao-tone-text text-sm font-semibold text-yg-accent-strong">{t(`waiter.billStatus${pendingBill.status}`)}</span> : null}
+          {!loading && !requests.length && !error ? (
+            <Empty className="max-w-[90%] items-start rounded-2xl rounded-tl-sm border border-yg-line bg-yg-bg2 p-4 text-left shadow-sm">
+              <EmptyHeader className="items-start gap-2 text-left">
+                <p className="text-xs font-semibold text-yg-accent-strong">{t("waiter.chat.staffLabel")}</p>
+                <EmptyTitle className="text-sm text-yg-ink">{t("waiter.chat.welcome")}</EmptyTitle>
+                <EmptyDescription className="text-xs leading-relaxed text-yg-muted">{t("waiter.chat.hint")}</EmptyDescription>
+              </EmptyHeader>
+            </Empty>
+          ) : null}
+          <ol role="log" aria-label={t("waiter.chat.timelineLabel")} aria-live="polite" aria-relevant="additions text" className="flex flex-col gap-5">
+            {timeline.map((request) => {
+              const bill = request.request_type === "bill";
+              const RequestIcon = bill ? Receipt : Bell;
+              return (
+                <li key={request.request_uuid} data-request-id={request.request_uuid} className="flex min-w-0 flex-col gap-3 text-sm">
+                  <div className="ml-auto flex max-w-[90%] min-w-0 flex-col items-end gap-1.5">
+                    <span className="px-1 text-xs text-yg-muted">{t("waiter.chat.you")}</span>
+                    <div className="max-w-full rounded-2xl rounded-tr-sm bg-yg-accent px-4 py-3 text-yg-on-accent shadow-sm">
+                      <p className="mb-2 flex items-center gap-1.5 text-xs font-semibold"><RequestIcon aria-hidden="true" className="size-3.5 shrink-0" />{t(bill ? "waiter.typeBill" : "waiter.typeStaff")}</p>
+                      {request.message ? <p className="whitespace-pre-wrap [overflow-wrap:anywhere] leading-relaxed">{request.message}</p> : null}
+                      {request.items.length ? (
+                        <ul className="mt-2 flex flex-wrap gap-1.5">
+                          {request.items.map((item) => {
+                            const Icon = item.kind === "staff" ? Bell : itemIcons[item.kind];
+                            return <li key={item.kind} className="flex items-center gap-1.5 rounded-lg border border-yg-on-accent/30 px-2 py-1.5 text-xs"><Icon aria-hidden="true" className="size-3.5 shrink-0" />{t(`waiter.${item.kind}`)}<span className="font-semibold tabular-nums">×{item.qty}</span></li>;
+                          })}
+                        </ul>
+                      ) : null}
+                    </div>
+                    <div className="flex flex-wrap justify-end gap-x-2 gap-y-1 px-1 text-xs text-yg-muted">
+                      <time dateTime={request.created_at} className="tabular-nums">{formatTime(request.created_at)}</time>
+                      {request.status === 0 ? <span className="flex items-center gap-1"><Clock3 aria-hidden="true" className="size-3" />{t(bill ? "waiter.billStatus0" : "waiter.status0")}</span> : null}
+                    </div>
                   </div>
-                ) : (
-                <fieldset className="mb-5">
-                  <legend className="mb-3 text-sm font-semibold">{t("waiter.quickSelect")}</legend>
-                  <ul className="flex flex-col gap-2.5">
-                    {CUSTOMER_WAITER_KINDS.map((kind) => {
-                      const Icon = itemIcons[kind];
-                      const qty = quantities[kind] ?? 0;
-                      const name = t(`waiter.${kind}`);
-                      return (
-                        <li
-                          key={kind}
-                          className={cn("flex min-h-18 items-center gap-2.5 rounded-2xl border px-3 py-3 transition-colors motion-reduce:transition-none", qty > 0 ? "border-yg-accent-line bg-yg-accent-soft" : "border-yg-line bg-yg-bg2")}
-                        >
-                          <span className="grid size-9 shrink-0 place-items-center rounded-xl bg-yg-accent-soft text-yg-accent-strong"><Icon aria-hidden="true" className="size-5" /></span>
-                          <span className="min-w-0 flex-1 break-words text-sm font-semibold">{name}</span>
-                          <div className="flex shrink-0 items-center gap-0.5">
-                            <Button
-                              type="button"
-                              variant="outline"
-                              size="icon"
-                              aria-label={t("waiter.decrease", { name })}
-                              className={cn("size-11 rounded-xl", OUTLINE_ON_PANEL_CLASS)}
-                              disabled={sending || qty === 0}
-                              onClick={() => changeQty(kind, -1)}
-                            >
-                              <Minus aria-hidden="true" />
-                            </Button>
-                            <output
-                              aria-live="polite"
-                              aria-label={name}
-                              className={cn(
-                                "w-7 text-center text-base font-bold tabular-nums",
-                                qty === 0 && "text-yg-muted",
-                              )}
-                            >
-                              {qty}
-                            </output>
-                            <Button
-                              type="button"
-                              size="icon"
-                              aria-label={t("waiter.increase", { name })}
-                              className="size-11 rounded-xl bg-yg-accent text-yg-on-accent hover:bg-yg-accent-strong"
-                              disabled={sending || qty >= MAX_CUSTOMER_WAITER_QTY}
-                              onClick={() => changeQty(kind, 1)}
-                            >
-                              <Plus aria-hidden="true" />
-                            </Button>
-                          </div>
-                        </li>
-                      );
-                    })}
-                  </ul>
-                </fieldset>
-                )}
+                  {request.status !== 0 ? (
+                    <div className="flex max-w-[90%] items-start gap-2">
+                      <span className="grid size-8 shrink-0 place-items-center rounded-full bg-yg-accent-soft text-yg-accent-strong"><MessagesSquare aria-hidden="true" className="size-4" /></span>
+                      <div className="min-w-0 rounded-2xl rounded-tl-sm border border-yg-line bg-yg-bg2 px-4 py-3 shadow-sm">
+                        <p className="mb-1 text-xs font-semibold text-yg-accent-strong">{t("waiter.chat.staffLabel")}</p>
+                        <p className="flex items-start gap-1.5 text-sm text-yg-ink"><CheckCircle2 aria-hidden="true" className="mt-0.5 size-4 shrink-0 text-yg-accent-strong" />{t(bill ? `waiter.billStatus${request.status}` : `waiter.status${request.status}`)}</p>
+                      </div>
+                    </div>
+                  ) : null}
+                </li>
+              );
+            })}
+          </ol>
+        </div>
 
-                {!(isBill && pendingBill) ? (
-                <label className="grid gap-2.5 text-sm font-semibold">
-                  <span className="flex items-center gap-2"><MessageSquareText aria-hidden="true" className="size-4 text-yg-accent-strong" />{t("waiter.message")}</span>
-                  <Textarea
-                    value={note}
-                    disabled={sending}
-                    maxLength={MAX_CUSTOMER_WAITER_MESSAGE}
-                    rows={3}
-                    placeholder={t(isBill ? "waiter.billMessagePlaceholder" : "waiter.messagePlaceholder")}
-                    className="min-h-28 resize-none rounded-2xl border-yg-line bg-yg-bg2 p-3.5 text-base font-normal leading-relaxed text-yg-ink placeholder:text-yg-muted dark:bg-yg-bg2"
-                    onChange={(event) => {
-                      dirty();
-                      const value = event.target.value.slice(0, MAX_CUSTOMER_WAITER_MESSAGE);
-                      setNotes((current) => ({ ...current, [requestType]: value }));
-                    }}
-                  />
-                </label>
-                ) : null}
-                {!(isBill && pendingBill) ? <p className="mt-1.5 text-right text-xs tabular-nums text-yg-muted">
-                  {note.length}/{MAX_CUSTOMER_WAITER_MESSAGE}
-                </p> : null}
-              </div>
-
-              <div className="shrink-0 border-t border-yg-line bg-yg-bg2 px-4 pt-3 pb-[max(16px,env(safe-area-inset-bottom))] sm:px-5">
-                <Button
-                  type="button"
-                  className="h-13 w-full gap-2 rounded-2xl bg-yg-accent text-base font-semibold text-yg-on-accent shadow-sm hover:bg-yg-accent-strong"
-                  disabled={sending || (!(isBill && pendingBill) && !canSend)}
-                  onClick={() => isBill && pendingBill ? setTab("history") : void submit()}
-                >
-                  {sending ? (
-                    <LoaderCircle aria-hidden="true" className="size-4 motion-safe:animate-spin" />
-                  ) : isBill ? (
-                    <Receipt aria-hidden="true" className="size-4" />
-                  ) : hasDetails ? (
-                    <Send aria-hidden="true" className="size-4" />
-                  ) : (
-                    <Bell aria-hidden="true" className="size-4" />
-                  )}
-                  {/* ยังไม่เลือกอะไร = ปุ่มเรียกพนักงานเฉยๆ / เลือกแล้ว = ส่งคำขอพร้อมจำนวน */}
-                  {sending
-                    ? t("common.loading")
-                    : isBill
-                      ? t(pendingBill ? "waiter.billViewHistory" : "waiter.billSubmit")
-                    : selectedCount
-                      ? t("waiter.sendWithCount", { count: selectedCount })
-                      : hasDetails
-                        ? t("waiter.send")
-                        : t("waiter.title")}
-                </Button>
-              </div>
-            </TabsContent>
-
-            <TabsContent
-              value="history"
-              ref={historyScrollRef}
-              className="min-h-0 overflow-y-auto overscroll-contain px-4 pt-4 pb-[max(20px,env(safe-area-inset-bottom))] sm:px-5"
-            >
-              <PublicPullToRefresh scrollRef={historyScrollRef} onRefresh={refreshHistory} />
-              <div className="mb-3 flex items-center justify-between">
-                <span className="text-sm font-semibold text-yg-ink">
-                  {t("waiter.historyTab")} ({requests.length})
-                </span>
-                <Button
-                  size="icon"
-                  variant="ghost"
-                  type="button"
-                  className="size-11 rounded-xl border border-yg-line bg-yg-bg2 text-yg-accent-strong hover:bg-yg-panel-hover dark:hover:bg-yg-panel-hover"
-                  disabled={loading}
-                  onClick={refresh}
-                  aria-label={t("actions.refresh")}
-                >
-                  <RefreshCw aria-hidden="true" className={cn("size-4", loading && "motion-safe:animate-spin")} />
-                </Button>
-              </div>
-              {loading && !requests.length ? (
-                <div role="status" aria-label={t("common.loading")} className="grid gap-3">
-                  {[0, 1, 2].map((index) => (
-                    <Skeleton key={index} className="h-28 rounded-2xl bg-yg-accent-soft" />
-                  ))}
-                </div>
-              ) : requests.length ? (
-                <ol className="flex flex-col gap-3" aria-live="polite" aria-relevant="additions text">
-                  {requests.map((request) => {
-                    const StatusIcon = statusIcon[request.status];
+        <form className="flex max-h-[55dvh] shrink-0 flex-col gap-3 overflow-y-auto overscroll-contain border-t border-yg-line bg-yg-bg2 px-4 pt-3 pb-[max(16px,env(safe-area-inset-bottom))] sm:px-5" onSubmit={(event) => {
+          event.preventDefault();
+          void submit();
+        }}>
+          <ToggleGroup type="single" value={requestType} aria-label={t("waiter.requestTypeLabel")} className="grid w-full grid-cols-2 gap-2" onValueChange={(value) => {
+            if (value !== "staff" && value !== "bill") return;
+            dirty();
+            setRequestType(value);
+          }}>
+            {(["staff", "bill"] as const).map((type) => {
+              const Icon = type === "bill" ? Receipt : Bell;
+              return (
+                <ToggleGroupItem key={type} ref={(element) => { requestTypeRefs.current[type] = element; }} value={type} aria-label={t(type === "bill" ? "waiter.requestBill" : "waiter.requestStaff")} aria-describedby={`${choiceId}-${type}`} disabled={sending || (type === "bill" && !billEnabled && !pendingBill)} className="h-auto min-h-11 min-w-0 gap-2 whitespace-normal rounded-xl border border-yg-line bg-yg-bg2 px-2 py-2 text-xs text-yg-muted hover:bg-yg-panel-hover hover:text-yg-ink focus-visible:ring-yg-accent data-[state=on]:border-yg-accent-line data-[state=on]:bg-yg-accent-soft data-[state=on]:text-yg-accent-strong dark:bg-yg-bg2 dark:data-[state=on]:bg-yg-accent-soft dark:data-[state=on]:text-yg-accent-strong">
+                  <Icon aria-hidden="true" className="size-4 shrink-0" />
+                  <span>{t(type === "bill" ? "waiter.requestBill" : "waiter.requestStaff")}</span>
+                  <span id={`${choiceId}-${type}`} className="sr-only">{t(type === "bill" ? "waiter.requestBillDescription" : "waiter.requestStaffDescription")}</span>
+                </ToggleGroupItem>
+              );
+            })}
+          </ToggleGroup>
+          {!loading && !billEnabled && !pendingBill ? <p className="text-xs leading-5 text-yg-muted">{t("waiter.billUnavailable")}</p> : null}
+          {isBill ? (
+            <div className="rounded-xl border border-yg-accent-line bg-yg-accent-soft px-3 py-2.5 text-xs leading-relaxed text-yg-ink">
+              <p>{t(pendingBill ? "waiter.billPending" : "waiter.billNotice")}</p>
+              {pendingBill ? <p role="status" className="mt-1 font-semibold text-yg-accent-strong">{t(`waiter.billStatus${pendingBill.status}`)}</p> : null}
+            </div>
+          ) : (
+            <div>
+              <Button type="button" variant="outline" className={cn("min-h-11 w-full justify-start gap-2 rounded-xl text-xs", OUTLINE_ON_PANEL_CLASS)} aria-expanded={itemsOpen} aria-controls={`${choiceId}-items`} disabled={sending} onClick={() => setItemsOpen((value) => !value)}>
+                <Plus aria-hidden="true" className="size-4" />{t("waiter.quickSelect")}
+                {selectedCount ? <Badge className="border-yg-accent-line bg-yg-accent-soft text-yg-accent-strong">{selectedCount}</Badge> : null}
+                <ChevronDown aria-hidden="true" className={cn("ml-auto size-4 transition-transform motion-reduce:transition-none", itemsOpen && "rotate-180")} />
+              </Button>
+              <fieldset id={`${choiceId}-items`} hidden={!itemsOpen} className="mt-2">
+                <legend className="sr-only">{t("waiter.quickSelect")}</legend>
+                <ul className="flex flex-col gap-1.5">
+                  {CUSTOMER_WAITER_KINDS.map((kind) => {
+                    const Icon = itemIcons[kind];
+                    const qty = quantities[kind] ?? 0;
+                    const name = t(`waiter.${kind}`);
                     return (
-                      <li key={request.request_uuid} className="overflow-hidden rounded-2xl border border-yg-line bg-yg-bg2 p-4 text-sm shadow-sm">
-                        <div className="mb-3 flex flex-wrap items-center gap-2.5">
-                          <span className="lao-tone-text inline-flex min-h-7 items-center gap-1.5 rounded-lg bg-yg-accent-soft px-2.5 py-1 text-xs font-semibold text-yg-accent-strong">
-                            {request.request_type === "bill" ? <Receipt className="size-3.5" aria-hidden="true" /> : <Bell className="size-3.5" aria-hidden="true" />}
-                            {t(request.request_type === "bill" ? "waiter.typeBill" : "waiter.typeStaff")}
-                          </span>
-                          <span
-                            className={cn(
-                              "inline-flex min-h-7 items-center gap-1.5 rounded-lg border px-2.5 py-1 text-xs font-semibold",
-                              statusClass[request.status],
-                            )}
-                          >
-                            <StatusIcon aria-hidden="true" className="size-3.5" />
-                            {t(request.request_type === "bill" ? `waiter.billStatus${request.status}` : `waiter.status${request.status}`)}
-                          </span>
-                          <time dateTime={request.created_at} className="ml-auto flex items-center gap-1 text-xs tabular-nums text-yg-muted">
-                            <Clock3 aria-hidden="true" className="size-3" />
-                            {formatTime(request.created_at)}
-                          </time>
-                        </div>
-                        {request.items.length ? (
-                          <ul className="mb-3 flex flex-wrap gap-2">
-                            {request.items.map((item) => {
-                              const Icon = item.kind === "staff" ? Bell : itemIcons[item.kind];
-                              return (
-                                <li key={item.kind} className="flex items-center gap-1.5 rounded-lg border border-yg-accent-line bg-yg-accent-soft px-2.5 py-2 text-xs font-medium text-yg-accent-strong">
-                                  <Icon aria-hidden="true" className="size-3.5" />
-                                  <span>{t(`waiter.${item.kind}`)}</span>
-                                  <span className="font-bold tabular-nums">×{item.qty}</span>
-                                </li>
-                              );
-                            })}
-                          </ul>
-                        ) : null}
-                        {request.message ? (
-                          <div className="rounded-xl bg-yg-accent-soft p-3">
-                            <p className="mb-1 flex items-center gap-1.5 text-xs font-medium text-yg-accent-strong"><MessageSquareText aria-hidden="true" className="size-3.5" />{t("waiter.message")}</p>
-                            <p className="whitespace-pre-wrap break-words leading-relaxed text-yg-ink">{request.message}</p>
-                          </div>
-                        ) : null}
+                      <li key={kind} className={cn("flex items-center gap-2 rounded-xl border px-2 py-1", qty > 0 ? "border-yg-accent-line bg-yg-accent-soft" : "border-yg-line bg-yg-bg2")}>
+                        <Icon aria-hidden="true" className="size-4 shrink-0 text-yg-accent-strong" />
+                        <span className="min-w-0 flex-1 break-words text-xs font-medium">{name}</span>
+                        <Button type="button" variant="outline" size="icon" aria-label={t("waiter.decrease", { name })} className={cn("size-11 rounded-xl", OUTLINE_ON_PANEL_CLASS)} disabled={sending || qty === 0} onClick={() => changeQty(kind, -1)}><Minus aria-hidden="true" /></Button>
+                        <output aria-live="polite" aria-label={name} className={cn("w-6 shrink-0 text-center text-sm font-bold tabular-nums", qty === 0 && "text-yg-muted")}>{qty}</output>
+                        <Button type="button" size="icon" aria-label={t("waiter.increase", { name })} className="size-11 rounded-xl bg-yg-accent text-yg-on-accent hover:bg-yg-accent-strong" disabled={sending || qty >= MAX_CUSTOMER_WAITER_QTY} onClick={() => changeQty(kind, 1)}><Plus aria-hidden="true" /></Button>
                       </li>
                     );
                   })}
-                </ol>
-              ) : (
-                <Empty className="min-h-60 rounded-2xl border border-dashed border-yg-line bg-yg-bg2">
-                  <EmptyHeader>
-                    <EmptyMedia variant="icon" className="size-14 rounded-2xl bg-yg-accent-soft text-yg-accent-strong">
-                      <History className="size-5" />
-                    </EmptyMedia>
-                    <EmptyTitle className="text-yg-muted">{t("waiter.emptyHistory")}</EmptyTitle>
-                  </EmptyHeader>
-                </Empty>
-              )}
-            </TabsContent>
-          </Tabs>
-        </DrawerContent>
-      </Drawer>
-    </>
+                </ul>
+              </fieldset>
+            </div>
+          )}
+          {!(isBill && pendingBill) ? (
+            <div>
+              <label htmlFor={`${choiceId}-message`} className="sr-only">{t("waiter.message")}</label>
+              <Textarea id={`${choiceId}-message`} value={note} disabled={sending} maxLength={MAX_CUSTOMER_WAITER_MESSAGE} rows={2} placeholder={t(isBill ? "waiter.billMessagePlaceholder" : "waiter.messagePlaceholder")} className="max-h-28 min-h-14 resize-none rounded-2xl border-yg-line bg-yg-bg2 px-3 py-2.5 text-base font-normal leading-relaxed text-yg-ink placeholder:text-yg-muted dark:bg-yg-bg2" onChange={(event) => {
+                dirty();
+                const value = event.target.value.slice(0, MAX_CUSTOMER_WAITER_MESSAGE);
+                setNotes((current) => ({ ...current, [requestType]: value }));
+              }} />
+              {note.length ? <p className="mt-1 text-right text-xs tabular-nums text-yg-muted">{note.length}/{MAX_CUSTOMER_WAITER_MESSAGE}</p> : null}
+            </div>
+          ) : null}
+          <Button type={isBill && pendingBill ? "button" : "submit"} className="h-auto min-h-12 w-full shrink-0 gap-2 whitespace-normal rounded-2xl bg-yg-accent px-3 py-3 text-sm font-semibold text-yg-on-accent shadow-sm hover:bg-yg-accent-strong" disabled={sending || (!(isBill && pendingBill) && !canSend)} onClick={() => {
+            if (isBill && pendingBill) {
+              chatScrollRef.current?.querySelector<HTMLElement>(`[data-request-id="${pendingBill.request_uuid}"]`)?.scrollIntoView({ block: "nearest" });
+            }
+          }}>
+            {sending ? <LoaderCircle aria-hidden="true" className="size-4 motion-safe:animate-spin" /> : isBill ? <Receipt aria-hidden="true" className="size-4" /> : hasDetails ? <Send aria-hidden="true" className="size-4" /> : <Bell aria-hidden="true" className="size-4" />}
+            {sending ? t("common.loading") : isBill ? t(pendingBill ? "waiter.billViewHistory" : "waiter.billSubmit") : selectedCount ? t("waiter.sendWithCount", { count: selectedCount }) : hasDetails ? t("waiter.send") : t("waiter.title")}
+          </Button>
+        </form>
+      </DrawerContent>
+    </Drawer>
   );
 }

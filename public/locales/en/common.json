@@ -4014,6 +4014,14 @@
     },
     "title": "Call staff",
     "description": "Call staff to your table right away, or pick what you need first",
+    "chat": {
+      "customerTitle": "Chat with staff",
+      "staffLabel": "Restaurant staff",
+      "you": "You",
+      "welcome": "How can we help?",
+      "hint": "Send a message or use the options below. Staff updates will appear in this conversation.",
+      "timelineLabel": "Customer conversation"
+    },
     "serviceTitle": "Table service",
     "serviceDescription": "Choose assistance or a bill request, then confirm below.",
     "requestTypeLabel": "How can we help?",
