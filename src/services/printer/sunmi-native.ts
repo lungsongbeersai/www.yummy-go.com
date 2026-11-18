@@ -1,4 +1,4 @@
-import { Capacitor } from "@capacitor/core";
+import { Capacitor, registerPlugin } from "@capacitor/core";
 import { ServiceError } from "@/lib/api";
 import type { AgentInfo, PrintJob } from "@/services/printer/types";
 import { SUNMI_PRINTER_INTERFACE, SUNMI_PRINT_MODE, SUNMI_PRINTER_AGENT_ID } from "@/config/sunmi-printer";
@@ -90,10 +90,11 @@ function hasNativePlugin() {
     Capacitor.isPluginAvailable?.("SunmiPrinter") === true;
 }
 
-async function nativePlugin() {
+function nativePlugin(): SunmiPrinterPlugin {
   if (!hasNativePlugin()) throw failure("Install the SUNMI-enabled Android app to use its built-in printer.", 501);
   if (!plugin) {
-    const { registerPlugin } = await import("@capacitor/core");
+    // Capacitor proxies expose a callable `then` property. Returning or awaiting
+    // one through a Promise assimilates it and prevents the native call.
     plugin = registerPlugin<SunmiPrinterPlugin>("SunmiPrinter");
   }
   return plugin;
@@ -120,7 +121,7 @@ async function identityFromInfo(info: SunmiPrinterInfo): Promise<AgentInfo> {
 }
 
 async function readSunmiInfo() {
-  return (await nativePlugin()).getInfo().catch((error: unknown) => {
+  return nativePlugin().getInfo().catch((error: unknown) => {
     throw failure(error instanceof Error ? error.message : "SUNMI printer availability could not be read.", 503);
   });
 }
@@ -234,7 +235,7 @@ export function printSunmiEscpos(input: {
       throw failure("Invalid built-in SUNMI printer destination.", 409);
     }
     if (!text(request.jobId) || !text(request.escposBase64)) throw failure("SUNMI print data or job identity is missing.", 400);
-    const bridge = await nativePlugin();
+    const bridge = nativePlugin();
     const { getBrowserPrinterIdentity } = await import("@/services/printer/browser-device");
     const local = await getBrowserPrinterIdentity().catch((error: unknown) => {
       throw failure(error instanceof Error ? error.message : "SUNMI device identity could not be read.", 503);

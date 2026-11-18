@@ -17,14 +17,31 @@ const mocks = vi.hoisted(() => ({
   native: true, available: true, appAvailable: true, platform: "android",
   info: vi.fn(), print: vi.fn(), identity: vi.fn(), appInfo: vi.fn(),
 }));
-vi.mock("@capacitor/core", () => ({
-  Capacitor: {
-    isNativePlatform: () => mocks.native,
-    getPlatform: () => mocks.platform,
-    isPluginAvailable: (name: string) => name === "App" ? mocks.appAvailable : mocks.available,
-  },
-  registerPlugin: () => ({ getInfo: mocks.info, printEscpos: mocks.print }),
-}));
+vi.mock("@capacitor/core", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@capacitor/core")>();
+  Object.assign(actual.Capacitor, {
+    PluginHeaders: [{ name: "SunmiPrinter", methods: [
+      { name: "getInfo", rtype: "promise" }, { name: "printEscpos", rtype: "promise" },
+    ] }],
+    nativePromise: (_pluginName: string, method: string, options: unknown) => {
+      if (method === "getInfo") return mocks.info();
+      if (method === "printEscpos") return mocks.print(options);
+      throw new Error(`Unexpected native SUNMI method: ${method}`);
+    },
+  });
+  return {
+    ...actual,
+    Capacitor: {
+      ...actual.Capacitor,
+      isNativePlatform: () => mocks.native,
+      getPlatform: () => mocks.platform,
+      isPluginAvailable: (name: string) => name === "App" ? mocks.appAvailable : mocks.available,
+    },
+    // Keep Capacitor's actual proxy: its callable `then` property must never
+    // be Promise-assimilated by an asynchronous adapter factory.
+    registerPlugin: actual.registerPlugin,
+  };
+});
 vi.mock("@/services/printer/browser-device", () => ({ getBrowserPrinterIdentity: mocks.identity }));
 vi.mock("@capacitor/app", () => ({ App: { getInfo: mocks.appInfo } }));
 vi.mock("@/lib/api", () => ({ ServiceError: class extends Error {} }));
@@ -80,6 +97,19 @@ describe("SUNMI built-in printer transport", () => {
     });
     expect(await mocks.identity()).toEqual({ agent_id: "mobile", device_code: target.device_code });
     expect(mocks.appInfo).not.toHaveBeenCalled();
+  });
+
+  it("reaches discovery and printing once through Capacitor's actual thenable proxy", async () => {
+    const discovery = await discoverSunmiBuiltinPrinter();
+    const actual = await vi.importActual<typeof import("@capacitor/core")>("@capacitor/core");
+    const plugins = Reflect.get(actual.Capacitor, "Plugins") as Record<string, unknown>;
+    const proxy = plugins.SunmiPrinter as Record<string, unknown>;
+    expect(typeof proxy.then).toBe("function");
+    expect(discovery.agent).toMatchObject({ agent_id: "sunmi-native", device_code: target.device_code });
+    expect(mocks.info).toHaveBeenCalledExactlyOnceWith();
+    await printSunmiEscpos(input);
+    expect(mocks.print).toHaveBeenCalledExactlyOnceWith({ jobId: input.jobId,
+      escposBase64: input.escposBase64, expectedDeviceCode: target.device_code });
   });
 
   it.each(["web", "ios"])("keeps %s diagnostics separate from Android native discovery", async (kind) => {
