@@ -43,7 +43,7 @@ export function SidebarStoreHeader({ user }: { user: AuthUser | null }) {
               <AvatarImage src={logoSrc} alt={branchTitle} />
               <AvatarFallback className="rounded-xl">{userInitials(user)}</AvatarFallback>
             </Avatar>
-            <div className="grid flex-1 gap-0.5 text-left">
+            <div className="grid min-w-0 flex-1 gap-0.5 text-left group-data-[collapsible=icon]:hidden">
               <span className="truncate font-lao text-base leading-tight font-bold text-sidebar-primary">{branchTitle}</span>
               <span className="line-clamp-2 text-xs leading-snug text-muted-foreground">{address}</span>
             </div>
@@ -73,7 +73,7 @@ export function SidebarUserMenu({
         {profileSrc ? <AvatarImage src={profileSrc} alt={title} /> : null}
         <AvatarFallback className="rounded-lg">{userInitials(user)}</AvatarFallback>
       </Avatar>
-      <div className="grid flex-1 text-left leading-tight">
+      <div className="grid min-w-0 flex-1 text-left leading-tight group-data-[collapsible=icon]:hidden">
         <span className="truncate font-medium">{title}</span>
         <span className="truncate text-muted-foreground">{subtitle}</span>
       </div>
@@ -91,7 +91,7 @@ export function SidebarUserMenu({
               className="data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground"
             >
               {identity}
-              <ChevronsUpDown className="ml-auto" />
+              <ChevronsUpDown className="ml-auto group-data-[collapsible=icon]:hidden" />
             </SidebarMenuButton>
           </DropdownMenuTrigger>
           <DropdownMenuContent

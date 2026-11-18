@@ -52,3 +52,12 @@ export function legacyLayoutScope<T>(node: T, parent: (current: T) => T | null, 
   }
   return scope;
 }
+
+/** Scan nested dirty roots once without pairwise contains checks. */
+export function legacyLayoutRoots<T>(nodes: T[], parent: (current: T) => T | null): T[] {
+  const roots = new Set(nodes);
+  return Array.from(roots).filter(node => {
+    for (let ancestor = parent(node); ancestor; ancestor = parent(ancestor)) if (roots.has(ancestor)) return false;
+    return true;
+  });
+}

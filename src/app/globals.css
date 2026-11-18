@@ -1928,6 +1928,48 @@ html.dark:not([data-decor-background="off"]) .app-header {
   }
 }
 
+/* Wide native terminals share the browser frame. Reserve Android's system
+   insets without adding the old 88px top bar or a second bottom navigation. */
+.app-shell[data-platform="capacitor"][data-native-desktop-chrome="true"] {
+  --app-shell-header-height: 4rem;
+  --app-shell-bottom-nav-height: 0px;
+  padding-top: env(safe-area-inset-top, 0px);
+}
+
+.app-shell[data-native-desktop-chrome="true"] .app-header {
+  top: env(safe-area-inset-top, 0px);
+}
+
+.app-shell[data-native-desktop-chrome="true"] [data-slot="sidebar-container"] {
+  top: env(safe-area-inset-top, 0px);
+  bottom: var(--pos-system-bottom-safe-area, 0px);
+  height: auto;
+}
+
+.app-shell[data-native-desktop-chrome="true"][data-fixed-screen="false"] #app-main-content {
+  padding-bottom: max(1.5rem, var(--pos-system-bottom-safe-area, 0px));
+}
+
+/* The native 44px touch floor needs more than the browser's 32px icon button.
+   The frame supplies a 64px rail so these targets fit inside its padding. */
+@layer base {
+  .app-shell[data-native-desktop-chrome="true"]
+    [data-collapsible="icon"] [data-sidebar="menu-button"] {
+    min-width: 2.75rem;
+    min-height: 2.75rem;
+    width: 2.75rem !important;
+    height: 2.75rem !important;
+    padding: 0.375rem !important;
+    justify-content: center;
+  }
+}
+
+/* This pointer resize strip otherwise inherits native button sizing and
+   covers the icon targets. The shared header retains the sidebar toggle. */
+.app-shell[data-native-desktop-chrome="true"] [data-slot="sidebar-rail"] {
+  display: none;
+}
+
 /* Flutter reference: AppBar พื้นหลัง transparent, elevation 0 เสมอ (ไม่มีแม้ตอน scroll) —
    กลืนกับพื้นหลังหน้าเพจไปเลย ไม่ใช่ผิว card ลอยแยก */
 .native-top-bar {

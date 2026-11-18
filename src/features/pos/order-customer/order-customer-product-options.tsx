@@ -4,7 +4,7 @@ import { useState, type ReactNode } from "react";
 import { useResetOnChange } from "@/hooks/use-reset-on-change";
 import { AlertCircle, Check, Minus, Plus, X } from "lucide-react";
 import { useTranslation } from "react-i18next";
-import { Alert, AlertTitle } from "@/components/ui/alert";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { ButtonGroup, ButtonGroupText } from "@/components/ui/button-group";
@@ -37,6 +37,7 @@ import {
   SheetTitle,
 } from "@/components/ui/sheet";
 import { Spinner } from "@/components/ui/spinner";
+import { Skeleton } from "@/components/ui/skeleton";
 import { Textarea } from "@/components/ui/textarea";
 import { money } from "@/lib/format";
 import { cn } from "@/lib/utils";
@@ -79,6 +80,45 @@ import {
   type SelectedTopping,
 } from "./order-customer-utils";
 import { ProductMediaView } from "./order-customer-product-card";
+
+export function ProductOptionsRequestFeedback({
+  loading,
+  message,
+  onRetry,
+}: {
+  loading: boolean;
+  message?: string;
+  onRetry: () => void;
+}) {
+  const { t } = useTranslation();
+
+  return (
+    <div
+      data-pos-product-options-state={loading ? "loading" : "error"}
+      className="flex min-h-64 flex-col gap-4 p-5"
+    >
+      {loading ? (
+        <div role="status" aria-label={t("pos.loadingProductOptions")} className="flex flex-col gap-4">
+          <p className="text-sm text-muted-foreground">{t("pos.loadingProductOptions")}</p>
+          <Skeleton className="h-11 w-full" />
+          <Skeleton className="h-20 w-full" />
+          <Skeleton className="h-11 w-2/3" />
+        </div>
+      ) : (
+        <>
+          <Alert variant="destructive">
+            <AlertCircle />
+            <AlertTitle>{t("pos.productOptionsLoadFailed")}</AlertTitle>
+            <AlertDescription>{message}</AlertDescription>
+          </Alert>
+          <Button type="button" variant="outline" onClick={onRetry} className="self-start">
+            {t("actions.tryAgain")}
+          </Button>
+        </>
+      )}
+    </div>
+  );
+}
 
 export function ProductOptionsOverlay({
   children,

@@ -12,15 +12,18 @@ import { internalRoute } from "@/lib/routes";
 import { useNativeHeaderStore } from "@/stores/native-header-store";
 import { useNavigationGuardStore } from "@/stores/navigation-guard-store";
 
-// Dialog/Sheet/AlertDialog ของ feature (เช่น payment dialog บน /posAll/order) shell ไม่รู้จัก
-// แต่ทุกตัวมี data-slot ของ shadcn เสมอ จึงเช็คจาก DOM แทนการเดินสาย state ทุกหน้าเข้ามาที่ shell
-const OPEN_OVERLAY_SELECTOR =
-  '[data-slot="dialog-content"], [data-slot="sheet-content"], [data-slot="alert-dialog-content"]';
+// Portal-based menus are overlays too: Android Back closes the appearance
+// popover before navigating, just as Escape does in the browser.
+const OPEN_OVERLAY_SELECTOR = [
+  "dialog-content",
+  "sheet-content",
+  "alert-dialog-content",
+  "popover-content",
+  "dropdown-menu-content",
+  "select-content",
+].map((slot) => `[data-slot="${slot}"][data-state="open"]`).join(", ");
 
-// เช็ค isCapacitorNativeApp() ตรงนี้แล้ว (ต่างจากเดิมที่พึ่งพา "mount ได้เฉพาะใต้ NativeAppShell"
-// อย่างเดียว) — ProtectedShell สลับไปใช้ AppShell (แบบ desktop) แทนได้แล้วตอนจอกว้าง/แนวนอน
-// แม้ยังรันบน Capacitor อยู่ (ดู protected-shell.tsx) ปุ่ม back ฮาร์ดแวร์ต้องยังทำงานไม่ว่า
-// shell ไหนกำลังโชว์อยู่ จึงเรียก hook นี้จากทั้งสอง shell แล้วให้การ์ดตัวเองแทนพึ่งจุดเรียกเดียว
+// NativeAppShell keeps this listener mounted while its presentation changes.
 export function useAndroidBackButton({
   model,
   pathname,

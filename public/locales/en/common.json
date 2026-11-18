@@ -1331,6 +1331,8 @@
     "noAvailableOptions": "No available options",
     "checkProductAvailability": "Check option status or stock before ordering.",
     "productOptionsNeedConnection": "This item's options require an internet connection. Reconnect and try again.",
+    "loadingProductOptions": "Loading item options",
+    "productOptionsLoadFailed": "Could not load item options",
     "invalidProductPrice": "Set a valid product price before ordering.",
     "insufficientStock": "There is not enough stock for this quantity.",
     "insufficientStockMax": "Only {{max}} left in stock — please lower the quantity.",

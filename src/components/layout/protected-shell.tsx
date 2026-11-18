@@ -11,11 +11,9 @@ import { StaffWaiterNotifications } from "@/features/waiter-requests/staff-waite
 // "keeps app route files as server components by default") — ถ้าใส่ "use client"
 // ตรง ๆ ที่ layout.tsx จะชนกับเทสต์นี้ทันที
 //
-// เคยลองสลับเป็น AppShell (แบบเดสก์ท็อป) ตอน Capacitor จอกว้าง/แนวนอนมาแล้ว (ความกว้างจริง
-// ใกล้เคียง desktop) แต่ AppShell มาจาก components/ui/sidebar.tsx ที่ทดสอบมาแค่บนเบราว์เซอร์
-// เดสก์ท็อป ไม่เคยรองรับ WebView ของ Capacitor เลย — ชนปัญหาไล่ไม่จบ (safe-area บน/ล่าง,
-// ข้อความล้นตอนย่อเมนู, คลิกไอคอนแล้วพฤติกรรมผิดจากเดสก์ท็อป) จึงย้อนกลับมาใช้ NativeAppShell
-// เสมอเวลารัน Capacitor ไม่ว่าจอจะกว้างแค่ไหน/หมุนทิศไหนก็ตาม
+// NativeAppShell owns Android Back, keyboard and refresh lifecycle at every width.
+// It shares only the browser's presentation frame on wide back-office screens;
+// its mobile navigation and dedicated POS workspaces keep their native layout.
 export function ProtectedShell({ children }: { children: React.ReactNode }) {
   const isCapacitorNativeApp = useIsCapacitorNativeApp();
   const Shell = isCapacitorNativeApp ? NativeAppShell : AppShell;

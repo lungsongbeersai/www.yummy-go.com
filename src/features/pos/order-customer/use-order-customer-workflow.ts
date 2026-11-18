@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useResetOnDeps } from "@/hooks/use-reset-on-change";
@@ -22,6 +22,7 @@ import { useNavigationGuardStore } from "@/stores/navigation-guard-store";
 import { usePosStore } from "@/stores/pos-store";
 import { usePrinterStore } from "@/stores/printer-store";
 import { useToastStore } from "@/stores/toast-store";
+import { createSessionGuard } from "@/stores/session-store-registry";
 import {
   buildStaffOrderInput,
   canDirectAddFromList,
@@ -61,6 +62,7 @@ import { cartForTable, cartOrders, cartQuantityCount } from "../table-selection/
 import { useDraftCleanup } from "./use-draft-cleanup";
 import { createCartRefreshQueue } from "./cart-refresh-queue";
 import { useOrderCustomerRealtime } from "./use-order-customer-realtime";
+import { createProductActionRequest } from "./product-action-request";
 
 export type OrderCustomerWorkflowInput = {
   initialTableUuid: string;
@@ -68,6 +70,12 @@ export type OrderCustomerWorkflowInput = {
   initialZoneUuid: string;
   initialBillRequestKey?: string;
 };
+
+interface ProductOptionsRequestState {
+  entry: ProductCardEntry;
+  status: "loading" | "error";
+  message?: string;
+}
 
 export function useOrderCustomerWorkflow({
   initialTableUuid,
@@ -118,10 +126,11 @@ export function useOrderCustomerWorkflow({
   const [search, setSearch] = useState("");
   const [loadingProductUuid, setLoadingProductUuid] = useState("");
   const [productSheetOpen, setProductSheetOpen] = useState(false);
+  const [productOptionsRequest, setProductOptionsRequest] = useState<ProductOptionsRequestState | null>(null);
+  const [productActionRequest] = useState(createProductActionRequest);
   const [cartSheetOpen, setCartSheetOpen] = useState(Boolean(initialBillRequestKey && initialTableUuid));
   const [draftExitWarningOpen, setDraftExitWarningOpen] = useState(false);
   const [draftExitCleanupPending, setDraftExitCleanupPending] = useState(false);
-  const productActionPendingRef = useRef(false);
   const backgroundCartRefreshRef = useRef(createCartRefreshQueue());
   useEffect(() => {
     const queue = backgroundCartRefreshRef.current;
@@ -156,6 +165,29 @@ export function useOrderCustomerWorkflow({
   const [fetchedPrinterContext, setFetchedPrinterContext] =
     useState<PrinterDeviceContext | null>(null);
   const printerContext = user?.uuid ? fetchedPrinterContext : null;
+  const productActionScopeKey = JSON.stringify([
+    user?.uuid, branchUuid, initialTableUuid, counterOrderUuid, language, activeSort,
+  ]);
+  const productActionScope = useMemo(
+    () => productActionRequest.createScope(productActionScopeKey),
+    [productActionRequest, productActionScopeKey],
+  );
+  // Invalidate old detail reads during commit, including route/account changes.
+  // An already-sent order retains its request lock until that send settles.
+  useLayoutEffect(() => productActionScope.activate(), [productActionScope]);
+  useResetOnDeps([productActionScope], () => {
+    setProductOptionsRequest(null);
+    setProductSheetOpen(false);
+    setLoadingProductUuid("");
+  });
+
+  const changeProductOptionsOpen = useCallback((nextOpen: boolean) => {
+    if (!nextOpen) {
+      if (productActionRequest.cancelSelection()) setLoadingProductUuid("");
+      setProductOptionsRequest(null);
+    }
+    setProductSheetOpen(nextOpen);
+  }, [productActionRequest]);
 
   const selectedTable = useMemo(() => {
     if (initialTableUuid) {
@@ -349,6 +381,7 @@ export function useOrderCustomerWorkflow({
       selectedSetChoiceTasteUuids: setChoiceTasteUuids,
       tastes,
       toppings,
+      isCurrent,
     }: {
       detail: ProdDetail;
       mode?: ProductModalMode;
@@ -360,7 +393,11 @@ export function useOrderCustomerWorkflow({
       selectedSetChoiceTasteUuids?: Record<string, string[]>;
       tastes: ProdTaste[];
       toppings: SelectedTopping[];
+      isCurrent: () => boolean;
     }) => {
+      const isCurrentSession = createSessionGuard();
+      const ownsView = () => isCurrent() && isCurrentSession();
+      if (!ownsView()) return;
       const response = await createOrder(
         buildStaffOrderInput({
           branchUuid: user?.branch_uuid ?? "",
@@ -379,6 +416,9 @@ export function useOrderCustomerWorkflow({
           userUuid: user?.uuid ?? "",
         }),
       );
+      // The backend send is never cancelled or replayed. Its response must not
+      // populate another route, bill or login that replaced the initiating view.
+      if (!ownsView()) return;
 
       let refreshCartRequest: Promise<unknown> | null = null;
       // create_order is the authoritative mutation. Do not hold the product grid
@@ -412,8 +452,11 @@ export function useOrderCustomerWorkflow({
 
       if (refreshCartRequest) {
         void refreshCartRequest
-          .then(() => setNewOrderFocusKey((key) => key + 1))
+          .then(() => {
+            if (ownsView()) setNewOrderFocusKey((key) => key + 1);
+          })
           .catch((error: unknown) => {
+            if (!ownsView()) return;
             showToast({
               title: t("pos.cartUpdateFailed"),
               description: error instanceof Error ? error.message : "",
@@ -421,7 +464,7 @@ export function useOrderCustomerWorkflow({
             });
           });
       }
-      showToast({ title: t("pos.orderCreated"), tone: "success" });
+      if (ownsView()) showToast({ title: t("pos.orderCreated"), tone: "success" });
     },
     [
       branchUuid,
@@ -454,6 +497,7 @@ export function useOrderCustomerWorkflow({
       setSelectedSetChildOptionGroupUuids({});
       setSelectedSetChoiceTasteUuids({});
       setNote("");
+      setProductOptionsRequest(null);
       setProductSheetOpen(true);
     },
     [activeSort],
@@ -478,39 +522,44 @@ export function useOrderCustomerWorkflow({
   const openOrAddProduct = useCallback(
     async (entry: ProductCardEntry) => {
       const blockedState = getProductBlockedState(entry.product, activeSort);
-      if (blockedState || productActionPendingRef.current) return;
+      if (blockedState) return;
 
-      productActionPendingRef.current = true;
+      const needsDetails = !canDirectAddFromList(entry.product, activeSort);
+      const request = productActionRequest.begin(needsDetails ? "selection" : "order", entry.product.prodUuid, productActionScope);
+      if (!request) return;
       setLoadingProductUuid(entry.product.prodUuid);
+      if (needsDetails) {
+        // Touch has no hover-prefetch. Open immediately while server-owned
+        // options load; no editable details or submit action exist yet.
+        setSelectedProduct(null);
+        setDetailUuid("");
+        setProductOptionsRequest({ entry, status: "loading" });
+        setProductSheetOpen(true);
+      } else {
+        setProductOptionsRequest(null);
+        setProductSheetOpen(false);
+      }
       try {
         let item: ProdItem | null = null;
         // The catalog only exposes proDetailUuid for a single normal detail with no
         // choices. create_order still revalidates that UUID, price and stock in the
         // transaction; every ambiguous product keeps the full detail request.
-        if (!canDirectAddFromList(entry.product, activeSort)) {
-          try {
-            item = await loadProductItem({
-              lang: language,
-              prodUuid: entry.product.prodUuid,
-            });
-          } catch (error) {
-            if (classifyBackendError(error).classification !== "NETWORK_TRANSPORT") {
-              throw error;
-            }
-            // Product option details are server-owned in online-only mode. Explain
-            // the connection requirement instead of surfacing a generic error.
-            showToast({
-              title: t("pos.productOptionsNeedConnection"),
-              tone: "error",
-            });
-            return;
-          }
+        if (needsDetails) {
+          item = await loadProductItem({
+            lang: language,
+            prodUuid: entry.product.prodUuid,
+          });
         }
+        if (!request.isCurrent()) return;
         const productItem = normalizeProdItem(item, entry.product);
         const mode = getProductModalMode(activeSort, productItem);
         const detail = firstAvailableDetail(productItem, mode);
 
         if (!detail) {
+          if (needsDetails) {
+            setProductOptionsRequest({ entry, status: "error", message: t("pos.noAvailableOptions") });
+            return;
+          }
           showToast({
             title: t("pos.noAvailableOptions"),
             description: t("pos.checkProductAvailability"),
@@ -519,7 +568,9 @@ export function useOrderCustomerWorkflow({
           return;
         }
 
-        if (productNeedsModal(entry.product, productItem, activeSort)) {
+        // A selection lease owns reads only. Products that required details
+        // already need the form; never let that cancellable lease send an order.
+        if (needsDetails || productNeedsModal(entry.product, productItem, activeSort)) {
           openProductOptions(productItem);
           return;
         }
@@ -554,16 +605,28 @@ export function useOrderCustomerWorkflow({
           quantity,
           tastes: [],
           toppings: [],
+          isCurrent: request.isScopeCurrent,
         });
       } catch (error) {
+        if (!request.isCurrent()) return;
+        if (needsDetails) {
+          setProductOptionsRequest({
+            entry,
+            status: "error",
+            message: classifyBackendError(error).classification === "NETWORK_TRANSPORT"
+              ? t("pos.productOptionsNeedConnection")
+              : error instanceof Error ? error.message : t("pos.orderFailed"),
+          });
+          return;
+        }
         showToast({
           title: t("pos.orderFailed"),
           description: error instanceof Error ? error.message : "",
           tone: "error",
         });
       } finally {
-        productActionPendingRef.current = false;
-        setLoadingProductUuid("");
+        const wasCurrent = request.isCurrent();
+        if (request.finish() && wasCurrent) setLoadingProductUuid("");
       }
     },
     [
@@ -571,6 +634,8 @@ export function useOrderCustomerWorkflow({
       language,
       loadProductItem,
       openProductOptions,
+      productActionRequest,
+      productActionScope,
       showToast,
       submitProductOrder,
       t,
@@ -1090,6 +1155,9 @@ export function useOrderCustomerWorkflow({
       return;
     }
 
+    const request = productActionRequest.begin("order", selectedProduct.prodUuid, productActionScope);
+    if (!request) return;
+
     try {
       await submitProductOrder({
         detail,
@@ -1102,14 +1170,18 @@ export function useOrderCustomerWorkflow({
         selectedSetChoiceTasteUuids,
         tastes: selectedTastes,
         toppings: selectedToppings,
+        isCurrent: request.isScopeCurrent,
       });
-      setProductSheetOpen(false);
+      if (request.isCurrent()) setProductSheetOpen(false);
     } catch (error) {
+      if (!request.isCurrent()) return;
       showToast({
         title: t("pos.orderFailed"),
         description: error instanceof Error ? error.message : "",
         tone: "error",
       });
+    } finally {
+      request.finish();
     }
   }
 
@@ -1202,6 +1274,7 @@ export function useOrderCustomerWorkflow({
     onDraftExitContinue: continueOrdering,
     onDraftExitLeaveTable: () => void discardDraftAndLeaveTable(),
     productMode,
+    productOptionsRequest,
     productSheetOpen,
     printerContext,
     qty,
@@ -1222,7 +1295,7 @@ export function useOrderCustomerWorkflow({
     setActiveSort,
     setCartSheetOpen,
     setNote,
-    setProductSheetOpen,
+    setProductSheetOpen: changeProductOptionsOpen,
     setQty,
     setSearch,
     showTableFeatures: !isNoTableStore,

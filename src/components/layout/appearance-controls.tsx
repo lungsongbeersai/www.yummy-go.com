@@ -56,6 +56,8 @@ export function AppearanceControls({
   const setDecorBackground = useAppStore((state) => state.setDecorBackground);
   const touch = size === "touch";
 
+  // The existing store also drives the parent labels' selection styles.
+  // WebView 83 cannot match :has() against their nested radio buttons.
   return (
     <div className="flex flex-col gap-4">
       <div className="flex flex-col gap-2">
@@ -81,7 +83,8 @@ export function AppearanceControls({
               // emerald so the swatch doesn't just inherit whatever theme is active
               data-theme-color={color}
               className={cn(
-                "relative flex cursor-pointer items-center justify-center rounded-full bg-primary ring-1 ring-foreground/10 ring-offset-2 ring-offset-popover transition-shadow has-data-[state=checked]:ring-2 has-data-[state=checked]:ring-foreground/60",
+                "relative flex cursor-pointer items-center justify-center rounded-full bg-primary ring-1 ring-foreground/10 ring-offset-2 ring-offset-popover transition-shadow focus-within:ring-2 focus-within:ring-foreground/60",
+                themeColor === color && "ring-2 ring-foreground/60",
                 touch ? "size-12" : "size-8",
               )}
             >
@@ -147,7 +150,8 @@ export function AppearanceControls({
               key={font}
               htmlFor={`${idPrefix}-lao-font-${font}`}
               className={cn(
-                "flex cursor-pointer flex-col items-start gap-1 rounded-lg border border-border p-2 transition-colors hover:bg-muted has-data-[state=checked]:border-primary has-data-[state=checked]:bg-primary/10",
+                "flex cursor-pointer flex-col items-start gap-1 rounded-lg border border-border p-2 transition-colors hover:bg-muted focus-within:ring-2 focus-within:ring-ring",
+                laoFont === font && "border-primary bg-primary/10 hover:bg-primary/10",
                 touch && "min-h-16 p-3",
               )}
             >
@@ -191,7 +195,8 @@ export function AppearanceControls({
                     htmlFor={`${idPrefix}-background-color-${color}`}
                     title={t(`app.appearance.colors.${color}`)}
                     className={cn(
-                      "relative flex cursor-pointer items-center justify-center rounded-full ring-1 ring-border ring-offset-2 ring-offset-popover transition-shadow has-data-[state=checked]:ring-2 has-data-[state=checked]:ring-primary-text has-focus-visible:ring-2 has-focus-visible:ring-primary-text",
+                      "relative flex cursor-pointer items-center justify-center rounded-full ring-1 ring-border ring-offset-2 ring-offset-popover transition-shadow focus-within:ring-2 focus-within:ring-primary-text",
+                      decorBackgroundColor === color && "ring-2 ring-primary-text",
                       touch ? "size-12" : "size-11",
                     )}
                   >
@@ -229,7 +234,8 @@ export function AppearanceControls({
                     key={style}
                     htmlFor={`${idPrefix}-background-style-${style}`}
                     className={cn(
-                      "relative flex cursor-pointer flex-col items-stretch gap-1.5 rounded-lg border border-border p-1.5 transition-colors hover:bg-muted has-data-[state=checked]:border-primary-text has-data-[state=checked]:bg-primary/10 has-focus-visible:ring-2 has-focus-visible:ring-primary-text has-focus-visible:ring-offset-2 has-focus-visible:ring-offset-popover",
+                      "relative flex cursor-pointer flex-col items-stretch gap-1.5 rounded-lg border border-border p-1.5 transition-colors hover:bg-muted focus-within:ring-2 focus-within:ring-primary-text focus-within:ring-offset-2 focus-within:ring-offset-popover",
+                      decorBackgroundStyle === style && "border-primary-text bg-primary/10 hover:bg-primary/10",
                       touch && "p-2",
                     )}
                   >

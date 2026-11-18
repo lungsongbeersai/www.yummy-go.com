@@ -42,6 +42,7 @@ import {
   ProductOptionsMedia,
   ProductOptionsSubtitle,
   ProductOptionsOverlay,
+  ProductOptionsRequestFeedback,
 } from "./order-customer-product-options";
 import type { OrderCustomerWorkflow } from "./use-order-customer-workflow";
 
@@ -85,6 +86,7 @@ export function OrderCustomerView({
     onDraftExitContinue,
     onDraftExitLeaveTable,
     productMode,
+    productOptionsRequest,
     productSheetOpen,
     printerContext,
     prefetchProduct,
@@ -588,7 +590,9 @@ export function OrderCustomerView({
         closeDisabled={saving}
         closeLabel={t("actions.close")}
         description={
-          selectedProduct
+          productOptionsRequest
+            ? t(productOptionsRequest.status === "loading" ? "pos.loadingProductOptions" : "pos.productOptionsLoadFailed")
+            : selectedProduct
             ? productModeLabel(productMode, selectedProduct, t)
             : ""
         }
@@ -609,13 +613,19 @@ export function OrderCustomerView({
             />
           ) : null
         }
-        title={selectedProduct?.prodName ?? t("pos.product")}
+        title={productOptionsRequest?.entry.product.prodName ?? selectedProduct?.prodName ?? t("pos.product")}
         onOpenChange={(nextOpen) => {
           if (saving) return;
           setProductSheetOpen(nextOpen);
         }}
       >
-        {selectedProduct && selectedDetail ? (
+        {productOptionsRequest ? (
+          <ProductOptionsRequestFeedback
+            loading={productOptionsRequest.status === "loading"}
+            message={productOptionsRequest.message}
+            onRetry={() => void openOrAddProduct(productOptionsRequest.entry)}
+          />
+        ) : selectedProduct && selectedDetail ? (
           <ProductOptionsForm
             modalUnitPrice={modalUnitPrice}
             mode={productMode}

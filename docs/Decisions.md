@@ -1,5 +1,35 @@
 # Decisions
 
+## Product selection opens before its detail request completes
+
+- **Date:** 2026-11-18.
+- **Evidence:** The owner identified the missing modal as tapping a product to choose quantity/options. The launcher awaited server detail data before opening the overlay; touch does not benefit from the mouse-hover prefetch, so a slow or failed request left the user on the product grid.
+- **Decision:** Open the existing product overlay immediately with a loading skeleton. Show server details and the editable order form only after a successful response. A failed request stays in that overlay with a visible error and retry button; no local product-option or financial success fallback is introduced.
+- **Ownership:** Product reads have replaceable, cancellable leases. Closing the overlay or changing product/route/account/table/language/sort invalidates the old read. A scope instance and activation generation prevent late responses from reviving after leaving and returning to the same screen. Each finalizer may release only its own lease. Direct order sends use a separate non-cancellable lease kind until completion; reads that require details always open the form and cannot fall through into a financial send.
+- **Completion:** Both form and direct sends retain their order lease until settlement. After the authoritative send, counter/cart/focus/toast updates also require the initiating activation and authentication session. Background cart callbacks retain that check after the send releases its lock; an old response cannot populate a new bill or login.
+- **Validation:** All 3,758 unit tests in 297 files, typecheck, lint and production build passed; lint retains five existing warnings. All twelve deployment fixtures passed. Local build ID: `nbZANU8gvXPlhVbyIikCf`.
+- **Browser verification:** Genuine Chromium 83 passed twelve actual product-launcher cases at desktop/mobile widths, including loading, retry, close/late responses, product replacement, scope changes, quantity and size selection. Six native shell profiles plus a modern Chrome web profile verified the shared header, anchored appearance menu, selected/focused labels, sidebar/account/submenus and Android Back behavior. These checks used the final raw production CSS and all five Next font variables, with no page/console errors, external requests or financial writes. Seven layout regression checks covered wrap resize, motion/idle stability, original inline priorities, RTL/auto margins, aspect sizing and moving a child after removing its old owner.
+- **Authorization:** The owner explicitly requested fixing the missing product modal and slow SUNMI interaction.
+
+## Legacy native layout reconciles changed owners instead of resetting the screen
+
+- **Date:** 2026-11-18.
+- **Evidence:** A genuine Chromium 83 benchmark with 300 synthetic product cards and 3,308 DOM nodes reproduced repeated full-screen style work without any network requests. The previous helper performed 57,099 computed-style reads and 16,200 inline style mutations, including main-thread tasks lasting over one second.
+- **Decision:** Track flex-gap/aspect owners separately, discover only newly added subtrees, cache per-pass style/metadata reads, batch reads before writes and retain unchanged owned declarations. A new modal portal must not restore and rewrite every product behind it. CSSOM-normalized values are remembered to avoid repeated writes of equivalent expressions. Disconnected owners release their styles, original inline values/priorities are restored on teardown, and root font/resize changes still refresh the affected layout.
+- **Boundary:** The benchmark uses synthetic cards on an actual old browser engine, not the shop's physical SUNMI. Its timings demonstrate the layout hotspot and do not certify hardware FPS, network latency or paper delivery.
+- **Authorization:** The owner's request to make the application faster and restore product selection.
+
+## Wide native terminals share the browser's back-office frame
+
+- **Date:** 2026-11-18.
+- **Evidence:** After startup compatibility was restored, the SUNMI D2s screenshot still showed the native 88px full-width header and profile-contained appearance dialog. This was a separate presentation fork: the browser's sidebar identity, inset header and header-anchored appearance popover were never selected on that device. Earlier control-gallery checks did not cover this authenticated shell.
+- **Decision:** Extract the browser's existing desktop presentation into `DesktopShellFrame`. Both browser and native back-office screens use it on native viewports matching the existing 1024px landscape breakpoint. The native shell remains mounted and owns Android Back, keyboard, pull-to-refresh, printer and notification lifecycle once. Native mobile, dedicated POS workspaces and the measured Swan1 home/POS layouts retain their existing presentation. Native registered back, refresh and title overrides pass through the shared frame.
+- **Layout:** Use the same sidebar store/account slots, breadcrumbs, language, contract, notification and appearance controls as the browser. Scoped native safe-area rules reserve the system strips. A 64px collapsed native rail contains 44px targets; identity labels are explicitly hidden when collapsed. Its sizing/padding override lives in the base layer so important utility rules cannot defeat it. The native pointer resize strip is hidden because the generic native button minimum otherwise covers menu targets; the header's toggle remains available.
+- **Navigation:** Android Back detects open popovers, dropdowns and selects as well as dialogs/sheets, sending Escape to close the current overlay before considering route navigation. Closing overlays are excluded from detection.
+- **Appearance:** Selected color/font/background labels use the existing store's state for their classes, with `focus-within` feedback. Their highlights no longer depend on the unsupported `:has()` parent selector in WebView 83.
+- **Boundary:** This changes web-delivered presentation and requires no native plugin or financial-operation changes. Browser-engine checks cannot certify the shop's hardware, physical printing or native touch latency.
+- **Authorization:** The owner reported the remaining header/theme mismatch and requested browser-equivalent behavior; the previous commit-and-push instruction remains part of this correction.
+
 ## The confirmed SUNMI WebView 83 receives a complete native compatibility path
 
 - **Date:** 2026-11-18.

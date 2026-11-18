@@ -1,13 +1,22 @@
 "use client";
 
 import { useMemo } from "react";
+import { useRouter } from "next/navigation";
 import { useTranslation } from "react-i18next";
+import { RefreshCcw } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import { usePosOrderAlertListener } from "@/hooks/use-pos-order-alert-listener";
 import { useSharedPrinterQueue } from "@/hooks/use-shared-printer-queue";
 import { cn } from "@/lib/utils";
 import { useAppShellData } from "@/components/layout/use-app-shell-data";
+import { DesktopShellFrame } from "@/components/layout/desktop-shell-frame";
+import {
+  NATIVE_DESKTOP_CHROME_MEDIA_QUERY,
+  shouldUseNativeDesktopChrome,
+} from "@/components/layout/native-desktop-chrome";
 import {
   buildNativeNavigationModel,
+  backFallbackPath,
   NATIVE_DIRECT_DESTINATION_COUNT,
 } from "@/components/layout/native-navigation-model";
 import { useAndroidBackButton } from "@/components/layout/capacitor/use-android-back-button";
@@ -22,7 +31,11 @@ import { useAuthStore } from "@/stores/auth-store";
 import { useSwan1DesktopPosLayout } from "@/hooks/use-swan1-desktop-pos-layout";
 import { useSwan1DesktopHomeLayout } from "@/hooks/use-swan1-desktop-home-layout";
 import { useLandscapeTablet } from "@/hooks/use-landscape-tablet";
+import { useMediaQuery } from "@/hooks/use-media-query";
 import { useAppStore } from "@/stores/app-store";
+import { useNavigationGuardStore } from "@/stores/navigation-guard-store";
+import { useNativeHeaderStore } from "@/stores/native-header-store";
+import { internalRoute } from "@/lib/routes";
 import {
   shouldShowNativeSideRail,
   shouldShowNativeTopBar,
@@ -30,7 +43,14 @@ import {
 
 export function NativeAppShell({ children }: { children: React.ReactNode }) {
   const { i18n, t } = useTranslation();
+  const router = useRouter();
   const user = useAuthStore((state) => state.user);
+  const logout = useAuthStore((state) => state.logout);
+  const runGuardedNavigation = useNavigationGuardStore((state) => state.run);
+  const backAction = useNativeHeaderStore((state) => state.backAction);
+  const refreshAction = useNativeHeaderStore((state) => state.refreshAction);
+  const titleOverride = useNativeHeaderStore((state) => state.title);
+  const shellData = useAppShellData();
   const {
     breadcrumbs,
     dashboardScreen,
@@ -42,7 +62,7 @@ export function NativeAppShell({ children }: { children: React.ReactNode }) {
     pathname,
     retrySidebarMenu,
     toggleMenu,
-  } = useAppShellData();
+  } = shellData;
   usePosOrderAlertListener({
     branchUuid: user?.branch_uuid,
     language: i18n.language,
@@ -61,7 +81,15 @@ export function NativeAppShell({ children }: { children: React.ReactNode }) {
   const desktopPosLayout = useSwan1DesktopPosLayout();
   const desktopHomeLayout = useSwan1DesktopHomeLayout();
   const landscapeTablet = useLandscapeTablet();
+  const wideLandscape = useMediaQuery(NATIVE_DESKTOP_CHROME_MEDIA_QUERY);
   const sidebarCollapsed = useAppStore((state) => state.collapsed);
+  const setSidebarCollapsed = useAppStore((state) => state.setCollapsed);
+  const desktopChrome = shouldUseNativeDesktopChrome({
+    wideLandscape,
+    pathname,
+    desktopHomeLayout,
+    desktopPosLayout,
+  });
   const showSideRail = shouldShowNativeSideRail(pathname, desktopPosLayout);
   const showTopBar = shouldShowNativeTopBar(
     pathname,
@@ -77,6 +105,51 @@ export function NativeAppShell({ children }: { children: React.ReactNode }) {
   useAndroidBackButton({ model, pathname });
 
   // scroll-lock และ pos-android-system-screen จัดการอยู่ใน useAppShellData ร่วมกับ web shell
+
+  if (desktopChrome) {
+    return (
+      <DesktopShellFrame
+        shellData={shellData}
+        user={user}
+        collapsed={sidebarCollapsed}
+        onCollapsedChange={setSidebarCollapsed}
+        onLogout={() => runGuardedNavigation(logout)}
+        nativeDesktop
+        keyboardVisible={keyboardVisible}
+        onBack={() => {
+          if (backAction) {
+            backAction();
+            return;
+          }
+          const fallback = backFallbackPath(pathname);
+          if (fallback) router.push(internalRoute(fallback));
+          else router.back();
+        }}
+        titleOverride={titleOverride ?? undefined}
+        headerActions={refreshAction ? (
+          <Button
+            type="button"
+            variant="header"
+            size="icon"
+            className="size-11 sm:size-9"
+            aria-label={t("actions.refresh")}
+            onClick={refreshAction.onClick}
+          >
+            <RefreshCcw className={cn(refreshAction.loading && "animate-spin")} />
+          </Button>
+        ) : undefined}
+        feedback={
+          <NativePullToRefreshIndicator
+            pullDistance={pullDistance}
+            refreshing={refreshing}
+            threshold={threshold}
+          />
+        }
+      >
+        {children}
+      </DesktopShellFrame>
+    );
+  }
 
   return (
     <div

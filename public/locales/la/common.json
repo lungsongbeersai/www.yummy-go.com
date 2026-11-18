@@ -1332,6 +1332,8 @@
     "noAvailableOptions": "ບໍ່ມີຕົວເລືອກທີ່ສັ່ງໄດ້",
     "checkProductAvailability": "ກວດສອບສະຖານະຕົວເລືອກ ຫຼື ສະຕັອກກ່ອນສັ່ງ",
     "productOptionsNeedConnection": "ຕົວເລືອກຂອງສິນຄ້ານີ້ຕ້ອງໃຊ້ອິນເຕີເນັດ. ກະລຸນາເຊື່ອມຕໍ່ແລ້ວລອງໃໝ່.",
+    "loadingProductOptions": "ກຳລັງໂຫຼດຕົວເລືອກສິນຄ້າ",
+    "productOptionsLoadFailed": "ບໍ່ສາມາດໂຫຼດຕົວເລືອກສິນຄ້າໄດ້",
     "invalidProductPrice": "ກຳນົດລາຄາສິນຄ້າທີ່ຖືກຕ້ອງກ່ອນສັ່ງ",
     "insufficientStock": "ສະຕັອກບໍ່ພຽງພໍສຳລັບຈຳນວນນີ້",
     "insufficientStockMax": "ເຫຼືອໃນສະຕັອກພຽງ {{max}} ອັນ — ກະລຸນາຫຼຸດຈຳນວນລົງ",

@@ -1,7 +1,7 @@
 import { createRequire } from "node:module";
 import postcss, { type Plugin } from "postcss";
 import { describe, expect, it } from "vitest";
-import { legacyAspectRatio, legacyGapMargin, legacyGapPixels, legacyLayoutScope, legacyMarginValue, oppositeSide } from "./native-legacy-layout-values";
+import { legacyAspectRatio, legacyGapMargin, legacyGapPixels, legacyLayoutRoots, legacyLayoutScope, legacyMarginValue, oppositeSide } from "./native-legacy-layout-values";
 
 const require = createRequire(import.meta.url);
 const compiler = require("../../scripts/postcss-legacy-webview-layout.cjs") as () => Plugin;
@@ -40,6 +40,12 @@ describe("legacy native layout values", () => {
     expect(legacyLayoutScope("label", node => parents[node], node => owned.has(node))).toBe("form");
     expect(legacyLayoutScope("form", node => parents[node], node => owned.has(node))).toBe("form");
     expect(legacyLayoutScope("page", node => parents[node], () => true)).toBe("page");
+  });
+  it("scans new portal subtrees without promoting them to the unchanged page", () => {
+    const parents: Record<string, string | null> = { page: "body", dialog: "body", field: "dialog", button: "field", body: null };
+    expect(legacyLayoutRoots(["dialog", "field", "button", "dialog"], node => parents[node])).toEqual(["dialog"]);
+    expect(legacyLayoutRoots(["field", "page"], node => parents[node])).toEqual(["field", "page"]);
+    expect(legacyLayoutRoots(["body", "field", "dialog"], node => parents[node])).toEqual(["body"]);
   });
   it("keeps margin shorthand resets and important/media cascade in metadata", async () => {
     const result = await postcss([compiler()]).process(`.x{margin-left:auto;margin:0 8px;aspect-ratio:4/3}@media(min-width:600px){.x{margin-inline:12px auto!important;height:auto!important}}`, { from: undefined });
