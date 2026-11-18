@@ -1,5 +1,15 @@
 # Decisions
 
+## Legacy native POS actions reserve the Android navigation strip
+
+- **Date:** 2026-11-18.
+- **Evidence:** The owner reported the lower-right payment action on the SUNMI product screen remained obscured. Android deliberately renders the WebView edge-to-edge. The POS document class replaced the general touch fallback with a 24px bottom inset, leaving the native side-cart footer only 32px of padding. Genuine Chromium 83 at 1280×720 reproduced a payment button ending at y=688 beneath a simulated 48px system strip starting at y=672, with viewport and application height unchanged.
+- **Decision:** Native Android POS documents in rendering compatibility mode use a minimum 48px system-bottom token, or the larger reported safe-area inset. The rule applies on both html and body independently of pointer type and the early `android-webview-83` marker. Existing cart, product and payment footer consumers use that shared token; no button positioning, action handler, monetary calculation or financial request changes.
+- **Scope:** Swan 1 retains its separately measured navigation policy. Browser, Electron, iOS and capable Android selectors retain their existing values. The fallback can reserve additional space on other legacy native Android terminals reporting zero insets; a real larger inset remains authoritative.
+- **Validation:** All 3,795 tests in 299 files, typecheck, lint, twelve deployment fixtures and the webpack production build passed; lint retains five existing warnings. Local build ID: `leDPquN1tjDw-46vZ2VeN`. Eight actual Chromium 83 width/pointer/marker profiles reproduced the original 16px overlap; the updated rule gives a 56px footer and leaves the action 8px above the simulated 48px navigation strip without changing the application or visual viewport height.
+- **Interaction checks:** Final raw production CSS passed top/center/bottom payment clicks, payment/confirmation action bounds, an 80-item cart scrolling in both directions, resize, enlarged font, a short viewport and a locally simulated product addition. Four Swan/capable Android/web/Electron-like parity profiles retained their previous footer and action geometry. No external financial writes or physical printing occurred.
+- **Authorization:** The owner's report that the payment button remains covered and request for the SUNMI controls to remain visible and clickable.
+
 ## Native product action bounds do not depend on the startup engine marker
 
 - **Date:** 2026-11-18.

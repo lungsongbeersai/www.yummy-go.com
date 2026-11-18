@@ -818,6 +818,13 @@ html {
   --pos-system-bottom-safe-area: max(env(safe-area-inset-bottom, 0px), 1.5rem);
 }
 
+/* Edge-to-edge legacy Android terminals can report a zero inset underneath
+   a 48px system navigation bar, including when AnyDesk reports a fine pointer.
+   Both html and body receive these classes. Keep Swan's measured policy. */
+.capacitor-android.android-webview-compat.pos-android-system-screen:not(.swan1-legacy-colors) {
+  --pos-system-bottom-safe-area: max(env(safe-area-inset-bottom, 0px), 48px);
+}
+
 .capacitor-android {
   /* Use deterministic sRGB palette values across Android WebViews. */
   --color-white: #ffffff;
