@@ -9,11 +9,13 @@ import {
   resolvePrinterDeviceIdentity,
 } from "./agent-transport";
 import { getPrinterDeliveryState } from "./helpers";
+import { resetSessionStores } from "@/stores/session-store-registry";
 
 const mocks = vi.hoisted(() => ({
   get: vi.fn(), post: vi.fn(), apiRequest: vi.fn(),
   native: false,
   printMobileEscposOverTcp: vi.fn(),
+  printSunmiEscpos: vi.fn(),
 }));
 
 const agent = {
@@ -239,6 +241,10 @@ vi.mock("@capacitor/core", () => ({
 vi.mock("@/services/printer/mobile-tcp", () => ({
   printMobileEscposOverTcp: mocks.printMobileEscposOverTcp,
 }));
+vi.mock("@/services/printer/sunmi-native", async (importOriginal) => ({
+  ...await importOriginal<typeof import("@/services/printer/sunmi-native")>(),
+  printSunmiEscpos: mocks.printSunmiEscpos,
+}));
 
 vi.mock("@capacitor/device", () => ({
   Device: { getId: vi.fn(), getInfo: vi.fn() },
@@ -415,5 +421,39 @@ describe("legacy mobile print dispatch", () => {
     );
     expect(mocks.apiRequest).not.toHaveBeenCalled();
     expect(mocks.printMobileEscposOverTcp).not.toHaveBeenCalled();
+  });
+});
+
+describe("SUNMI direct diagnostic dispatch", () => {
+  const job = { agent_id: "sunmi-native", device_code: "android-native-terminal", print_mode: "sunmi_builtin",
+    interface_value: "sunmi://builtin", job_id: "explicit-test-id", print_config_uuid: "printer",
+    lang: "la", paper_width_mm: 80, printer_type: "epson", ops: [] };
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mocks.apiRequest.mockReset();
+    mocks.printSunmiEscpos.mockReset().mockResolvedValue(undefined);
+  });
+
+  it("renders once then uses only the owner-bound SDK transport", async () => {
+    mocks.apiRequest.mockResolvedValueOnce({ data: { escpos_base64: "G0A=" } });
+    await dispatchPrintJob(job);
+    expect(mocks.printSunmiEscpos).toHaveBeenCalledExactlyOnceWith({
+      target: job, escposBase64: "G0A=", jobId: "explicit-test-id:printer",
+    });
+    expect(mocks.printMobileEscposOverTcp).not.toHaveBeenCalled();
+    expect(mocks.post).not.toHaveBeenCalled();
+  });
+
+  it("does not dispatch an old session after its server renderer responds", async () => {
+    let finish!: (value: { data: { escpos_base64: string } }) => void;
+    mocks.apiRequest.mockImplementationOnce(() => new Promise((resolve) => { finish = resolve; }));
+    const printing = dispatchPrintJob(job);
+    const rejected = expect(printing).rejects.toMatchObject({ delivery_state: "not_sent" });
+    resetSessionStores();
+    finish({ data: { escpos_base64: "G0A=" } });
+    await rejected;
+    expect(mocks.printSunmiEscpos).not.toHaveBeenCalled();
+    expect(mocks.printMobileEscposOverTcp).not.toHaveBeenCalled();
+    expect(mocks.post).not.toHaveBeenCalled();
   });
 });

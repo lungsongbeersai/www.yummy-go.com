@@ -63,6 +63,8 @@ export function usePrinterPage() {
   const legacyLoading = usePrinterStore((state) => state.loading);
   const loadingAgentFiles = usePrinterStore((state) => state.loadingAgentFiles);
   const agent = usePrinterStore((state) => state.agent);
+  const builtinAgent = usePrinterStore((state) => state.builtinAgent);
+  const resolveBuiltinDeviceIdentity = usePrinterStore((state) => state.resolveBuiltinDeviceIdentity);
   const checkAgent = usePrinterStore((state) => state.checkAgent);
   const refreshPrinterDiagnostics = usePrinterStore((state) => state.refreshPrinterDiagnostics);
   const printerDiagnostics = usePrinterStore((state) => state.printerDiagnostics);
@@ -133,18 +135,19 @@ export function usePrinterPage() {
     [networkVisibilityByPrinter, printers],
   );
   const manualTestPrinterUuids = useMemo(() => new Set(
-    printers.filter((row) => canManuallyTestListedPrinter(row, operationalPrinters, networkVisibilityByPrinter))
+    printers.filter((row) => canManuallyTestListedPrinter(row, operationalPrinters, networkVisibilityByPrinter) &&
+      (row.connect_type !== "sunmi" || Boolean(savedPrinterSelfTestTarget(row, null, builtinAgent))))
       .map((row) => row.print_config_uuid),
-  ), [networkVisibilityByPrinter, operationalPrinters, printers]);
+  ), [networkVisibilityByPrinter, operationalPrinters, printers, builtinAgent]);
   const selfTestTargets = useMemo(() => {
     const targets = new Map<string, NonNullable<ReturnType<typeof savedPrinterSelfTestTarget>>>();
     for (const row of printers) {
       if (!manualTestPrinterUuids.has(row.print_config_uuid)) continue;
-      const target = savedPrinterSelfTestTarget(row, agent);
+      const target = savedPrinterSelfTestTarget(row, agent, builtinAgent);
       if (target) targets.set(row.print_config_uuid, target);
     }
     return targets;
-  }, [printers, agent, manualTestPrinterUuids]);
+  }, [printers, agent, builtinAgent, manualTestPrinterUuids]);
   const roleItemsByPrinter = useMemo(
     () =>
       new Map(
@@ -252,6 +255,7 @@ export function usePrinterPage() {
       const resources = await Promise.allSettled([
         loadPrintersForLocalAgent({ login_uuid_fk: loginUuid, lang: language }),
         loadRoles(language),
+        resolveBuiltinDeviceIdentity(),
         storeUuid ? loadCategories(language, storeUuid) : Promise.resolve([]),
         loadZones(language, branchUuid),
       ]);
@@ -277,6 +281,7 @@ export function usePrinterPage() {
     refreshPrinterDiagnostics,
     refreshCatalog,
     loadRoles,
+    resolveBuiltinDeviceIdentity,
     loadZones,
     loginUuid,
     showToast,

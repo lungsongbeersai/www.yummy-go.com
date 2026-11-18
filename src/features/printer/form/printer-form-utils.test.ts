@@ -25,6 +25,47 @@ import {
   updateCategoryPrintPermission,
 } from "@/features/printer/form/printer-form-utils";
 import type { DefaultCategoryGroupDetail, Printer, PrinterCategoryPrintPermission } from "@/services/printer";
+import { SUNMI_PRINTER_AGENT_ID, SUNMI_PRINTER_INTERFACE } from "@/config/sunmi-printer";
+
+describe("built-in SUNMI form ownership", () => {
+  const builtinAgent = {
+    agent_id: SUNMI_PRINTER_AGENT_ID, agent_name: "Counter SUNMI",
+    device_code: "android-native-counter", supports_sunmi_builtin: true,
+  };
+  const target = {
+    connectType: "sunmi" as const, interfaceValue: SUNMI_PRINTER_INTERFACE,
+    ip: "", port: "", availableUsbPrinters: [],
+  };
+
+  it("requires an actual local capability before offering an unsaved built-in self-test", () => {
+    expect(printerSelfTestTarget(target)).toBeNull();
+    expect(printerSelfTestTarget({ ...target, builtinAgent })).toEqual({
+      connect_type: "sunmi", interface_value: SUNMI_PRINTER_INTERFACE,
+      expected_agent_id: SUNMI_PRINTER_AGENT_ID, expected_device_code: builtinAgent.device_code,
+    });
+  });
+
+  it("cannot redirect another SUNMI's saved self-test to the current built-in printer", () => {
+    expect(printerSelfTestTarget({ ...target, builtinAgent, expectedDeviceCode: "android-native-other" })).toBeNull();
+  });
+
+  it("loads a saved built-in printer without inventing an IP address or Agent URL", () => {
+    const values = printerFormValues({
+      print_config_uuid: "sunmi-config", printer_name: "Counter", printer_type: "epson",
+      connect_type: "sunmi", interface_value: SUNMI_PRINTER_INTERFACE,
+      paper_width_mm: 58, is_active: true, role_codes: ["receipt"], cate_uuid_fk: [],
+      agent_id: SUNMI_PRINTER_AGENT_ID, device_code: builtinAgent.device_code,
+    });
+    expect(values).toMatchObject({ connectType: "sunmi", ip: "", agentUrl: "", paperWidth: "58", interfaceValue: SUNMI_PRINTER_INTERFACE });
+  });
+
+  it("resolves the correct transport identity only when changing into or out of the built-in service", () => {
+    const edit = { isEditing: true, savedIdentityComplete: true, interfaceValue: SUNMI_PRINTER_INTERFACE };
+    expect(shouldResolveCurrentPrinterIdentity({ ...edit, connectType: "sunmi", savedInterfaceValue: "tcp://192.168.1.2:9100" })).toBe(true);
+    expect(shouldResolveCurrentPrinterIdentity({ ...edit, connectType: "sunmi", savedInterfaceValue: SUNMI_PRINTER_INTERFACE })).toBe(false);
+    expect(shouldResolveCurrentPrinterIdentity({ ...edit, connectType: "tcp", savedInterfaceValue: SUNMI_PRINTER_INTERFACE })).toBe(true);
+  });
+});
 
 describe("printerSelfTestTarget", () => {
   const form = {

@@ -18,6 +18,7 @@ import {
 } from "@/config/printer-agent";
 import { printerPrintModeForPlatform } from "@/lib/printer-platform";
 import { isCapacitorMobileApp } from "@/lib/capacitor-platform";
+import { SUNMI_PRINTER_INTERFACE, SUNMI_PRINT_MODE, SUNMI_PRINTER_AGENT_ID } from "@/config/sunmi-printer";
 import type {
   AgentInfo,
   DefaultCategoryZoneDetail,
@@ -83,6 +84,9 @@ export function usePrinterForm() {
   const employeeRolesError = usePrinterStore((state) => state.employeeRolesError);
   const loadEmployeeRoles = usePrinterStore((state) => state.loadEmployeeRoles);
   const agent = usePrinterStore((state) => state.agent);
+  const builtinAgent = usePrinterStore((state) => state.builtinAgent);
+  const loadingBuiltinAgent = usePrinterStore((state) => state.loadingBuiltinAgent);
+  const resolveBuiltinDeviceIdentity = usePrinterStore((state) => state.resolveBuiltinDeviceIdentity);
   const loading = usePrinterStore((state) => state.loading);
   const searching = usePrinterStore((state) => state.searching);
   const saving = usePrinterStore((state) => state.saving);
@@ -229,6 +233,7 @@ export function usePrinterForm() {
   );
   useResetOnDeps([connectType], () => {
     if (connectType === "usb") setAccessMode("DIRECT");
+    if (connectType === "sunmi" && accessMode === "LAN") setAccessMode("DIRECT");
   });
   const [selectedCategories, setSelectedCategories] = useState<string[]>(
     initialForm.selectedCategories,
@@ -318,7 +323,7 @@ export function usePrinterForm() {
 
   const fillAgent = useCallback((nextAgent: AgentInfo, nextAgentUrl?: string) => {
     setAgentUrl(
-      isBrowserPrinterAgentId(nextAgent.agent_id)
+      nextAgent.agent_id === SUNMI_PRINTER_AGENT_ID ? "" : isBrowserPrinterAgentId(nextAgent.agent_id)
         ? BROWSER_PRINTER_AGENT_URL
         : textValue(nextAgent.agent_url) || nextAgentUrl || AGENT_URL,
     );
@@ -338,6 +343,7 @@ export function usePrinterForm() {
         loadPrintersForLocalAgent({ login_uuid_fk: userUuid, lang: language }),
         loadRoles(language),
         loadInternetSettings(),
+        resolveBuiltinDeviceIdentity(),
         storeUuid ? loadCategories(language, storeUuid).then((categories) => {
           if (isCurrent()) setLoadedCategories({ storeUuid, categories });
         }) : Promise.resolve(),
@@ -361,6 +367,7 @@ export function usePrinterForm() {
     loadPrintersForLocalAgent,
     loadRoles,
     loadInternetSettings,
+    resolveBuiltinDeviceIdentity,
     loadZones,
     showToast,
     storeUuid,
@@ -479,7 +486,7 @@ export function usePrinterForm() {
   ]);
 
   const hasAgentIdentity =
-    Boolean(agentUrl.trim()) &&
+    (connectType === "sunmi" || Boolean(agentUrl.trim())) &&
     Boolean(agentId.trim()) &&
     Boolean(agentName.trim()) &&
     Boolean(deviceCode.trim());
@@ -490,6 +497,8 @@ export function usePrinterForm() {
     ip,
     port,
     availableUsbPrinters: found,
+    builtinAgent,
+    expectedDeviceCode: isEditing && baseline.connectType === "sunmi" ? baseline.deviceCode : undefined,
   });
   const canSelfTest = Boolean(selfTestTarget) && !pendingSelfTest && !recordMissing && !loading && !saving && !searching && !printing;
 
@@ -562,6 +571,11 @@ export function usePrinterForm() {
   }
   if (connectType === "usb") {
     if (!interfaceValue.trim() || !hasAgentIdentity) missingFields.push(t("printer.validationUsbDevice"));
+  } else if (connectType === "sunmi") {
+    if ((!isEditing || baseline.connectType !== "sunmi") && !builtinAgent?.supports_sunmi_builtin) {
+      missingFields.push(t("printer.sunmiUnavailable"));
+    }
+    if (accessMode === "LAN") missingFields.push(t("printer.sunmiSharedHint"));
   } else if (!ip.trim()) {
     missingFields.push(t("printer.validationIp"));
   }
@@ -643,6 +657,18 @@ export function usePrinterForm() {
     if (agent) fillAgent(agent, agentUrl.trim() || AGENT_URL);
   }
 
+  function selectConnectType(nextType: ConnectType) {
+    setConnectType(nextType);
+    if (nextType !== "sunmi") return;
+    setInterfaceValue(SUNMI_PRINTER_INTERFACE);
+    if (builtinAgent) {
+      fillAgent(builtinAgent);
+      if (!isEditing && paperWidth === baseline.paperWidth && builtinAgent.paper_width_mm) {
+        setPaperWidth(String(builtinAgent.paper_width_mm));
+      }
+    }
+  }
+
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!user?.uuid) return;
@@ -668,13 +694,15 @@ export function usePrinterForm() {
       });
       // The saved/advertised LAN URL is for sharing. Resolve this terminal
       // through its configured Agent endpoint, as the initial discovery does.
-      const identity: AgentInfo = shouldResolveCurrentIdentity
-        ? await resolveDeviceIdentity()
+      const resolvedIdentity = shouldResolveCurrentIdentity
+        ? connectType === "sunmi" ? await resolveBuiltinDeviceIdentity() : await resolveDeviceIdentity()
         : {
             agent_id: agentId.trim(),
             agent_name: agentName.trim(),
             device_code: deviceCode.trim(),
           };
+      if (!resolvedIdentity) throw new Error(t("printer.sunmiUnavailable"));
+      const identity: AgentInfo = resolvedIdentity;
       if (
         shouldResolveCurrentIdentity &&
         isBrowserPrinterAgentId(identity.agent_id) &&
@@ -687,11 +715,11 @@ export function usePrinterForm() {
       const nextDeviceCode = textValue(identity.device_code).trim();
       const nextPort = Number(port || 9100);
       const nextInterfaceValue =
-        connectType === "tcp"
+        connectType === "sunmi" ? SUNMI_PRINTER_INTERFACE : connectType === "tcp"
           ? tcpInterfaceValue(ip.trim(), nextPort)
           : interfaceValue.trim();
 
-      const nextAgentUrl = isBrowserPrinterAgentId(nextAgentId)
+      const nextAgentUrl = connectType === "sunmi" ? "" : isBrowserPrinterAgentId(nextAgentId)
         ? BROWSER_PRINTER_AGENT_URL
         : textValue(identity.agent_url) ||
           textValue(agent?.agent_url) ||
@@ -705,8 +733,7 @@ export function usePrinterForm() {
         login_uuid_fk: user.uuid,
         display_name: displayName.trim(),
         connect_type: connectType,
-        ip: ip.trim(),
-        port: nextPort,
+        ...(connectType === "tcp" ? { ip: ip.trim(), port: nextPort } : {}),
         interface_value: nextInterfaceValue,
         paper_width_mm: Number(paperWidth || 80),
         kitchen_cut_mode: kitchenCutMode,
@@ -734,7 +761,7 @@ export function usePrinterForm() {
         device_code: nextDeviceCode,
         // ชื่อ agent เป็นชื่อที่ผู้ใช้ตั้งเอง จึงเดา OS จาก agent_id ไม่ได้
         // ใช้ platform ที่ Agent รายงานมาเพื่อไม่ให้ Windows TCP ถูกบันทึกเป็น mobile_wifi
-        print_mode: shouldResolveCurrentIdentity
+        print_mode: connectType === "sunmi" ? SUNMI_PRINT_MODE : shouldResolveCurrentIdentity
           ? printerPrintModeForPlatform(
               identity.platform,
               isCapacitorMobileApp(),
@@ -791,7 +818,10 @@ export function usePrinterForm() {
     categoryOptions,
     zoneOptions,
     connectType,
-    setConnectType,
+    setConnectType: selectConnectType,
+    builtinAgent,
+    loadingBuiltinAgent,
+    showBuiltinChoice: Boolean(builtinAgent || editing?.connect_type === "sunmi"),
     displayName,
     setDisplayName,
     interfaceValue,

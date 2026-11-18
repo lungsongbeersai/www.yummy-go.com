@@ -3,6 +3,7 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 import type { Printer } from "@/services/printer";
+import { SUNMI_PRINTER_AGENT_ID, SUNMI_PRINTER_INTERFACE } from "@/config/sunmi-printer";
 import {
   agentDownloadUrl,
   canDeletePrinter,
@@ -65,6 +66,18 @@ function printer(isOwner?: boolean): Printer {
 
 describe("saved printer self-test targets", () => {
   const agent = { agent_id: "current-agent", device_code: "current-device", agent_name: "This terminal" };
+
+  it("binds built-in self-tests to the exact local SUNMI and never a shared remote owner", () => {
+    const builtinAgent = { agent_id: SUNMI_PRINTER_AGENT_ID, device_code: "android-native-here", agent_name: "SUNMI", supports_sunmi_builtin: true };
+    const builtin = { ...printer(true), connect_type: "sunmi", interface_value: SUNMI_PRINTER_INTERFACE, agent_id: SUNMI_PRINTER_AGENT_ID, device_code: builtinAgent.device_code };
+    expect(savedPrinterSelfTestTarget(builtin, agent, builtinAgent)).toEqual({
+      connect_type: "sunmi", interface_value: SUNMI_PRINTER_INTERFACE,
+      expected_agent_id: SUNMI_PRINTER_AGENT_ID, expected_device_code: builtinAgent.device_code,
+    });
+    expect(savedPrinterSelfTestTarget({ ...builtin, device_code: "android-native-other" }, agent, builtinAgent)).toBeNull();
+    expect(savedPrinterSelfTestTarget({ ...builtin, is_local_device: false }, agent, builtinAgent)).toBeNull();
+    expect(savedPrinterSelfTestTarget(builtin, agent)).toBeNull();
+  });
 
   it("can directly test a shared network printer while its owner Agent is offline", () => {
     expect(savedPrinterSelfTestTarget({

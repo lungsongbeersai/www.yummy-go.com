@@ -161,7 +161,7 @@ export function PrinterListTable({
                 ) : null}
                 <PrinterNetworkVisibilityBadge state={printerListNetworkState(row, networkVisibilityByPrinter)} />
                 {!isUnverifiedLanPrinter(row, networkVisibilityByPrinter) && !manualTestPrinterUuids.has(row.print_config_uuid) ? (
-                  <span className="max-w-64 text-xs text-muted-foreground whitespace-normal">{t("printer.listVisibility.manualTestUnavailable")}</span>
+                  <span className="max-w-64 text-xs text-muted-foreground whitespace-normal">{t(row.connect_type === "sunmi" ? "printer.sunmiTestOnOwner" : "printer.listVisibility.manualTestUnavailable")}</span>
                 ) : null}
                 {row.access_mode === "INTERNET" ? (
                   <Badge variant="outline" className="border-info/30 bg-info/10 text-info-text" title={t("printer.accessInternet")}>
@@ -177,7 +177,7 @@ export function PrinterListTable({
             headClassName: "whitespace-nowrap",
             render: (row) => (
               <Badge className="whitespace-nowrap">
-                {row.connect_type.toUpperCase()}
+                {row.connect_type === "sunmi" ? t("printer.sunmiPrinter") : row.connect_type.toUpperCase()}
               </Badge>
             ),
           },
@@ -188,7 +188,7 @@ export function PrinterListTable({
             headClassName: "whitespace-nowrap",
             render: (row) => (
               <div className="flex flex-col gap-1">
-                <span className="truncate">{row.interface_value}</span>
+                <span className="truncate">{row.connect_type === "sunmi" ? t("printer.sunmiPrinter") : row.interface_value}</span>
                 {row.endpoint_duplicate ? (
                   <Badge className="whitespace-nowrap border-warning/30 bg-warning/10 text-warning">
                     {t("printer.duplicateAddress")}

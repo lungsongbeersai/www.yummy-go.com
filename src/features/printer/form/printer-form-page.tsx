@@ -109,14 +109,14 @@ export function PrinterFormPage() {
   }
 
   const connectionSummary =
-    form.connectType === "usb"
+    form.connectType === "sunmi" ? t("printer.sunmiPrinter") : form.connectType === "usb"
       ? t("printer.usbPrinter")
       : form.ip
         ? `${t("printer.tcpPrinter")} · ${form.ip}:${form.port}`
         : t("printer.tcpPrinter");
 
   return (
-    <div className="flex w-full flex-col gap-5">
+    <div data-sunmi-printer-form={form.connectType === "sunmi" ? "true" : undefined} className="flex w-full flex-col gap-5">
       <BackButton
         fallbackHref="/printers"
         label={t("printer.title")}
@@ -153,7 +153,7 @@ export function PrinterFormPage() {
         </div>
         <div className="flex flex-wrap gap-2 sm:flex-col sm:items-end">
           <Badge className="h-auto gap-1.5 border-transparent bg-(--dash-shade) py-1 text-xs text-primary-foreground">
-            {form.connectType === "usb" ? <Usb data-icon="inline-start" /> : <Wifi data-icon="inline-start" />}
+            {form.connectType === "sunmi" ? <Printer data-icon="inline-start" /> : form.connectType === "usb" ? <Usb data-icon="inline-start" /> : <Wifi data-icon="inline-start" />}
             {connectionSummary}
           </Badge>
           {form.displayName ? (
@@ -183,6 +183,7 @@ export function PrinterFormPage() {
             options={[
               { value: "tcp", label: t("printer.tcpPrinter"), description: t("printer.connectTcpHint"), icon: Wifi },
               { value: "usb", label: t("printer.usbPrinter"), description: t("printer.connectUsbHint"), icon: Usb },
+              ...(form.showBuiltinChoice ? [{ value: "sunmi", label: t("printer.sunmiPrinter"), description: t("printer.connectSunmiHint"), icon: Printer, disabled: !form.builtinAgent || form.loadingBuiltinAgent }] : []),
             ]}
           />
 
@@ -271,6 +272,13 @@ export function PrinterFormPage() {
                   {form.usbSelectDescription}
                 </FieldDescription>
               </Field>
+            ) : form.connectType === "sunmi" ? (
+              <Field className="md:col-span-2">
+                <FieldDescription aria-live="polite">
+                  {t(form.builtinAgent ? "printer.sunmiDetected" : "printer.sunmiUnavailable")}
+                </FieldDescription>
+                <FieldDescription>{t("printer.sunmiSharedHint")}</FieldDescription>
+              </Field>
             ) : (
               <>
                 <Field>
@@ -321,12 +329,12 @@ export function PrinterFormPage() {
                 <ScrollText className="size-4" />
               </span>
               <div className="flex min-w-0 flex-col gap-1">
-                <p className="text-sm font-bold text-info-text">{t("printer.selfTestTitle")}</p>
+                <p className="text-sm font-bold text-info-text">{t(form.connectType === "sunmi" ? "printer.sunmiTestTitle" : "printer.selfTestTitle")}</p>
                 <p className="text-sm text-muted-foreground" id="printer-self-test-hint">
-                  {t("printer.selfTestHint")}
+                  {t(form.connectType === "sunmi" ? "printer.sunmiTestHint" : "printer.selfTestHint")}
                 </p>
                 <p className="text-sm text-muted-foreground" id="printer-self-test-connection-hint">
-                  {t(form.connectType === "usb" ? "printer.selfTestUsbHint" : "printer.selfTestTcpHint")}
+                  {t(form.connectType === "sunmi" ? "printer.connectSunmiHint" : form.connectType === "usb" ? "printer.selfTestUsbHint" : "printer.selfTestTcpHint")}
                 </p>
               </div>
             </div>
@@ -338,7 +346,7 @@ export function PrinterFormPage() {
               onClick={() => void form.printSelfTest()}
             >
               {form.printing ? <Spinner data-icon="inline-start" /> : <Printer data-icon="inline-start" />}
-              {t(form.printing ? "printer.selfTestSending" : "printer.selfTestAction")}
+              {t(form.printing ? "printer.selfTestSending" : form.connectType === "sunmi" ? "printer.sunmiTestAction" : "printer.selfTestAction")}
             </Button>
           </div>
         </FormSection>

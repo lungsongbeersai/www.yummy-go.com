@@ -94,9 +94,10 @@ const HEALTH_ICON: Record<PrinterHealth, string> = {
 };
 
 // Connection type at a glance: WiFi in info blue (as in the printer form), USB in the pending orange.
-const CONNECTION_BADGE: Record<"tcp" | "usb", string> = {
+const CONNECTION_BADGE: Record<"tcp" | "usb" | "sunmi", string> = {
   tcp: "border-info/40 bg-info/10 text-info-text",
   usb: "border-pending/40 bg-pending/10 text-pending",
+  sunmi: "border-primary/40 bg-primary/10 text-primary-text",
 };
 
 function PrinterCard({
@@ -147,7 +148,8 @@ function PrinterCard({
     value: category.cate_uuid,
   }));
   const switchId = `printer-active-${row.print_config_uuid}`;
-  const ConnectionIcon = row.connect_type === "usb" ? Usb : Wifi;
+  const connectionType = row.connect_type === "sunmi" ? "sunmi" : row.connect_type === "usb" ? "usb" : "tcp";
+  const ConnectionIcon = connectionType === "sunmi" ? PrinterIcon : connectionType === "usb" ? Usb : Wifi;
 
   return (
     <article className="relative flex h-full flex-col overflow-hidden rounded-xl border border-border bg-card shadow-dash-card transition-shadow hover:shadow-md">
@@ -187,9 +189,9 @@ function PrinterCard({
 
       <div className="flex min-w-0 flex-1 flex-col gap-3 px-4 pb-4">
         <div className="flex min-w-0 flex-wrap items-center gap-1.5">
-          <Badge variant="outline" className={cn("gap-1 rounded-full font-bold", CONNECTION_BADGE[row.connect_type === "usb" ? "usb" : "tcp"])}>
+          <Badge variant="outline" className={cn("gap-1 rounded-full font-bold", CONNECTION_BADGE[connectionType])}>
             <ConnectionIcon className="size-3" />
-            {row.connect_type === "usb" ? t("printer.usbPrinter") : t("printer.tcpPrinter")}
+            {t(connectionType === "sunmi" ? "printer.sunmiPrinter" : connectionType === "usb" ? "printer.usbPrinter" : "printer.tcpPrinter")}
           </Badge>
           <PrinterOwnershipBadge
             isOwner={isOwnedPrinter(row)}
@@ -218,7 +220,7 @@ function PrinterCard({
         <div className="min-w-0 rounded-lg border border-info/30 bg-info/10 px-3 py-2">
           <p className="text-2xs font-semibold text-info-text">{t("fields.interfaceValue")}</p>
           <p className="truncate font-mono text-sm font-semibold text-foreground" title={row.interface_value}>
-            {row.interface_value || "-"}
+            {connectionType === "sunmi" ? t("printer.sunmiPrinter") : row.interface_value || "-"}
           </p>
           {row.endpoint_duplicate ? (
             <Badge className="mt-1 gap-1 border-warning/30 bg-warning/10 text-warning">
@@ -273,7 +275,7 @@ function PrinterCard({
         {!unverifiedLan && manualTestUnavailable ? (
           <p className="flex items-start gap-1.5 rounded-md bg-muted px-2.5 py-2 text-xs text-muted-foreground">
             <Info className="mt-px size-3.5 shrink-0" />
-            {t("printer.listVisibility.manualTestUnavailable")}
+            {t(row.connect_type === "sunmi" ? "printer.sunmiTestOnOwner" : "printer.listVisibility.manualTestUnavailable")}
           </p>
         ) : null}
       </div>

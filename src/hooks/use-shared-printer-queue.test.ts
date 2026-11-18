@@ -13,6 +13,36 @@ const windowsOwner = {
 };
 
 describe("shared printer owner queue", () => {
+  const sunmi = {
+    agent_id: "sunmi-native", agent_name: "SUNMI built-in", device_code: "android-native-terminal1",
+    platform: "sunmi", print_mode: "sunmi_builtin", supports_sunmi_builtin: true, sunmi_ready: true,
+  };
+
+  it("keeps built-in owner discovery separate from the existing mobile TCP worker", () => {
+    expect(sharedPrinterOwnerPendingQuery("cashier", sunmi, true)).toMatchObject({
+      agent_id: "sunmi-native", print_mode: "sunmi_builtin", device_code: sunmi.device_code,
+    });
+    expect(sharedPrinterOwnerPendingQuery("cashier", { ...sunmi, agent_id: "mobile", supports_sunmi_builtin: false }, true))
+      .toMatchObject({ agent_id: "mobile", print_mode: "mobile_wifi" });
+  });
+
+  it("only accepts exact SUNMI owner agent, device and transport assignments", () => {
+    const ref = { print_job_uuid: "job", remote_shared_print: true, device_code: sunmi.device_code,
+      agent_id: sunmi.agent_id, print_mode: sunmi.print_mode };
+    expect(isSharedPrintJobForLocalOwner(ref, sunmi)).toBe(true);
+    expect(isSharedPrintJobForLocalOwner({ ...ref, device_code: "other" }, sunmi)).toBe(false);
+    expect(isSharedPrintJobForLocalOwner({ ...ref, agent_id: "mobile" }, sunmi)).toBe(false);
+    expect(isSharedPrintJobForLocalOwner({ ...ref, print_mode: "mobile_wifi" }, sunmi)).toBe(false);
+    expect(isSharedPrintJobForLocalOwner({ ...ref, agent_id: undefined }, sunmi)).toBe(false);
+  });
+
+  it("does not advertise a built-in receiver from a browser, an old shell or paper-out state", () => {
+    expect(isSharedPrinterOwnerReady({ ok: true, agent: sunmi }, true)).toBe(true);
+    expect(isSharedPrinterOwnerReady({ ok: true, agent: sunmi }, false)).toBe(false);
+    expect(isSharedPrinterOwnerReady({ ok: true, agent: { ...sunmi, supports_sunmi_builtin: false } }, true)).toBe(false);
+    expect(isSharedPrinterOwnerReady({ ok: true, agent: { ...sunmi, sunmi_ready: false } }, true)).toBe(false);
+  });
+
   it("discovers native mobile assignments even when its recovered identity has a browser platform", () => {
     expect(sharedPrinterOwnerPendingQuery(" cashier ", {
       agent_id: " mobile ",

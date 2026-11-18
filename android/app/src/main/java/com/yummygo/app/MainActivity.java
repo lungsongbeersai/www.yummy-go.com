@@ -39,6 +39,7 @@ public class MainActivity extends BridgeActivity {
     registerPlugin(AndroidSystemPrintPlugin.class);
     registerPlugin(AndroidCommercialPdfPlugin.class);
     registerPlugin(AndroidFileExportPlugin.class);
+    registerPlugin(SunmiPrinterPlugin.class);
     super.onCreate(savedInstanceState);
 
     hardenWebViewRendering();

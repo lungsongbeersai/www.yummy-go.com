@@ -11,6 +11,8 @@ import {
   getPendingPrintJobs,
   isBrowserPrinterAgentId,
   resolvePrinterDeviceIdentity,
+  getSunmiBuiltinPrinterIdentity,
+  registerSunmiNativePrinterOwner,
   type AgentInfo,
   type CheckPrinterAgentConnectionResult,
   type PendingPrintJobRef,
@@ -18,6 +20,8 @@ import {
 } from "@/services/printer";
 import { useAuthStore } from "@/stores/auth-store";
 import { startSharedPrinterQueueRunner } from "@/hooks/shared-printer-queue-runner";
+import { SUNMI_PRINTER_AGENT_ID, SUNMI_PRINT_MODE, canHostSunmiBuiltinPrinter } from "@/config/sunmi-printer";
+import { createSessionGuard } from "@/stores/session-store-registry";
 
 const DOCUMENT_PRINT_SOURCES = new Set([
   "qr_table",
@@ -43,13 +47,18 @@ export function sharedPrinterOwnerPendingQuery(
     login_uuid_fk: textValue(loginUuid),
     device_code: textValue(agent.device_code),
     agent_id: textValue(agent.agent_id),
-    print_mode: printerPrintModeForPlatform(agent.platform, nativeMobile),
+    print_mode: agent.agent_id === SUNMI_PRINTER_AGENT_ID && agent.supports_sunmi_builtin === true
+      ? SUNMI_PRINT_MODE
+      : printerPrintModeForPlatform(agent.platform, nativeMobile),
     agent_ready: true,
     refs_only: true,
   };
 }
 
 export function isSharedPrintJobForLocalOwner(ref: PendingPrintJobRef, agent: AgentInfo) {
+  if (agent.agent_id === SUNMI_PRINTER_AGENT_ID && (
+    ref.agent_id !== SUNMI_PRINTER_AGENT_ID || ref.print_mode !== SUNMI_PRINT_MODE
+  )) return false;
   return (
     ref.remote_shared_print === true &&
     textValue(ref.device_code) === textValue(agent.device_code) &&
@@ -72,6 +81,10 @@ export function isSharedPrinterOwnerReady(
   result: CheckPrinterAgentConnectionResult,
   nativeMobile = false,
 ): result is Extract<CheckPrinterAgentConnectionResult, { ok: true }> {
+  if (result.ok && result.agent.agent_id === SUNMI_PRINTER_AGENT_ID) {
+    return nativeMobile && result.connected !== false && result.agent.supports_sunmi_builtin === true &&
+      result.agent.sunmi_ready === true && result.agent.print_mode === SUNMI_PRINT_MODE && Boolean(textValue(result.agent.device_code));
+  }
   // A cached desktop identity is useful for routing configuration, but it is
   // not proof that the Local Agent can currently receive a print job.
   return result.ok &&
@@ -88,6 +101,12 @@ export function useSharedPrinterQueue() {
     if (!loginUuid || !branchUuid) return;
 
     const nativeMobile = isCapacitorMobileApp();
+    const isCurrentSession = createSessionGuard();
+    const isCurrentBuiltinHost = () => {
+      const current = useAuthStore.getState().user;
+      return isCurrentSession() && current?.uuid === loginUuid && current.branch_uuid === branchUuid &&
+        canHostSunmiBuiltinPrinter(current.status);
+    };
 
     async function processRef(ref: PendingPrintJobRef, agent: AgentInfo) {
       const printJobUuid = textValue(ref.print_job_uuid);
@@ -116,40 +135,57 @@ export function useSharedPrinterQueue() {
       }
     }
 
-    const runner = startSharedPrinterQueueRunner({
+    const common = {
       nativeMobile,
       isVisible: () => document.visibilityState !== "hidden",
-      resolveOwner: async () => {
-        const result = await resolvePrinterDeviceIdentity();
-        return isSharedPrinterOwnerReady(result, nativeMobile) ? result.agent : null;
-      },
-      fetchPending: async (agent, signal) => {
+      fetchPending: async (agent: AgentInfo, signal: AbortSignal) => {
         const pending = await getPendingPrintJobs(sharedPrinterOwnerPendingQuery(loginUuid, agent, nativeMobile), { signal });
         return pending.pendingJobRefs ?? [];
       },
       isLocalOwner: isSharedPrintJobForLocalOwner,
       execute: processRef,
-      onExecutionError: (ref, error) => {
+      onExecutionError: (ref: PendingPrintJobRef, error: unknown) => {
         console.error("[shared-printer] owner queue failed", {
           print_job_uuid: ref.print_job_uuid,
           error: error instanceof Error ? error.message : error,
         });
       },
-      onPollError: (error) => {
+      onPollError: (error: unknown) => {
         console.warn(
           "[shared-printer] pending poll failed:",
           error instanceof Error ? error.message : error,
         );
       },
-    });
+    };
+    const runners = [startSharedPrinterQueueRunner({
+      ...common,
+      resolveOwner: async () => {
+        const result = await resolvePrinterDeviceIdentity();
+        return isSharedPrinterOwnerReady(result, nativeMobile) ? result.agent : null;
+      },
+    })];
+    if (nativeMobile && canHostSunmiBuiltinPrinter(user?.status)) {
+      // Keep the existing mobile/TCP identity and pending work intact. The
+      // built-in printer is a second, SDK-attested receiver on the same device.
+      runners.push(startSharedPrinterQueueRunner({
+        ...common,
+        resolveOwner: async (signal) => {
+          if (signal.aborted || !isCurrentBuiltinHost()) return null;
+          const agent = await getSunmiBuiltinPrinterIdentity(true);
+          if (!agent || signal.aborted || !isCurrentBuiltinHost()) return null;
+          await registerSunmiNativePrinterOwner(loginUuid, agent, { signal });
+          return !signal.aborted && isCurrentBuiltinHost() ? agent : null;
+        },
+      }));
+    }
 
     function handleWake() {
-      void runner.poll();
+      for (const runner of runners) void runner.poll();
     }
 
     function handleQueued(payload: PrintJobQueuedPayload) {
       if (payload.remote_shared_print !== true) return;
-      void runner.receive(payload);
+      for (const runner of runners) void runner.receive(payload);
     }
 
     const unsubscribe = subscribePrintJobs(
@@ -162,11 +198,11 @@ export function useSharedPrinterQueue() {
     window.addEventListener("online", handleWake);
 
     return () => {
-      runner.stop();
+      for (const runner of runners) runner.stop();
       unsubscribe();
       document.removeEventListener("visibilitychange", handleWake);
       window.removeEventListener("focus", handleWake);
       window.removeEventListener("online", handleWake);
     };
-  }, [user?.branch_uuid, user?.uuid]);
+  }, [user?.branch_uuid, user?.uuid, user?.status]);
 }

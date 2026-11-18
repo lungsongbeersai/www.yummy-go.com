@@ -1,4 +1,5 @@
 import type { Category } from "@/services/category";
+import { SUNMI_PRINTER_INTERFACE } from "@/config/sunmi-printer";
 import type {
   Printer,
   PrinterCategory,
@@ -186,10 +187,17 @@ export function printerReachable(printer: Printer) {
   return printer.is_local_device !== false;
 }
 
-export function savedPrinterSelfTestTarget(printer: Printer, agent: AgentInfo | null): PrinterSelfTestInput | null {
+export function savedPrinterSelfTestTarget(printer: Printer, agent: AgentInfo | null, builtinAgent: AgentInfo | null = null): PrinterSelfTestInput | null {
   if (!printerReachable(printer)) return null;
   const interfaceValue = String(printer.interface_value || "").trim();
   const connectType = String(printer.connect_type || "").trim().toLowerCase();
+  if (connectType === "sunmi" && interfaceValue === SUNMI_PRINTER_INTERFACE &&
+    builtinAgent?.supports_sunmi_builtin && builtinAgent.device_code &&
+    printer.agent_id === builtinAgent.agent_id && printer.device_code === builtinAgent.device_code &&
+    printer.is_local_device !== false) return {
+      connect_type: "sunmi", interface_value: SUNMI_PRINTER_INTERFACE,
+      expected_agent_id: builtinAgent.agent_id, expected_device_code: builtinAgent.device_code,
+    };
   if (connectType === "tcp" && /^tcp:\/\//i.test(interfaceValue)) {
     return { connect_type: "tcp", interface_value: interfaceValue };
   }

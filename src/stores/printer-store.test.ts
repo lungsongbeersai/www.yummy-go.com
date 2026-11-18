@@ -13,6 +13,8 @@ import {
   getPendingPrintJobs,
   getInternetPrintSettings,
   getPrinterEmployeeRoles,
+  getSunmiBuiltinPrinterIdentity,
+  registerSunmiNativePrinterOwner,
   registerPrinterAgent,
   resolvePrinterDeviceContext,
   resolvePrinterDeviceIdentity,
@@ -25,8 +27,12 @@ import {
 } from "@/services/printer";
 import { usePrinterStore } from "@/stores/printer-store";
 import { resetSessionStores } from "@/stores/session-store-registry";
+import { useAuthStore, type AuthUser } from "@/stores/auth-store";
 
-vi.mock("@/services/printer", () => ({
+vi.mock("@/services/printer", async (importOriginal) => ({
+  ...await importOriginal<typeof import("@/services/printer")>(),
+  getSunmiBuiltinPrinterIdentity: vi.fn(),
+  registerSunmiNativePrinterOwner: vi.fn(),
   ackPrintJob: vi.fn(),
   buildTestJob: vi.fn(),
   deletePrinter: vi.fn(),
@@ -93,6 +99,8 @@ describe("printer store", () => {
     registerPrinterAgentMock.mockResolvedValue(undefined);
     usePrinterStore.setState({
       agent: null,
+      builtinAgent: null,
+      loadingBuiltinAgent: false,
       agentStatus: "unchecked",
       agentError: null,
       agentConnectionUrl: null,
@@ -113,6 +121,51 @@ describe("printer store", () => {
       employeeRolesLoaded: false,
       employeeRolesError: null,
     });
+  });
+
+  it("retains the mobile TCP identity while exposing a separate SDK-attested built-in printer", async () => {
+    const user: AuthUser = { uuid: "cashier", email: "", status: 3, profile: "", branch_uuid: "branch", branch_name: "",
+      branch_tel: "", branch_address: "", store_uuid: "store", store_name: "", store_logo: "", store_table_status: 1 };
+    const auth = vi.spyOn(useAuthStore, "getState").mockReturnValue({ ...useAuthStore.getState(), user });
+    const builtin = { agent_id: "sunmi-native", agent_name: "D2s", device_code: "android-native-device",
+      print_mode: "sunmi_builtin", supports_sunmi_builtin: true, sunmi_ready: true };
+    vi.mocked(getSunmiBuiltinPrinterIdentity).mockResolvedValueOnce(builtin);
+    vi.mocked(registerSunmiNativePrinterOwner).mockResolvedValueOnce({ supported: true, ready: true });
+    const mobile = { agent_id: "mobile", agent_name: "D2s", device_code: builtin.device_code };
+    usePrinterStore.setState({ agent: mobile });
+    try {
+      await expect(usePrinterStore.getState().resolveBuiltinDeviceIdentity()).resolves.toEqual(builtin);
+      expect(usePrinterStore.getState()).toMatchObject({ builtinAgent: builtin, agent: mobile, loadingBuiltinAgent: false });
+      expect(registerSunmiNativePrinterOwner).toHaveBeenCalledExactlyOnceWith("cashier", builtin);
+    } finally { auth.mockRestore(); }
+  });
+
+  it("does not start native receiver registration for a sender-only staff role", async () => {
+    const user: AuthUser = { uuid: "waiter", email: "", status: 4, profile: "", branch_uuid: "branch", branch_name: "",
+      branch_tel: "", branch_address: "", store_uuid: "store", store_name: "", store_logo: "", store_table_status: 1 };
+    const auth = vi.spyOn(useAuthStore, "getState").mockReturnValue({ ...useAuthStore.getState(), user });
+    try {
+      expect(await usePrinterStore.getState().resolveBuiltinDeviceIdentity()).toBeNull();
+      expect(getSunmiBuiltinPrinterIdentity).not.toHaveBeenCalled();
+      expect(registerSunmiNativePrinterOwner).not.toHaveBeenCalled();
+    } finally { auth.mockRestore(); }
+  });
+
+  it("uses an ordinary SDK receipt test without entering firmware maintenance", async () => {
+    vi.mocked(printPrinterSelfTest).mockResolvedValueOnce({ ok: true, status: "command_sent", readiness: "ready" });
+    await usePrinterStore.getState().selfTest({ connect_type: "sunmi", interface_value: "sunmi://builtin",
+      expected_agent_id: "sunmi-native", expected_device_code: "android-native-device" });
+    expect(usePrinterStore.getState()).toMatchObject({ pendingSelfTest: null, printing: false, selfTestPhase: "idle" });
+    expect(completePrinterSelfTest).not.toHaveBeenCalled();
+    expect(getPrinterSelfTestStatus).not.toHaveBeenCalled();
+  });
+
+  it("keeps a failed SUNMI receipt test visible without scheduling maintenance or replay", async () => {
+    vi.mocked(printPrinterSelfTest).mockRejectedValueOnce(Object.assign(new Error("Unknown delivery"), { delivery_state: "unknown" }));
+    await expect(usePrinterStore.getState().selfTest({ connect_type: "sunmi", interface_value: "sunmi://builtin",
+      expected_agent_id: "sunmi-native", expected_device_code: "android-native-device" })).rejects.toThrow("Unknown delivery");
+    expect(usePrinterStore.getState()).toMatchObject({ pendingSelfTest: null, printing: false, error: "Unknown delivery" });
+    expect(printPrinterSelfTest).toHaveBeenCalledTimes(1);
   });
 
   it("sends an unsaved self-test target and clears its busy state", async () => {

@@ -6,6 +6,7 @@ import axios from "axios";
 import { apiRequest, ServiceError, type RequestOptions } from "@/lib/api";
 import { toApiLanguage } from "@/lib/language";
 import { AGENT_URL } from "@/config/printer-agent";
+import { SUNMI_PRINT_MODE, SUNMI_PRINTER_AGENT_ID } from "@/config/sunmi-printer";
 import {
   AGENT_SECRET,
   agentBase as printerAgentBase,
@@ -16,6 +17,7 @@ import {
 } from "@/services/printer/helpers";
 import type {
   AgentFilesResponse,
+  AgentInfo,
   InternetPrintSettings,
   BuildTestJobRequest,
   BuildTestJobResponse,
@@ -155,6 +157,30 @@ export async function registerPrinterAgent(
   return result.data;
 }
 
+export async function registerSunmiNativePrinterOwner(loginUuid: string, agent: AgentInfo, options?: Pick<RequestOptions, "signal">) {
+  if (agent.agent_id !== SUNMI_PRINTER_AGENT_ID || agent.print_mode !== SUNMI_PRINT_MODE ||
+    agent.supports_sunmi_builtin !== true || !textValue(agent.device_code).includes("-native-")) {
+    throw Object.assign(new ServiceError("Invalid SUNMI printer capability identity", 409), { delivery_state: "not_sent" });
+  }
+  const result = await apiRequest<ApiDataResponse<{ supported: boolean; ready: boolean }>>(
+    "post", "/api/v1/printer/native/register", {
+      ...options,
+      timeout: 5000,
+      data: {
+        login_uuid_fk: loginUuid,
+        device_code: agent.device_code,
+        agent_id: SUNMI_PRINTER_AGENT_ID,
+        agent_name: agent.agent_name,
+        platform: "android",
+        ready: agent.sunmi_ready === true,
+        capabilities: { sunmi_builtin: true, protocol_version: 1 },
+      },
+    },
+  );
+  if (result.data?.supported !== true) throw new ServiceError("The server does not support this SUNMI printer receiver.", 501);
+  return result.data;
+}
+
 export async function getPrinterOptions(login_uuid_fk: string, lang = "la") {
   const result = await apiRequest<ApiDataResponse<Printer[]>>("get", "/api/v1/printer/fetch_all", {
     params: { login_uuid_fk, lang: toApiLanguage(lang) }
@@ -190,7 +216,7 @@ export async function savePrinter(input: SavePrinterInput) {
     input.connect_type === "tcp"
       ? textValue(input.interface_value) || tcpInterfaceValue(input.ip, tcpPort)
       : textValue(input.interface_value);
-  const isMobileWifi = textValue(input.print_mode) === "mobile_wifi";
+  const isNativePrinter = ["mobile_wifi", "sunmi_builtin"].includes(textValue(input.print_mode));
 
   const base = {
     print_config_uuid: input.print_config_uuid ?? "",
@@ -212,7 +238,7 @@ export async function savePrinter(input: SavePrinterInput) {
       ? {}
       : { category_print_permissions: input.category_print_permissions }),
 
-    agent_url: isMobileWifi ? "" : input.agent_url || AGENT_URL,
+    agent_url: isNativePrinter ? "" : input.agent_url || AGENT_URL,
     agent_id: input.agent_id,
     agent_name: input.agent_name,
     device_code: input.device_code || input.agent_id,

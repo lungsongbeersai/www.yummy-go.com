@@ -4,7 +4,7 @@
 import { isAxiosError, isCancel } from "axios";
 import { apiRequest, ServiceError, type RequestOptions } from "@/lib/api";
 import { Capacitor } from "@capacitor/core";
-import { registerSessionStoreReset } from "@/stores/session-store-registry";
+import { createSessionGuard, registerSessionStoreReset } from "@/stores/session-store-registry";
 import {
   deliveredPayload,
   failPayload,
@@ -24,6 +24,7 @@ import {
 } from "@/services/printer/agent-transport";
 import { renderMobileEscpos } from "@/services/printer/config-api";
 import { printMobileEscposOverTcp } from "@/services/printer/mobile-tcp";
+import { isSunmiBuiltinPrinterTarget, printSunmiEscpos } from "@/services/printer/sunmi-native";
 import { shouldDeferSharedPrintToOwner } from "@/services/printer/route-selection";
 import type {
   AckPayload,
@@ -340,6 +341,8 @@ function groupKitchenBatchItems(items: PendingPrintItem[], fallbackCutMode: stri
 async function printKitchenMobileBatch(
   batch: PrintOpsBatchPayload,
   onTicketDelivered?: (completed: number, total: number) => void,
+  printJobUuid?: string,
+  isCurrentSession: () => boolean = () => true,
 ) {
   const mobileEscpos = batch.mobile_escpos ?? null;
 
@@ -349,6 +352,37 @@ async function printKitchenMobileBatch(
     textValue(mobileEscpos?.interface_value) ||
     textValue(batch.interface_value) ||
     textValue(batch.jobs?.[0]?.interface_value);
+
+  if (isSunmiBuiltinPrinterTarget(batch) || isSunmiBuiltinPrinterTarget(batch.jobs?.[0])) {
+    if (!isCurrentSession()) throw Object.assign(new ServiceError("Printer session changed before SUNMI dispatch", 409), { delivery_state: "not_sent" });
+    if (!printJobUuid) throw Object.assign(new ServiceError("SUNMI batch is missing its durable print-job identity", 400), { delivery_state: "not_sent" });
+    const first = batch.jobs?.[0];
+    const target = {
+      agent_id: batch.agent_id ?? first?.agent_id,
+      device_code: batch.device_code ?? first?.device_code,
+      print_mode: batch.print_mode ?? first?.print_mode,
+      interface_value: batchInterfaceValue,
+    };
+    const config = textValue(batch.print_config_uuid ?? first?.print_config_uuid);
+    if (!config) throw Object.assign(new ServiceError("SUNMI batch printer identity missing", 400), { delivery_state: "not_sent" });
+    if (!batchEscposBase64) throw Object.assign(new ServiceError("SUNMI requires a server-prepared SDK batch; no alternative print was sent", 400), { delivery_state: "not_sent" });
+    if (batch.jobs.some((job) =>
+      (job.agent_id && job.agent_id !== target.agent_id) ||
+      (job.device_code && job.device_code !== target.device_code) ||
+      (job.print_mode && job.print_mode !== target.print_mode) ||
+      (job.interface_value && job.interface_value !== target.interface_value) ||
+      (job.print_config_uuid && job.print_config_uuid !== config)
+    )) throw Object.assign(new ServiceError("SUNMI batch contains different physical destinations", 409), { delivery_state: "not_sent" });
+    // One canonical server batch owns one native journal entry. Missing raw
+    // bytes must not turn the same receipt into differently keyed item jobs.
+    await printSunmiEscpos({
+      target,
+      escposBase64: batchEscposBase64,
+      jobId: `batch:${printJobUuid}:${config}`,
+    });
+    onTicketDelivered?.(printBatchJobTotal(batch), printBatchJobTotal(batch));
+    return;
+  }
 
   if (batchEscposBase64) {
     if (!batchInterfaceValue) {
@@ -438,6 +472,9 @@ async function runLegacyPrintAttempt(
 }
 
 function isMobilePrintBatch(batch: PrintOpsBatchPayload) {
+  // Even on an unsupported client, a built-in destination must fail closed in
+  // its own transport rather than being relayed to an unrelated desktop queue.
+  if (isSunmiBuiltinPrinterTarget(batch) || isSunmiBuiltinPrinterTarget(batch.jobs?.[0])) return true;
   if (!Capacitor.isNativePlatform()) {
     return false;
   }
@@ -979,6 +1016,7 @@ async function executePrintJobs(
     requireCompletionConfirmation?: boolean;
   },
 ): Promise<KitchenPrintResult> {
+  const isCurrentSession = createSessionGuard();
   const jobUuid = input.pending_query?.print_job_uuid ?? input.print_job?.print_job_uuid;
   const loginUuid = input.pending_query?.login_uuid_fk ?? input.login_uuid_fk;
 
@@ -1356,6 +1394,8 @@ async function executePrintJobs(
                   }
                   reportDeliveredTickets(completed);
                 },
+                jobUuid,
+                isCurrentSession,
               );
             } else {
               await printKitchenBatchJob(
@@ -1569,6 +1609,10 @@ async function executePrintJobs(
 
       if (!item.job || (options.ack && !item.ack_success_payload)) {
         throw new ServiceError("Print job payload missing", 400);
+      }
+
+      if (isSunmiBuiltinPrinterTarget(item.job)) {
+        throw Object.assign(new ServiceError("SUNMI business jobs require the canonical server-prepared SDK batch", 400), { delivery_state: "not_sent" });
       }
 
       if (!isBrowserDevicePrintJob(item.job)) {

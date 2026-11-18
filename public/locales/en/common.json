@@ -1962,7 +1962,16 @@
     "mappingCategoryHint": "Kitchen/bar tickets by menu category only",
     "formReady": "All required details are filled in. Ready to save.",
     "printSettingsTitle": "Printing and device options",
-    "printSettingsHint": "How tickets are sent and cut, the cash drawer and the buzzer."
+    "printSettingsHint": "How tickets are sent and cut, the cash drawer and the buzzer.",
+    "sunmiPrinter": "Built-in SUNMI printer",
+    "connectSunmiHint": "Print with this SUNMI terminal’s built-in printer. No IP address or USB selection is needed.",
+    "sunmiDetected": "Built-in SUNMI printer detected. Confirm the paper width before printing.",
+    "sunmiUnavailable": "Use the updated Yummy Go Android app on the SUNMI that owns this printer.",
+    "sunmiSharedHint": "Choose Internet sharing to let other Yummy Go devices in this branch print here. Keep Yummy Go open and connected on this SUNMI. Use a printer-manager account on the SUNMI.",
+    "sunmiTestOnOwner": "Run printer tests on the SUNMI that owns this printer. Other devices can still send receipts through Yummy Go.",
+    "sunmiTestTitle": "Test the built-in printer",
+    "sunmiTestHint": "Print a short test receipt on this SUNMI before saving the configuration.",
+    "sunmiTestAction": "Print test receipt"
   },
   "product": {
     "addDetail": "Add detail",

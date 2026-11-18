@@ -347,6 +347,11 @@ export function PrinterPage() {
                 <ToggleGroupItem value="usb" className={TOGGLE_ITEM_CLASS}>
                   {t("printer.usbPrinter")}
                 </ToggleGroupItem>
+                {printer.printers.some((row) => row.connect_type === "sunmi") ? (
+                  <ToggleGroupItem value="sunmi" className={TOGGLE_ITEM_CLASS}>
+                    {t("printer.sunmiPrinter")}
+                  </ToggleGroupItem>
+                ) : null}
               </ToggleGroup>
 
               <div className="ml-auto flex shrink-0 items-center gap-2">

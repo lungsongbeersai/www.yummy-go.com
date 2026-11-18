@@ -12,7 +12,7 @@ export interface SearchPrinterResult extends ApiEntity {
 export type PrinterSelfTestCommandProfile = "epson" | "xprinter" | "rongta";
 export type PrinterSelfTestReadiness = "pending" | "ready" | "manual_required";
 export interface PrinterSelfTestInput {
-  connect_type: "tcp" | "usb";
+  connect_type: "tcp" | "usb" | "sunmi";
   interface_value: string;
   command_profile?: PrinterSelfTestCommandProfile;
   expected_agent_id?: string;
@@ -53,6 +53,11 @@ export interface PrinterReadinessStatus {
   queued_job_count?: number;
 }
 export interface AgentInfo extends ApiEntity {
+  print_mode?: string;
+  supports_sunmi_builtin?: boolean;
+  sunmi_ready?: boolean;
+  sunmi_state_code?: number | null;
+  paper_width_mm?: number;
   version?: string;
   self_test_profiles?: PrinterSelfTestCommandProfile[];
   supports_self_test_status?: boolean;
@@ -247,7 +252,7 @@ export interface SavePrinterInput extends ApiEntity {
   print_config_uuid?: string;
   login_uuid_fk: string;
   display_name: string;
-  connect_type: "tcp" | "usb";
+  connect_type: "tcp" | "usb" | "sunmi";
   ip?: string;
   port?: number;
   interface_value?: string;
@@ -299,7 +304,7 @@ export interface BuildTestJobRequest extends ApiEntity {
   text?: string;
   display_name?: string;
   printer_name?: string;
-  connect_type?: "tcp" | "usb";
+  connect_type?: "tcp" | "usb" | "sunmi";
   ip?: string;
   port?: number;
   interface_value?: string;

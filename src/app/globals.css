@@ -1338,6 +1338,13 @@ html.capacitor-android.android-webview-compat.pos-android-system-screen:not(.swa
   padding-bottom: calc(0.5rem + var(--pos-system-bottom-safe-area));
 }
 
+/* The built-in printer form scrolls inside the native back-office frame.
+   Legacy Android reports no inset for its navigation strip, including when
+   remote input reports a fine pointer. Leave room to reach its final actions. */
+html.capacitor-android.android-webview-compat:not(.swan1-legacy-colors) [data-sunmi-printer-form="true"] {
+  padding-bottom: max(env(safe-area-inset-bottom, 0px), 48px);
+}
+
 .pos-safe-bottom-offset {
   /* fixed position เลยไม่กิน padding-bottom ของ main ที่กันความสูง native bottom nav ไว้แล้ว
      ต้องบวก --app-shell-bottom-nav-height เองตรงนี้ (เว็บไม่ประกาศตัวแปรนี้ ใช้ fallback 0px) */

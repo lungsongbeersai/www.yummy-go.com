@@ -1,4 +1,5 @@
 import { parseInterfaceValue, AGENT_URL } from "@/config/printer-agent";
+import { SUNMI_PRINTER_INTERFACE } from "@/config/sunmi-printer";
 import type {
   AgentInfo,
   DefaultCategoryCategoryDetail,
@@ -18,7 +19,7 @@ import type { Category } from "@/services/category";
 import type { Zone } from "@/services/zone";
 import { cn } from "@/lib/utils";
 
-export type ConnectType = "usb" | "tcp";
+export type ConnectType = "usb" | "tcp" | "sunmi";
 
 export function printerSelfTestTarget({
   connectType,
@@ -26,13 +27,27 @@ export function printerSelfTestTarget({
   ip,
   port,
   availableUsbPrinters,
+  builtinAgent,
+  expectedDeviceCode,
 }: {
   connectType: ConnectType;
   interfaceValue: string;
   ip: string;
   port: string;
   availableUsbPrinters: SearchPrinterResult[];
+  builtinAgent?: AgentInfo | null;
+  expectedDeviceCode?: string;
 }): PrinterSelfTestInput | null {
+  if (connectType === "sunmi") {
+    if (!builtinAgent?.supports_sunmi_builtin || !builtinAgent.device_code ||
+      (expectedDeviceCode && expectedDeviceCode !== builtinAgent.device_code)) return null;
+    return {
+      connect_type: "sunmi",
+      interface_value: SUNMI_PRINTER_INTERFACE,
+      expected_agent_id: builtinAgent.agent_id,
+      expected_device_code: builtinAgent.device_code,
+    };
+  }
   if (connectType === "usb") {
     const selected = interfaceValue.trim();
     // A saved USB queue can belong to another computer. Only target a queue
@@ -277,6 +292,10 @@ export function shouldResolveCurrentPrinterIdentity({
   savedInterfaceValue: string;
 }) {
   if (!isEditing || !savedIdentityComplete) return true;
+  // Switching into or out of the built-in service must never retain a TCP
+  // owner's identity or accidentally bind a saved remote SUNMI to this device.
+  if (connectType === "sunmi") return savedInterfaceValue.trim() !== SUNMI_PRINTER_INTERFACE;
+  if (savedInterfaceValue.trim() === SUNMI_PRINTER_INTERFACE) return true;
   return (
     connectType === "usb" &&
     interfaceValue.trim() !== savedInterfaceValue.trim()
@@ -440,7 +459,9 @@ export function zoneUuids(printer: Printer | null) {
 export function printerFormValues(printer: Printer | null) {
   const parsed = parseInterfaceValue(printer?.interface_value ?? "");
   const connectType: ConnectType = printer
-    ? printer.connect_type?.trim().toLowerCase() === "usb" ||
+    ? printer.connect_type?.trim().toLowerCase() === "sunmi"
+      ? "sunmi"
+      : printer.connect_type?.trim().toLowerCase() === "usb" ||
       (!printer.connect_type?.trim() && /^(cups:|win:)/i.test(printer.interface_value))
       ? "usb"
       : "tcp"
@@ -450,7 +471,7 @@ export function printerFormValues(printer: Printer | null) {
     connectType,
     displayName: printer?.printer_name ?? "",
     interfaceValue:
-      connectType === "usb" ? (printer?.interface_value ?? "") : "",
+      connectType === "sunmi" ? SUNMI_PRINTER_INTERFACE : connectType === "usb" ? (printer?.interface_value ?? "") : "",
     ip: connectType === "tcp" ? (parsed.ip ?? "") : "",
     port: String(connectType === "tcp" ? (parsed.port ?? 9100) : 9100),
     paperWidth: String(printer?.paper_width_mm ?? 80),
@@ -472,7 +493,7 @@ export function printerFormValues(printer: Printer | null) {
     selectedZones: zoneUuids(printer),
     selectedDevice:
       connectType === "usb" ? (printer?.interface_value ?? "") : "",
-    agentUrl: textValue(printer?.agent_url) || AGENT_URL,
+    agentUrl: connectType === "sunmi" ? "" : textValue(printer?.agent_url) || AGENT_URL,
     agentId: printer?.agent_id ?? "",
     agentName: printer?.agent_name ?? "",
     deviceCode: printer?.device_code ?? "",

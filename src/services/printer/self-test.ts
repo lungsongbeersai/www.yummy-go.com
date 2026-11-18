@@ -14,6 +14,13 @@ import {
   printMobilePrinterSelfTestOverTcp,
 } from "@/services/printer/mobile-tcp";
 import { printerSelfTestCommandProfile } from "@/services/printer/self-test-profile";
+import {
+  printSunmiEscpos,
+  SUNMI_PRINTER_AGENT_ID,
+  SUNMI_PRINTER_INTERFACE,
+  SUNMI_PRINT_MODE,
+  sunmiDiagnosticJobId,
+} from "@/services/printer/sunmi-native";
 import type {
   AgentInfo,
   PrinterSelfTestInput,
@@ -204,6 +211,21 @@ function selfTestReadiness(data: object, expectedId?: string): PrinterSelfTestSt
 export async function printPrinterSelfTest(
   input: PrinterSelfTestInput,
 ): Promise<PrinterSelfTestResult> {
+  if (input.connect_type === "sunmi") {
+    if (input.command_profile !== undefined) throw notSentError("SUNMI uses its own receipt test, not a firmware self-test command.", 400);
+    const receipt = "Yummy Go\nSUNMI built-in printer\nPrinter connection test\n\n\n";
+    await printSunmiEscpos({
+      target: {
+        agent_id: input.expected_agent_id,
+        device_code: input.expected_device_code,
+        interface_value: input.interface_value,
+        print_mode: SUNMI_PRINT_MODE,
+      },
+      jobId: sunmiDiagnosticJobId("self-test"),
+      escposBase64: globalThis.btoa(receipt),
+    });
+    return { ok: true, status: "command_sent", readiness: "ready" };
+  }
   const commandProfile = printerSelfTestCommandProfile(input.command_profile);
   const interfaceValue = selfTestInterface(input);
   if (isCapacitorMobileApp()) {
@@ -226,6 +248,7 @@ export async function printPrinterSelfTest(
 export async function completePrinterSelfTest(
   input: PrinterSelfTestInput,
 ): Promise<PrinterSelfTestCompletionResult> {
+  if (input.connect_type === "sunmi") throw notSentError("SUNMI receipt tests do not enter printer maintenance mode.", 400);
   const interfaceValue = selfTestInterface(input);
   if (isCapacitorMobileApp()) {
     if (input.connect_type === "usb") {
@@ -243,6 +266,12 @@ export async function completePrinterSelfTest(
 }
 
 export async function getPrinterSelfTestStatus(input: PrinterSelfTestInput): Promise<PrinterSelfTestStatusResult> {
+  if (input.connect_type === "sunmi") {
+    if (input.expected_agent_id !== SUNMI_PRINTER_AGENT_ID || input.interface_value !== SUNMI_PRINTER_INTERFACE) {
+      throw notSentError("Invalid SUNMI receipt test destination.", 409);
+    }
+    return { ok: true, readiness: "manual_required" };
+  }
   const interfaceValue = selfTestInterface(input);
   if (isCapacitorMobileApp() || !input.self_test_id) return { ok: true, readiness: "manual_required" };
   return await localSelfTestRequest(input, interfaceValue, "status") ?? { ok: true, readiness: "manual_required" };

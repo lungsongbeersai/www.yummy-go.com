@@ -39,6 +39,14 @@ export function usePrinterSelfTest() {
 
   async function runSelfTest(target: PrinterSelfTestInput) {
     if (printing || pendingSelfTest || selfTestSelection) return;
+    if (target.connect_type === "sunmi") {
+      try {
+        await selfTestPrinter(target);
+      } catch (error) {
+        showToast({ title: t("printer.selfTestFailed"), description: error instanceof Error ? error.message : "", tone: "error" });
+      }
+      return;
+    }
     setSelfTestProfile("epson");
     setSelfTestSelection(target);
   }

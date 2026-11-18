@@ -65,7 +65,11 @@ import {
   type SaveCategoryRoleInput,
   type SavePrinterInput,
   type SearchPrinterResult,
-  renderMobileEscpos
+  renderMobileEscpos,
+  getSunmiBuiltinPrinterIdentity,
+  registerSunmiNativePrinterOwner,
+  isSunmiBuiltinPrinterTarget,
+  sunmiDiagnosticJobId,
 } from "@/services/printer";
 import { createSessionGuard, registerSessionStoreReset } from "@/stores/session-store-registry";
 import { errorMessage } from "@/stores/store-utils";
@@ -74,11 +78,14 @@ import { Capacitor } from "@capacitor/core";
 import { isCapacitorMobileApp } from "@/lib/capacitor-platform";
 import { printReport, type ReportPrintInput, type ReportPrintResponse } from "@/services/report";
 import { localPrinterDiagnosticTargets, type SavedPrinterDiagnostic } from "@/stores/printer-diagnostics";
+import { useAuthStore } from "@/stores/auth-store";
+import { canHostSunmiBuiltinPrinter } from "@/config/sunmi-printer";
 
 type AgentStatus = "unchecked" | "connected" | "offline" | "unauthorized";
 export type PrinterSelfTestPhase = "idle" | "dispatching" | "restored" | "checking" | "manual" | "error" | "completing";
 
 let agentConnectionGeneration = 0;
+let builtinIdentityGeneration = 0;
 let diagnosticsGeneration = 0;
 let pendingDiagnostics: { key: string; controller: AbortController; request: Promise<void> } | null = null;
 
@@ -202,6 +209,9 @@ interface PrinterState {
   resolvedPrinters: ResolvedPrinter[];
   pendingJobs: PendingPrintJobData[];
   agent: AgentInfo | null;
+  builtinAgent: AgentInfo | null;
+  loadingBuiltinAgent: boolean;
+  resolveBuiltinDeviceIdentity: () => Promise<AgentInfo | null>;
   agentStatus: AgentStatus;
   agentError: string | null;
   agentConnectionUrl: string | null;
@@ -283,6 +293,37 @@ export const usePrinterStore = create<PrinterState>((set, get) => ({
   resolvedPrinters: [],
   pendingJobs: [],
   agent: null,
+  builtinAgent: null,
+  loadingBuiltinAgent: false,
+  resolveBuiltinDeviceIdentity: async () => {
+    const isCurrentSession = createSessionGuard();
+    const generation = ++builtinIdentityGeneration;
+    const user = useAuthStore.getState().user;
+    const loginUuid = user?.uuid;
+    const isCurrentHost = () => {
+      const current = useAuthStore.getState().user;
+      return isCurrentSession() && current?.uuid === loginUuid && current?.branch_uuid === user?.branch_uuid &&
+        canHostSunmiBuiltinPrinter(current?.status);
+    };
+    if (!canHostSunmiBuiltinPrinter(user?.status)) {
+      set({ builtinAgent: null, loadingBuiltinAgent: false });
+      return null;
+    }
+    set({ loadingBuiltinAgent: true });
+    try {
+      const builtinAgent = await getSunmiBuiltinPrinterIdentity();
+      if (!isCurrentHost()) {
+        if (isCurrentSession() && generation === builtinIdentityGeneration) set({ builtinAgent: null, loadingBuiltinAgent: false });
+        return null;
+      }
+      if (builtinAgent && loginUuid) await registerSunmiNativePrinterOwner(loginUuid, builtinAgent);
+      if (isCurrentHost() && generation === builtinIdentityGeneration) set({ builtinAgent, loadingBuiltinAgent: false });
+      return isCurrentHost() ? builtinAgent : null;
+    } catch (error) {
+      if (isCurrentSession() && generation === builtinIdentityGeneration) set({ builtinAgent: null, loadingBuiltinAgent: false });
+      throw error;
+    }
+  },
   agentStatus: "unchecked",
   agentError: null,
   agentConnectionUrl: null,
@@ -643,6 +684,18 @@ export const usePrinterStore = create<PrinterState>((set, get) => ({
   buildTest: (data) => buildTestJob(data),
   selfTest: async (input) => {
     if (get().printing) throw new Error("A printer command is already running");
+    if (input.connect_type === "sunmi") {
+      const isCurrentSession = createSessionGuard();
+      set({ printing: true, error: null });
+      try {
+        await printPrinterSelfTest(input);
+        if (isCurrentSession()) set({ printing: false });
+      } catch (error) {
+        if (isCurrentSession()) set({ printing: false, error: getPrinterErrorMessage(error) });
+        throw error;
+      }
+      return;
+    }
     const pendingSelfTest = get().pendingSelfTest ?? readPendingSelfTest();
     if (pendingSelfTest) {
       set({ pendingSelfTest, selfTestPhase: pendingSelfTest.self_test_id ? "restored" : "manual" });
@@ -715,10 +768,11 @@ export const usePrinterStore = create<PrinterState>((set, get) => ({
       const selectedConnectType = textValue(selectedPrinter?.connect_type).toLowerCase();
       const nativeTcpPrinter =
         Capacitor.isNativePlatform() && selectedConnectType === "tcp";
+      const builtinPrinter = isSunmiBuiltinPrinterTarget(selectedPrinter) || input.connect_type === "sunmi";
 
       phase = "resolvePrinterDeviceContext";
 
-      const printer = nativeTcpPrinter
+      const printer = nativeTcpPrinter || builtinPrinter
         ? {
           device_code: selectedPrinter?.device_code,
           agent_id: selectedPrinter?.agent_id,
@@ -744,7 +798,9 @@ export const usePrinterStore = create<PrinterState>((set, get) => ({
       });
       if (!isCurrentSession()) return null;
 
-      const job = result.data.job;
+      const job = builtinPrinter
+        ? { ...result.data.job, job_id: sunmiDiagnosticJobId("test") }
+        : result.data.job;
       // The API prints the selected row even when routing sends real orders to
       // another config at the same address, and says so here.
       const routingWarning = result.data.routing_warning?.trim() || null;
@@ -783,7 +839,10 @@ export const usePrinterStore = create<PrinterState>((set, get) => ({
       //   isMobileWifi,
       // });
 
-      if (isMobileWifi) {
+      if (builtinPrinter) {
+        phase = "dispatchSunmiPrintJob";
+        await dispatchPrintJob(job);
+      } else if (isMobileWifi) {
         phase = "renderMobileEscpos";
         const escposBase64 = await renderMobileEscpos(job);
         if (!isCurrentSession()) return null;
@@ -958,6 +1017,7 @@ export const usePrinterStore = create<PrinterState>((set, get) => ({
   submitReportPrint: (input) => printReport(input),
   reset: () => {
     agentConnectionGeneration += 1;
+    builtinIdentityGeneration += 1;
     diagnosticsGeneration += 1;
     pendingDiagnostics?.controller.abort();
     pendingDiagnostics = null;
@@ -979,6 +1039,8 @@ export const usePrinterStore = create<PrinterState>((set, get) => ({
       resolvedPrinters: [],
       pendingJobs: [],
       agent: null,
+      builtinAgent: null,
+      loadingBuiltinAgent: false,
       agentStatus: "unchecked",
       agentError: null,
       agentConnectionUrl: null,

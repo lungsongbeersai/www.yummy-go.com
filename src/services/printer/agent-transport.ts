@@ -26,6 +26,13 @@ import {
   renderMobileEscpos,
 } from "@/services/printer/config-api";
 import { printMobileEscposOverTcp } from "@/services/printer/mobile-tcp";
+import { createSessionGuard } from "@/stores/session-store-registry";
+import {
+  isSunmiBuiltinPrinterTarget,
+  printSunmiEscpos,
+  sunmiDiagnosticJobId,
+  sunmiJobId,
+} from "@/services/printer/sunmi-native";
 import type {
   AgentInfo,
   AgentInfoResponse,
@@ -350,6 +357,7 @@ export function assertPrintJobForAgent(job: PrintJob, agent: AgentInfo) {
 }
 
 export function isBrowserDevicePrintJob(job: PrintJob | null | undefined) {
+  if (isSunmiBuiltinPrinterTarget(job)) return true;
   if (!isBrowserPrinterAgentId(job?.agent_id)) return false;
   const deviceCode = textValue(job?.device_code);
   // Native shells now use a stable Device plugin ID. Legacy pending jobs must
@@ -565,6 +573,14 @@ export async function dispatchPrintJob(
     await dispatchCashDrawer(job, localAgent);
     return;
   }
+  if (isSunmiBuiltinPrinterTarget(job)) {
+    const isCurrentSession = createSessionGuard();
+    const jobId = sunmiJobId(job);
+    const escposBase64 = await renderMobileEscpos(job);
+    if (!isCurrentSession()) throw Object.assign(new ServiceError("Printer session changed before SUNMI dispatch", 409), { delivery_state: "not_sent" });
+    await printSunmiEscpos({ target: job, jobId, escposBase64 });
+    return;
+  }
   if (isBrowserDevicePrintJob(job)) {
     if (!Capacitor.isNativePlatform()) {
       throw new ServiceError(
@@ -609,6 +625,15 @@ export async function dispatchCashDrawer(job: PrintJob, localAgent?: AgentInfo) 
     !Array.isArray(job.ops) || job.ops.length !== 0
   ) {
     throw new ServiceError("Update the server to support cash-drawer-only tests", 409);
+  }
+
+  if (isSunmiBuiltinPrinterTarget(job)) {
+    await printSunmiEscpos({
+      target: job,
+      jobId: textValue(job.job_id) || sunmiDiagnosticJobId("drawer"),
+      escposBase64: "G3AAGfo=",
+    });
+    return;
   }
 
   if (Capacitor.isNativePlatform()) {

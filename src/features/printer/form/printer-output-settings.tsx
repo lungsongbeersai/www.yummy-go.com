@@ -16,7 +16,7 @@ interface PrinterOutputSettingsProps {
   cashDrawerEnabled: boolean;
   buzzerOnCut: boolean;
   cutFeedLines: string;
-  connectType: "usb" | "tcp";
+  connectType: "usb" | "tcp" | "sunmi";
   saving: boolean;
   loadingInternetSettings: boolean;
   internetSettings: InternetPrintSettings | null;
@@ -51,7 +51,7 @@ export function PrinterOutputSettings(props: PrinterOutputSettingsProps) {
               options={[
                 { value: "DIRECT", label: t("printer.accessDirect") },
                 { value: "LAN", label: t("printer.accessLan"), disabled: props.connectType !== "tcp" },
-                { value: "INTERNET", label: t("printer.accessInternet"), disabled: !canChooseInternet || props.connectType !== "tcp" },
+                { value: "INTERNET", label: t("printer.accessInternet"), disabled: !canChooseInternet || props.connectType === "usb" },
               ]}
             />
             {props.accessMode === "INTERNET" ? (
@@ -63,7 +63,7 @@ export function PrinterOutputSettings(props: PrinterOutputSettingsProps) {
                     </Badge>
                   ))}
                 </div>
-                <FieldDescription>{t("printer.accessReceiverHint")}</FieldDescription>
+                <FieldDescription>{t(props.connectType === "sunmi" ? "printer.sunmiSharedHint" : "printer.accessReceiverHint")}</FieldDescription>
               </div>
             ) : null}
           </div>

@@ -1,5 +1,17 @@
 # Decisions
 
+## SUNMI built-in printers receive existing authenticated owner-queue jobs
+
+- **Date:** 2026-11-18.
+- **Context and authorization:** The owner requested support for the SUNMI D2s built-in printer and printing from other devices, then confirmed every sender uses Yummy Go. The integration therefore uses the existing Backend owner queue rather than adding a network print server to the terminal.
+- **Transport:** Android 1.0.10/build 11 adds the official pinned SUNMI SDK and a native `SunmiPrinter` bridge. An explicit `sunmi` connection and `sunmi_builtin` print mode use `sunmi://builtin` and the exact native device identity. Existing mobile/TCP identity, desktop Agent and USB paths are retained.
+- **Sharing:** Direct and Internet access use the same branch/authenticated routing policy as existing printing. Native enrollment/receivers require printer-manager account statuses 1/2/3; staff can still submit permitted jobs. Capability registration and fresh SDK-ready presence are distinct from generic mobile presence. Multiple SUNMI terminals remain distinct physical endpoints and never substitute for an offline owner. The owning app must stay open and connected.
+- **Delivery:** Canonical server-rendered raw batches retain one stable native journal identity. Local records contain hashes/states only; there is no offline sales queue or local receipt-payload store. Command acceptance cannot mark a receipt printed: only the successful SDK transaction callback can. Unknown delivery has no automatic replay, alternative printer or transport fallback. Session guards cover preparation and queued unsent work while already handed-off native work may settle.
+- **Schema:** A read-only metadata preflight confirmed the configured database uses varchar connection/print-mode columns and the existing `chk_tb_printer_config_connect_type` USB/TCP whitelist. The migration extends that known check and the shared-printer check, retaining other constraints and saved values. Replaying the older shared-IPv4 migration must preserve explicit SUNMI configurations.
+- **Distribution:** The signed APK is hosted at `/downloads/android/yummy-go-1.0.10-sunmi.apk`; its certificate matches the previous project release, production URL remains HTTPS and WebView debugging stays disabled. Installation and physical acceptance on the shop device remain user actions.
+- **Validation:** Frontend typecheck, lint, all 3,843 tests in 300 files, twelve deployment fixtures and the webpack production build passed; lint retains five existing warnings. Android's 33 unit tests and signed release build passed. Chromium 83 checked the actual form in fourteen scenarios/101 assertions, including correct owner submission, remote ownership, old-app/web parity, Lao/narrow layout, scrolling and held Save clicks above a simulated 48px Android strip. Local web build: `o9nuTKfllNrIvvZyiJ119`; final CSS SHA-256: `a932d2639bad50135250643e97e6909f5592361f52c2e275b88023d0e04183a2`. Final APK SHA-256: `edb50664102ab1d03a22700264de471c6fcd457c6c36e6f2f2e91c05fedfcc23`. No physical printing or live financial writes occurred.
+- **Details:** See [SUNMI setup and delivery contract](SunmiPrinting.md). Automated and simulated transport checks do not certify physical paper delivery.
+
 ## Legacy native POS hit targets remain still during remote input
 
 - **Date:** 2026-11-18.

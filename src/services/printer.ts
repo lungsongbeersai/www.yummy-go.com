@@ -101,6 +101,16 @@ export { completePrinterSelfTest, getPrinterSelfTestStatus, printPrinterSelfTest
 export { getPrinterReadiness } from "@/services/printer/diagnostics";
 
 export {
+  SUNMI_PRINTER_INTERFACE,
+  SUNMI_PRINT_MODE,
+  SUNMI_PRINTER_AGENT_ID,
+  getSunmiBuiltinPrinterIdentity,
+  isSunmiBuiltinPrinterTarget,
+  sunmiDiagnosticJobId,
+} from "@/services/printer/sunmi-native";
+export type { SunmiPrinterInfo } from "@/services/printer/sunmi-native";
+
+export {
   buildTestJob,
   getInternetPrintSettings,
   deletePrinter,
@@ -115,6 +125,7 @@ export {
   getPrinterManagementCatalog,
   migrateMobilePrinterDevice,
   registerPrinterAgent,
+  registerSunmiNativePrinterOwner,
   renderMobileEscpos,
   resolvePrintersByCategory,
   saveCategoryPrinter,

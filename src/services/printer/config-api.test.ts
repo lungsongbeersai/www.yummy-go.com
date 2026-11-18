@@ -9,7 +9,7 @@ vi.mock("@/lib/api", () => ({
   ServiceError: class extends Error {},
 }));
 
-import { getPrinterEmployeeRoles, getPrinters, getPrinterManagementCatalog, renderMobileEscpos, savePrinter, searchPrinters } from "@/services/printer/config-api";
+import { getPrinterEmployeeRoles, getPrinters, getPrinterManagementCatalog, registerSunmiNativePrinterOwner, renderMobileEscpos, savePrinter, searchPrinters } from "@/services/printer/config-api";
 
 describe("printer configuration API", () => {
   const input: SavePrinterInput = {
@@ -25,6 +25,39 @@ describe("printer configuration API", () => {
   };
 
   beforeEach(() => vi.clearAllMocks());
+
+  it("saves an SDK destination without inventing a TCP/USB endpoint or localhost Agent URL", async () => {
+    apiMocks.apiRequest.mockResolvedValueOnce({ data: { print_config_uuid: "builtin" } });
+    await savePrinter({ ...input, connect_type: "sunmi", interface_value: "sunmi://builtin",
+      print_mode: "sunmi_builtin", agent_id: "sunmi-native", device_code: "android-native-device",
+      access_mode: "INTERNET", sharing_mode: "SHARED" });
+    const options = apiMocks.apiRequest.mock.calls[0][2];
+    expect(options.data).toMatchObject({ connect_type: "sunmi", interface_value: "sunmi://builtin",
+      print_mode: "sunmi_builtin", agent_url: "", access_mode: "INTERNET", sharing_mode: "SHARED" });
+    expect(options.data).not.toHaveProperty("ip");
+    expect(options.data).not.toHaveProperty("port");
+  });
+
+  it("registers supported paper-out hardware without advertising it as a ready receiver", async () => {
+    apiMocks.apiRequest.mockResolvedValueOnce({ data: { supported: true, ready: false } });
+    await registerSunmiNativePrinterOwner("cashier", {
+      agent_id: "sunmi-native", agent_name: "D2s built-in", device_code: "android-native-device",
+      print_mode: "sunmi_builtin", supports_sunmi_builtin: true, sunmi_ready: false,
+    });
+    expect(apiMocks.apiRequest).toHaveBeenCalledExactlyOnceWith("post", "/api/v1/printer/native/register", {
+      timeout: 5000,
+      data: { login_uuid_fk: "cashier", device_code: "android-native-device", agent_id: "sunmi-native",
+        agent_name: "D2s built-in", platform: "android", ready: false,
+        capabilities: { sunmi_builtin: true, protocol_version: 1 } },
+    });
+  });
+
+  it("never registers an ordinary mobile identity as a SUNMI receiver", async () => {
+    await expect(registerSunmiNativePrinterOwner("cashier", {
+      agent_id: "mobile", agent_name: "Phone", device_code: "android-native-device", print_mode: "mobile_wifi",
+    })).rejects.toMatchObject({ delivery_state: "not_sent" });
+    expect(apiMocks.apiRequest).not.toHaveBeenCalled();
+  });
 
   it("requests an explicit branch management catalog without changing operational fetches", async () => {
     const rows = [{ print_config_uuid: "remote-lan", sharing_mode: "SHARED", is_shared: true,
