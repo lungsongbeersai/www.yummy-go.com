@@ -12,6 +12,7 @@ import {
   printerRoleKind,
   requiresZoneMapping,
   shouldResolveCurrentPrinterIdentity,
+  sunmiBuiltinDiagnosticMessageKey,
   sharingModeOf,
   accessModeOf,
   categoryPrintPermission,
@@ -24,8 +25,29 @@ import {
   toggleCategoryPrintRole,
   updateCategoryPrintPermission,
 } from "@/features/printer/form/printer-form-utils";
-import type { DefaultCategoryGroupDetail, Printer, PrinterCategoryPrintPermission } from "@/services/printer";
+import type { DefaultCategoryGroupDetail, Printer, PrinterCategoryPrintPermission, SunmiBuiltinPrinterDiagnosticStatus } from "@/services/printer";
 import { SUNMI_PRINTER_AGENT_ID, SUNMI_PRINTER_INTERFACE } from "@/config/sunmi-printer";
+
+describe("SUNMI diagnostic messages", () => {
+  it.each<[SunmiBuiltinPrinterDiagnosticStatus, string]>([
+    ["idle", "printer.sunmiChecking"],
+    ["checking", "printer.sunmiChecking"],
+    ["not_native", "printer.sunmiUnavailable"],
+    ["plugin_missing", "printer.sunmiPluginMissing"],
+    ["unsupported", "printer.sunmiServiceUnavailable"],
+    ["service_error", "printer.sunmiServiceUnavailable"],
+    ["identity_error", "printer.sunmiIdentityFailed"],
+    ["registration_error", "printer.sunmiRegistrationFailed"],
+    ["forbidden", "printer.sunmiPermissionRequired"],
+    ["available", "printer.sunmiDetected"],
+  ])("describes %s without replacing its cause with an APK upgrade instruction", (status, key) => {
+    expect(sunmiBuiltinDiagnosticMessageKey({ status, ready: true })).toBe(key);
+  });
+
+  it("distinguishes registered hardware that is not ready from an unavailable app connection", () => {
+    expect(sunmiBuiltinDiagnosticMessageKey({ status: "available", ready: false })).toBe("printer.sunmiDetectedNotReady");
+  });
+});
 
 describe("built-in SUNMI form ownership", () => {
   const builtinAgent = {

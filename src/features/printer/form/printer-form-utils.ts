@@ -14,12 +14,30 @@ import type {
   PrinterSelfTestInput,
   PrinterPrintRoleMode,
   SearchPrinterResult,
+  SunmiBuiltinPrinterDiagnostic,
 } from "@/services/printer";
 import type { Category } from "@/services/category";
 import type { Zone } from "@/services/zone";
 import { cn } from "@/lib/utils";
 
 export type ConnectType = "usb" | "tcp" | "sunmi";
+
+export function sunmiBuiltinDiagnosticMessageKey(
+  diagnostic: Pick<SunmiBuiltinPrinterDiagnostic, "status" | "ready">,
+) {
+  switch (diagnostic.status) {
+    case "available": return diagnostic.ready ? "printer.sunmiDetected" : "printer.sunmiDetectedNotReady";
+    case "plugin_missing": return "printer.sunmiPluginMissing";
+    case "registration_error": return "printer.sunmiRegistrationFailed";
+    case "identity_error": return "printer.sunmiIdentityFailed";
+    case "forbidden": return "printer.sunmiPermissionRequired";
+    case "unsupported":
+    case "service_error": return "printer.sunmiServiceUnavailable";
+    case "not_native": return "printer.sunmiUnavailable";
+    case "idle":
+    case "checking": return "printer.sunmiChecking";
+  }
+}
 
 export function printerSelfTestTarget({
   connectType,

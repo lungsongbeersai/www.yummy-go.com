@@ -62,6 +62,7 @@ import { ChoiceCards, FormSection } from "./printer-form-sections";
 import {
   formatIpInput,
   printerRoleKind,
+  sunmiBuiltinDiagnosticMessageKey,
   toggleAllValues,
   toggleValue,
   type ConnectType,
@@ -115,14 +116,7 @@ export function PrinterFormPage() {
         ? `${t("printer.tcpPrinter")} · ${form.ip}:${form.port}`
         : t("printer.tcpPrinter");
   const builtinStatus = form.builtinDiagnostic.status;
-  const builtinMessage = builtinStatus === "available"
-    ? form.builtinDiagnostic.ready ? "sunmiDetected" : "sunmiDetectedNotReady"
-    : builtinStatus === "plugin_missing" ? "sunmiPluginMissing"
-      : builtinStatus === "registration_error" ? "sunmiRegistrationFailed"
-        : builtinStatus === "identity_error" ? "sunmiIdentityFailed"
-          : builtinStatus === "forbidden" ? "sunmiPermissionRequired"
-            : builtinStatus === "unsupported" || builtinStatus === "service_error" ? "sunmiServiceUnavailable"
-              : "sunmiChecking";
+  const builtinMessage = sunmiBuiltinDiagnosticMessageKey(form.builtinDiagnostic);
   const builtinFailure = !["idle", "checking", "available"].includes(builtinStatus);
 
   return (
@@ -202,7 +196,7 @@ export function PrinterFormPage() {
               <Printer aria-hidden="true" />
               <AlertTitle>{t("printer.sunmiPrinter")}</AlertTitle>
               <AlertDescription className="flex min-w-0 flex-col items-start gap-2 text-left">
-                <p>{t(`printer.${builtinMessage}`)}</p>
+                <p>{t(builtinMessage)}</p>
                 {form.builtinDiagnostic.installedVersion || form.builtinDiagnostic.model ? (
                   <p className="break-words">
                     {[
@@ -320,7 +314,7 @@ export function PrinterFormPage() {
             ) : form.connectType === "sunmi" ? (
               <Field className="md:col-span-2">
                 <FieldDescription aria-live="polite">
-                  {t(form.builtinAgent ? "printer.sunmiDetected" : "printer.sunmiUnavailable")}
+                  {t(builtinMessage)}
                 </FieldDescription>
                 <FieldDescription>{t("printer.sunmiSharedHint")}</FieldDescription>
               </Field>

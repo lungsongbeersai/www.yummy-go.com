@@ -56,6 +56,7 @@ import {
   requiresZoneMapping,
   selectCategoryForPrintPermission,
   shouldResolveCurrentPrinterIdentity,
+  sunmiBuiltinDiagnosticMessageKey,
   textValue,
   toggleCategoryPrintRole,
   updateCategoryPrintPermission,
@@ -574,7 +575,7 @@ export function usePrinterForm() {
     if (!interfaceValue.trim() || !hasAgentIdentity) missingFields.push(t("printer.validationUsbDevice"));
   } else if (connectType === "sunmi") {
     if ((!isEditing || baseline.connectType !== "sunmi") && !builtinAgent?.supports_sunmi_builtin) {
-      missingFields.push(t("printer.sunmiUnavailable"));
+      missingFields.push(t(sunmiBuiltinDiagnosticMessageKey(builtinDiagnostic)));
     }
     if (accessMode === "LAN") missingFields.push(t("printer.sunmiSharedHint"));
   } else if (!ip.trim()) {
@@ -702,7 +703,15 @@ export function usePrinterForm() {
             agent_name: agentName.trim(),
             device_code: deviceCode.trim(),
           };
-      if (!resolvedIdentity) throw new Error(t("printer.sunmiUnavailable"));
+      if (!resolvedIdentity) {
+        // The awaited discovery updates the store before this render's captured
+        // diagnostic changes. Report that result, including the server reason.
+        const diagnostic = usePrinterStore.getState().builtinDiagnostic;
+        throw new Error([
+          t(sunmiBuiltinDiagnosticMessageKey(diagnostic)),
+          diagnostic.error || diagnostic.reason,
+        ].filter(Boolean).join(" · "));
+      }
       const identity: AgentInfo = resolvedIdentity;
       if (
         shouldResolveCurrentIdentity &&
