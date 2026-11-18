@@ -58,18 +58,20 @@ const Toaster = ({ ...props }: ToasterProps) => {
           "--normal-border": "var(--border)",
           // โทนสีต่อชนิด toast ผูกกับ design token เดิมของแอป (--success/--warning/--destructive/--info)
           // แทนสี default ของ sonner เอง ให้ error/warning/success แยกออกจากกันชัดเจนตั้งแต่มองแวบแรก
-          "--success-bg": "color-mix(in oklch, var(--success) 12%, var(--popover))",
-          "--success-border": "color-mix(in oklch, var(--success) 45%, var(--border))",
-          "--success-text": "var(--success)",
-          "--error-bg": "color-mix(in oklch, var(--destructive) 12%, var(--popover))",
-          "--error-border": "color-mix(in oklch, var(--destructive) 45%, var(--border))",
-          "--error-text": "var(--destructive)",
-          "--warning-bg": "color-mix(in oklch, var(--warning) 12%, var(--popover))",
-          "--warning-border": "color-mix(in oklch, var(--warning) 45%, var(--border))",
-          "--warning-text": "var(--warning)",
-          "--info-bg": "color-mix(in oklch, var(--info) 12%, var(--popover))",
-          "--info-border": "color-mix(in oklch, var(--info) 45%, var(--border))",
-          "--info-text": "var(--info)",
+          // Compiled tokens also receive the native WebView color fallbacks.
+          // Inline color-mix expressions bypass the CSS compatibility compiler.
+          "--success-bg": "var(--toast-success-bg)",
+          "--success-border": "var(--toast-success-border)",
+          "--success-text": "var(--toast-success-text)",
+          "--error-bg": "var(--toast-error-bg)",
+          "--error-border": "var(--toast-error-border)",
+          "--error-text": "var(--toast-error-text)",
+          "--warning-bg": "var(--toast-warning-bg)",
+          "--warning-border": "var(--toast-warning-border)",
+          "--warning-text": "var(--toast-warning-text)",
+          "--info-bg": "var(--toast-info-bg)",
+          "--info-border": "var(--toast-info-border)",
+          "--info-text": "var(--toast-info-text)",
           "--border-radius": "var(--radius)",
           fontFamily: "var(--font-sans), var(--font-lao-ui)",
         } as React.CSSProperties

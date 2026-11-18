@@ -1,5 +1,7 @@
 "use client";
 
+import { printExportHtml } from "@/lib/export/print";
+
 import { useCallback, useEffect, useMemo, useRef, useState, type MouseEvent } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
@@ -8,6 +10,10 @@ import { useTranslation } from "react-i18next";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { LoadingState } from "@/components/common/loading-state";
+import { useIsCapacitorNativeApp } from "@/hooks/use-capacitor-native-app";
+import { isCapacitorAndroidApp } from "@/lib/capacitor-platform";
+import { useExportCurrent } from "@/hooks/use-export-current";
+import { saveExportFile } from "@/lib/export/file-output";
 import { createCommercialPdfLease, type CommercialPdfLease } from "@/features/commercial/commercial-pdf-download";
 import { ServiceError } from "@/lib/api";
 import { internalRoute } from "@/lib/routes";
@@ -66,6 +72,9 @@ function EmployeeWorkReportSession({ destination, identity }: { destination: Emp
   const [preparingPdf, setPreparingPdf] = useState(false);
   const [pdfError, setPdfError] = useState<string | null>(null);
   const [pdf, setPdf] = useState<ReadyPdf | null>(null);
+  const [savingPdf, setSavingPdf] = useState(false);
+  const nativeApp = useIsCapacitorNativeApp() && isCapacitorAndroidApp();
+  const exportCurrent = useExportCurrent(pdf?.lease.url ?? "");
   const storeReport = useEmployeeWorkStore(state => state.report);
   const storeError = useEmployeeWorkStore(state => state.error);
   const storeLoading = useEmployeeWorkStore(state => state.loading);
@@ -171,12 +180,33 @@ function EmployeeWorkReportSession({ destination, identity }: { destination: Emp
     if (store.loading || store.error || !reportCurrent() || !pdf?.lease.transfer()) event.preventDefault();
   }
 
-  function print() {
+  async function savePdf() {
+    const ready = pdf;
+    const store = useEmployeeWorkStore.getState();
+    if (!ready || savingPdf || store.loading || store.error || !reportCurrent()) return;
+    const generation = pdfGeneration.current;
+    const current = Object.assign(() => exportCurrent() && generation === pdfGeneration.current
+      && reportCurrent() && ready.lease.isAvailable() && !useEmployeeWorkStore.getState().error, {
+      subscribe: exportCurrent.subscribe,
+    });
+    setSavingPdf(true); setPdfError(null);
+    try { await saveExportFile(ready.file, { isCurrent: current }); }
+    catch (error) {
+      if (current() && !(error instanceof Error && error.name === "AbortError")) {
+        setPdfError(error instanceof Error ? error.message : t("employeeWork.reportFailed"));
+      }
+    } finally { if (identityCurrent()) setSavingPdf(false); }
+  }
+
+  async function print() {
     const store = useEmployeeWorkStore.getState();
     if (!previewReady || !reportCurrent() || store.loading || store.error) return;
     const target = frame.current?.contentWindow;
     if (!target) { setPdfError(t("employeeWork.reportFailed")); return; }
-    try { target.focus(); target.print(); }
+    try {
+      if (await printExportHtml(prepared?.html ?? "", { title: label("reportTitle"), orientation: "portrait", isCurrent: reportCurrent })) return;
+      target.focus(); target.print();
+    }
     catch { if (reportCurrent()) setPdfError(t("employeeWork.reportFailed")); }
   }
 
@@ -184,7 +214,7 @@ function EmployeeWorkReportSession({ destination, identity }: { destination: Emp
   if (!prepared) return <LoadingState label={t("employeeWork.printPreparing")} variant="table" />;
   if (storeError) return <ReportNotice message={t("employeeWork.reportFailed")} retry={retry} />;
   if (storeReport !== prepared.report || !useEmployeeWorkStore.getState().isCurrentReport(prepared.report)) return <ReportNotice message={t("employeeWork.reportDayMismatch")} />;
-  const disabled = !previewReady || previewError || storeLoading || Boolean(storeError) || preparingPdf;
+  const disabled = !previewReady || previewError || storeLoading || Boolean(storeError) || preparingPdf || savingPdf;
   const readyPdf = pdf?.lease.isAvailable() ?? false;
   return <div className="mx-auto grid w-full max-w-6xl gap-4 pb-4 font-lao">
     <header className={cn("pos-decor-surface flex flex-wrap items-center justify-between gap-3 rounded-xl border p-3 sm:p-4", decorated ? "border-primary-foreground/20 text-primary-foreground" : "border-border bg-card text-card-foreground")}>
@@ -194,7 +224,7 @@ function EmployeeWorkReportSession({ destination, identity }: { destination: Emp
     <div className="flex flex-wrap items-center gap-2 rounded-xl border border-border bg-card p-3">
       <Button type="button" className="min-h-11" disabled={disabled} onClick={print}><Printer />{t("employeeWork.printPdf")}</Button>
       {!readyPdf ? <Button type="button" variant="outline" className="min-h-11" disabled={disabled} onClick={() => void preparePdf()}>{preparingPdf ? <LoaderCircle className="animate-spin motion-reduce:animate-none" /> : <Download />}{t(preparingPdf ? "employeeWork.preparePdf" : "employeeWork.downloadPdf")}</Button> : null}
-      {readyPdf && pdf ? <><Button asChild variant="outline" className="min-h-11"><a href={pdf.lease.url} target="_blank" rel="noopener" onClick={transfer}><ExternalLink />{t("employeeWork.openPdf")}</a></Button><Button asChild className="min-h-11"><a href={pdf.lease.url} download={pdf.file.name} onClick={transfer}><Download />{t("employeeWork.downloadPdf")}</a></Button><span role="status" className="text-xs text-muted-foreground">{t("employeeWork.pdfReady")}</span></> : null}
+      {readyPdf && pdf ? <>{!nativeApp ? <Button asChild variant="outline" className="min-h-11"><a href={pdf.lease.url} target="_blank" rel="noopener" onClick={transfer}><ExternalLink />{t("employeeWork.openPdf")}</a></Button> : null}<Button type="button" className="min-h-11" disabled={disabled} onClick={() => void savePdf()}><Download />{t("employeeWork.downloadPdf")}</Button><span role="status" className="text-xs text-muted-foreground">{t("employeeWork.pdfReady")}</span></> : null}
     </div>
     {previewError || pdfError || storeError ? <Alert variant="destructive"><AlertDescription>{pdfError ?? t("employeeWork.reportFailed")}</AlertDescription><Button type="button" variant="outline" className="min-h-11" onClick={retry}>{t("mySales.retry")}</Button></Alert> : null}
     {!previewReady && !previewError ? <p role="status" className="text-sm text-muted-foreground">{t("employeeWork.printPreparing")}</p> : null}

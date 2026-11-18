@@ -1,6 +1,10 @@
 "use client";
 
 import { addReportCanvasToPdfPages } from "@/lib/export/pdf";
+import { useExportCurrent } from "@/hooks/use-export-current";
+import { saveExportFile, XLSX_MIME } from "@/lib/export/file-output";
+import { printExportHtml } from "@/lib/export/print";
+import { canUseReportPrintFallback } from "@/features/report/shared/report-print-fallback";
 import {
   useCallback,
   useEffect,
@@ -11,7 +15,6 @@ import {
 } from "react";
 import { useResetOnDeps } from "@/hooks/use-reset-on-change";
 import { useTranslation } from "react-i18next";
-import { isCapacitorNativeApp } from "@/lib/capacitor-platform";
 import { businessDateInputValue } from "@/lib/format";
 import { pageLimitSize } from "@/lib/pagination";
 import type { UrlPaginationState } from "@/lib/url-pagination";
@@ -154,6 +157,7 @@ export function useDailySalesReportWorkflow(
   );
 
   const branchUuid = appliedFilters.branchUuid || defaultBranchUuid;
+  const exportCurrent = useExportCurrent(JSON.stringify([branchUuid, appliedFilters, language, summaryVisible]));
   const activeBranchLabel = useMemo(
     () => branchLabelFor(branchUuid),
     [branchLabelFor, branchUuid],
@@ -535,6 +539,7 @@ export function useDailySalesReportWorkflow(
 
   async function exportExcel() {
     if (exportDisabled) return;
+    const isCurrent = exportCurrent;
     setExporting("excel");
     updateExportProgress(5, "report.exportProgress.fetching");
     try {
@@ -601,7 +606,8 @@ export function useDailySalesReportWorkflow(
           );
       updateExportProgress(90, "report.exportProgress.saving");
       await waitForPaint();
-      XLSX.writeFile(workbook, `${reportFileBaseName(appliedFilters)}.xlsx`);
+      const bytes = XLSX.write(workbook, { type: "array", bookType: "xlsx" }) as ArrayBuffer;
+      if (await saveExportFile(new File([bytes], `${reportFileBaseName(appliedFilters)}.xlsx`, { type: XLSX_MIME }), { isCurrent }) !== "saved" || !isCurrent()) return;
       updateExportProgress(100, "report.exportProgress.done");
       showToast({
         title: t("report.exportReady"),
@@ -609,6 +615,7 @@ export function useDailySalesReportWorkflow(
         tone: "success",
       });
     } catch (error) {
+      if (!isCurrent() || (error instanceof Error && error.name === "AbortError")) return;
       showToast({
         title: t("report.exportFailed"),
         description: error instanceof Error ? error.message : "",
@@ -622,11 +629,13 @@ export function useDailySalesReportWorkflow(
 
   async function exportPdf() {
     if (exportDisabled) return;
+    const isCurrent = exportCurrent;
     setExporting("pdf");
     updateExportProgress(5, "report.exportProgress.fetching");
     try {
       await waitForPaint();
       const data = await fetchExportData();
+      if (!isCurrent()) return;
       updateExportProgress(25, "report.exportProgress.rendering");
       setExportData(data);
       await waitForPaint();
@@ -658,11 +667,12 @@ export function useDailySalesReportWorkflow(
         orientation: "landscape",
         unit: "pt",
       });
-      addReportCanvasToPdfPages(pdf, canvas, element);
+      try { addReportCanvasToPdfPages(pdf, canvas, element); }
+      finally { canvas.width = 0; canvas.height = 0; }
 
       updateExportProgress(95, "report.exportProgress.saving");
       await waitForPaint();
-      pdf.save(`${reportFileBaseName(appliedFilters)}.pdf`);
+      if (await saveExportFile(new File([pdf.output("blob")], `${reportFileBaseName(appliedFilters)}.pdf`, { type: "application/pdf" }), { isCurrent }) !== "saved" || !isCurrent()) return;
       updateExportProgress(100, "report.exportProgress.done");
       showToast({
         title: t("report.exportReady"),
@@ -670,6 +680,7 @@ export function useDailySalesReportWorkflow(
         tone: "success",
       });
     } catch (error) {
+      if (!isCurrent() || (error instanceof Error && error.name === "AbortError")) return;
       showToast({
         title: t("report.exportFailed"),
         description: error instanceof Error ? error.message : "",
@@ -685,6 +696,7 @@ export function useDailySalesReportWorkflow(
   async function printReport() {
     if (loading || exporting) return;
     if (!user) return;
+    const isCurrent = exportCurrent;
 
     setExporting("print");
     let printWindow: Window | null = null;
@@ -695,6 +707,10 @@ export function useDailySalesReportWorkflow(
       printData: ReturnType<typeof buildDailySalesPrintData>,
       existingWindow: Window | null,
     ): Promise<Window | null> {
+      if (await printExportHtml(renderDailySalesPrintHtml(printData), { title: t("report.dailyPrint.title"), isCurrent })) {
+        if (isCurrent()) showToast({ title: t("report.printReady"), tone: "success" });
+        return null;
+      }
       const targetWindow = existingWindow ?? openReceiptPrintWindow();
       if (!targetWindow) {
         showToast({ title: t("report.printFailed"), description: t("report.printPopupBlocked"), tone: "error" });
@@ -720,6 +736,7 @@ export function useDailySalesReportWorkflow(
         search: appliedFilters.search,
       });
       const bills = useDailySaleItemsStore.getState().bills;
+      if (!isCurrent()) return;
       if (!bills.length) throw new Error(t("report.noData"));
 
       const labels = {
@@ -764,6 +781,7 @@ export function useDailySalesReportWorkflow(
       let agentFailureReason = "";
       try {
         const resolvedContext = await resolveDeviceIdentity();
+        if (!isCurrent()) return;
         const response = await submitReportPrint({
           device_code: resolvedContext.device_code ?? "",
           report_key: "daily_sales",
@@ -784,28 +802,28 @@ export function useDailySalesReportWorkflow(
           },
         });
 
+        if (!isCurrent()) return;
+
         if (!response.pending_query) {
-          agentPrintOutcome = "fallback";
+          agentPrintOutcome = canUseReportPrintFallback(response, "daily_sales") ? "fallback" : "failed";
+          agentFailureReason = agentPrintOutcome === "fallback" ? "" : t("employeeWork.printDeliveryUnknown");
         } else {
-          let printStarted = false;
           const printResult = await executeReport({
             pending_query: response.pending_query,
             login_uuid_fk: user.uuid,
-            onProgress: ({ phase }) => {
-              if (phase === "printing") printStarted = true;
-            },
           });
 
           agentFailureReason = printResult.errorMessage ?? "";
-          if (printResult.successCount > 0 && printResult.failedCount === 0) {
+          if (!printResult.pending && printResult.successCount > 0 && printResult.failedCount === 0) {
             agentPrintOutcome = "success";
-          } else if (printResult.failedCount > 0 && printStarted && !isCapacitorNativeApp()) {
-            agentPrintOutcome = "fallback";
           }
         }
       } catch {
-        agentPrintOutcome = "fallback";
+        agentPrintOutcome = "failed";
+        agentFailureReason = t("employeeWork.printDeliveryUnknown");
       }
+
+      if (!isCurrent()) return;
 
       if (agentPrintOutcome === "success") {
         showToast({ title: t("report.printReady"), tone: "success" });
@@ -824,6 +842,7 @@ export function useDailySalesReportWorkflow(
       });
     } catch (error) {
       printWindow?.close();
+      if (!isCurrent() || (error instanceof Error && error.name === "AbortError")) return;
       showToast({
         title: t("report.printFailed"),
         description: error instanceof Error ? error.message : "",

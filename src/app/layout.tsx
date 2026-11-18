@@ -1,10 +1,9 @@
 import type { Metadata, Viewport } from "next";
 import { cookies } from "next/headers";
-import Script from "next/script";
 import { Providers } from "@/app/providers";
+import { NativeStartupFallback, NativeStartupHead } from "@/components/layout/native-startup-fallback";
 import { appFontVariables } from "@/design-system/fonts";
 import { DEFAULT_LANGUAGE, LANGUAGE_COOKIE, toLanguage } from "@/lib/language";
-import { themeBootstrapScript } from "@/lib/theme-bootstrap-script";
 import { WINDOW_OPEN_FONT_STYLESHEET_HREF } from "@/lib/window-open-fonts";
 import "./globals.css";
 import { cn } from "@/lib/utils";
@@ -40,14 +39,11 @@ export default async function RootLayout({ children }: { children: React.ReactNo
       suppressHydrationWarning
     >
       <head>
+        <NativeStartupHead />
         <link rel="stylesheet" href={WINDOW_OPEN_FONT_STYLESHEET_HREF} />
-        <Script
-          id="theme-bootstrap"
-          strategy="beforeInteractive"
-          dangerouslySetInnerHTML={{ __html: themeBootstrapScript }}
-        />
       </head>
       <body>
+        <NativeStartupFallback language={initialLanguage} />
         <Providers initialLanguage={initialLanguage}>{children}</Providers>
       </body>
     </html>

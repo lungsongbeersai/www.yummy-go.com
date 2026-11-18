@@ -1,11 +1,36 @@
 import type { NextConfig } from "next";
 import { dirname } from "path";
 import { fileURLToPath } from "url";
+import packageManifest from "./package.json";
 
 const appDir = dirname(fileURLToPath(import.meta.url));
 const capacitorDevOrigin = process.env.CAPACITOR_DEV_ORIGIN?.trim();
+const transpilePackages = ["html2canvas-pro"];
+
+interface WebpackCacheConfig {
+  cache?: boolean | { type?: string; version?: string };
+}
+
+interface WebpackBuildContext {
+  isServer: boolean;
+}
 
 const nextConfig: NextConfig = {
+  // PDF capture is loaded on demand. Its distributed bundle contains class
+  // static blocks, so it must use the same browser target as application code.
+  transpilePackages,
+  turbopack: {},
+  webpack(config: WebpackCacheConfig, { isServer }: WebpackBuildContext) {
+    // Next 16's cache omits these targets and dependency opt-ins. A stale cache
+    // can otherwise retain unsupported syntax even after a successful build.
+    if (!isServer && config.cache && typeof config.cache === "object" && config.cache.type === "filesystem") {
+      config.cache.version = `${config.cache.version ?? ""}|yummy-go-browser:${JSON.stringify({
+        browserslist: packageManifest.browserslist,
+        transpilePackages,
+      })}`;
+    }
+    return config;
+  },
   // Dev server only (`next dev`); a production build ignores this list.
   // Next dev blocks /_next/static/chunks/*.js with 403 for any origin not listed (localhost is
   // always allowed), so a phone that opens the dev server by LAN IP loads the HTML and then

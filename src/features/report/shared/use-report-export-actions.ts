@@ -4,7 +4,10 @@ import { useState, type RefObject } from "react";
 import { useTranslation } from "react-i18next";
 import { captureElementToPdf } from "@/lib/export/pdf";
 import { waitForPaint } from "@/lib/export/paint";
+import { printExportElement } from "@/lib/export/print";
 import { useToastStore } from "@/stores/toast-store";
+import { useExportCurrent } from "@/hooks/use-export-current";
+import { saveExportFile, XLSX_MIME } from "@/lib/export/file-output";
 
 export type ReportExportAction = "excel" | "pdf" | "print";
 
@@ -42,21 +45,27 @@ export function useReportExportActions<ExportData extends { rows: unknown[] }>(
   const showToast = useToastStore((state) => state.show);
   const [exporting, setExporting] = useState<ReportExportAction | null>(null);
   const [exportData, setExportData] = useState<ExportData | null>(null);
+  const exportCurrent = useExportCurrent(config.fileBaseName());
 
   async function exportExcel() {
     if (config.disabled || exporting) return;
+    const isCurrent = exportCurrent;
+    const filename = `${config.fileBaseName()}.xlsx`;
     setExporting("excel");
     try {
       const data = await config.fetchExportData();
       const XLSX = await import("xlsx-js-style");
+      if (!isCurrent()) return;
       const workbook = config.buildExcelWorkbook(XLSX, data);
-      XLSX.writeFile(workbook, `${config.fileBaseName()}.xlsx`);
+      const bytes = XLSX.write(workbook, { type: "array", bookType: "xlsx" }) as ArrayBuffer;
+      if (await saveExportFile(new File([bytes], filename, { type: XLSX_MIME }), { isCurrent }) !== "saved" || !isCurrent()) return;
       showToast({
         title: t("report.exportReady"),
         description: t("report.exportedRows", { count: data.rows.length }),
         tone: "success"
       });
     } catch (error) {
+      if (!isCurrent() || (error instanceof Error && error.name === "AbortError")) return;
       showToast({
         title: t("report.exportFailed"),
         description: error instanceof Error ? error.message : "",
@@ -69,22 +78,26 @@ export function useReportExportActions<ExportData extends { rows: unknown[] }>(
 
   async function exportPdf() {
     if (config.disabled || exporting) return;
+    const isCurrent = exportCurrent;
+    const filename = `${config.fileBaseName()}.pdf`;
     setExporting("pdf");
     try {
       const data = await config.fetchExportData();
+      if (!isCurrent()) return;
       setExportData(data);
       await waitForPaint();
 
       const element = config.exportReportRef.current;
       if (!element) throw new Error(t("report.exportFailed"));
 
-      await captureElementToPdf(element, { fileName: `${config.fileBaseName()}.pdf` });
+      if (await captureElementToPdf(element, { fileName: filename, isCurrent }) !== "saved" || !isCurrent()) return;
       showToast({
         title: t("report.exportReady"),
         description: t("report.exportedRows", { count: data.rows.length }),
         tone: "success"
       });
     } catch (error) {
+      if (!isCurrent() || (error instanceof Error && error.name === "AbortError")) return;
       showToast({
         title: t("report.exportFailed"),
         description: error instanceof Error ? error.message : "",
@@ -98,18 +111,24 @@ export function useReportExportActions<ExportData extends { rows: unknown[] }>(
 
   async function printReport() {
     if (config.disabled || exporting) return;
+    const isCurrent = exportCurrent;
     setExporting("print");
     try {
       const data = await config.fetchExportData();
+      if (!isCurrent()) return;
       setExportData(data);
       await waitForPaint();
-      window.print();
+      const element = config.exportReportRef.current;
+      if (!element) throw new Error(t("report.printFailed"));
+      await printExportElement(element, { title: config.fileBaseName(), isCurrent });
+      if (!isCurrent()) return;
       showToast({
         title: t("report.exportReady"),
         description: t("report.exportedRows", { count: data.rows.length }),
         tone: "success"
       });
     } catch (error) {
+      if (!isCurrent() || (error instanceof Error && error.name === "AbortError")) return;
       showToast({
         title: t("report.printFailed"),
         description: error instanceof Error ? error.message : "",

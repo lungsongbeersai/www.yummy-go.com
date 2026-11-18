@@ -1041,6 +1041,7 @@
     "qrCreated": "QR created",
     "qrCreateFailed": "QR creation failed",
     "qrLinkUnavailable": "QR link unavailable",
+    "qrCopyFailed": "Could not copy the link. Select and copy it manually.",
     "tableQrDescription": "Create and print the QR menu for {{table}}.",
     "moveTable": "Move table",
     "moveTableDescription": "Move this order to an empty table.",

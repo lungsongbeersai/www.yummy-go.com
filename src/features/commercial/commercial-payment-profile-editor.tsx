@@ -10,6 +10,7 @@ import { Field, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { CommercialPaymentQrField } from "@/features/commercial/commercial-payment-qr";
+import { createUuid } from "@/lib/uuid";
 import { useCommercialLabels } from "@/features/commercial/commercial.locale";
 import type { CommercialPaymentCurrency, CommercialPaymentProfile, SaveCommercialPaymentProfileInput } from "@/services/commercial";
 import { authStoreUuid, useAuthStore } from "@/stores/auth-store";
@@ -33,7 +34,7 @@ interface CommercialPaymentProfileEditorProps {
 }
 
 function newRow(profile?: CommercialPaymentProfile): PaymentProfileRow {
-  return { profile_uuid: profile?.profile_uuid ?? crypto.randomUUID(), account_name: profile?.account_name ?? "", account_number: profile?.account_number ?? "", currency: profile?.currency ?? "LAK", remove_qr: false };
+  return { profile_uuid: profile?.profile_uuid ?? createUuid(), account_name: profile?.account_name ?? "", account_number: profile?.account_number ?? "", currency: profile?.currency ?? "LAK", remove_qr: false };
 }
 
 function privateSession() {

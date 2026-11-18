@@ -65,17 +65,22 @@ export async function tableQrPrintAttemptResponse<T>({
   refreshQueue,
   requestQueue,
   response,
+  isCurrent,
 }: {
   refreshQueue: boolean;
   requestQueue: () => Promise<T>;
   response: T | null;
+  isCurrent?: () => boolean;
 }) {
-  return refreshQueue ? requestQueue() : response;
+  const assertCurrent = () => { if (isCurrent?.() === false) throw new DOMException("QR print cancelled", "AbortError"); };
+  assertCurrent();
+  const result = refreshQueue ? await requestQueue() : response;
+  assertCurrent();
+  return result;
 }
 
-// Both QR dialogs read the queued job the same way: a print_job_uuid means Backend
-// put a real job on the printer queue, so the browser print window is the fallback
-// rather than the first choice.
+// Both QR dialogs require a real job selected by Backend's configured QR role.
+// Missing queue metadata is not permission to print through another transport.
 export function tableQrPendingJobUuid(
   response: {
     pending_query?: { print_job_uuid?: string } | null;

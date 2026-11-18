@@ -1,10 +1,13 @@
 "use client";
 
+import { useExportCurrent } from "@/hooks/use-export-current";
+import { printExportHtml } from "@/lib/export/print";
+import { canUseReportPrintFallback } from "../shared/report-print-fallback";
+
 import { useEffect, useRef, useState, type RefObject } from "react";
 import { useTranslation } from "react-i18next";
 import { createSingleSheetReportWorkbook } from "@/lib/export/excel";
 import { officialReportExcelLayout } from "@/lib/export/official-layout";
-import { isCapacitorNativeApp } from "@/lib/capacitor-platform";
 import type { UrlPaginationState } from "@/lib/url-pagination";
 import { useAppStore } from "@/stores/app-store";
 import { useAuthStore } from "@/stores/auth-store";
@@ -189,18 +192,28 @@ export function usePaymentMethodsReportWorkflow(
     };
   });
 
+  const printCurrent = useExportCurrent(JSON.stringify([report.branchUuid, report.appliedFilters, language]));
+
   async function printReport() {
+    const isCurrent = printCurrent;
+    if (!isCurrent()) return;
     if (report.loading || report.exporting || printing) return;
     if (!user) return;
 
     setPrinting(true);
     let printWindow: Window | null = null;
 
-    // เปิด/เรนเดอร์หน้าต่างพิมพ์เบราว์เซอร์ — ใช้เป็นแผนสำรองเท่านั้น เรียกเมื่อพิมพ์ผ่าน printer agent ไม่สำเร็จ
+    // Use another transport only when Backend confirms no report job was queued.
     async function fallbackToBrowserPrint(
       printData: ReturnType<typeof buildPaymentMethodsPrintData>,
       existingWindow: Window | null,
     ): Promise<Window | null> {
+      if (!isCurrent()) return null;
+      if (await printExportHtml(renderPaymentMethodsPrintHtml(printData), { title: reportTitle, isCurrent })) {
+        if (isCurrent()) showToast({ title: t("report.printReady"), tone: "success" });
+        return null;
+      }
+      if (!isCurrent()) return null;
       const targetWindow = existingWindow ?? openReceiptPrintWindow();
       if (!targetWindow) {
         showToast({ title: t("report.printFailed"), description: t("report.printPopupBlocked"), tone: "error" });
@@ -236,9 +249,12 @@ export function usePaymentMethodsReportWorkflow(
       });
 
       // แยก try ของการพิมพ์ผ่าน agent ออกจากแผนสำรอง กันไม่ให้ fallback ที่พังซ้ำถูกจับแล้วเรียกซ้ำสอง
+      if (!isCurrent()) return;
       let agentPrintOutcome: "success" | "fallback" | "failed" = "failed";
+      let agentFailureReason = "";
       try {
         const resolvedContext = await resolveDeviceIdentity();
+        if (!isCurrent()) return;
         const response = await submitReportPrint({
           device_code: resolvedContext.device_code ?? "",
           report_key: "payment_methods",
@@ -258,28 +274,28 @@ export function usePaymentMethodsReportWorkflow(
           },
         });
 
+        if (!isCurrent()) return;
         if (!response.pending_query) {
-          agentPrintOutcome = "fallback";
+          agentPrintOutcome = canUseReportPrintFallback(response, "payment_methods") ? "fallback" : "failed";
+          agentFailureReason = agentPrintOutcome === "fallback" ? "" : t("employeeWork.printDeliveryUnknown");
         } else {
-          let printStarted = false;
           const printResult = await executeReport({
             pending_query: response.pending_query,
             login_uuid_fk: user.uuid,
-            onProgress: ({ phase }) => {
-              if (phase === "printing") printStarted = true;
-            },
           });
 
-          if (printResult.successCount > 0 && printResult.failedCount === 0) {
+          if (!isCurrent()) return;
+          agentFailureReason = printResult.errorMessage || t("employeeWork.printDeliveryUnknown");
+          if (!printResult.pending && printResult.successCount > 0 && printResult.failedCount === 0) {
             agentPrintOutcome = "success";
-          } else if (printResult.failedCount > 0 && printStarted && !isCapacitorNativeApp()) {
-            agentPrintOutcome = "fallback";
           }
         }
       } catch {
-        agentPrintOutcome = "fallback";
+        agentPrintOutcome = "failed";
+        agentFailureReason = t("employeeWork.printDeliveryUnknown");
       }
 
+      if (!isCurrent()) return;
       if (agentPrintOutcome === "success") {
         showToast({ title: t("report.printReady"), tone: "success" });
         return;
@@ -292,11 +308,12 @@ export function usePaymentMethodsReportWorkflow(
 
       showToast({
         title: t("report.printFailed"),
-        description: t("report.printMissingJob"),
+        description: agentFailureReason || t("report.printMissingJob"),
         tone: "error",
       });
     } catch (error) {
       printWindow?.close();
+      if (!isCurrent() || (error instanceof Error && error.name === "AbortError")) return;
       showToast({
         title: t("report.printFailed"),
         description: error instanceof Error ? error.message : "",

@@ -1055,6 +1055,7 @@
     "qrCreated": "ສ້າງ QR ແລ້ວ",
     "qrCreateFailed": "ສ້າງ QR ບໍ່ສຳເລັດ",
     "qrLinkUnavailable": "ບໍ່ມີລິ້ງ QR",
+    "qrCopyFailed": "ສຳເນົາລິ້ງບໍ່ສຳເລັດ. ກະລຸນາເລືອກ ແລະສຳເນົາລິ້ງດ້ວຍຕົນເອງ.",
     "tableQrDescription": "ສ້າງ ແລະ ພິມ QR ເມນູສຳລັບ {{table}}.",
     "moveTable": "ຍ້າຍໂຕະ",
     "moveTableDescription": "ຍ້າຍອໍເດີນີ້ໄປໂຕະວ່າງ.",

@@ -21,62 +21,65 @@ function isColorToken(token) {
   return COLOR_TOKENS.has(token) || /^color-(?:black|white|[a-z]+-\d+)$/.test(token);
 }
 
-function hslToRgb(hue, saturation, lightness) {
-  const chroma = (1 - Math.abs(2 * lightness - 1)) * saturation;
-  const sector = (((hue % 360) + 360) % 360) / 60;
-  const secondary = chroma * (1 - Math.abs((sector % 2) - 1));
-  const base = lightness - chroma / 2;
-  const channels = sector < 1 ? [chroma, secondary, 0]
-    : sector < 2 ? [secondary, chroma, 0]
-      : sector < 3 ? [0, chroma, secondary]
-        : sector < 4 ? [0, secondary, chroma]
-          : sector < 5 ? [secondary, 0, chroma] : [chroma, 0, secondary];
-  return channels.map((channel) => Math.round((channel + base) * 255));
+const MODERN_COLOR = /(?:color-mix|oklch|oklab|\blab|\blch|\bcolor)\(/;
+const NATIVE_SCOPE = ":where(.capacitor-android, .capacitor-android *):not(:where(#native-startup-fallback, #native-startup-fallback *))";
+
+function inKeyframes(rule) {
+  for (let parent = rule.parent; parent; parent = parent.parent) {
+    if (parent.type === "atrule" && /(?:^|-)keyframes$/i.test(parent.name)) return true;
+  }
+  return false;
 }
 
-function colorChannels(value) {
-  const hex = /^#([\da-f]{3,4}|[\da-f]{6}|[\da-f]{8})$/i.exec(value);
-  if (hex) {
-    const digits = hex[1].length <= 4
-      ? [...hex[1]].map((digit) => digit + digit).join("") : hex[1];
-    const rgb = [0, 2, 4].map((offset) => Number.parseInt(digits.slice(offset, offset + 2), 16));
-    const alpha = digits.length === 8
-      ? Number.parseInt(digits.slice(6), 16) / 255 : 1;
-    return { rgb: rgb.join(", "), alpha: String(alpha) };
-  }
-
-  const hsl = /^hsl\(\s*([\d.]+)\s+([\d.]+)%\s+([\d.]+)%\s*\)$/i.exec(value);
-  if (hsl) {
-    const rgb = hslToRgb(Number(hsl[1]), Number(hsl[2]) / 100, Number(hsl[3]) / 100);
-    return { rgb: rgb.join(", "), alpha: "1" };
-  }
-
-  const alias = /^var\(--([\w-]+)\)$/.exec(value);
-  if (alias && isColorToken(alias[1])) {
-    return {
-      rgb: `var(--legacy-${alias[1]}-rgb)`,
-      alpha: `var(--legacy-${alias[1]}-alpha)`,
-    };
-  }
-
-  return null;
+function scopedSelector(selector, selectorParser) {
+  return selectorParser((root) => root.each((entry) => {
+    const pseudoElement = entry.nodes.find((node) => node.type === "pseudo"
+      && (node.value.startsWith("::") || [":before", ":after", ":first-line", ":first-letter"].includes(node.value)));
+    for (const node of selectorParser().astSync(NATIVE_SCOPE).first.nodes) {
+      if (pseudoElement) entry.insertBefore(pseudoElement, node.clone());
+      else entry.append(node.clone());
+    }
+  })).processSync(selector);
 }
 
 module.exports = function legacyWebViewOpacity() {
   return {
     postcssPlugin: "yummy-go-legacy-webview-opacity",
-    OnceExit(root) {
+    async OnceExit(root, { postcss }) {
+      const [{ transform }, { default: selectorParser }, { createColorCompiler }] = await Promise.all([
+        import("lightningcss"), import("postcss-selector-parser"), import("./legacy-color-values.cjs"),
+      ]);
+      const compiler = createColorCompiler(transform);
+      const declarations = [];
       root.walkDecls((declaration) => {
-        const token = declaration.prop.startsWith("--") ? declaration.prop.slice(2) : "";
-        if (!isColorToken(token)) return;
-
-        const channels = colorChannels(declaration.value);
-        if (!channels) return;
-
-        declaration.after({ prop: `--legacy-${token}-alpha`, value: channels.alpha });
-        declaration.after({ prop: `--legacy-${token}-rgb`, value: channels.rgb });
+        if (declaration.prop.startsWith("--") && !declaration.prop.startsWith("--legacy-")) declarations.push(declaration);
       });
+      const tokens = new Set(COLOR_TOKENS);
+      // Discover public-menu, toast, chart and future semantic aliases from their
+      // definitions instead of silently omitting colors outside a fixed allowlist.
+      let changed = true;
+      while (changed) {
+        changed = false;
+        for (const declaration of declarations) {
+          const token = declaration.prop.slice(2);
+          if (!tokens.has(token) && compiler.colorChannels(declaration.value, tokens)) {
+            tokens.add(token); changed = true;
+          }
+        }
+      }
+      for (const declaration of declarations) {
+        const token = declaration.prop.slice(2);
+        if (!tokens.has(token)) continue;
+        const channels = compiler.colorChannels(declaration.value, tokens);
+        if (!channels) continue;
+        declaration.after({ prop: `--legacy-${token}-alpha`, value: channels.alpha });
+        declaration.after({ prop: `--legacy-${token}-rgb`, value: channels.channels.join(", ") });
+        ["r", "g", "b"].forEach((channel, index) => {
+          declaration.after({ prop: `--legacy-${token}-${channel}`, value: channels.channels[index] });
+        });
+      }
 
+      const opacityHandled = new WeakSet();
       root.walkAtRules("supports", (supports) => {
         if (!supports.params.includes("color-mix")) return;
         const fallbackRule = supports.prev();
@@ -97,11 +100,85 @@ module.exports = function legacyWebViewOpacity() {
             const legacyColor = `rgba(var(--legacy-${mix[1]}-rgb), calc(var(--legacy-${mix[1]}-alpha) * ${fraction}))`;
             fallbackRule.after({
               selector: modernRule.selectors.map((selector) => `${CAPACITOR_ANDROID_SELECTOR} ${selector}`).join(", "),
-              nodes: [{ prop: declaration.prop, value: legacyColor }],
+              nodes: [{ prop: declaration.prop, value: legacyColor, important: declaration.important }],
             });
+            opacityHandled.add(declaration);
           });
         });
       });
+
+      const animationAliases = new Map();
+      const keyframes = [];
+      root.walkAtRules((rule) => {
+        if (/(?:^|-)keyframes$/i.test(rule.name)) keyframes.push(rule);
+      });
+      for (const keyframe of keyframes) {
+        if (!/^[\w-]+$/.test(keyframe.params)) continue;
+        const copy = keyframe.clone();
+        let converted = false;
+        copy.walkDecls((declaration) => {
+          if (!MODERN_COLOR.test(declaration.value)) return;
+          const value = compiler.transformValue(declaration.value, tokens);
+          if (MODERN_COLOR.test(value)) return;
+          declaration.value = value;
+          converted = true;
+        });
+        if (!converted) continue;
+        copy.params = `${keyframe.params}-yummy-android-srgb`;
+        animationAliases.set(keyframe.params, copy.params);
+        const fallback = postcss.atRule({ name: "supports", params: "not (color: color-mix(in srgb, black, white))" });
+        fallback.append(copy);
+        keyframe.after(fallback);
+      }
+
+      const containers = new Set();
+      root.walkDecls((declaration) => {
+        const owner = declaration.parent;
+        if (!owner || inKeyframes(owner)) return;
+        let hasSelector = owner.type === "rule";
+        for (let parent = owner.parent; parent && !hasSelector; parent = parent.parent) hasSelector = parent.type === "rule";
+        if (hasSelector) containers.add(owner);
+      });
+      const insertions = new Map();
+      for (const rule of containers) {
+        const converted = rule.nodes.filter((node) => node.type === "decl").flatMap((declaration) => {
+          // The existing compact rgba fallback already covers these utilities;
+          // emitting the generic per-channel form would duplicate hundreds of rules.
+          if (opacityHandled.has(declaration)) return [];
+          let value = MODERN_COLOR.test(declaration.value) ? compiler.transformValue(declaration.value, tokens) : declaration.value;
+          if (/^(?:animation(?:-name)?|--animate-)/.test(declaration.prop)) {
+            for (const [name, alias] of animationAliases) {
+              value = value.replace(new RegExp(`(?<![\\w-])${name}(?![\\w-])`, "g"), alias);
+            }
+          }
+          return value !== declaration.value && !MODERN_COLOR.test(value) ? [declaration.clone({ value })] : [];
+        });
+        if (!converted.length) continue;
+
+        let gate = null;
+        for (let parent = rule.parent; parent; parent = parent.parent) {
+          if (parent.type === "atrule" && parent.name === "supports" && MODERN_COLOR.test(parent.params)
+            && !/^\s*not\b/.test(parent.params)) gate = parent;
+        }
+        let copy = rule.clone({ nodes: [] });
+        copy.append(converted);
+        if (rule.type === "rule") copy.selector = scopedSelector(rule.selector, selectorParser);
+        else copy = postcss.rule({ selector: scopedSelector("&", selectorParser) }).append(copy);
+        if (gate) {
+          for (let parent = rule.parent; parent !== gate; parent = parent.parent) {
+            if (parent.type === "atrule" && parent.name === "supports" && MODERN_COLOR.test(parent.params)
+              && !/^\s*not\b/.test(parent.params)) continue;
+            copy = parent.clone({ nodes: [] }).append(copy);
+          }
+        }
+        // Lift out of positive modern-color feature queries while retaining
+        // hover, dark, responsive and state conditions and original !important.
+        const fallback = postcss.atRule({ name: "supports", params: "not (color: color-mix(in srgb, black, white))" });
+        fallback.append(copy);
+        const anchor = gate ?? rule;
+        (insertions.get(anchor) ?? anchor).after(fallback);
+        insertions.set(anchor, fallback);
+      }
     },
   };
 };

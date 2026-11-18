@@ -13,6 +13,10 @@ import { InputGroup, InputGroupAddon, InputGroupButton, InputGroupInput } from "
 import { Spinner } from "@/components/ui/spinner";
 import { useIsCapacitorNativeApp } from "@/hooks/use-capacitor-native-app";
 import { openWindowOutsideNativeApp } from "@/lib/capacitor-platform";
+import { copyTextToClipboard } from "@/lib/clipboard";
+import { useExportCurrent } from "@/hooks/use-export-current";
+import { saveExportFile } from "@/lib/export/file-output";
+import { imageExportFile } from "@/lib/export/image-file";
 import type { CreateTableQRResponse, PosTable } from "@/services/pos";
 import { useAppStore } from "@/stores/app-store";
 import { useAuthStore } from "@/stores/auth-store";
@@ -46,6 +50,7 @@ export function TableQrDialog({
   const nativeApp = useIsCapacitorNativeApp();
   const [pending, setPending] = useState(false);
   const [printing, setPrinting] = useState(false);
+  const [downloading, setDownloading] = useState(false);
   const [response, setResponse] = useState<CreateTableQRResponse | null>(null);
   const [qrDataUrl, setQrDataUrl] = useState("");
   const targetUrl = useMemo(() => tableQrTargetUrl(response, table), [response, table]);
@@ -54,8 +59,10 @@ export function TableQrDialog({
   const pendingJobUuid = useMemo(() => tableQrPendingJobUuid(response), [response]);
   const canDownload = Boolean(previewUrl || targetUrl);
   const canPrint = Boolean(pendingJobUuid || previewUrl || targetUrl);
+  const exportCurrent = useExportCurrent(JSON.stringify([open, table.table_uuid, targetUrl, previewUrl]));
+  const printCurrent = useExportCurrent(JSON.stringify([open, table.table_uuid, language, loginUuid]));
 
-  const requestQrWithPrinterContext = useCallback(async (print: 0 | 1) => {
+  const requestQrWithPrinterContext = useCallback(async (print: 0 | 1, isCurrent: () => boolean = () => true) => {
     if (!loginUuid) throw new Error("login_uuid_fk is required");
 
     // Resolve the route again for an explicit retry. A failed-before-print QR
@@ -65,6 +72,8 @@ export function TableQrDialog({
       resolveDeviceContext,
       resolveDeviceIdentity,
     });
+
+    if (!isCurrent()) throw new DOMException("QR print cancelled", "AbortError");
 
     return createTableQr({
       table_uuid: table.table_uuid,
@@ -156,19 +165,24 @@ export function TableQrDialog({
 
   async function copyLink() {
     if (!targetUrl) return;
-    await navigator.clipboard.writeText(targetUrl);
-    showToast({ title: t("dashboard.copied"), tone: "success" });
+    const copied = await copyTextToClipboard(targetUrl);
+    showToast({ title: t(copied ? "dashboard.copied" : "pos.qrCopyFailed"), tone: copied ? "success" : "error" });
   }
 
   async function downloadQr() {
-    const imageUrl = await fallbackPrintImageUrl();
-    if (!imageUrl) return;
-
-    const anchor = document.createElement("a");
-    anchor.href = imageUrl;
-    anchor.download = `${table.table_name || "table"}-qr.png`;
-    anchor.rel = "noopener noreferrer";
-    anchor.click();
+    if (downloading || !exportCurrent()) return;
+    const isCurrent = exportCurrent;
+    setDownloading(true);
+    try {
+      const imageUrl = await fallbackPrintImageUrl();
+      if (!imageUrl || !isCurrent()) return;
+      const file = await imageExportFile(imageUrl, `${table.table_name || "table"}-qr.png`, isCurrent);
+      await saveExportFile(file, { isCurrent });
+    } catch (error) {
+      if (isCurrent() && !(error instanceof Error && error.name === "AbortError")) {
+        showToast({ title: t("report.exportFailed"), description: error instanceof Error ? error.message : "", tone: "error" });
+      }
+    } finally { setDownloading(false); }
   }
 
   function openMenu() {
@@ -188,15 +202,17 @@ export function TableQrDialog({
   }
 
   async function printQr() {
-    if (!canPrint || printing) return;
+    const isCurrent = printCurrent;
+    if (!canPrint || printing || !isCurrent()) return;
 
     setPrinting(true);
     try {
       const printResponse = await tableQrPrintAttemptResponse({
         // ทุก click คือคำสั่งพิมพ์ใหม่ จึงค่อยสร้าง queue ณ จุดนี้เท่านั้น
         refreshQueue: true,
-        requestQueue: () => requestQrWithPrinterContext(1),
+        requestQueue: () => requestQrWithPrinterContext(1, isCurrent),
         response,
+        isCurrent,
       });
       setResponse(printResponse);
 
@@ -218,6 +234,7 @@ export function TableQrDialog({
         pending_query: printResponse?.pending_query ?? undefined,
         login_uuid_fk: loginUuid,
       });
+      if (!isCurrent()) return;
 
       const printOutcome = tableQrPrintOutcome(printResult);
       if (printOutcome === "pending") {
@@ -244,6 +261,7 @@ export function TableQrDialog({
 
       showToast({ title: t("common.printSuccess"), tone: "success" });
     } catch (error) {
+      if (!isCurrent() || (error instanceof Error && error.name === "AbortError")) return;
       showToast({
         title: t("pos.printQr"),
         description: error instanceof Error ? error.message : t("pos.systemPrinterUnavailable"),
@@ -326,7 +344,7 @@ export function TableQrDialog({
 
         {/* งานหลักของหน้านี้คือ "พิมพ์ QR" ไปแปะโต๊ะ — ปุ่มหลักจึงเป็นพิมพ์ ดาวน์โหลดเป็นทางเลือกรอง */}
         <DialogFooter className="grid grid-cols-2 gap-2 border-t border-border p-4 sm:flex sm:justify-end">
-          <Button type="button" size="lg" variant="outline" disabled={!canDownload || pending} onClick={() => void downloadQr()}>
+          <Button type="button" size="lg" variant="outline" disabled={!canDownload || pending || downloading} onClick={() => void downloadQr()}>
             <Download data-icon="inline-start" />
             {t("pos.downloadQr")}
           </Button>

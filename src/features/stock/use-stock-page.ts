@@ -29,6 +29,8 @@ import {
   selectedBranchLabel,
 } from "@/features/report/shared/report-branch-options";
 import { waitForPaint } from "@/lib/export/paint";
+import { useExportCurrent } from "@/hooks/use-export-current";
+import { saveExportFile, XLSX_MIME } from "@/lib/export/file-output";
 import { createSingleSheetReportWorkbook } from "@/lib/export/excel";
 import { officialReportExcelLayout } from "@/lib/export/official-layout";
 import { addReportCanvasToPdfPages } from "@/lib/export/pdf";
@@ -259,6 +261,7 @@ export function useStockPage(
 
   const exportDisabled =
     loading || Boolean(exporting) || !branchUuid || !rows.length;
+  const exportCurrent = useExportCurrent(JSON.stringify([branchUuid, category, status, language]));
   const activeCategoryLabel =
     category === ALL_CATEGORIES
       ? t("stock.filters.allCategories")
@@ -282,10 +285,12 @@ export function useStockPage(
 
   async function exportExcel() {
     if (exportDisabled) return;
+    const isCurrent = exportCurrent;
     setExporting("excel");
     try {
       const flatRows = await fetchExportRows();
       const XLSX = await import("xlsx-js-style");
+      if (!isCurrent()) return;
       const workbook = createSingleSheetReportWorkbook(
         XLSX,
         [
@@ -302,16 +307,15 @@ export function useStockPage(
         ],
         officialReportExcelLayout(t, t("stock.title")),
       );
-      XLSX.writeFile(
-        workbook,
-        `${stockExportFileBaseName(status, exportDateLabel)}.xlsx`,
-      );
+      const bytes = XLSX.write(workbook, { type: "array", bookType: "xlsx" }) as ArrayBuffer;
+      if (await saveExportFile(new File([bytes], `${stockExportFileBaseName(status, exportDateLabel)}.xlsx`, { type: XLSX_MIME }), { isCurrent }) !== "saved" || !isCurrent()) return;
       showToast({
         title: t("report.exportReady"),
         description: t("report.exportedRows", { count: flatRows.length }),
         tone: "success",
       });
     } catch (error) {
+      if (!isCurrent() || (error instanceof Error && error.name === "AbortError")) return;
       showToast({
         title: t("report.exportFailed"),
         description: error instanceof Error ? error.message : "",
@@ -324,9 +328,11 @@ export function useStockPage(
 
   async function exportPdf() {
     if (exportDisabled) return;
+    const isCurrent = exportCurrent;
     setExporting("pdf");
     try {
       const flatRows = await fetchExportRows();
+      if (!isCurrent()) return;
       setExportRows(flatRows);
       await waitForPaint();
 
@@ -349,15 +355,16 @@ export function useStockPage(
         orientation: "landscape",
         unit: "pt",
       });
-      addReportCanvasToPdfPages(pdf, canvas, element);
-
-      pdf.save(`${stockExportFileBaseName(status, exportDateLabel)}.pdf`);
+      try { addReportCanvasToPdfPages(pdf, canvas, element); }
+      finally { canvas.width = 0; canvas.height = 0; }
+      if (await saveExportFile(new File([pdf.output("blob")], `${stockExportFileBaseName(status, exportDateLabel)}.pdf`, { type: "application/pdf" }), { isCurrent }) !== "saved" || !isCurrent()) return;
       showToast({
         title: t("report.exportReady"),
         description: t("report.exportedRows", { count: flatRows.length }),
         tone: "success",
       });
     } catch (error) {
+      if (!isCurrent() || (error instanceof Error && error.name === "AbortError")) return;
       showToast({
         title: t("report.exportFailed"),
         description: error instanceof Error ? error.message : "",

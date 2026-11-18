@@ -25,6 +25,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Textarea } from "@/components/ui/textarea";
 import { money } from "@/lib/format";
+import { createUuid } from "@/lib/uuid";
 import type {
   CreditBill,
   CreditCustomer,
@@ -226,7 +227,7 @@ export function CreditPage() {
 
     try {
       const response = await pay({
-        request_uuid: crypto.randomUUID(),
+        request_uuid: createUuid(),
         branch_uuid: branchUuid,
         customer_uuid: customerUuid,
         payment_type: mode,

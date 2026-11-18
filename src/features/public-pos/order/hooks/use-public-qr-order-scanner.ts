@@ -118,25 +118,26 @@ export function usePublicQrOrderScanner({
       if (cancelled || !videoRef.current) return;
       setStatus("starting");
 
-      const { default: QrScannerCtor } = await import("qr-scanner");
-      if (cancelled || !videoRef.current) return;
-
-      scanner = new QrScannerCtor(
-        videoRef.current,
-        (result) => handleDecoded(result.data),
-        {
-          preferredCamera: "environment",
-          highlightScanRegion: true,
-          highlightCodeOutline: true,
-          returnDetailedScanResult: true,
-        },
-      );
-
       try {
+        const { default: QrScannerCtor } = await import("qr-scanner");
+        if (cancelled || !videoRef.current) return;
+
+        scanner = new QrScannerCtor(
+          videoRef.current,
+          (result) => handleDecoded(result.data),
+          {
+            preferredCamera: "environment",
+            highlightScanRegion: true,
+            highlightCodeOutline: true,
+            returnDetailedScanResult: true,
+          },
+        );
         await scanner.start();
         if (!cancelled) setStatus("scanning");
       } catch {
         if (!cancelled) {
+          scanner?.destroy();
+          scanner = null;
           setStatus("error");
           toast({ title: t("pos.qrScannerCameraUnavailable"), tone: "error" });
         }

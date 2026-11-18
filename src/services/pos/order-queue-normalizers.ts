@@ -47,7 +47,7 @@ function isSentToKitchen(item: OrderQueueItem): boolean {
 }
 
 export function sortOrderQueueItems(items: OrderQueueItem[]): OrderQueueItem[] {
-  return items.toSorted((left, right) => {
+  return [...items].sort((left, right) => {
     // Sent items preserve confirmation order: the first confirmation stays on top.
     // Equal confirmation times fall through to the original waiting FIFO.
     if (isSentToKitchen(left) && isSentToKitchen(right)) {

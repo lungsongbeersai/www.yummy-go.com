@@ -1,11 +1,15 @@
 "use client";
 
 import type { TFunction } from "i18next";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useResetOnChange } from "@/hooks/use-reset-on-change";
 import type { QRScanResponse } from "@/services/public-pos";
 import type { ToastInput } from "@/stores/toast-store";
 import { publicQrDownloadFilename } from "@/features/public-pos/order/utils";
+import { copyTextToClipboard } from "@/lib/clipboard";
+import { useExportCurrent } from "@/hooks/use-export-current";
+import { saveExportFile } from "@/lib/export/file-output";
+import { pngDataUrlFile } from "@/lib/export/image-file";
 
 export function usePublicQrDialog({
   table,
@@ -19,6 +23,8 @@ export function usePublicQrDialog({
   const [open, setOpen] = useState(false);
   const [targetUrl, setTargetUrl] = useState("");
   const [dataUrl, setDataUrl] = useState("");
+  const downloading = useRef(false);
+  const exportCurrent = useExportCurrent(JSON.stringify([open, targetUrl, dataUrl]));
 
   const handleOpen = useCallback(() => {
     setTargetUrl(window.location.href);
@@ -42,8 +48,8 @@ export function usePublicQrDialog({
       return;
     }
 
-    void navigator.clipboard.writeText(url).then(() => {
-      toast({ title: t("dashboard.copied"), tone: "success" });
+    void copyTextToClipboard(url).then((copied) => {
+      toast({ title: t(copied ? "dashboard.copied" : "pos.qrCopyFailed"), tone: copied ? "success" : "error" });
     });
   }, [
     targetUrl,
@@ -54,15 +60,18 @@ export function usePublicQrDialog({
     toast,
   ]);
 
-  const handleDownload = useCallback(() => {
-    if (!dataUrl) return;
-
-    const anchor = document.createElement("a");
-    anchor.href = dataUrl;
-    anchor.download = publicQrDownloadFilename(table?.table_name);
-    anchor.rel = "noopener noreferrer";
-    anchor.click();
-  }, [dataUrl, table?.table_name]);
+  const handleDownload = useCallback(async () => {
+    if (!dataUrl || downloading.current || !exportCurrent()) return;
+    const isCurrent = exportCurrent;
+    downloading.current = true;
+    try {
+      await saveExportFile(pngDataUrlFile(dataUrl, publicQrDownloadFilename(table?.table_name)), { isCurrent });
+    } catch (error) {
+      if (isCurrent() && !(error instanceof Error && error.name === "AbortError")) {
+        toast({ title: t("report.exportFailed"), description: error instanceof Error ? error.message : "", tone: "error" });
+      }
+    } finally { downloading.current = false; }
+  }, [dataUrl, exportCurrent, table, t, toast]);
 
   // ปิด dialog = ทิ้ง QR เดิม (แยกออกจาก effect ที่ไปสร้าง QR ใหม่)
   useResetOnChange(open, () => {

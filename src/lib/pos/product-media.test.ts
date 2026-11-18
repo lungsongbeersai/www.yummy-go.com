@@ -1,5 +1,17 @@
 import { describe, expect, it } from "vitest";
-import { shouldUnoptimizeProductImage } from "@/lib/pos/product-media";
+import { publicProductColorTint, shouldUnoptimizeProductImage } from "@/lib/pos/product-media";
+
+describe("public product color tint", () => {
+  it("preserves the same translucent paint for shorthand and full API colors", () => {
+    expect(publicProductColorTint("#A3f")).toBe("rgba(170, 51, 255, 0.12)");
+    expect(publicProductColorTint("#aa33ff")).toBe(publicProductColorTint("#A3f"));
+    expect(publicProductColorTint("#000000")).toBe("rgba(0, 0, 0, 0.12)");
+  });
+
+  it.each(["red", "#abcd", "#aabbccdd", "#12", "#ffffff);color:red", " #fff"])("rejects colors outside the public menu's API contract: %s", (value) => {
+    expect(publicProductColorTint(value)).toBeNull();
+  });
+});
 
 describe("product image optimization", () => {
   it("uses Next image optimization for configured production paths", () => {

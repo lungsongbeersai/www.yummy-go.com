@@ -14,6 +14,10 @@ import { Spinner } from "@/components/ui/spinner";
 import { useIsCapacitorNativeApp } from "@/hooks/use-capacitor-native-app";
 import { useResetOnChange, useResetOnDeps } from "@/hooks/use-reset-on-change";
 import { openWindowOutsideNativeApp } from "@/lib/capacitor-platform";
+import { copyTextToClipboard } from "@/lib/clipboard";
+import { useExportCurrent } from "@/hooks/use-export-current";
+import { saveExportFile } from "@/lib/export/file-output";
+import { pngDataUrlFile } from "@/lib/export/image-file";
 import { optionalString } from "@/lib/values";
 import type { BranchMenuQRResponse } from "@/services/pos";
 import { useAppStore } from "@/stores/app-store";
@@ -51,13 +55,16 @@ export function BranchMenuQrDialog({
   const [response, setResponse] = useState<BranchMenuQRResponse | null>(null);
   const [qrDataUrl, setQrDataUrl] = useState("");
   const [printing, setPrinting] = useState(false);
+  const [downloading, setDownloading] = useState(false);
   const [printCopies, setPrintCopies] = useState(MIN_PRINT_COPIES);
   const targetUrl = response?.qr_url ?? null;
   const pendingJobUuid = branchMenuQrPendingJobUuid(response);
   const canDownload = Boolean(qrDataUrl);
   const canPrint = Boolean(pendingJobUuid || qrDataUrl);
+  const exportCurrent = useExportCurrent(JSON.stringify([open, targetUrl, qrDataUrl]));
+  const printCurrent = useExportCurrent(JSON.stringify([open, language, loginUuid, printCopies]));
 
-  const requestQrWithPrinterContext = useCallback(async (copies: number) => {
+  const requestQrWithPrinterContext = useCallback(async (copies: number, isCurrent: () => boolean = () => true) => {
     if (!loginUuid) throw new Error("login_uuid_fk is required");
 
     const printerContext = await resolveTableQrPrinterContext({
@@ -65,6 +72,8 @@ export function BranchMenuQrDialog({
       resolveDeviceContext,
       resolveDeviceIdentity,
     });
+
+    if (!isCurrent()) throw new DOMException("QR print cancelled", "AbortError");
 
     return createBranchMenuQr({
       lang: language,
@@ -155,17 +164,21 @@ export function BranchMenuQrDialog({
 
   async function copyLink() {
     if (!targetUrl) return;
-    await navigator.clipboard.writeText(targetUrl);
-    showToast({ title: t("dashboard.copied"), tone: "success" });
+    const copied = await copyTextToClipboard(targetUrl);
+    showToast({ title: t(copied ? "dashboard.copied" : "pos.qrCopyFailed"), tone: copied ? "success" : "error" });
   }
 
-  function downloadQr() {
-    if (!qrDataUrl) return;
-    const anchor = document.createElement("a");
-    anchor.href = qrDataUrl;
-    anchor.download = `${response?.branch_name || "menu"}-qr.png`;
-    anchor.rel = "noopener noreferrer";
-    anchor.click();
+  async function downloadQr() {
+    if (!qrDataUrl || downloading || !exportCurrent()) return;
+    const isCurrent = exportCurrent;
+    setDownloading(true);
+    try {
+      await saveExportFile(pngDataUrlFile(qrDataUrl, `${response?.branch_name || "menu"}-qr.png`), { isCurrent });
+    } catch (error) {
+      if (isCurrent() && !(error instanceof Error && error.name === "AbortError")) {
+        showToast({ title: t("report.exportFailed"), description: error instanceof Error ? error.message : "", tone: "error" });
+      }
+    } finally { setDownloading(false); }
   }
 
   function openMenu() {
@@ -183,15 +196,17 @@ export function BranchMenuQrDialog({
   // QR ต้องพิมพ์ผ่าน queue/role ที่ backend resolve ไว้เท่านั้น เพื่อไม่ให้ browser
   // หรือ Android system print ข้ามค่าการตั้งค่า printer ของสาขา
   async function printQr() {
-    if (!canPrint || printing) return;
+    const isCurrent = printCurrent;
+    if (!canPrint || printing || !isCurrent()) return;
 
     setPrinting(true);
     try {
       const printResponse = await tableQrPrintAttemptResponse({
         // ทุก click คือคำสั่งพิมพ์ใหม่ จึงค่อยสร้าง queue ตามจำนวนที่เลือก
         refreshQueue: true,
-        requestQueue: () => requestQrWithPrinterContext(printCopies),
+        requestQueue: () => requestQrWithPrinterContext(printCopies, isCurrent),
         response,
+        isCurrent,
       });
       setResponse(printResponse);
 
@@ -213,6 +228,7 @@ export function BranchMenuQrDialog({
         pending_query: printResponse?.pending_query,
         login_uuid_fk: loginUuid,
       });
+      if (!isCurrent()) return;
 
       const printOutcome = tableQrPrintOutcome(printResult);
       if (printOutcome === "pending") {
@@ -239,6 +255,7 @@ export function BranchMenuQrDialog({
 
       showToast({ title: t("common.printSuccess"), tone: "success" });
     } catch (error) {
+      if (!isCurrent() || (error instanceof Error && error.name === "AbortError")) return;
       showToast({
         title: t("pos.printQr"),
         description: error instanceof Error ? error.message : t("pos.systemPrinterUnavailable"),
@@ -335,7 +352,7 @@ export function BranchMenuQrDialog({
 
         {/* งานหลักคือพิมพ์ QR ไปวางหน้าร้าน/โต๊ะ — ปุ่มหลักจึงเป็นพิมพ์ ดาวน์โหลดเป็นทางเลือกรอง */}
         <DialogFooter className="grid grid-cols-2 gap-2 border-t border-border p-4 sm:flex sm:justify-end">
-          <Button type="button" size="lg" variant="outline" disabled={!canDownload || pending} onClick={downloadQr}>
+          <Button type="button" size="lg" variant="outline" disabled={!canDownload || pending || downloading} onClick={() => void downloadQr()}>
             <Download data-icon="inline-start" />
             {t("pos.downloadQr")}
           </Button>

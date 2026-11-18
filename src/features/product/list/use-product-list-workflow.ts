@@ -10,6 +10,8 @@ import { useAppliedSearch } from "@/hooks/use-applied-search";
 import { useUrlPagination } from "@/hooks/use-url-pagination";
 import { pageLimitSize } from "@/lib/pagination";
 import { localDateInputValue } from "@/lib/format";
+import { useExportCurrent } from "@/hooks/use-export-current";
+import { saveExportFile, XLSX_MIME } from "@/lib/export/file-output";
 import { normalizeProductImportKey } from "@/lib/product-import";
 import { samePageLimit, type UrlPaginationState } from "@/lib/url-pagination";
 import type { Category } from "@/services/category";
@@ -315,6 +317,7 @@ export function useProductListWorkflow(initialPagination: UrlPaginationState) {
   const categoryStatusScope = JSON.stringify([storeUuid, branchUuid, cateUuidFk]);
   useResetOnDeps([storeUuid, branchUuid], resetImportState);
   const menuScopeKey = `${storeUuid}:${branchUuid}:${language}`;
+  const exportCurrent = useExportCurrent(menuScopeKey);
   useResetOnChange(menuScopeKey, () => {
     setMenuDesignerOpen(false);
     setMenuDesignerLoading(false);
@@ -408,7 +411,7 @@ export function useProductListWorkflow(initialPagination: UrlPaginationState) {
     if (exportingProducts) return;
     const prepared = menuDraft?.scopeKey === menuScopeKey ? menuDraft : null;
     const request = ++menuPdfRequest.current;
-    const isCurrent = () => menuPdfRequest.current === request && isCurrentMenuScope();
+    const isCurrent = () => menuPdfRequest.current === request && isCurrentMenuScope() && exportCurrent();
     changeMenuDesignerOpen(false);
     if (menuPdfUrl.current) {
       URL.revokeObjectURL(menuPdfUrl.current);
@@ -456,14 +459,17 @@ export function useProductListWorkflow(initialPagination: UrlPaginationState) {
         onProgress: (progress) => { if (isCurrent()) setMenuPdfProgress(progress); },
       });
       if (!isCurrent()) return;
-      const url = URL.createObjectURL(result.pdf.output("blob"));
+      const filename = `yummy-go-menu-${localDateInputValue()}.pdf`;
+      const file = new File([result.pdf.output("blob")], filename, { type: "application/pdf" });
+      const url = URL.createObjectURL(file);
       // Own the URL before scheduling state, including an unmount before the
       // result commits. Closing the result keeps it available to the PDF tab.
       menuPdfUrl.current = url;
       setMenuReadyFile({
         scopeKey: menuScopeKey,
+        file,
         url,
-        filename: `yummy-go-menu-${localDateInputValue()}.pdf`,
+        filename,
         itemCount: result.itemCount,
         pageCount: result.pageCount,
         imageOmissions: result.imageOmissions,
@@ -494,6 +500,7 @@ export function useProductListWorkflow(initialPagination: UrlPaginationState) {
       return;
     }
     if (exportingProducts) return;
+    const isCurrent = exportCurrent;
     setExportingProducts(true);
     try {
       const products = await loadAllProductsForImport({
@@ -501,10 +508,13 @@ export function useProductListWorkflow(initialPagination: UrlPaginationState) {
         lang: language,
       });
       const XLSX = await import("xlsx");
+      if (!isCurrent()) return;
       const workbook = createProductExportWorkbook(XLSX, products);
-      XLSX.writeFile(workbook, `yummy-go-products-${new Date().toISOString().slice(0, 10)}.xlsx`);
+      const bytes = XLSX.write(workbook, { type: "array", bookType: "xlsx" }) as ArrayBuffer;
+      if (await saveExportFile(new File([bytes], `yummy-go-products-${new Date().toISOString().slice(0, 10)}.xlsx`, { type: XLSX_MIME }), { isCurrent }) !== "saved" || !isCurrent()) return;
       showToast({ title: t("product.excel.exported", { count: products.length }), tone: "success" });
     } catch (error) {
+      if (!isCurrent() || (error instanceof Error && error.name === "AbortError")) return;
       showToast({
         title: t("product.excel.exportFailed"),
         description: error instanceof Error ? error.message : t("toasts.pleaseTryAgain"),
@@ -521,6 +531,7 @@ export function useProductListWorkflow(initialPagination: UrlPaginationState) {
       return;
     }
     if (exportingProducts) return;
+    const isCurrent = exportCurrent;
     setExportingProducts(true);
     try {
       const products = await loadAllProductsForImport({
@@ -528,6 +539,7 @@ export function useProductListWorkflow(initialPagination: UrlPaginationState) {
         lang: language,
       });
       const result = await exportProductTransfer(products, (product) => {
+        if (!isCurrent()) throw new DOMException("Product export cancelled", "AbortError");
         const image = String(product.prod_image ?? "").trim();
         const raw = String(product.prod_image_raw ?? "").trim();
         const filename = image && !image.startsWith("#") ? image : raw && !raw.startsWith("#") ? raw : "";
@@ -535,13 +547,8 @@ export function useProductListWorkflow(initialPagination: UrlPaginationState) {
       });
       const archiveBuffer = new ArrayBuffer(result.bytes.byteLength);
       new Uint8Array(archiveBuffer).set(result.bytes);
-      const archive = new Blob([archiveBuffer], { type: "application/zip" });
-      const downloadUrl = URL.createObjectURL(archive);
-      const anchor = document.createElement("a");
-      anchor.href = downloadUrl;
-      anchor.download = `yummy-go-products-${new Date().toISOString().slice(0, 10)}.zip`;
-      anchor.click();
-      window.setTimeout(() => URL.revokeObjectURL(downloadUrl), 1000);
+      const archive = new File([archiveBuffer], `yummy-go-products-${new Date().toISOString().slice(0, 10)}.zip`, { type: "application/zip" });
+      if (await saveExportFile(archive, { isCurrent }) !== "saved" || !isCurrent()) return;
       showToast({
         title: t("product.transfer.exported", { count: products.length }),
         description: result.imageOmissions
@@ -550,6 +557,7 @@ export function useProductListWorkflow(initialPagination: UrlPaginationState) {
         tone: result.imageOmissions ? "info" : "success",
       });
     } catch (error) {
+      if (!isCurrent() || (error instanceof Error && error.name === "AbortError")) return;
       showToast({
         title: t("product.transfer.exportFailed"),
         description: error instanceof Error ? error.message : t("toasts.pleaseTryAgain"),

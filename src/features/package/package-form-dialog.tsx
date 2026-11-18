@@ -42,6 +42,7 @@ import {
 import { validatePackageDraft } from "@/features/package/package-ui-utils";
 import { useResetOnDeps } from "@/hooks/use-reset-on-change";
 import type { Language } from "@/lib/language";
+import { createUuid } from "@/lib/uuid";
 import type {
   PackageDetail,
   PackageItem,
@@ -82,7 +83,7 @@ function createDetailDraft(
   detail?: PackageDetail,
 ): PackageDetailDraft {
   return {
-    key: crypto.randomUUID(),
+    key: createUuid(),
     id: detail?.id ?? "",
     nameLa: detail?.nameLa ?? "",
     nameEn: detail?.nameEn ?? "",

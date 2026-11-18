@@ -111,3 +111,12 @@ export function publicHasRemoteProductImage(
 export function publicIsHexColor(value?: string) {
   return Boolean(value && /^#(?:[0-9a-f]{3}|[0-9a-f]{6})$/i.test(value));
 }
+
+export function publicProductColorTint(value: string) {
+  if (!publicIsHexColor(value)) return null;
+  const hex = value.length === 4
+    ? value.slice(1).split("").map((digit) => digit + digit).join("")
+    : value.slice(1);
+  const channels = [0, 2, 4].map((offset) => Number.parseInt(hex.slice(offset, offset + 2), 16));
+  return `rgba(${channels.join(", ")}, 0.12)`;
+}

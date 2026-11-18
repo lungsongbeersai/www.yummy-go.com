@@ -6,6 +6,7 @@ import { ImageIcon, Utensils } from "lucide-react";
 import { IMAGE_CROP_ASPECT, IMAGE_CROP_ASPECT_CLASS } from "@/config/image-crop";
 import { cn } from "@/lib/utils";
 import { ProductImageStatus } from "@/config/pos-constants";
+import { publicProductColorTint } from "@/lib/pos/product-media";
 import type { CateProductItem, ProdItem } from "@/services/pos";
 import type { ProductBlockedState } from "../types";
 import { isHexColor, productImageUrl } from "../utils";
@@ -105,6 +106,7 @@ export function ProductMedia({
   }
 
   if (colorSwatch) {
+    const tint = publicProductColorTint(colorSwatch);
     return (
       <div
         className={cn(
@@ -112,7 +114,9 @@ export function ProductMedia({
           fillsParent ? "" : "border-b border-yg-line2",
           mediaClass,
         )}
-        style={{ backgroundColor: `color-mix(in srgb, ${colorSwatch} 12%, var(--yg-panel))` }}
+        // A translucent paint over the panel matches the premultiplied sRGB
+        // mix, including the dark panel's alpha, without needing color-mix().
+        style={{ backgroundColor: "var(--yg-panel)", backgroundImage: `linear-gradient(${tint}, ${tint})` }}
       >
         <span className="grid size-14 place-items-center rounded-lg border border-yg-accent-line bg-yg-panel text-yg-accent-strong">
           <Utensils

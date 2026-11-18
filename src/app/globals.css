@@ -17,6 +17,7 @@
 }
 
 :root {
+  --yummy-go-styles-ready: 1;
   /* Distinct workspace, card and control surfaces keep dense POS screens readable. */
   --card: oklch(1 0 0);
   --card-foreground: #1f2937;
@@ -78,7 +79,8 @@
      -foreground) ซึ่ง contrast ตกเมื่อเอามาเป็นตัวอักษรบนพื้นขาว ใช้กับยอด service/VAT
      ในรายงาน (เทียบ sky-700/amber-700 เดิมที่ผ่าน contrast อยู่แล้ว) */
   --info-text: hsl(201 100% 33%);
-  --warning-text: hsl(25 100% 37%);
+  --warning-text: hsl(25 100% 34%);
+  --destructive-text: #991b1b;
   /* ตัวอักษรสีแบรนด์บนพื้น card/background (ราคา, ปุ่ม +/-) — โหมดสว่างใช้ --primary ตรง ๆ
      แต่โหมดมืด --primary เข้มมาก (ออกแบบเป็นสีพื้นปุ่มคู่กับ -foreground) ใช้เป็นตัวอักษรบนพื้นมืด
      แล้วแทบมองไม่เห็น จึงชี้ไป --sidebar-primary ที่ทุก preset สีธีมกำหนดเฉดสว่างไว้ในโหมดมืดแล้ว */
@@ -119,6 +121,18 @@
   --chart-cat-2-text: #b8461a;
   --chart-cat-3-text: #0b7a52;
   --success-text: #13714c;
+  --toast-success-bg: color-mix(in oklch, var(--success) 12%, var(--popover));
+  --toast-success-border: color-mix(in oklch, var(--success) 45%, var(--border));
+  --toast-success-text: var(--success-text);
+  --toast-error-bg: color-mix(in oklch, var(--destructive) 12%, var(--popover));
+  --toast-error-border: color-mix(in oklch, var(--destructive) 45%, var(--border));
+  --toast-error-text: var(--destructive-text);
+  --toast-warning-bg: color-mix(in oklch, var(--warning) 12%, var(--popover));
+  --toast-warning-border: color-mix(in oklch, var(--warning) 45%, var(--border));
+  --toast-warning-text: var(--warning-text);
+  --toast-info-bg: color-mix(in oklch, var(--info) 12%, var(--popover));
+  --toast-info-border: color-mix(in oklch, var(--info) 45%, var(--border));
+  --toast-info-text: var(--info-text);
   /* Dashboard revenue card: faint accent engraving on the light card; white/black
      sheen and shade on the filled dark plate. Hex alpha values also work on WebView 101. */
   --dash-sheen: #ffffff1a;
@@ -131,6 +145,7 @@
 }
 
 .dark {
+  --destructive-text: #ff9495;
   --background: #101b18;
   --foreground: #f1f7f3;
   --card: #1b2923;
@@ -334,6 +349,7 @@
 }
 .dark[data-theme-color="violet"] {
   --primary: #5b21b6;
+  --primary-text: #a78bfa;
   --primary-foreground: oklch(0.985 0 0);
   --sidebar-primary: #8b5cf6;
   --sidebar-primary-foreground: #2e1065;
@@ -634,6 +650,7 @@ html[data-lao-font="saysettha"] {
   --color-secondary: var(--secondary);
   --color-secondary-foreground: var(--secondary-foreground);
   --color-destructive: var(--destructive);
+  --color-destructive-text: var(--destructive-text);
   --color-destructive-foreground: var(--destructive-foreground);
   --color-warning: var(--warning);
   --color-warning-foreground: var(--warning-foreground);
@@ -1012,6 +1029,50 @@ html.android-webview-compat:not([data-decor-background="off"]) [data-slot="sideb
   background: var(--popover) !important;
 }
 
+/* These controls normally use :has() to arrange their children. Keep forms,
+   inline alerts and card actions usable on older native engines using their
+   existing slot attributes; capable engines keep the shared primitive styles. */
+@supports not selector(:has(*)) {
+  html.capacitor-android [data-slot="input-group"] {
+    height: auto;
+    min-height: 2.5rem;
+    flex-wrap: wrap;
+  }
+
+  html.capacitor-android [data-slot="input-group"] > input {
+    min-height: 2.5rem;
+    min-width: 0;
+  }
+
+  html.capacitor-android [data-slot="input-group"] > textarea,
+  html.capacitor-android [data-slot="input-group-addon"][data-align="block-start"],
+  html.capacitor-android [data-slot="input-group-addon"][data-align="block-end"] {
+    flex-basis: 100%;
+    width: 100%;
+  }
+
+  html.capacitor-android [data-slot="input-group"]:focus-within {
+    border-color: var(--primary-text);
+    outline: 2px solid var(--primary-text);
+    outline-offset: 2px;
+  }
+
+  html.capacitor-android [data-slot="alert"] > svg {
+    position: absolute;
+    top: 0.5rem;
+    left: 0.5rem;
+  }
+
+  html.capacitor-android [data-slot="alert"] > svg ~ [data-slot="alert-title"],
+  html.capacitor-android [data-slot="alert"] > svg ~ [data-slot="alert-description"] {
+    margin-left: 1.25rem;
+  }
+
+  html.capacitor-android [data-slot="card-header"] {
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+}
+
 /* Payment amount input and the active cash/transfer card must stay visibly gray.
    A translucent muted fill blends to near-white on Swan 1's display/WebView. */
 .capacitor-android [data-pos-payment-amount-surface="true"] {
@@ -1056,451 +1117,6 @@ html.android-webview-compat:not([data-decor-background="off"]) [data-slot="sideb
 .dark.android-webview-compat [data-pos-pattern-overlay],
 .dark .android-webview-compat [data-pos-pattern-overlay] {
   display: none !important;
-}
-
-.android-webview-compat .bg-white\/10,
-.android-webview-compat .bg-white\/12,
-.android-webview-compat .bg-white\/15,
-.android-webview-compat .bg-primary-foreground\/10,
-.android-webview-compat .hover\:bg-white\/10:hover,
-.android-webview-compat .hover\:bg-primary-foreground\/20:hover {
-  background-color: rgba(255, 255, 255, 0.3) !important;
-}
-
-.android-webview-compat .bg-white\/20,
-.android-webview-compat .bg-white\/25,
-.android-webview-compat .bg-primary-foreground\/20,
-.android-webview-compat .hover\:bg-white\/20:hover,
-.android-webview-compat .hover\:bg-white\/25:hover {
-  background-color: rgba(255, 255, 255, 0.38) !important;
-}
-
-.android-webview-compat .bg-black\/10,
-.android-webview-compat .bg-black\/20,
-.android-webview-compat .bg-black\/25 {
-  background-color: rgba(0, 0, 0, 0.28) !important;
-}
-
-.android-webview-compat .bg-black\/45 {
-  background-color: rgba(0, 0, 0, 0.58) !important;
-}
-
-.android-webview-compat .border-white\/10,
-.android-webview-compat .border-white\/15,
-.android-webview-compat .border-white\/20,
-.android-webview-compat .border-white\/25,
-.android-webview-compat .border-white\/30,
-.android-webview-compat .border-primary-foreground\/20,
-.android-webview-compat .border-primary-foreground\/30,
-.android-webview-compat .hover\:border-white\/45:hover {
-  border-color: rgba(255, 255, 255, 0.46) !important;
-}
-
-.android-webview-compat .text-white\/45,
-.android-webview-compat .text-white\/50,
-.android-webview-compat .text-white\/60,
-.android-webview-compat .text-white\/65,
-.android-webview-compat .text-white\/70,
-.android-webview-compat .text-white\/75,
-.android-webview-compat .text-white\/80,
-.android-webview-compat .text-white\/90,
-.android-webview-compat .placeholder\:text-white\/65::placeholder {
-  color: rgba(255, 255, 255, 0.92) !important;
-}
-
-.android-webview-compat .text-primary-foreground\/75,
-.android-webview-compat .text-primary-foreground\/80,
-.android-webview-compat .text-muted-foreground\/55,
-.android-webview-compat .text-muted-foreground\/80 {
-  color: var(--foreground) !important;
-}
-
-.android-webview-compat .bg-white\/35 {
-  background-color: rgba(255, 255, 255, 0.35) !important;
-}
-
-.android-webview-compat .bg-white\/65 {
-  background-color: rgba(255, 255, 255, 0.65) !important;
-}
-
-.android-webview-compat .bg-white\/75 {
-  background-color: rgba(255, 255, 255, 0.75) !important;
-}
-
-.android-webview-compat .bg-white\/85 {
-  background-color: rgba(255, 255, 255, 0.85) !important;
-}
-
-.android-webview-compat .bg-white\/90 {
-  background-color: rgba(255, 255, 255, 0.9) !important;
-}
-
-.android-webview-compat .bg-white\/95 {
-  background-color: rgba(255, 255, 255, 0.95) !important;
-}
-
-.android-webview-compat .bg-black\/35 {
-  background-color: rgba(0, 0, 0, 0.35) !important;
-}
-
-.android-webview-compat .bg-black\/50 {
-  background-color: rgba(0, 0, 0, 0.5) !important;
-}
-
-.android-webview-compat .bg-black\/55 {
-  background-color: rgba(0, 0, 0, 0.55) !important;
-}
-
-.android-webview-compat .border-white\/80 {
-  border-color: rgba(255, 255, 255, 0.8) !important;
-}
-
-.android-webview-compat .border-slate-200\/80 {
-  border-color: rgba(226, 232, 240, 0.8) !important;
-}
-
-.android-webview-compat .ring-white\/60 {
-  --tw-ring-color: rgba(255, 255, 255, 0.6) !important;
-}
-
-.android-webview-compat .ring-black\/10 {
-  --tw-ring-color: rgba(0, 0, 0, 0.1) !important;
-}
-
-.android-webview-compat .bg-emerald-50\/45 {
-  background-color: rgba(236, 253, 245, 0.45) !important;
-}
-
-.android-webview-compat .bg-emerald-50\/50 {
-  background-color: rgba(236, 253, 245, 0.5) !important;
-}
-
-.android-webview-compat .bg-emerald-400\/15 {
-  background-color: rgba(52, 211, 153, 0.15) !important;
-}
-
-.android-webview-compat .bg-emerald-500\/8 {
-  background-color: rgba(16, 185, 129, 0.08) !important;
-}
-
-.android-webview-compat .bg-emerald-950\/30 {
-  background-color: rgba(2, 44, 34, 0.3) !important;
-}
-
-.android-webview-compat .bg-emerald-950\/35 {
-  background-color: rgba(2, 44, 34, 0.35) !important;
-}
-
-.android-webview-compat .border-emerald-500\/20 {
-  border-color: rgba(16, 185, 129, 0.2) !important;
-}
-
-.android-webview-compat .border-emerald-500\/30 {
-  border-color: rgba(16, 185, 129, 0.3) !important;
-}
-
-.android-webview-compat .border-emerald-500\/35 {
-  border-color: rgba(16, 185, 129, 0.35) !important;
-}
-
-.android-webview-compat .ring-emerald-500\/10 {
-  --tw-ring-color: rgba(16, 185, 129, 0.1) !important;
-}
-
-.android-webview-compat .bg-red-50\/40 {
-  background-color: rgba(254, 242, 242, 0.4) !important;
-}
-
-.android-webview-compat .bg-red-50\/70 {
-  background-color: rgba(254, 242, 242, 0.7) !important;
-}
-
-.android-webview-compat .bg-red-100\/70 {
-  background-color: rgba(254, 226, 226, 0.7) !important;
-}
-
-.android-webview-compat .bg-red-950\/15 {
-  background-color: rgba(69, 10, 10, 0.15) !important;
-}
-
-.android-webview-compat .bg-red-950\/20 {
-  background-color: rgba(69, 10, 10, 0.2) !important;
-}
-
-.android-webview-compat .bg-red-950\/25 {
-  background-color: rgba(69, 10, 10, 0.25) !important;
-}
-
-.android-webview-compat .bg-red-950\/35 {
-  background-color: rgba(69, 10, 10, 0.35) !important;
-}
-
-.android-webview-compat .border-red-500\/30 {
-  border-color: rgba(239, 68, 68, 0.3) !important;
-}
-
-.android-webview-compat .border-red-500\/35 {
-  border-color: rgba(239, 68, 68, 0.35) !important;
-}
-
-.android-webview-compat .bg-amber-400\/15,
-.android-webview-compat .bg-amber-500\/15 {
-  background-color: rgba(245, 158, 11, 0.15) !important;
-}
-
-.android-webview-compat .bg-amber-500\/8 {
-  background-color: rgba(245, 158, 11, 0.08) !important;
-}
-
-.android-webview-compat .bg-amber-500\/10 {
-  background-color: rgba(245, 158, 11, 0.1) !important;
-}
-
-.android-webview-compat .bg-amber-950\/30 {
-  background-color: rgba(69, 26, 3, 0.3) !important;
-}
-
-.android-webview-compat .bg-amber-950\/35 {
-  background-color: rgba(69, 26, 3, 0.35) !important;
-}
-
-.android-webview-compat .bg-amber-950\/85 {
-  background-color: rgba(69, 26, 3, 0.85) !important;
-}
-
-.android-webview-compat .border-amber-500\/20 {
-  border-color: rgba(245, 158, 11, 0.2) !important;
-}
-
-.android-webview-compat .border-amber-500\/30 {
-  border-color: rgba(245, 158, 11, 0.3) !important;
-}
-
-.android-webview-compat .border-amber-500\/35 {
-  border-color: rgba(245, 158, 11, 0.35) !important;
-}
-
-.android-webview-compat .border-amber-500\/40 {
-  border-color: rgba(245, 158, 11, 0.4) !important;
-}
-
-.android-webview-compat .border-amber-500\/50 {
-  border-color: rgba(245, 158, 11, 0.5) !important;
-}
-
-.android-webview-compat .bg-sky-500\/15 {
-  background-color: rgba(14, 165, 233, 0.15) !important;
-}
-
-.android-webview-compat .bg-sky-950\/30 {
-  background-color: rgba(8, 47, 73, 0.3) !important;
-}
-
-.android-webview-compat .bg-sky-950\/35 {
-  background-color: rgba(8, 47, 73, 0.35) !important;
-}
-
-.android-webview-compat .border-sky-500\/35 {
-  border-color: rgba(14, 165, 233, 0.35) !important;
-}
-
-.android-webview-compat .border-sky-500\/40 {
-  border-color: rgba(14, 165, 233, 0.4) !important;
-}
-
-.android-webview-compat .bg-blue-500\/8 {
-  background-color: rgba(59, 130, 246, 0.08) !important;
-}
-
-.android-webview-compat .border-blue-500\/20 {
-  border-color: rgba(59, 130, 246, 0.2) !important;
-}
-
-.android-webview-compat .bg-purple-500\/8 {
-  background-color: rgba(168, 85, 247, 0.08) !important;
-}
-
-.android-webview-compat .border-purple-500\/20 {
-  border-color: rgba(168, 85, 247, 0.2) !important;
-}
-
-.android-webview-compat .bg-rose-500\/8 {
-  background-color: rgba(244, 63, 94, 0.08) !important;
-}
-
-.android-webview-compat .border-rose-500\/20 {
-  border-color: rgba(244, 63, 94, 0.2) !important;
-}
-
-.android-webview-compat .bg-violet-950\/30 {
-  background-color: rgba(46, 16, 101, 0.3) !important;
-}
-
-.android-webview-compat .bg-cyan-950\/30 {
-  background-color: rgba(8, 51, 68, 0.3) !important;
-}
-
-.android-webview-compat .bg-indigo-950\/30 {
-  background-color: rgba(30, 27, 75, 0.3) !important;
-}
-
-.android-webview-compat .border-violet-900\/60 {
-  border-color: rgba(76, 29, 149, 0.6) !important;
-}
-
-.android-webview-compat .border-cyan-900\/60 {
-  border-color: rgba(22, 78, 99, 0.6) !important;
-}
-
-.android-webview-compat .border-indigo-900\/60 {
-  border-color: rgba(49, 46, 129, 0.6) !important;
-}
-
-/* --warning/--success/--pending/--info เป็น hsl() ไม่ใช่ oklch() จึงไม่ต้อง fallback ตัว
-   base color เอง แต่ opacity modifier (/NN) ยัง compile เป็น color-mix() เหมือน utility
-   สีทุกตัว จึงยัง fail บน WebView เก่าเหมือนกัน ต้อง override เป็น rgba() ตรงๆ */
-.android-webview-compat .bg-warning\/10 {
-  background-color: rgba(225, 146, 9, 0.1) !important;
-}
-
-.android-webview-compat .bg-warning\/15 {
-  background-color: rgba(225, 146, 9, 0.15) !important;
-}
-
-.android-webview-compat .bg-warning\/20 {
-  background-color: rgba(225, 146, 9, 0.2) !important;
-}
-
-.android-webview-compat .border-warning\/30 {
-  border-color: rgba(225, 146, 9, 0.3) !important;
-}
-
-.android-webview-compat .border-warning\/40 {
-  border-color: rgba(225, 146, 9, 0.4) !important;
-}
-
-.android-webview-compat .border-warning\/45 {
-  border-color: rgba(225, 146, 9, 0.45) !important;
-}
-
-.android-webview-compat .border-warning\/70 {
-  border-color: rgba(225, 146, 9, 0.7) !important;
-}
-
-.android-webview-compat .bg-success\/10 {
-  background-color: rgba(26, 137, 85, 0.1) !important;
-}
-
-.android-webview-compat .bg-success\/15 {
-  background-color: rgba(26, 137, 85, 0.15) !important;
-}
-
-.android-webview-compat .bg-success\/20 {
-  background-color: rgba(26, 137, 85, 0.2) !important;
-}
-
-.android-webview-compat .border-success\/30 {
-  border-color: rgba(26, 137, 85, 0.3) !important;
-}
-
-.android-webview-compat .border-success\/40 {
-  border-color: rgba(26, 137, 85, 0.4) !important;
-}
-
-.android-webview-compat .bg-pending\/10 {
-  background-color: rgba(218, 98, 11, 0.1) !important;
-}
-
-.android-webview-compat .bg-pending\/15 {
-  background-color: rgba(218, 98, 11, 0.15) !important;
-}
-
-.android-webview-compat .bg-pending\/20 {
-  background-color: rgba(218, 98, 11, 0.2) !important;
-}
-
-.android-webview-compat .border-pending\/30 {
-  border-color: rgba(218, 98, 11, 0.3) !important;
-}
-
-.android-webview-compat .bg-info\/10 {
-  background-color: rgba(11, 135, 193, 0.1) !important;
-}
-
-.android-webview-compat .border-info\/30 {
-  border-color: rgba(11, 135, 193, 0.3) !important;
-}
-
-.dark.android-webview-compat .bg-warning\/10 {
-  background-color: rgba(246, 168, 35, 0.1) !important;
-}
-
-.dark.android-webview-compat .bg-warning\/15 {
-  background-color: rgba(246, 168, 35, 0.15) !important;
-}
-
-.dark.android-webview-compat .bg-warning\/20 {
-  background-color: rgba(246, 168, 35, 0.2) !important;
-}
-
-.dark.android-webview-compat .border-warning\/30 {
-  border-color: rgba(246, 168, 35, 0.3) !important;
-}
-
-.dark.android-webview-compat .border-warning\/40 {
-  border-color: rgba(246, 168, 35, 0.4) !important;
-}
-
-.dark.android-webview-compat .border-warning\/45 {
-  border-color: rgba(246, 168, 35, 0.45) !important;
-}
-
-.dark.android-webview-compat .border-warning\/70 {
-  border-color: rgba(246, 168, 35, 0.7) !important;
-}
-
-.dark.android-webview-compat .bg-success\/10 {
-  background-color: rgba(77, 203, 144, 0.1) !important;
-}
-
-.dark.android-webview-compat .bg-success\/15 {
-  background-color: rgba(77, 203, 144, 0.15) !important;
-}
-
-.dark.android-webview-compat .bg-success\/20 {
-  background-color: rgba(77, 203, 144, 0.2) !important;
-}
-
-.dark.android-webview-compat .border-success\/30 {
-  border-color: rgba(77, 203, 144, 0.3) !important;
-}
-
-.dark.android-webview-compat .border-success\/40 {
-  border-color: rgba(77, 203, 144, 0.4) !important;
-}
-
-.dark.android-webview-compat .bg-pending\/10 {
-  background-color: rgba(245, 138, 61, 0.1) !important;
-}
-
-.dark.android-webview-compat .bg-pending\/15 {
-  background-color: rgba(245, 138, 61, 0.15) !important;
-}
-
-.dark.android-webview-compat .bg-pending\/20 {
-  background-color: rgba(245, 138, 61, 0.2) !important;
-}
-
-.dark.android-webview-compat .border-pending\/30 {
-  border-color: rgba(245, 138, 61, 0.3) !important;
-}
-
-.dark.android-webview-compat .bg-info\/10 {
-  background-color: rgba(72, 190, 244, 0.1) !important;
-}
-
-.dark.android-webview-compat .border-info\/30 {
-  border-color: rgba(72, 190, 244, 0.3) !important;
 }
 
 .capacitor-android .login-light-zone {
@@ -1781,9 +1397,8 @@ html.theme-transition-active[data-theme-transition-direction="ltr"]::view-transi
   }
 }
 
-/* Swan 1's WebView 101 cannot parse dvh or the individual translate property.
-   Keep fixed screens bounded so their inner scroll areas work, and keep the
-   keyboard skip link offscreen until focused without changing newer devices. */
+/* Keep Swan 1's measured system-bar layout bounded. Shared old-engine
+   viewport and transform fallbacks are generated by the geometry compiler. */
 html.swan1-legacy-colors
   .app-shell[data-platform="capacitor"][data-fixed-screen="true"] {
   height: 100vh;
@@ -1818,26 +1433,6 @@ html.swan1-legacy-colors
   .app-shell[data-desktop-pos-order-layout="true"]
   .pos-safe-bottom-padding {
   padding-bottom: 8px;
-}
-
-/* WebView 101 ignores Tailwind's individual translate property. Radix portals
-   live outside the app shell, so center all Swan 1 dialogs from the html scope.
-   Reset individual translate as well in case this model later gets a newer WebView. */
-html.swan1-legacy-colors [data-slot="dialog-content"],
-html.swan1-legacy-colors [data-slot="alert-dialog-content"] {
-  transform: translate(-50%, -50%);
-}
-
-/* Tailwind's !top/!left/!translate utilities on the payment dialog live in a
-   cascade layer. Layered important rules outrank unlayered important rules,
-   which otherwise leave that dialog anchored at the viewport's top-left. */
-@layer base {
-  html.swan1-legacy-colors [data-slot="dialog-content"],
-  html.swan1-legacy-colors [data-slot="alert-dialog-content"] {
-    top: 50% !important;
-    left: 50% !important;
-    translate: none !important;
-  }
 }
 
 html.swan1-legacy-colors [data-pos-product-options-dialog],
@@ -1876,14 +1471,6 @@ html.swan1-legacy-colors
   background-color: var(--muted);
 }
 
-html.swan1-legacy-colors .app-shell a[href="#app-main-content"] {
-  transform: translateY(-6rem);
-}
-
-html.swan1-legacy-colors .app-shell a[href="#app-main-content"]:focus {
-  transform: translateY(0);
-}
-
 /* The old WebView's absolute-positioned clock lands off the visual midpoint.
    Equal outer grid tracks keep the clock centered regardless of right actions. */
 html.swan1-legacy-colors [data-pos-table-header] {
@@ -1907,11 +1494,6 @@ html.swan1-legacy-colors [data-pos-table-clock] {
 
 html.swan1-legacy-colors [data-pos-table-header-actions] {
   justify-self: end;
-}
-
-/* WebView 101 ignores Tailwind's individual translate/ring properties. */
-html.swan1-legacy-colors [data-pos-table-search-icon] {
-  transform: translateY(-50%);
 }
 
 html.swan1-legacy-colors [data-pos-table-card] {

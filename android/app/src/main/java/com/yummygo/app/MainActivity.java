@@ -38,6 +38,7 @@ public class MainActivity extends BridgeActivity {
     registerPlugin(SwanCustomerDisplayPlugin.class);
     registerPlugin(AndroidSystemPrintPlugin.class);
     registerPlugin(AndroidCommercialPdfPlugin.class);
+    registerPlugin(AndroidFileExportPlugin.class);
     super.onCreate(savedInstanceState);
 
     hardenWebViewRendering();

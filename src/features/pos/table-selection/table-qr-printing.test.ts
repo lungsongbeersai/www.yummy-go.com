@@ -92,6 +92,16 @@ describe("table QR printing", () => {
     expect(requestQueue).toHaveBeenCalledTimes(1);
   });
 
+  it("does not request a QR print for an invalidated view or execute a job returned after a branch change", async () => {
+    let current = false;
+    const requestQueue = vi.fn(async () => { current = false; return { print_job_uuid: "old-branch-job" }; });
+    await expect(tableQrPrintAttemptResponse({ refreshQueue: true, requestQueue, response: null, isCurrent: () => current })).rejects.toMatchObject({ name: "AbortError" });
+    expect(requestQueue).not.toHaveBeenCalled();
+    current = true;
+    await expect(tableQrPrintAttemptResponse({ refreshQueue: true, requestQueue, response: null, isCurrent: () => current })).rejects.toMatchObject({ name: "AbortError" });
+    expect(requestQueue).toHaveBeenCalledOnce();
+  });
+
   it("builds the same escaped receipt document for browser and Android printing", () => {
     const browserDocument = buildQrPrintDocument({
       autoPrint: true,

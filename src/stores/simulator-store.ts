@@ -2,6 +2,7 @@
 
 import { create } from "zustand";
 import { ServiceError } from "@/lib/api";
+import { createUuid } from "@/lib/uuid";
 import * as simulator from "@/services/simulator";
 import type { SimulatorAction, SimulatorActionType, SimulatorBootstrap, SimulatorSession, SimulatorSessionSummary } from "@/services/simulator";
 import { createSessionGuard, registerSessionStoreReset } from "@/stores/session-store-registry";
@@ -102,7 +103,7 @@ export const useSimulatorStore = create<SimulatorState>((set, get) => ({
     if (!session || !connected || saving || loading || pending) return false;
     const request = generation;
     const operation: PendingOperation = { session_uuid: session.session_uuid,
-      action: { operation_uuid: crypto.randomUUID(), expected_version: session.version, type, payload } };
+      action: { operation_uuid: createUuid(), expected_version: session.version, type, payload } };
     set({ saving: true, error: null, notice: null, pending: operation });
     try {
       const updated = await simulator.runSimulatorAction(operation.session_uuid, operation.action);

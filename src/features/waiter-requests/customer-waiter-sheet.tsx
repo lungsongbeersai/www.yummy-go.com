@@ -34,6 +34,7 @@ import { InputGroup, InputGroupAddon, InputGroupTextarea } from "@/components/ui
 import { Skeleton } from "@/components/ui/skeleton";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { cn } from "@/lib/utils";
+import { createUuid } from "@/lib/uuid";
 import type { WaiterRequestType } from "@/services/waiter-requests";
 import { useWaiterRequestsStore } from "@/stores/waiter-requests-store";
 import { PublicPullToRefresh } from "@/features/public-pos/order/components/public-pull-to-refresh";
@@ -150,7 +151,7 @@ export function CustomerWaiterSheet({ open, onOpenChange, token, branch, table, 
 
   const submit = async () => {
     if (!canSend) return;
-    const attempt = resolveCustomerWaiterAttempt(payload, requestAttempt.current, () => crypto.randomUUID());
+    const attempt = resolveCustomerWaiterAttempt(payload, requestAttempt.current, createUuid);
     requestAttempt.current = attempt;
     const ok = await send(token, { client_request_uuid: attempt.id, ...payload });
     if (!ok) return;
