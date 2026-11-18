@@ -1,7 +1,7 @@
 "use client";
 
 import Image from "next/image";
-import { memo, useState } from "react";
+import { memo, useState, type CSSProperties } from "react";
 import { useResetOnChange } from "@/hooks/use-reset-on-change";
 import {
   Ban,
@@ -40,6 +40,23 @@ import {
   type ProductMedia,
 } from "./order-customer-utils";
 import { productCardCopy, productCardRadiusClass } from "./product-card-copy";
+
+// The bridge can become ready after the startup WebView marker check. Keep
+// the native action target independent of those CSS classes and of pressed
+// transforms, which otherwise move its edges away from the pointer.
+const NATIVE_PRODUCT_ACTION_STYLE: CSSProperties = {
+  position: "absolute",
+  top: 0,
+  right: 0,
+  bottom: 0,
+  left: 0,
+  width: "100%",
+  height: "100%",
+  zIndex: 20,
+  transform: "none",
+  translate: "none",
+  scale: "none",
+};
 
 export const EmployeeProductCard = memo(function EmployeeProductCard({
   activeSort,
@@ -204,8 +221,10 @@ export const EmployeeProductCard = memo(function EmployeeProductCard({
       <Button
         type="button"
         variant="ghost"
+        data-pos-product-card-action="true"
         aria-busy={loading}
         aria-label={accessibleActionLabel}
+        style={nativeMobile ? NATIVE_PRODUCT_ACTION_STYLE : undefined}
         className={cn(
           "absolute inset-0 z-20 h-auto w-auto touch-manipulation bg-transparent p-0 shadow-none transition-transform duration-100 hover:bg-primary/5 active:scale-[0.98] active:bg-primary/15 motion-reduce:transition-none focus-visible:bg-primary/5 focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring disabled:pointer-events-auto disabled:cursor-not-allowed disabled:opacity-100",
           cardRadiusClass

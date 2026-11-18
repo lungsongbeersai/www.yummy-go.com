@@ -1,5 +1,14 @@
 # Decisions
 
+## Native product action bounds do not depend on the startup engine marker
+
+- **Date:** 2026-11-18.
+- **Evidence:** The owner still reported clicks working on only one side of menu cards. Genuine Chromium 83 reproduced the same 44px action strip when the page retained native/compat styling but lacked `android-webview-83`; the early bootstrap sets that marker, while the later platform-class reconciliation does not repair it. This demonstrates a classification gap, not confirmation of the shop device's exact DOM state.
+- **Decision:** The existing product action button receives explicit inline physical bounds, 100% width/height and its stacking position whenever the card's existing `nativeMobile` prop is true. Native pressed transforms are disabled to keep the pointer target stable at the edges; existing opacity, background and focus feedback remain. The early CSS fallback stays available, but final hit coverage no longer depends on the engine marker or a newly matched utility rule.
+- **Ownership:** The card keeps one accessible button and one existing action handler. Unavailable/loading state, keyboard behavior, option reads and financial sends are unchanged. Web cards receive no inline override.
+- **Validation:** All 3,795 tests in 299 files, typecheck, lint, twelve deployment fixtures and the webpack production build passed; lint retains five existing warnings. Local build ID: `-Xe4u-scAL86Kh2Pg2vVq`; production CSS is byte-identical to the previous release. Five actual-browser/native profiles covered legacy 83 with and without the marker, capable Android and web. Nine mouse press locations on both option and direct-add cards, touch, keyboard, disabled controls and single-action counts passed; native targets stayed full-sized while pressed and web retained its original inline-style behavior. All order responses were local fixtures.
+- **Authorization:** The owner's repeated request for the full surface of every menu card to receive clicks correctly on SUNMI, while preserving the working behavior of other devices.
+
 ## Legacy native product cards receive clicks across their full surface
 
 - **Date:** 2026-11-18.
