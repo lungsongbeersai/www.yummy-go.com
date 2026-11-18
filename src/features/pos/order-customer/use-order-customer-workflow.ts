@@ -285,6 +285,8 @@ export function useOrderCustomerWorkflow({
         }, options);
       }
     } catch (error) {
+      // A read from the previous table must not redirect a newer order view.
+      if (!isCurrentOrderView()) return;
       // A foreground transport failure leaves the cashier on a half-loaded
       // online-only screen, so show an actionable connection message instead
       // of Axios's raw "Network Error". Background refreshes remain silent.
@@ -309,6 +311,7 @@ export function useOrderCustomerWorkflow({
     branchUuid,
     counterOrderUuid,
     initialTableUuid,
+    isCurrentOrderView,
     language,
     loadCartStore,
     router,

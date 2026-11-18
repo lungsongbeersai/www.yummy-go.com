@@ -1064,6 +1064,48 @@ html.capacitor-android.android-webview-83 [data-slot="sheet-content"][data-state
   transition: none !important;
 }
 
+/* Legacy Android POS terminals share the renderer with remote input. A pressed
+   card must keep its original hit bounds until mouseup; shrinking or shifting
+   it can release a click onto the parent instead. Leave dialog positioning and
+   capable/native desktop layouts alone, including Swan's measured policy.
+   The shared Button class also survives Radix asChild replacing data-slot. */
+html.capacitor-android.android-webview-compat.pos-android-system-screen:not(.swan1-legacy-colors) [data-slot="button"],
+html.capacitor-android.android-webview-compat.pos-android-system-screen:not(.swan1-legacy-colors) .group\/button,
+html.capacitor-android.android-webview-compat.pos-android-system-screen:not(.swan1-legacy-colors) [data-slot="toggle-group-item"],
+html.capacitor-android.android-webview-compat.pos-android-system-screen:not(.swan1-legacy-colors) [data-pos-product-card],
+html.capacitor-android.android-webview-compat.pos-android-system-screen:not(.swan1-legacy-colors) [data-pos-table-card] {
+  /* Minification merges individual resets into transform before the legacy
+     geometry pass. Reset its composed parts too, or :active still scales it. */
+  --yg-translate: translate(0, 0) !important;
+  --yg-scale: scale(1) !important;
+  transform: none !important;
+  translate: none !important;
+  scale: none !important;
+}
+
+/* Status colours and pending cues remain visible without continuously painting
+   pulsing shadows or waiting for portal exit animations on the old renderer.
+   Use the reconciled compatibility classes, also when the early 83 marker is
+   missing. Spinners and the unsent-order notice retain their loading feedback. */
+html.capacitor-android.android-webview-compat.pos-android-system-screen:not(.swan1-legacy-colors) *:not([data-slot="spinner"]):not(.animate-spin):not(.pos-pending-notice),
+html.capacitor-android.android-webview-compat.pos-android-system-screen:not(.swan1-legacy-colors) *::before,
+html.capacitor-android.android-webview-compat.pos-android-system-screen:not(.swan1-legacy-colors) *::after {
+  animation: none !important;
+  transition-duration: 0ms !important;
+  transition-delay: 0ms !important;
+  scroll-behavior: auto !important;
+}
+
+html.capacitor-android.android-webview-compat.pos-android-system-screen:not(.swan1-legacy-colors) .pos-table-card-alert,
+html.capacitor-android.android-webview-compat.pos-android-system-screen:not(.swan1-legacy-colors) .pos-status-ring-pulse,
+html.capacitor-android.android-webview-compat.pos-android-system-screen:not(.swan1-legacy-colors) .pos-chip-alert-ring {
+  will-change: auto;
+}
+
+html.capacitor-android.android-webview-compat.pos-android-system-screen:not(.swan1-legacy-colors) .pos-status-ring-pulse {
+  box-shadow: 0 0 0 2px rgb(var(--ring-rgb) / 70%);
+}
+
 /* These controls normally use :has() to arrange their children. Keep forms,
    inline alerts and card actions usable on older native engines using their
    existing slot attributes; capable engines keep the shared primitive styles. */

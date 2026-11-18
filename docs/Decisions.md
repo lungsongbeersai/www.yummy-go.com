@@ -1,5 +1,19 @@
 # Decisions
 
+## Legacy native POS hit targets remain still during remote input
+
+- **Date:** 2026-11-18.
+- **Evidence:** The owner reported that entering tables, Back and other controls remained slow and difficult to click through AnyDesk. Genuine Chromium 83 with the previous production CSS reproduced a held click 1px inside a table's left edge: its 238.594px card shrank to 231.436px, moving the edge from x=20 to x=23.579. Mouseup reached the outer frame and no navigation occurred. A center click dispatched navigation immediately; table entry and ordinary Back do not wait for a cart request.
+- **Decision:** Native Android POS documents in rendering compatibility mode keep table/product card bounds and shared Button/toggle bounds fixed. The shared Button class covers Radix `asChild` triggers whose slot changes. Decorative animation and transitions stop within this legacy workspace, including portals, while loading spinners and the pending-order notice retain their feedback. Status colours remain and pending status frames retain a static ring. Dialog placement, switch/slider positioning and gesture ownership are unchanged.
+- **Scope:** The reconciled native/compat/POS document classes apply independently of the early WebView 83 marker and fine/coarse pointer classification. Swan 1 keeps its separate policy; browser, Electron, iOS and Android outside rendering compatibility mode do not match the new selectors. No new event handler, synthetic click or local sales fallback is introduced.
+- **Compiler boundary:** Minification merges individual transform resets before the legacy geometry pass. Explicit important resets of its composed `--yg-translate` and `--yg-scale` parts are required; resetting only the resulting transform still leaves a held card at scale 0.97. The workaround stays in this scoped rule rather than changing the shared compiler.
+- **Navigation correctness:** A rejected cart read from a departed table checks the existing view/session guard before showing an error or redirecting. Draft-exit confirmation and in-flight kitchen/payment/order mutation ownership retain their existing rules.
+- **Validation:** Typecheck, lint, all 3,795 tests in 299 files, twelve deployment fixtures and the webpack production build passed. Lint retains five existing warnings. Final local build ID: `njKOBGmdL4tk-Jr1xZF_M`; raw production CSS SHA-256: `c7c6552b5aaa0a2231fe0479f4a3dc50910ab0a1fdd3fde2389b0a67d85713ea`.
+- **Interaction checks:** Fourteen final Chromium 83 scenarios passed with the raw production CSS: four held table edges and Back cycles, category/status/zone controls, product hover edges, keyboard, scrolling in both directions and touch taps on marked/markerless native profiles. A delayed failure from table 1 did not interrupt table 2; a current-view transport failure retained its connection message and redirect. Small dispatched touch movements did not emit native `touchmove` in this engine, so they do not establish how AnyDesk's touch transport behaves. No synthetic gesture fallback was added.
+- **Rendering checks:** Matched 60/200-table fixtures reduced animated table nodes from 28/82 to zero while the loading spinner retained its animation. Entry committed before the delayed cart read completed; both versions had zero full-body helper scans and 328 computed-style reads. Single paired development-fixture timings did not establish a meaningful entry speed improvement, so no general speed percentage is claimed.
+- **Boundary:** Browser fixtures use local responses and cannot certify the physical SUNMI renderer, shop network, AnyDesk transport latency or paper delivery. No production order, payment or print is used for verification.
+- **Authorization:** The owner's request to improve SUNMI table entry, Back and click accuracy, with the existing commit-and-push instruction continuing for these repairs.
+
 ## Legacy native POS actions reserve the Android navigation strip
 
 - **Date:** 2026-11-18.
