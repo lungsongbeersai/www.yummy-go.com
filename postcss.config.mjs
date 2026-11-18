@@ -9,13 +9,21 @@ const legacyWebViewLayers = fileURLToPath(
 const legacyWebViewGeometry = fileURLToPath(
   new URL("./scripts/postcss-legacy-webview-geometry.cjs", import.meta.url)
 );
+const legacyWebViewLayout = fileURLToPath(
+  new URL("./scripts/postcss-legacy-webview-layout.cjs", import.meta.url)
+);
+const legacyWebView83 = fileURLToPath(
+  new URL("./scripts/postcss-legacy-webview-83.cjs", import.meta.url)
+);
 
 const config = {
   plugins: {
     "@tailwindcss/postcss": {},
+    [legacyWebViewLayout]: {},
     [legacyWebViewOpacity]: {},
     [legacyWebViewGeometry]: {},
     [legacyWebViewLayers]: {},
+    [legacyWebView83]: {},
   },
 };
 

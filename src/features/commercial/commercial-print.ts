@@ -162,6 +162,14 @@ const styles = `
   .signatures { display: flex; justify-content: space-between; gap: 12mm; margin-top: 5mm; break-inside: avoid; }
   .signature { text-align: center; min-width: 55mm; }
   .signature-line { margin-top: 6mm; border-top: 0.2mm solid var(--table-border); padding-top: 1.5mm; color: #4b5563; }
+  @supports not selector(:where(*)) {
+    .heading, .item, .total-amount, .payment-account, .signatures { gap: 0; }
+    .heading > * + * { margin-left: 6mm; }
+    .item > * + * { margin-left: 3mm; }
+    .total-amount > .currency { margin-right: 1mm; }
+    .payment-account > * + * { margin-left: 2.5mm; }
+    .signatures > * + * { margin-left: 12mm; }
+  }
   #print-error { padding: 4mm; border: 1px solid #111; }
   thead { display: table-header-group; }
   tr { break-inside: avoid; page-break-inside: avoid; }

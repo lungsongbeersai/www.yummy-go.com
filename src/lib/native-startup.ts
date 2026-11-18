@@ -2,7 +2,7 @@ import type { Language } from "@/lib/language";
 
 export const NATIVE_STARTUP_READY_EVENT = "yummy-go:startup-ready";
 export const NATIVE_STARTUP_TIMEOUT_MS = 30_000;
-export const LEGACY_ANDROID_WEBVIEW_MIN_VERSION = 88;
+export const LEGACY_ANDROID_WEBVIEW_MIN_VERSION = 83;
 
 interface NativeStartupCopy {
   failedTitle: string;
@@ -43,12 +43,52 @@ export const nativeStartupScript = `
   } catch (_) {}
   if (!nativeAndroid) return;
 
+  // Chromium 83 has String.replace but not replaceAll. Install this before
+  // loading Next so imported catalogs and payment parsers can use the same API.
+  if (typeof String.prototype.replaceAll !== "function") {
+    Object.defineProperty(String.prototype, "replaceAll", {
+      configurable: true,
+      writable: true,
+      value: function (searchValue, replaceValue) {
+        "use strict";
+        var receiver = this;
+        if (receiver === null || receiver === undefined) throw new TypeError("String.replaceAll called on null or undefined");
+        function text(value) {
+          if (typeof value === "symbol") throw new TypeError("Cannot convert a Symbol value to a string");
+          return String(value);
+        }
+        if (searchValue !== null && searchValue !== undefined) {
+          var match = typeof Symbol !== "undefined" && Symbol.match ? searchValue[Symbol.match] : undefined;
+          var regularExpression = match !== undefined ? !!match : Object.prototype.toString.call(searchValue) === "[object RegExp]";
+          if (regularExpression && text(searchValue.flags).indexOf("g") === -1) {
+            throw new TypeError("String.replaceAll requires a global regular expression");
+          }
+          var replace = typeof Symbol !== "undefined" && Symbol.replace ? searchValue[Symbol.replace] : undefined;
+          if (replace !== undefined && replace !== null) {
+            if (typeof replace !== "function") throw new TypeError("Symbol.replace must be a function");
+            return replace.call(searchValue, receiver, replaceValue);
+          }
+        }
+        var search = text(searchValue);
+        var escaped = "";
+        var special = "\\\\^$.*+?()[]{}|";
+        for (var index = 0; index < search.length; index += 1) {
+          var character = search.charAt(index);
+          escaped += special.indexOf(character) !== -1 ? "\\\\" + character : character;
+        }
+        return text(receiver).replace(new RegExp(escaped, "g"), replaceValue);
+      }
+    });
+  }
+
   root.classList.add("capacitor-native", "capacitor-android");
   var androidMatch = /Android\\s+(\\d+)/i.exec(ua);
   var engineMatch = /(?:Chrome|CriOS)\\/(\\d+)/i.exec(ua);
   var androidVersion = androidMatch ? Number(androidMatch[1]) : null;
   var engineVersion = engineMatch ? Number(engineMatch[1]) : null;
   var css = window.CSS;
+  var legacy83 = (engineVersion !== null && engineVersion < 88) || !(css && css.supports && css.supports("selector(:where(*))"));
+  root.classList.toggle("android-webview-83", legacy83);
   function supports(property, value) {
     return !!(css && css.supports && css.supports(property, value));
   }
@@ -68,7 +108,7 @@ export const nativeStartupScript = `
   var reactReady = false;
   var timeout = null;
   // CSS.supports accepts selector() as a single argument, unlike property tests.
-  var unsupported = (engineVersion !== null && engineVersion < ${LEGACY_ANDROID_WEBVIEW_MIN_VERSION}) || !(css && css.supports && css.supports("selector(:where(*))"));
+  var unsupported = (engineVersion !== null && engineVersion < ${LEGACY_ANDROID_WEBVIEW_MIN_VERSION}) || !(css && css.supports && css.supports("selector(*)"));
 
   function showFailure(state) {
     if (ready) return;
@@ -80,14 +120,18 @@ export const nativeStartupScript = `
     if (!reactReady || unsupported) return false;
     // React can mount before the stylesheet arrives. A later CSS load must
     // recover the initial screen without requiring a second React commit.
-    var styles = window.getComputedStyle(root).getPropertyValue("--yummy-go-styles-ready");
+    var computed = window.getComputedStyle(root);
+    var styles = computed.getPropertyValue("--yummy-go-styles-ready");
     if (styles.replace(/\\s/g, "") !== "1") return false;
+    // A cached stylesheet from the previous Chrome 88 build lacks the selector
+    // fallback. Keep the recovery screen until this engine's CSS actually loads.
+    if (legacy83 && computed.getPropertyValue("--yummy-go-legacy83-ready").replace(/\\s/g, "") !== "1") return false;
     ready = true;
     if (timeout !== null) window.clearTimeout(timeout);
     root.setAttribute("data-native-startup", "ready");
     window.removeEventListener("${NATIVE_STARTUP_READY_EVENT}", onReady);
-    window.removeEventListener("load", onAssetLoad, true);
-    window.removeEventListener("error", onAssetError, true);
+    document.removeEventListener("load", onAssetLoad, true);
+    document.removeEventListener("error", onAssetError, true);
     document.removeEventListener("click", onRetry);
     return true;
   }
@@ -117,8 +161,9 @@ export const nativeStartupScript = `
     if (!ready && unsupported) showFailure("unsupported");
   }
   window.addEventListener("${NATIVE_STARTUP_READY_EVENT}", onReady);
-  window.addEventListener("load", onAssetLoad, true);
-  window.addEventListener("error", onAssetError, true);
+  // Resource load events stop at document; they do not reach window capture.
+  document.addEventListener("load", onAssetLoad, true);
+  document.addEventListener("error", onAssetError, true);
   document.addEventListener("click", onRetry);
   // DOMContentLoaded can itself wait on a hung deferred bundle. Bound startup
   // from this independent script; readiness never waits on auth or API calls.

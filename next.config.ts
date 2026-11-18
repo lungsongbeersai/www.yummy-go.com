@@ -2,31 +2,42 @@ import type { NextConfig } from "next";
 import { dirname } from "path";
 import { fileURLToPath } from "url";
 import packageManifest from "./package.json";
+import { createHash } from "node:crypto";
+import { readFileSync, readdirSync } from "node:fs";
 
 const appDir = dirname(fileURLToPath(import.meta.url));
 const capacitorDevOrigin = process.env.CAPACITOR_DEV_ORIGIN?.trim();
-const transpilePackages = ["html2canvas-pro"];
+const transpilePackages = ["html2canvas-pro", "@date-fns/tz", "react-redux"];
 
 interface WebpackCacheConfig {
   cache?: boolean | { type?: string; version?: string };
 }
 
-interface WebpackBuildContext {
-  isServer: boolean;
+function legacyCssFingerprint() {
+  const scripts = readdirSync(new URL("./scripts/", import.meta.url))
+    .filter(name => /^(?:postcss-)?legacy-.*\.cjs$/.test(name)).sort();
+  const hash = createHash("sha256");
+  for (const name of ["postcss.config.mjs", ...scripts.map(name => `scripts/${name}`)]) {
+    hash.update(name).update("\0").update(readFileSync(new URL(name, import.meta.url)));
+  }
+  return hash.digest("hex");
 }
 
 const nextConfig: NextConfig = {
-  // PDF capture is loaded on demand. Its distributed bundle contains class
-  // static blocks, so it must use the same browser target as application code.
+  // Distributed PDF, calendar and chart dependencies contain class static
+  // blocks or logical assignment. Compile them to the same native target.
   transpilePackages,
   turbopack: {},
-  webpack(config: WebpackCacheConfig, { isServer }: WebpackBuildContext) {
+  webpack(config: WebpackCacheConfig) {
     // Next 16's cache omits these targets and dependency opt-ins. A stale cache
     // can otherwise retain unsupported syntax even after a successful build.
-    if (!isServer && config.cache && typeof config.cache === "object" && config.cache.type === "filesystem") {
+    // CSS is compiled on both sides; PostCSS's lazy local plugins are not all
+    // tracked as loader dependencies. Hash their contents at build time only.
+    if (config.cache && typeof config.cache === "object" && config.cache.type === "filesystem") {
       config.cache.version = `${config.cache.version ?? ""}|yummy-go-browser:${JSON.stringify({
         browserslist: packageManifest.browserslist,
         transpilePackages,
+        legacyCss: legacyCssFingerprint(),
       })}`;
     }
     return config;

@@ -203,6 +203,10 @@ const DAILY_SALES_EXTRA_STYLES = `
       .grand-total { margin: 0; padding: 1mm 0; border: 0; font-size: 14px; }
       .grand-total span:last-child { font-size: 17px; }
       .revenue-total { margin-top: 0.6mm; padding: 1mm 0; border-top: 1px solid #000; font-size: 14px; }
+      @supports not selector(:where(*)) {
+        .date-head { gap: 0; }
+        .date-head > * + * { margin-left: 2mm; }
+      }
 `;
 
 export function renderDailySalesPrintHtml(data: DailySalesPrintData) {

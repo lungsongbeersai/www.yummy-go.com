@@ -1,5 +1,5 @@
 import { createRequire } from "node:module";
-import { runInNewContext } from "node:vm";
+import { createContext, runInContext } from "node:vm";
 import { describe, expect, it } from "vitest";
 import { getAndroidWebViewCompatInfo } from "@/lib/android-webview-compat";
 import {
@@ -43,7 +43,9 @@ interface StartupOptions {
   storageThrows?: boolean;
   cssSupports?: (property: string, value?: string) => boolean;
   stylesReady?: string;
+  legacy83StylesReady?: string;
   documentReady?: boolean;
+  missingReplaceAll?: boolean;
 }
 
 function bootstrap(options: StartupOptions = {}) {
@@ -65,6 +67,7 @@ function bootstrap(options: StartupOptions = {}) {
   let reloads = 0;
   let headingFocuses = 0;
   let stylesReady = options.stylesReady ?? "1";
+  let legacy83StylesReady = options.legacy83StylesReady ?? "1";
   const retry = { id: "native-startup-retry" };
   const version = { textContent: "" };
   const nodes = new Map<string, object>([
@@ -90,7 +93,7 @@ function bootstrap(options: StartupOptions = {}) {
     CSS: { supports: options.cssSupports ?? (() => true) },
     location: { origin: "https://yummy-go.com", reload() { reloads += 1; } },
     getComputedStyle() {
-      return { getPropertyValue() { return stylesReady; } };
+      return { getPropertyValue(name: string) { return name === "--yummy-go-legacy83-ready" ? legacy83StylesReady : stylesReady; } };
     },
     setTimeout(callback: Listener, delay: number) {
       const id = ++nextTimer;
@@ -100,7 +103,7 @@ function bootstrap(options: StartupOptions = {}) {
     clearTimeout(id: number) { timers.delete(id); },
   };
 
-  runInNewContext(nativeStartupScript, {
+  const context = createContext({
     document,
     window,
     navigator: { userAgent: options.userAgent ?? androidUa() },
@@ -111,12 +114,15 @@ function bootstrap(options: StartupOptions = {}) {
       },
     },
   });
+  runInContext((options.missingReplaceAll ? "delete String.prototype.replaceAll;\n" : "") +
+    "var originalReplaceAll = String.prototype.replaceAll;\n" + nativeStartupScript, context);
 
   return {
     attributes,
     classes,
     version,
     timers,
+    evaluate(source: string): unknown { return runInContext(source, context); },
     get status() { return attributes.get("data-native-startup"); },
     get reloads() { return reloads; },
     get headingFocuses() { return headingFocuses; },
@@ -126,13 +132,14 @@ function bootstrap(options: StartupOptions = {}) {
     },
     appReady() { window.emit(NATIVE_STARTUP_READY_EVENT); },
     resourceFailed(url = "/_next/static/chunks/startup.js") {
-      window.emit("error", { target: { tagName: "SCRIPT", src: url } });
+      document.emit("error", { target: { tagName: "SCRIPT", src: url } });
     },
     stylesheetLoaded(url = "https://yummy-go.com/_next/static/css/app.css") {
-      window.emit("load", { target: { tagName: "LINK", href: url } });
+      document.emit("load", { target: { tagName: "LINK", href: url } });
     },
     retry() { document.emit("click", { target: retry }); },
     setStylesReady(value: string) { stylesReady = value; },
+    setLegacy83StylesReady(value: string) { legacy83StylesReady = value; },
     advance(milliseconds: number) {
       now += milliseconds;
       for (const [id, timer] of [...timers]) {
@@ -165,6 +172,14 @@ describe("native Android startup before the app runtime", () => {
     expect(startup.timers.size).toBe(1);
     startup.domReady();
     expect(startup.version.textContent).toBe(`WebView ${engine}`);
+    startup.appReady();
+    expect(startup.status).toBe("ready");
+  });
+
+  it.each([83, 85, 87])("accepts WebView %i with its dedicated selector fallback before hydration", (engine) => {
+    const startup = bootstrap({ userAgent: androidUa(engine), cssSupports: property => property !== "selector(:where(*))" });
+    expect(startup.classes.has("android-webview-83")).toBe(true);
+    expect(startup.status).toBe("loading");
     startup.appReady();
     expect(startup.status).toBe("ready");
   });
@@ -224,11 +239,48 @@ describe("native Android startup before the app runtime", () => {
   });
 });
 
+describe("legacy native String replacement before Next starts", () => {
+  function legacy() {
+    return bootstrap({ userAgent: androidUa(83), missingReplaceAll: true });
+  }
+
+  it("replaces every literal separator used by payment and dashboard parsing", () => {
+    const startup = legacy();
+    expect(startup.evaluate('"1,234,567".replaceAll(",", "")')).toBe("1234567");
+    expect(startup.evaluate('"||branch|".replaceAll("|", "")')).toBe("branch");
+    expect(startup.evaluate('"mdi-food-outline".replaceAll("-", " ")')).toBe("mdi food outline");
+    expect(startup.evaluate('"[a].*[a].*".replaceAll("[a].*", "$&!")')).toBe("[a].*![a].*!");
+  });
+
+  it("preserves empty-search, function replacements and substitution syntax", () => {
+    const startup = legacy();
+    expect(startup.evaluate('"ab".replaceAll("", "-")')).toBe("-a-b-");
+    expect(startup.evaluate('"aba".replaceAll("a", function (match, offset) { return String(offset); })')).toBe("0b2");
+    expect(startup.evaluate('"aba".replaceAll("a", "$$")')).toBe("$b$");
+    expect(startup.evaluate('"aba".replaceAll(/a/g, "x")')).toBe("xbx");
+    expect(() => startup.evaluate('"aba".replaceAll(/a/, "x")')).toThrow(/global regular expression/);
+  });
+
+  it("honors custom Symbol.replace and rejects invalid receivers", () => {
+    const startup = legacy();
+    expect(startup.evaluate('var search = {}; search[Symbol.replace] = function (value, replacement) { return value + replacement; }; "a".replaceAll(search, "b")')).toBe("ab");
+    expect(() => startup.evaluate('String.prototype.replaceAll.call(null, "a", "b")')).toThrow(/null or undefined/);
+    expect(() => startup.evaluate('"a".replaceAll(Symbol("a"), "b")')).toThrow(/Symbol/);
+    expect(startup.evaluate('Object.getOwnPropertyDescriptor(String.prototype, "replaceAll").enumerable')).toBe(false);
+  });
+
+  it("preserves native implementations and does not patch ordinary browsers", () => {
+    expect(bootstrap().evaluate("String.prototype.replaceAll === originalReplaceAll")).toBe(true);
+    const browser = bootstrap({ userAgent: androidUa(83).replace(appMarker, ""), missingReplaceAll: true });
+    expect(browser.evaluate('typeof String.prototype.replaceAll')).toBe("undefined");
+  });
+});
+
 describe("native Android startup recovery", () => {
-  it("requests an update for engines below 88 or without the required selector support", () => {
+  it("requests an update for engines below 83 or without basic selector feature detection", () => {
     for (const options of [
-      { userAgent: androidUa(87) },
-      { userAgent: androidUa(101), cssSupports: (property: string) => property !== "selector(:where(*))" },
+      { userAgent: androidUa(82) },
+      { userAgent: androidUa(101), cssSupports: (property: string) => property !== "selector(*)" },
     ]) {
       const startup = bootstrap(options);
       startup.domReady();
@@ -238,6 +290,22 @@ describe("native Android startup recovery", () => {
       expect(startup.timers.size).toBe(0);
       expect(startup.reloads).toBe(0);
     }
+  });
+
+  it("keeps recovery available when WebView 83 receives an old stylesheet and recovers after its selector fallback arrives", () => {
+    const startup = bootstrap({ userAgent: androidUa(83), legacy83StylesReady: "" });
+    startup.appReady();
+    expect(startup.status).toBe("loading");
+    startup.advance(NATIVE_STARTUP_TIMEOUT_MS);
+    expect(startup.status).toBe("failed");
+    startup.setLegacy83StylesReady(" 1 \n");
+    startup.stylesheetLoaded();
+    expect(startup.status).toBe("ready");
+    expect(startup.reloads).toBe(0);
+    expect(bootstrap({ userAgent: androidUa(88), legacy83StylesReady: "" }).classes.has("android-webview-83")).toBe(false);
+    const newer = bootstrap({ userAgent: androidUa(88), legacy83StylesReady: "" });
+    newer.appReady();
+    expect(newer.status).toBe("ready");
   });
 
   it("bounds startup even when a hung deferred script prevents DOMContentLoaded, then recovers on a late commit", () => {

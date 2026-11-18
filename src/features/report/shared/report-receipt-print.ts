@@ -37,6 +37,10 @@ export const RECEIPT_80MM_BASE_STYLES = `
       .headline-total-value { margin: 0.3mm 0 0; font-size: 16px; font-weight: 900; text-align: right; font-variant-numeric: tabular-nums; }
       .section-title { text-align: center; }
       .meta { text-align: left; }
+      @supports not selector(:where(*)) {
+        .total-row { gap: 0; }
+        .total-row > * + * { margin-left: 2mm; }
+      }
       @media print { html, body { width: 74mm; } }
 `;
 

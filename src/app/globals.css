@@ -4,6 +4,12 @@
 @import "../features/public-pos/order/nightfall.css";
 @import "tw-animate-css";
 @import "shadcn/tailwind.css";
+/* Include the same official toast CSS that Sonner injects at runtime so the
+   native cascade polyfill preserves its priority over the preflight reset. */
+@import "sonner/dist/styles.css";
+/* Vaul injects this same installed stylesheet. Keep its handle and drawer
+   rules in the native cascade compilation as well. */
+@import "../../node_modules/vaul/style.css";
 
 /* dark: ตาม .dark ที่ <html> (ธีมแอป) ยกเว้นในหน้าเมนู QR ที่มีธีมของตัวเอง: data-yg-theme="light" ปิด dark:
    แม้ <html> เป็น .dark, data-yg-theme="dark" เปิด dark: แม้ <html> สว่าง (ดู public-pos-theme.ts)
@@ -1069,7 +1075,9 @@ html.android-webview-compat:not([data-decor-background="off"]) [data-slot="sideb
   }
 
   html.capacitor-android [data-slot="card-header"] {
-    grid-template-columns: minmax(0, 1fr) auto;
+    /* A CardAction's col-start-2 creates its implicit second column. Headers
+       without an action keep title and description in separate full rows. */
+    grid-template-columns: minmax(0, 1fr);
   }
 }
 

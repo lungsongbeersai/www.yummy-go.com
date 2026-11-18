@@ -801,6 +801,11 @@ function invoiceSharedStyles(paperWidthMm: number) {
         height: auto;
         margin: 0 auto 1.5mm;
         object-fit: contain;
+      }
+      @supports not selector(:where(*)) {
+        .exchange-row, .total-row, .item-main, .item-meta, .topping-line, .grand-total { gap: 0; }
+        .exchange-row > * + *, .grand-total > * + * { margin-left: 1mm; }
+        .total-row > * + *, .item-main > * + *, .item-meta > * + *, .topping-line > * + * { margin-left: 2mm; }
       }`;
 }
 

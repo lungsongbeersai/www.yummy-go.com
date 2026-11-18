@@ -1,11 +1,13 @@
 import { createRequire } from "node:module";
 import postcss, { type AtRule, type Container, type Declaration, type Plugin, type Rule } from "postcss";
+import selectorParser from "postcss-selector-parser";
 import { describe, expect, it } from "vitest";
 
 const require = createRequire(import.meta.url);
 const geometry = require("../../scripts/postcss-legacy-webview-geometry.cjs") as () => Plugin;
 const layers = require("../../scripts/postcss-legacy-webview-layers.cjs") as () => Plugin;
 const colors = require("../../scripts/postcss-legacy-webview-opacity.cjs") as () => Plugin;
+const moduleLocals = require("next/dist/compiled/postcss-modules-local-by-default") as (options: { mode: "pure" }) => Plugin;
 
 async function transform(input: string, includeLayers = false) {
   return postcss([geometry(), ...(includeLayers ? [layers()] : [])]).process(input, { from: undefined });
@@ -30,13 +32,38 @@ function declaration(rule: Container, property: string) {
   return rule.nodes?.filter((node): node is Declaration => node.type === "decl" && node.prop === property).at(-1);
 }
 
+function withoutPropertyDefaults(container: Container) {
+  return container.nodes?.filter((node) => !(node.type === "atrule" &&
+    ((node.name === "layer" && node.params === "yummy-legacy-properties") ||
+      (node.name === "supports" && node.params === "not selector(:where(*))"
+        && node.nodes?.some(child => child.type === "atrule" && child.name === "layer" && child.params === "yummy-legacy-properties"))))) ?? [];
+}
+
+type Specificity = [number, number, number];
+function weight(selector: selectorParser.Selector): Specificity {
+  const total: Specificity = [0, 0, 0];
+  for (const node of selector.nodes) {
+    if (node.type === "id") total[0]++;
+    else if (node.type === "class" || node.type === "attribute") total[1]++;
+    else if (node.type === "tag") total[2]++;
+    else if (node.type === "pseudo" && node.value !== ":where") {
+      if ([":not", ":is", ":has"].includes(node.value)) {
+        const maximum = node.nodes.map(weight).sort((a, b) => a[0] - b[0] || a[1] - b[1] || a[2] - b[2]).at(-1) ?? [0, 0, 0];
+        maximum.forEach((value, index) => { total[index] += value; });
+      } else if (node.value.startsWith("::")) total[2]++;
+      else total[1]++;
+    }
+  }
+  return total;
+}
+
 const transformSupport = "not ((translate: 0) and (rotate: 0deg) and (scale: 1))";
 
 describe("native Android geometry on legacy WebViews", () => {
   it("keeps the original CSS unchanged and scopes each fallback by capability and platform", async () => {
     const input = ".center { translate: -50% -50%; height: 100dvh; overflow: clip; }";
     const result = await transform(input);
-    expect(result.root.first?.toString()).toBe(postcss.parse(input).first?.toString());
+    expect(withoutPropertyDefaults(result.root)[0]?.toString()).toBe(postcss.parse(input).first?.toString());
     for (const condition of [transformSupport, "not (height: 100dvh)", "not (overflow: clip)"]) {
       const fallback = support(result.root, condition);
       fallback.walkRules((rule) => {
@@ -117,7 +144,7 @@ describe("native Android geometry on legacy WebViews", () => {
     fallback.walkAtRules("property", (item) => { defaults.set(item.params, declaration(item, "initial-value")?.value ?? ""); });
     expect(defaults.get("--yg-scale-y")).toBe("1");
     expect(defaults.get("--yg-scale-z")).toBe("1");
-    expect(result.root.first?.toString()).toContain("initial-value: 100%");
+    expect(withoutPropertyDefaults(result.root)[0]?.toString()).toContain("initial-value: 100%");
   });
 
   it("bounds arbitrary viewport expressions and variables while retaining full-screen and top-anchored layouts", async () => {
@@ -155,7 +182,7 @@ describe("native Android geometry on legacy WebViews", () => {
     let animatedTransform: string | undefined;
     frames[0].walkDecls("transform", (item) => { animatedTransform = item.value; });
     expect(animatedTransform).toBe("var(--yg-translate) var(--yg-rotate) var(--yg-scale) scale(0.95)");
-    expect(result.root.nodes.slice(0, 5).map((node) => node.toString()).join("\n")).toBe(postcss.parse(input).nodes.map((node) => node.toString()).join("\n"));
+    expect(withoutPropertyDefaults(result.root).slice(0, 5).map((node) => node.toString()).join("\n")).toBe(postcss.parse(input).nodes.map((node) => node.toString()).join("\n"));
   });
 
   it("keeps pseudo-element geometry attached to the pseudo-element", async () => {
@@ -210,5 +237,78 @@ describe("native Android geometry on legacy WebViews", () => {
     const references: string[] = [];
     result.root.walkDecls("--animate-alert", (item) => { references.push(item.value); });
     expect(references).toContain("yg-legacy-alert-pulse-yummy-android-srgb 1s infinite");
+  });
+
+  it("initializes non-inherited transform, ring and animation variables on every native 83 element and pseudo-element", async () => {
+    const result = await transform(`
+      @property --tw-translate-x { syntax: "*"; inherits: false; initial-value: 0; }
+      @property --tw-translate-y { syntax: "*"; inherits: false; initial-value: 0; }
+      @property --tw-ring-offset-width { syntax: "<length>"; inherits: false; initial-value: 0; }
+      @property --gradient-stop { syntax: "<length-percentage>"; inherits: false; initial-value: 0; }
+      @property --tw-duration { syntax: "*"; inherits: false; }
+      @property --document-accent { syntax: "<color>"; inherits: true; initial-value: red; }
+      .parent { translate: -50% -50%; --tw-duration: 900ms; }
+      .child { --tw-translate-y: -50%; translate: var(--tw-translate-x) var(--tw-translate-y); }
+    `);
+    const fallback = support(result.root, "not selector(:where(*))");
+    const defaults = new Map<string, string>();
+    fallback.walkDecls((item) => { defaults.set(item.prop, item.value); });
+    expect(defaults.get("--yg-translate")).toBe("translate(0, 0)");
+    expect(defaults.get("--yg-transform")).toBe("translate(0, 0)");
+    expect(defaults.get("--yg-scale-x")).toBe("1");
+    expect(defaults.get("--yg-scale-y")).toBe("1");
+    expect(defaults.get("--tw-translate-x")).toBe("0");
+    expect(defaults.get("--tw-translate-y")).toBe("0");
+    expect(defaults.get("--tw-ring-offset-width")).toBe("0px");
+    expect(defaults.get("--gradient-stop")).toBe("0px");
+    expect(defaults.get("--tw-duration")).toBe("initial");
+    expect(defaults.has("--document-accent")).toBe(false);
+    fallback.walkRules((rule) => {
+      expect(rule.selector).toContain(":where(.capacitor-android, .capacitor-android *)");
+      for (const pseudo of ["::before", "::after", "::backdrop"]) expect(rule.selector).toContain(pseudo);
+    });
+  });
+
+  it("keeps explicit defaults below utilities after the pre-99 layer lowering", async () => {
+    const result = await transform("@layer utilities { .shift { translate: 8px 0; } }", true);
+    const fallback = support(result.root, "not (color: revert-layer)");
+    let defaultWeight: Specificity | undefined;
+    let utilityWeight: Specificity | undefined;
+    fallback.walkDecls("--yg-translate", (item) => {
+      if (item.parent?.type !== "rule") return;
+      const specificity = weight(selectorParser().astSync(item.parent.selector).first);
+      if (item.value === "translate(0, 0)") defaultWeight = specificity;
+      if (item.value === "translate(8px, 0)") utilityWeight = specificity;
+    });
+    expect(defaultWeight).toBeDefined(); expect(utilityWeight).toBeDefined();
+    const compare = utilityWeight![0] - defaultWeight![0] || utilityWeight![1] - defaultWeight![1] || utilityWeight![2] - defaultWeight![2];
+    expect(compare).toBeGreaterThan(0);
+    expect(result.root.first?.toString()).toBe("@layer yummy-legacy-properties");
+  });
+
+  it("retains conditional property initialization and ignores invalid registrations", async () => {
+    const result = await transform(`
+      @media (min-width: 640px) { @property --wide-offset { syntax: "<length>"; inherits: false; initial-value: 12px; } }
+      @property --invalid-registration { syntax: "<length>"; inherits: false; }
+    `);
+    const fallback = support(result.root, "not selector(:where(*))");
+    let conditional: Declaration | undefined;
+    fallback.walkDecls("--wide-offset", (item) => { conditional = item; });
+    expect(conditional?.parent?.parent?.type).toBe("atrule");
+    expect((conditional?.parent?.parent as AtRule).params).toBe("(min-width: 640px)");
+    const invalid: Declaration[] = [];
+    fallback.walkDecls("--invalid-registration", (item) => { invalid.push(item); });
+    expect(invalid).toEqual([]);
+  });
+
+  it("keeps CSS modules local while retaining their transform and viewport fallbacks", async () => {
+    const from = "/styles/panel.module.css";
+    const result = await postcss([geometry()]).process(".panel { translate: -50% 0; height: 100dvh; }", { from });
+    expect(result.css).not.toContain("yummy-legacy-properties");
+    result.root.walkRules((rule) => { expect(rule.selector).toContain(".panel"); });
+    expect(result.css).toContain("translate(-50%, 0)");
+    expect(result.css).toContain("height: 100vh");
+    const scoped = await postcss([moduleLocals({ mode: "pure" })]).process(result.css, { from });
+    expect(scoped.css).toContain(":local(.panel)");
   });
 });

@@ -20,17 +20,17 @@ export function NativeStartupFallback({ language }: { language: Language }) {
   const copy = NATIVE_STARTUP_COPY[language];
 
   return (
-    <div id="native-startup-fallback" role="alertdialog" aria-modal="true" aria-labelledby="native-startup-heading">
-      <section>
-        <h1 id="native-startup-heading" tabIndex={-1}>
-          <span data-startup-copy="failed">{copy.failedTitle}</span>
-          <span data-startup-copy="unsupported">{copy.unsupportedTitle}</span>
+    <div id="native-startup-fallback" data-native-startup-content role="alertdialog" aria-modal="true" aria-labelledby="native-startup-heading">
+      <section data-native-startup-content>
+        <h1 id="native-startup-heading" data-native-startup-content tabIndex={-1}>
+          <span data-native-startup-content data-startup-copy="failed">{copy.failedTitle}</span>
+          <span data-native-startup-content data-startup-copy="unsupported">{copy.unsupportedTitle}</span>
         </h1>
-        <p data-startup-copy="failed">{copy.failedBody}</p>
-        <p data-startup-copy="unsupported">{copy.unsupportedBody}</p>
+        <p data-native-startup-content data-startup-copy="failed">{copy.failedBody}</p>
+        <p data-native-startup-content data-startup-copy="unsupported">{copy.unsupportedBody}</p>
         {/* Keep the text node present so early diagnostics only change its value. */}
-        <p id="native-startup-version" suppressHydrationWarning>WebView</p>
-        <button id="native-startup-retry" type="button">{copy.retry}</button>
+        <p id="native-startup-version" data-native-startup-content suppressHydrationWarning>WebView</p>
+        <button id="native-startup-retry" data-native-startup-content type="button">{copy.retry}</button>
       </section>
     </div>
   );

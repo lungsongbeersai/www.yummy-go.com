@@ -1,4 +1,5 @@
 const NATIVE_SCOPE = ":where(.capacitor-android, .capacitor-android *)";
+const PROPERTY_DEFAULTS_LAYER = "yummy-legacy-properties";
 const TRANSFORM_SUPPORT = "not ((translate: 0) and (rotate: 0deg) and (scale: 1))";
 const LEGACY_PARTS = {
   translate: "--yg-translate",
@@ -167,10 +168,56 @@ function cloneRules(node, declarationsForRule, selectorParser, keyframeHandler) 
   return copy;
 }
 
+function addUnregisteredPropertyDefaults(root, postcss) {
+  const groups = new Map();
+  root.walkAtRules("property", (registration) => {
+    const inherits = registration.nodes?.find((node) => node.type === "decl" && node.prop === "inherits");
+    if (inherits?.value.trim() !== "false") return;
+    const initial = registration.nodes.find((node) => node.type === "decl" && node.prop === "initial-value");
+    const syntax = registration.nodes.find((node) => node.type === "decl" && node.prop === "syntax")?.value.trim();
+    // Only universal syntax can register without an initial value. Its CSS-wide
+    // initial is guaranteed-invalid, which also prevents inheritance on 83.
+    if (!initial && syntax !== '"*"' && syntax !== "'*'") return;
+    let value = initial?.value ?? "initial";
+    // Registration converts a unitless length zero into a typed 0px. Keep that
+    // unit when emulating it: calc(2px + var(--tw-ring-offset-width)) rejects
+    // an unregistered 0 even though the optimized @property initial-value is 0.
+    if (/^(['"])<length(?:-percentage)?>\1$/.test(syntax ?? "") && /^[+-]?(?:0+(?:\.0*)?|\.0+)$/.test(value.trim())) value = "0px";
+    const conditions = [];
+    for (let parent = registration.parent; parent?.type !== "root"; parent = parent?.parent) {
+      if (!parent) break;
+      if (parent.type === "atrule" && ["supports", "media", "container"].includes(parent.name)) {
+        conditions.unshift({ name: parent.name, params: parent.params });
+      }
+    }
+    const key = JSON.stringify(conditions);
+    if (!groups.has(key)) groups.set(key, { conditions, declarations: [] });
+    groups.get(key).declarations.push(postcss.decl({ prop: registration.params, value }));
+  });
+  if (!groups.size) return;
+
+  const fallback = postcss.atRule({ name: "supports", params: "not selector(:where(*))" });
+  const layer = postcss.atRule({ name: "layer", params: PROPERTY_DEFAULTS_LAYER });
+  for (const { conditions, declarations } of groups.values()) {
+    const selectors = ["", "::before", "::after", "::backdrop"].map((pseudo) => `${NATIVE_SCOPE}${pseudo}`).join(", ");
+    let copy = postcss.rule({ selector: selectors }).append(declarations);
+    for (let index = conditions.length - 1; index >= 0; index -= 1) {
+      copy = postcss.atRule(conditions[index]).append(copy);
+    }
+    layer.append(copy);
+  }
+  fallback.append(layer);
+  // A normal reset must remain below every utility, including a fixture with
+  // no Tailwind properties layer. Reserve a distinct lowest layer first; the
+  // layer compiler lowers it for 83 while preserving the original cascade.
+  root.prepend(fallback);
+  root.prepend(postcss.atRule({ name: "layer", params: PROPERTY_DEFAULTS_LAYER }));
+}
+
 module.exports = function legacyWebViewGeometry() {
   return {
     postcssPlugin: "yummy-go-legacy-webview-geometry",
-    async OnceExit(root) {
+    async OnceExit(root, { result }) {
       const [{ default: postcss }, { default: selectorParser }] = await Promise.all([
         import("postcss"), import("postcss-selector-parser"),
       ]);
@@ -187,8 +234,8 @@ module.exports = function legacyWebViewGeometry() {
       const viewport = postcss.atRule({ name: "supports", params: "not (height: 100dvh)" });
       const overflow = postcss.atRule({ name: "supports", params: "not (overflow: clip)" });
 
-      // Registration prevents a translated parent's parts leaking into a child.
-      // Chromium 88+, our supported legacy floor, implements @property already.
+      // Registration provides native non-inheritance on Chromium 85+. Below
+      // that, explicit per-element defaults are emitted after collection.
       for (const [part, property] of Object.entries(LEGACY_PARTS)) {
         const registration = postcss.atRule({ name: "property", params: property });
         registration.append({ prop: "syntax", value: '"*"' });
@@ -223,6 +270,10 @@ module.exports = function legacyWebViewGeometry() {
       root.append(transforms);
       if (viewport.nodes?.length) root.append(viewport);
       if (overflow.nodes?.length) root.append(overflow);
+      const sourcePath = result.opts.from ?? root.source?.input.file ?? "";
+      // globals.css initializes every native element already. Repeating that
+      // global reset inside a CSS module violates its local-selector boundary.
+      if (!/\.module\.css(?:[?#].*)?$/i.test(sourcePath)) addUnregisteredPropertyDefaults(root, postcss);
     },
   };
 };

@@ -43,7 +43,18 @@ module.exports = function legacyWebViewLayers() {
         import("postcss-selector-parser"),
         import("@csstools/postcss-cascade-layers"),
       ]);
-      const legacy = await postcss([cascadeLayers()]).process(root.clone(), {
+      const source = root.clone();
+      source.walkRules((rule) => {
+        // Keep invisible provenance for the83 pass. The official polyfill's
+        // per-sheet ID stride cannot describe unlayered rules in another chunk.
+        rule.raws.yummyGoOriginalSelectors = rule.selector;
+        const names = [];
+        for (let parent = rule.parent; parent; parent = parent.parent) {
+          if (parent.type === "atrule" && parent.name === "layer") names.unshift(parent.params || "<anonymous>");
+        }
+        rule.raws.yummyGoOriginalLayer = names.join(".");
+      });
+      const legacy = await postcss([cascadeLayers()]).process(source, {
         from: result.opts.from,
         map: false,
       });

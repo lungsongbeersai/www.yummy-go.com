@@ -45,7 +45,7 @@ export function buildCommercialPages(template: HTMLElement, host: HTMLElement): 
       page.dataset.commercialPage = "true";
       before.forEach(node => page.append(node.cloneNode(true)));
       const pageTable = table.cloneNode(true) as HTMLTableElement;
-      pageTable.tBodies[0].replaceChildren();
+      pageTable.tBodies[0].textContent = "";
       page.append(pageTable);
       if (includeEnd) after.forEach(node => page.append(node.cloneNode(true)));
       host.append(page);

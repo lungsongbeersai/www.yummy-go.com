@@ -27,6 +27,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { AppUpdateChecker } from "@/features/app-update/app-update-checker";
 import { OnlineOnlyCutoverRuntime } from "@/features/online-only/online-only-cutover-runtime";
 import { NATIVE_STARTUP_READY_EVENT } from "@/lib/native-startup";
+import { installNativeLegacyLayout } from "@/lib/native-legacy-layout";
 
 interface ProvidersProps {
   children: React.ReactNode;
@@ -164,10 +165,11 @@ export function Providers({ children, initialLanguage }: ProvidersProps) {
 
   useEffect(() => {
     const cleanupCapacitorPlatformClasses = applyCapacitorPlatformClasses();
+    const cleanupLegacyLayout = installNativeLegacyLayout();
     window.dispatchEvent(new Event(NATIVE_STARTUP_READY_EVENT));
     void useAppStore.persist.rehydrate();
 
-    return cleanupCapacitorPlatformClasses;
+    return () => { cleanupLegacyLayout(); cleanupCapacitorPlatformClasses(); };
   }, []);
 
   useEffect(() => {

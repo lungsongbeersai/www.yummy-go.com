@@ -6,8 +6,9 @@ import * as React from "react"
 // dialog shakes instead, to say "use the buttons". Web Animations API rather than a CSS keyframe:
 // the dialog's own open/close classes already own the CSS `animation` property, and this needs no
 // new global CSS. Most browsers center with `translate`, leaving `transform` free for shaking.
-// Swan 1's older WebView needs a transform-based centering fallback, so it uses the ring flash.
+// Older WebViews center with transform instead, so they use the ring flash.
 const SHAKE_ID = "dialog-shake"
+const activeShakes = new WeakMap<HTMLElement, Animation>()
 const SHAKE_KEYFRAMES: Keyframe[] = [0, -10, 10, -8, 8, -4, 4, 0].map((x) => ({
   transform: `translateX(${x}px)`,
 }))
@@ -19,17 +20,18 @@ const FLASH_KEYFRAMES: Keyframe[] = [
 
 export function shakeDialog(element: HTMLElement | null) {
   if (!element || typeof element.animate !== "function") return
-  element.getAnimations().forEach((animation) => {
-    if (animation.id === SHAKE_ID) animation.cancel()
-  })
+  // Element.getAnimations is absent on WebView 83 even though animate exists.
+  activeShakes.get(element)?.cancel()
   const reduceMotion =
     window.matchMedia("(prefers-reduced-motion: reduce)").matches ||
+    typeof CSS === "undefined" || !CSS.supports("translate", "0") ||
     document.documentElement.classList.contains("swan1-legacy-colors")
   const animation = element.animate(reduceMotion ? FLASH_KEYFRAMES : SHAKE_KEYFRAMES, {
     duration: reduceMotion ? 600 : 400,
     easing: "ease-in-out",
   })
   animation.id = SHAKE_ID
+  activeShakes.set(element, animation)
 }
 
 function assignRef<T>(ref: React.Ref<T> | undefined, node: T | null) {

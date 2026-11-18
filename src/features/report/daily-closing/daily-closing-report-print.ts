@@ -291,6 +291,10 @@ const DAILY_CLOSING_EXTRA_STYLES = `
         text-align: center;
         overflow-wrap: anywhere;
       }
+      @supports not selector(:where(*)) {
+        /* These totals use supported grid gaps, overriding the receipt flex fallback. */
+        .daily-closing .total-row > * + * { margin-left: 0; }
+      }
 
       .daily-closing .signature-line {
         margin-top: 0;

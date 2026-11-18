@@ -3,7 +3,7 @@
   "version": "2.0.0",
   "private": true,
   "browserslist": [
-    "chrome 88",
+    "chrome 83",
     "edge 111",
     "firefox 111",
     "safari 16.4"

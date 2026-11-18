@@ -63,7 +63,8 @@ export function CommercialLivePreview({ document, statusLabel }: CommercialLiveP
     // Keep the canonical source and iframe intact while replacing only the
     // prepared A4 pages, so edits retain focus and old filler rows never grow.
     paper.innerHTML = nextPaper.innerHTML;
-    target.querySelector("title")?.replaceChildren(target.createTextNode(rendered.title));
+    const title = target.querySelector("title");
+    if (title) title.textContent = rendered.title;
     target.documentElement.setAttribute("data-lao-font", laoFont);
     void updateCommercialPreview(target, current).then(result => {
       if (!result || !current()) return;
