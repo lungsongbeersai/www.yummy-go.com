@@ -1,12 +1,32 @@
 import { createRequire } from "node:module";
 import postcss, { type Plugin } from "postcss";
 import { describe, expect, it } from "vitest";
-import { legacyAspectRatio, legacyGapMargin, legacyGapPixels, legacyLayoutRoots, legacyLayoutScope, legacyMarginValue, oppositeSide } from "./native-legacy-layout-values";
+import { legacyAspectRatio, legacyBodyLayoutStyleSignature, legacyGapMargin, legacyGapPixels, legacyLayoutRoots, legacyLayoutScope, legacyMarginValue, oppositeSide } from "./native-legacy-layout-values";
 
 const require = createRequire(import.meta.url);
 const compiler = require("../../scripts/postcss-legacy-webview-layout.cjs") as () => Plugin;
 
 describe("legacy native layout values", () => {
+  it("does not rescan the catalog for a modal body pointer lock or its removal", () => {
+    const initial = legacyBodyLayoutStyleSignature([["width", "100%", ""]]);
+    expect(legacyBodyLayoutStyleSignature([["pointer-events", "none", ""], ["width", "100%", ""]])).toBe(initial);
+    expect(legacyBodyLayoutStyleSignature([["width", "100%", ""], ["pointer-events", "auto", "important"]])).toBe(initial);
+    expect(legacyBodyLayoutStyleSignature([["width", "100%", ""]])).toBe(initial);
+  });
+  it("retains scrollbar padding changes even in the same batch as a pointer lock", () => {
+    const initial = legacyBodyLayoutStyleSignature([]);
+    expect(legacyBodyLayoutStyleSignature([["pointer-events", "none", ""], ["padding-right", "15px", ""]])).not.toBe(initial);
+  });
+  it("keeps layout declaration removals, priorities and inherited custom values significant", () => {
+    expect(legacyBodyLayoutStyleSignature([["width", "100%", ""]])).not.toBe(legacyBodyLayoutStyleSignature([]));
+    expect(legacyBodyLayoutStyleSignature([["margin-right", "0px", "important"]])).not.toBe(legacyBodyLayoutStyleSignature([["margin-right", "0px", ""]]));
+    expect(legacyBodyLayoutStyleSignature([["--spacing", "4px", ""]])).not.toBe(legacyBodyLayoutStyleSignature([["--spacing", "8px", ""]]));
+  });
+  it("preserves reset declaration order and values containing CSS punctuation", () => {
+    const entries = [["background-image", "url('data:image/svg+xml;a:b')", ""], ["font-size", "16px", "important"]] as const;
+    expect(legacyBodyLayoutStyleSignature([["all", "unset", ""], entries[1]])).not.toBe(legacyBodyLayoutStyleSignature([entries[1], ["all", "unset", ""]]));
+    expect(legacyBodyLayoutStyleSignature(entries)).not.toBe(legacyBodyLayoutStyleSignature([["background-image", "none", ""], entries[1]]));
+  });
   it.each([["1", 1], ["16 / 9", 16 / 9], ["210/297", 210 / 297], ["auto 1/1", 1], ["0/1", null], ["1/0", null], ["auto", null], ["", null]])("reads ratio %s", (value, expected) => {
     expect(legacyAspectRatio(String(value))).toBe(expected);
   });

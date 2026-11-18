@@ -1,5 +1,13 @@
 export type MarginSide = "top" | "right" | "bottom" | "left";
 
+export type LegacyInlineStyleEntry = readonly [property: string, value: string, priority: string];
+
+/** Radix's body pointer lock changes interaction, not flex/aspect layout. */
+export function legacyBodyLayoutStyleSignature(entries: readonly LegacyInlineStyleEntry[]) {
+  return JSON.stringify(entries
+    .filter(([property]) => property !== "pointer-events"));
+}
+
 function words(value: string) {
   return value.match(/(?:[^\s()]+|\([^)]*\))+/g) ?? [];
 }

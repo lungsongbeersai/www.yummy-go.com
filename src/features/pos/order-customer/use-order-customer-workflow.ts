@@ -226,10 +226,12 @@ export function useOrderCustomerWorkflow({
     cart: selectedCart,
     userUuid: user?.uuid ?? "",
   });
+  const activeMenuCategories = menuBySort[activeSort];
+  // Other menu groups arrive independently; keep the visible cards stable
+  // when only a different group's catalog has finished loading.
   const activeProducts = useMemo(
-    () =>
-      flattenProducts(menuBySort[activeSort]),
-    [activeSort, menuBySort],
+    () => flattenProducts(activeMenuCategories),
+    [activeMenuCategories],
   );
   const cartCount = useMemo(
     () => cartQuantityCount(selectedCart),

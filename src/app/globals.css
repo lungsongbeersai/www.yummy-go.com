@@ -1035,6 +1035,28 @@ html.android-webview-compat:not([data-decor-background="off"]) [data-slot="sideb
   background: var(--popover) !important;
 }
 
+/* Chromium 83 gives an absolutely positioned button with auto sizing its
+   intrinsic width, even with both insets set. Keep the POS action target over
+   the entire card on old native terminals instead of a 44px strip. */
+html.capacitor-android.android-webview-83 [data-pos-product-card="true"] > [data-slot="button"] {
+  top: 0;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  width: 100% !important;
+  height: 100% !important;
+}
+
+/* A fading closed Radix overlay still owns RemoveScroll. Release both modal
+   surfaces immediately so the next cashier scroll/click is not discarded. */
+html.capacitor-android.android-webview-83 [data-slot="dialog-overlay"][data-state="closed"],
+html.capacitor-android.android-webview-83 [data-slot="dialog-content"][data-state="closed"],
+html.capacitor-android.android-webview-83 [data-slot="sheet-overlay"][data-state="closed"],
+html.capacitor-android.android-webview-83 [data-slot="sheet-content"][data-state="closed"] {
+  animation: none !important;
+  transition: none !important;
+}
+
 /* These controls normally use :has() to arrange their children. Keep forms,
    inline alerts and card actions usable on older native engines using their
    existing slot attributes; capable engines keep the shared primitive styles. */

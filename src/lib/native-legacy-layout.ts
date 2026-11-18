@@ -1,4 +1,4 @@
-import { legacyAspectRatio, legacyGapMargin, legacyGapPixels, legacyLayoutRoots, legacyMarginValue, oppositeSide, type MarginSide } from "@/lib/native-legacy-layout-values";
+import { legacyAspectRatio, legacyBodyLayoutStyleSignature, legacyGapMargin, legacyGapPixels, legacyLayoutRoots, legacyMarginValue, oppositeSide, type MarginSide } from "@/lib/native-legacy-layout-values";
 
 type StyledElement = HTMLElement | SVGElement;
 interface OwnedValue { owner: Element; original: string; cssPriority: string; written: string; requested: string; crossAxis: boolean }
@@ -32,6 +32,12 @@ export function installNativeLegacyLayout() {
   const observed = new Set<Element>();
   let frame = 0;
   let stopped = false;
+  function bodyLayoutStyleSignature() {
+    const style = document.body.style;
+    return legacyBodyLayoutStyleSignature(Array.from(style, property =>
+      [property, style.getPropertyValue(property), style.getPropertyPriority(property)] as const));
+  }
+  let bodyLayoutStyle = bodyLayoutStyleSignature();
 
   function currentOriginal(element: StyledElement, property: string, entry: OwnedValue) {
     if (element.style.getPropertyValue(property) !== entry.written || element.style.getPropertyPriority(property) !== "important") {
@@ -237,6 +243,15 @@ export function installNativeLegacyLayout() {
         continue;
       }
       if (record.attributeName === "style" && lastStyles.get(record.target) === record.target.getAttribute("style")) continue;
+      if (record.attributeName === "style" && record.target === document.body) {
+        const nextBodyLayoutStyle = bodyLayoutStyleSignature();
+        const layoutChanged = nextBodyLayoutStyle !== bodyLayoutStyle;
+        bodyLayoutStyle = nextBodyLayoutStyle;
+        // Opening a real Radix modal locks body pointer events. That must not
+        // rescan the product catalog behind it. Padding, width, font and all
+        // other declarations still retain the existing conservative refresh.
+        if (!layoutChanged) continue;
+      }
       enqueue(record.target, true);
       if (record.target.parentElement) enqueue(record.target.parentElement);
     }

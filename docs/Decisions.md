@@ -1,5 +1,17 @@
 # Decisions
 
+## Legacy native product cards receive clicks across their full surface
+
+- **Date:** 2026-11-18.
+- **Evidence:** The owner reported that the SUNMI sales page loaded slowly and product clicks through AnyDesk did nothing. Genuine Chromium 83 reproduced a 162.656px-wide card whose absolute action button was only 44px wide despite all four resolved insets being zero. A mouse click at the card center reached its decorative fallback instead of the button, producing no detail request or modal. Earlier button-centered checks missed this difference between the button and the visible card.
+- **Hit target:** Explicit 100% button dimensions and physical insets apply only to direct product-card action buttons under `html.capacitor-android.android-webview-83`. Existing enabled/disabled states, handlers and card contents remain authoritative; web, Electron and capable Android selectors are unchanged.
+- **Rendering:** The native legacy layout helper compares the body's inline declarations and skips a refresh when only Radix's pointer-events lock changes. Declaration order, values, priorities, removals, padding, dimensions, fonts and unknown/custom properties remain significant. Opening a real Radix modal no longer scans the unchanged catalog. The visible catalog memo depends on its active group, avoiding card recreation when another menu group finishes loading without changing displayed data or ordering behavior.
+- **Returning to sales:** Closed dialog/sheet overlays and content end their animation immediately on native WebView 83. Actual wheel events exposed a closed, pointer-transparent overlay still owning RemoveScroll and swallowing a cashier's next scroll. Removing only the old native exit animation releases the existing Radix lock without a delay or a second gesture system; four repeated immediate-scroll checks passed.
+- **Performance evidence:** Paired development-fixture checks used the actual POS shell/workflow on Chromium 83. With 300 cards, tap-to-request style reads fell from 4,491 to 182 and click-to-loading paint from 1,671ms to 1,344ms. With 16 cards under a simulated sixfold CPU slowdown, paint fell from 7,714ms to 2,936ms. Normal-speed 16-card paint was effectively unchanged (268ms versus 283ms). These are local development-fixture timings, not production or physical SUNMI latency measurements; first-load timing did not materially improve in that fixture. Idle style reads settled to zero in all measured profiles.
+- **Validation:** All 3,795 tests in 299 files, typecheck, lint, twelve deployment fixtures and the webpack production build passed; lint retains five existing warnings. Local build ID: `kZS7L-yZPMOs9wtefZcUq`. Actual Chromium 83 checks covered five mouse and five touch locations across cards and 80 geometric hit targets. Six modern web/capable Android before/after cases retained identical card/button geometry and working center clicks.
+- **Boundary:** No financial mutation, pricing, printing protocol or offline behavior changes. Browser checks use synthetic data and do not connect to the shop's AnyDesk session or physical terminal.
+- **Authorization:** The owner's explicit request to restore usable product clicks and improve SUNMI speed while preserving other devices' working behavior.
+
 ## Shared overlays remain scrollable and checkout continues after an authoritative commit
 
 - **Date:** 2026-11-18.
