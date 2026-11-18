@@ -32,4 +32,33 @@ describe("committed cancellation effects", () => {
     expect(result.refreshError).toBe(failure);
     expect(result.printResult).toBe("printed");
   });
+
+  it("starts the prepared print without waiting for a slow bill refresh", async () => {
+    let finishRefresh!: () => void;
+    const refreshing = new Promise<void>(resolve => { finishRefresh = resolve; });
+    const print = vi.fn(async () => "printed");
+    const completion = finishCommittedCartItemAction({
+      invalidate: () => {},
+      refresh: () => refreshing,
+      print,
+    });
+    try {
+      await vi.waitFor(() => expect(print).toHaveBeenCalledOnce());
+      finishRefresh();
+      expect((await completion).printResult).toBe("printed");
+    } finally {
+      finishRefresh();
+      await completion;
+    }
+  });
+
+  it("settles both independent failures without rejecting a committed action", async () => {
+    const refreshError = new Error("cart unavailable");
+    const printError = new Error("printer unavailable");
+    await expect(finishCommittedCartItemAction({
+      invalidate: () => {},
+      refresh: () => { throw refreshError; },
+      print: () => { throw printError; },
+    })).resolves.toMatchObject({ refreshError, printError });
+  });
 });

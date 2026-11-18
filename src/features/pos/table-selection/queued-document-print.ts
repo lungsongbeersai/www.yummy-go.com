@@ -145,9 +145,9 @@ export function createCheckoutDocumentActionGuard() {
 // This is only an in-flight action lock; Backend owns every payment and print job.
 export const checkoutDocumentActionGuard = createCheckoutDocumentActionGuard();
 
-// Payment has already committed. Keep its dialog and print loading visible
-// until the existing receipt job returns a delivery result. A print or screen
-// failure must never turn that committed payment into a payment error.
+// The server has committed payment. Start the owned receipt job before the
+// dialog closes, then let the cashier continue while printing and refreshing
+// complete independently. Neither can turn a paid bill into a payment error.
 export async function finishCommittedPayment({
   print,
   onCommitted,
@@ -155,7 +155,7 @@ export async function finishCommittedPayment({
   onPrintError,
 }: {
   print: () => Promise<QueuedDocumentPrintOutcome>;
-  onCommitted: (printOutcome: QueuedDocumentPrintOutcome) => void;
+  onCommitted: () => void;
   refresh: () => Promise<void>;
   onPrintError: (error: unknown) => void;
 }): Promise<{
@@ -170,26 +170,31 @@ export async function finishCommittedPayment({
     completionError?: unknown;
     refreshError?: unknown;
   } = { printOutcome: "error" };
-  try {
-    result.printOutcome = await print();
-  } catch (printError) {
-    result.printError = printError;
+  const printing = (async () => {
     try {
-      onPrintError(printError);
-    } catch (completionError) {
-      result.completionError = completionError;
+      result.printOutcome = await print();
+    } catch (printError) {
+      result.printError = printError;
+      try {
+        onPrintError(printError);
+      } catch (completionError) {
+        result.completionError = completionError;
+      }
     }
-  }
+  })();
   try {
-    onCommitted(result.printOutcome);
+    onCommitted();
   } catch (completionError) {
     result.completionError = completionError;
   }
-  try {
-    await refresh();
-  } catch (refreshError) {
-    result.refreshError = refreshError;
-  }
+  const refreshing = (async () => {
+    try {
+      await refresh();
+    } catch (refreshError) {
+      result.refreshError = refreshError;
+    }
+  })();
+  await Promise.all([printing, refreshing]);
   return result;
 }
 

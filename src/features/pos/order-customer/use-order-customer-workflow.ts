@@ -5,6 +5,7 @@ import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } fr
 import { useTranslation } from "react-i18next";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useResetOnDeps } from "@/hooks/use-reset-on-change";
+import { useExportCurrent } from "@/hooks/use-export-current";
 import { OrderChannelEnum, OrderSourceEnum } from "@/config/pos-constants";
 import {
   isCapacitorAndroidApp,
@@ -168,6 +169,9 @@ export function useOrderCustomerWorkflow({
   const productActionScopeKey = JSON.stringify([
     user?.uuid, branchUuid, initialTableUuid, counterOrderUuid, language, activeSort,
   ]);
+  const isCurrentOrderView = useExportCurrent(JSON.stringify([
+    "order-cart-refresh", initialTableUuid, counterOrderUuid, language,
+  ]));
   const productActionScope = useMemo(
     () => productActionRequest.createScope(productActionScopeKey),
     [productActionRequest, productActionScopeKey],
@@ -1186,7 +1190,9 @@ export function useOrderCustomerWorkflow({
   }
 
   const handleTableActionComplete = useCallback(async (nextTableUuid?: string) => {
+    if (!isCurrentOrderView()) return;
     const nextZones = await loadTablesForBranch();
+    if (!isCurrentOrderView()) return;
     const targetUuid = nextTableUuid || initialTableUuid;
 
     if (nextTableUuid && nextTableUuid !== initialTableUuid) {
@@ -1228,6 +1234,7 @@ export function useOrderCustomerWorkflow({
     counterOrderUuid,
     initialTableName,
     initialTableUuid,
+    isCurrentOrderView,
     language,
     loadCartStore,
     loadTablesForBranch,
@@ -1235,6 +1242,7 @@ export function useOrderCustomerWorkflow({
   ]);
 
   const handlePaymentComplete = useCallback(async () => {
+    if (!isCurrentOrderView()) return;
     if (isNoTableStore) {
       await handleTableActionComplete();
       return;
@@ -1242,7 +1250,7 @@ export function useOrderCustomerWorkflow({
 
     setCartSheetOpen(false);
     router.replace(tableSelectionUrl(selectedTableZoneUuid));
-  }, [handleTableActionComplete, isNoTableStore, router, selectedTableZoneUuid]);
+  }, [handleTableActionComplete, isCurrentOrderView, isNoTableStore, router, selectedTableZoneUuid]);
 
   return {
     activeProducts,

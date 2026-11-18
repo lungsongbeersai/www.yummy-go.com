@@ -1188,6 +1188,7 @@
     "orderChannelTakeaway": "Takeaway",
     "orderChannelDelivery": "Delivery",
     "paymentSuccess": "Payment completed",
+    "checkoutActionInProgress": "This bill already has a payment or print action in progress. Please wait for it to finish.",
     "paymentRefreshFailed": "Payment completed. Refresh the order before taking another payment.",
     "documentPrintQueued": "Document queued for printing",
     "paymentFailed": "Payment failed",

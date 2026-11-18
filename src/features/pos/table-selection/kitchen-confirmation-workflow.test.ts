@@ -161,6 +161,71 @@ describe("kitchen confirmation workflow", () => {
     expect(confirmationGuarded).toBe(false);
     expect(onRefreshError).not.toHaveBeenCalled();
   });
+
+  it("releases the completed print without refreshing a bill that replaced its view", async () => {
+    const printing = deferred();
+    let current = true;
+    const refresh = vi.fn(async () => {});
+    const closeLoading = vi.fn();
+    const release = vi.fn();
+    const workflow = runKitchenConfirmation({
+      confirmAndPrint: () => printing.promise,
+      closeLoading,
+      isCurrent: () => current,
+      onConfirmationError: vi.fn(),
+      onRefreshError: vi.fn(),
+      refresh,
+      release,
+    });
+    current = false;
+    printing.resolve();
+    await workflow;
+    expect(refresh).not.toHaveBeenCalled();
+    expect(closeLoading).toHaveBeenCalledOnce();
+    expect(release).toHaveBeenCalledOnce();
+  });
+
+  it("does not report an old confirmation failure in a different bill or account", async () => {
+    const onConfirmationError = vi.fn();
+    const refresh = vi.fn(async () => {});
+    const release = vi.fn();
+    await runKitchenConfirmation({
+      confirmAndPrint: async () => { throw new Error("old confirmation failed"); },
+      closeLoading: vi.fn(),
+      isCurrent: () => false,
+      onConfirmationError,
+      onRefreshError: vi.fn(),
+      refresh,
+      release,
+    });
+    expect(onConfirmationError).not.toHaveBeenCalled();
+    expect(refresh).not.toHaveBeenCalled();
+    expect(release).toHaveBeenCalledOnce();
+  });
+
+  it("suppresses a late cart refresh failure after the view is replaced", async () => {
+    let current = true;
+    let rejectRefresh!: (error: unknown) => void;
+    const refreshing = new Promise<void>((_resolve, reject) => { rejectRefresh = reject; });
+    const refresh = vi.fn(() => refreshing);
+    const onRefreshError = vi.fn();
+    const release = vi.fn();
+    const workflow = runKitchenConfirmation({
+      confirmAndPrint: async () => {},
+      closeLoading: vi.fn(),
+      isCurrent: () => current,
+      onConfirmationError: vi.fn(),
+      onRefreshError,
+      refresh,
+      release,
+    });
+    await vi.waitFor(() => expect(refresh).toHaveBeenCalledOnce());
+    current = false;
+    rejectRefresh(new Error("old cart failed"));
+    await workflow;
+    expect(onRefreshError).not.toHaveBeenCalled();
+    expect(release).toHaveBeenCalledOnce();
+  });
 });
 
 describe("kitchen print progress", () => {

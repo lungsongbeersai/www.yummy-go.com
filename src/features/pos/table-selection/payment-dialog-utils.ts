@@ -389,10 +389,7 @@ export function paymentAmounts(
   rate: number,
   settleExact = false,
 ) {
-  const transferForeignAmount =
-    safeRate(rate) === 1
-      ? Math.ceil(total)
-      : Math.ceil((total / safeRate(rate)) * 100) / 100;
+  const transferForeignAmount = ceilCurrencyAmount(total, rate, safeRate(rate) === 1 ? 0 : 2);
   const foreignCash =
     tab === "cash"
       ? parseAmount(cashInput)
@@ -421,9 +418,15 @@ export function paymentAmounts(
       : tab === "cash_transfer"
         ? Math.max(0, convertedReceived - convertedCash)
         : 0;
-  const cash = settleExact && tab === "cash" ? total : convertedCash;
-  const transfer =
-    settleExact && tab === "transfer" ? total : convertedTransfer;
+  // Match the server's currency snapshot: a rounded exact foreign tender
+  // settles the bill, including mixed tender, without invented LAK change.
+  const exactPaid = settleExact && tab !== "arrears" ? total : null;
+  const cash = exactPaid !== null
+    ? tab === "cash" ? exactPaid : Math.min(convertedCash, exactPaid)
+    : convertedCash;
+  const transfer = exactPaid !== null && (tab === "transfer" || tab === "cash_transfer")
+    ? exactPaid - cash
+    : convertedTransfer;
   const received = cash + transfer;
   return {
     cash,
@@ -620,6 +623,20 @@ function decimalUnits(value: string, maxFractionDigits: number) {
   };
 }
 
+function ceilCurrencyAmount(totalLak: number, rate: number, fractionDigits: number) {
+  try {
+    const amount = decimalUnits(String(totalLak), 2);
+    const exchange = decimalUnits(String(safeRate(rate)), 6);
+    const scale = BigInt(10) ** BigInt(fractionDigits);
+    const numerator = amount.units * exchange.scale * scale;
+    const denominator = amount.scale * exchange.units;
+    const units = (numerator + denominator - BigInt(1)) / denominator;
+    return units <= BigInt(Number.MAX_SAFE_INTEGER) ? Number(units) / Number(scale) : 0;
+  } catch {
+    return 0;
+  }
+}
+
 function addCurrencyInputAmounts(values: string[]) {
   const scale = BigInt(100);
   const total = values.reduce((sum, value) => {
@@ -666,9 +683,9 @@ export function defaultCurrencyAmount(
   totalLak: number,
   currency: PaymentCurrencyOption,
 ) {
-  const amount = totalLak / safeRate(currency.rate);
-  if (currency.base) return Math.ceil(amount);
-  return Math.ceil(amount * 100) / 100;
+  // Integer ceiling matches the server. Binary floats can otherwise turn an
+  // exact 42 / 600 = 0.07 THB into 0.08 and make settle_exact fail validation.
+  return ceilCurrencyAmount(totalLak, currency.rate, currency.base ? 0 : 2);
 }
 
 export function defaultCurrencyInput(

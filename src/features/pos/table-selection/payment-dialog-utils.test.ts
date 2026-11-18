@@ -264,6 +264,43 @@ describe("payment dialog helpers", () => {
     expect(transferAccountValidation(50000, "account-1", false)).toBeNull();
   });
 
+  it.each([
+    { total: 1000, rate: 600, cash: "1", transfer: "0.67", expectedCash: 600, expectedTransfer: 400 },
+    { total: 3_174_369, rate: 690, cash: "1000", transfer: "3600.54", expectedCash: 690_000, expectedTransfer: 2_484_369 },
+  ])("matches the server's exact mixed-currency settlement without rounding change: %j", ({ total, rate, cash, transfer, expectedCash, expectedTransfer }) => {
+    const currency = { ...thb, rate };
+    const exact = paymentIsExactSettlement("cash_transfer", total, "", cash, transfer, currency);
+    expect(exact).toBe(true);
+    const payment = paymentAmounts("cash_transfer", total, "", cash, transfer, rate, exact);
+    expect(payment).toEqual({
+      cash: expectedCash, transfer: expectedTransfer,
+      received: total, change: 0, balance: 0,
+    });
+    expect(paymentValidation("cash_transfer", "order-1", total, payment, "customer-1")).toBeNull();
+  });
+
+  it("retains genuine overpayment and change for a non-exact mixed foreign tender", () => {
+    const exact = paymentIsExactSettlement("cash_transfer", 1000, "", "1", "1", { ...thb, rate: 600 });
+    expect(exact).toBe(false);
+    expect(paymentAmounts("cash_transfer", 1000, "", "1", "1", 600, exact)).toEqual({
+      cash: 600, transfer: 600, received: 1200, change: 200, balance: 0,
+    });
+  });
+
+  it.each([
+    { total: 42, rate: 600, expected: "0.07" },
+    { total: 759, rate: 690, expected: "1.1" },
+    { total: 1610, rate: 23000, expected: "0.07" },
+    { total: 1435, rate: 20500, expected: "0.07" },
+  ])("does not add a foreign cent to an exact server currency amount: %j", ({ total, rate, expected }) => {
+    const currency = { ...thb, rate };
+    expect(defaultCurrencyInput(total, currency)).toBe(expected);
+    const exact = paymentIsExactSettlement("cash", total, expected, "", "", currency);
+    expect(exact).toBe(true);
+    expect(paymentAmounts("cash", total, expected, "", "", rate, exact))
+      .toMatchObject({ cash: total, received: total, change: 0, balance: 0 });
+  });
+
   it("uses the bank as the transfer label when legacy account details are blank", () => {
     expect(transferAccountOptionLabel({
       bank_name_la: "BCEL",

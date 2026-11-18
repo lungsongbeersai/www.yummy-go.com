@@ -21,6 +21,8 @@ import { useAuthStore } from "@/stores/auth-store";
 import { usePosStore } from "@/stores/pos-store";
 import { usePrinterStore } from "@/stores/printer-store";
 import { useToastStore } from "@/stores/toast-store";
+import { createSessionGuard } from "@/stores/session-store-registry";
+import { useExportCurrent } from "@/hooks/use-export-current";
 import type {
   CartItemAction,
   CartItemActionTarget,
@@ -32,6 +34,7 @@ import type {
 import { finishCommittedCartItemAction } from "../committed-cart-item-action";
 import { CartItemActionUnavailableError, currentCartItemAction, isMissingCartItemError } from "../cart-item-action-state";
 import { kitchenConfirmPrintOutcome } from "../kitchen-confirm-print-outcome";
+import { checkoutDocumentActionGuard } from "../queued-document-print";
 import { createKitchenPrintProgressHandler, runKitchenConfirmation } from "../kitchen-confirmation-workflow";
 import {
   billDiscountButtonValue,
@@ -201,6 +204,7 @@ export function useSelectedTableCartPanelWorkflow({
   // double-click ส่ง confirm_to_kitchen_batch ซ้ำก่อน React มีโอกาส render ปุ่ม disabled
   // และใช้ตัวเดียวกันทั้งยืนยันรวม/รายสินค้าเพื่อไม่ให้สอง flow วิ่งซ้อนกัน
   const kitchenConfirmationInFlightRef = useRef(false);
+  const kitchenReprintInFlightRef = useRef(false);
   const itemActionInFlightRef = useRef(false);
   const [itemActionTarget, setItemActionTarget] =
     useState<CartItemActionTarget | null>(null);
@@ -273,6 +277,9 @@ export function useSelectedTableCartPanelWorkflow({
   const invoice = cartOrderInvoice(orders);
   const visibleItemCount = cartDisplayQuantityCount(displayCart);
   const currentOrderUuid = useMemo(() => firstCartOrderUuid(orders), [orders]);
+  const isCurrentKitchenView = useExportCurrent(
+    JSON.stringify(["cart-kitchen", tableUuid, currentOrderUuid, language]),
+  );
   const currentOrder = useMemo(
     () => orders.find((entry) => optionalString(entry.order_uuid)),
     [orders],
@@ -448,6 +455,7 @@ export function useSelectedTableCartPanelWorkflow({
     setQuantityOverrides({});
     setItemActionTarget(null);
     setActingItemUuid(null);
+    setPrintingItemUuid(null);
     setNoteTarget(null);
     setNoteDraft("");
     setItemDiscountTarget(null);
@@ -776,10 +784,12 @@ export function useSelectedTableCartPanelWorkflow({
       kitchenConfirmationInFlightRef.current
     ) return;
 
+    const isCurrentSession = createSessionGuard();
     kitchenConfirmationInFlightRef.current = true;
     setConfirming(true);
     beginKitchenConfirmation();
     await runKitchenConfirmation({
+      isCurrent: isCurrentKitchenView,
       confirmAndPrint: async (closeLoading) => {
         const printResult: {
           successCount: number;
@@ -793,6 +803,7 @@ export function useSelectedTableCartPanelWorkflow({
           label: string,
           printProgress?: { successCount: number; total: number },
         ) => {
+          if (!isCurrentKitchenView()) return;
           const safeCompleted = Math.min(
             completed,
             CONFIRM_ORDER_PROGRESS_TOTAL,
@@ -820,6 +831,7 @@ export function useSelectedTableCartPanelWorkflow({
         );
 
         for (const [groupIndex, group] of confirmGroups.entries()) {
+          if (!isCurrentSession()) return;
           setProgress(
             confirmOrderProgressStep({
               groupCount: confirmGroups.length,
@@ -836,6 +848,7 @@ export function useSelectedTableCartPanelWorkflow({
             agent_id: activePrinterContext?.agent_id,
             print_mode: activePrinterContext?.print_mode,
           });
+          if (!isCurrentSession()) return;
 
           const result = await executeKitchenAck(
             response,
@@ -895,7 +908,7 @@ export function useSelectedTableCartPanelWorkflow({
           );
         }
 
-        showKitchenConfirmResult(printResult);
+        if (isCurrentKitchenView()) showKitchenConfirmResult(printResult);
       },
       onConfirmationError: (error) => {
         showToast({
@@ -912,7 +925,7 @@ export function useSelectedTableCartPanelWorkflow({
       refresh: onTableActionComplete,
       onRefreshError: showKitchenCartRefreshError,
       release: () => {
-        endKitchenConfirmation();
+        if (isCurrentSession()) endKitchenConfirmation();
         setSynchronizingKitchenConfirmation(false);
         kitchenConfirmationInFlightRef.current = false;
       },
@@ -930,11 +943,13 @@ export function useSelectedTableCartPanelWorkflow({
       kitchenConfirmationInFlightRef.current
     ) return;
 
+    const isCurrentSession = createSessionGuard();
     kitchenConfirmationInFlightRef.current = true;
     setActingItemUuid(itemUuid);
     setConfirmingItemStage("confirming");
     beginKitchenConfirmation();
     await runKitchenConfirmation({
+      isCurrent: isCurrentKitchenView,
       confirmAndPrint: async (closeLoading) => {
         const response = await confirmKitchen({
           order_uuid: orderUuid,
@@ -944,18 +959,21 @@ export function useSelectedTableCartPanelWorkflow({
           agent_id: activePrinterContext?.agent_id,
           print_mode: activePrinterContext?.print_mode,
         });
+        if (!isCurrentSession()) return;
         const result = await executeKitchenAck(
           response,
           user.uuid,
           activePrinterContext,
           createKitchenPrintProgressHandler({
-            onProgress: (progress) => setConfirmingItemStage(
-              progress.phase === "fetching" ? "fetching" : "printing",
-            ),
+            onProgress: (progress) => {
+              if (isCurrentKitchenView()) setConfirmingItemStage(
+                progress.phase === "fetching" ? "fetching" : "printing",
+              );
+            },
             onDeliveryComplete: closeLoading,
           }),
         );
-        showKitchenConfirmResult(result);
+        if (isCurrentKitchenView()) showKitchenConfirmResult(result);
       },
       onConfirmationError: (error) => {
         showToast({
@@ -972,7 +990,7 @@ export function useSelectedTableCartPanelWorkflow({
       refresh: onCartRefresh,
       onRefreshError: showKitchenCartRefreshError,
       release: () => {
-        endKitchenConfirmation();
+        if (isCurrentSession()) endKitchenConfirmation();
         setSynchronizingKitchenConfirmation(false);
         kitchenConfirmationInFlightRef.current = false;
       },
@@ -1074,8 +1092,17 @@ export function useSelectedTableCartPanelWorkflow({
   async function reprintSingleItemToKitchen(item: CartItem) {
     const itemUuid = cartItemActionUuid(item);
     const orderUuid = cartOrderUuidForItem(orders, item);
-    if (!user?.uuid || !orderUuid || !itemUuid || cartActionsLocked) return;
+    if (!user?.uuid || !orderUuid || !itemUuid || cartActionsLocked || kitchenReprintInFlightRef.current) return;
+    const release = checkoutDocumentActionGuard.acquire(JSON.stringify([
+      "kitchen-reprint", user.uuid, orderUuid, [...cartItemActionUuids(item)].sort(),
+    ]));
+    if (!release) {
+      showToast({ title: t("common.printing"), description: t("common.printingDescription"), tone: "info" });
+      return;
+    }
 
+    const isCurrentSession = createSessionGuard();
+    kitchenReprintInFlightRef.current = true;
     setActingItemUuid(itemUuid);
     setPrintingItemUuid(itemUuid);
     try {
@@ -1087,17 +1114,23 @@ export function useSelectedTableCartPanelWorkflow({
         agent_id: activePrinterContext?.agent_id,
         print_mode: activePrinterContext?.print_mode,
       });
+      if (!isCurrentSession()) return;
       const result = await executeReconfirmAck(response, user.uuid, activePrinterContext);
-      showReprintKitchenResult(response, result);
+      if (isCurrentKitchenView()) showReprintKitchenResult(response, result);
     } catch (error) {
+      if (!isCurrentKitchenView()) return;
       showToast({
         title: t("pos.reprintKitchenFailed"),
         description: error instanceof Error ? error.message : "",
         tone: "error",
       });
     } finally {
-      setActingItemUuid(null);
-      setPrintingItemUuid(null);
+      release();
+      kitchenReprintInFlightRef.current = false;
+      if (isCurrentKitchenView()) {
+        setActingItemUuid(null);
+        setPrintingItemUuid(null);
+      }
     }
   }
 

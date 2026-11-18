@@ -1087,6 +1087,37 @@ html.android-webview-compat:not([data-decor-background="off"]) [data-slot="sideb
   background-color: var(--muted) !important;
 }
 
+/* A keyboard or a short landscape window can leave less room than the fixed
+   payment header, methods and action row need. Scroll the whole narrow
+   workspace in that case, keeping its close control in the sticky header. */
+@media (max-width: 767px) and (max-height: 40rem) {
+  [data-pos-payment-dialog="true"] {
+    display: flex;
+    flex-direction: column;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+  }
+
+  [data-pos-payment-dialog="true"] > [data-slot="dialog-header"] {
+    position: sticky;
+    top: 0;
+    z-index: 20;
+  }
+
+  [data-pos-payment-dialog="true"] > [data-slot="tabs"] {
+    display: flex;
+    flex: 0 0 auto;
+    flex-direction: column;
+    overflow: visible;
+  }
+
+  [data-pos-payment-dialog="true"] > [data-slot="tabs"] > section,
+  [data-pos-payment-dialog="true"] > [data-slot="tabs"] > aside {
+    flex: 0 0 auto;
+    overflow: visible;
+  }
+}
+
 .android-webview-compat [data-pos-pattern] {
   background-image: url("/posAll/background_wide.webp") !important;
   background-position: top !important;

@@ -6,6 +6,8 @@ import { Dialog as DialogPrimitive } from "radix-ui";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { shakeDialog, useMergedRef } from "@/components/ui/dialog-shake";
+import { useOverlayCloseButton } from "@/components/ui/use-overlay-close-button";
+import { ModalScrollContext } from "@/components/ui/modal-scroll-context";
 import { XIcon } from "lucide-react";
 
 function Dialog({
@@ -40,7 +42,7 @@ function DialogOverlay({
     <DialogPrimitive.Overlay
       data-slot="dialog-overlay"
       className={cn(
-        "fixed inset-0 isolate z-50 bg-overlay duration-100 supports-backdrop-filter:backdrop-blur-xs data-open:animate-in data-open:fade-in-0 data-closed:pointer-events-none data-closed:animate-out data-closed:fade-out-0",
+        "fixed inset-0 isolate z-50 bg-overlay duration-100 supports-backdrop-filter:backdrop-blur-xs data-open:animate-in data-open:fade-in-0 data-closed:pointer-events-none! data-closed:animate-out data-closed:fade-out-0",
         className
       )}
       {...props}
@@ -56,6 +58,7 @@ function DialogContent({
   showCloseButton = true,
   onInteractOutside,
   onPointerDownOutside,
+  onScroll,
   ...props
 }: React.ComponentProps<typeof DialogPrimitive.Content> & {
   overlayClassName?: string;
@@ -63,46 +66,51 @@ function DialogContent({
 }) {
   const contentRef = React.useRef<HTMLDivElement>(null);
   const mergedRef = useMergedRef(ref, contentRef);
+  const { closeButtonRef, handleScroll } = useOverlayCloseButton(onScroll);
 
   return (
     <DialogPortal>
       <DialogOverlay className={overlayClassName} />
-      <DialogPrimitive.Content
-        ref={mergedRef}
-        data-slot="dialog-content"
-        className={cn(
-          "fixed top-1/2 left-1/2 z-50 grid max-h-[calc(100dvh-2rem)] w-full max-w-[calc(100%-2rem)] -translate-x-1/2 -translate-y-1/2 gap-5 overflow-y-auto rounded-2xl border border-border bg-popover p-5 text-sm/relaxed text-popover-foreground shadow-2xl ring-1 ring-border duration-100 outline-none sm:max-w-3xl data-open:animate-in data-open:fade-in-0 data-open:zoom-in-95 data-closed:pointer-events-none data-closed:animate-out data-closed:fade-out-0 data-closed:zoom-out-95",
-          // Keep long titles clear of the 44px close target, including flush header layouts.
-          showCloseButton && "[&>[data-slot=dialog-header]]:pr-14",
-          className
-        )}
-        {...props}
-        // Only the dialog's own buttons close it (see dialog-shake.ts). A caller that already
-        // prevented the event handled the click itself, so it gets no shake either.
-        onPointerDownOutside={(event) => {
-          onPointerDownOutside?.(event);
-          if (!event.defaultPrevented) shakeDialog(contentRef.current);
-          event.preventDefault();
-        }}
-        onInteractOutside={(event) => {
-          onInteractOutside?.(event);
-          event.preventDefault();
-        }}
-      >
-        {children}
-        {showCloseButton && (
-          <DialogPrimitive.Close data-slot="dialog-close" asChild>
-            <Button
-              variant="outline"
-              className="ui-overlay-close-button absolute top-3 right-3 size-11 rounded-full border-border bg-popover text-foreground shadow-sm hover:bg-accent [&_svg:not([class*='size-'])]:size-5"
-              size="icon"
-            >
-              <XIcon />
-              <span className="sr-only">Close</span>
-            </Button>
-          </DialogPrimitive.Close>
-        )}
-      </DialogPrimitive.Content>
+      <ModalScrollContext.Provider value={true}>
+        <DialogPrimitive.Content
+          ref={mergedRef}
+          data-slot="dialog-content"
+          className={cn(
+            "fixed top-1/2 left-1/2 z-50 grid min-h-0 max-h-[calc(100dvh-2rem-env(safe-area-inset-top,0px)-env(safe-area-inset-bottom,0px))] w-full max-w-[calc(100%-2rem)] -translate-x-1/2 -translate-y-1/2 gap-5 overflow-y-auto overscroll-contain rounded-2xl border border-border bg-popover p-5 text-sm/relaxed text-popover-foreground shadow-2xl ring-1 ring-border duration-100 outline-none sm:max-w-3xl data-open:animate-in data-open:fade-in-0 data-open:zoom-in-95 data-closed:pointer-events-none! data-closed:animate-out data-closed:fade-out-0 data-closed:zoom-out-95",
+            // Keep long titles clear of the 44px close target, including flush header layouts.
+            showCloseButton && "[&>[data-slot=dialog-header]]:pr-14",
+            className
+          )}
+          {...props}
+          onScroll={handleScroll}
+          // Only the dialog's own buttons close it (see dialog-shake.ts). A caller that already
+          // prevented the event handled the click itself, so it gets no shake either.
+          onPointerDownOutside={(event) => {
+            onPointerDownOutside?.(event);
+            if (!event.defaultPrevented) shakeDialog(contentRef.current);
+            event.preventDefault();
+          }}
+          onInteractOutside={(event) => {
+            onInteractOutside?.(event);
+            event.preventDefault();
+          }}
+        >
+          {children}
+          {showCloseButton && (
+            <DialogPrimitive.Close data-slot="dialog-close" asChild>
+              <Button
+                ref={closeButtonRef}
+                variant="outline"
+                className="ui-overlay-close-button absolute top-3 right-3 size-11 rounded-full border-border bg-popover text-foreground shadow-sm transition-colors hover:bg-accent [&_svg:not([class*='size-'])]:size-5"
+                size="icon"
+              >
+                <XIcon />
+                <span className="sr-only">Close</span>
+              </Button>
+            </DialogPrimitive.Close>
+          )}
+        </DialogPrimitive.Content>
+      </ModalScrollContext.Provider>
     </DialogPortal>
   );
 }

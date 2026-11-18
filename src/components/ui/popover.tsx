@@ -4,11 +4,19 @@ import * as React from "react"
 import { Popover as PopoverPrimitive } from "radix-ui"
 
 import { cn } from "@/lib/utils"
+import { ModalScrollContext } from "@/components/ui/modal-scroll-context"
 
 function Popover({
+  modal,
   ...props
 }: React.ComponentProps<typeof PopoverPrimitive.Root>) {
-  return <PopoverPrimitive.Root data-slot="popover" {...props} />
+  const withinModal = React.useContext(ModalScrollContext)
+  const ownsScroll = modal ?? withinModal
+  return (
+    <ModalScrollContext.Provider value={withinModal || ownsScroll}>
+      <PopoverPrimitive.Root data-slot="popover" modal={ownsScroll} {...props} />
+    </ModalScrollContext.Provider>
+  )
 }
 
 function PopoverTrigger({
@@ -21,6 +29,8 @@ function PopoverContent({
   className,
   align = "center",
   sideOffset = 4,
+  onWheel,
+  onTouchMove,
   ...props
 }: React.ComponentProps<typeof PopoverPrimitive.Content>) {
   return (
@@ -29,11 +39,23 @@ function PopoverContent({
         data-slot="popover-content"
         align={align}
         sideOffset={sideOffset}
+        // Radix copies the resolved z-index onto its portal wrapper. WebView
+        // 83 reports auto for a static content box, putting it under modals.
         className={cn(
-          "z-50 flex w-72 origin-(--radix-popover-content-transform-origin) flex-col gap-4 rounded-lg bg-popover p-2.5 text-xs text-popover-foreground shadow-xl ring-1 ring-border outline-hidden duration-100 data-[side=bottom]:slide-in-from-top-2 data-[side=left]:slide-in-from-right-2 data-[side=right]:slide-in-from-left-2 data-[side=top]:slide-in-from-bottom-2 data-open:animate-in data-open:fade-in-0 data-open:zoom-in-95 data-closed:animate-out data-closed:fade-out-0 data-closed:zoom-out-95",
+          "relative z-50 flex max-h-[var(--radix-popover-content-available-height,calc(100dvh-1rem))] w-72 max-w-[calc(100vw-2rem)] origin-(--radix-popover-content-transform-origin) flex-col gap-4 overflow-y-auto overscroll-contain rounded-lg bg-popover p-2.5 text-xs text-popover-foreground shadow-xl ring-1 ring-border outline-hidden duration-100 data-[side=bottom]:slide-in-from-top-2 data-[side=left]:slide-in-from-right-2 data-[side=right]:slide-in-from-left-2 data-[side=top]:slide-in-from-bottom-2 data-open:animate-in data-open:fade-in-0 data-open:zoom-in-95 data-closed:animate-out data-closed:fade-out-0 data-closed:zoom-out-95",
           className
         )}
         {...props}
+        // A portalled popover is outside a parent dialog's DOM scroll shard.
+        // Keep its scroll gestures local, as the payment customer picker did.
+        onWheel={(event) => {
+          onWheel?.(event)
+          event.stopPropagation()
+        }}
+        onTouchMove={(event) => {
+          onTouchMove?.(event)
+          event.stopPropagation()
+        }}
       />
     </PopoverPrimitive.Portal>
   )

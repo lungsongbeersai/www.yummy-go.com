@@ -4,6 +4,7 @@ import * as React from "react"
 import { Drawer as DrawerPrimitive } from "vaul"
 
 import { cn } from "@/lib/utils"
+import { ModalScrollContext } from "@/components/ui/modal-scroll-context"
 
 function Drawer({
   ...props
@@ -37,7 +38,7 @@ function DrawerOverlay({
     <DrawerPrimitive.Overlay
       data-slot="drawer-overlay"
       className={cn(
-        "touch-none fixed inset-0 z-50 bg-overlay supports-backdrop-filter:backdrop-blur-xs data-open:animate-in data-open:fade-in-0 data-closed:pointer-events-none data-closed:animate-out data-closed:fade-out-0",
+        "touch-none fixed inset-0 z-50 bg-overlay supports-backdrop-filter:backdrop-blur-xs data-open:animate-in data-open:fade-in-0 data-closed:pointer-events-none! data-closed:animate-out data-closed:fade-out-0",
         className
       )}
       {...props}
@@ -53,23 +54,29 @@ function DrawerContent({
   return (
     <DrawerPortal data-slot="drawer-portal">
       <DrawerOverlay />
-      <DrawerPrimitive.Content
-        data-slot="drawer-content"
-        className={cn(
-          "group/drawer-content fixed z-50 flex h-auto flex-col bg-transparent p-2 text-sm/relaxed text-popover-foreground before:absolute before:inset-2 before:-z-10 before:rounded-xl before:border before:border-border before:bg-popover before:shadow-2xl data-[vaul-drawer-direction=bottom]:inset-x-0 data-[vaul-drawer-direction=bottom]:bottom-0 data-[vaul-drawer-direction=bottom]:mt-24 data-[vaul-drawer-direction=bottom]:max-h-[80vh] data-[vaul-drawer-direction=left]:inset-y-0 data-[vaul-drawer-direction=left]:left-0 data-[vaul-drawer-direction=left]:w-[calc(100%-1rem)] data-[vaul-drawer-direction=right]:inset-y-0 data-[vaul-drawer-direction=right]:right-0 data-[vaul-drawer-direction=right]:w-[calc(100%-1rem)] data-[vaul-drawer-direction=top]:inset-x-0 data-[vaul-drawer-direction=top]:top-0 data-[vaul-drawer-direction=top]:mb-24 data-[vaul-drawer-direction=top]:max-h-[80vh] data-[vaul-drawer-direction=left]:sm:max-w-lg data-[vaul-drawer-direction=right]:sm:max-w-lg",
-          className
-        )}
-        {...props}
-      >
-        <div className="touch-none mx-auto mt-4 hidden h-1.5 w-[100px] shrink-0 rounded-full bg-muted-foreground/50 group-data-[vaul-drawer-direction=bottom]/drawer-content:block" />
-        {children}
-      </DrawerPrimitive.Content>
+      <ModalScrollContext.Provider value={true}>
+        <DrawerPrimitive.Content
+          data-slot="drawer-content"
+          // Paint the scrolling viewport too: the decorative ::before surface
+          // moves away when long drawer contents scroll. Allow native vertical
+          // panning here; the touch-none handle still owns drawer dragging.
+          // Vaul's trailing fill would scroll over the content once opaque.
+          className={cn(
+            "group/drawer-content fixed z-50 flex h-auto touch-pan-y! min-h-0 max-h-[calc(100dvh-env(safe-area-inset-top,0px)-env(safe-area-inset-bottom,0px))] flex-col overflow-y-auto overscroll-contain rounded-2xl bg-popover bg-clip-content p-2 after:hidden text-sm/relaxed text-popover-foreground before:absolute before:inset-2 before:-z-10 before:rounded-xl before:border before:border-border before:bg-popover before:shadow-2xl data-[vaul-drawer-direction=bottom]:inset-x-0 data-[vaul-drawer-direction=bottom]:bottom-0 data-[vaul-drawer-direction=bottom]:mt-24 data-[vaul-drawer-direction=bottom]:max-h-[80vh] data-[vaul-drawer-direction=left]:inset-y-0 data-[vaul-drawer-direction=left]:left-0 data-[vaul-drawer-direction=left]:w-[calc(100%-1rem)] data-[vaul-drawer-direction=right]:inset-y-0 data-[vaul-drawer-direction=right]:right-0 data-[vaul-drawer-direction=right]:w-[calc(100%-1rem)] data-[vaul-drawer-direction=top]:inset-x-0 data-[vaul-drawer-direction=top]:top-0 data-[vaul-drawer-direction=top]:mb-24 data-[vaul-drawer-direction=top]:max-h-[80vh] data-[vaul-drawer-direction=left]:sm:max-w-lg data-[vaul-drawer-direction=right]:sm:max-w-lg",
+            className
+          )}
+          {...props}
+        >
+          <div className="touch-none mx-auto mt-4 hidden h-1.5 w-[100px] shrink-0 rounded-full bg-muted-foreground/50 group-data-[vaul-drawer-direction=bottom]/drawer-content:block" />
+          {children}
+        </DrawerPrimitive.Content>
+      </ModalScrollContext.Provider>
     </DrawerPortal>
   )
 }
 
 function DrawerHandle({ className, ...props }: React.ComponentProps<typeof DrawerPrimitive.Handle>) {
-  return <DrawerPrimitive.Handle data-slot="drawer-handle" className={cn("mx-auto my-3 h-1 w-10 shrink-0 rounded-full bg-muted-foreground/35", className)} {...props} />
+  return <DrawerPrimitive.Handle data-slot="drawer-handle" className={cn("mx-auto my-3 h-1 w-10 shrink-0 touch-none! rounded-full bg-muted-foreground/35", className)} {...props} />
 }
 
 function DrawerHeader({ className, ...props }: React.ComponentProps<"div">) {

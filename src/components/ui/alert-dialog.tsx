@@ -6,6 +6,7 @@ import { AlertDialog as AlertDialogPrimitive } from "radix-ui"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import { shakeDialog, useMergedRef } from "@/components/ui/dialog-shake"
+import { ModalScrollContext } from "@/components/ui/modal-scroll-context"
 
 function AlertDialog({
   ...props
@@ -37,7 +38,7 @@ function AlertDialogOverlay({
     <AlertDialogPrimitive.Overlay
       data-slot="alert-dialog-overlay"
       className={cn(
-        "fixed inset-0 z-50 bg-overlay duration-100 supports-backdrop-filter:backdrop-blur-xs data-open:animate-in data-open:fade-in-0 data-closed:pointer-events-none data-closed:animate-out data-closed:fade-out-0",
+        "fixed inset-0 z-50 bg-overlay duration-100 supports-backdrop-filter:backdrop-blur-xs data-open:animate-in data-open:fade-in-0 data-closed:pointer-events-none! data-closed:animate-out data-closed:fade-out-0",
         className
       )}
       {...props}
@@ -47,6 +48,7 @@ function AlertDialogOverlay({
 
 function AlertDialogContent({
   className,
+  children,
   ref,
   size = "default",
   ...props
@@ -61,17 +63,21 @@ function AlertDialogContent({
       {/* Radix already keeps an alert dialog open on a backdrop click (and exposes no outside
           handler); the overlay is what that click lands on, so it triggers the shake. */}
       <AlertDialogOverlay onPointerDown={() => shakeDialog(contentRef.current)} />
-      <AlertDialogPrimitive.Content
-        ref={mergedRef}
-        data-slot="alert-dialog-content"
-        data-size={size}
-        className={cn(
-          "group/alert-dialog-content fixed top-1/2 left-1/2 z-50 grid max-h-[calc(100dvh-2rem)] w-[calc(100%-2rem)] -translate-x-1/2 -translate-y-1/2 gap-5 overflow-y-auto rounded-2xl border border-border bg-popover p-5 text-sm/relaxed text-popover-foreground shadow-2xl ring-1 ring-border duration-100 outline-none data-open:animate-in data-open:fade-in-0 data-open:zoom-in-95 data-closed:pointer-events-none data-closed:animate-out data-closed:fade-out-0 data-closed:zoom-out-95",
-          size === "sm" ? "max-w-sm" : "max-w-lg sm:max-w-xl",
-          className
-        )}
-        {...props}
-      />
+      <ModalScrollContext.Provider value={true}>
+        <AlertDialogPrimitive.Content
+          ref={mergedRef}
+          data-slot="alert-dialog-content"
+          data-size={size}
+          className={cn(
+            "group/alert-dialog-content fixed top-1/2 left-1/2 z-50 grid min-h-0 max-h-[calc(100dvh-2rem-env(safe-area-inset-top,0px)-env(safe-area-inset-bottom,0px))] w-[calc(100%-2rem)] -translate-x-1/2 -translate-y-1/2 gap-5 overflow-y-auto overscroll-contain rounded-2xl border border-border bg-popover p-5 text-sm/relaxed text-popover-foreground shadow-2xl ring-1 ring-border duration-100 outline-none data-open:animate-in data-open:fade-in-0 data-open:zoom-in-95 data-closed:pointer-events-none! data-closed:animate-out data-closed:fade-out-0 data-closed:zoom-out-95",
+            size === "sm" ? "max-w-sm" : "max-w-lg sm:max-w-xl",
+            className
+          )}
+          {...props}
+        >
+          {children}
+        </AlertDialogPrimitive.Content>
+      </ModalScrollContext.Provider>
     </AlertDialogPortal>
   )
 }

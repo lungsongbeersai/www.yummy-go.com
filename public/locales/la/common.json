@@ -1187,6 +1187,7 @@
     "orderChannelTakeaway": "ສັ່ງກັບບ້ານ",
     "orderChannelDelivery": "Delivery",
     "paymentSuccess": "ຊຳລະເງິນສຳເລັດ",
+    "checkoutActionInProgress": "ບິນນີ້ກຳລັງຊຳລະເງິນ ຫຼື ພິມເອກະສານ. ກະລຸນາລໍຖ້າໃຫ້ສຳເລັດກ່ອນ.",
     "paymentRefreshFailed": "ຊຳລະເງິນແລ້ວ. ກະລຸນາໂຫຼດອໍເດີໃໝ່ກ່ອນຮັບຊຳລະຄັ້ງຕໍ່ໄປ.",
     "documentPrintQueued": "ບິນຢູ່ໃນຄິວພິມ",
     "paymentFailed": "ຊຳລະເງິນບໍ່ສຳເລັດ",

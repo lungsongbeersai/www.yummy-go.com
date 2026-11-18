@@ -99,13 +99,13 @@ describe("finishCommittedPayment", () => {
       });
 
       expect(result.printOutcome).toBe(printOutcome);
-      expect(onCommitted).toHaveBeenCalledExactlyOnceWith(printOutcome);
+      expect(onCommitted).toHaveBeenCalledExactlyOnceWith();
       expect(refresh).toHaveBeenCalledOnce();
       expect(onPrintError).not.toHaveBeenCalled();
     },
   );
 
-  it("keeps the payment dialog available for print loading until receipt delivery settles", async () => {
+  it("starts the owned receipt before closing the paid dialog and refreshing without waiting for delivery", async () => {
     const printer = deferred();
     const events: string[] = [];
     const onPrintError = vi.fn();
@@ -116,7 +116,7 @@ describe("finishCommittedPayment", () => {
       onPrintError,
     });
     await Promise.resolve();
-    expect(events).toEqual(["print original job"]);
+    expect(events).toEqual(["print original job", "close paid dialog", "refresh orders"]);
     printer.resolve();
     const result = await completion;
     expect(events).toEqual(["print original job", "close paid dialog", "refresh orders"]);
@@ -124,7 +124,7 @@ describe("finishCommittedPayment", () => {
     expect(onPrintError).not.toHaveBeenCalled();
   });
 
-  it("reports the original receipt failure before completing the already committed payment", async () => {
+  it("reports the original receipt failure after the cashier continues to the next paid view", async () => {
     const printer = deferred();
     const originalJob = Object.freeze({ jobUuid: "receipt-1", invoice: "INV-1", table: "A1" });
     let activeInvoice = "INV-1";
@@ -135,7 +135,7 @@ describe("finishCommittedPayment", () => {
       refresh: async () => {},
       onPrintError: (error) => { failures.push({ job: originalJob, error }); },
     });
-    expect(activeInvoice).toBe("INV-1");
+    expect(activeInvoice).toBe("INV-2");
     const failure = new Error("Printer disconnected after checkout");
     printer.reject(failure);
     await completion;
@@ -154,7 +154,7 @@ describe("finishCommittedPayment", () => {
       refresh: async () => { throw failure; },
       onPrintError,
     });
-    expect(close).not.toHaveBeenCalled();
+    expect(close).toHaveBeenCalledOnce();
     printer.resolve();
     const result = await completion;
     expect(result.refreshError).toBe(failure);

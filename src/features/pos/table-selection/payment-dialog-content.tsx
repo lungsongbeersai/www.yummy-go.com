@@ -21,7 +21,6 @@ import {
   X,
 } from "lucide-react";
 import { useTranslation } from "react-i18next";
-import { PrintLoadingDialog } from "@/components/common/print-loading-dialog";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -82,6 +81,7 @@ import { CustomerFormDialog } from "@/features/settings/customer/customer-form-d
 import type { OrderChannel } from "@/services/pos";
 import type { PaymentDialogWorkflow } from "./hooks/use-payment-dialog-workflow";
 import { PaymentStat, PosNumpad, TenderRow } from "./payment-dialog-components";
+import { paymentDialogViewportHeight } from "./payment-dialog-viewport";
 import {
   currencyMoney,
   currencyOptionLabel,
@@ -94,7 +94,7 @@ import {
   paymentTabs,
 } from "./payment-dialog-utils";
 
-const DEFAULT_PAYMENT_DIALOG_HEIGHT = "100dvh";
+const DEFAULT_PAYMENT_DIALOG_HEIGHT = "100vh";
 
 function usePaymentDialogHeight(open: boolean) {
   const [height, setHeight] = useState(DEFAULT_PAYMENT_DIALOG_HEIGHT);
@@ -109,8 +109,7 @@ function usePaymentDialogHeight(open: boolean) {
 
     const viewport = window.visualViewport;
     const updateHeight = () => {
-      const nextHeight = viewport?.height ?? window.innerHeight;
-      setHeight(`${Math.max(320, Math.floor(nextHeight))}px`);
+      setHeight(paymentDialogViewportHeight(viewport?.height, window.innerHeight));
     };
 
     updateHeight();
@@ -585,8 +584,6 @@ export function PaymentDialogContent({
                           className="w-[calc(100vw-1rem)] overflow-hidden p-0 md:w-[min(var(--radix-popover-trigger-width),calc(100vw-1rem))]"
                           side="bottom"
                           sideOffset={6}
-                          onTouchMove={(event) => event.stopPropagation()}
-                          onWheel={(event) => event.stopPropagation()}
                         >
                           <Command
                             className="**:data-[slot=command-input-wrapper]:h-9 **:data-[slot=command-input]:h-9 **:data-[slot=command-item]:py-2"
@@ -1242,7 +1239,6 @@ export function PaymentDialogContent({
           </div>
         </AlertDialogContent>
       </AlertDialog>
-      <PrintLoadingDialog open={invoicePrinting} />
     </>
   );
 }

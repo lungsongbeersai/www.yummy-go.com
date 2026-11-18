@@ -2,6 +2,7 @@
 
 import {
   useEffect,
+  useLayoutEffect,
   useMemo,
   useRef,
   useState,
@@ -38,6 +39,8 @@ import { usePosStore } from "@/stores/pos-store";
 import { usePrinterStore } from "@/stores/printer-store";
 import { useReferenceStore } from "@/stores/reference-store";
 import { useToastStore } from "@/stores/toast-store";
+import { createSessionGuard } from "@/stores/session-store-registry";
+import { createPaymentViewScope } from "../payment-view-scope";
 import { useDocumentLogo } from "@/features/printer/use-document-logo";
 import { buildBrowserDocumentPrintData } from "@/features/printer/browser-document-print";
 import { usePaymentCustomers } from "./use-payment-customers";
@@ -115,6 +118,7 @@ interface QueuedDocumentContext {
   browserData?: InvoicePrintData;
   browserWindow?: LocalInvoicePrintWindowReservation | null;
   receiptRetryAttempted?: boolean;
+  canNotify: () => boolean;
 }
 
 export function usePaymentDialogWorkflow({
@@ -193,6 +197,12 @@ export function usePaymentDialogWorkflow({
   const invoice = cartOrderInvoice(orders);
   const orderUuid = firstOrderUuid(orders);
   const documentActionKey = JSON.stringify([user?.uuid, orderUuid]);
+  const paymentViewKey = JSON.stringify([
+    open, user?.uuid, user?.branch_uuid, orderUuid, table.table_uuid, paymentKind,
+    isSplitPayment ? splitBillItemUuids : null,
+  ]);
+  const viewScope = useMemo(() => createPaymentViewScope(paymentViewKey), [paymentViewKey]);
+  useLayoutEffect(() => viewScope.activate(), [viewScope]);
   const documentLogo = useDocumentLogo(open, user?.uuid, documentActionKey);
   const currencyOptions = useMemo(
     () => exchangeCurrencyOptions(exchanges),
@@ -410,7 +420,9 @@ export function usePaymentDialogWorkflow({
   }
 
   // เปิด dialog ชำระเงิน = ตั้งค่าฟอร์มใหม่ทั้งชุดทันที (แยกจาก effect ที่โหลดอัตราแลกเปลี่ยน)
-  useResetOnChange(open, () => {
+  useResetOnChange(paymentViewKey, () => {
+    setProcessing(false);
+    setInvoicePrinting(false);
     if (!open) return;
     const defaultAmount = defaultCurrencyInput(totalAmount, LAK_CURRENCY_OPTION);
     setActiveTab("cash");
@@ -439,7 +451,7 @@ export function usePaymentDialogWorkflow({
     void loadExchangeRates({
       lang: toApiLanguage(language),
     }).catch(() => undefined);
-  }, [isSplitPayment, language, loadExchangeRates, open, totalAmount, user]);
+  }, [language, loadExchangeRates, open, user?.branch_uuid, user?.uuid]);
 
   useEffect(() => {
     if (!open) return;
@@ -465,7 +477,7 @@ export function usePaymentDialogWorkflow({
     return () => {
       active = false;
     };
-  }, [fetchPosTransferAccounts, open]);
+  }, [fetchPosTransferAccounts, open, paymentViewKey]);
 
   // สกุลเงินที่เลือกหลุดจากรายการ (โหลดอัตราใหม่/สลับร้าน) = กลับไปใช้ LAK
   useResetOnDeps([currencyOptions, currencyValue], () => {
@@ -693,17 +705,41 @@ export function usePaymentDialogWorkflow({
   }
 
   function requestSubmit() {
+    if (!open || !viewScope.capture()() || !capturePaymentAuthorization()()) return;
     if (
       validation ||
       processing ||
-      invoicePrinting ||
-      checkoutDocumentActionGuard.isActive(documentActionKey)
+      invoicePrinting
     ) return;
+    if (checkoutDocumentActionGuard.isActive(documentActionKey)) {
+      showCheckoutActionBusy();
+      return;
+    }
     setConfirmOpen(true);
+  }
+
+  function showCheckoutActionBusy() {
+    showToast({
+      id: `checkout-action:${documentActionKey}`,
+      title: t("common.processing"),
+      description: t("pos.checkoutActionInProgress"),
+      tone: "info",
+    });
   }
 
   function browserPrintingAvailable() {
     return !isCapacitorMobileApp() && canUseWindowOpen() && canUseSystemPrintFallback();
+  }
+
+  function capturePaymentAuthorization() {
+    const isCurrentSession = createSessionGuard();
+    const loginUuid = user?.uuid;
+    const branchUuid = user?.branch_uuid;
+    return () => {
+      const currentUser = useAuthStore.getState().user;
+      return isCurrentSession() && Boolean(loginUuid) &&
+        currentUser?.uuid === loginUuid && currentUser?.branch_uuid === branchUuid;
+    };
   }
 
   function reserveBrowserPrintWindow() {
@@ -713,22 +749,36 @@ export function usePaymentDialogWorkflow({
 
   async function submitPayment() {
     if (validation || processing || invoicePrinting || !user?.uuid) return;
+    const isCurrentView = viewScope.capture();
+    const canNotify = capturePaymentAuthorization();
+    const ownsView = () => open && isCurrentView() && canNotify();
+    if (!ownsView()) return;
     if (!cartOrdersBelongToTable(orders, table)) {
       showToast({ title: t("pos.paymentMissingOrder"), tone: "error" });
       return;
     }
 
     const releaseAction = checkoutDocumentActionGuard.acquire(documentActionKey);
-    if (!releaseAction) return;
+    if (!releaseAction) {
+      showCheckoutActionBusy();
+      return;
+    }
 
     const browserWindow = reserveBrowserPrintWindow();
     let paymentCommitted = false;
+    let paymentRefresh: Promise<void> | null = null;
     setProcessing(true);
     try {
       if (!paymentUuidRef.current) paymentUuidRef.current = createMutationUuid();
       if (!splitOperationUuidRef.current) splitOperationUuidRef.current = createMutationUuid();
       if (!splitNewOrderUuidRef.current) splitNewOrderUuidRef.current = createMutationUuid();
       if (!splitPaymentUuidRef.current) splitPaymentUuidRef.current = createMutationUuid();
+      // A different bill can replace this view while the server is replying.
+      // Keep the committed receipt's identities independent of the new refs.
+      const paymentUuid = paymentUuidRef.current;
+      const splitOperationUuid = splitOperationUuidRef.current;
+      const splitNewOrderUuid = splitNewOrderUuidRef.current;
+      const splitPaymentUuid = splitPaymentUuidRef.current;
       const paymentPayload = {
         ...(typeof documentLogo.showLogo === "boolean" ? { show_logo: documentLogo.showLogo } : {}),
         order_uuid: orderUuid,
@@ -763,9 +813,9 @@ export function usePaymentDialogWorkflow({
       const response = isSplitPayment
         ? await splitBill({
             ...paymentPayload,
-            sync_event_uuid: splitOperationUuidRef.current,
-            new_order_uuid: splitNewOrderUuidRef.current,
-            payment_uuid: splitPaymentUuidRef.current,
+            sync_event_uuid: splitOperationUuid,
+            new_order_uuid: splitNewOrderUuid,
+            payment_uuid: splitPaymentUuid,
             split_item_uuid_map: (splitItemUuidMapRef.current =
               ensureSplitItemUuidMap(
                 splitBillItemUuids,
@@ -778,23 +828,23 @@ export function usePaymentDialogWorkflow({
           })
         : await createPayment({
             ...paymentPayload,
-            payment_uuid: paymentUuidRef.current,
+            payment_uuid: paymentUuid,
             order_channel: orderChannel,
             paid_at: null,
             lang: toApiLanguage(language),
           });
 
       paymentCommitted = true;
-      const context = queuedPrintContext(response, user.uuid);
+      const context = queuedPrintContext(response, user.uuid, canNotify);
       context.browserWindow = browserWindow;
       context.receipt = createCommittedReceiptRetry({
         receipt: {
           order_uuid: committedReceiptOrderUuid(
             response,
-            isSplitPayment ? splitNewOrderUuidRef.current : orderUuid,
+            isSplitPayment ? splitNewOrderUuid : orderUuid,
             isSplitPayment,
           ),
-          payment_uuid: response.payment?.payment_uuid,
+          payment_uuid: response.payment?.payment_uuid || (isSplitPayment ? splitPaymentUuid : paymentUuid),
           login_uuid_fk: context.loginUuid,
           lang: language,
           ...(typeof documentLogo.showLogo === "boolean" ? { show_logo: documentLogo.showLogo } : {}),
@@ -810,20 +860,26 @@ export function usePaymentDialogWorkflow({
       });
       const result = await finishCommittedPayment({
         print: () => printReceipt(response, context),
-        onCommitted: (printOutcome) => {
+        onCommitted: () => {
+          if (!ownsView()) return;
           const store = usePosStore.getState();
           if (firstOrderUuid(cartOrders(primaryCartOrder(store.cart))) === orderUuid) {
             store.invalidateCart();
           }
-          if (printOutcome === "success" || printOutcome === "skipped" || printOutcome === "browser") {
-            showToast({
-              title: t(isSplitPayment ? "pos.splitPaymentCreated" : "pos.paymentSuccess"),
-              tone: "success",
-            });
+          showToast({
+            title: t(isSplitPayment ? "pos.splitPaymentCreated" : "pos.paymentSuccess"),
+            tone: "success",
+          });
+          // Start the initiating view's refresh before closing can unmount it.
+          // The existing print job is already owned by the printer service.
+          try {
+            paymentRefresh = onCompleted();
+          } catch (error) {
+            paymentRefresh = Promise.reject(error);
           }
           onOpenChange(false);
         },
-        refresh: onCompleted,
+        refresh: () => paymentRefresh ?? Promise.resolve(),
         onPrintError: (error) => showQueuedPrintError(
           t("pos.paymentReceiptPrintFailed"),
           documentPrinterFailureDescription(error),
@@ -831,7 +887,7 @@ export function usePaymentDialogWorkflow({
           context,
         ),
       });
-      if ("completionError" in result || "refreshError" in result) {
+      if (canNotify() && ("completionError" in result || "refreshError" in result)) {
         showToast({
           title: t("pos.paymentRefreshFailed"),
           description: context.label,
@@ -839,6 +895,7 @@ export function usePaymentDialogWorkflow({
         });
       }
     } catch (error) {
+      if (!canNotify() || !paymentCommitted && !isCurrentView()) return;
       showToast({
         title: t(paymentCommitted
           ? "pos.paymentRefreshFailed"
@@ -849,20 +906,24 @@ export function usePaymentDialogWorkflow({
     } finally {
       browserWindow?.closeUnused();
       releaseAction();
-      setProcessing(false);
-      setConfirmOpen(false);
+      if (ownsView()) {
+        setProcessing(false);
+        setConfirmOpen(false);
+      }
     }
   }
 
   function queuedPrintContext(
     response: PaymentResponse | SplitBillResponse,
     loginUuid: string,
+    canNotify = capturePaymentAuthorization(),
   ): QueuedDocumentContext {
     const responseInvoice = response.new_order_invoice ?? response.order_invoice;
     const documentInvoice = typeof responseInvoice === "string" ? responseInvoice : invoice || orderUuid;
     const printJobUuid = response.pending_query?.print_job_uuid ?? response.print_job?.print_job_uuid;
     return {
       loginUuid,
+      canNotify,
       label: [
         `${t("pos.invoicePrintNumber")}: ${documentInvoice}`,
         hasRealTable ? `${t("pos.invoicePrintTable")}: ${table.table_name}` : "",
@@ -875,6 +936,7 @@ export function usePaymentDialogWorkflow({
     response: PaymentResponse | SplitBillResponse,
     context: QueuedDocumentContext,
   ): Promise<QueuedDocumentPrintOutcome> {
+    if (!context.canNotify()) return "pending";
     const pendingJobUuid =
       response.pending_query?.print_job_uuid ??
       (typeof response.print_job?.print_job_uuid === "string"
@@ -924,6 +986,8 @@ export function usePaymentDialogWorkflow({
   }
 
   async function retryCommittedReceipt(context: QueuedDocumentContext, newPrintRound = true) {
+    if (!context.canNotify()) return;
+    const ownsView = viewScope.capture();
     if (context.browserData && browserPrintingAvailable()) {
       await showBrowserDocument(context.browserData, context, t("pos.paymentReceiptPrintFailed"));
       return;
@@ -933,12 +997,15 @@ export function usePaymentDialogWorkflow({
     const releaseAction = checkoutDocumentActionGuard.acquire(
       JSON.stringify(["receipt-retry", context.loginUuid, receipt.orderUuid]),
     );
-    if (!releaseAction) return;
+    if (!releaseAction) {
+      showCheckoutActionBusy();
+      return;
+    }
 
     const allowBrowserFallback = !context.receiptRetryAttempted && browserPrintingAvailable();
     const browserWindow = allowBrowserFallback ? reserveBrowserPrintWindow() : null;
     context.receiptRetryAttempted = true;
-    setInvoicePrinting(true);
+    if (ownsView()) setInvoicePrinting(true);
     try {
       // The financial mutation is committed. Rebuild only this paid order's
       // receipt as a new manual print, without submitting payment again.
@@ -960,14 +1027,17 @@ export function usePaymentDialogWorkflow({
     } finally {
       browserWindow?.closeUnused();
       releaseAction();
-      setInvoicePrinting(false);
+      if (ownsView()) setInvoicePrinting(false);
     }
   }
 
   // A button click starts a new print round. A lost enqueue response retries
   // this operation UUID so Backend can return the job it already created.
-  async function handlePrintInvoice(retryOperationUuid?: string) {
+  async function handlePrintInvoice(retryOperationUuid?: string, existingAuthorization?: () => boolean) {
     if (!orderUuid || !user?.uuid || processing || invoicePrinting) return;
+    const canNotify = existingAuthorization ?? capturePaymentAuthorization();
+    if (!canNotify()) return;
+    const ownsView = viewScope.capture();
     if (isSplitPayment && !splitBillItemUuids.length) {
       showToast({ title: t("pos.splitPaymentSelectRequired"), tone: "error" });
       return;
@@ -982,7 +1052,10 @@ export function usePaymentDialogWorkflow({
     }
 
     const releaseAction = checkoutDocumentActionGuard.acquire(documentActionKey);
-    if (!releaseAction) return;
+    if (!releaseAction) {
+      showCheckoutActionBusy();
+      return;
+    }
 
     const operationUuid = retryOperationUuid || createMutationUuid();
     // An earlier request may have reached the physical queue before its
@@ -990,12 +1063,13 @@ export function usePaymentDialogWorkflow({
     const allowBrowserFallback = !retryOperationUuid && browserPrintingAvailable();
     const browserWindow = allowBrowserFallback ? reserveBrowserPrintWindow() : null;
     const context: QueuedDocumentContext = {
-      ...queuedPrintContext({ order_uuid: orderUuid, order_invoice: invoice || orderUuid }, user.uuid),
+      ...queuedPrintContext({ order_uuid: orderUuid, order_invoice: invoice || orderUuid }, user.uuid, canNotify),
       browserWindow,
-      retryDocument: () => void handlePrintInvoice(operationUuid),
+      retryDocument: () => void handlePrintInvoice(operationUuid, canNotify),
     };
 
-    setInvoicePrinting(true);
+    showToast({ id: context.toastId, title: t("common.printing"), description: context.label, tone: "info" });
+    if (ownsView()) setInvoicePrinting(true);
     try {
       const response = isSplitPayment
         ? await splitBill({
@@ -1047,7 +1121,9 @@ export function usePaymentDialogWorkflow({
         (typeof response.print_job?.print_job_uuid === "string"
           ? response.print_job.print_job_uuid
           : "");
-      Object.assign(context, queuedPrintContext(response, user.uuid));
+      if (!canNotify()) return;
+      const toastId = context.toastId;
+      Object.assign(context, queuedPrintContext(response, user.uuid, canNotify), { toastId });
 
       if (!pendingJobUuid) {
         const browserData = allowBrowserFallback
@@ -1056,7 +1132,8 @@ export function usePaymentDialogWorkflow({
         else showQueuedPrintError(
           t("pos.invoicePrintFailed"),
           documentPrinterFailureDescription(response) || queuedDocumentPrintFailureMessage(response, t("pos.invoicePrintMissingJob")),
-          () => void handlePrintInvoice(operationUuid),
+          () => void handlePrintInvoice(operationUuid, canNotify),
+          context,
         );
         return;
       }
@@ -1064,12 +1141,13 @@ export function usePaymentDialogWorkflow({
       await executeQueuedInvoice(
         response,
         {
-          ...queuedPrintContext(response, user.uuid),
-          retryDocument: () => void handlePrintInvoice(),
+          ...context,
+          retryDocument: () => void handlePrintInvoice(undefined, canNotify),
         },
         t("pos.invoicePrintFailed"),
       );
     } catch (error) {
+      if (!canNotify()) return;
       const browserData = allowBrowserFallback
         ? buildBrowserDocumentPrintData(error, "invoice", (key, options) => String(t(key, options))) : null;
       if (browserData) {
@@ -1078,10 +1156,11 @@ export function usePaymentDialogWorkflow({
       }
       if (documentPrinterFailureKind(error)) {
         showToast({
+          id: context.toastId,
           title: t("pos.invoicePrintFailed"),
           description: documentPrinterFailureDescription(error),
           tone: "error",
-          action: { label: t("actions.tryAgain"), onClick: () => void handlePrintInvoice(operationUuid) },
+          action: { label: t("actions.tryAgain"), onClick: () => void handlePrintInvoice(operationUuid, canNotify) },
         });
         return;
       }
@@ -1089,21 +1168,22 @@ export function usePaymentDialogWorkflow({
       // A cached cart is not a safe substitute for that invoice snapshot.
       if (isInvoicePrintPreparationError(error)) {
         showToast({
+          id: context.toastId,
           title: t("pos.invoicePrintFailed"),
           description: t("pos.invoicePrintPreparationFailed"),
           tone: "error",
           action: {
             label: t("actions.tryAgain"),
-            onClick: () => void handlePrintInvoice(operationUuid),
+            onClick: () => void handlePrintInvoice(operationUuid, canNotify),
           },
         });
         return;
       }
-      showQueuedPrintError(t("pos.invoicePrintFailed"), documentPrinterFailureDescription(error), () => void handlePrintInvoice(operationUuid));
+      showQueuedPrintError(t("pos.invoicePrintFailed"), documentPrinterFailureDescription(error), () => void handlePrintInvoice(operationUuid, canNotify), context);
     } finally {
       browserWindow?.closeUnused();
       releaseAction();
-      setInvoicePrinting(false);
+      if (ownsView()) setInvoicePrinting(false);
     }
   }
 
@@ -1112,10 +1192,12 @@ export function usePaymentDialogWorkflow({
     context: QueuedDocumentContext,
     failureTitle: string,
   ): Promise<QueuedDocumentPrintOutcome> {
+    if (!context.canNotify()) return "pending";
+    const ownsView = viewScope.capture();
     const retry = context.receipt
       ? () => void retryCommittedReceipt(context, true)
       : context.retryDocument;
-    setInvoicePrinting(true);
+    if (ownsView()) setInvoicePrinting(true);
     try {
       const printResult = await executeInvoice({
         print_job: response.print_job,
@@ -1123,6 +1205,7 @@ export function usePaymentDialogWorkflow({
         login_uuid_fk: context.loginUuid,
       });
       const outcome = queuedDocumentPrintOutcome(printResult);
+      if (!context.canNotify()) return outcome;
 
       if (outcome === "pending") {
         showToast({
@@ -1158,7 +1241,7 @@ export function usePaymentDialogWorkflow({
       );
       return "error";
     } finally {
-      setInvoicePrinting(false);
+      if (ownsView()) setInvoicePrinting(false);
     }
   }
 
@@ -1177,6 +1260,7 @@ export function usePaymentDialogWorkflow({
     retry: (() => void) | undefined,
     context?: QueuedDocumentContext,
   ) {
+    if (context && !context.canNotify()) return;
     const retryDescription = context?.receipt
       ? t("pos.paidReceiptRetryDescription")
       : context?.retryDocument ? "" : t("pos.autoPrintRetryDescription");
@@ -1205,12 +1289,14 @@ export function usePaymentDialogWorkflow({
     context: QueuedDocumentContext,
     failureTitle: string,
   ): Promise<QueuedDocumentPrintOutcome> {
+    if (!context.canNotify()) return "pending";
     context.browserData = data;
     context.label = [
       `${data.labels.invoice}: ${data.invoice || "-"}`,
       data.tableName ? `${data.labels.table}: ${data.tableName}` : "",
     ].filter(Boolean).join(" · ");
     const opened = context.browserWindow?.render(data) || await openLocalInvoicePrintWindow(data);
+    if (!context.canNotify()) return "pending";
     if (opened) {
       showToast({
         id: context.toastId,

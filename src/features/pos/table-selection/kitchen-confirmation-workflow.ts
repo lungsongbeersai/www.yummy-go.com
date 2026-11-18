@@ -7,6 +7,7 @@ interface KitchenConfirmationWorkflow {
   onRefreshError: (error: unknown) => void;
   refresh: () => Promise<void>;
   release: () => void;
+  isCurrent?: () => boolean;
 }
 
 export function createKitchenPrintProgressHandler({
@@ -41,6 +42,7 @@ export async function runKitchenConfirmation({
   onRefreshError,
   refresh,
   release,
+  isCurrent = () => true,
 }: KitchenConfirmationWorkflow): Promise<void> {
   let loadingClosed = false;
   const closeLoadingOnce = () => {
@@ -52,7 +54,7 @@ export async function runKitchenConfirmation({
     try {
       await confirmAndPrint(closeLoadingOnce);
     } catch (error) {
-      onConfirmationError(error);
+      if (isCurrent()) onConfirmationError(error);
     } finally {
       closeLoadingOnce();
     }
@@ -60,9 +62,9 @@ export async function runKitchenConfirmation({
     // Printing has settled, so the modal can close. Keep the submission and
     // draft-cleanup guards until the cart no longer contains the old draft.
     try {
-      await refresh();
+      if (isCurrent()) await refresh();
     } catch (error) {
-      onRefreshError(error);
+      if (isCurrent()) onRefreshError(error);
     }
   } finally {
     release();

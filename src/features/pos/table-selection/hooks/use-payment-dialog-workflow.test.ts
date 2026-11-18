@@ -59,6 +59,16 @@ function WorkflowHarness(props: PaymentDialogProps) {
   return createElement("output", null, activeInputDisplayValue);
 }
 
+function deferredValue<T>() {
+  let resolve: (value: T) => void = () => {};
+  let reject: (error: Error) => void = () => {};
+  const promise = new Promise<T>((resolvePromise, rejectPromise) => {
+    resolve = resolvePromise;
+    reject = rejectPromise;
+  });
+  return { promise, resolve, reject };
+}
+
 const orders = [
   {
     order_uuid: "order-1",
@@ -232,6 +242,105 @@ describe("payment dialog workflow", () => {
     if (!workflow) throw new Error("Workflow was not rendered");
     return workflow;
   }
+
+  it.each(["full", "split"] as const)("releases the paid %s dialog while its original receipt is still printing", async (paymentKind) => {
+    const printer = deferredValue<Awaited<ReturnType<typeof originalExecuteInvoice>>>();
+    const response = {
+      ...committedReceipt(paymentKind),
+      pending_query: { print_job_uuid: "owned-receipt", login_uuid_fk: "cashier-1" },
+    };
+    const pay = vi.fn().mockResolvedValue(response);
+    const execute = vi.fn().mockReturnValue(printer.promise);
+    const show = vi.fn<typeof originalShowToast>();
+    const onCompleted = vi.fn<PaymentDialogProps["onCompleted"]>().mockResolvedValue();
+    const onOpenChange = vi.fn<PaymentDialogProps["onOpenChange"]>();
+    usePosStore.setState({ createPayment: pay, splitBill: pay });
+    usePrinterStore.setState({ executeInvoice: execute });
+    useToastStore.setState({ show });
+    const completion = renderActionWorkflow(paymentKind, { onCompleted, onOpenChange }).submitPayment();
+    let settled = false;
+    void completion.then(() => { settled = true; });
+
+    await vi.waitFor(() => expect(onOpenChange).toHaveBeenCalledWith(false));
+    expect(onCompleted).toHaveBeenCalledOnce();
+    expect(execute).toHaveBeenCalledExactlyOnceWith(expect.objectContaining({ pending_query: response.pending_query }));
+    expect(settled).toBe(false);
+    // A stale second instance cannot send the same bill while the owned job
+    // is settling, even though the first dialog has already closed.
+    await renderActionWorkflow(paymentKind).submitPayment();
+    expect(pay).toHaveBeenCalledOnce();
+    expect(show).toHaveBeenLastCalledWith(expect.objectContaining({
+      title: "common.processing", description: "pos.checkoutActionInProgress", tone: "info",
+    }));
+
+    printer.resolve({ successCount: 1, failedCount: 0, total: 1 });
+    await completion;
+    expect(settled).toBe(true);
+    expect(pay).toHaveBeenCalledOnce();
+  });
+
+  it.each(["full", "split"] as const)("does not close, refresh or print another account's view after a late %s payment response", async (paymentKind) => {
+    const payment = deferredValue<ReturnType<typeof committedReceipt>>();
+    const pay = vi.fn().mockReturnValue(payment.promise);
+    const execute = vi.fn();
+    const show = vi.fn<typeof originalShowToast>();
+    const onCompleted = vi.fn<PaymentDialogProps["onCompleted"]>().mockResolvedValue();
+    const onOpenChange = vi.fn<PaymentDialogProps["onOpenChange"]>();
+    usePosStore.setState({ createPayment: pay, splitBill: pay });
+    usePrinterStore.setState({ executeInvoice: execute });
+    useToastStore.setState({ show });
+    const completion = renderActionWorkflow(paymentKind, { onCompleted, onOpenChange }).submitPayment();
+    const originalUser = useAuthStore.getState().user;
+    if (!originalUser) throw new Error("Missing test actor");
+    useAuthStore.setState({ user: { ...originalUser, uuid: "cashier-2", branch_uuid: "branch-2" } });
+    payment.resolve(committedReceipt(paymentKind));
+    await completion;
+
+    expect(pay).toHaveBeenCalledOnce();
+    expect(execute).not.toHaveBeenCalled();
+    expect(show).not.toHaveBeenCalled();
+    expect(onCompleted).not.toHaveBeenCalled();
+    expect(onOpenChange).not.toHaveBeenCalled();
+  });
+
+  it.each(["full", "split"] as const)("does not show a late %s payment failure in a new account", async (paymentKind) => {
+    const payment = deferredValue<never>();
+    const pay = vi.fn().mockReturnValue(payment.promise);
+    const show = vi.fn<typeof originalShowToast>();
+    usePosStore.setState({ createPayment: pay, splitBill: pay });
+    useToastStore.setState({ show });
+    const completion = renderActionWorkflow(paymentKind).submitPayment();
+    const originalUser = useAuthStore.getState().user;
+    if (!originalUser) throw new Error("Missing test actor");
+    useAuthStore.setState({ user: { ...originalUser, uuid: "cashier-2" } });
+    payment.reject(new Error("Old payment response lost"));
+    await completion;
+    expect(show).not.toHaveBeenCalled();
+  });
+
+  it.each(["full", "split"] as const)("keeps the original submitted %s identities when a legacy receipt response omits payment metadata", async (paymentKind) => {
+    const pay = vi.fn().mockResolvedValue({
+      order_uuid: "order-1", order_invoice: "LEGACY-1",
+      pending_query: { print_job_uuid: "legacy-receipt", login_uuid_fk: "cashier-1" },
+    });
+    const reprint = vi.fn().mockResolvedValue({ print_job_uuid: "manual-receipt", login_uuid_fk: "cashier-1" });
+    const execute = vi.fn().mockResolvedValue({ successCount: 0, failedCount: 1, total: 1, errorMessage: "Paper out" });
+    const show = vi.fn<typeof originalShowToast>();
+    usePosStore.setState({ createPayment: pay, splitBill: pay, reprintReceipt: reprint });
+    usePrinterStore.setState({ executeInvoice: execute });
+    useToastStore.setState({ show });
+
+    await renderActionWorkflow(paymentKind).submitPayment();
+    show.mock.calls.at(-1)?.[0].action?.onClick({ preventDefault() {} });
+    await vi.waitFor(() => expect(reprint).toHaveBeenCalledOnce());
+    const submitted = pay.mock.calls[0][0];
+    expect(reprint).toHaveBeenCalledWith(expect.objectContaining({
+      order_uuid: paymentKind === "split" ? submitted.new_order_uuid : submitted.order_uuid,
+      payment_uuid: submitted.payment_uuid,
+      login_uuid_fk: "cashier-1",
+    }));
+    expect(pay).toHaveBeenCalledOnce();
+  });
 
   it("prefills cash received with the amount due on the first open", () => {
     const html = renderToString(
@@ -560,7 +669,10 @@ describe("payment dialog workflow", () => {
     const operationUuid = enqueue.mock.calls[0][0].operation_uuid;
     show.mock.calls.at(-1)?.[0].action?.onClick({ preventDefault() {} });
 
-    await vi.waitFor(() => expect(show).toHaveBeenCalledTimes(2));
+    await vi.waitFor(() => expect(enqueue).toHaveBeenCalledTimes(2));
+    await vi.waitFor(() => expect(show).toHaveBeenLastCalledWith(expect.objectContaining({
+      title: "pos.invoicePrintFailed", tone: "error",
+    })));
     expect(enqueue).toHaveBeenCalledTimes(2);
     expect(enqueue.mock.calls[1][0].operation_uuid).toBe(operationUuid);
     expect(browserPrint.render).not.toHaveBeenCalled();
@@ -628,12 +740,15 @@ describe("payment dialog workflow", () => {
     useToastStore.setState({ show });
 
     await renderActionWorkflow(paymentKind).submitPayment();
+    const originalToastCount = show.mock.calls.length;
     show.mock.calls.at(-1)?.[0].action?.onClick({ preventDefault() {} });
-    await vi.waitFor(() => expect(show).toHaveBeenCalledTimes(2));
+    await vi.waitFor(() => expect(reprint).toHaveBeenCalledOnce());
+    await vi.waitFor(() => expect(show).toHaveBeenCalledTimes(originalToastCount + 1));
     const operationUuid = reprint.mock.calls[0][0].operation_uuid;
     show.mock.calls.at(-1)?.[0].action?.onClick({ preventDefault() {} });
 
-    await vi.waitFor(() => expect(show).toHaveBeenCalledTimes(3));
+    await vi.waitFor(() => expect(reprint).toHaveBeenCalledTimes(2));
+    await vi.waitFor(() => expect(show).toHaveBeenCalledTimes(originalToastCount + 2));
     expect(reprint).toHaveBeenCalledTimes(2);
     expect(reprint.mock.calls[1][0].operation_uuid).toBe(operationUuid);
     expect(browserPrint.render).not.toHaveBeenCalled();
