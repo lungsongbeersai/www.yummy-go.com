@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
   getSunmiBuiltinPrinterIdentity,
+  discoverSunmiBuiltinPrinter,
   isSunmiBuiltinPrinterTarget,
   printSunmiEscpos,
   SUNMI_PRINTER_AGENT_ID,
@@ -13,18 +14,19 @@ import type { PrintJob } from "./types";
 import { resetSessionStores } from "@/stores/session-store-registry";
 
 const mocks = vi.hoisted(() => ({
-  native: true, available: true, platform: "android",
-  info: vi.fn(), print: vi.fn(), identity: vi.fn(),
+  native: true, available: true, appAvailable: true, platform: "android",
+  info: vi.fn(), print: vi.fn(), identity: vi.fn(), appInfo: vi.fn(),
 }));
 vi.mock("@capacitor/core", () => ({
   Capacitor: {
     isNativePlatform: () => mocks.native,
     getPlatform: () => mocks.platform,
-    isPluginAvailable: () => mocks.available,
+    isPluginAvailable: (name: string) => name === "App" ? mocks.appAvailable : mocks.available,
   },
   registerPlugin: () => ({ getInfo: mocks.info, printEscpos: mocks.print }),
 }));
 vi.mock("@/services/printer/browser-device", () => ({ getBrowserPrinterIdentity: mocks.identity }));
+vi.mock("@capacitor/app", () => ({ App: { getInfo: mocks.appInfo } }));
 vi.mock("@/lib/api", () => ({ ServiceError: class extends Error {} }));
 
 const target = {
@@ -43,9 +45,10 @@ const input = { target, jobId: "item-1:printer-1", escposBase64: "G0A=" };
 describe("SUNMI built-in printer transport", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    mocks.native = true; mocks.available = true; mocks.platform = "android";
+    mocks.native = true; mocks.available = true; mocks.appAvailable = true; mocks.platform = "android";
     mocks.info.mockReset().mockResolvedValue(info);
     mocks.identity.mockReset().mockResolvedValue({ agent_id: "mobile", device_code: target.device_code });
+    mocks.appInfo.mockReset().mockResolvedValue({ version: "1.0.10", build: "11" });
     mocks.print.mockReset().mockImplementation(async (request: { jobId: string }) => ({
       deliveryState: "printed", jobId: request.jobId, replayed: false,
     }));
@@ -76,6 +79,162 @@ describe("SUNMI built-in printer transport", () => {
       print_mode: "sunmi_builtin", paper_width_mm: 80,
     });
     expect(await mocks.identity()).toEqual({ agent_id: "mobile", device_code: target.device_code });
+    expect(mocks.appInfo).not.toHaveBeenCalled();
+  });
+
+  it.each(["web", "ios"])("keeps %s diagnostics separate from Android native discovery", async (kind) => {
+    if (kind === "web") mocks.native = false;
+    else mocks.platform = "ios";
+    expect(await discoverSunmiBuiltinPrinter()).toMatchObject({
+      agent: null, diagnostic: { status: "not_native", nativeAndroid: false, installedVersion: null },
+    });
+    expect(mocks.info).not.toHaveBeenCalled();
+    expect(mocks.appInfo).not.toHaveBeenCalled();
+  });
+
+  it("shows a missing bridge in the Android app shell without treating its user agent as hardware capability", async () => {
+    mocks.native = false; mocks.platform = "web";
+    vi.stubGlobal("window", {});
+    vi.stubGlobal("navigator", { userAgent: "Mozilla/5.0 Chrome/83.0 YummyGoCapacitorAndroid" });
+    try {
+      expect(await discoverSunmiBuiltinPrinter()).toMatchObject({ agent: null,
+        diagnostic: { status: "plugin_missing", nativeAndroid: true, installedVersion: null } });
+      expect(await getSunmiBuiltinPrinterIdentity()).toBeNull();
+      expect(mocks.info).not.toHaveBeenCalled();
+      expect(mocks.appInfo).not.toHaveBeenCalled();
+      expect(mocks.identity).not.toHaveBeenCalled();
+      expect(mocks.print).not.toHaveBeenCalled();
+    } finally { vi.unstubAllGlobals(); }
+  });
+
+  it("does not show an Android browser as the Android app shell", async () => {
+    mocks.native = false; mocks.platform = "web";
+    vi.stubGlobal("window", {});
+    vi.stubGlobal("navigator", { userAgent: "Mozilla/5.0 (Linux; Android 11) Chrome/83.0" });
+    try {
+      expect((await discoverSunmiBuiltinPrinter()).diagnostic).toMatchObject({ status: "not_native", nativeAndroid: false });
+      expect(mocks.info).not.toHaveBeenCalled();
+    } finally { vi.unstubAllGlobals(); }
+  });
+
+  it("identifies an Android APK missing the printer bridge while retaining its actual installed version", async () => {
+    mocks.available = false;
+    expect(await discoverSunmiBuiltinPrinter()).toMatchObject({
+      agent: null, diagnostic: { status: "plugin_missing", nativeAndroid: true, installedVersion: "1.0.10", installedBuild: 11 },
+    });
+    expect(mocks.info).not.toHaveBeenCalled();
+    expect(mocks.identity).not.toHaveBeenCalled();
+  });
+
+  it.each(["missing", "rejected"])("does not substitute a legacy APK version when App metadata is %s", async (kind) => {
+    if (kind === "missing") mocks.appAvailable = false;
+    else mocks.appInfo.mockRejectedValueOnce(new Error("App metadata unavailable"));
+    expect(await discoverSunmiBuiltinPrinter()).toMatchObject({
+      agent: { agent_id: "sunmi-native" },
+      diagnostic: { status: "available", installedVersion: null, installedBuild: null },
+    });
+  });
+
+  it("retains the native service reason and model instead of hiding an unsupported printer", async () => {
+    mocks.info.mockResolvedValueOnce({ ...info, supported: false, connected: false, ready: false,
+      reason: "SUNMI printer service did not connect in time.", stateCode: null });
+    expect(await discoverSunmiBuiltinPrinter()).toMatchObject({
+      agent: null, diagnostic: { status: "unsupported", nativeAndroid: true, model: "D2s PLUS",
+        reason: "SUNMI printer service did not connect in time.", ready: false, installedVersion: "1.0.10" },
+    });
+    expect(mocks.identity).not.toHaveBeenCalled();
+  });
+
+  it("reports a bridge read failure without claiming that a built-in printer was detected", async () => {
+    mocks.info.mockRejectedValueOnce(new Error("Printer service disconnected"));
+    expect(await discoverSunmiBuiltinPrinter()).toMatchObject({
+      agent: null, diagnostic: { status: "service_error", error: "Printer service disconnected", model: null,
+        nativeAndroid: true, installedVersion: "1.0.10" },
+    });
+  });
+
+  it("reports a local identity mismatch with the detected hardware metadata and never sends paper", async () => {
+    mocks.identity.mockResolvedValueOnce({ device_code: "android-native-other" });
+    const result = await discoverSunmiBuiltinPrinter();
+    expect(result).toMatchObject({ agent: null, diagnostic: { status: "identity_error", model: "D2s PLUS",
+      deviceCode: target.device_code, installedVersion: "1.0.10" } });
+    expect(result.diagnostic.error).toContain("does not match");
+    expect(mocks.print).not.toHaveBeenCalled();
+  });
+
+  it("retains supported paper-out hardware as configurable while reporting its nonready state", async () => {
+    mocks.info.mockResolvedValueOnce({ ...info, ready: false, stateCode: 4, statusMessage: "Out of paper" });
+    expect(await discoverSunmiBuiltinPrinter()).toMatchObject({
+      agent: { agent_id: "sunmi-native", sunmi_ready: false },
+      diagnostic: { status: "available", ready: false, stateCode: 4, reason: "Out of paper" },
+    });
+  });
+
+  it("can rediscover a service that connects after an earlier unsupported response", async () => {
+    mocks.info.mockResolvedValueOnce({ ...info, supported: false, ready: false, reason: "Service not connected" });
+    expect((await discoverSunmiBuiltinPrinter()).diagnostic.status).toBe("unsupported");
+    expect(await discoverSunmiBuiltinPrinter()).toMatchObject({ agent: { agent_id: "sunmi-native" },
+      diagnostic: { status: "available", reason: null } });
+    expect(mocks.info).toHaveBeenCalledTimes(2);
+    expect(mocks.print).not.toHaveBeenCalled();
+  });
+
+  it("reads APK metadata alongside printer discovery rather than delaying the SDK probe", async () => {
+    let resolveVersion!: (value: { version: string; build: string }) => void;
+    mocks.appInfo.mockImplementationOnce(() => new Promise(resolve => { resolveVersion = resolve; }));
+    const discovery = discoverSunmiBuiltinPrinter();
+    await vi.waitFor(() => expect(mocks.info).toHaveBeenCalledOnce());
+    await vi.waitFor(() => expect(mocks.appInfo).toHaveBeenCalledOnce());
+    resolveVersion({ version: "1.0.10", build: "11" });
+    expect((await discovery).diagnostic.installedVersion).toBe("1.0.10");
+  });
+
+  it("does not let missing APK metadata hold a detected printer or leave probe timers behind", async () => {
+    vi.useFakeTimers();
+    mocks.appInfo.mockReturnValueOnce(new Promise(() => undefined));
+    try {
+      const request = discoverSunmiBuiltinPrinter();
+      await vi.advanceTimersByTimeAsync(1_500);
+      expect(await request).toMatchObject({ agent: { agent_id: "sunmi-native" },
+        diagnostic: { status: "available", installedVersion: null, installedBuild: null } });
+      expect(vi.getTimerCount()).toBe(0);
+    } finally { vi.useRealTimers(); }
+  });
+
+  it("bounds a lost availability bridge response and allows a later explicit retry", async () => {
+    vi.useFakeTimers();
+    mocks.info.mockReturnValueOnce(new Promise(() => undefined));
+    try {
+      const request = discoverSunmiBuiltinPrinter();
+      await vi.advanceTimersByTimeAsync(10_000);
+      expect(await request).toMatchObject({ agent: null, diagnostic: { status: "service_error",
+        error: "SUNMI printer availability could not be read in time." } });
+      expect(await discoverSunmiBuiltinPrinter()).toMatchObject({ agent: { agent_id: "sunmi-native" },
+        diagnostic: { status: "available", error: null } });
+      expect(vi.getTimerCount()).toBe(0);
+      expect(mocks.print).not.toHaveBeenCalled();
+    } finally { vi.useRealTimers(); }
+  });
+
+  it("bounds a lost device identity response without registering an unverified printer", async () => {
+    vi.useFakeTimers();
+    mocks.identity.mockReturnValueOnce(new Promise(() => undefined));
+    try {
+      const request = discoverSunmiBuiltinPrinter();
+      await vi.advanceTimersByTimeAsync(3_000);
+      expect(await request).toMatchObject({ agent: null, diagnostic: { status: "identity_error",
+        error: "The built-in printer identity could not be verified in time." } });
+      expect(vi.getTimerCount()).toBe(0);
+      expect(mocks.print).not.toHaveBeenCalled();
+    } finally { vi.useRealTimers(); }
+  });
+
+  it("clears all discovery timeout timers after an immediate successful probe", async () => {
+    vi.useFakeTimers();
+    try {
+      expect((await discoverSunmiBuiltinPrinter()).diagnostic.status).toBe("available");
+      expect(vi.getTimerCount()).toBe(0);
+    } finally { vi.useRealTimers(); }
   });
 
   it("rejects a mismatched native identity before sending paper", async () => {

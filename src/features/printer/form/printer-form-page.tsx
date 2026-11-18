@@ -114,6 +114,16 @@ export function PrinterFormPage() {
       : form.ip
         ? `${t("printer.tcpPrinter")} · ${form.ip}:${form.port}`
         : t("printer.tcpPrinter");
+  const builtinStatus = form.builtinDiagnostic.status;
+  const builtinMessage = builtinStatus === "available"
+    ? form.builtinDiagnostic.ready ? "sunmiDetected" : "sunmiDetectedNotReady"
+    : builtinStatus === "plugin_missing" ? "sunmiPluginMissing"
+      : builtinStatus === "registration_error" ? "sunmiRegistrationFailed"
+        : builtinStatus === "identity_error" ? "sunmiIdentityFailed"
+          : builtinStatus === "forbidden" ? "sunmiPermissionRequired"
+            : builtinStatus === "unsupported" || builtinStatus === "service_error" ? "sunmiServiceUnavailable"
+              : "sunmiChecking";
+  const builtinFailure = !["idle", "checking", "available"].includes(builtinStatus);
 
   return (
     <div data-sunmi-printer-form={form.connectType === "sunmi" ? "true" : undefined} className="flex w-full flex-col gap-5">
@@ -186,6 +196,41 @@ export function PrinterFormPage() {
               ...(form.showBuiltinChoice ? [{ value: "sunmi", label: t("printer.sunmiPrinter"), description: t("printer.connectSunmiHint"), icon: Printer, disabled: !form.builtinAgent || form.loadingBuiltinAgent }] : []),
             ]}
           />
+
+          {form.builtinDiagnostic.nativeAndroid ? (
+            <Alert data-sunmi-printer-diagnostic={builtinStatus} variant={builtinFailure ? "destructive" : "default"}>
+              <Printer aria-hidden="true" />
+              <AlertTitle>{t("printer.sunmiPrinter")}</AlertTitle>
+              <AlertDescription className="flex min-w-0 flex-col items-start gap-2 text-left">
+                <p>{t(`printer.${builtinMessage}`)}</p>
+                {form.builtinDiagnostic.installedVersion || form.builtinDiagnostic.model ? (
+                  <p className="break-words">
+                    {[
+                      form.builtinDiagnostic.installedVersion
+                        ? `Yummy Go ${form.builtinDiagnostic.installedVersion}${form.builtinDiagnostic.installedBuild ? ` (${form.builtinDiagnostic.installedBuild})` : ""}`
+                        : null,
+                      form.builtinDiagnostic.model,
+                    ].filter(Boolean).join(" · ")}
+                  </p>
+                ) : null}
+                {builtinFailure && (form.builtinDiagnostic.reason || form.builtinDiagnostic.error) ? (
+                  <p className="w-full break-words" data-sunmi-printer-diagnostic-detail>
+                    {[form.builtinDiagnostic.reason, form.builtinDiagnostic.error].filter(Boolean).join(" · ")}
+                  </p>
+                ) : null}
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="min-h-11"
+                  disabled={form.loadingBuiltinAgent || form.saving}
+                  onClick={form.retryBuiltinDetection}
+                >
+                  {form.loadingBuiltinAgent ? <Spinner data-icon="inline-start" /> : <RefreshCw data-icon="inline-start" />}
+                  {t("printer.sunmiCheckAgain")}
+                </Button>
+              </AlertDescription>
+            </Alert>
+          ) : null}
 
           <FieldGroup className="grid gap-4 md:grid-cols-2">
             <Field>

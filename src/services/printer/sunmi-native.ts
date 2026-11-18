@@ -3,6 +3,7 @@ import { ServiceError } from "@/lib/api";
 import type { AgentInfo, PrintJob } from "@/services/printer/types";
 import { SUNMI_PRINTER_INTERFACE, SUNMI_PRINT_MODE, SUNMI_PRINTER_AGENT_ID } from "@/config/sunmi-printer";
 import { createSessionGuard } from "@/stores/session-store-registry";
+import { isCapacitorAndroidApp } from "@/lib/capacitor-platform";
 export { SUNMI_PRINTER_INTERFACE, SUNMI_PRINT_MODE, SUNMI_PRINTER_AGENT_ID } from "@/config/sunmi-printer";
 
 export interface SunmiPrinterInfo {
@@ -16,6 +17,29 @@ export interface SunmiPrinterInfo {
   interfaceValue: string;
   serialNumber?: string;
   serviceVersion?: string;
+  reason?: string;
+  statusMessage?: string;
+}
+
+export type SunmiBuiltinPrinterDiagnosticStatus = "idle" | "checking" | "not_native" | "plugin_missing" |
+  "unsupported" | "service_error" | "identity_error" | "registration_error" | "forbidden" | "available";
+
+export interface SunmiBuiltinPrinterDiagnostic {
+  status: SunmiBuiltinPrinterDiagnosticStatus;
+  nativeAndroid: boolean;
+  installedVersion: string | null;
+  installedBuild: number | null;
+  model: string | null;
+  reason: string | null;
+  error: string | null;
+  ready: boolean;
+  stateCode: number | null;
+  deviceCode: string | null;
+}
+
+export interface SunmiBuiltinPrinterDiscovery {
+  agent: AgentInfo | null;
+  diagnostic: SunmiBuiltinPrinterDiagnostic;
 }
 
 interface SunmiPrintResult {
@@ -75,12 +99,7 @@ async function nativePlugin() {
   return plugin;
 }
 
-export async function getSunmiBuiltinPrinterIdentity(readyOnly = false): Promise<AgentInfo | null> {
-  if (!hasNativePlugin()) return null;
-  const info = await (await nativePlugin()).getInfo().catch((error: unknown) => {
-    throw failure(error instanceof Error ? error.message : "SUNMI printer availability could not be read.", 503);
-  });
-  if (!info.supported || (readyOnly && (!info.connected || !info.ready))) return null;
+async function identityFromInfo(info: SunmiPrinterInfo): Promise<AgentInfo> {
   const { getBrowserPrinterIdentity } = await import("@/services/printer/browser-device");
   const device = await getBrowserPrinterIdentity();
   if (!info.deviceCode || !info.deviceCode.includes("-native-") || info.deviceCode !== device.device_code ||
@@ -98,6 +117,84 @@ export async function getSunmiBuiltinPrinterIdentity(readyOnly = false): Promise
     sunmi_state_code: info.stateCode,
     ...(info.paperWidthMm === 58 || info.paperWidthMm === 80 ? { paper_width_mm: info.paperWidthMm } : {}),
   };
+}
+
+async function readSunmiInfo() {
+  return (await nativePlugin()).getInfo().catch((error: unknown) => {
+    throw failure(error instanceof Error ? error.message : "SUNMI printer availability could not be read.", 503);
+  });
+}
+
+export async function getSunmiBuiltinPrinterIdentity(readyOnly = false): Promise<AgentInfo | null> {
+  if (!hasNativePlugin()) return null;
+  const info = await readSunmiInfo();
+  if (!info.supported || (readyOnly && (!info.connected || !info.ready))) return null;
+  return identityFromInfo(info);
+}
+
+function probeWithin<T>(request: Promise<T>, timeoutMs: number, message: string): Promise<T> {
+  return new Promise<T>((resolve, reject) => {
+    const timer = setTimeout(() => reject(new Error(message)), timeoutMs);
+    request.then(value => { clearTimeout(timer); resolve(value); }, error => { clearTimeout(timer); reject(error); });
+  });
+}
+
+async function readActualInstalledVersion() {
+  // The general update helper deliberately falls back to a legacy version.
+  // Diagnostics must identify the installed APK or explicitly leave it unknown.
+  if (!Capacitor.isPluginAvailable?.("App")) return { installedVersion: null, installedBuild: null };
+  try {
+    const info = await probeWithin((async () => {
+      const { App } = await import("@capacitor/app");
+      return App.getInfo();
+    })(), 1_500, "Installed app version could not be read in time.");
+    const build = Number(info.build);
+    return {
+      installedVersion: text(info.version) || null,
+      installedBuild: Number.isSafeInteger(build) && build > 0 ? build : null,
+    };
+  } catch {
+    return { installedVersion: null, installedBuild: null };
+  }
+}
+
+export async function discoverSunmiBuiltinPrinter(): Promise<SunmiBuiltinPrinterDiscovery> {
+  const actualNativeAndroid = Capacitor.isNativePlatform() && Capacitor.getPlatform?.() === "android";
+  const nativeAndroid = actualNativeAndroid || isCapacitorAndroidApp();
+  const diagnostic: SunmiBuiltinPrinterDiagnostic = {
+    status: nativeAndroid ? "plugin_missing" : "not_native", nativeAndroid,
+    installedVersion: null, installedBuild: null, model: null, reason: null, error: null,
+    ready: false, stateCode: null, deviceCode: null,
+  };
+  if (!nativeAndroid) return { agent: null, diagnostic };
+  const version = actualNativeAndroid ? readActualInstalledVersion() : Promise.resolve({ installedVersion: null, installedBuild: null });
+  if (!hasNativePlugin()) return { agent: null, diagnostic: { ...diagnostic, ...await version } };
+  const [versionInfo, availability] = await Promise.all([
+    version,
+    probeWithin(readSunmiInfo(), 10_000, "SUNMI printer availability could not be read in time.")
+      .then(info => ({ info, error: null }), (error: unknown) => ({ info: null, error })),
+  ]);
+  Object.assign(diagnostic, versionInfo);
+  if (!availability.info) {
+    return { agent: null, diagnostic: { ...diagnostic, status: "service_error",
+      error: availability.error instanceof Error ? availability.error.message : "SUNMI printer availability could not be read." } };
+  }
+  const info = availability.info;
+  Object.assign(diagnostic, {
+    model: text(info.model) || null,
+    reason: text(info.reason) || text(info.statusMessage) || null,
+    ready: info.connected && info.ready,
+    stateCode: typeof info.stateCode === "number" ? info.stateCode : null,
+    deviceCode: text(info.deviceCode) || null,
+  });
+  if (!info.supported) return { agent: null, diagnostic: { ...diagnostic, status: "unsupported" } };
+  try {
+    const agent = await probeWithin(identityFromInfo(info), 3_000, "The built-in printer identity could not be verified in time.");
+    return { agent, diagnostic: { ...diagnostic, status: "available" } };
+  } catch (error) {
+    return { agent: null, diagnostic: { ...diagnostic, status: "identity_error",
+      error: error instanceof Error ? error.message : "The built-in printer identity could not be verified." } };
+  }
 }
 
 export function sunmiDiagnosticJobId(kind: "test" | "self-test" | "drawer") {

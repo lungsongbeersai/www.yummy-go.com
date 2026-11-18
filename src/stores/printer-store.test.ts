@@ -13,7 +13,7 @@ import {
   getPendingPrintJobs,
   getInternetPrintSettings,
   getPrinterEmployeeRoles,
-  getSunmiBuiltinPrinterIdentity,
+  discoverSunmiBuiltinPrinter,
   registerSunmiNativePrinterOwner,
   registerPrinterAgent,
   resolvePrinterDeviceContext,
@@ -24,6 +24,7 @@ import {
   type PrintJob,
   type Printer,
   type PrinterEmployeeRole,
+  type SunmiBuiltinPrinterDiscovery,
 } from "@/services/printer";
 import { usePrinterStore } from "@/stores/printer-store";
 import { resetSessionStores } from "@/stores/session-store-registry";
@@ -31,7 +32,7 @@ import { useAuthStore, type AuthUser } from "@/stores/auth-store";
 
 vi.mock("@/services/printer", async (importOriginal) => ({
   ...await importOriginal<typeof import("@/services/printer")>(),
-  getSunmiBuiltinPrinterIdentity: vi.fn(),
+  discoverSunmiBuiltinPrinter: vi.fn(),
   registerSunmiNativePrinterOwner: vi.fn(),
   ackPrintJob: vi.fn(),
   buildTestJob: vi.fn(),
@@ -92,14 +93,30 @@ function deferred<T>() {
   return { promise, resolve };
 }
 
+const builtin = { agent_id: "sunmi-native", agent_name: "D2s", device_code: "android-native-device",
+  print_mode: "sunmi_builtin", supports_sunmi_builtin: true, sunmi_ready: true };
+const hostUser: AuthUser = { uuid: "cashier", email: "", status: 3, profile: "", branch_uuid: "branch", branch_name: "",
+  branch_tel: "", branch_address: "", store_uuid: "store", store_name: "", store_logo: "", store_table_status: 1 };
+function discoveryFixture(status: SunmiBuiltinPrinterDiscovery["diagnostic"]["status"] = "available"): SunmiBuiltinPrinterDiscovery {
+  return {
+    agent: status === "available" ? builtin : null,
+    diagnostic: { status, nativeAndroid: true, installedVersion: "1.0.10", installedBuild: 11, model: "D2s PLUS",
+      reason: status === "unsupported" ? "Printer service not connected" : null, error: null,
+      ready: status === "available", stateCode: status === "available" ? 1 : null, deviceCode: builtin.device_code },
+  };
+}
+
 describe("printer store", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    vi.mocked(discoverSunmiBuiltinPrinter).mockReset().mockResolvedValue(discoveryFixture());
+    vi.mocked(registerSunmiNativePrinterOwner).mockReset().mockResolvedValue({ supported: true, ready: true });
     vi.mocked(getPrinterSelfTestStatus).mockReset();
     registerPrinterAgentMock.mockResolvedValue(undefined);
     usePrinterStore.setState({
       agent: null,
       builtinAgent: null,
+      builtinDiagnostic: { ...discoveryFixture().diagnostic, status: "idle" },
       loadingBuiltinAgent: false,
       agentStatus: "unchecked",
       agentError: null,
@@ -127,15 +144,13 @@ describe("printer store", () => {
     const user: AuthUser = { uuid: "cashier", email: "", status: 3, profile: "", branch_uuid: "branch", branch_name: "",
       branch_tel: "", branch_address: "", store_uuid: "store", store_name: "", store_logo: "", store_table_status: 1 };
     const auth = vi.spyOn(useAuthStore, "getState").mockReturnValue({ ...useAuthStore.getState(), user });
-    const builtin = { agent_id: "sunmi-native", agent_name: "D2s", device_code: "android-native-device",
-      print_mode: "sunmi_builtin", supports_sunmi_builtin: true, sunmi_ready: true };
-    vi.mocked(getSunmiBuiltinPrinterIdentity).mockResolvedValueOnce(builtin);
     vi.mocked(registerSunmiNativePrinterOwner).mockResolvedValueOnce({ supported: true, ready: true });
     const mobile = { agent_id: "mobile", agent_name: "D2s", device_code: builtin.device_code };
     usePrinterStore.setState({ agent: mobile });
     try {
       await expect(usePrinterStore.getState().resolveBuiltinDeviceIdentity()).resolves.toEqual(builtin);
-      expect(usePrinterStore.getState()).toMatchObject({ builtinAgent: builtin, agent: mobile, loadingBuiltinAgent: false });
+      expect(usePrinterStore.getState()).toMatchObject({ builtinAgent: builtin, agent: mobile, loadingBuiltinAgent: false,
+        builtinDiagnostic: { status: "available", model: "D2s PLUS", installedVersion: "1.0.10" } });
       expect(registerSunmiNativePrinterOwner).toHaveBeenCalledExactlyOnceWith("cashier", builtin);
     } finally { auth.mockRestore(); }
   });
@@ -146,8 +161,98 @@ describe("printer store", () => {
     const auth = vi.spyOn(useAuthStore, "getState").mockReturnValue({ ...useAuthStore.getState(), user });
     try {
       expect(await usePrinterStore.getState().resolveBuiltinDeviceIdentity()).toBeNull();
-      expect(getSunmiBuiltinPrinterIdentity).not.toHaveBeenCalled();
+      expect(discoverSunmiBuiltinPrinter).not.toHaveBeenCalled();
       expect(registerSunmiNativePrinterOwner).not.toHaveBeenCalled();
+      expect(usePrinterStore.getState().builtinDiagnostic.status).toBe("forbidden");
+    } finally { auth.mockRestore(); }
+  });
+
+  it("keeps the detected hardware separate from a failed server registration and permits a clean retry", async () => {
+    const auth = vi.spyOn(useAuthStore, "getState").mockReturnValue({ ...useAuthStore.getState(), user: hostUser });
+    vi.mocked(registerSunmiNativePrinterOwner).mockRejectedValueOnce(new Error("Receiver registration denied"));
+    try {
+      await expect(usePrinterStore.getState().resolveBuiltinDeviceIdentity()).resolves.toBeNull();
+      expect(usePrinterStore.getState()).toMatchObject({ builtinAgent: null, loadingBuiltinAgent: false,
+        builtinDiagnostic: { status: "registration_error", error: "Receiver registration denied", model: "D2s PLUS",
+          installedVersion: "1.0.10", installedBuild: 11, deviceCode: builtin.device_code } });
+      await expect(usePrinterStore.getState().resolveBuiltinDeviceIdentity()).resolves.toEqual(builtin);
+      expect(usePrinterStore.getState()).toMatchObject({ builtinAgent: builtin,
+        builtinDiagnostic: { status: "available", error: null } });
+      expect(registerSunmiNativePrinterOwner).toHaveBeenCalledTimes(2);
+    } finally { auth.mockRestore(); }
+  });
+
+  it("does not expose a savable built-in identity before registration has succeeded", async () => {
+    const auth = vi.spyOn(useAuthStore, "getState").mockReturnValue({ ...useAuthStore.getState(), user: hostUser });
+    const registration = deferred<{ supported: true; ready: boolean }>();
+    vi.mocked(registerSunmiNativePrinterOwner).mockReturnValueOnce(registration.promise);
+    try {
+      const request = usePrinterStore.getState().resolveBuiltinDeviceIdentity();
+      await vi.waitFor(() => expect(registerSunmiNativePrinterOwner).toHaveBeenCalledOnce());
+      expect(usePrinterStore.getState()).toMatchObject({ builtinAgent: null, loadingBuiltinAgent: true,
+        builtinDiagnostic: { status: "checking", model: "D2s PLUS" } });
+      registration.resolve({ supported: true, ready: true });
+      await expect(request).resolves.toEqual(builtin);
+    } finally { auth.mockRestore(); }
+  });
+
+  it.each(["plugin_missing", "unsupported", "service_error", "identity_error"] as const)(
+    "persists %s discovery without starting server registration", async (status) => {
+      const auth = vi.spyOn(useAuthStore, "getState").mockReturnValue({ ...useAuthStore.getState(), user: hostUser });
+      vi.mocked(discoverSunmiBuiltinPrinter).mockResolvedValueOnce(discoveryFixture(status));
+      try {
+        expect(await usePrinterStore.getState().resolveBuiltinDeviceIdentity()).toBeNull();
+        expect(usePrinterStore.getState()).toMatchObject({ builtinAgent: null, loadingBuiltinAgent: false,
+          builtinDiagnostic: discoveryFixture(status).diagnostic });
+        expect(registerSunmiNativePrinterOwner).not.toHaveBeenCalled();
+      } finally { auth.mockRestore(); }
+    },
+  );
+
+  it("cancels a superseded discovery before it can register or replace the newer result", async () => {
+    const auth = vi.spyOn(useAuthStore, "getState").mockReturnValue({ ...useAuthStore.getState(), user: hostUser });
+    const first = deferred<SunmiBuiltinPrinterDiscovery>();
+    vi.mocked(discoverSunmiBuiltinPrinter).mockReturnValueOnce(first.promise).mockResolvedValueOnce(discoveryFixture("unsupported"));
+    try {
+      const stale = usePrinterStore.getState().resolveBuiltinDeviceIdentity();
+      await usePrinterStore.getState().resolveBuiltinDeviceIdentity();
+      first.resolve(discoveryFixture());
+      expect(await stale).toBeNull();
+      expect(registerSunmiNativePrinterOwner).not.toHaveBeenCalled();
+      expect(usePrinterStore.getState().builtinDiagnostic.status).toBe("unsupported");
+    } finally { auth.mockRestore(); }
+  });
+
+  it.each(["branch", "role", "session"] as const)("does not register old hardware discovery after a %s change", async (change) => {
+    const authState = useAuthStore.getState();
+    let user = hostUser;
+    const auth = vi.spyOn(useAuthStore, "getState").mockImplementation(() => ({ ...authState, user }));
+    const probe = deferred<SunmiBuiltinPrinterDiscovery>();
+    vi.mocked(discoverSunmiBuiltinPrinter).mockReturnValueOnce(probe.promise);
+    try {
+      const request = usePrinterStore.getState().resolveBuiltinDeviceIdentity();
+      if (change === "session") resetSessionStores();
+      else user = { ...hostUser, ...(change === "branch" ? { branch_uuid: "other-branch" } : { status: 4 }) };
+      probe.resolve(discoveryFixture());
+      expect(await request).toBeNull();
+      expect(registerSunmiNativePrinterOwner).not.toHaveBeenCalled();
+      expect(usePrinterStore.getState()).toMatchObject({ builtinAgent: null, loadingBuiltinAgent: false,
+        builtinDiagnostic: { status: "idle", model: null, installedVersion: null } });
+    } finally { auth.mockRestore(); }
+  });
+
+  it("does not publish an old registration result after logout resets the printer store", async () => {
+    const auth = vi.spyOn(useAuthStore, "getState").mockReturnValue({ ...useAuthStore.getState(), user: hostUser });
+    const registration = deferred<{ supported: true; ready: boolean }>();
+    vi.mocked(registerSunmiNativePrinterOwner).mockReturnValueOnce(registration.promise);
+    try {
+      const request = usePrinterStore.getState().resolveBuiltinDeviceIdentity();
+      await vi.waitFor(() => expect(registerSunmiNativePrinterOwner).toHaveBeenCalledOnce());
+      resetSessionStores();
+      registration.resolve({ supported: true, ready: true });
+      expect(await request).toBeNull();
+      expect(usePrinterStore.getState()).toMatchObject({ builtinAgent: null, loadingBuiltinAgent: false,
+        builtinDiagnostic: { status: "idle", model: null } });
     } finally { auth.mockRestore(); }
   });
 

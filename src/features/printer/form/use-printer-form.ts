@@ -85,6 +85,7 @@ export function usePrinterForm() {
   const loadEmployeeRoles = usePrinterStore((state) => state.loadEmployeeRoles);
   const agent = usePrinterStore((state) => state.agent);
   const builtinAgent = usePrinterStore((state) => state.builtinAgent);
+  const builtinDiagnostic = usePrinterStore((state) => state.builtinDiagnostic);
   const loadingBuiltinAgent = usePrinterStore((state) => state.loadingBuiltinAgent);
   const resolveBuiltinDeviceIdentity = usePrinterStore((state) => state.resolveBuiltinDeviceIdentity);
   const loading = usePrinterStore((state) => state.loading);
@@ -820,8 +821,10 @@ export function usePrinterForm() {
     connectType,
     setConnectType: selectConnectType,
     builtinAgent,
+    builtinDiagnostic,
     loadingBuiltinAgent,
-    showBuiltinChoice: Boolean(builtinAgent || editing?.connect_type === "sunmi"),
+    retryBuiltinDetection: () => { void resolveBuiltinDeviceIdentity().catch(() => undefined); },
+    showBuiltinChoice: Boolean(builtinDiagnostic.nativeAndroid || builtinAgent || editing?.connect_type === "sunmi"),
     displayName,
     setDisplayName,
     interfaceValue,

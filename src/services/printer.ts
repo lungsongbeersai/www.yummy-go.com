@@ -105,10 +105,12 @@ export {
   SUNMI_PRINT_MODE,
   SUNMI_PRINTER_AGENT_ID,
   getSunmiBuiltinPrinterIdentity,
+  discoverSunmiBuiltinPrinter,
   isSunmiBuiltinPrinterTarget,
   sunmiDiagnosticJobId,
 } from "@/services/printer/sunmi-native";
-export type { SunmiPrinterInfo } from "@/services/printer/sunmi-native";
+export type { SunmiPrinterInfo, SunmiBuiltinPrinterDiagnostic, SunmiBuiltinPrinterDiagnosticStatus,
+  SunmiBuiltinPrinterDiscovery } from "@/services/printer/sunmi-native";
 
 export {
   buildTestJob,

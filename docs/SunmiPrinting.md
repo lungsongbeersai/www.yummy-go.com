@@ -6,12 +6,14 @@ Yummy Go Android 1.0.10 (build 11) adds the official SUNMI printer service trans
 
 1. Install `/downloads/android/yummy-go-1.0.10-sunmi.apk` over the existing Android app. The release is signed with the project's existing certificate. Keep the existing app data and printer delivery history.
 2. Open Yummy Go on the SUNMI, connect to the internet and sign in with an account allowed to manage printers (account status 1, 2 or 3).
-3. Add a printer and choose **Built-in SUNMI printer**. The choice appears only when the native service is detected, or when viewing an existing built-in configuration. Old APKs and ordinary browsers keep their existing TCP/USB choices.
+3. Add a printer and choose **Built-in SUNMI printer**. Android shows this choice with a persistent connection status and **Check SUNMI again** action. It stays disabled until the native printer is detected and receiver registration succeeds. Ordinary browsers keep their existing TCP/USB choices unless viewing a saved built-in configuration.
 4. Confirm the actual paper width. The service reports 58 or 80 mm where supported; the app does not infer paper size from the model name or overwrite a saved width.
 5. Choose the receipt, invoice, kitchen, report or QR roles and their normal category/zone permissions. Choose **Direct** for the owning terminal or **Internet** for other Yummy Go devices in the same branch. Built-in printing does not use the LAN/IP option.
 6. Save, then run an explicit test on the owning SUNMI. Diagnostics and drawer tests use the local physical device; another device can send ordinary queued receipts but cannot redirect a diagnostic to its own printer.
 
 Keep Yummy Go open and connected on the owning SUNMI while it receives jobs. The existing receiver lifecycle stops starting new jobs in the background. Other devices keep their existing browser, Electron or Android app; they do not need the SUNMI SDK. Staff accounts may submit permitted jobs, while receiver enrollment and delivery are limited to printer-manager account statuses.
+
+If the built-in choice cannot be selected, read the status below the connection choices. It distinguishes a missing APK plugin, an unavailable native service, an unverified device identity, insufficient account permissions and failed server registration. The displayed version comes from the running APK when available. **Check SUNMI again** repeats discovery and registration without printing; a late service connection can recover without reinstalling the app. A detected printer or passing software tests alone do not confirm physical paper output.
 
 ## Delivery contract
 
