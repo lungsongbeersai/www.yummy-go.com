@@ -3,6 +3,7 @@
 // the import graph — agent-transport.ts depends on this module (getPrinters,
 // sendMobileBackendPrintJob), not the other way around.
 import axios from "axios";
+import { Capacitor } from "@capacitor/core";
 import { apiRequest, ServiceError, type RequestOptions } from "@/lib/api";
 import { toApiLanguage } from "@/lib/language";
 import { AGENT_URL } from "@/config/printer-agent";
@@ -162,7 +163,9 @@ export async function registerSunmiNativePrinterOwner(loginUuid: string, agent: 
     agent.supports_sunmi_builtin !== true || !textValue(agent.device_code).includes("-native-")) {
     throw Object.assign(new ServiceError("Invalid SUNMI printer capability identity", 409), { delivery_state: "not_sent" });
   }
-  const result = await apiRequest<ApiDataResponse<{ supported: boolean; ready: boolean }>>(
+  const tcpReady = agent.supports_tcp_relay === true && Capacitor.isNativePlatform() &&
+    Capacitor.getPlatform?.() === "android" && Capacitor.isPluginAvailable?.("TcpSocket") === true;
+  const result = await apiRequest<ApiDataResponse<{ supported: boolean; ready: boolean; tcp_ready?: boolean }>>(
     "post", "/api/v1/printer/native/register", {
       ...options,
       timeout: 5000,
@@ -173,7 +176,8 @@ export async function registerSunmiNativePrinterOwner(loginUuid: string, agent: 
         agent_name: agent.agent_name,
         platform: "android",
         ready: agent.sunmi_ready === true,
-        capabilities: { sunmi_builtin: true, protocol_version: 1 },
+        ...(tcpReady ? { tcp_ready: true } : {}),
+        capabilities: { sunmi_builtin: true, protocol_version: 1, ...(tcpReady ? { tcp_relay: true } : {}) },
       },
     },
   );

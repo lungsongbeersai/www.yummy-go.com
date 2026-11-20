@@ -781,9 +781,14 @@ export function usePrinterForm() {
       showToast({ title: t("printer.saved"), tone: "success" });
       router.push("/printers");
     } catch (error) {
+      const message = error instanceof Error ? error.message : "";
+      const description = message === "NATIVE_TCP_RELAY_UNAVAILABLE" || message === "NATIVE_TCP_RELAY_DEVICE_MISMATCH"
+        ? t("printer.internetTcpRelayUnavailable")
+        : message === "INTERNET_PRINT_OWNER_AGENT_OFFLINE"
+          ? t("printer.internetOwnerOffline") : message;
       showToast({
         title: t("printer.saveFailed"),
-        description: error instanceof Error ? error.message : "",
+        description,
         tone: "error",
       });
     }

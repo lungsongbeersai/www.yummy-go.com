@@ -114,6 +114,8 @@ async function identityFromInfo(info: SunmiPrinterInfo): Promise<AgentInfo> {
     platform: "sunmi",
     print_mode: SUNMI_PRINT_MODE,
     supports_sunmi_builtin: true,
+    supports_tcp_relay: Capacitor.isNativePlatform() && Capacitor.getPlatform?.() === "android" &&
+      Capacitor.isPluginAvailable?.("TcpSocket") === true,
     sunmi_ready: info.connected && info.ready,
     sunmi_state_code: info.stateCode,
     ...(info.paperWidthMm === 58 || info.paperWidthMm === 80 ? { paper_width_mm: info.paperWidthMm } : {}),

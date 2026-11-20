@@ -55,6 +55,7 @@ export interface PrinterReadinessStatus {
 export interface AgentInfo extends ApiEntity {
   print_mode?: string;
   supports_sunmi_builtin?: boolean;
+  supports_tcp_relay?: boolean;
   sunmi_ready?: boolean;
   sunmi_state_code?: number | null;
   paper_width_mm?: number;

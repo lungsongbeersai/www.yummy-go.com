@@ -4,6 +4,15 @@ import type { PrintJob, SavePrinterInput } from "@/services/printer";
 import { getPrinterDeliveryState } from "@/services/printer/helpers";
 
 const apiMocks = vi.hoisted(() => ({ apiRequest: vi.fn() }));
+const nativeMocks = vi.hoisted(() => ({ native: false, platform: "web", tcp: false }));
+vi.mock("@capacitor/core", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@capacitor/core")>();
+  return { ...actual, Capacitor: { ...actual.Capacitor,
+    isNativePlatform: () => nativeMocks.native,
+    getPlatform: () => nativeMocks.platform,
+    isPluginAvailable: (name: string) => name === "TcpSocket" && nativeMocks.tcp,
+  } };
+});
 vi.mock("@/lib/api", () => ({
   apiRequest: apiMocks.apiRequest,
   ServiceError: class extends Error {},
@@ -24,7 +33,12 @@ describe("printer configuration API", () => {
     interface_value: "tcp://192.168.1.20:9100",
   };
 
-  beforeEach(() => vi.clearAllMocks());
+  beforeEach(() => {
+    vi.clearAllMocks();
+    nativeMocks.native = false;
+    nativeMocks.platform = "web";
+    nativeMocks.tcp = false;
+  });
 
   it("saves an SDK destination without inventing a TCP/USB endpoint or localhost Agent URL", async () => {
     apiMocks.apiRequest.mockResolvedValueOnce({ data: { print_config_uuid: "builtin" } });
@@ -57,6 +71,37 @@ describe("printer configuration API", () => {
       agent_id: "mobile", agent_name: "Phone", device_code: "android-native-device", print_mode: "mobile_wifi",
     })).rejects.toMatchObject({ delivery_state: "not_sent" });
     expect(apiMocks.apiRequest).not.toHaveBeenCalled();
+  });
+
+  it("registers the native TCP relay independently of built-in paper readiness", async () => {
+    nativeMocks.native = true;
+    nativeMocks.platform = "android";
+    nativeMocks.tcp = true;
+    apiMocks.apiRequest.mockResolvedValueOnce({ data: { supported: true, ready: false, tcp_ready: true } });
+    await registerSunmiNativePrinterOwner("cashier", {
+      agent_id: "sunmi-native", agent_name: "D2s", device_code: "android-native-device",
+      print_mode: "sunmi_builtin", supports_sunmi_builtin: true, supports_tcp_relay: true, sunmi_ready: false,
+    });
+    expect(apiMocks.apiRequest).toHaveBeenCalledExactlyOnceWith("post", "/api/v1/printer/native/register", {
+      timeout: 5000,
+      data: { login_uuid_fk: "cashier", device_code: "android-native-device", agent_id: "sunmi-native",
+        agent_name: "D2s", platform: "android", ready: false, tcp_ready: true,
+        capabilities: { sunmi_builtin: true, protocol_version: 1, tcp_relay: true } },
+    });
+  });
+
+  it.each(["browser", "ios", "missing-plugin"])("never advertises TCP relay from a %s client", async (kind) => {
+    nativeMocks.native = kind !== "browser";
+    nativeMocks.platform = kind === "ios" ? "ios" : "android";
+    nativeMocks.tcp = kind !== "missing-plugin";
+    apiMocks.apiRequest.mockResolvedValueOnce({ data: { supported: true, ready: true } });
+    await registerSunmiNativePrinterOwner("cashier", {
+      agent_id: "sunmi-native", agent_name: "D2s", device_code: "android-native-device",
+      print_mode: "sunmi_builtin", supports_sunmi_builtin: true, supports_tcp_relay: true, sunmi_ready: true,
+    });
+    const data = apiMocks.apiRequest.mock.calls[0][2].data;
+    expect(data).not.toHaveProperty("tcp_ready");
+    expect(data.capabilities).not.toHaveProperty("tcp_relay");
   });
 
   it("requests an explicit branch management catalog without changing operational fetches", async () => {

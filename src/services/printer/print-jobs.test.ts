@@ -17,6 +17,15 @@ const transportMocks = vi.hoisted(() => ({
   resolvePrinterDeviceContext: vi.fn(),
   resolvePrinterDeviceIdentity: vi.fn(),
 }));
+const nativeMocks = vi.hoisted(() => ({ native: false, printTcp: vi.fn() }));
+vi.mock("@capacitor/core", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@capacitor/core")>();
+  return { ...actual, Capacitor: { ...actual.Capacitor,
+    isNativePlatform: () => nativeMocks.native,
+    getPlatform: () => nativeMocks.native ? "android" : "web",
+  } };
+});
+vi.mock("@/services/printer/mobile-tcp", () => ({ printMobileEscposOverTcp: nativeMocks.printTcp }));
 
 vi.mock("@/services/printer/agent-transport", () => transportMocks);
 
@@ -62,6 +71,7 @@ describe("remote Shared print-result observation", () => {
   beforeEach(() => {
     vi.useFakeTimers();
     vi.clearAllMocks();
+    nativeMocks.native = false;
     transportMocks.resolvePrinterDeviceIdentity.mockResolvedValue({
       ok: true,
       agent: { device_code: "requester-device", agent_id: "requester-agent" },
@@ -104,6 +114,46 @@ describe("remote Shared print-result observation", () => {
     expect(transportMocks.dispatchPrintJob).not.toHaveBeenCalled();
     expect(transportMocks.printBatchWithLocalAgent).not.toHaveBeenCalled();
     expect(vi.getTimerCount()).toBe(0);
+  });
+
+  it.each([
+    ["native kitchen", true, executeKitchenPrintJobs],
+    ["native invoice", true, executeInvoicePrintJobs],
+    ["native report", true, executeReportPrintJobs],
+    ["browser kitchen", false, executeKitchenPrintJobs],
+    ["browser invoice", false, executeInvoicePrintJobs],
+    ["browser report", false, executeReportPrintJobs],
+  ] as const)("keeps an outside %s requester away from the shop IP transport", async (kind, native, execute) => {
+    nativeMocks.native = native;
+    transportMocks.resolvePrinterDeviceIdentity.mockResolvedValue({
+      ok: true,
+      agent: { device_code: "outside-requester", agent_id: "mobile" },
+    });
+    const response = pendingResponse({ requested_job_status: "success", requested_job_success_total: 3 });
+    const get = vi.spyOn(apiClient, "get").mockResolvedValue({
+      ...response,
+      data: { ...response.data, print_batch_payloads: [{
+        agent_id: "mobile", device_code: "android-native-shop-sunmi", print_mode: "mobile_wifi",
+        print_client: "mobile_wifi", interface_value: "tcp://192.168.1.75:9100",
+        mobile_escpos: { interface_value: "tcp://192.168.1.75:9100", escpos_base64: "G0A=" },
+        jobs: [], job_total: 3,
+      }] },
+    });
+    const post = vi.spyOn(apiClient, "post");
+    await expect(execute({
+      pending_query: {
+        print_job_uuid: `outside-native-tcp-${kind}`, login_uuid_fk: "cashier-1",
+        device_code: "android-native-shop-sunmi", agent_id: "mobile", print_mode: "mobile_wifi",
+        remote_shared_print: true,
+      },
+    })).resolves.toEqual({ successCount: 3, failedCount: 0, total: 3 });
+    expect(get).toHaveBeenCalledExactlyOnceWith("/api/v1/printer/jobs/pending", expect.objectContaining({
+      params: expect.objectContaining({ device_code: "outside-requester", agent_id: "mobile", status_only: true }),
+    }));
+    expect(nativeMocks.printTcp).not.toHaveBeenCalled();
+    expect(transportMocks.dispatchPrintJob).not.toHaveBeenCalled();
+    expect(transportMocks.printBatchWithLocalAgent).not.toHaveBeenCalled();
+    expect(post).not.toHaveBeenCalled();
   });
 
   it.each([

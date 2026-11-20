@@ -14,7 +14,7 @@ import type { PrintJob } from "./types";
 import { resetSessionStores } from "@/stores/session-store-registry";
 
 const mocks = vi.hoisted(() => ({
-  native: true, available: true, appAvailable: true, platform: "android",
+  native: true, available: true, appAvailable: true, tcpAvailable: true, platform: "android",
   info: vi.fn(), print: vi.fn(), identity: vi.fn(), appInfo: vi.fn(),
 }));
 vi.mock("@capacitor/core", async (importOriginal) => {
@@ -35,7 +35,7 @@ vi.mock("@capacitor/core", async (importOriginal) => {
       ...actual.Capacitor,
       isNativePlatform: () => mocks.native,
       getPlatform: () => mocks.platform,
-      isPluginAvailable: (name: string) => name === "App" ? mocks.appAvailable : mocks.available,
+      isPluginAvailable: (name: string) => name === "App" ? mocks.appAvailable : name === "TcpSocket" ? mocks.tcpAvailable : mocks.available,
     },
     // Keep Capacitor's actual proxy: its callable `then` property must never
     // be Promise-assimilated by an asynchronous adapter factory.
@@ -62,7 +62,7 @@ const input = { target, jobId: "item-1:printer-1", escposBase64: "G0A=" };
 describe("SUNMI built-in printer transport", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    mocks.native = true; mocks.available = true; mocks.appAvailable = true; mocks.platform = "android";
+    mocks.native = true; mocks.available = true; mocks.appAvailable = true; mocks.tcpAvailable = true; mocks.platform = "android";
     mocks.info.mockReset().mockResolvedValue(info);
     mocks.identity.mockReset().mockResolvedValue({ agent_id: "mobile", device_code: target.device_code });
     mocks.appInfo.mockReset().mockResolvedValue({ version: "1.0.10", build: "11" });
@@ -85,9 +85,16 @@ describe("SUNMI built-in printer transport", () => {
     mocks.info.mockResolvedValue({ ...info, ready: false, stateCode: 4 });
     expect(await getSunmiBuiltinPrinterIdentity()).toMatchObject({
       agent_id: target.agent_id, device_code: target.device_code, print_mode: target.print_mode,
-      supports_sunmi_builtin: true, sunmi_ready: false, sunmi_state_code: 4,
+      supports_sunmi_builtin: true, supports_tcp_relay: true, sunmi_ready: false, sunmi_state_code: 4,
     });
     expect(await getSunmiBuiltinPrinterIdentity(true)).toBeNull();
+  });
+
+  it("keeps built-in printing available without claiming TCP relay when its native plugin is absent", async () => {
+    mocks.tcpAvailable = false;
+    expect(await getSunmiBuiltinPrinterIdentity()).toMatchObject({
+      supports_sunmi_builtin: true, supports_tcp_relay: false, sunmi_ready: true,
+    });
   });
 
   it("attests the existing native Device identity instead of rotating the mobile TCP identity", async () => {

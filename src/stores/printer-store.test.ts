@@ -18,11 +18,13 @@ import {
   registerPrinterAgent,
   resolvePrinterDeviceContext,
   resolvePrinterDeviceIdentity,
+  savePrinter as savePrinterConfig,
   searchPrinters,
   togglePrinterActive,
   type BuildTestJobResponse,
   type PrintJob,
   type Printer,
+  type SavePrinterInput,
   type PrinterEmployeeRole,
   type SunmiBuiltinPrinterDiscovery,
 } from "@/services/printer";
@@ -152,6 +154,48 @@ describe("printer store", () => {
       expect(usePrinterStore.getState()).toMatchObject({ builtinAgent: builtin, agent: mobile, loadingBuiltinAgent: false,
         builtinDiagnostic: { status: "available", model: "D2s PLUS", installedVersion: "1.0.10" } });
       expect(registerSunmiNativePrinterOwner).toHaveBeenCalledExactlyOnceWith("cashier", builtin);
+    } finally { auth.mockRestore(); }
+  });
+
+  it("refreshes an exact native TCP receiver before saving Internet mode even while built-in paper is out", async () => {
+    const auth = vi.spyOn(useAuthStore, "getState").mockReturnValue({ ...useAuthStore.getState(), user: hostUser });
+    const host = { ...builtin, supports_tcp_relay: true, sunmi_ready: false };
+    const input: SavePrinterInput = {
+      login_uuid_fk: hostUser.uuid, display_name: "Kitchen", connect_type: "tcp", ip: "192.168.1.75",
+      kitchen_cut_mode: "per_ticket", sharing_mode: "SHARED", agent_url: "",
+      paper_width_mm: 80, role_codes: ["receipt"], agent_id: "mobile", agent_name: "D2s",
+      device_code: host.device_code, print_mode: "mobile_wifi", access_mode: "INTERNET",
+    };
+    vi.mocked(discoverSunmiBuiltinPrinter).mockResolvedValueOnce({ ...discoveryFixture(), agent: host });
+    vi.mocked(registerSunmiNativePrinterOwner).mockResolvedValueOnce({ supported: true, ready: false, tcp_ready: true });
+    vi.mocked(savePrinterConfig).mockResolvedValueOnce({
+      print_config_uuid: "kitchen", printer_name: "Kitchen", connect_type: "tcp",
+      interface_value: "tcp://192.168.1.75:9100", paper_width_mm: 80, is_active: true,
+      role_codes: ["receipt"], cate_uuid_fk: [], access_mode: "INTERNET",
+    });
+    try {
+      await expect(usePrinterStore.getState().save(input)).resolves.toMatchObject({ access_mode: "INTERNET" });
+      expect(registerSunmiNativePrinterOwner).toHaveBeenCalledExactlyOnceWith(hostUser.uuid, host);
+      expect(savePrinterConfig).toHaveBeenCalledExactlyOnceWith(input);
+      expect(vi.mocked(registerSunmiNativePrinterOwner).mock.invocationCallOrder[0])
+        .toBeLessThan(vi.mocked(savePrinterConfig).mock.invocationCallOrder[0]);
+    } finally { auth.mockRestore(); }
+  });
+
+  it.each(["missing-capability", "different-owner"])("does not save native TCP Internet mode for %s", async (reason) => {
+    const auth = vi.spyOn(useAuthStore, "getState").mockReturnValue({ ...useAuthStore.getState(), user: hostUser });
+    const host = { ...builtin, supports_tcp_relay: reason !== "missing-capability" };
+    vi.mocked(discoverSunmiBuiltinPrinter).mockResolvedValueOnce({ ...discoveryFixture(), agent: host });
+    try {
+      await expect(usePrinterStore.getState().save({
+        login_uuid_fk: hostUser.uuid, display_name: "Kitchen", connect_type: "tcp", ip: "192.168.1.75",
+        kitchen_cut_mode: "per_ticket", sharing_mode: "SHARED", agent_url: "",
+        paper_width_mm: 80, role_codes: ["receipt"], agent_id: "mobile", agent_name: "D2s",
+        device_code: reason === "different-owner" ? "android-native-other" : host.device_code,
+        print_mode: "mobile_wifi", access_mode: "INTERNET",
+      })).rejects.toThrow(reason === "missing-capability" ? "NATIVE_TCP_RELAY_UNAVAILABLE" : "NATIVE_TCP_RELAY_DEVICE_MISMATCH");
+      expect(savePrinterConfig).not.toHaveBeenCalled();
+      expect(usePrinterStore.getState().saving).toBe(false);
     } finally { auth.mockRestore(); }
   });
 

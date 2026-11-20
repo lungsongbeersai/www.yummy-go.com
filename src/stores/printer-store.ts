@@ -649,6 +649,14 @@ export const usePrinterStore = create<PrinterState>((set, get) => ({
     const isCurrentSession = createSessionGuard();
     set({ saving: true, error: null });
     try {
+      if (input.connect_type === "tcp" && input.print_mode === "mobile_wifi" && input.access_mode === "INTERNET") {
+        const host = await get().resolveBuiltinDeviceIdentity();
+        if (!isCurrentSession()) throw new Error("Printer session changed before save");
+        if (!host?.supports_tcp_relay) throw new Error("NATIVE_TCP_RELAY_UNAVAILABLE");
+        if (textValue(host.device_code) !== textValue(input.device_code)) {
+          throw new Error("NATIVE_TCP_RELAY_DEVICE_MISMATCH");
+        }
+      }
       const printer = await savePrinter(input);
       if (isCurrentSession()) {
         set((state) => {

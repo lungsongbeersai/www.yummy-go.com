@@ -3,9 +3,10 @@
 import { useEffect, useRef, useMemo, useState, type ChangeEvent, type CSSProperties } from "react";
 import Cropper, { type Area, type MediaSize } from "react-easy-crop";
 import "react-easy-crop/react-easy-crop.css";
-import { Crop, ImageIcon, ImagePlus, RotateCcw, X, ZoomIn } from "lucide-react";
+import { Crop, ImageIcon, ImagePlus, Maximize, RotateCcw, Scan, X, ZoomIn } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { Button } from "@/components/ui/button";
+import { ButtonGroup } from "@/components/ui/button-group";
 import {
   Dialog,
   DialogContent,
@@ -21,6 +22,7 @@ import { Spinner } from "@/components/ui/spinner";
 import {
   IMAGE_CROP_ASPECT,
   IMAGE_CROP_ASPECT_CLASS,
+  IMAGE_CROP_BACKGROUND_COLOR,
   IMAGE_CROP_OUTPUT_HEIGHT,
   IMAGE_CROP_OUTPUT_WIDTH
 } from "@/config/image-crop";
@@ -122,29 +124,34 @@ export async function cropImageFile(
 
   const area = crop.areaPixels ?? containCropArea(image, aspect);
 
-  context.fillStyle = "#ffffff";
+  context.fillStyle = IMAGE_CROP_BACKGROUND_COLOR;
   context.fillRect(0, 0, outputWidth, outputHeight);
   context.drawImage(image, area.x, area.y, area.width, area.height, 0, 0, outputWidth, outputHeight);
 
   return canvasToFile(canvas, file, "crop");
 }
 
-// ย่อรูปให้กรอบที่เลือกไว้พอดีกับกล่องตัวอย่าง แล้วเลื่อนจุดเริ่มไปที่มุมของกรอบ
-// ใช้ค่าเปอร์เซ็นต์ชุดเดียวกับที่ cropper คืนมา รูปตัวอย่างจึงตรงกับไฟล์ที่จะบันทึกเสมอ
-function cropPreviewStyle(src: string, area: CropArea | null): CSSProperties | undefined {
-  if (!src) return undefined;
-  if (!area) return { backgroundImage: `url("${src}")`, backgroundPosition: "center", backgroundSize: "cover" };
-
-  // area กว้าง/สูงเกิน 100% ได้เมื่อเป็นกรอบแบบเห็นภาพเต็ม (กรอบใหญ่กว่าตัวรูป) — กรณีนั้น
-  // ไม่มีพื้นที่ให้เลื่อน ต้องกึ่งกลางเสมอ ไม่ใช่ชิดซ้าย/บนแบบตอน area เท่ากับ 100% พอดี
-  const positionX = area.width < 100 ? `${(area.x / (100 - area.width)) * 100}%` : "50%";
-  const positionY = area.height < 100 ? `${(area.y / (100 - area.height)) * 100}%` : "50%";
-
+// Position the image relative to the preview frame, including letterboxed crops
+// that have been dragged off center. Background-position percentages cannot do
+// this when the image and frame have the same width or height.
+function cropPreviewStyle(src: string, area: CropArea | null, selected: boolean): CSSProperties {
+  if (!area) {
+    return {
+      inset: 0,
+      backgroundImage: `url("${src}")`,
+      backgroundPosition: "center",
+      backgroundRepeat: "no-repeat",
+      backgroundSize: selected ? "contain" : "cover"
+    };
+  }
   return {
     backgroundImage: `url("${src}")`,
-    backgroundPosition: `${positionX} ${positionY}`,
     backgroundRepeat: "no-repeat",
-    backgroundSize: `${area.width > 0 ? 10000 / area.width : 100}% ${area.height > 0 ? 10000 / area.height : 100}%`
+    backgroundSize: "100% 100%",
+    width: `${10000 / area.width}%`,
+    height: `${10000 / area.height}%`,
+    left: `${(-100 * area.x) / area.width}%`,
+    top: `${(-100 * area.y) / area.height}%`
   };
 }
 
@@ -174,7 +181,8 @@ export function ImageCropDialog({
 }) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-h-[92dvh] gap-3 overflow-hidden p-4 sm:p-6">
+      {/* Scaling the dialog during mount makes react-easy-crop measure a smaller frame. */}
+      <DialogContent className="max-h-[92dvh] gap-3 overflow-y-auto p-4 sm:max-w-xl sm:p-6 data-open:zoom-in-100 data-closed:zoom-out-100">
         {/* เนื้อในแยกเป็นคอมโพเนนต์ของตัวเองเพราะ Radix ถอด portal ทิ้งตอนปิด
             การเปิดใหม่จึง mount ใหม่และหยิบค่าที่บันทึกไว้เป็นค่าตั้งต้นเอง ไม่ต้อง sync ด้วย effect */}
         <ImageCropDialogBody
@@ -223,7 +231,7 @@ function ImageCropDialogBody({
   // fitZoom = ซูมที่เห็นภาพเต็มพอดีกรอบ (ค่าเริ่มต้น และค่าที่ปุ่ม "รีเซ็ต" กลับไปหา)
   // minZoom = ซูมออกได้ไกลกว่านั้นอีกหน่อย เผื่อผู้ใช้อยากเว้นขอบขาวรอบรูปเพิ่มเอง
   const [fitZoom, setFitZoom] = useState(MIN_ZOOM);
-  const [minZoom, setMinZoom] = useState(MIN_ZOOM);
+  const [minZoom, setMinZoom] = useState(Math.min(MIN_ZOOM, value.zoom) * MIN_ZOOM_OUT_FACTOR);
 
   // เปิดกล่องมาแล้วเห็นภาพเต็มใบก่อนเสมอ (ไม่ซูมครอบเต็มกรอบให้อัตโนมัติแบบเดิม) ผู้ใช้ค่อยซูม/ลากเพื่อ
   // ครอปเองถ้าต้องการ — คำนวณ zoom ที่ "เห็นภาพเต็ม" ได้ก็ต่อเมื่อรู้ขนาดจริงของรูป จึงต้องรอ media โหลดเสร็จ
@@ -265,15 +273,27 @@ function ImageCropDialogBody({
         <DialogTitle>{title}</DialogTitle>
         <DialogDescription>{t("settings.storeBranch.cropDragHint")}</DialogDescription>
       </DialogHeader>
-      {/* ความสูงผูกกับ dvh — รูปกับตัวปรับจึงอยู่ในสายตาพร้อมกันเสมอ ไม่ว่าจอจะเตี้ยแค่ไหน */}
-      <div className="relative h-[min(50dvh,20rem)] w-full shrink-0 overflow-hidden rounded-lg bg-black">
+      {/* Match the output aspect so objectFit="cover" gives zoom=1 a reliable
+          full-frame baseline. Auto-sizing a frame inside portrait media makes
+          both the frame and the contained image unnecessarily small. */}
+      <div
+        className="relative mx-auto w-full shrink-0 overflow-hidden rounded-lg bg-background ring-1 ring-border"
+        style={{
+          backgroundColor: IMAGE_CROP_BACKGROUND_COLOR,
+          maxWidth: `min(${44 * aspect}vh, ${20 * aspect}rem)`
+        }}
+      >
+        {/* Intrinsic padding also preserves the frame on older Android WebViews. */}
+        <div aria-hidden="true" style={{ paddingBottom: `${100 / aspect}%` }} />
         <Cropper
           aspect={aspect}
           crop={{ x: draft.x, y: draft.y }}
           cropShape={cropShape}
           image={src}
+          initialCroppedAreaPercentages={value.areaPercent ?? undefined}
           maxZoom={MAX_ZOOM}
           minZoom={minZoom}
+          objectFit="cover"
           // react-easy-crop เองบังคับพื้นที่ที่รายงานผ่าน onCropComplete ไม่ให้เกิน 100% ของรูปเสมอเมื่อเปิดค่านี้
           // (default ของไลบรารี) — ที่ zoom >= 1 ไม่มีผลเพราะพื้นที่คำนวณได้ไม่เกิน 100% อยู่แล้ว แต่ที่ zoom < 1
           // (โหมดเห็นภาพเต็ม) พื้นที่จริงต้องเกินตัวรูป (ถูก letterbox) ถ้าปล่อยให้ clamp จะได้พื้นที่แบบครอบเต็ม
@@ -289,12 +309,31 @@ function ImageCropDialogBody({
           onZoomChange={(zoom) => setDraft((current) => ({ ...current, zoom }))}
         />
       </div>
+      <ButtonGroup className="w-full" aria-label={t("settings.storeBranch.cropImage")}>
+        <Button className="min-h-11 flex-1" disabled={submitting} type="button" variant="outline" onClick={resetCrop}>
+          <Scan />
+          {t("settings.storeBranch.cropFit")}
+        </Button>
+        <Button
+          className="min-h-11 flex-1"
+          disabled={submitting}
+          type="button"
+          variant="outline"
+          onClick={() => setDraft({ ...DEFAULT_CROP, zoom: MIN_ZOOM })}
+        >
+          <Maximize />
+          {t("settings.storeBranch.cropFill")}
+        </Button>
+      </ButtonGroup>
       <Field className="gap-2">
-        <FieldLabel className="text-xs font-medium text-muted-foreground">
+        <FieldLabel htmlFor="image-crop-zoom" className="text-sm font-medium text-muted-foreground">
           <ZoomIn className="size-3.5" />
           {zoomLabel}
         </FieldLabel>
         <Slider
+          id="image-crop-zoom"
+          aria-label={zoomLabel}
+          disabled={submitting}
           max={MAX_ZOOM}
           min={minZoom}
           step={0.01}
@@ -433,12 +472,19 @@ export function SettingsImageCropPanel({
         >
           <span
             className={cn(
-              "grid w-full place-items-center overflow-hidden bg-muted",
+              "relative grid w-full place-items-center overflow-hidden bg-background",
               previewShape === "circle" ? "rounded-full" : "rounded-lg",
               aspectClass
             )}
-            style={cropPreviewStyle(previewSrc, crop.areaPercent)}
+            style={{ backgroundColor: previewSrc ? IMAGE_CROP_BACKGROUND_COLOR : undefined }}
           >
+            {previewSrc ? (
+              <span
+                aria-hidden="true"
+                className="pointer-events-none absolute"
+                style={cropPreviewStyle(previewSrc, crop.areaPercent, Boolean(selectedFile))}
+              />
+            ) : null}
             {!previewSrc ? <ImageIcon className="size-8 text-muted-foreground" /> : null}
             <span className="sr-only">{emptyLabel}</span>
           </span>

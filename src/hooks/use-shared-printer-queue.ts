@@ -159,9 +159,25 @@ export function useSharedPrinterQueue() {
     };
     const runners = [startSharedPrinterQueueRunner({
       ...common,
-      resolveOwner: async () => {
+      resolveOwner: async (signal) => {
         const result = await resolvePrinterDeviceIdentity();
-        return isSharedPrinterOwnerReady(result, nativeMobile) ? result.agent : null;
+        if (!isSharedPrinterOwnerReady(result, nativeMobile)) return null;
+        if (nativeMobile && isCurrentBuiltinHost()) {
+          try {
+            // TCP relay readiness belongs to the app's socket transport. A
+            // paper-out built-in printer must not stop the kitchen IP queue.
+            const host = await getSunmiBuiltinPrinterIdentity(false);
+            if (host?.supports_tcp_relay && host.device_code === result.agent.device_code &&
+              !signal.aborted && isCurrentBuiltinHost()) {
+              await registerSunmiNativePrinterOwner(loginUuid, host, { signal });
+            }
+          } catch (error) {
+            // LAN jobs can still run; the server expires Internet readiness
+            // unless this native capability registration succeeds again.
+            console.warn("[shared-printer] native TCP receiver registration failed", error instanceof Error ? error.message : error);
+          }
+        }
+        return !signal.aborted && isCurrentSession() ? result.agent : null;
       },
     })];
     if (nativeMobile && canHostSunmiBuiltinPrinter(user?.status)) {
