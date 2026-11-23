@@ -67,6 +67,16 @@
       "shopExpense": "Shop expenses", "otherExpense": "Other expenses", "expenseTotal": "Total expenses", "balance": "Net balance"
     },
     "report": {
+      "categoryIncome": "Income by category",
+      "categoryExpense": "Expenses by category",
+      "share": "Share",
+      "viewCategory": "Filter this category",
+      "clearFilters": "Clear filters",
+      "noIncome": "No income in this period",
+      "noExpense": "No expenses in this period",
+      "categoryCount": "{{count}} categories",
+      "dailyShort": "Daily",
+      "categoriesShort": "By category",
       "title": "Income and expense report",
       "description": "Actual sales receipts, other income, and recorded expenses for the selected branch and period.",
       "salesIncomeHint": "Sales income uses money actually received after change, including credit repayments on their receipt date. Unpaid credit is excluded. Sales receipts follow the store's 06:00 business-day cutoff in Vientiane time.",

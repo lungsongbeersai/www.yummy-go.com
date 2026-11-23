@@ -24,12 +24,14 @@ import {
 import { internalRoute } from "@/lib/routes";
 import { cn } from "@/lib/utils";
 import { useAuthStore } from "@/stores/auth-store";
+import { useBranchStore } from "@/stores/branch-store";
 
 interface CashflowWorkspaceProps {
   active: "entries" | "categories" | "report";
   title: string;
   description: string;
   branchLabel?: string;
+  branchUuid?: string;
   actions?: ReactNode;
   children: ReactNode;
   compact?: boolean;
@@ -40,12 +42,14 @@ export function CashflowWorkspace({
   title,
   description,
   branchLabel,
+  branchUuid,
   actions,
   children,
-  compact = false,
+  compact = true,
 }: CashflowWorkspaceProps) {
   const { t } = useTranslation();
   const branchName = useAuthStore((state) => state.user?.branch_name);
+  const setSelectedBranch = useBranchStore((state) => state.setSelectedBranch);
   const navigation = [
     {
       key: "entries",
@@ -75,13 +79,13 @@ export function CashflowWorkspace({
   ] as const;
 
   return (
-    <div className="font-lao flex min-w-0 flex-col gap-4 p-3 sm:p-5 lg:p-6">
-      <header className={cn("flex flex-col rounded-xl border border-border bg-card", compact ? "gap-3 p-3 sm:p-4" : "gap-4 p-4 sm:p-5")}>
+    <div data-testid="cashflow-workspace" className="font-lao mx-auto flex h-full min-h-0 w-full min-w-0 max-w-screen-2xl flex-col gap-5 overflow-x-hidden overflow-y-auto p-3 sm:p-5 lg:p-6 [&>*]:shrink-0">
+      <header className="flex flex-col gap-4">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-          <div className={cn("flex min-w-0 gap-2", compact ? "flex-row flex-wrap items-center" : "flex-col")}>
+          <div className="flex min-w-0 flex-col gap-2">
             <div className="flex flex-wrap items-center gap-2">
-              <Wallet className="size-5 shrink-0 text-primary" aria-hidden />
-              <h1 className={compact ? "text-lg font-bold" : "text-xl font-black sm:text-2xl"}>{title}</h1>
+              <Wallet className="size-6 shrink-0 text-primary" aria-hidden />
+              <h1 className="text-xl font-bold tracking-tight sm:text-2xl">{title}</h1>
             </div>
             {!compact ? <p className="max-w-3xl text-sm leading-6 text-muted-foreground">
               {description}
@@ -89,7 +93,7 @@ export function CashflowWorkspace({
             {branchLabel || branchName ? (
               <Badge
                 variant="secondary"
-                className="max-w-full gap-1.5 whitespace-normal text-sm"
+                className="h-auto max-w-full gap-1.5 whitespace-normal px-2.5 py-1 text-sm font-normal"
               >
                 <Building2 className="size-3.5 shrink-0" aria-hidden />
                 {branchLabel || branchName}
@@ -104,22 +108,23 @@ export function CashflowWorkspace({
           aria-label={t("cashflow.navigation", {
             defaultValue: "Finance navigation",
           })}
-          className="flex gap-2 border-t border-border pt-4 sm:flex-wrap"
+          className="grid grid-cols-3 gap-1 rounded-xl border border-border bg-muted/40 p-1 sm:flex sm:gap-2"
         >
           {navigation.map(({ key, path, label, shortLabel, icon: Icon }) => (
             <Button
               key={key}
               asChild
-              variant={active === key ? "default" : "outline"}
-              className="min-h-11 min-w-0 flex-1 basis-0 gap-1 px-2 text-sm sm:basis-auto sm:flex-none sm:gap-2 sm:px-3"
+              variant="ghost"
+              className={cn("min-h-11 min-w-0 shrink gap-1.5 px-2 text-sm sm:px-4", active === key ? "bg-card font-semibold text-primary shadow-sm hover:bg-card hover:text-primary" : "text-muted-foreground")}
             >
               <Link
                 href={internalRoute(path)}
                 aria-current={active === key ? "page" : undefined}
                 aria-label={label}
+                onClick={() => { if (branchUuid) setSelectedBranch(branchUuid); }}
               >
                 <Icon className="size-4 shrink-0" aria-hidden />
-                {compact ? <span className="truncate">{shortLabel}</span> : <><span className="truncate sm:hidden">{shortLabel}</span><span className="hidden sm:inline">{label}</span></>}
+                <span className="min-w-0 truncate">{shortLabel}</span>
               </Link>
             </Button>
           ))}

@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { CirclePlus, Pencil, RefreshCw, SlidersHorizontal, Trash2 } from "lucide-react";
+import Link from "next/link";
+import { ArrowDownLeft, ArrowUpRight, CirclePlus, Info, Pencil, RefreshCw, Shapes, SlidersHorizontal, Trash2 } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { AppPagination } from "@/components/common/app-pagination";
 import { ConfirmDialog } from "@/components/common/confirm-dialog";
@@ -17,8 +18,10 @@ import { formatReportDateRange } from "@/features/report/shared/report-date-form
 import { useReportBranchSelection } from "@/features/report/shared/use-report-branch-selection";
 import { businessDateInputValue } from "@/lib/format";
 import { canManageCashflow } from "@/lib/permissions";
+import { internalRoute } from "@/lib/routes";
 import type { CashflowDirection, CashflowEntry, FetchCashflowEntriesParams, SaveCashflowEntryInput } from "@/services/cashflow";
 import { authStoreUuid, useAuthStore } from "@/stores/auth-store";
+import { useBranchStore } from "@/stores/branch-store";
 import { useCashflowStore } from "@/stores/cashflow-store";
 import { createSessionGuard } from "@/stores/session-store-registry";
 import { useToastStore } from "@/stores/toast-store";
@@ -75,6 +78,7 @@ function EntriesList({ branchUuid, branchLabel, branchOptions, branchLoading, br
   const save = useCashflowStore((state) => state.saveEntry);
   const remove = useCashflowStore((state) => state.removeEntry);
   const showToast = useToastStore((state) => state.show);
+  const setSelectedBranch = useBranchStore((state) => state.setSelectedBranch);
   const [filters, setFilters] = useState<EntryFilters>(initialFilters);
   const [dateDraft, setDateDraft] = useState(() => ({ from: initialFilters().dateFrom, to: initialFilters().dateTo }));
   const [filterOpen, setFilterOpen] = useState(false);
@@ -162,27 +166,29 @@ function EntriesList({ branchUuid, branchLabel, branchOptions, branchLoading, br
   const amount = (row: CashflowEntry) => <span className={`whitespace-nowrap font-bold tabular-nums ${row.direction === "income" ? "text-success" : "text-destructive"}`}>
     {row.direction === "income" ? "+" : "−"}{formatCashflowAmount(row.amount, row.currency)}
   </span>;
-  const categoryBadge = (row: CashflowEntry) => <Badge asChild variant="outline" className="h-auto max-w-full whitespace-normal text-sm">
+  const categoryBadge = (row: CashflowEntry) => <Badge asChild variant="outline" className={`h-auto max-w-full gap-1.5 whitespace-normal px-3 text-sm ${row.direction === "income" ? "border-success/30 bg-success/10 text-success" : "border-destructive/30 bg-destructive/10 text-destructive"}`}>
     <button type="button" className="min-h-11 text-left" disabled={saving}
-      onClick={() => selectCategory(row.category_uuid_fk)}>{row.category_name}</button>
+      onClick={() => selectCategory(row.category_uuid_fk)}>{row.direction === "income" ? <ArrowDownLeft aria-hidden /> : <ArrowUpRight aria-hidden />}<span className="sr-only">{t(`cashflow.directions.${row.direction}`)}: </span>{row.category_name}</button>
   </Badge>;
 
-  return <CashflowWorkspace compact active="entries" title={t("cashflow.entriesTitle")} description="" branchLabel={branchLabel}
+  return <CashflowWorkspace compact active="entries" title={t("cashflow.entriesTitle")} description="" branchLabel={branchLabel} branchUuid={branchUuid}
     actions={<>
       <Button id="cashflow-add-income" type="button" className="min-h-11" variant="outline"
         aria-label={t("cashflow.addIncome")} disabled={!branchUuid || saving || categoriesLoading} onClick={() => openCreate("income")}>
-        <CirclePlus className="size-4" aria-hidden />{t("cashflow.directions.income")}
+        <CirclePlus className="size-4" aria-hidden />{t("cashflow.addIncome")}
       </Button>
       <Button id="cashflow-add-expense" type="button" className="min-h-11"
         aria-label={t("cashflow.addExpense")} disabled={!branchUuid || saving || categoriesLoading} onClick={() => openCreate("expense")}>
-        <CirclePlus className="size-4" aria-hidden />{t("cashflow.directions.expense")}
+        <CirclePlus className="size-4" aria-hidden />{t("cashflow.addExpense")}
       </Button>
     </>}>
     {branchError || error || entriesError || categoriesError ? <Alert variant="destructive"><AlertDescription className="flex flex-wrap items-center justify-between gap-2">
       <span>{branchError || error || entriesError || categoriesError}</span><Button type="button" variant="outline" size="sm" disabled={loading || !branchUuid} onClick={() => void refresh()}>{t("actions.tryAgain")}</Button>
     </AlertDescription></Alert> : null}
 
-    <section className="flex flex-col gap-3 rounded-xl border border-border bg-card p-3 sm:p-4" aria-label={t("report.filters.currentFilters")}>
+    <div className="flex items-start gap-2 rounded-lg bg-info/10 px-3 py-2.5 text-sm text-muted-foreground"><Info className="mt-0.5 size-4 shrink-0 text-info" aria-hidden /><p>{t("cashflow.salesAutomaticHint")}</p></div>
+
+    <section className="flex flex-col gap-4 rounded-xl border border-border bg-card p-3 sm:p-4" aria-label={t("report.filters.currentFilters")}>
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div className="flex min-w-0 items-center gap-2">
           <Button type="button" variant="outline" className="min-h-11 min-w-0" aria-label={t("report.filters.openFilters")}
@@ -201,8 +207,12 @@ function EntriesList({ branchUuid, branchLabel, branchOptions, branchLoading, br
           </Button>)}
         </div>
       </div>
-      <CashflowCategoryBadges branchUuid={branchUuid} categories={visibleCategories} direction={filters.direction}
-        selectedUuid={filters.categoryUuid} onSelect={selectCategory} disabled={saving} loading={categoriesLoading} allowAll />
+      <div className="flex items-center justify-between gap-3 border-t border-border pt-3">
+        <span className="text-sm font-medium">{t("cashflow.fields.category")}</span>
+        <Button asChild type="button" variant="ghost" size="sm" className="min-h-11 text-muted-foreground"><Link href={internalRoute("/finance/categories")} onClick={() => setSelectedBranch(branchUuid)}><Shapes className="size-4" aria-hidden />{t("cashflow.manageCategories")}</Link></Button>
+      </div>
+      <CashflowCategoryBadges categories={visibleCategories} direction={filters.direction}
+        selectedUuid={filters.categoryUuid} onSelect={selectCategory} disabled={saving || !branchUuid} loading={categoriesLoading} allowAll />
     </section>
 
     {loading || entriesBranchUuid !== branchUuid ? <div className="flex flex-col gap-2" role="status" aria-label={t("common.loading")}>
