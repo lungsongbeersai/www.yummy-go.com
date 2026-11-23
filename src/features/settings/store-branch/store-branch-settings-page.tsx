@@ -717,6 +717,8 @@ function ScopedBranchSettingsPage({ initialPagination, managedStoreUuid, canSele
       name: String(formData.get("branch_name") ?? ""),
       storeUuid: mutationStoreUuid,
       sourceBranchUuid: String(formData.get("source_branch_uuid") ?? ""),
+      showInvoiceQr: formData.get("show_invoice_qr") === "true",
+      showReceiptQr: formData.get("show_receipt_qr") === "true",
       tel: String(formData.get("branch_tel") ?? ""),
       vatPercent: String(formData.get("vat_name") ?? ""),
       vatStatus: String(formData.get("vat_status") ?? "2")

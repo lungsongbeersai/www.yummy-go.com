@@ -22,6 +22,8 @@ export interface Branch extends ApiEntity {
   vat_name?: number;
   charge_status?: number;
   charge_name?: number;
+  show_invoice_qr?: boolean;
+  show_receipt_qr?: boolean;
   store_uuid_fk?: string;
   store_name_la?: string;
   store_name_eng?: string;
@@ -39,6 +41,8 @@ export interface SaveBranchInput extends ApiEntity {
   vat_name?: number | string;
   charge_status?: number | string;
   charge_name?: number | string;
+  show_invoice_qr?: boolean;
+  show_receipt_qr?: boolean;
   contract_start_on?: string | null;
   contract_end_on?: string | null;
   contract_package_months?: ContractPackageMonths;
@@ -120,6 +124,8 @@ export const saveBranch = (input: SaveBranchInput) => {
   if (input.contract_start_on !== undefined) payload.contract_start_on = input.contract_start_on;
   if (input.contract_end_on !== undefined) payload.contract_end_on = input.contract_end_on;
   if (input.contract_package_months !== undefined) payload.contract_package_months = input.contract_package_months;
+  if (input.show_invoice_qr !== undefined) payload.show_invoice_qr = input.show_invoice_qr;
+  if (input.show_receipt_qr !== undefined) payload.show_receipt_qr = input.show_receipt_qr;
 
   // Creation includes the bounded catalog/photo copy. Ordinary edits retain
   // the default HTTP budget and never clone the menu again.

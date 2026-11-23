@@ -263,6 +263,8 @@ export function buildBranchPayload({
   name,
   storeUuid,
   sourceBranchUuid = "",
+  showInvoiceQr,
+  showReceiptQr,
   tel,
   vatPercent,
   vatStatus
@@ -277,6 +279,8 @@ export function buildBranchPayload({
   name: string;
   storeUuid: string;
   sourceBranchUuid?: string;
+  showInvoiceQr?: boolean;
+  showReceiptQr?: boolean;
   tel: string;
   vatPercent: string;
   vatStatus: string;
@@ -296,6 +300,8 @@ export function buildBranchPayload({
   if (!payload.branch_uuid && sourceBranchUuid.trim()) {
     payload.source_branch_uuid = sourceBranchUuid.trim();
   }
+  if (showInvoiceQr !== undefined) payload.show_invoice_qr = showInvoiceQr;
+  if (showReceiptQr !== undefined) payload.show_receipt_qr = showReceiptQr;
   if (canEditContract && contract && hasBranchContractChanges(editing, contract)) {
     const months = branchContractPackageMonths(contract.packageMonths);
     payload.contract_start_on = contract.startOn;

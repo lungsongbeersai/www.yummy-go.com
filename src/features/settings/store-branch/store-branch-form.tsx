@@ -10,6 +10,7 @@ import { Field, FieldDescription, FieldGroup, FieldLabel, FieldLegend, FieldSet 
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Spinner } from "@/components/ui/spinner";
+import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 import { DEFAULT_CROP, SettingsImageCropPanel, cropImageFile, type CropState } from "@/features/settings/shared/settings-image-crop";
 import { cn } from "@/lib/utils";
@@ -228,6 +229,8 @@ function EntityForm({
   const [vatPercent, setVatPercent] = useState("0");
   const [chargeStatus, setChargeStatus] = useState("2");
   const [chargePercent, setChargePercent] = useState("0");
+  const [showInvoiceQr, setShowInvoiceQr] = useState(true);
+  const [showReceiptQr, setShowReceiptQr] = useState(true);
   const formHint = kind === "store" ? labels.storeHint : labels.branchHint;
   const existingSrc = kind === "store" && editing ? imageUrl(editing, kind) : "";
   const canSubmit =
@@ -266,6 +269,8 @@ function EntityForm({
     setVatPercent(String(storeBranchNumber(editing, "vat_name", 0)));
     setChargeStatus(String(storeBranchNumber(editing, "charge_status", 2)));
     setChargePercent(String(storeBranchNumber(editing, "charge_name", 0)));
+    setShowInvoiceQr(editing?.show_invoice_qr !== false);
+    setShowReceiptQr(editing?.show_receipt_qr !== false);
   }, { runOnMount: true });
 
   async function handleSubmit(formData: FormData) {
@@ -627,6 +632,29 @@ function EntityForm({
                         value={chargePercent}
                         onValueChange={setChargePercent}
                       />
+                    </Field>
+                  </FieldGroup>
+                </FieldSet>
+
+                <FieldSet className="gap-4 rounded-lg border border-border bg-card p-4">
+                  <Field>
+                    <FieldLegend>{labels.documentQr}</FieldLegend>
+                    <FieldDescription>{labels.documentQrHint}</FieldDescription>
+                  </Field>
+                  <FieldGroup className="gap-2">
+                    <Field orientation="horizontal" className="min-h-11">
+                      <FieldLabel htmlFor={`${recordKey}-show-invoice-qr`} className="min-h-11 flex-1 items-center">
+                        {labels.showInvoiceQr}
+                      </FieldLabel>
+                      <input name="show_invoice_qr" type="hidden" value={String(showInvoiceQr)} readOnly />
+                      <Switch id={`${recordKey}-show-invoice-qr`} checked={showInvoiceQr} disabled={disabled} onCheckedChange={setShowInvoiceQr} />
+                    </Field>
+                    <Field orientation="horizontal" className="min-h-11">
+                      <FieldLabel htmlFor={`${recordKey}-show-receipt-qr`} className="min-h-11 flex-1 items-center">
+                        {labels.showReceiptQr}
+                      </FieldLabel>
+                      <input name="show_receipt_qr" type="hidden" value={String(showReceiptQr)} readOnly />
+                      <Switch id={`${recordKey}-show-receipt-qr`} checked={showReceiptQr} disabled={disabled} onCheckedChange={setShowReceiptQr} />
                     </Field>
                   </FieldGroup>
                 </FieldSet>

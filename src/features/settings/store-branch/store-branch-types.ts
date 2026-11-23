@@ -105,6 +105,10 @@ export interface StoreBranchLabels {
   tableStatusHint: string;
   taxBilling: string;
   taxBillingHint: string;
+  documentQr: string;
+  documentQrHint: string;
+  showInvoiceQr: string;
+  showReceiptQr: string;
   type: string;
   test: string;
   testLoginHint: string;

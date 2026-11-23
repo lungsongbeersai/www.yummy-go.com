@@ -225,6 +225,24 @@ describe("store branch utils", () => {
     expect(buildBranchPayload({ ...input, editing: null, sourceBranchUuid: "  " })).not.toHaveProperty("source_branch_uuid");
   });
 
+  it("keeps invoice and receipt QR choices independent on the branch being edited", () => {
+    const input = {
+      address: "", chargePercent: "0", chargeStatus: "2", email: "",
+      name: "Branch", storeUuid: "store-1", tel: "", vatPercent: "0", vatStatus: "1",
+    };
+    expect(buildBranchPayload({ ...input, editing: { branch_uuid: "branch-1" },
+      showInvoiceQr: false, showReceiptQr: true })).toMatchObject({
+      branch_uuid: "branch-1", store_uuid_fk: "store-1", show_invoice_qr: false, show_receipt_qr: true,
+    });
+    expect(buildBranchPayload({ ...input, editing: { branch_uuid: "branch-2" },
+      showInvoiceQr: true, showReceiptQr: false })).toMatchObject({
+      branch_uuid: "branch-2", store_uuid_fk: "store-1", show_invoice_qr: true, show_receipt_qr: false,
+    });
+    const unchanged = buildBranchPayload({ ...input, editing: null });
+    expect(unchanged).not.toHaveProperty("show_invoice_qr");
+    expect(unchanged).not.toHaveProperty("show_receipt_qr");
+  });
+
   it("offers only same-store source branches in backend creation order without duplicates", () => {
     expect(branchCatalogSourceOptions([
       { branch_uuid: "first", branch_name: "Branch 1", store_uuid_fk: "store-1" },

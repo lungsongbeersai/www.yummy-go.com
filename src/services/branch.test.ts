@@ -98,3 +98,26 @@ describe("branch contract save requests", () => {
     expect(mocks.request.mock.calls[0][2].data).not.toHaveProperty("contract_package_months");
   });
 });
+
+describe("branch document QR save requests", () => {
+  it.each([
+    [false, true],
+    [true, false],
+    [false, false],
+    [true, true],
+  ])("saves invoice=%s and receipt=%s only for the selected branch", async (invoice, receipt) => {
+    await saveBranch({ branch_uuid: "selected-branch", store_uuid_fk: "selected-store",
+      show_invoice_qr: invoice, show_receipt_qr: receipt });
+    expect(mocks.request.mock.calls[0][2].data).toMatchObject({
+      branch_uuid: "selected-branch", store_uuid_fk: "selected-store",
+      show_invoice_qr: invoice, show_receipt_qr: receipt,
+    });
+  });
+
+  it("leaves saved QR settings untouched when an unrelated caller omits them", async () => {
+    await saveBranch({ branch_uuid: "selected-branch", branch_name: "Updated" });
+    const payload = mocks.request.mock.calls[0][2].data;
+    expect(payload).not.toHaveProperty("show_invoice_qr");
+    expect(payload).not.toHaveProperty("show_receipt_qr");
+  });
+});
