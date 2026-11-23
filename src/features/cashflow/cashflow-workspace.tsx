@@ -22,6 +22,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { internalRoute } from "@/lib/routes";
+import { cn } from "@/lib/utils";
 import { useAuthStore } from "@/stores/auth-store";
 
 interface CashflowWorkspaceProps {
@@ -31,6 +32,7 @@ interface CashflowWorkspaceProps {
   branchLabel?: string;
   actions?: ReactNode;
   children: ReactNode;
+  compact?: boolean;
 }
 
 export function CashflowWorkspace({
@@ -40,6 +42,7 @@ export function CashflowWorkspace({
   branchLabel,
   actions,
   children,
+  compact = false,
 }: CashflowWorkspaceProps) {
   const { t } = useTranslation();
   const branchName = useAuthStore((state) => state.user?.branch_name);
@@ -73,16 +76,16 @@ export function CashflowWorkspace({
 
   return (
     <div className="font-lao flex min-w-0 flex-col gap-4 p-3 sm:p-5 lg:p-6">
-      <header className="flex flex-col gap-4 rounded-xl border border-border bg-card p-4 sm:p-5">
+      <header className={cn("flex flex-col rounded-xl border border-border bg-card", compact ? "gap-3 p-3 sm:p-4" : "gap-4 p-4 sm:p-5")}>
         <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-          <div className="flex min-w-0 flex-col gap-2">
+          <div className={cn("flex min-w-0 gap-2", compact ? "flex-row flex-wrap items-center" : "flex-col")}>
             <div className="flex flex-wrap items-center gap-2">
               <Wallet className="size-5 shrink-0 text-primary" aria-hidden />
-              <h1 className="text-xl font-black sm:text-2xl">{title}</h1>
+              <h1 className={compact ? "text-lg font-bold" : "text-xl font-black sm:text-2xl"}>{title}</h1>
             </div>
-            <p className="max-w-3xl text-sm leading-6 text-muted-foreground">
+            {!compact ? <p className="max-w-3xl text-sm leading-6 text-muted-foreground">
               {description}
-            </p>
+            </p> : null}
             {branchLabel || branchName ? (
               <Badge
                 variant="secondary"
@@ -116,8 +119,7 @@ export function CashflowWorkspace({
                 aria-label={label}
               >
                 <Icon className="size-4 shrink-0" aria-hidden />
-                <span className="truncate sm:hidden">{shortLabel}</span>
-                <span className="hidden sm:inline">{label}</span>
+                {compact ? <span className="truncate">{shortLabel}</span> : <><span className="truncate sm:hidden">{shortLabel}</span><span className="hidden sm:inline">{label}</span></>}
               </Link>
             </Button>
           ))}

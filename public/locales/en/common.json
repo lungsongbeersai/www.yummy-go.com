@@ -1,5 +1,6 @@
 {
   "cashflow": {
+    "compact": { "listCategories": "Category list" },
     "accessDenied": "Finance access is restricted",
     "accessDeniedHint": "Ask an administrator or accounting staff member to manage income and expenses.",
     "navigation": "Finance navigation",

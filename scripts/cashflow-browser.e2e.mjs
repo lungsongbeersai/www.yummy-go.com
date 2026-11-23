@@ -150,17 +150,41 @@ async function context(role = 1, viewport = { width: 390, height: 844 }) {
   return active;
 }
 
-async function addEntry(direction, description, amount, group = "shop") {
+async function compactForm() {
+  const dialog = page.getByRole("dialog");
+  assert.equal(await dialog.count(), 1);
+  assert.equal(await dialog.locator("input:not([type=hidden]), textarea, select").count(), 3,
+    "The four-field form has date, amount, note, and category badge buttons");
+  for (const control of ["description", "currency", "payment", "reference", "expense-group"]) {
+    assert.equal(await dialog.locator(`#cashflow-form-${control}`).count(), 0, `${control} must not lengthen the compact form`);
+  }
+  await dialog.locator("#cashflow-form-date").waitFor();
+  await dialog.locator("#cashflow-form-amount").waitFor();
+  await dialog.locator("#cashflow-form-note").waitFor();
+  const bounds = await dialog.boundingBox();
+  assert(bounds);
+  for (const name of [labels.actions.cancel, labels.actions.save]) {
+    const control = await dialog.getByRole("button", { name, exact: true }).boundingBox();
+    assert(control && control.x >= bounds.x && control.x + control.width <= bounds.x + bounds.width,
+      `${name} must stay inside the compact dialog without horizontal scrolling`);
+  }
+  return dialog;
+}
+
+async function addEntry(direction, note, amount) {
   await click(page.getByRole("button", { name: direction === "income" ? labels.cashflow.addIncome : labels.cashflow.addExpense, exact: true }));
   await page.getByRole("dialog").waitFor();
-  await choose("cashflow-form-category", "General operations");
-  if (direction === "expense") await choose("cashflow-form-expense-group", labels.cashflow.expenseGroups[group]);
-  await page.locator("#cashflow-form-date").fill(today);
-  await page.locator("#cashflow-form-description").fill(description);
-  await page.locator("#cashflow-form-amount").fill(String(amount));
-  await click(page.getByRole("dialog").getByRole("button", { name: labels.actions.save, exact: true }));
+  const dialog = await compactForm();
+  await click(dialog.getByRole("button", { name: "General operations", exact: true }));
+  await dialog.locator("#cashflow-form-date").fill(today);
+  await dialog.locator("#cashflow-form-amount").fill(String(amount));
+  await dialog.locator("#cashflow-form-note").fill(note);
+  const box = await dialog.boundingBox();
+  assert(box && box.height <= 740, "Compact entry dialog should fit the mobile portrait viewport");
+  if (direction === "income") await page.screenshot({ path: join(artifacts, "entry-form-mobile.png"), fullPage: true });
+  await click(dialog.getByRole("button", { name: labels.actions.save, exact: true }));
   await page.getByRole("dialog").waitFor({ state: "hidden" });
-  await page.getByRole("heading", { name: description, exact: true }).waitFor();
+  await page.getByText(note, { exact: true }).filter({ visible: true }).waitFor();
 }
 
 try {
@@ -171,30 +195,101 @@ try {
     browser = await chromium.launch({ headless: true, executablePath: process.platform === "darwin" ? "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome" : chromium.executablePath() });
     page = await (await context()).newPage();
   });
-  await step("Create one shared income and expense category on mobile", async () => {
-    await page.goto(`${webOrigin}/finance/categories`, { timeout: 120_000 });
-    await page.getByRole("heading", { name: labels.cashflow.categoriesTitle, exact: true }).waitFor({ timeout: 90_000 });
-    await click(page.getByRole("button", { name: labels.cashflow.addCategory, exact: true }));
-    await page.locator("#cashflow-category-name").fill("General operations");
-    await click(page.getByRole("dialog").getByRole("button", { name: labels.actions.save, exact: true }));
-    await page.getByRole("dialog").waitFor({ state: "hidden" });
+  await step("Create, list and remove categories using the inline badge controls", async () => {
+    await page.goto(`${webOrigin}/finance/entries`, { timeout: 120_000 });
+    await page.getByRole("button", { name: labels.cashflow.addIncome, exact: true }).waitFor({ timeout: 90_000 });
+    await click(page.getByRole("button", { name: labels.cashflow.addIncome, exact: true }));
+    const form = await compactForm();
+    await click(form.getByTestId("cashflow-category-add"));
+    const manager = page.getByRole("dialog").filter({ has: page.locator("#cashflow-category-badge-name") });
+    await manager.waitFor();
+    await manager.locator("#cashflow-category-badge-name").fill("General operations");
+    await click(manager.getByTestId("cashflow-category-create"));
+    await manager.getByRole("button", { name: "General operations", exact: true }).waitFor();
+    await manager.locator("#cashflow-category-badge-name").fill("Temporary category");
+    await click(manager.getByTestId("cashflow-category-create"));
+    await manager.getByRole("button", { name: "Temporary category", exact: true }).waitFor();
+    await page.screenshot({ path: join(artifacts, "category-manager-mobile.png"), fullPage: true });
+    await click(manager.getByRole("button", { name: `${labels.actions.delete} Temporary category`, exact: true }));
+    const confirmation = page.getByRole("alertdialog");
+    await confirmation.waitFor();
+    await click(confirmation.getByRole("button", { name: labels.actions.delete, exact: true }));
+    await confirmation.waitFor({ state: "hidden" });
+    await until(async () => (await database.query("SELECT is_active FROM tb_cashflow_category WHERE name='Temporary category'")).rows[0]?.is_active === false,
+      "unused category is archived, not erased");
+    await click(manager.locator('[data-slot="dialog-footer"]').getByRole("button", { name: labels.actions.close, exact: true }));
+    await manager.waitFor({ state: "hidden" });
+    await click(form.getByTestId("cashflow-category-list"));
+    await manager.waitFor();
+    await manager.getByRole("button", { name: "General operations", exact: true }).waitFor();
+    assert.equal(await manager.getByRole("button", { name: "Temporary category", exact: true }).count(), 0);
+    await click(manager.locator('[data-slot="dialog-footer"]').getByRole("button", { name: labels.actions.close, exact: true }));
+    await manager.waitFor({ state: "hidden" });
+    await click(form.getByRole("button", { name: labels.actions.cancel, exact: true }));
+    await form.waitFor({ state: "hidden" });
     const category = (await database.query("SELECT direction FROM tb_cashflow_category WHERE name='General operations'")).rows[0];
     assert.equal(category.direction, "both");
   });
-  await step("Record other income, shop expense and other expense", async () => {
-    await page.goto(`${webOrigin}/finance/entries`, { timeout: 120_000 });
-    await page.getByRole("button", { name: labels.cashflow.addIncome, exact: true }).waitFor({ timeout: 90_000 });
+  await step("Record income and expenses with only date, category badge, amount and note", async () => {
     await addEntry("income", "Other income fixture", 200);
     await addEntry("expense", "Shop expense fixture", 30);
-    await addEntry("expense", "Other expense fixture", 20, "other");
+    await addEntry("expense", "Other expense fixture", 20);
     await page.screenshot({ path: join(artifacts, "entries-mobile.png"), fullPage: true });
+    assert(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1), "Mobile entries must not overflow");
+    await page.setViewportSize({ width: 1460, height: 1000 });
+    await page.getByText("Other income fixture", { exact: true }).filter({ visible: true }).waitFor();
+    const headers = await page.getByRole("table").getByRole("columnheader").allTextContents();
+    assert.deepEqual(headers.map((heading) => heading.trim()), [labels.cashflow.fields.date,
+      labels.cashflow.fields.category, labels.cashflow.fields.amount, labels.cashflow.fields.note]);
+    await page.screenshot({ path: join(artifacts, "entries-desktop.png"), fullPage: true });
+    await page.setViewportSize({ width: 390, height: 844 });
+  });
+  await step("Edit amount and note through the same compact form", async () => {
+    await click(page.getByRole("button", { name: `${labels.actions.edit} Shop expense fixture`, exact: true }));
+    let dialog = await compactForm();
+    await dialog.locator("#cashflow-form-amount").fill("35");
+    await dialog.locator("#cashflow-form-note").fill("Edited shop expense fixture");
+    await page.setViewportSize({ width: 1460, height: 1000 });
+    await compactForm();
+    await page.screenshot({ path: join(artifacts, "entry-form-desktop.png"), fullPage: true });
+    await page.setViewportSize({ width: 390, height: 844 });
+    await compactForm();
+    await click(dialog.getByRole("button", { name: labels.actions.save, exact: true }));
+    await dialog.waitFor({ state: "hidden" });
+    await page.getByText("Edited shop expense fixture", { exact: true }).filter({ visible: true }).waitFor();
+    const saved = (await database.query("SELECT amount,note,version FROM tb_cashflow_entry WHERE note='Edited shop expense fixture'")).rows[0];
+    assert.equal(Number(saved.amount), 35);
+    assert.equal(saved.version, 2);
+    await click(page.getByRole("button", { name: `${labels.actions.edit} Edited shop expense fixture`, exact: true }));
+    dialog = await compactForm();
+    await dialog.locator("#cashflow-form-amount").fill("30");
+    await dialog.locator("#cashflow-form-note").fill("Shop expense fixture");
+    await click(dialog.getByRole("button", { name: labels.actions.save, exact: true }));
+    await dialog.waitFor({ state: "hidden" });
+    await page.getByText("Shop expense fixture", { exact: true }).filter({ visible: true }).waitFor();
+  });
+  await step("Select category badges to display their records", async () => {
+    const bar = page.getByTestId("cashflow-category-badges");
+    const filtered = page.waitForResponse((response) => {
+      const url = new URL(response.url());
+      return url.pathname === "/api/v1/cashflow/entries" && Boolean(url.searchParams.get("category_uuid_fk"));
+    });
+    await click(bar.getByRole("button", { name: "General operations", exact: true }));
+    const result = await filtered.then((response) => response.json());
+    assert.equal(result.pagination.total, 3);
+    assert.equal(await bar.getByRole("button", { name: "General operations", exact: true }).getAttribute("aria-pressed"), "true");
+    await click(bar.getByRole("button", { name: labels.common.all, exact: true }));
+    await page.getByText("Other income fixture", { exact: true }).filter({ visible: true }).waitFor();
+    const category = (await database.query("SELECT is_active FROM tb_cashflow_category WHERE name='General operations'")).rows[0];
+    assert.equal(category.is_active, true);
+    assert.equal((await database.query("SELECT COUNT(*)::int AS total FROM tb_cashflow_entry WHERE deleted_at IS NULL")).rows[0].total, 3);
   });
   await step("Report actual sales minus change and later debt collections once", async () => {
     await page.goto(`${webOrigin}/report/income-expenses`, { timeout: 120_000 });
     await page.getByText("1,900 LAK", { exact: true }).waitFor({ timeout: 90_000 });
     await page.getByText("1,850 LAK", { exact: true }).waitFor();
     const report = await fetch(`${apiOrigin}/api/v1/cashflow/report?branch_uuid=${BRANCH}&date_from=${today}&date_to=${today}`, { headers: { "x-access-token": "1" } }).then((response) => response.json());
-    assert.deepEqual(report.data.summary, { sales_income: 1700, other_income: 200, income_total: 1900, shop_expense: 30, other_expense: 20, expense_total: 50, balance: 1850 });
+    assert.deepEqual(report.data.summary, { sales_income: 1700, other_income: 200, income_total: 1900, shop_expense: 50, other_expense: 0, expense_total: 50, balance: 1850 });
     assert(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1), "Mobile report must not overflow the page");
     await page.screenshot({ path: join(artifacts, "report-mobile.png"), fullPage: true });
   });
@@ -233,8 +328,10 @@ try {
   await step("Branch administrators remain locked to their own branch", async () => {
     const restricted = await (await context(3)).newPage();
     await restricted.goto(`${webOrigin}/finance/entries`, { timeout: 120_000 });
-    await restricted.locator("#cashflow-entry-branch").waitFor({ timeout: 90_000 });
-    assert.equal(await restricted.locator("#cashflow-entry-branch").isDisabled(), true);
+    await restricted.locator("#cashflow-add-income").waitFor({ timeout: 90_000 });
+    await click(restricted.getByRole("button", { name: labels.report.filters.openFilters, exact: true }));
+    await restricted.getByRole("dialog").waitFor();
+    assert.equal(await restricted.locator("#cashflow-entry-branch").count(), 0, "Restricted roles are not offered a branch switch");
     const denied = await fetch(`${apiOrigin}/api/v1/cashflow/entries?branch_uuid=${SIBLING}`, { headers: { "x-access-token": "3" } });
     assert.equal(denied.status, 403);
     await restricted.context().close();
