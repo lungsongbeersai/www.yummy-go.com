@@ -14,6 +14,8 @@ export const STORE_BRANCH_VIEW_STATUSES: number[] = [
 ];
 const BRANCH_SETTINGS_STATUSES = [...STORE_BRANCH_VIEW_STATUSES, ROLE_STATUS.BRANCH_ADMIN];
 const STORE_PERMISSION_MANAGE_STATUSES = STORE_BRANCH_VIEW_STATUSES;
+export const CASHFLOW_MANAGE_STATUSES: number[] = [ROLE_STATUS.SUPER_ADMIN,
+  ROLE_STATUS.HEAD_OFFICE_ADMIN, ROLE_STATUS.BRANCH_ADMIN, ROLE_STATUS.ACCOUNTING_STAFF];
 
 function roleStatus(status: number | null | undefined) {
   return Number(status ?? 0);
@@ -82,4 +84,8 @@ export function canManagePayments(status: number | null | undefined) {
 
 export function canManageDiscounts(status: number | null | undefined) {
   return roleStatus(status) !== ROLE_STATUS.WAITER;
+}
+
+export function canManageCashflow(status: number | null | undefined) {
+  return CASHFLOW_MANAGE_STATUSES.includes(roleStatus(status));
 }

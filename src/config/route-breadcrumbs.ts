@@ -3,6 +3,18 @@ import type { MenuItem } from "@/config/menu";
 export type RouteBreadcrumbItem = Pick<MenuItem, "disabled" | "label" | "path" | "title">;
 
 export const routeBreadcrumbs: Record<string, RouteBreadcrumbItem[]> = {
+  "/finance/entries": [
+    { disabled: true, title: "cashflow" },
+    { path: "/finance/entries", title: "cashflow_entries" }
+  ],
+  "/finance/categories": [
+    { disabled: true, title: "cashflow" },
+    { path: "/finance/categories", title: "cashflow_categories" }
+  ],
+  "/report/income-expenses": [
+    { disabled: true, title: "report_menu" },
+    { path: "/report/income-expenses", title: "income_expense_report" }
+  ],
   "/commercial": [{ path: "/commercial", title: "commercial" }],
   "/package": [{ path: "/package", title: "package_management" }],
   "/my_orders": [{ path: "/my_orders", title: "my_orders" }],

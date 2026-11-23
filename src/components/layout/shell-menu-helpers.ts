@@ -13,7 +13,7 @@ const FIXED_DATA_SCREEN_PATHS = new Set([
   "/my_orders",
   "/commercial",
 ]);
-const FIXED_DATA_SCREEN_PREFIXES = ["/settings/", "/report/", "/commercial/"] as const;
+const FIXED_DATA_SCREEN_PREFIXES = ["/settings/", "/report/", "/commercial/", "/finance/"] as const;
 const IMMERSIVE_SCREEN_PATHS = new Set(["/posAll/tables", "/posAll/order"]);
 
 export function menuKey(title: string) {

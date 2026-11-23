@@ -5,10 +5,11 @@ import {
   Printer,
   Settings,
   ShoppingCart,
+  Wallet,
   Utensils
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
-import { ROLE_STATUS, STORE_BRANCH_VIEW_STATUSES } from "@/lib/permissions";
+import { CASHFLOW_MANAGE_STATUSES, ROLE_STATUS, STORE_BRANCH_VIEW_STATUSES } from "@/lib/permissions";
 
 export type MenuItem = {
   is_header?: boolean;
@@ -25,6 +26,7 @@ export type MenuItem = {
 };
 
 const disabledReportItems: MenuItem[] = [
+  { path: "/report/income-expenses", title: "income_expense_report", allowedStatus: CASHFLOW_MANAGE_STATUSES },
   { path: "/report/daily-sales", title: "daily_sales_report" },
   { path: "/report/daily-closing", title: "daily_store_closing_report" },
   { path: "/report/best-selling-products", title: "best_selling_products_report" },
@@ -58,6 +60,15 @@ const Menu: MenuItem[] = [
   { path: "/products", icon: Utensils, title: "menu_add_item" },
   { path: "/stock", icon: Package, title: "stock_quantity" },
   { path: "/printers", icon: Printer, title: "printer_management" },
+  {
+    icon: Wallet,
+    title: "cashflow",
+    allowedStatus: CASHFLOW_MANAGE_STATUSES,
+    children: [
+      { path: "/finance/entries", title: "cashflow_entries" },
+      { path: "/finance/categories", title: "cashflow_categories" }
+    ]
+  },
   {
     icon: BarChart3,
     title: "report_menu",

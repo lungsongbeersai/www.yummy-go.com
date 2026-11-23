@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { canManageDiscounts, canManagePayments, canManageBranchAccounts, canManageBankMaster, canManageStorePermissions, canViewSettingModule, canEditStoreBranch, canEditBranchSettingsRow, canCreateStoreBranch, canDeleteStoreBranch, ROLE_STATUS } from "./permissions";
+import { canManageCashflow, canManageDiscounts, canManagePayments, canManageBranchAccounts, canManageBankMaster, canManageStorePermissions, canViewSettingModule, canEditStoreBranch, canEditBranchSettingsRow, canCreateStoreBranch, canDeleteStoreBranch, ROLE_STATUS } from "./permissions";
 
 describe("branch administrator permissions", () => {
   it("opens own-branch settings and accounts without granting merchant or bank administration", () => {
@@ -60,5 +60,15 @@ describe("canManageDiscounts", () => {
 
   it("allows every other role", () => {
     expect(canManageDiscounts(ROLE_STATUS.BRANCH_ADMIN)).toBe(true);
+  });
+});
+
+describe("cashflow permissions", () => {
+  it("allows administrators and accounting staff to record financial entries", () => {
+    for (const status of [1, 2, 3, 5]) expect(canManageCashflow(status)).toBe(true);
+  });
+
+  it("denies sales-only, warehouse, waiter and unverified roles", () => {
+    for (const status of [0, 4, 6, 7, 99, null, undefined]) expect(canManageCashflow(status)).toBe(false);
   });
 });
