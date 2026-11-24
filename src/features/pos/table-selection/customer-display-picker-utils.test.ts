@@ -91,13 +91,31 @@ describe("customer display picker helpers", () => {
   });
 
   it("uses last selected display when it is still connected", () => {
-    expect(defaultCustomerDisplayId(displayInfo(), 1)).toBe(1);
+    expect(defaultCustomerDisplayId(displayInfo(), 2)).toBe(2);
   });
 
-  it("defaults to the active display, then secondary, then primary", () => {
-    expect(defaultCustomerDisplayId(displayInfo({ activeCustomerDisplayId: 1 }), null)).toBe(1);
+  it("keeps the selected display on the customer candidate shown by the picker", () => {
+    expect(defaultCustomerDisplayId(displayInfo(), 1)).toBe(2);
+    expect(defaultCustomerDisplayId(displayInfo({ activeCustomerDisplayId: 1 }), null)).toBe(2);
     expect(defaultCustomerDisplayId(displayInfo(), null)).toBe(2);
     expect(defaultCustomerDisplayId(displayInfo({ count: 1, displays: [primary], hasSecondary: false }), null)).toBe(1);
+  });
+
+  it("offers the OS primary display to customers when the cashier uses another monitor", () => {
+    const info = displayInfo({ cashierDisplayId: secondary.id });
+
+    expect(electronSecondaryDisplays(info)).toEqual([primary]);
+    expect(defaultCustomerDisplayId(info, secondary.id)).toBe(primary.id);
+    expect(defaultCustomerDisplayId(info, primary.id)).toBe(primary.id);
+  });
+
+  it("preserves a chosen customer monitor when three displays are connected", () => {
+    const third = { ...secondary, id: 3, x: 3840 };
+    const info = displayInfo({ count: 3, displays: [primary, secondary, third] });
+
+    expect(electronSecondaryDisplays(info)).toEqual([secondary, third]);
+    expect(defaultCustomerDisplayId(info, third.id)).toBe(third.id);
+    expect(defaultCustomerDisplayId({ ...info, activeCustomerDisplayId: third.id }, null)).toBe(third.id);
   });
 
   it("falls back from disconnected preferred display to the best connected display", () => {
@@ -142,8 +160,42 @@ describe("customer display picker helpers", () => {
       true
     );
 
-    expect(defaultBrowserCustomerDisplayKey(info, info.screens[0].key)).toBe(info.screens[0].key);
+    expect(defaultBrowserCustomerDisplayKey(info, info.screens[1].key)).toBe(info.screens[1].key);
+    expect(defaultBrowserCustomerDisplayKey(info, info.screens[0].key)).toBe(info.screens[1].key);
     expect(browserDisplayIsConnected(info, info.screens[1].key)).toBe(true);
+  });
+
+  it("opens the OS primary customer display when the POS browser is on a secondary monitor", () => {
+    const info = normalizeBrowserCustomerDisplayInfo(
+      { currentScreen: browserSecondary, screens: [browserPrimary, browserSecondary] },
+      true
+    );
+
+    expect(browserSecondaryScreens(info)).toEqual([info.screens[0]]);
+    expect(defaultBrowserCustomerDisplayKey(info, info.screens[1].key)).toBe(info.screens[0].key);
+    expect(info.hasSecondary).toBe(true);
+  });
+
+  it("keeps browser defaults within the visible candidates with three monitors", () => {
+    const third = { ...browserSecondary, left: -1920, availLeft: -1920, label: "Rear display" };
+    const info = normalizeBrowserCustomerDisplayInfo(
+      { currentScreen: browserSecondary, screens: [browserPrimary, browserSecondary, third] },
+      true
+    );
+
+    expect(browserSecondaryScreens(info)).toEqual([info.screens[0], info.screens[2]]);
+    expect(defaultBrowserCustomerDisplayKey(info, info.screens[1].key)).toBe(info.screens[0].key);
+    expect(defaultBrowserCustomerDisplayKey(info, info.screens[2].key)).toBe(info.screens[2].key);
+  });
+
+  it("uses primary metadata only when the browser cannot identify its current screen", () => {
+    const info = normalizeBrowserCustomerDisplayInfo(
+      { screens: [browserPrimary, browserSecondary] },
+      true
+    );
+
+    expect(browserSecondaryScreens(info)).toEqual([info.screens[1]]);
+    expect(defaultBrowserCustomerDisplayKey(info, info.screens[0].key)).toBe(info.screens[1].key);
   });
 
   it("falls browser screen selection back to secondary or primary", () => {

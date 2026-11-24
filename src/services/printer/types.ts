@@ -53,6 +53,8 @@ export interface PrinterReadinessStatus {
   queued_job_count?: number;
 }
 export interface AgentInfo extends ApiEntity {
+  supports_printer_support?: boolean;
+  printer_support_protocol_version?: number;
   print_mode?: string;
   supports_sunmi_builtin?: boolean;
   supports_tcp_relay?: boolean;
@@ -77,6 +79,52 @@ export interface AgentInfo extends ApiEntity {
   agent_url?: string;
   agent_secret_hash?: string;
   network_addresses?: string[];
+}
+
+export type PrinterSupportAction = "diagnose" | "refresh_neighbor" | "pin_neighbor" | "remove_pin";
+export type PrinterSupportCommandStatus = "queued" | "running" | "succeeded" | "failed" | "unknown" | "expired";
+export interface PrinterSupportNeighbor { mac: string | null; state: string | null }
+export interface PrinterSupportResult {
+  code: string;
+  checked_at: string;
+  platform: string;
+  admin: boolean;
+  changed: boolean;
+  rollback_available: boolean;
+  tcp?: { state: "open" | "refused" | "timeout" | "error"; code?: string; bytes_sent: 0 };
+  neighbor?: PrinterSupportNeighbor;
+  network?: { interface_index: number | null; local_ipv4: string; prefix_length: number };
+  before?: { neighbor: PrinterSupportNeighbor };
+}
+export interface PrinterSupportCommand {
+  command_uuid: string;
+  print_config_uuid: string;
+  action: PrinterSupportAction;
+  status: PrinterSupportCommandStatus;
+  created_at: string;
+  expires_at: string;
+  finished_at: string | null;
+  result: PrinterSupportResult | null;
+  error_code: string | null;
+}
+export interface PrinterSupportSummary {
+  printer: Pick<Printer, "print_config_uuid" | "printer_name" | "interface_value" | "device_code" | "agent_id" | "agent_online">;
+  recent: { success: number; pending: number; failed: number; unknown: number; last_error: string | null; last_error_at: string | null };
+  commands: PrinterSupportCommand[];
+}
+export interface CreatePrinterSupportCommand {
+  print_config_uuid: string;
+  action: PrinterSupportAction;
+  request_uuid: string;
+  evidence_command_uuid?: string;
+  verified_mac?: string;
+  mac_confirmed?: boolean;
+}
+export interface PrinterSupportClaim { command: PrinterSupportCommand | null; execution_token?: string }
+export interface PrinterSupportExecution {
+  status: "succeeded" | "failed" | "unknown";
+  result?: PrinterSupportResult;
+  error_code?: string;
 }
 export interface AgentInfoResponse extends ApiEntity {
   ok?: boolean;

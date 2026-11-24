@@ -165,3 +165,6 @@ export {
   executeReportPrintJobs,
   getPendingPrintJobs
 } from "@/services/printer/print-jobs";
+
+export { getPrinterSupportSummary, createPrinterSupportCommand, getPrinterSupportCommand, claimPrinterSupportCommand, executePrinterSupportCommand, acknowledgePrinterSupportCommand } from "@/services/printer/support";
+export type { PrinterSupportAction, PrinterSupportCommandStatus, PrinterSupportNeighbor, PrinterSupportResult, PrinterSupportCommand, PrinterSupportSummary, CreatePrinterSupportCommand, PrinterSupportClaim, PrinterSupportExecution } from "@/services/printer/types";

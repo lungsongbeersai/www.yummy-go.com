@@ -10,6 +10,10 @@ import {
 } from "electron";
 import path from "path";
 import {
+  createCustomerDisplayWindowController,
+  resolveCustomerDisplayTarget,
+} from "../src/platform/electron/customer-display-window";
+import {
   assertNextServerPortAvailable,
   createNextServerEnvironment,
   createNextServerPaths,
@@ -19,15 +23,28 @@ import {
 } from "../src/platform/electron/next-server-contract";
 
 let mainWindow: BrowserWindow | null = null;
-let customerWindow: BrowserWindow | null = null;
 let nextProcess: UtilityProcess | null = null;
-let customerReady = false;
-let activeCustomerDisplayId: number | null = null;
-const pendingMessages: unknown[] = [];
 
 const isDev = process.env.NODE_ENV !== "production" && !app.isPackaged;
 const PORT = Number(process.env.PORT ?? 3000);
 const BASE_URL = `http://127.0.0.1:${PORT}`;
+
+const customerDisplay = createCustomerDisplayWindowController((target) => {
+  const window = new BrowserWindow({
+    ...target.bounds,
+    frame: false,
+    autoHideMenuBar: true,
+    show: false,
+    title: "Yummy Go Customer Display",
+    webPreferences: {
+      preload: preloadPath(),
+      contextIsolation: true,
+      nodeIntegration: false,
+    },
+  });
+  void window.loadURL(`${BASE_URL}/customer-display`);
+  return window;
+}, process.platform === "darwin");
 
 function preloadPath() {
   return path.join(__dirname, "preload.js");
@@ -53,12 +70,12 @@ function createMainWindow() {
   if (isDev) mainWindow.webContents.openDevTools({ mode: "detach" });
   mainWindow.on("closed", () => {
     mainWindow = null;
-    customerWindow?.close();
+    customerDisplay.close();
   });
 }
 
 function displayInfo(display: Display, primary: Display) {
-  const active = activeCustomerDisplayId === display.id;
+  const active = customerDisplay.activeDisplayId === display.id;
   return {
     id: display.id,
     isActive: active,
@@ -77,7 +94,8 @@ function displaySnapshot() {
   const primary = screen.getPrimaryDisplay();
 
   return {
-    activeCustomerDisplayId,
+    activeCustomerDisplayId: customerDisplay.activeDisplayId,
+    cashierDisplayId: cashierDisplay().id,
     count: displays.length,
     hasSecondary: displays.length > 1,
     primary: displayInfo(primary, primary),
@@ -85,53 +103,15 @@ function displaySnapshot() {
   };
 }
 
+function cashierDisplay() {
+  return mainWindow && !mainWindow.isDestroyed()
+    ? screen.getDisplayMatching(mainWindow.getBounds())
+    : screen.getPrimaryDisplay();
+}
+
 function openCustomerDisplay(targetDisplayId?: number) {
-  const displays = screen.getAllDisplays();
-  const primary = screen.getPrimaryDisplay();
-  const target = typeof targetDisplayId === "number"
-    ? displays.find((display) => display.id === targetDisplayId) ?? primary
-    : displays.find((display) => display.id !== primary.id) ?? primary;
-
-  if (customerWindow && !customerWindow.isDestroyed()) {
-    customerWindow.close();
-    customerWindow = null;
-  }
-
-  customerReady = false;
-  pendingMessages.length = 0;
-
-  activeCustomerDisplayId = target.id;
-
-  const nextWindow = new BrowserWindow({
-    width: target.bounds.width,
-    height: target.bounds.height,
-    x: target.bounds.x,
-    y: target.bounds.y,
-    frame: false,
-    autoHideMenuBar: true,
-    show: false,
-    title: "Yummy Go Customer Display",
-    webPreferences: {
-      preload: preloadPath(),
-      contextIsolation: true,
-      nodeIntegration: false
-    }
-  });
-  customerWindow = nextWindow;
-
-  void nextWindow.loadURL(`${BASE_URL}/customer-display`);
-  nextWindow.once("ready-to-show", () => {
-    if (customerWindow !== nextWindow || nextWindow.isDestroyed()) return;
-    nextWindow.show();
-    nextWindow.setFullScreen(true);
-  });
-  nextWindow.on("closed", () => {
-    if (customerWindow !== nextWindow) return;
-    customerWindow = null;
-    customerReady = false;
-    activeCustomerDisplayId = null;
-    pendingMessages.length = 0;
-  });
+  const target = resolveCustomerDisplayTarget(screen.getAllDisplays(), cashierDisplay().id, targetDisplayId);
+  customerDisplay.open(target);
 
   return {
     displayId: target.id,
@@ -140,11 +120,7 @@ function openCustomerDisplay(targetDisplayId?: number) {
 }
 
 function closeCustomerDisplay() {
-  customerWindow?.close();
-  customerWindow = null;
-  activeCustomerDisplayId = null;
-  customerReady = false;
-  pendingMessages.length = 0;
+  customerDisplay.close();
 }
 
 function setupIpc() {
@@ -156,16 +132,10 @@ function setupIpc() {
     return { ok: true };
   });
   ipcMain.on("pos:send-to-display", (_event, data: unknown) => {
-    if (!customerWindow || customerWindow.isDestroyed()) return;
-    if (customerReady) customerWindow.webContents.send("display:receive", data);
-    else pendingMessages.push(data);
+    customerDisplay.send(data);
   });
-  ipcMain.on("display:ready", () => {
-    customerReady = true;
-    if (customerWindow && !customerWindow.isDestroyed()) {
-      pendingMessages.forEach((message) => customerWindow?.webContents.send("display:receive", message));
-    }
-    pendingMessages.length = 0;
+  ipcMain.on("display:ready", (event) => {
+    customerDisplay.signalReady(event.sender.id);
   });
   ipcMain.handle("pos:get-displays", () => {
     return displaySnapshot();
@@ -218,14 +188,15 @@ async function startNextServer() {
   }
 }
 
-app.whenReady().then(async () => {
+async function startApplication() {
   setupIpc();
   try {
     await startNextServer();
     createMainWindow();
 
     screen.on("display-removed", () => {
-      if (!activeCustomerDisplayId) return;
+      const activeCustomerDisplayId = customerDisplay.activeDisplayId;
+      if (activeCustomerDisplayId === null) return;
       const activeStillConnected = screen
         .getAllDisplays()
         .some((display) => display.id === activeCustomerDisplayId);
@@ -236,7 +207,19 @@ app.whenReady().then(async () => {
     dialog.showErrorBox("Yummy Go could not start", message);
     app.quit();
   }
-});
+}
+
+if (!app.requestSingleInstanceLock()) {
+  app.quit();
+} else {
+  app.on("second-instance", () => {
+    if (!mainWindow || mainWindow.isDestroyed()) return;
+    if (mainWindow.isMinimized()) mainWindow.restore();
+    mainWindow.show();
+    mainWindow.focus();
+  });
+  void app.whenReady().then(startApplication);
+}
 
 app.on("window-all-closed", () => {
   nextProcess?.kill();

@@ -65,9 +65,9 @@ export function browserCustomerDisplayPosition(display: Pick<BrowserCustomerDisp
   return `x ${display.left}, y ${display.top}`;
 }
 
-// จอ primary คือจอที่แคชเชียร์มองอยู่ (POS) จึงไม่ใช่ candidate ที่เปิดจอลูกค้าได้จริง
 export function electronSecondaryDisplays(info: ElectronDisplayInfo | null | undefined) {
-  return (info?.displays ?? []).filter((display) => !display.isPrimary);
+  const cashierDisplayId = info?.cashierDisplayId ?? info?.primary.id;
+  return (info?.displays ?? []).filter((display) => display.id !== cashierDisplayId);
 }
 
 export function activeCustomerDisplay(info: ElectronDisplayInfo | null | undefined) {
@@ -81,17 +81,15 @@ export function defaultCustomerDisplayId(
 ) {
   if (!info?.displays.length) return null;
 
-  const preferred = info.displays.find((display) => display.id === preferredDisplayId);
+  const candidates = electronSecondaryDisplays(info);
+  const selectable = candidates.length ? candidates : info.displays;
+  const preferred = selectable.find((display) => display.id === preferredDisplayId);
   if (preferred) return preferred.id;
 
   const active = activeCustomerDisplay(info);
-  if (active) return active.id;
+  if (active && selectable.some((display) => display.id === active.id)) return active.id;
 
-  const secondary = info.displays.find((display) => !display.isPrimary);
-  if (secondary) return secondary.id;
-
-  const primary = info.displays.find((display) => display.isPrimary);
-  return primary?.id ?? info.displays[0]?.id ?? null;
+  return selectable[0]?.id ?? null;
 }
 
 export function displayIsConnected(info: ElectronDisplayInfo | null | undefined, displayId: number | null | undefined) {
@@ -155,19 +153,20 @@ export function normalizeBrowserCustomerDisplayInfo(
     };
   });
 
+  const currentScreenKey = screens.find((screen) => screen.isCurrent)?.key ?? null;
+
   return {
     count: screens.length,
-    currentScreenKey: screens.find((screen) => screen.isCurrent)?.key ?? null,
-    hasSecondary: screens.some((screen) => !screen.isPrimary),
+    currentScreenKey,
+    hasSecondary: screens.some((screen) => currentScreenKey ? !screen.isCurrent : !screen.isPrimary),
     isExtended,
     screens
   };
 }
 
-// isCurrent = จอที่หน้าต่างเบราว์เซอร์นี้เปิดอยู่ (ของแคชเชียร์) จึงตัดออกจาก
-// candidate เหมือน isPrimary ของฝั่ง Electron
 export function browserSecondaryScreens(info: BrowserCustomerDisplayInfo | null | undefined) {
-  return (info?.screens ?? []).filter((screen) => !screen.isPrimary && !screen.isCurrent);
+  const hasCurrent = Boolean(info?.screens.some((screen) => screen.isCurrent));
+  return (info?.screens ?? []).filter((screen) => hasCurrent ? !screen.isCurrent : !screen.isPrimary);
 }
 
 export function defaultBrowserCustomerDisplayKey(
@@ -176,14 +175,12 @@ export function defaultBrowserCustomerDisplayKey(
 ) {
   if (!info?.screens.length) return null;
 
-  const preferred = info.screens.find((screen) => screen.key === preferredKey);
+  const candidates = browserSecondaryScreens(info);
+  const selectable = candidates.length ? candidates : info.screens;
+  const preferred = selectable.find((screen) => screen.key === preferredKey);
   if (preferred) return preferred.key;
 
-  const secondary = info.screens.find((screen) => !screen.isPrimary);
-  if (secondary) return secondary.key;
-
-  const primary = info.screens.find((screen) => screen.isPrimary);
-  return primary?.key ?? info.screens[0]?.key ?? null;
+  return selectable[0]?.key ?? null;
 }
 
 export function browserDisplayIsConnected(

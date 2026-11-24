@@ -6,6 +6,7 @@ import { useTranslation } from "react-i18next";
 import { RefreshCcw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { usePosOrderAlertListener } from "@/hooks/use-pos-order-alert-listener";
+import { usePrinterSupportQueue } from "@/hooks/use-printer-support-queue";
 import { useSharedPrinterQueue } from "@/hooks/use-shared-printer-queue";
 import { cn } from "@/lib/utils";
 import { useAppShellData } from "@/components/layout/use-app-shell-data";
@@ -68,6 +69,7 @@ export function NativeAppShell({ children }: { children: React.ReactNode }) {
     language: i18n.language,
   });
   useSharedPrinterQueue();
+  usePrinterSupportQueue();
 
   // model นี้ตอนนี้ใช้แค่กับ NativeTopBar (เช็คว่าควรโชว์ปุ่ม back ไหม) กับ NativeBottomNav
   // (แถบล่างมือถือ ปลายทางจำกัดจำนวน) เท่านั้น — NativeSideRail (แท็บเล็ต/แนวนอน) เปลี่ยนไปใช้

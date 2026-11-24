@@ -10,11 +10,11 @@ import { isCapacitorAndroidApp, openWindowOutsideNativeApp } from "@/lib/capacit
 import { SwanCustomerDisplay, swanStatusToDisplayInfo } from "@/lib/swan-customer-display-bridge";
 import { useToastStore } from "@/stores/toast-store";
 import type { CustomerDisplayPickerMode } from "../customer-display-picker-dialog";
+import { openBrowserCustomerDisplayWindow } from "../customer-display-window";
 import {
   BROWSER_CUSTOMER_DISPLAY_TARGET_STORAGE_KEY,
   CUSTOMER_DISPLAY_TARGET_STORAGE_KEY,
   activeCustomerDisplay,
-  browserCustomerDisplayWindowFeatures,
   browserCustomerDisplayWindowIsActive,
   browserDisplayIsConnected,
   closeBrowserCustomerDisplayWindow,
@@ -121,9 +121,14 @@ export function useCustomerDisplayWorkflow(
     };
 
     browserScreenDetails.addEventListener("screenschange", handleScreensChange);
+    browserScreenDetails.addEventListener("currentscreenchange", handleScreensChange);
     return () => {
       browserScreenDetails.removeEventListener(
         "screenschange",
+        handleScreensChange,
+      );
+      browserScreenDetails.removeEventListener(
+        "currentscreenchange",
         handleScreensChange,
       );
     };
@@ -177,17 +182,18 @@ export function useCustomerDisplayWorkflow(
     payload: CustomerDisplayPayload,
     targetScreen?: BrowserCustomerDisplayScreen | null,
   ) {
-    const openedWindow = openWindowOutsideNativeApp(
-      "/customer-display",
-      "yummy-go-customer-display",
-      browserCustomerDisplayWindowFeatures(targetScreen),
-    );
+    const openedWindow = openBrowserCustomerDisplayWindow({
+      currentWindow: browserWindowRef.current,
+      openWindow: openWindowOutsideNativeApp,
+      targetScreen,
+    });
 
     if (!openedWindow) {
       throw new Error(t("pos.customerDisplayPopupBlocked"));
     }
 
-    openedWindow.focus();
+    browserWindowRef.current = openedWindow;
+    setBrowserActive(true);
     publishCustomerDisplayPayload(payload, {
       browser: true,
       electron: false,
@@ -305,9 +311,7 @@ export function useCustomerDisplayWorkflow(
     setOpening(true);
     setError(null);
     try {
-      const openedWindow = openBrowserDisplay(currentPayload);
-      browserWindowRef.current = openedWindow;
-      setBrowserActive(true);
+      openBrowserDisplay(currentPayload);
       setOpen(false);
       showToast({ title: t("pos.displayOpened"), tone: "success" });
     } catch (displayError) {
@@ -339,9 +343,7 @@ export function useCustomerDisplayWorkflow(
         BROWSER_CUSTOMER_DISPLAY_TARGET_STORAGE_KEY,
         selectedBrowserScreenKey,
       );
-      const openedWindow = openBrowserDisplay(currentPayload, targetScreen);
-      browserWindowRef.current = openedWindow;
-      setBrowserActive(true);
+      openBrowserDisplay(currentPayload, targetScreen);
       setOpen(false);
       showToast({ title: t("pos.displayOpened"), tone: "success" });
     } catch (displayError) {

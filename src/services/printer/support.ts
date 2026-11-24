@@ -1,0 +1,144 @@
+import axios from "axios";
+import { apiRequest, ServiceError, type RequestOptions } from "@/lib/api";
+import { AGENT_URL } from "@/config/printer-agent";
+import { AGENT_SECRET, agentBase } from "@/services/printer/helpers";
+import type { ApiDataResponse } from "@/services/shared/types";
+import type { AgentInfo, CreatePrinterSupportCommand, PrinterSupportAction, PrinterSupportClaim, PrinterSupportCommand, PrinterSupportCommandStatus, PrinterSupportExecution, PrinterSupportResult, PrinterSupportSummary } from "@/services/printer/types";
+
+const actions: PrinterSupportAction[] = ["diagnose", "refresh_neighbor", "pin_neighbor", "remove_pin"];
+const statuses: PrinterSupportCommandStatus[] = ["queued", "running", "succeeded", "failed", "unknown", "expired"];
+const uuidPattern = /^[a-f\d]{8}-(?:[a-f\d]{4}-){3}[a-f\d]{12}$/i;
+function object(value: unknown): Record<string, unknown> | null {
+  return value !== null && typeof value === "object" && !Array.isArray(value) ? value as Record<string, unknown> : null;
+}
+function identity(value: string) {
+  if (!uuidPattern.test(value)) throw new ServiceError("Invalid printer support identifier", 400);
+  return value;
+}
+function invalid(): never { throw new ServiceError("Invalid printer support response", 502); }
+
+export function parsePrinterSupportResult(value: unknown): PrinterSupportResult {
+  const row = object(value);
+  if (!row || typeof row.code !== "string" || typeof row.checked_at !== "string" ||
+      !Number.isFinite(Date.parse(row.checked_at)) || typeof row.platform !== "string" ||
+      typeof row.admin !== "boolean" || typeof row.changed !== "boolean" || typeof row.rollback_available !== "boolean") invalid();
+  const out: PrinterSupportResult = { code: row.code, checked_at: row.checked_at, platform: row.platform,
+    admin: row.admin, changed: row.changed, rollback_available: row.rollback_available };
+  if (row.tcp !== undefined) {
+    const tcp = object(row.tcp);
+    if (!tcp || !["open", "refused", "timeout", "error"].includes(String(tcp.state)) || tcp.bytes_sent !== 0) invalid();
+    out.tcp = { state: tcp.state as NonNullable<PrinterSupportResult["tcp"]>["state"], bytes_sent: 0,
+      ...(typeof tcp.code === "string" ? { code: tcp.code } : {}) };
+  }
+  const neighbor = (value: unknown) => {
+    const n = object(value);
+    if (!n || !(n.mac === null || typeof n.mac === "string") || !(n.state === null || typeof n.state === "string")) invalid();
+    return { mac: n.mac, state: n.state };
+  };
+  if (row.neighbor !== undefined) out.neighbor = neighbor(row.neighbor);
+  if (row.before !== undefined) { const before = object(row.before); if (!before) invalid(); out.before = { neighbor: neighbor(before.neighbor) }; }
+  if (row.network !== undefined) {
+    const n = object(row.network);
+    if (!n || !(n.interface_index === null || Number.isSafeInteger(n.interface_index)) || typeof n.local_ipv4 !== "string" || !Number.isInteger(n.prefix_length)) invalid();
+    out.network = { interface_index: n.interface_index === null ? null : Number(n.interface_index), local_ipv4: n.local_ipv4, prefix_length: Number(n.prefix_length) };
+  }
+  return out;
+}
+
+export function parsePrinterSupportCommand(value: unknown): PrinterSupportCommand {
+  const row = object(value);
+  if (!row || typeof row.command_uuid !== "string" || !uuidPattern.test(row.command_uuid) ||
+      typeof row.print_config_uuid !== "string" || !uuidPattern.test(row.print_config_uuid) ||
+      !actions.includes(row.action as PrinterSupportAction) || !statuses.includes(row.status as PrinterSupportCommandStatus) ||
+      typeof row.created_at !== "string" || !Number.isFinite(Date.parse(row.created_at)) ||
+      typeof row.expires_at !== "string" || !Number.isFinite(Date.parse(row.expires_at)) ||
+      !(row.finished_at === null || typeof row.finished_at === "string") ||
+      !(row.error_code === null || typeof row.error_code === "string")) invalid();
+  return { command_uuid: row.command_uuid, print_config_uuid: row.print_config_uuid,
+    action: row.action as PrinterSupportAction, status: row.status as PrinterSupportCommandStatus,
+    created_at: row.created_at, expires_at: row.expires_at, finished_at: row.finished_at,
+    error_code: row.error_code, result: row.result === null ? null : parsePrinterSupportResult(row.result) };
+}
+
+export async function getPrinterSupportSummary(printerUuid: string, options: RequestOptions = {}): Promise<PrinterSupportSummary> {
+  const response = await apiRequest<ApiDataResponse<unknown>>("get", "/api/v1/printer/support/summary", {
+    ...options, params: { print_config_uuid: identity(printerUuid) }, timeout: 10000,
+  });
+  const row = object(response.data), printer = object(row?.printer), recent = object(row?.recent);
+  if (!row || !printer || printer.print_config_uuid !== printerUuid || typeof printer.interface_value !== "string" ||
+      typeof printer.printer_name !== "string" || !recent || !Array.isArray(row.commands)) invalid();
+  for (const key of ["success", "pending", "failed", "unknown"]) if (!Number.isSafeInteger(recent[key]) || Number(recent[key]) < 0) invalid();
+  const commands = row.commands.map(parsePrinterSupportCommand);
+  if (commands.some((command) => command.print_config_uuid !== printerUuid)) invalid();
+  return { printer: { print_config_uuid: printerUuid, printer_name: printer.printer_name, interface_value: printer.interface_value,
+    device_code: typeof printer.device_code === "string" ? printer.device_code : undefined,
+    agent_id: typeof printer.agent_id === "string" ? printer.agent_id : undefined, agent_online: printer.agent_online === true },
+    recent: { success: Number(recent.success), pending: Number(recent.pending), failed: Number(recent.failed), unknown: Number(recent.unknown),
+      last_error: typeof recent.last_error === "string" ? recent.last_error : null,
+      last_error_at: typeof recent.last_error_at === "string" ? recent.last_error_at : null }, commands };
+}
+
+export async function createPrinterSupportCommand(input: CreatePrinterSupportCommand, options: RequestOptions = {}) {
+  identity(input.print_config_uuid); identity(input.request_uuid);
+  if (!actions.includes(input.action)) throw new ServiceError("Invalid printer support action", 400);
+  if (input.evidence_command_uuid) identity(input.evidence_command_uuid);
+  const response = await apiRequest<ApiDataResponse<unknown>>("post", "/api/v1/printer/support/commands", { ...options, data: input, timeout: 10000 });
+  const command = parsePrinterSupportCommand(response.data);
+  if (command.print_config_uuid !== input.print_config_uuid || command.action !== input.action) invalid();
+  return command;
+}
+
+export async function getPrinterSupportCommand(commandUuid: string, options: RequestOptions = {}) {
+  const response = await apiRequest<ApiDataResponse<unknown>>("get", `/api/v1/printer/support/commands/${identity(commandUuid)}`, { ...options, timeout: 10000 });
+  const command = parsePrinterSupportCommand(response.data);
+  if (command.command_uuid !== commandUuid) invalid();
+  return command;
+}
+
+export async function claimPrinterSupportCommand(agent: AgentInfo, signal: AbortSignal): Promise<PrinterSupportClaim> {
+  const response = await apiRequest<ApiDataResponse<unknown>>("post", "/api/v1/printer/support/claim", {
+    data: { device_code: agent.device_code, agent_id: agent.agent_id }, signal, timeout: 10000,
+  });
+  const row = object(response.data);
+  if (!row) invalid();
+  if (row.command === null) return { command: null };
+  const command = parsePrinterSupportCommand(row.command);
+  if (typeof row.execution_token !== "string" || !row.execution_token || command.status !== "running") invalid();
+  return { command, execution_token: row.execution_token };
+}
+
+export async function executePrinterSupportCommand(claim: PrinterSupportClaim, agent: AgentInfo, signal: AbortSignal): Promise<PrinterSupportExecution> {
+  if (!claim.command || !claim.execution_token) return { status: "failed", error_code: "SUPPORT_INVALID_CLAIM" };
+  try {
+    // The Agent authorizes this opaque job directly with Backend. Never lend
+    // the browser JWT or allow a form-supplied host, URL or command to execute.
+    const response = await axios.post<unknown>(`${agentBase(AGENT_URL)}/printer/support/execute`, {
+      command_uuid: claim.command.command_uuid, execution_token: claim.execution_token,
+      expected_agent_id: agent.agent_id, expected_device_code: agent.device_code,
+    }, { headers: { "x-agent-secret": AGENT_SECRET }, signal, timeout: 90000, validateStatus: () => true });
+    const row = object(response.data), receiver = object(row?.agent);
+    if (!row || receiver?.agent_id !== agent.agent_id || receiver.device_code !== agent.device_code) invalid();
+    const result = row.data ? parsePrinterSupportResult(row.data) : undefined;
+    const code = typeof row.code === "string" ? row.code : result?.code ?? "";
+    if (/UNKNOWN|UNCERTAIN|ROLLBACK_FAILED/i.test(code) || /UNKNOWN|UNCERTAIN|ROLLBACK_FAILED/i.test(result?.code ?? "")) {
+      return { status: "unknown", ...(result ? { result } : {}), error_code: code || "SUPPORT_EXECUTION_UNCERTAIN" };
+    }
+    if (/ADMIN_REQUIRED|UNSUPPORTED|DENIED|FAILED|MISMATCH|STALE|CONFLICT|INVALID/i.test(code) ||
+        /ADMIN_REQUIRED|UNSUPPORTED|DENIED|FAILED|MISMATCH|STALE|CONFLICT|INVALID/i.test(result?.code ?? "")) {
+      return { status: "failed", ...(result ? { result } : {}), error_code: code || result?.code };
+    }
+    if (row.ok === true && result && ["NETWORK_DIAGNOSED", "NEIGHBOR_REFRESHED", "NEIGHBOR_PINNED", "NEIGHBOR_PIN_REMOVED", "NEIGHBOR_ALREADY_PINNED"].includes(result.code)) return { status: "succeeded", result };
+    if (row.ok === false && typeof row.code === "string") return { status: "failed", ...(result ? { result } : {}), error_code: row.code };
+  } catch {
+    // A lost POST response cannot prove whether Windows already changed its
+    // neighbor cache. Record uncertainty once; never retry the OS action.
+  }
+  return { status: "unknown", error_code: "SUPPORT_EXECUTION_UNCERTAIN" };
+}
+
+export async function acknowledgePrinterSupportCommand(claim: PrinterSupportClaim, execution: PrinterSupportExecution, signal: AbortSignal) {
+  if (!claim.command || !claim.execution_token) throw new ServiceError("Invalid printer support claim", 400);
+  return apiRequest<ApiDataResponse<unknown>>("post", "/api/v1/printer/support/result", { signal, timeout: 10000, data: {
+    command_uuid: claim.command.command_uuid, execution_token: claim.execution_token, ...execution,
+  } });
+}

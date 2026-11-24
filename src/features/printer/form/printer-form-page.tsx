@@ -74,6 +74,7 @@ import { usePrinterForm } from "./use-printer-form";
 import { PrinterOutputSettings } from "./printer-output-settings";
 import { PrinterCategoryPrintRoles, PrinterPrintPermissions } from "./printer-print-permissions";
 import { PrinterSelfTestDialog } from "@/features/printer/printer-self-test-dialog";
+import { PrinterSupportPanel } from "@/features/printer/printer-support-panel";
 
 // Kitchen and bar share the mapping step's warning/info hues so the link between the two steps reads.
 const roleKindBadges: Record<PrinterRoleKind, { icon: LucideIcon; className: string }> = {
@@ -389,6 +390,10 @@ export function PrinterFormPage() {
             </Button>
           </div>
         </FormSection>
+
+        {form.savedPrinter?.connect_type.toLowerCase() === "tcp" ? (
+          <PrinterSupportPanel printer={form.savedPrinter} dirty={form.isDirty} disabled={form.saving || form.loading} />
+        ) : null}
 
         <FormSection
           step={2}

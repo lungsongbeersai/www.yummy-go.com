@@ -1,5 +1,6 @@
 interface ElectronDisplayInfo {
   activeCustomerDisplayId: number | null;
+  cashierDisplayId?: number;
   count: number;
   hasSecondary: boolean;
   primary: ElectronDisplay;

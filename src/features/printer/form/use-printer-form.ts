@@ -796,6 +796,7 @@ export function usePrinterForm() {
 
   return {
     t,
+    savedPrinter: editing,
     isEditing,
     isDirty,
     loading,
