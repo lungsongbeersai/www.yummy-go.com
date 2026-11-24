@@ -574,10 +574,10 @@ describe("printer service dispatch", () => {
   });
 
   describe("combined kitchen groups in one transport batch", () => {
-    function prepareGroupBatch(jobUuid: string, native: boolean, loseFirstAck = false) {
+    function prepareGroupBatch(jobUuid: string, native: boolean, loseFirstAck = false, agentInterfaceValue = "win:KITCHEN") {
       const itemUuids = ["queue-rice", "queue-pork", "queue-beer"];
       const printConfigUuid = `${jobUuid}-printer`;
-      const interfaceValue = native ? "tcp://192.168.1.20:9100" : "win:KITCHEN";
+      const interfaceValue = native ? "tcp://192.168.1.20:9100" : agentInterfaceValue;
       const jobs = [
         windowsPrintJob({
           job_id: `${jobUuid}-food`,
@@ -706,6 +706,110 @@ describe("printer service dispatch", () => {
           expect.objectContaining({ timeout: 75000 }),
         );
       }
+    });
+
+    it.each(["win:KITCHEN", "tcp://192.168.1.20:9100"])(
+      "finishes Agent documents on %s after transport completion while a slow ACK remains deduplicated",
+      async (interfaceValue) => {
+        const fixture = prepareGroupBatch(`agent-document-slow-ack-${interfaceValue}`, false, false, interfaceValue);
+        const storage = mockLocalStorage();
+        const request = apiMocks.apiRequest.getMockImplementation()!;
+        let finishAck!: () => void;
+        const slowAck = new Promise<void>((resolve) => { finishAck = resolve; });
+        apiMocks.apiRequest.mockImplementation((method, url, options) => {
+          if (method === "post" && url === "/api/v1/printer/jobs/ack") return slowAck;
+          return request(method, url, options);
+        });
+        let finishTransport!: (response: { data: { ok: boolean } }) => void;
+        axiosMocks.post.mockImplementationOnce(() => new Promise((resolve) => { finishTransport = resolve; }));
+        const observed = vi.fn();
+        const execution = executeInvoicePrintJobs(fixture.input);
+        void execution.then(observed);
+
+        try {
+          await vi.waitFor(() => expect(axiosMocks.post).toHaveBeenCalledOnce());
+          expect(observed).not.toHaveBeenCalled();
+          expect(apiMocks.apiRequest.mock.calls.filter(([, url]) => url === "/api/v1/printer/jobs/ack")).toHaveLength(0);
+          finishTransport({ data: { ok: true } });
+          const expected = { successCount: 2, failedCount: 0, total: 2 };
+          await vi.waitFor(() => expect(observed).toHaveBeenCalledExactlyOnceWith(expected));
+          expect(storage.getItem(fixture.ledgerKey)).toBe(JSON.stringify({ deliveryState: "printed" }));
+
+          await Promise.all([
+            executeInvoicePrintJobs(fixture.input),
+            executeKitchenPrintJobs(fixture.input),
+          ]);
+          expect(axiosMocks.post).toHaveBeenCalledOnce();
+          expect(apiMocks.apiRequest.mock.calls.filter(([, url]) => url === "/api/v1/printer/jobs/pending")).toHaveLength(1);
+          expect(apiMocks.apiRequest.mock.calls.filter(([, url]) => url === "/api/v1/printer/jobs/ack")).toHaveLength(1);
+        } finally {
+          finishAck();
+          await execution;
+          await slowAck;
+        }
+        await vi.waitFor(() => expect(storage.getItem(fixture.ledgerKey)).toBeNull());
+      },
+    );
+
+    it.each(["win:KITCHEN", "tcp://192.168.1.20:9100"])(
+      "preserves partial Agent document failure on %s while ACK is pending",
+      async (interfaceValue) => {
+        const fixture = prepareGroupBatch(`agent-document-failed-ack-${interfaceValue}`, false, false, interfaceValue);
+        const storage = mockLocalStorage();
+        const errorMessage = fixture.failDrinks();
+        const request = apiMocks.apiRequest.getMockImplementation()!;
+        let finishAck!: () => void;
+        const slowAck = new Promise<void>((resolve) => { finishAck = resolve; });
+        apiMocks.apiRequest.mockImplementation((method, url, options) => {
+          if (method === "post" && url === "/api/v1/printer/jobs/ack") return slowAck;
+          return request(method, url, options);
+        });
+        const observed = vi.fn();
+        const execution = executeInvoicePrintJobs(fixture.input);
+        void execution.then(observed);
+        try {
+          const expected = { successCount: 1, failedCount: 1, total: 2, errorMessage };
+          await vi.waitFor(() => expect(observed).toHaveBeenCalledExactlyOnceWith(expected));
+          await expect(executeInvoicePrintJobs(fixture.input)).resolves.toEqual(expected);
+          expect(axiosMocks.post).toHaveBeenCalledOnce();
+          expect(JSON.parse(storage.getItem(fixture.ledgerKey) ?? "{}")).toMatchObject({
+            deliveryState: "unknown", deliveredJobs: 1, deliveredItemUuids: ["queue-rice", "queue-pork"],
+          });
+          expect(apiMocks.apiRequest.mock.calls.find(([, url]) => url === "/api/v1/printer/jobs/ack")?.[2]?.data).toMatchObject({
+            results: [
+              expect.objectContaining({ print_job_item_uuid: "queue-rice", delivery_state: "printed" }),
+              expect.objectContaining({ print_job_item_uuid: "queue-pork", delivery_state: "printed" }),
+              expect.objectContaining({ print_job_item_uuid: "queue-beer", delivery_state: "unknown" }),
+            ],
+          });
+        } finally {
+          finishAck();
+          await execution;
+          await slowAck;
+        }
+      },
+    );
+
+    it("keeps Agent kitchen completion waiting for its Backend ACK", async () => {
+      const fixture = prepareGroupBatch("agent-kitchen-slow-ack", false);
+      const request = apiMocks.apiRequest.getMockImplementation()!;
+      let finishAck!: () => void;
+      const slowAck = new Promise<void>((resolve) => { finishAck = resolve; });
+      apiMocks.apiRequest.mockImplementation((method, url, options) => {
+        if (method === "post" && url === "/api/v1/printer/jobs/ack") return slowAck;
+        return request(method, url, options);
+      });
+      const observed = vi.fn();
+      const execution = executeKitchenPrintJobs(fixture.input);
+      void execution.then(observed);
+      try {
+        await vi.waitFor(() => expect(apiMocks.apiRequest.mock.calls.filter(([, url]) => url === "/api/v1/printer/jobs/ack")).toHaveLength(1));
+        expect(observed).not.toHaveBeenCalled();
+      } finally {
+        finishAck();
+        await execution;
+      }
+      expect(observed).toHaveBeenCalledExactlyOnceWith({ successCount: 2, failedCount: 0, total: 2 });
     });
 
     it.each([

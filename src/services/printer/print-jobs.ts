@@ -1014,6 +1014,7 @@ async function executePrintJobs(
     idempotent?: boolean;
     kitchenSemantics?: boolean;
     requireCompletionConfirmation?: boolean;
+    backgroundAcknowledgement?: boolean;
   },
 ): Promise<KitchenPrintResult> {
   const isCurrentSession = createSessionGuard();
@@ -1495,10 +1496,11 @@ async function executePrintJobs(
           console.error("[printer] print batch ACK failed", error);
         }
       })();
-      if (options.idempotent && batchPayloads.some(isMobilePrintBatch)) {
-        // Native TCP has already confirmed the physical result, and the
-        // delivery ledger is persisted before this request. Backend may still
-        // be applying stock/table updates; that must not hold the print modal.
+      if (options.idempotent &&
+          (options.backgroundAcknowledgement || batchPayloads.some(isMobilePrintBatch))) {
+        // The transport has completed and its result is recorded before ACK.
+        // Document printing can release the cashier while Backend records it;
+        // Agent kitchen jobs still wait for their stock/table updates.
         // Keep the executor reserved until ACK settles so socket/UI consumers
         // share this result instead of fetching and sending the job again.
         printAcknowledgements.set(jobUuid, acknowledgement);
@@ -1837,14 +1839,16 @@ function executeDocumentPrintJobs(
     input.pending_query?.print_job_uuid ?? input.print_job?.print_job_uuid
   );
   if (!jobUuid) {
-    return executePrintJobs(input, { ack: true, idempotent: true });
+    return executePrintJobs(input, { ack: true, idempotent: true, backgroundAcknowledgement: true });
   }
 
   const onProgress = observePrintExecution(jobUuid, input.onProgress);
   const existing = printExecutions.get(jobUuid);
   if (existing) return existing;
 
-  const execution = executePrintJobs({ ...input, onProgress }, { ack: true, idempotent: true });
+  const execution = executePrintJobs({ ...input, onProgress }, {
+    ack: true, idempotent: true, backgroundAcknowledgement: true,
+  });
   trackPrintExecution(jobUuid, execution);
   return execution;
 }
