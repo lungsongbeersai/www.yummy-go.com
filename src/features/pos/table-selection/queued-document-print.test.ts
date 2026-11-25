@@ -85,62 +85,73 @@ describe("checkout document action guard", () => {
 });
 
 describe("finishCommittedPayment", () => {
-  it.each(["pending", "error", "skipped"] as const)(
-    "preserves a %s receipt result when completing an already committed payment",
+  it.each(["pending", "error", "browser", "skipped"] as const)(
+    "holds the paid dialog without refreshing when receipt printing returns %s",
     async (printOutcome) => {
+      const printer = deferred();
       const onCommitted = vi.fn();
       const refresh = vi.fn(async () => {});
       const onPrintError = vi.fn();
-      const result = await finishCommittedPayment({
-        print: async () => printOutcome,
+      const completion = finishCommittedPayment({
+        print: () => printer.promise,
         onCommitted,
         refresh,
         onPrintError,
       });
 
-      expect(result.printOutcome).toBe(printOutcome);
-      expect(onCommitted).toHaveBeenCalledExactlyOnceWith();
-      expect(refresh).toHaveBeenCalledOnce();
+      expect(onCommitted).not.toHaveBeenCalled();
+      expect(refresh).not.toHaveBeenCalled();
+      printer.resolve(printOutcome);
+      expect(await completion).toEqual({ printOutcome });
+      expect(onCommitted).not.toHaveBeenCalled();
+      expect(refresh).not.toHaveBeenCalled();
       expect(onPrintError).not.toHaveBeenCalled();
     },
   );
 
-  it("starts the owned receipt before closing the paid dialog and refreshing without waiting for delivery", async () => {
+  it("waits for the owned receipt to succeed before closing the paid dialog and refreshing", async () => {
     const printer = deferred();
     const events: string[] = [];
     const onPrintError = vi.fn();
     const completion = finishCommittedPayment({
-      print: () => { events.push("print original job"); return printer.promise; },
+      print: async () => {
+        events.push("print original job");
+        const outcome = await printer.promise;
+        events.push("receipt confirmed");
+        return outcome;
+      },
       onCommitted: () => { events.push("close paid dialog"); },
       refresh: async () => { events.push("refresh orders"); },
       onPrintError,
     });
     await Promise.resolve();
-    expect(events).toEqual(["print original job", "close paid dialog", "refresh orders"]);
+    expect(events).toEqual(["print original job"]);
     printer.resolve();
     const result = await completion;
-    expect(events).toEqual(["print original job", "close paid dialog", "refresh orders"]);
+    expect(events).toEqual(["print original job", "receipt confirmed", "close paid dialog", "refresh orders"]);
     expect(result).toEqual({ printOutcome: "success" });
     expect(onPrintError).not.toHaveBeenCalled();
   });
 
-  it("reports the original receipt failure after the cashier continues to the next paid view", async () => {
+  it("reports the original receipt failure while keeping its paid order in view", async () => {
     const printer = deferred();
     const originalJob = Object.freeze({ jobUuid: "receipt-1", invoice: "INV-1", table: "A1" });
     let activeInvoice = "INV-1";
     const failures: { job: typeof originalJob; error: unknown }[] = [];
+    const refresh = vi.fn(async () => {});
     const completion = finishCommittedPayment({
       print: () => printer.promise,
       onCommitted: () => { activeInvoice = "INV-2"; },
-      refresh: async () => {},
+      refresh,
       onPrintError: (error) => { failures.push({ job: originalJob, error }); },
     });
-    expect(activeInvoice).toBe("INV-2");
+    expect(activeInvoice).toBe("INV-1");
     const failure = new Error("Printer disconnected after checkout");
     printer.reject(failure);
-    await completion;
+    expect(await completion).toEqual({ printOutcome: "error", printError: failure });
     expect(failures).toEqual([{ job: originalJob, error: failure }]);
-    expect(activeInvoice).toBe("INV-2");
+    expect(activeInvoice).toBe("INV-1");
+    expect(refresh).not.toHaveBeenCalled();
   });
 
   it("reports refresh failure separately after committed payment without cancelling its receipt", async () => {
@@ -148,21 +159,23 @@ describe("finishCommittedPayment", () => {
     const failure = new Error("Refresh unavailable");
     const close = vi.fn();
     const onPrintError = vi.fn();
+    const refresh = vi.fn(async () => { throw failure; });
     const completion = finishCommittedPayment({
       print: () => printer.promise,
       onCommitted: close,
-      refresh: async () => { throw failure; },
+      refresh,
       onPrintError,
     });
-    expect(close).toHaveBeenCalledOnce();
+    expect(close).not.toHaveBeenCalled();
+    expect(refresh).not.toHaveBeenCalled();
     printer.resolve();
     const result = await completion;
-    expect(result.refreshError).toBe(failure);
+    expect(result).toEqual({ printOutcome: "success", refreshError: failure });
     expect(close).toHaveBeenCalledOnce();
     expect(onPrintError).not.toHaveBeenCalled();
   });
 
-  it("handles a synchronous print failure without preventing committed payment completion", async () => {
+  it("holds the paid dialog and reports a synchronous print failure without closing or refreshing", async () => {
     const failure = new Error("Invalid queued receipt");
     const onPrintError = vi.fn();
     const close = vi.fn();
@@ -176,8 +189,8 @@ describe("finishCommittedPayment", () => {
     expect(onPrintError).toHaveBeenCalledExactlyOnceWith(failure);
     expect(result.printOutcome).toBe("error");
     expect(result.printError).toBe(failure);
-    expect(close).toHaveBeenCalledOnce();
-    expect(refresh).toHaveBeenCalledOnce();
+    expect(close).not.toHaveBeenCalled();
+    expect(refresh).not.toHaveBeenCalled();
   });
 
   it("keeps a close-dialog error separate from payment failure and still refreshes orders", async () => {
@@ -190,24 +203,52 @@ describe("finishCommittedPayment", () => {
       refresh,
       onPrintError: vi.fn(),
     });
-    expect(result.completionError).toBe(failure);
+    expect(result).toEqual({ printOutcome: "success", completionError: failure });
     expect(print).toHaveBeenCalledOnce();
     expect(refresh).toHaveBeenCalledOnce();
   });
 
-  it("still completes the paid order when reporting a printer failure itself throws", async () => {
+  it("keeps printer error-reporting failure separate while holding the paid dialog", async () => {
     const failure = new Error("Unable to display printer error");
+    const printError = new Error("Printer unavailable");
     const close = vi.fn();
     const refresh = vi.fn(async () => {});
     const result = await finishCommittedPayment({
-      print: async () => { throw new Error("Printer unavailable"); },
+      print: async () => { throw printError; },
       onPrintError: () => { throw failure; },
       onCommitted: close,
       refresh,
     });
-    expect(result.completionError).toBe(failure);
+    expect(result).toEqual({ printOutcome: "error", printError, completionError: failure });
+    expect(close).not.toHaveBeenCalled();
+    expect(refresh).not.toHaveBeenCalled();
+  });
+
+  it("starts refresh only after receipt success and waits for it without printing or closing again", async () => {
+    const printer = deferred();
+    const refreshing = deferred();
+    const refreshStarted = deferred();
+    const close = vi.fn();
+    const print = vi.fn(() => printer.promise);
+    const refresh = vi.fn(async () => {
+      refreshStarted.resolve();
+      await refreshing.promise;
+    });
+    let finished = false;
+    const completion = finishCommittedPayment({ print, onCommitted: close, refresh, onPrintError: vi.fn() })
+      .then((result) => { finished = true; return result; });
+    expect(close).not.toHaveBeenCalled();
+    expect(refresh).not.toHaveBeenCalled();
+    printer.resolve();
+    await refreshStarted.promise;
     expect(close).toHaveBeenCalledOnce();
     expect(refresh).toHaveBeenCalledOnce();
+    expect(print).toHaveBeenCalledOnce();
+    expect(finished).toBe(false);
+    refreshing.resolve();
+    expect(await completion).toEqual({ printOutcome: "success" });
+    expect(close).toHaveBeenCalledOnce();
+    expect(print).toHaveBeenCalledOnce();
   });
 });
 

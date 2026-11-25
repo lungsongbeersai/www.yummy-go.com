@@ -145,9 +145,9 @@ export function createCheckoutDocumentActionGuard() {
 // This is only an in-flight action lock; Backend owns every payment and print job.
 export const checkoutDocumentActionGuard = createCheckoutDocumentActionGuard();
 
-// The server has committed payment. Start the owned receipt job before the
-// dialog closes, then let the cashier continue while printing and refreshing
-// complete independently. Neither can turn a paid bill into a payment error.
+// Payment is already committed. Release its dialog only after the owned receipt
+// succeeds; every other print outcome stays on that paid order for recovery.
+// Printer or view failures must never become a new payment failure.
 export async function finishCommittedPayment({
   print,
   onCommitted,
@@ -170,31 +170,28 @@ export async function finishCommittedPayment({
     completionError?: unknown;
     refreshError?: unknown;
   } = { printOutcome: "error" };
-  const printing = (async () => {
+  try {
+    result.printOutcome = await print();
+  } catch (printError) {
+    result.printError = printError;
     try {
-      result.printOutcome = await print();
-    } catch (printError) {
-      result.printError = printError;
-      try {
-        onPrintError(printError);
-      } catch (completionError) {
-        result.completionError = completionError;
-      }
+      onPrintError(printError);
+    } catch (completionError) {
+      result.completionError = completionError;
     }
-  })();
+    return result;
+  }
+  if (result.printOutcome !== "success") return result;
   try {
     onCommitted();
   } catch (completionError) {
     result.completionError = completionError;
   }
-  const refreshing = (async () => {
-    try {
-      await refresh();
-    } catch (refreshError) {
-      result.refreshError = refreshError;
-    }
-  })();
-  await Promise.all([printing, refreshing]);
+  try {
+    await refresh();
+  } catch (refreshError) {
+    result.refreshError = refreshError;
+  }
   return result;
 }
 

@@ -243,7 +243,7 @@ describe("payment dialog workflow", () => {
     return workflow;
   }
 
-  it.each(["full", "split"] as const)("releases the paid %s dialog while its original receipt is still printing", async (paymentKind) => {
+  it.each(["full", "split"] as const)("keeps the paid %s dialog open until its original receipt finishes printing", async (paymentKind) => {
     const printer = deferredValue<Awaited<ReturnType<typeof originalExecuteInvoice>>>();
     const response = {
       ...committedReceipt(paymentKind),
@@ -257,16 +257,21 @@ describe("payment dialog workflow", () => {
     usePosStore.setState({ createPayment: pay, splitBill: pay });
     usePrinterStore.setState({ executeInvoice: execute });
     useToastStore.setState({ show });
-    const completion = renderActionWorkflow(paymentKind, { onCompleted, onOpenChange }).submitPayment();
+    const workflow = renderActionWorkflow(paymentKind, { onCompleted, onOpenChange });
+    const completion = workflow.submitPayment();
     let settled = false;
     void completion.then(() => { settled = true; });
 
-    await vi.waitFor(() => expect(onOpenChange).toHaveBeenCalledWith(false));
-    expect(onCompleted).toHaveBeenCalledOnce();
+    await vi.waitFor(() => expect(execute).toHaveBeenCalledOnce());
+    expect(onOpenChange).not.toHaveBeenCalled();
+    expect(onCompleted).not.toHaveBeenCalled();
     expect(execute).toHaveBeenCalledExactlyOnceWith(expect.objectContaining({ pending_query: response.pending_query }));
     expect(settled).toBe(false);
-    // A stale second instance cannot send the same bill while the owned job
-    // is settling, even though the first dialog has already closed.
+    workflow.onOpenChange(false);
+    await workflow.submitPayment();
+    expect(onOpenChange).not.toHaveBeenCalled();
+    // A stale second instance also cannot send the same bill while its owned
+    // receipt is settling.
     await renderActionWorkflow(paymentKind).submitPayment();
     expect(pay).toHaveBeenCalledOnce();
     expect(show).toHaveBeenLastCalledWith(expect.objectContaining({
@@ -277,6 +282,145 @@ describe("payment dialog workflow", () => {
     await completion;
     expect(settled).toBe(true);
     expect(pay).toHaveBeenCalledOnce();
+    expect(onCompleted).toHaveBeenCalledOnce();
+    expect(onOpenChange).toHaveBeenCalledExactlyOnceWith(false);
+  });
+
+  it.each(["full", "split"] as const)("checks the original pending %s receipt without repeating payment or enqueueing a reprint", async (paymentKind) => {
+    const pendingQuery = {
+      print_job_uuid: "pending-original-receipt", login_uuid_fk: "cashier-1",
+      device_code: "shared-owner", agent_id: "shared-agent", remote_shared_print: true,
+    };
+    const pay = vi.fn().mockResolvedValue({ ...committedReceipt(paymentKind), pending_query: pendingQuery });
+    const reprint = vi.fn();
+    const invoice = vi.fn();
+    const execute = vi.fn()
+      .mockResolvedValueOnce({ successCount: 0, failedCount: 0, total: 1, pending: true })
+      .mockResolvedValueOnce({ successCount: 1, failedCount: 0, total: 1 });
+    const onCompleted = vi.fn<PaymentDialogProps["onCompleted"]>().mockResolvedValue();
+    const onOpenChange = vi.fn<PaymentDialogProps["onOpenChange"]>();
+    usePosStore.setState({ createPayment: pay, splitBill: pay, reprintReceipt: reprint, printInvoice: invoice });
+    usePrinterStore.setState({ executeInvoice: execute });
+    useToastStore.setState({ show: vi.fn() });
+    const workflow = renderActionWorkflow(paymentKind, { onCompleted, onOpenChange });
+
+    await workflow.submitPayment();
+    workflow.requestSubmit();
+    workflow.onOpenChange(false);
+    await workflow.submitPayment();
+    await workflow.handlePrintInvoice();
+    await workflow.confirmReceiptPrinted();
+    expect(pay).toHaveBeenCalledOnce();
+    expect(invoice).not.toHaveBeenCalled();
+    expect(reprint).not.toHaveBeenCalled();
+    expect(onCompleted).not.toHaveBeenCalled();
+    expect(onOpenChange).not.toHaveBeenCalled();
+
+    await workflow.handleReceiptRecovery();
+    expect(execute).toHaveBeenCalledTimes(2);
+    expect(execute.mock.calls.map(([input]) => input.pending_query)).toEqual([pendingQuery, pendingQuery]);
+    expect(reprint).not.toHaveBeenCalled();
+    expect(pay).toHaveBeenCalledOnce();
+    expect(onCompleted).toHaveBeenCalledOnce();
+    expect(onOpenChange).toHaveBeenCalledExactlyOnceWith(false);
+  });
+
+  it.each(["full", "split"] as const)("retries only a failed paid %s receipt and returns to tables after that print succeeds", async (paymentKind) => {
+    const pendingQuery = { print_job_uuid: "failed-receipt", login_uuid_fk: "cashier-1" };
+    const manualQuery = { print_job_uuid: "manual-receipt", login_uuid_fk: "cashier-1" };
+    const pay = vi.fn().mockResolvedValue({ ...committedReceipt(paymentKind), pending_query: pendingQuery });
+    const reprint = vi.fn().mockResolvedValue(manualQuery);
+    const execute = vi.fn()
+      .mockResolvedValueOnce({ successCount: 0, failedCount: 1, total: 1, errorMessage: "Paper out" })
+      .mockResolvedValueOnce({ successCount: 1, failedCount: 0, total: 1 });
+    const onCompleted = vi.fn<PaymentDialogProps["onCompleted"]>().mockResolvedValue();
+    const onOpenChange = vi.fn<PaymentDialogProps["onOpenChange"]>();
+    usePosStore.setState({ createPayment: pay, splitBill: pay, reprintReceipt: reprint });
+    usePrinterStore.setState({ executeInvoice: execute });
+    useToastStore.setState({ show: vi.fn() });
+    const workflow = renderActionWorkflow(paymentKind, { onCompleted, onOpenChange });
+
+    await workflow.submitPayment();
+    await workflow.submitPayment();
+    workflow.onOpenChange(false);
+    expect(pay).toHaveBeenCalledOnce();
+    expect(onCompleted).not.toHaveBeenCalled();
+    expect(onOpenChange).not.toHaveBeenCalled();
+
+    await workflow.handleReceiptRecovery();
+    expect(reprint).toHaveBeenCalledExactlyOnceWith(expect.objectContaining({
+      order_uuid: paymentKind === "split" ? "paid-split-order" : "order-1",
+      payment_uuid: "committed-payment-1", login_uuid_fk: "cashier-1",
+    }));
+    expect(execute.mock.calls.map(([input]) => input.pending_query)).toEqual([pendingQuery, manualQuery]);
+    expect(pay).toHaveBeenCalledOnce();
+    expect(onCompleted).toHaveBeenCalledOnce();
+    expect(onOpenChange).toHaveBeenCalledExactlyOnceWith(false);
+    await workflow.handleReceiptRecovery();
+    expect(reprint).toHaveBeenCalledOnce();
+    expect(onCompleted).toHaveBeenCalledOnce();
+  });
+
+  it.each(["full", "split"] as const)("observes the new manual %s receipt when its first retry remains pending", async (paymentKind) => {
+    const originalQuery = { print_job_uuid: "original-failed-receipt", login_uuid_fk: "cashier-1" };
+    const manualQuery = { print_job_uuid: "manual-pending-receipt", login_uuid_fk: "cashier-1", remote_shared_print: true };
+    const pay = vi.fn().mockResolvedValue({ ...committedReceipt(paymentKind), pending_query: originalQuery });
+    const reprint = vi.fn().mockResolvedValue(manualQuery);
+    const execute = vi.fn()
+      .mockResolvedValueOnce({ successCount: 0, failedCount: 1, total: 1, errorMessage: "Paper out" })
+      .mockResolvedValueOnce({ successCount: 0, failedCount: 0, total: 1, pending: true })
+      .mockResolvedValueOnce({ successCount: 1, failedCount: 0, total: 1 });
+    const onCompleted = vi.fn<PaymentDialogProps["onCompleted"]>().mockResolvedValue();
+    const onOpenChange = vi.fn<PaymentDialogProps["onOpenChange"]>();
+    const show = vi.fn<typeof originalShowToast>();
+    usePosStore.setState({ createPayment: pay, splitBill: pay, reprintReceipt: reprint });
+    usePrinterStore.setState({ executeInvoice: execute });
+    useToastStore.setState({ show });
+    const workflow = renderActionWorkflow(paymentKind, { onCompleted, onOpenChange });
+
+    await workflow.submitPayment();
+    const earlierRetry = show.mock.calls.at(-1)?.[0].action;
+    expect(earlierRetry?.label).toBe("pos.manualReprint");
+    await workflow.handleReceiptRecovery();
+    expect(reprint).toHaveBeenCalledOnce();
+    expect(onCompleted).not.toHaveBeenCalled();
+    expect(onOpenChange).not.toHaveBeenCalled();
+    earlierRetry?.onClick({ preventDefault() {} });
+    await vi.waitFor(() => expect(onCompleted).toHaveBeenCalledOnce());
+    expect(execute.mock.calls.map(([input]) => input.pending_query)).toEqual([originalQuery, manualQuery, manualQuery]);
+    expect(reprint).toHaveBeenCalledOnce();
+    expect(pay).toHaveBeenCalledOnce();
+    expect(onCompleted).toHaveBeenCalledOnce();
+    expect(onOpenChange).toHaveBeenCalledExactlyOnceWith(false);
+  });
+
+  it.each(["full", "split"] as const)("does not close another account's view after a paid %s receipt finishes late", async (paymentKind) => {
+    const printing = deferredValue<Awaited<ReturnType<typeof originalExecuteInvoice>>>();
+    const pay = vi.fn().mockResolvedValue({
+      ...committedReceipt(paymentKind), pending_query: { print_job_uuid: "late-receipt", login_uuid_fk: "cashier-1" },
+    });
+    const execute = vi.fn().mockReturnValue(printing.promise);
+    const reprint = vi.fn();
+    const onCompleted = vi.fn<PaymentDialogProps["onCompleted"]>().mockResolvedValue();
+    const onOpenChange = vi.fn<PaymentDialogProps["onOpenChange"]>();
+    usePosStore.setState({ createPayment: pay, splitBill: pay, reprintReceipt: reprint });
+    usePrinterStore.setState({ executeInvoice: execute });
+    useToastStore.setState({ show: vi.fn() });
+    const workflow = renderActionWorkflow(paymentKind, { onCompleted, onOpenChange });
+    const submission = workflow.submitPayment();
+    await vi.waitFor(() => expect(execute).toHaveBeenCalledOnce());
+    const user = useAuthStore.getState().user;
+    if (!user) throw new Error("Missing test actor");
+    useAuthStore.setState({ user: { ...user, uuid: "cashier-2", branch_uuid: "branch-2" } });
+    printing.resolve({ successCount: 1, failedCount: 0, total: 1 });
+    await submission;
+    await workflow.handleReceiptRecovery();
+    await workflow.confirmReceiptPrinted();
+    expect(onCompleted).not.toHaveBeenCalled();
+    expect(onOpenChange).not.toHaveBeenCalled();
+    expect(reprint).not.toHaveBeenCalled();
+    expect(pay).toHaveBeenCalledOnce();
+    expect(execute).toHaveBeenCalledOnce();
   });
 
   it.each(["full", "split"] as const)("does not close, refresh or print another account's view after a late %s payment response", async (paymentKind) => {
@@ -444,7 +588,7 @@ describe("payment dialog workflow", () => {
     if (paymentKind === "split") expect(enqueue.mock.calls[0][0].document_type).toBe("invoice");
   });
 
-  it.each(["full", "split"] as const)("finishes a committed %s payment and opens its saved receipt without replaying payment", async (paymentKind) => {
+  it.each(["full", "split"] as const)("waits for explicit receipt confirmation after opening a committed %s payment's browser print", async (paymentKind) => {
     platform.native = false;
     const response = committedReceipt(paymentKind);
     const pay = vi.fn().mockResolvedValue(response);
@@ -457,7 +601,8 @@ describe("payment dialog workflow", () => {
     usePrinterStore.setState({ executeInvoice: execute });
     useToastStore.setState({ show });
 
-    await renderActionWorkflow(paymentKind, { onCompleted, onOpenChange }).submitPayment();
+    const workflow = renderActionWorkflow(paymentKind, { onCompleted, onOpenChange });
+    await workflow.submitPayment();
 
     expect(pay).toHaveBeenCalledOnce();
     expect(browserPrint.reserve.mock.invocationCallOrder[0]).toBeLessThan(pay.mock.invocationCallOrder[0]);
@@ -473,10 +618,18 @@ describe("payment dialog workflow", () => {
       .toEqual(response.fallback_print.print_document);
     expect(execute).not.toHaveBeenCalled();
     expect(reprint).not.toHaveBeenCalled();
-    expect(onCompleted).toHaveBeenCalledOnce();
-    expect(onOpenChange).toHaveBeenCalledWith(false);
+    expect(onCompleted).not.toHaveBeenCalled();
+    expect(onOpenChange).not.toHaveBeenCalled();
     expect(browserPrint.closeUnused).toHaveBeenCalledOnce();
     expect(show).toHaveBeenCalledWith(expect.objectContaining({ title: "pos.browserPrintOpened", tone: "info" }));
+    workflow.onOpenChange(false);
+    await workflow.submitPayment();
+    expect(onOpenChange).not.toHaveBeenCalled();
+    expect(pay).toHaveBeenCalledOnce();
+    await workflow.confirmReceiptPrinted();
+    await workflow.confirmReceiptPrinted();
+    expect(onCompleted).toHaveBeenCalledOnce();
+    expect(onOpenChange).toHaveBeenCalledExactlyOnceWith(false);
     expect(show).toHaveBeenLastCalledWith(expect.objectContaining({
       title: paymentKind === "split" ? "pos.splitPaymentCreated" : "pos.paymentSuccess", tone: "success",
     }));
@@ -541,7 +694,13 @@ describe("payment dialog workflow", () => {
       usePrinterStore.setState({ executeInvoice: execute });
       useToastStore.setState({ show });
 
-      await renderActionWorkflow(paymentKind, { onCompleted, onOpenChange }).submitPayment();
+      const workflow = renderActionWorkflow(paymentKind, { onCompleted, onOpenChange });
+      await workflow.submitPayment();
+      await workflow.submitPayment();
+      await workflow.handlePrintInvoice();
+      await workflow.confirmReceiptPrinted();
+      workflow.requestSubmit();
+      workflow.onOpenChange(false);
 
       expect(pay).toHaveBeenCalledOnce();
       expect(execute).toHaveBeenCalledExactlyOnceWith(expect.objectContaining({ pending_query: response.pending_query }));
@@ -549,8 +708,8 @@ describe("payment dialog workflow", () => {
       expect(browserPrint.render).not.toHaveBeenCalled();
       expect(browserPrint.open).not.toHaveBeenCalled();
       expect(browserPrint.closeUnused).toHaveBeenCalledOnce();
-      expect(onCompleted).toHaveBeenCalledOnce();
-      expect(onOpenChange).toHaveBeenCalledWith(false);
+      expect(onCompleted).not.toHaveBeenCalled();
+      expect(onOpenChange).not.toHaveBeenCalled();
       const receiptFailure = show.mock.calls.at(-1)?.[0];
       expect(receiptFailure).toMatchObject({
         title: "pos.paymentReceiptPrintFailed", description: expect.stringContaining("pos.browserPrintPreparationFailed"), tone: "error",
@@ -603,7 +762,7 @@ describe("payment dialog workflow", () => {
     expect(execute.mock.calls[1][0]).toEqual(execute.mock.calls[0][0]);
     expect(pay).toHaveBeenCalledOnce();
     expect(reprint).not.toHaveBeenCalled();
-    expect(onCompleted).toHaveBeenCalledOnce();
+    expect(onCompleted).not.toHaveBeenCalled();
     expect(browserPrint.render).not.toHaveBeenCalled();
     expect(browserPrint.open).not.toHaveBeenCalled();
     expect(show.mock.calls.some(([toast]) => toast.title === "pos.browserPrintOpened")).toBe(false);
@@ -650,7 +809,11 @@ describe("payment dialog workflow", () => {
       expect(request).toHaveBeenCalledOnce();
       expect(reprint).not.toHaveBeenCalled();
       expect(execute).not.toHaveBeenCalled();
-      expect(onCompleted).toHaveBeenCalledTimes(documentType === "receipt" ? 1 : 0);
+      expect(onCompleted).not.toHaveBeenCalled();
+      if (documentType === "receipt") {
+        await workflow.confirmReceiptPrinted();
+        expect(onCompleted).toHaveBeenCalledOnce();
+      }
     });
   }
 
@@ -697,7 +860,8 @@ describe("payment dialog workflow", () => {
     usePrinterStore.setState({ executeInvoice: execute });
     useToastStore.setState({ show });
 
-    await renderActionWorkflow(paymentKind, { onCompleted }).submitPayment();
+    const workflow = renderActionWorkflow(paymentKind, { onCompleted });
+    await workflow.submitPayment();
     expect(browserPrint.render).not.toHaveBeenCalled();
     const retry = show.mock.calls.at(-1)?.[0].action;
     expect(retry?.label).toBe("pos.manualReprint");
@@ -718,6 +882,8 @@ describe("payment dialog workflow", () => {
     }));
     expect(pay).toHaveBeenCalledOnce();
     expect(execute).toHaveBeenCalledOnce();
+    expect(onCompleted).not.toHaveBeenCalled();
+    await workflow.confirmReceiptPrinted();
     expect(onCompleted).toHaveBeenCalledOnce();
   });
 
@@ -789,7 +955,7 @@ describe("payment dialog workflow", () => {
         title: documentType === "invoice" ? "pos.invoicePrintFailed" : "pos.paymentReceiptPrintFailed",
         tone: "error", action: expect.objectContaining({ label: "pos.manualReprint" }),
       }));
-      expect(onCompleted).toHaveBeenCalledTimes(documentType === "receipt" ? 1 : 0);
+      expect(onCompleted).not.toHaveBeenCalled();
     });
   }
 
@@ -886,14 +1052,14 @@ describe("payment dialog workflow", () => {
         expect(show.mock.calls.some(([toast]) => [
           "pos.browserPrintOpened", "common.printSuccess", "pos.paymentFailed", "pos.splitPaymentFailed",
         ].includes(toast.title))).toBe(false);
-        expect(onCompleted).toHaveBeenCalledTimes(documentType === "receipt" ? 1 : 0);
-        if (documentType === "receipt") expect(onOpenChange).toHaveBeenCalledWith(false);
+        expect(onCompleted).not.toHaveBeenCalled();
+        expect(onOpenChange).not.toHaveBeenCalled();
       });
     }
   }
 
   for (const target of ["native", "electron"] as const) {
-    it.each(["full", "split"] as const)(`finishes ${target} %s payment when its unconfigured receipt role includes a browser-only snapshot`, async (paymentKind) => {
+    it.each(["full", "split"] as const)(`retains the paid ${target} %s dialog when its unconfigured receipt has only a browser snapshot`, async (paymentKind) => {
       platform.native = target === "native";
       platform.electron = target === "electron";
       const response = {
@@ -910,14 +1076,18 @@ describe("payment dialog workflow", () => {
       usePrinterStore.setState({ executeInvoice: execute });
       useToastStore.setState({ show });
 
-      await renderActionWorkflow(paymentKind, { onCompleted, onOpenChange }).submitPayment();
+      const workflow = renderActionWorkflow(paymentKind, { onCompleted, onOpenChange });
+      await workflow.submitPayment();
+      await workflow.submitPayment();
+      await workflow.handlePrintInvoice();
+      await workflow.confirmReceiptPrinted();
+      workflow.requestSubmit();
+      workflow.onOpenChange(false);
 
       expect(pay).toHaveBeenCalledOnce();
-      expect(onCompleted).toHaveBeenCalledOnce();
-      expect(onOpenChange).toHaveBeenCalledWith(false);
-      expect(show).toHaveBeenLastCalledWith(expect.objectContaining({
-        title: paymentKind === "split" ? "pos.splitPaymentCreated" : "pos.paymentSuccess", tone: "success",
-      }));
+      expect(onCompleted).not.toHaveBeenCalled();
+      expect(onOpenChange).not.toHaveBeenCalled();
+      expect(show.mock.calls.some(([toast]) => ["pos.splitPaymentCreated", "pos.paymentSuccess"].includes(toast.title))).toBe(false);
       expect(show.mock.calls.some(([toast]) => toast.tone === "error")).toBe(false);
       expect(execute).not.toHaveBeenCalled();
       expect(reprint).not.toHaveBeenCalled();

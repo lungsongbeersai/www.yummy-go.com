@@ -33,6 +33,8 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { DocumentLogoCheckbox } from "@/features/printer/document-logo-checkbox";
 import {
   Command,
@@ -343,6 +345,7 @@ export function PaymentDialogContent({
     accountQrUrl,
     canPrintInvoice,
     clearActiveAmount,
+    confirmReceiptPrinted,
     confirmOpen,
     currencyDescription,
     currencyOptions,
@@ -354,6 +357,7 @@ export function PaymentDialogContent({
     handleDialogKeyDown,
     handlePaymentTabChange,
     handlePrintInvoice,
+    handleReceiptRecovery,
     insertDecimal,
     insertKeypadValue,
     invoice,
@@ -366,6 +370,8 @@ export function PaymentDialogContent({
     payment,
     processing,
     quickAmounts,
+    receiptLabel,
+    receiptOutcome,
     replaceActiveAmount,
     requestSubmit,
     selectedCurrency,
@@ -406,6 +412,8 @@ export function PaymentDialogContent({
   } = customers;
   const isCashTransfer = activeTab === "cash_transfer";
   const suppressSoftKeyboard = useSuppressSoftKeyboard();
+  const receiptBusy = receiptOutcome === "printing" || processing || invoicePrinting;
+  const receiptFailed = receiptOutcome === "error" || receiptOutcome === "skipped";
   const dialogHeight = usePaymentDialogHeight(workflow.open);
   const dialogStyle = useMemo(
     () =>
@@ -420,12 +428,12 @@ export function PaymentDialogContent({
       <Dialog
         open={workflow.open}
         onOpenChange={(nextOpen) =>
-          !processing && !customerCreateOpen && onOpenChange(nextOpen)
+          receiptOutcome === null && !processing && !customerCreateOpen && onOpenChange(nextOpen)
         }
       >
         <DialogContent
           data-pos-payment-dialog="true"
-          aria-busy={processing}
+          aria-busy={receiptOutcome !== null ? receiptBusy : processing}
           showCloseButton={false}
           className="!left-0 !top-0 grid h-[var(--pos-payment-dialog-height)] max-h-[var(--pos-payment-dialog-height)] w-full max-w-[100vw] !translate-x-0 !translate-y-0 grid-rows-[auto_minmax(0,1fr)] gap-0 overflow-hidden rounded-none border-0 bg-background p-0 duration-200 sm:!left-[50%] sm:!top-[50%] sm:h-[calc(100dvh-1rem)] sm:max-h-[calc(100dvh-1rem)] sm:max-w-[calc(100vw-1rem)] sm:!translate-x-[-50%] sm:!translate-y-[-50%] sm:rounded-lg sm:border xl:max-w-7xl"
           style={dialogStyle}
@@ -467,7 +475,7 @@ export function PaymentDialogContent({
                     size="icon"
                     aria-label={t("actions.close")}
                     className="size-11 shrink-0 rounded-full"
-                    disabled={processing}
+                    disabled={processing || receiptOutcome !== null}
                   >
                     <X aria-hidden="true" />
                   </Button>
@@ -476,6 +484,78 @@ export function PaymentDialogContent({
             </div>
           </DialogHeader>
 
+          {receiptOutcome !== null ? (
+            <section
+              className="flex min-h-0 items-start justify-center overflow-y-auto bg-muted/30 px-3 py-6 font-lao sm:items-center sm:p-6"
+              aria-label={t("pos.receiptPrintTitle")}
+              data-pos-paid-receipt="true"
+              data-receipt-outcome={receiptOutcome}
+            >
+              <Card className="w-full max-w-lg gap-5 sm:gap-6">
+                <CardHeader className="justify-items-center gap-3 text-center">
+                  <div className="flex size-14 items-center justify-center rounded-full bg-primary/10 text-primary">
+                    {receiptBusy ? (
+                      <Spinner className="size-7" aria-label={t("common.printing")} />
+                    ) : receiptOutcome === "pending" ? (
+                      <Clock3 className="size-7" aria-hidden="true" />
+                    ) : (
+                      <ReceiptText className="size-7" aria-hidden="true" />
+                    )}
+                  </div>
+                  <CardTitle className="text-lg font-bold leading-relaxed sm:text-xl" aria-live="polite">
+                    {t(receiptOutcome === "printing"
+                      ? "pos.paidReceiptPrinting"
+                      : receiptOutcome === "pending"
+                        ? "pos.paymentReceiptPrintQueued"
+                        : receiptOutcome === "browser"
+                          ? "pos.browserPrintOpened"
+                          : receiptOutcome === "success"
+                            ? "common.printSuccess"
+                            : "pos.paymentReceiptPrintFailed")}
+                  </CardTitle>
+                  {receiptLabel ? <p className="w-full text-sm leading-relaxed text-muted-foreground wrap-anywhere">{receiptLabel}</p> : null}
+                </CardHeader>
+                <CardContent className="grid gap-4 sm:gap-5">
+                  <PaymentStat
+                    hero
+                    label={t("pos.invoicePrintTotalAmount")}
+                    value={money(totalAmount)}
+                    className="text-center lg:rounded-lg lg:border lg:border-primary/30 lg:bg-primary/10"
+                  />
+                  {receiptOutcome !== "success" ? (
+                    <Alert variant={receiptFailed ? "destructive" : "default"} role={receiptFailed ? "alert" : "status"}>
+                      <AlertDescription className="text-sm leading-relaxed">
+                        {t(receiptOutcome === "printing"
+                          ? "pos.paidReceiptPrintingHint"
+                          : receiptOutcome === "pending"
+                            ? "pos.paidReceiptPendingHint"
+                            : receiptOutcome === "browser"
+                              ? "pos.paidReceiptBrowserHint"
+                              : "pos.paidReceiptRetryDescription")}
+                      </AlertDescription>
+                    </Alert>
+                  ) : null}
+                  {receiptOutcome === "browser" ? (
+                    <div className="grid gap-3">
+                      <Button className="h-auto min-h-12 whitespace-normal py-3 text-base font-bold" disabled={receiptBusy} onClick={() => void confirmReceiptPrinted()}>
+                        <Check data-icon="inline-start" aria-hidden="true" />
+                        {t("pos.paidReceiptConfirmPrinted")}
+                      </Button>
+                      <Button variant="outline" className="h-auto min-h-12 whitespace-normal py-3" disabled={receiptBusy} onClick={() => void handleReceiptRecovery()}>
+                        <Printer data-icon="inline-start" aria-hidden="true" />
+                        {t("pos.paidReceiptReopenBrowser")}
+                      </Button>
+                    </div>
+                  ) : receiptOutcome !== "printing" && receiptOutcome !== "success" ? (
+                    <Button className="h-auto min-h-12 whitespace-normal py-3 text-base font-bold" disabled={receiptBusy} onClick={() => void handleReceiptRecovery()}>
+                      {receiptBusy ? <Spinner data-icon="inline-start" /> : <Printer data-icon="inline-start" aria-hidden="true" />}
+                      {t(receiptOutcome === "pending" ? "pos.paidReceiptCheckStatus" : "pos.paidReceiptPrint")}
+                    </Button>
+                  ) : null}
+                </CardContent>
+              </Card>
+            </section>
+          ) : (
           <Tabs
             value={activeTab}
             className="grid min-h-0 grid-rows-[auto_minmax(0,1fr)_auto] overflow-hidden bg-muted/30 overscroll-contain md:grid-cols-[280px_minmax(0,1fr)] md:grid-rows-[minmax(0,1fr)_auto] lg:grid-cols-[300px_minmax(0,1fr)_320px] lg:grid-rows-1 xl:grid-cols-[320px_minmax(0,1fr)_360px]"
@@ -1120,6 +1200,7 @@ export function PaymentDialogContent({
               </div>
             </aside>
           </Tabs>
+          )}
         </DialogContent>
       </Dialog>
 
@@ -1145,7 +1226,7 @@ export function PaymentDialogContent({
       />
 
       <AlertDialog
-        open={confirmOpen}
+        open={confirmOpen && receiptOutcome === null}
         onOpenChange={(nextOpen) => !processing && setConfirmOpen(nextOpen)}
       >
         <AlertDialogContent data-pos-payment-confirm-dialog="true" className="max-h-[calc(100dvh-2rem)] w-[calc(100%-2rem)] max-w-lg gap-0 overflow-y-auto rounded-2xl p-0 shadow-2xl sm:max-w-xl">
