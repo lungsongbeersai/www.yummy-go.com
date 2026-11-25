@@ -17,6 +17,7 @@ import {
   getCategoryRoles,
   getDefaultCategoryByRole,
   getPrinterErrorMessage,
+  getLocalAgentInfo,
   printPrinterSelfTest,
   completePrinterSelfTest,
   getPrinterSelfTestStatus,
@@ -799,14 +800,18 @@ export const usePrinterStore = create<PrinterState>((set, get) => ({
     }
   },
   test: async (input) => {
+    if (get().printing) throw new Error("A printer command is already running");
+    const pendingSelfTest = get().pendingSelfTest ?? readPendingSelfTest();
+    if (pendingSelfTest) {
+      set({ pendingSelfTest });
+      throw new Error("Confirm the printer is ready before testing the printer");
+    }
     const isCurrentSession = createSessionGuard();
     set({ printing: true, error: null });
 
     let phase = "start";
 
     try {
-      console.log("[printer-test] start", input);
-
       const selectedPrinter = get().printers.find(
         (item) =>
           input.print_config_uuid &&
@@ -814,13 +819,17 @@ export const usePrinterStore = create<PrinterState>((set, get) => ({
       );
 
       const selectedConnectType = textValue(selectedPrinter?.connect_type).toLowerCase();
+      const isNativeApp = Capacitor.isNativePlatform();
       const nativeTcpPrinter =
-        Capacitor.isNativePlatform() && selectedConnectType === "tcp";
+        isNativeApp && selectedConnectType === "tcp";
       const builtinPrinter = isSunmiBuiltinPrinterTarget(selectedPrinter) || input.connect_type === "sunmi";
+      const selectedIdentityKnown = Boolean(
+        textValue(selectedPrinter?.device_code) && textValue(selectedPrinter?.agent_id),
+      );
 
       phase = "resolvePrinterDeviceContext";
 
-      const printer = nativeTcpPrinter || builtinPrinter
+      const printer = selectedIdentityKnown || nativeTcpPrinter || builtinPrinter
         ? {
           device_code: selectedPrinter?.device_code,
           agent_id: selectedPrinter?.agent_id,
@@ -831,28 +840,32 @@ export const usePrinterStore = create<PrinterState>((set, get) => ({
         : await resolvePrinterDeviceContext(input);
       if (!isCurrentSession()) return null;
 
-      console.log("[printer-test] printer", printer);
-
       phase = "buildTestJob";
 
-      const result = await buildTestJob({
-        ...input,
-        // Build the test job against the row the user actually selected. The
-        // browser identity and installed Agent identity are allowed to differ.
-        device_code: selectedPrinter?.device_code || printer.device_code,
-        agent_id: selectedPrinter?.agent_id || printer.agent_id,
-        agent_name: selectedPrinter?.agent_name || printer.agent_name,
-        print_mode: selectedPrinter?.print_mode || printer.print_mode,
-      });
+      // Backend authorizes the selected config. Avoid rediscovering the full
+      // catalogue, and overlap job preparation with one fresh transport check.
+      const [result, localAgent] = await Promise.all([
+        buildTestJob({
+          ...input,
+          device_code: selectedPrinter?.device_code || printer.device_code,
+          agent_id: selectedPrinter?.agent_id || printer.agent_id,
+          agent_name: selectedPrinter?.agent_name || printer.agent_name,
+          print_mode: selectedPrinter?.print_mode || printer.print_mode,
+        }),
+        !isNativeApp && !builtinPrinter ? getLocalAgentInfo() : Promise.resolve(null),
+      ]);
       if (!isCurrentSession()) return null;
 
+      phase = "validateTestJob";
       const job = builtinPrinter
         ? { ...result.data.job, job_id: sunmiDiagnosticJobId("test") }
         : result.data.job;
+      if (input.print_config_uuid && job.print_config_uuid !== input.print_config_uuid) {
+        throw new Error("Test print job does not match the selected printer");
+      }
       // The API prints the selected row even when routing sends real orders to
       // another config at the same address, and says so here.
       const routingWarning = result.data.routing_warning?.trim() || null;
-      console.log("[printer-test] job", job);
 
       const printerConnectType = textValue(
         (printer as { connect_type?: string | null }).connect_type,
@@ -861,8 +874,6 @@ export const usePrinterStore = create<PrinterState>((set, get) => ({
       const jobConnectType = textValue(
         (job as { connect_type?: string | null }).connect_type,
       ).toLowerCase();
-
-      const isNativeApp = Capacitor.isNativePlatform();
 
       const isMobileWifi =
         isNativeApp &&
@@ -875,18 +886,6 @@ export const usePrinterStore = create<PrinterState>((set, get) => ({
           jobConnectType === "tcp"
         );
 
-      // console.log("[printer-test] mode", {
-      //   isNative: Capacitor.isNativePlatform(),
-      //   selectedConnectType,
-      //   nativeTcpPrinter,
-      //   printerConnectType,
-      //   jobConnectType,
-      //   printerPrintMode: printer.print_mode,
-      //   jobPrintMode: job.print_mode,
-      //   jobPrintClient: job.print_client,
-      //   isMobileWifi,
-      // });
-
       if (builtinPrinter) {
         phase = "dispatchSunmiPrintJob";
         await dispatchPrintJob(job);
@@ -895,8 +894,6 @@ export const usePrinterStore = create<PrinterState>((set, get) => ({
         const escposBase64 = await renderMobileEscpos(job);
         if (!isCurrentSession()) return null;
 
-        console.log("[printer-test] escposBase64 length", escposBase64.length);
-
         phase = "printMobileEscposOverTcp";
         await printMobileEscposOverTcp({
           interface_value: job.interface_value,
@@ -904,17 +901,12 @@ export const usePrinterStore = create<PrinterState>((set, get) => ({
         });
       } else {
         phase = "dispatchPrintJob";
-        const localAgent = get().agent;
         const localTestJob = localSharedTcpTestJob(
           job,
           selectedPrinter,
           localAgent,
         );
-        if (localTestJob && localAgent) {
-          await dispatchPrintJob(localTestJob, localAgent);
-        } else {
-          await dispatchPrintJob(job);
-        }
+        await dispatchPrintJob(localTestJob ?? job, localAgent ?? undefined);
       }
 
       phase = "done";

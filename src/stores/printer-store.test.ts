@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { Capacitor } from "@capacitor/core";
 import {
   buildTestJob,
   deletePrinter,
@@ -9,6 +10,7 @@ import {
   completePrinterSelfTest,
   getPrinterSelfTestStatus,
   getPrinterReadiness,
+  getLocalAgentInfo,
   getPrinters,
   getPendingPrintJobs,
   getInternetPrintSettings,
@@ -46,6 +48,7 @@ vi.mock("@/services/printer", async (importOriginal) => ({
   completePrinterSelfTest: vi.fn(),
   getPrinterSelfTestStatus: vi.fn(),
   getPrinterReadiness: vi.fn(),
+  getLocalAgentInfo: vi.fn(),
   executeInvoicePrintJobs: vi.fn(),
   executeKitchenPrintJobs: vi.fn(),
   fetchPrinterCategoryRole: vi.fn(),
@@ -80,6 +83,7 @@ const deletePrinterMock = vi.mocked(deletePrinter);
 const dispatchPrintJobMock = vi.mocked(dispatchPrintJob);
 const dispatchCashDrawerMock = vi.mocked(dispatchCashDrawer);
 const getPrintersMock = vi.mocked(getPrinters);
+const getLocalAgentInfoMock = vi.mocked(getLocalAgentInfo);
 const getPendingPrintJobsMock = vi.mocked(getPendingPrintJobs);
 const registerPrinterAgentMock = vi.mocked(registerPrinterAgent);
 const resolvePrinterDeviceContextMock = vi.mocked(resolvePrinterDeviceContext);
@@ -114,6 +118,7 @@ describe("printer store", () => {
     vi.mocked(discoverSunmiBuiltinPrinter).mockReset().mockResolvedValue(discoveryFixture());
     vi.mocked(registerSunmiNativePrinterOwner).mockReset().mockResolvedValue({ supported: true, ready: true });
     vi.mocked(getPrinterSelfTestStatus).mockReset();
+    getLocalAgentInfoMock.mockReset().mockResolvedValue({ agent_id: "local-agent", device_code: "LOCAL", agent_name: "Local Agent" });
     registerPrinterAgentMock.mockResolvedValue(undefined);
     usePrinterStore.setState({
       agent: null,
@@ -855,6 +860,7 @@ describe("printer store", () => {
       data: {
         printer: {},
         job: {
+          print_config_uuid: "printer-1",
           interface_value: "tcp://192.168.100.78:9100",
           lang: "la",
           ops: [],
@@ -884,6 +890,7 @@ describe("printer store", () => {
 
   it("adds local device identity when testing a printer", async () => {
     const job = {
+      print_config_uuid: "printer-1",
       agent_id: "WINDOWS-AGENT-001",
       device_code: "WINDOWS-001",
       interface_value: "tcp://192.168.1.20:9100",
@@ -917,7 +924,7 @@ describe("printer store", () => {
       agent_name: "Include Agent",
       print_mode: "mobile_wifi"
     });
-    expect(dispatchPrintJobMock).toHaveBeenCalledWith(job);
+    expect(dispatchPrintJobMock).toHaveBeenCalledWith(job, expect.objectContaining({ agent_id: "local-agent", device_code: "LOCAL" }));
   });
 
   it("tests an offline shared TCP printer through the requesting desktop Agent", async () => {
@@ -928,6 +935,7 @@ describe("printer store", () => {
       device_code: "MACBOOK",
     };
     const remoteJob = {
+      print_config_uuid: "shared-tcp-1",
       agent_id: "owner-agent",
       agent_name: "Owner Agent",
       agent_url: "http://192.168.100.78:7777",
@@ -956,6 +964,7 @@ describe("printer store", () => {
         device_code: remoteJob.device_code,
       }],
     });
+    getLocalAgentInfoMock.mockResolvedValueOnce(localAgent);
     resolvePrinterDeviceContextMock.mockResolvedValue({
       agent_id: remoteJob.agent_id,
       agent_name: remoteJob.agent_name,
@@ -982,6 +991,129 @@ describe("printer store", () => {
       },
       localAgent,
     );
+  });
+
+  function printerTestFixture(interfaceValue = "cups:Receipt") {
+    const printer: Printer = {
+      print_config_uuid: "test-printer", printer_name: "Receipt", connect_type: interfaceValue.startsWith("tcp:") ? "tcp" : "usb",
+      interface_value: interfaceValue, paper_width_mm: 80, is_active: true, role_codes: ["receipt"], cate_uuid_fk: [],
+      device_code: "saved-device", agent_id: "saved-agent", agent_name: "Saved Agent", print_mode: "agent",
+    };
+    const job: PrintJob = {
+      print_config_uuid: printer.print_config_uuid, interface_value: interfaceValue, paper_width_mm: 80, lang: "la",
+      printer_type: "receipt",
+      agent_id: printer.agent_id, device_code: printer.device_code, ops: [{ type: "text", text: "Printer test" }],
+    };
+    const input = { login_uuid_fk: "login-1", print_config_uuid: printer.print_config_uuid, lang: "la" };
+    usePrinterStore.setState({ printers: [printer], agent: { agent_id: "stale-agent", device_code: "stale-device", agent_name: "Old Agent" } });
+    buildTestJobMock.mockResolvedValue({ data: { job, printer: {} } });
+    dispatchPrintJobMock.mockReset().mockResolvedValue();
+    return { printer, job, input };
+  }
+
+  it.each(["cups:Receipt", "tcp://192.168.1.20:9100"])(
+    "prepares a saved %s test alongside one live Agent check without rediscovering printers",
+    async (interfaceValue) => {
+      const { input, job } = printerTestFixture(interfaceValue);
+      const preparation = deferred<BuildTestJobResponse>();
+      const identity = deferred<Awaited<ReturnType<typeof getLocalAgentInfo>>>();
+      const liveAgent = { agent_id: "live-agent", device_code: "live-device", agent_name: "Live Agent" };
+      buildTestJobMock.mockReturnValueOnce(preparation.promise);
+      getLocalAgentInfoMock.mockReturnValueOnce(identity.promise);
+
+      const execution = usePrinterStore.getState().test(input);
+      expect(buildTestJobMock).toHaveBeenCalledOnce();
+      expect(getLocalAgentInfoMock).toHaveBeenCalledExactlyOnceWith();
+      expect(resolvePrinterDeviceContextMock).not.toHaveBeenCalled();
+      expect(getPrintersMock).not.toHaveBeenCalled();
+      expect(registerPrinterAgentMock).not.toHaveBeenCalled();
+      preparation.resolve({ data: { job, printer: {} } });
+      await Promise.resolve();
+      expect(dispatchPrintJobMock).not.toHaveBeenCalled();
+      identity.resolve(liveAgent);
+      await expect(execution).resolves.toBeNull();
+      expect(dispatchPrintJobMock).toHaveBeenCalledExactlyOnceWith(job, liveAgent);
+      expect(usePrinterStore.getState().printing).toBe(false);
+    },
+  );
+
+  it("blocks a second printer test while the first preparation is in progress", async () => {
+    const { input, job } = printerTestFixture();
+    const preparation = deferred<BuildTestJobResponse>();
+    buildTestJobMock.mockReturnValueOnce(preparation.promise);
+    const execution = usePrinterStore.getState().test(input);
+    await expect(usePrinterStore.getState().test(input)).rejects.toThrow("already running");
+    preparation.resolve({ data: { job, printer: {} } });
+    await execution;
+    expect(buildTestJobMock).toHaveBeenCalledOnce();
+    expect(dispatchPrintJobMock).toHaveBeenCalledOnce();
+  });
+
+  it("keeps shared USB test jobs on the remote owner's queue", async () => {
+    const { input, printer, job } = printerTestFixture("win:Receipt");
+    usePrinterStore.setState({ printers: [{ ...printer, is_shared: true }] });
+    await usePrinterStore.getState().test(input);
+    expect(dispatchPrintJobMock).toHaveBeenCalledExactlyOnceWith(job, expect.objectContaining({
+      agent_id: "local-agent", device_code: "LOCAL",
+    }));
+    expect(job).toMatchObject({ agent_id: "saved-agent", device_code: "saved-device" });
+  });
+
+  it("does not dispatch a saved test when the session changes during Agent discovery", async () => {
+    const { input } = printerTestFixture();
+    const identity = deferred<Awaited<ReturnType<typeof getLocalAgentInfo>>>();
+    getLocalAgentInfoMock.mockReturnValueOnce(identity.promise);
+    const execution = usePrinterStore.getState().test(input);
+    expect(buildTestJobMock).toHaveBeenCalledOnce();
+    resetSessionStores();
+    identity.resolve({ agent_id: "local-agent", device_code: "LOCAL", agent_name: "Local Agent" });
+    await expect(execution).resolves.toBeNull();
+    expect(dispatchPrintJobMock).not.toHaveBeenCalled();
+  });
+
+  it("blocks test printing while firmware self-test maintenance remains active", async () => {
+    const { input } = printerTestFixture();
+    usePrinterStore.setState({ pendingSelfTest: { connect_type: "usb", interface_value: "cups:Receipt" } });
+    await expect(usePrinterStore.getState().test(input)).rejects.toThrow("Confirm the printer is ready");
+    expect(buildTestJobMock).not.toHaveBeenCalled();
+    expect(getLocalAgentInfoMock).not.toHaveBeenCalled();
+    expect(dispatchPrintJobMock).not.toHaveBeenCalled();
+  });
+
+  it("rejects a prepared test for a different printer before sending bytes", async () => {
+    const { input, job } = printerTestFixture();
+    buildTestJobMock.mockResolvedValueOnce({ data: { job: { ...job, print_config_uuid: "other-printer" }, printer: {} } });
+    await expect(usePrinterStore.getState().test(input)).rejects.toThrow("does not match the selected printer");
+    expect(dispatchPrintJobMock).not.toHaveBeenCalled();
+    expect(usePrinterStore.getState().printing).toBe(false);
+  });
+
+  it("reports a live Agent failure without sending a test or retrying its transport", async () => {
+    const { input } = printerTestFixture();
+    getLocalAgentInfoMock.mockRejectedValueOnce(new Error("Agent unavailable"));
+    await expect(usePrinterStore.getState().test(input)).rejects.toThrow("Agent unavailable");
+    expect(getLocalAgentInfoMock).toHaveBeenCalledOnce();
+    expect(dispatchPrintJobMock).not.toHaveBeenCalled();
+    expect(usePrinterStore.getState().printing).toBe(false);
+  });
+
+  it("keeps native Wi-Fi test printing independent of Local Agent discovery", async () => {
+    const { input, printer, job } = printerTestFixture("tcp://192.168.1.20:9100");
+    const native = vi.spyOn(Capacitor, "isNativePlatform").mockReturnValue(true);
+    const tcp = await import("@/services/printer/mobile-tcp");
+    const send = vi.spyOn(tcp, "printMobileEscposOverTcp").mockResolvedValue();
+    vi.mocked(renderMobileEscpos).mockResolvedValueOnce("TEST-ESC-POS");
+    try {
+      await expect(usePrinterStore.getState().test(input)).resolves.toBeNull();
+      expect(getLocalAgentInfoMock).not.toHaveBeenCalled();
+      expect(resolvePrinterDeviceContextMock).not.toHaveBeenCalled();
+      expect(renderMobileEscpos).toHaveBeenCalledExactlyOnceWith(job);
+      expect(send).toHaveBeenCalledExactlyOnceWith({ interface_value: printer.interface_value, escpos_base64: "TEST-ESC-POS" });
+      expect(dispatchPrintJobMock).not.toHaveBeenCalled();
+    } finally {
+      native.mockRestore();
+      send.mockRestore();
+    }
   });
 
   function drawerFixture(overrides: Partial<Printer> = {}) {

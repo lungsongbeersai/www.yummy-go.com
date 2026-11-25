@@ -151,6 +151,7 @@ export {
   checkPrinterAgentConnection,
   dispatchPrintJob,
   dispatchCashDrawer,
+  getLocalAgentInfo,
   getLocalPrinterAgentInfo,
   printBatchWithLocalAgent,
   printWithLocalAgent,
