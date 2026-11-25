@@ -23,6 +23,7 @@ import {
   resolvePrinterDeviceIdentity
 } from "@/services/printer/agent-transport";
 import { renderMobileEscpos } from "@/services/printer/config-api";
+import { isBrowserPrinterAgentId } from "@/services/printer/browser-device";
 import { printMobileEscposOverTcp } from "@/services/printer/mobile-tcp";
 import { isSunmiBuiltinPrinterTarget, printSunmiEscpos } from "@/services/printer/sunmi-native";
 import { shouldDeferSharedPrintToOwner } from "@/services/printer/route-selection";
@@ -1078,6 +1079,28 @@ async function executePrintJobs(
         })),
       };
 
+  let localAgentPromise: Promise<AgentInfo> | null = null;
+  const sharedLocalAgent = () => {
+    // All physical batches on this client share one fresh identity read.
+    localAgentPromise ??= getLocalAgentInfo().catch((error: unknown) => {
+      if (error && typeof error === "object") {
+        (error as { delivery_state?: string }).delivery_state = "not_sent";
+        throw error;
+      }
+      const wrapped = new ServiceError(getPrinterErrorMessage(error), 503);
+      (wrapped as ServiceError & { delivery_state?: string }).delivery_state = "not_sent";
+      throw wrapped;
+    });
+    return localAgentPromise;
+  };
+  if (!options.kitchenSemantics && !Capacitor.isNativePlatform() && textValue(pendingParams.agent_id) &&
+      !isBrowserPrinterAgentId(pendingParams.agent_id) && !isSunmiBuiltinPrinterTarget(pendingParams)) {
+    // Backend preparation and local identity are independent reads. Start both
+    // together; the captured identity must still pass the exact-target checks
+    // before any print POST. A response with no local work need not await it.
+    void sharedLocalAgent().catch(() => undefined);
+  }
+
   const pendingResult = await getPendingPrintJobs(pendingParams);
 
   // Cancellation wins over a stale cached payload. A cleared queue UUID must
@@ -1254,25 +1277,6 @@ async function executePrintJobs(
       pendingUncertainTicketTotal(pendingResult) === 0 &&
       batchPayloads.every(isMobilePrintBatch);
     let lastErrorMessage: string | undefined;
-    let localAgentPromise: Promise<AgentInfo> | null = null;
-    const sharedLocalAgent = () => {
-      // One pending response can contain several physical USB/TCP printers.
-      // They all go through the same local Agent, so resolve its identity once
-      // while still allowing different printers to run concurrently.
-      localAgentPromise ??= getLocalAgentInfo().catch((error: unknown) => {
-        // Agent discovery happens before any bytes can reach USB/TCP. Mark the
-        // transport failure explicitly so the Backend can safely keep normal
-        // retry/fallback behavior instead of treating it as possibly printed.
-        if (error && typeof error === "object") {
-          (error as { delivery_state?: string }).delivery_state = "not_sent";
-          throw error;
-        }
-        const wrapped = new ServiceError(getPrinterErrorMessage(error), 503);
-        (wrapped as ServiceError & { delivery_state?: string }).delivery_state = "not_sent";
-        throw wrapped;
-      });
-      return localAgentPromise;
-    };
 
     input.onProgress?.({
       total,
@@ -1715,9 +1719,9 @@ async function executePrintJobs(
         jobUuid,
         batchGroup.items,
         batchGroup.cutMode,
-        () => printBatchWithLocalAgent(
+        async () => printBatchWithLocalAgent(
           batchGroup.items.map((item) => item.job as PrintJob),
-          undefined,
+          localAgentPromise ? await sharedLocalAgent() : undefined,
           batchGroup.cutMode,
         ),
       );

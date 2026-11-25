@@ -2458,7 +2458,7 @@ describe("printer service dispatch", () => {
     expect(starts[2]).toBe("queue-printer-a-alias");
   });
 
-  it("falls back before calling the print agent when invoice batch payloads are empty", async () => {
+  it("falls back without physical dispatch when invoice preparation returns no batch payloads", async () => {
     const progressPhases: string[] = [];
     const ackPayloads: AckPayload[] = [];
     apiMocks.apiRequest.mockImplementation(async (method, url, options) => {
@@ -2508,7 +2508,7 @@ describe("printer service dispatch", () => {
     });
 
     expect(progressPhases).toEqual(["fetching", "done"]);
-    expect(axiosMocks.get).not.toHaveBeenCalled();
+    expect(axiosMocks.get).toHaveBeenCalledExactlyOnceWith(expect.stringContaining("/agent/info"), expect.anything());
     expect(axiosMocks.post).not.toHaveBeenCalled();
     expect(ackPayloads).toEqual([
       {

@@ -23,7 +23,7 @@ import { useAuthStore } from "@/stores/auth-store";
 import { usePosStore } from "@/stores/pos-store";
 import { usePrinterStore } from "@/stores/printer-store";
 import { useToastStore } from "@/stores/toast-store";
-import { resolveTableQrPrinterContext, tableQrPendingJobUuid, tableQrPrintAttemptResponse, tableQrPrintOutcome } from "./table-qr-printing";
+import { createQrPrintRound, tableQrPendingJobUuid, tableQrPrintAttemptResponse, tableQrPrintOutcome } from "./table-qr-printing";
 import { optionalString } from "./utils";
 import { QrPrintPreview } from "./qr-print-preview";
 
@@ -44,12 +44,11 @@ export function TableQrDialog({
   const loginUuid = useAuthStore((state) => state.user?.uuid);
   const createTableQr = usePosStore((state) => state.createTableQr);
   const executeInvoice = usePrinterStore((state) => state.executeInvoice);
-  const resolveDeviceContext = usePrinterStore((state) => state.resolveDeviceContext);
-  const resolveDeviceIdentity = usePrinterStore((state) => state.resolveDeviceIdentity);
   const showToast = useToastStore((state) => state.show);
   const nativeApp = useIsCapacitorNativeApp();
   const [pending, setPending] = useState(false);
   const [printing, setPrinting] = useState(false);
+  const [printPending, setPrintPending] = useState(false);
   const [downloading, setDownloading] = useState(false);
   const [response, setResponse] = useState<CreateTableQRResponse | null>(null);
   const [qrDataUrl, setQrDataUrl] = useState("");
@@ -61,37 +60,32 @@ export function TableQrDialog({
   const canPrint = Boolean(pendingJobUuid || previewUrl || targetUrl);
   const exportCurrent = useExportCurrent(JSON.stringify([open, table.table_uuid, targetUrl, previewUrl]));
   const printCurrent = useExportCurrent(JSON.stringify([open, table.table_uuid, language, loginUuid]));
+  const printRound = useMemo(() => createQrPrintRound<CreateTableQRResponse>(undefined, printCurrent), [printCurrent]);
 
-  const requestQrWithPrinterContext = useCallback(async (print: 0 | 1, isCurrent: () => boolean = () => true) => {
+  const requestQr = useCallback(async (print: 0 | 1, isCurrent: () => boolean = () => true, operationUuid?: string) => {
     if (!loginUuid) throw new Error("login_uuid_fk is required");
-
-    // Resolve the route again for an explicit retry. A failed-before-print QR
-    // job is terminal, while its Shared owner may have connected afterwards.
-    const printerContext = await resolveTableQrPrinterContext({
-      loginUuid,
-      resolveDeviceContext,
-      resolveDeviceIdentity,
-    });
-
     if (!isCurrent()) throw new DOMException("QR print cancelled", "AbortError");
 
+    // The POS store resolves and registers the live requester once. Backend
+    // selects its configured QR printer without another catalogue lookup here.
     return createTableQr({
       table_uuid: table.table_uuid,
       lang: language,
       login_uuid_fk: loginUuid,
-      device_code: printerContext?.device_code,
-      agent_id: printerContext?.agent_id,
-      print_mode: printerContext?.print_mode,
       print,
+      ...(print > 0 && operationUuid ? { operation_uuid: operationUuid } : {}),
     });
   }, [
     createTableQr,
     language,
     loginUuid,
-    resolveDeviceContext,
-    resolveDeviceIdentity,
     table.table_uuid,
   ]);
+
+  useResetOnChange(printCurrent, () => {
+    setPrinting(false);
+    setPrintPending(false);
+  });
 
   // เปิด dialog = ล้างผลเดิม และตั้ง pending เฉพาะกรณีที่จะยิงคำขอจริง
   useResetOnChange(open, () => {
@@ -112,7 +106,7 @@ export function TableQrDialog({
     let ignore = false;
 
     // เปิด modal มีหน้าที่สร้าง/แสดง QR เท่านั้น ห้ามสร้าง print job
-    requestQrWithPrinterContext(0)
+    requestQr(0)
       .then((result) => {
         if (ignore) return;
         setResponse(result);
@@ -136,7 +130,7 @@ export function TableQrDialog({
   }, [
     loginUuid,
     open,
-    requestQrWithPrinterContext,
+    requestQr,
     showToast,
     t,
   ]);
@@ -204,19 +198,21 @@ export function TableQrDialog({
   async function printQr() {
     const isCurrent = printCurrent;
     if (!canPrint || printing || !isCurrent()) return;
+    const attempt = printRound.begin();
+    if (!attempt) return;
 
     setPrinting(true);
+    setPrintPending(true);
     try {
       const printResponse = await tableQrPrintAttemptResponse({
-        // ทุก click คือคำสั่งพิมพ์ใหม่ จึงค่อยสร้าง queue ณ จุดนี้เท่านั้น
-        refreshQueue: true,
-        requestQueue: () => requestQrWithPrinterContext(1, isCurrent),
-        response,
+        refreshQueue: !attempt.response,
+        requestQueue: () => requestQr(1, isCurrent, attempt.operationUuid),
+        response: attempt.response,
         isCurrent,
       });
       setResponse(printResponse);
 
-      if (!tableQrPendingJobUuid(printResponse)) {
+      if (!printResponse || !tableQrPendingJobUuid(printResponse)) {
         showToast({
           title: t("pos.printQr"),
           description: t("pos.systemPrinterUnavailable"),
@@ -228,6 +224,8 @@ export function TableQrDialog({
         });
         return;
       }
+      attempt.remember(printResponse);
+      setPrintPending(true);
 
       const printResult = await executeInvoice({
         print_job: printResponse?.print_job ?? undefined,
@@ -236,12 +234,15 @@ export function TableQrDialog({
       });
       if (!isCurrent()) return;
 
-      const printOutcome = tableQrPrintOutcome(printResult);
+      const printOutcome = tableQrPrintOutcome(printResult, attempt.copies);
+      attempt.settle(printOutcome);
+      setPrintPending(printOutcome === "pending");
       if (printOutcome === "pending") {
         showToast({
           title: t("pos.printQr"),
-          description: t("orderQueue.kitchenPrintQueued"),
+          description: t("pos.documentPrintQueued"),
           tone: "info",
+          action: { label: t("pos.paidReceiptCheckStatus"), onClick: () => void printQr() },
         });
         return;
       }
@@ -249,10 +250,12 @@ export function TableQrDialog({
       if (printOutcome === "error") {
         showToast({
           title: t("pos.printQr"),
-          description: printResult.errorMessage || t("pos.systemPrinterUnavailable"),
+          description: printResult.errorMessage || t("pos.qrPrintIncomplete", {
+            printed: printResult.successCount, total: Math.max(printResult.total, attempt.copies),
+          }),
           tone: "error",
           action: {
-            label: t("actions.tryAgain"),
+            label: t("pos.manualReprint"),
             onClick: () => void printQr(),
           },
         });
@@ -272,7 +275,8 @@ export function TableQrDialog({
         },
       });
     } finally {
-      setPrinting(false);
+      attempt.release();
+      if (isCurrent()) setPrinting(false);
     }
   }
 
@@ -348,9 +352,9 @@ export function TableQrDialog({
             <Download data-icon="inline-start" />
             {t("pos.downloadQr")}
           </Button>
-          <Button type="button" size="lg" disabled={!canPrint || pending || printing} onClick={() => void printQr()}>
+          <Button type="button" size="lg" className="h-auto min-h-11 min-w-0 whitespace-normal" disabled={!canPrint || pending || printing} onClick={() => void printQr()}>
             {printing ? <Spinner data-icon="inline-start" /> : <Printer data-icon="inline-start" />}
-            {t("pos.printQr")}
+            {t(printPending ? "pos.paidReceiptCheckStatus" : "pos.printQr")}
           </Button>
         </DialogFooter>
         </DialogContent>

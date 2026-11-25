@@ -1,53 +1,54 @@
 import { optionalString } from "./utils";
+import { createMutationUuid } from "@/lib/pos/mutation-identity";
 import {
   WINDOW_OPEN_FONT_CLASS_NAME,
   WINDOW_OPEN_FONT_STYLESHEET_LINK,
   WINDOW_OPEN_PRINT_ON_LOAD_SCRIPT,
 } from "@/lib/window-open-fonts";
 
-type DeviceIdentity = {
-  agent_id: string;
-  device_code?: string | null;
-};
+interface QrQueueResponse {
+  pending_query?: { print_job_uuid?: string } | null;
+  print_job?: { print_job_uuid?: string } | null;
+}
 
-export type TableQrPrinterContext = {
-  agent_id?: string;
-  device_code?: string;
-  print_mode?: string;
-};
-
-export async function resolveTableQrPrinterContext({
-  loginUuid,
-  resolveDeviceContext,
-  resolveDeviceIdentity,
-}: {
-  loginUuid: string;
-  resolveDeviceContext: (input: {
-    login_uuid_fk: string;
-    agent_id?: string;
-    device_code?: string;
-  }) => Promise<TableQrPrinterContext>;
-  resolveDeviceIdentity: () => Promise<DeviceIdentity>;
-}): Promise<TableQrPrinterContext | null> {
-  const identity = await resolveDeviceIdentity().catch(() => null);
-  const deviceCode = String(identity?.device_code ?? "").trim();
-  if (!identity || !deviceCode) return null;
-
-  const context = await resolveDeviceContext({
-    login_uuid_fk: loginUuid,
-    device_code: deviceCode,
-    agent_id: identity.agent_id,
-  }).catch(() => null);
-  const contextMatchesRequester =
-    String(context?.device_code ?? "").trim() === deviceCode &&
-    (!context?.agent_id || context.agent_id === identity.agent_id);
+export function createQrPrintRound<T extends QrQueueResponse>(
+  createOperationUuid = createMutationUuid,
+  isCurrent: () => boolean = () => true,
+) {
+  let active = false;
+  let round: { operationUuid: string; response: T | null; terminal: boolean; copies: number } | null = null;
 
   return {
-    device_code: deviceCode,
-    agent_id: identity.agent_id,
-    ...(contextMatchesRequester && context?.print_mode
-      ? { print_mode: context.print_mode }
-      : {}),
+    begin(copies = 1) {
+      if (active || !isCurrent()) return null;
+      if (!round || round.terminal) {
+        if (!Number.isSafeInteger(copies) || copies < 1 || copies > 20) {
+          throw new RangeError("QR print copies must be between 1 and 20");
+        }
+        round = { operationUuid: createOperationUuid(), response: null, terminal: false, copies };
+      }
+      active = true;
+      const current = round;
+      let released = false;
+      return {
+        operationUuid: current.operationUuid,
+        copies: current.copies,
+        response: current.response,
+        remember(response: T) {
+          // No queue identity can also mean its response was lost. Keep the
+          // operation UUID so Backend can recover the same physical print.
+          if (tableQrPendingJobUuid(response)) current.response = response;
+        },
+        settle(outcome: ReturnType<typeof tableQrPrintOutcome>) {
+          current.terminal = outcome !== "pending";
+        },
+        release() {
+          if (released) return;
+          released = true;
+          active = false;
+        },
+      };
+    },
   };
 }
 
@@ -55,9 +56,13 @@ export function tableQrPrintOutcome(result: {
   failedCount: number;
   pending?: boolean;
   successCount: number;
-}) {
+  total?: number;
+  errorMessage?: string;
+}, expectedCopies = 1) {
+  if (result.failedCount > 0 || result.errorMessage) return "error" as const;
   if (result.pending) return "pending" as const;
-  if (result.successCount > 0 && result.failedCount === 0) return "success" as const;
+  const total = result.total ?? expectedCopies;
+  if (total === expectedCopies && result.successCount === expectedCopies) return "success" as const;
   return "error" as const;
 }
 

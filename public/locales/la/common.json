@@ -1298,6 +1298,7 @@
     "paidReceiptBrowserHint": "ພິມໃບຮັບເງິນ ແລ້ວຢືນຢັນວ່າພິມສຳເລັດແລ້ວ.",
     "paidReceiptConfirmPrinted": "ພິມສຳເລັດແລ້ວ — ກັບໄປໜ້າໂຕະ",
     "paidReceiptReopenBrowser": "ເປີດໃບຮັບເງິນອີກຄັ້ງ",
+    "qrPrintIncomplete": "ພິມ QR ແລ້ວ {{printed}} ຈາກ {{total}} ໃບ. ກວດໃບທີ່ພິມອອກກ່ອນພິມອີກຄັ້ງ.",
     "autoPrintRetryDescription": "ຢຸດລອງພິມອັດຕະໂນມັດແລ້ວ. ກວດເຄື່ອງພິມ ແລະ ເຈ້ຍ ແລ້ວສ້າງງານພິມໃໝ່ດ້ວຍຕົນເອງ.",
     "manualReprint": "ພິມໃໝ່ດ້ວຍຕົນເອງ",
     "printInvoice": "ພິມໃບຮຽກເກັບເງິນ",

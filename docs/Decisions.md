@@ -1,5 +1,16 @@
 # Decisions
 
+## QR printing retains the requested copies and its original operation
+
+- **Date:** 2026-11-25.
+- **Authorization:** The owner requested faster, correct and complete QR, invoice and receipt printing over USB and Wi-Fi, continuing the commit-and-push instruction.
+- **Evidence:** The menu QR dialog requested up to twenty copies but Backend treated a positive count as a boolean and queued one sheet. The QR success helper accepted a positive success count even below the requested total. Feature preflight repeated the POS store's device resolution and loaded the printer catalogue even for a preview.
+- **Decision:** Backend queues one pinned item per requested QR copy under the authenticated actor. A QR operation UUID binds the subtype, table/version or branch, language and copy count; retrying an ambiguous response recovers the original job and payload. Reusing that operation for another request is rejected. Pending frontend attempts observe the exact returned job, retain the requested copies and prevent overlapping enqueue clicks. Only exact completion of those copies reports success; partial or uncertain results require an explicit manual decision.
+- **Preparation and speed:** A preview with `print=0` does not discover or register printers. Physical print requests retain the store's fresh identity validation, while local Agent identity and Backend job reads overlap before dispatch. Printer Agent reuses identical prepared QR targets within one bounded batch cache. Required QR cards fail before transport if their QR is missing or cannot be prepared; optional bank artwork on bills keeps its established fallback behavior.
+- **Release order:** Deploy Backend's optional operation-UUID/copy contract before the Frontend that retries it. Printer Agent rendering fixes require updating the installed Agent; publishing Frontend alone cannot replace its local runtime.
+- **Frontend validation:** Typecheck, lint, all 4,063 tests in 312 files, twelve deployment fixtures and the webpack production build passed; lint retains five existing warnings. Eleven mounted QR-dialog scenarios passed at 390×844 and 1440×900 in Lao, including rapid taps, twenty-copy pending recovery, partial failure, lost enqueue responses and stale view/account results, with no external network or physical printing.
+- **Boundary:** Existing per-printer queues, immutable destination checks, delivery journals and acknowledgements remain authoritative. No automatic replay after uncertain physical delivery, alternative printer fallback or financial retry is introduced. USB confirms operating-system spool acceptance; physical hardware and paper delivery still require device acceptance.
+
 ## Paid checkout stays open until receipt completion
 
 - **Date:** 2026-11-25.

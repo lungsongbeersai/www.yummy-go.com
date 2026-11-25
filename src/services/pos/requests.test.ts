@@ -12,6 +12,7 @@ vi.mock("@/lib/api", () => ({
 import {
   confirmToKitchen,
   createPayment,
+  createBranchMenuQR,
   createTableQR,
   deleteOrderItem,
   fetchCateProducts,
@@ -627,6 +628,27 @@ describe("pos requests", () => {
         print: 0
       }
     });
+  });
+
+  it.each(["table", "branch"] as const)("retains the %s QR operation identity and copy count across an enqueue retry", async (kind) => {
+    apiMocks.apiRequest.mockResolvedValue({ status: "success" });
+    const params = {
+      table_uuid: "table-1", login_uuid_fk: "cashier-1", operation_uuid: "qr-attempt-1",
+      device_code: "WINDOWS-001", agent_id: "WINDOWS-AGENT-001", print_mode: "windows_agent",
+      print: kind === "table" ? 1 as const : 20,
+    };
+    const create = kind === "table"
+      ? () => createTableQR({ ...params, print: 1 })
+      : () => createBranchMenuQR(params);
+    await create();
+    await create();
+    expect(apiMocks.apiRequest).toHaveBeenCalledTimes(2);
+    for (const call of apiMocks.apiRequest.mock.calls) {
+      expect(call[2]).toEqual(expect.objectContaining({ params: expect.objectContaining({
+        operation_uuid: "qr-attempt-1", login_uuid_fk: "cashier-1", print: params.print,
+        device_code: params.device_code, agent_id: params.agent_id,
+      }) }));
+    }
   });
 
   it("patches kitchen confirmation with mobile wifi printer identity fields", async () => {

@@ -648,6 +648,7 @@ export interface TableQRResponse extends ApiEntity {
 
 export interface CreateTableQRRequest {
   table_uuid: string;
+  operation_uuid?: string;
   lang?: string;
   login_uuid_fk?: string;
   device_code?: string;
@@ -662,6 +663,7 @@ export interface CreateTableQRRequest {
 export type CreateTableQRResponse = TableQRResponse;
 
 export interface CreateBranchMenuQRRequest {
+  operation_uuid?: string;
   lang?: string;
   login_uuid_fk?: string;
   device_code?: string;

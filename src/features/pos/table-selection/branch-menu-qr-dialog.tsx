@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import QRCode from "qrcode";
 import { Copy, Download, ExternalLink, Minus, Plus, Printer } from "lucide-react";
 import { useTranslation } from "react-i18next";
@@ -25,7 +25,7 @@ import { useAuthStore } from "@/stores/auth-store";
 import { usePosStore } from "@/stores/pos-store";
 import { usePrinterStore } from "@/stores/printer-store";
 import { useToastStore } from "@/stores/toast-store";
-import { resolveTableQrPrinterContext, tableQrPrintAttemptResponse, tableQrPrintOutcome } from "./table-qr-printing";
+import { createQrPrintRound, tableQrPrintAttemptResponse, tableQrPrintOutcome } from "./table-qr-printing";
 import { QrPrintPreview } from "./qr-print-preview";
 
 const MIN_PRINT_COPIES = 1;
@@ -47,14 +47,13 @@ export function BranchMenuQrDialog({
   const loginUuid = useAuthStore((state) => state.user?.uuid);
   const createBranchMenuQr = usePosStore((state) => state.createBranchMenuQr);
   const executeInvoice = usePrinterStore((state) => state.executeInvoice);
-  const resolveDeviceContext = usePrinterStore((state) => state.resolveDeviceContext);
-  const resolveDeviceIdentity = usePrinterStore((state) => state.resolveDeviceIdentity);
   const showToast = useToastStore((state) => state.show);
   const nativeApp = useIsCapacitorNativeApp();
   const [pending, setPending] = useState(false);
   const [response, setResponse] = useState<BranchMenuQRResponse | null>(null);
   const [qrDataUrl, setQrDataUrl] = useState("");
   const [printing, setPrinting] = useState(false);
+  const [printPending, setPrintPending] = useState(false);
   const [downloading, setDownloading] = useState(false);
   const [printCopies, setPrintCopies] = useState(MIN_PRINT_COPIES);
   const targetUrl = response?.qr_url ?? null;
@@ -62,34 +61,29 @@ export function BranchMenuQrDialog({
   const canDownload = Boolean(qrDataUrl);
   const canPrint = Boolean(pendingJobUuid || qrDataUrl);
   const exportCurrent = useExportCurrent(JSON.stringify([open, targetUrl, qrDataUrl]));
-  const printCurrent = useExportCurrent(JSON.stringify([open, language, loginUuid, printCopies]));
+  const printCurrent = useExportCurrent(JSON.stringify([open, language, loginUuid]));
+  const printRound = useMemo(() => createQrPrintRound<BranchMenuQRResponse>(undefined, printCurrent), [printCurrent]);
 
-  const requestQrWithPrinterContext = useCallback(async (copies: number, isCurrent: () => boolean = () => true) => {
+  const requestQr = useCallback(async (copies: number, isCurrent: () => boolean = () => true, operationUuid?: string) => {
     if (!loginUuid) throw new Error("login_uuid_fk is required");
-
-    const printerContext = await resolveTableQrPrinterContext({
-      loginUuid,
-      resolveDeviceContext,
-      resolveDeviceIdentity,
-    });
-
     if (!isCurrent()) throw new DOMException("QR print cancelled", "AbortError");
 
     return createBranchMenuQr({
       lang: language,
       login_uuid_fk: loginUuid,
-      device_code: printerContext?.device_code,
-      agent_id: printerContext?.agent_id,
-      print_mode: printerContext?.print_mode,
       print: copies,
+      ...(copies > 0 && operationUuid ? { operation_uuid: operationUuid } : {}),
     });
   }, [
     createBranchMenuQr,
     language,
     loginUuid,
-    resolveDeviceContext,
-    resolveDeviceIdentity,
   ]);
+
+  useResetOnChange(printCurrent, () => {
+    setPrinting(false);
+    setPrintPending(false);
+  });
 
   // เปิด dialog = ล้างผลเดิม แล้วค่อยขอ token ใหม่ (ไม่มี qr_ver ให้ revoke จึง
   // ไม่จำเป็นต้อง regenerate ทุกครั้ง แต่ขอซ้ำเพื่อความสด/ง่ายต่อการดีบัก)
@@ -112,7 +106,7 @@ export function BranchMenuQrDialog({
     let ignore = false;
 
     // เปิด modal มีหน้าที่สร้าง/แสดง QR เท่านั้น ห้ามสร้าง print job
-    requestQrWithPrinterContext(0)
+    requestQr(0)
       .then((result) => {
         if (ignore) return;
         setResponse(result);
@@ -135,7 +129,7 @@ export function BranchMenuQrDialog({
   }, [
     loginUuid,
     open,
-    requestQrWithPrinterContext,
+    requestQr,
     showToast,
     t,
   ]);
@@ -198,19 +192,21 @@ export function BranchMenuQrDialog({
   async function printQr() {
     const isCurrent = printCurrent;
     if (!canPrint || printing || !isCurrent()) return;
+    const attempt = printRound.begin(printCopies);
+    if (!attempt) return;
 
     setPrinting(true);
+    setPrintPending(true);
     try {
       const printResponse = await tableQrPrintAttemptResponse({
-        // ทุก click คือคำสั่งพิมพ์ใหม่ จึงค่อยสร้าง queue ตามจำนวนที่เลือก
-        refreshQueue: true,
-        requestQueue: () => requestQrWithPrinterContext(printCopies, isCurrent),
-        response,
+        refreshQueue: !attempt.response,
+        requestQueue: () => requestQr(attempt.copies, isCurrent, attempt.operationUuid),
+        response: attempt.response,
         isCurrent,
       });
       setResponse(printResponse);
 
-      if (!branchMenuQrPendingJobUuid(printResponse)) {
+      if (!printResponse || !branchMenuQrPendingJobUuid(printResponse)) {
         showToast({
           title: t("pos.printQr"),
           description: t("pos.systemPrinterUnavailable"),
@@ -222,6 +218,8 @@ export function BranchMenuQrDialog({
         });
         return;
       }
+      attempt.remember(printResponse);
+      setPrintPending(true);
 
       const printResult = await executeInvoice({
         print_job: printResponse?.print_job ?? undefined,
@@ -230,12 +228,15 @@ export function BranchMenuQrDialog({
       });
       if (!isCurrent()) return;
 
-      const printOutcome = tableQrPrintOutcome(printResult);
+      const printOutcome = tableQrPrintOutcome(printResult, attempt.copies);
+      attempt.settle(printOutcome);
+      setPrintPending(printOutcome === "pending");
       if (printOutcome === "pending") {
         showToast({
           title: t("pos.printQr"),
-          description: t("orderQueue.kitchenPrintQueued"),
+          description: t("pos.documentPrintQueued"),
           tone: "info",
+          action: { label: t("pos.paidReceiptCheckStatus"), onClick: () => void printQr() },
         });
         return;
       }
@@ -243,10 +244,12 @@ export function BranchMenuQrDialog({
       if (printOutcome === "error") {
         showToast({
           title: t("pos.printQr"),
-          description: printResult.errorMessage || t("pos.systemPrinterUnavailable"),
+          description: printResult.errorMessage || t("pos.qrPrintIncomplete", {
+            printed: printResult.successCount, total: Math.max(printResult.total, attempt.copies),
+          }),
           tone: "error",
           action: {
-            label: t("actions.tryAgain"),
+            label: t("pos.manualReprint"),
             onClick: () => void printQr(),
           },
         });
@@ -266,7 +269,8 @@ export function BranchMenuQrDialog({
         },
       });
     } finally {
-      setPrinting(false);
+      attempt.release();
+      if (isCurrent()) setPrinting(false);
     }
   }
 
@@ -328,7 +332,7 @@ export function BranchMenuQrDialog({
                 aria-label={`${t("pos.printCopies")} -`}
                 size="icon"
                 variant="outline"
-                disabled={pending || printCopies <= MIN_PRINT_COPIES}
+                disabled={pending || printing || printPending || printCopies <= MIN_PRINT_COPIES}
                 onClick={() => setPrintCopies((copies) => Math.max(MIN_PRINT_COPIES, copies - 1))}
               >
                 <Minus />
@@ -341,7 +345,7 @@ export function BranchMenuQrDialog({
                 aria-label={`${t("pos.printCopies")} +`}
                 size="icon"
                 variant="outline"
-                disabled={pending || printCopies >= MAX_PRINT_COPIES}
+                disabled={pending || printing || printPending || printCopies >= MAX_PRINT_COPIES}
                 onClick={() => setPrintCopies((copies) => Math.min(MAX_PRINT_COPIES, copies + 1))}
               >
                 <Plus />
@@ -356,9 +360,9 @@ export function BranchMenuQrDialog({
             <Download data-icon="inline-start" />
             {t("pos.downloadQr")}
           </Button>
-          <Button type="button" size="lg" disabled={!canPrint || pending || printing} onClick={() => void printQr()}>
+          <Button type="button" size="lg" className="h-auto min-h-11 min-w-0 whitespace-normal" disabled={!canPrint || pending || printing} onClick={() => void printQr()}>
             {printing ? <Spinner data-icon="inline-start" /> : <Printer data-icon="inline-start" />}
-            {t("pos.printQr")}
+            {t(printPending ? "pos.paidReceiptCheckStatus" : "pos.printQr")}
           </Button>
         </DialogFooter>
         </DialogContent>

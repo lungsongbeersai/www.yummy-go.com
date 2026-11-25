@@ -223,6 +223,7 @@ export const createTableQR = (params: CreateTableQRRequest) =>
   apiRequest<CreateTableQRResponse>("get", "/api/v1/posAll/admin/create_table_qr", {
     params: {
       table_uuid: params.table_uuid,
+      operation_uuid: params.operation_uuid,
       lang: toApiLanguage(params.lang),
       login_uuid_fk: params.login_uuid_fk,
       device_code: params.device_code,
@@ -238,6 +239,7 @@ export const createTableQR = (params: CreateTableQRRequest) =>
 export const createBranchMenuQR = (params: CreateBranchMenuQRRequest) =>
   apiRequest<BranchMenuQRResponse>("get", "/api/v1/posAll/branch_menu_qr/create", {
     params: {
+      operation_uuid: params.operation_uuid,
       lang: toApiLanguage(params.lang),
       login_uuid_fk: params.login_uuid_fk,
       device_code: params.device_code,

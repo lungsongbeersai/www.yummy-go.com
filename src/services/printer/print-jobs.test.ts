@@ -72,6 +72,7 @@ describe("remote Shared print-result observation", () => {
     vi.useFakeTimers();
     vi.clearAllMocks();
     nativeMocks.native = false;
+    transportMocks.getLocalAgentInfo.mockResolvedValue({ agent_id: "owner-agent", device_code: "owner-device" });
     transportMocks.resolvePrinterDeviceIdentity.mockResolvedValue({
       ok: true,
       agent: { device_code: "requester-device", agent_id: "requester-agent" },
@@ -190,7 +191,9 @@ describe("remote Shared print-result observation", () => {
       errorMessage: "Print job was cleared. Use a new manual print request.",
     });
     expect(post).not.toHaveBeenCalled();
-    expect(transportMocks.getLocalAgentInfo).not.toHaveBeenCalled();
+    // The concurrent identity GET is read-only; the cleared response still
+    // prevents every physical transport and ACK.
+    expect(transportMocks.getLocalAgentInfo).toHaveBeenCalledTimes(kind === "kitchen" ? 0 : 1);
     expect(transportMocks.dispatchPrintJob).not.toHaveBeenCalled();
     expect(transportMocks.printBatchWithLocalAgent).not.toHaveBeenCalled();
     expect(onProgress).toHaveBeenLastCalledWith(expect.objectContaining({ phase: "done" }));
@@ -663,6 +666,63 @@ describe("batch completion with unavailable or uncertain companion sheets", () =
       acknowledgements: () => request.mock.calls.filter(([method]) => method === "post"),
     };
   }
+
+  it.each(["identity", "payload"] as const)("overlaps the Agent identity and document preparation, waiting for the slower %s before sending", async (slower) => {
+    const { input, response } = fixture(`parallel-document-${slower}`, {});
+    let finishIdentity!: (value: { agent_id: string; device_code: string }) => void;
+    let finishPayload!: (value: typeof response) => void;
+    const identity = new Promise<{ agent_id: string; device_code: string }>((resolve) => { finishIdentity = resolve; });
+    const payload = new Promise<typeof response>((resolve) => { finishPayload = resolve; });
+    transportMocks.getLocalAgentInfo.mockReturnValueOnce(identity);
+    request.mockImplementation((method: string) => method === "get" ? payload : Promise.resolve({}));
+    const service = await import("./print-jobs");
+    const printing = service.executeInvoicePrintJobs(input);
+    expect(transportMocks.getLocalAgentInfo).toHaveBeenCalledOnce();
+    expect(request).toHaveBeenCalledWith("get", "/api/v1/printer/jobs/pending", expect.anything());
+    expect(transportMocks.printBatchWithLocalAgent).not.toHaveBeenCalled();
+    const agent = { agent_id: "owner-agent", device_code: "owner-device" };
+    if (slower === "identity") finishPayload(response);
+    else finishIdentity(agent);
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(transportMocks.printBatchWithLocalAgent).not.toHaveBeenCalled();
+    if (slower === "identity") finishIdentity(agent);
+    else finishPayload(response);
+    await expect(printing).resolves.toEqual({ successCount: 1, failedCount: 0, total: 1 });
+    expect(transportMocks.getLocalAgentInfo).toHaveBeenCalledOnce();
+    expect(transportMocks.printBatchWithLocalAgent).toHaveBeenCalledExactlyOnceWith(
+      response.print_batch_payloads[0].jobs, agent, expect.any(String), undefined,
+    );
+  });
+
+  it("keeps a failed parallel identity preflight not-sent and never dispatches its document", async () => {
+    const { input, acknowledgements } = fixture("parallel-document-unavailable", {});
+    transportMocks.getLocalAgentInfo.mockRejectedValueOnce(new Error("Agent unavailable"));
+    const service = await import("./print-jobs");
+    await expect(service.executeInvoicePrintJobs(input)).resolves.toEqual({
+      successCount: 0, failedCount: 1, total: 1, errorMessage: "Agent unavailable",
+    });
+    expect(transportMocks.getLocalAgentInfo).toHaveBeenCalledOnce();
+    expect(transportMocks.printBatchWithLocalAgent).not.toHaveBeenCalled();
+    expect(acknowledgements()).toEqual([expect.arrayContaining([
+      "post", "/api/v1/printer/jobs/ack", expect.objectContaining({ data: expect.objectContaining({
+        results: expect.arrayContaining([expect.objectContaining({ delivery_state: "not_sent" })]),
+      }) }),
+    ])]);
+  });
+
+  it.each(["mobile", "desktop", "sunmi-native"])("does not probe a desktop Agent for a %s native/browser identity", async (agentId) => {
+    const { input } = fixture(`parallel-no-agent-${agentId}`, {});
+    input.pending_query.agent_id = agentId;
+    request.mockResolvedValue({ print_batch_payloads: [], print_summary: {
+      requested_job_found: true, requested_job_status: "success", requested_job_total: 1,
+      requested_job_success_total: 1, requested_job_failed_total: 0,
+    } });
+    const service = await import("./print-jobs");
+    await expect(service.executeInvoicePrintJobs(input)).resolves.toEqual({ successCount: 1, failedCount: 0, total: 1 });
+    expect(transportMocks.getLocalAgentInfo).not.toHaveBeenCalled();
+    expect(transportMocks.printBatchWithLocalAgent).not.toHaveBeenCalled();
+  });
 
   it.each(["invoice", "report"] as const)(
     "does not report a complete %s when a grouped kitchen sheet prints but its receipt was not prepared",

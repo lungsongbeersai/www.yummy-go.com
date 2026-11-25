@@ -3,6 +3,8 @@ import { ServiceError } from "@/lib/api";
 import { resolvePrinterDeviceIdentity } from "@/services/printer";
 import {
   confirmToKitchen,
+  createTableQR,
+  createBranchMenuQR,
   fetchCart,
   fetchCateProducts,
   getProdItem,
@@ -35,6 +37,8 @@ vi.mock("@/services/pos", async (importOriginal) => {
   return {
     ...actual,
     confirmToKitchen: vi.fn(),
+    createTableQR: vi.fn(),
+    createBranchMenuQR: vi.fn(),
     fetchCart: vi.fn(),
     fetchCateProducts: vi.fn(),
     getProdItem: vi.fn(),
@@ -121,6 +125,8 @@ function categoryWithProducts(
 describe("POS store session follow-up requests", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    vi.mocked(createTableQR).mockReset();
+    vi.mocked(createBranchMenuQR).mockReset();
     usePrinterStore.setState({ executeKitchen: originalExecuteKitchen });
     usePosStore.getState().reset();
     usePrinterStore.getState().reset();
@@ -137,6 +143,40 @@ describe("POS store session follow-up requests", () => {
     usePosStore.getState().endKitchenConfirmation();
     usePosStore.getState().endKitchenConfirmation();
     expect(usePosStore.getState().activeKitchenConfirmations).toBe(0);
+  });
+
+  it.each(["table", "branch"] as const)("loads a %s QR preview without waiting for printer discovery or registering a printer", async (kind) => {
+    resolvePrinterDeviceIdentityMock.mockReset();
+    const response = { qr_url: "https://example.invalid/q/preview" };
+    vi.mocked(createTableQR).mockResolvedValueOnce(response);
+    vi.mocked(createBranchMenuQR).mockResolvedValueOnce(response);
+    const params = { table_uuid: "table-1", login_uuid_fk: "cashier-1", print: 0 as const,
+      device_code: "stale-device", agent_id: "stale-agent", print_mode: "windows_agent" };
+    const preview = kind === "table"
+      ? usePosStore.getState().createTableQr(params)
+      : usePosStore.getState().createBranchMenuQr(params);
+    await expect(preview).resolves.toEqual(response);
+    expect(resolvePrinterDeviceIdentityMock).not.toHaveBeenCalled();
+    const create = kind === "table" ? createTableQR : createBranchMenuQR;
+    expect(create).toHaveBeenCalledWith({ ...params,
+      device_code: undefined, agent_id: undefined, print_mode: undefined,
+    });
+  });
+
+  it.each(["table", "branch"] as const)("uses the freshly resolved device for a %s QR print and retains its operation identity", async (kind) => {
+    resolvePrinterDeviceIdentityMock.mockResolvedValueOnce({ ok: true, agent: {
+      agent_id: "current-agent", agent_name: "Current POS", device_code: "current-device", platform: "win32",
+    } });
+    const create = kind === "table" ? vi.mocked(createTableQR) : vi.mocked(createBranchMenuQR);
+    create.mockResolvedValueOnce({ pending_query: { print_job_uuid: "qr-job", login_uuid_fk: "cashier-1" } });
+    const params = { table_uuid: "table-1", login_uuid_fk: "cashier-1", print: 1 as const,
+      operation_uuid: "qr-operation-1", device_code: "stale-device", agent_id: "stale-agent" };
+    if (kind === "table") await usePosStore.getState().createTableQr(params);
+    else await usePosStore.getState().createBranchMenuQr(params);
+    expect(resolvePrinterDeviceIdentityMock).toHaveBeenCalledOnce();
+    expect(create).toHaveBeenCalledExactlyOnceWith({ ...params,
+      device_code: "current-device", agent_id: "current-agent", print_mode: "windows_agent",
+    });
   });
 
   it("does not confirm an order after printer resolution crosses a session boundary", async () => {
