@@ -61,6 +61,8 @@ const REMOTE_SHARED_STATUS_POLL_INTERVAL_MS = 500;
 const REMOTE_SHARED_STATUS_MAX_POLLS = 20;
 const REMOTE_SHARED_STATUS_OBSERVATION_MS =
   REMOTE_SHARED_STATUS_POLL_INTERVAL_MS * REMOTE_SHARED_STATUS_MAX_POLLS;
+const UNCERTAIN_DELIVERY_MESSAGE =
+  "Printer delivery is uncertain. Automatic retry was stopped; use a new manual print request.";
 
 function observePrintExecution(jobUuid: string, onProgress?: (progress: PrintProgress) => void) {
   let progress = printExecutionProgress.get(jobUuid);
@@ -748,13 +750,25 @@ function pendingFailedBeforePrintTotal(result: PendingPrintJobsResult) {
 }
 
 function pendingFailedBeforePrintReason(result: PendingPrintJobsResult) {
-  return result.ackFailed?.results?.find((item) => item.status === "failed")?.reason || undefined;
+  const printableItems = new Set(result.ackSuccess?.results.map((item) => item.print_job_item_uuid));
+  return result.ackFailed?.results?.find((item) =>
+    item.status === "failed" && !printableItems.has(item.print_job_item_uuid)
+  )?.reason || result.ackFailed?.results?.find((item) => item.status === "failed")?.reason || undefined;
 }
 
 function pendingUncertainItemTotal(result: PendingPrintJobsResult) {
   const total = Number(result.printSummary.uncertain_item_total ?? 0);
   if (Number.isFinite(total) && total > 0) return total;
   return result.printSummary.has_uncertain_delivery === true ? 1 : 0;
+}
+
+function pendingUncertainTicketTotal(result: PendingPrintJobsResult) {
+  const reconciliation = result.printSummary.reconciliation;
+  if (reconciliation && typeof reconciliation === "object" && "print_jobs_uncertain" in reconciliation) {
+    const total = reconciliation.print_jobs_uncertain;
+    if (typeof total === "number" && Number.isSafeInteger(total) && total > 0) return total;
+  }
+  return pendingUncertainItemTotal(result);
 }
 
 function waitForRemoteSharedStatusPoll(delayMs: number) {
@@ -1089,7 +1103,7 @@ async function executePrintJobs(
     pendingResult.printSummary.has_deferred_remote_delivery === true;
 
   if (pendingResult.hasBatchPayloads && batchPayloads.length === 0) {
-    const uncertainTotal = pendingUncertainItemTotal(pendingResult);
+    const uncertainTotal = pendingUncertainTicketTotal(pendingResult);
     if (uncertainTotal > 0) {
       input.onProgress?.({
         total: uncertainTotal,
@@ -1102,8 +1116,7 @@ async function executePrintJobs(
         successCount: 0,
         failedCount: uncertainTotal,
         total: uncertainTotal,
-        errorMessage:
-          "Printer delivery is uncertain. Automatic retry was stopped; use a new manual print request.",
+        errorMessage: UNCERTAIN_DELIVERY_MESSAGE,
       };
     }
 
@@ -1238,7 +1251,7 @@ async function executePrintJobs(
     let hasPendingDelivery = hasDeferredRemoteDelivery;
     const canConfirmDelivery = !hasPendingDelivery &&
       pendingFailedBeforePrintTotal(pendingResult) === 0 &&
-      pendingUncertainItemTotal(pendingResult) === 0 &&
+      pendingUncertainTicketTotal(pendingResult) === 0 &&
       batchPayloads.every(isMobilePrintBatch);
     let lastErrorMessage: string | undefined;
     let localAgentPromise: Promise<AgentInfo> | null = null;
@@ -1514,30 +1527,40 @@ async function executePrintJobs(
       }
     }
 
+    // Summary failures have no transport batch to contribute an outcome. Count
+    // them after physical delivery so a printed kitchen sheet cannot stand in
+    // for a missing receipt, or conceal an earlier uncertain printer delivery.
+    // Kitchen retains its established no-printer confirmation behavior.
+    const preparationFailures = options.kitchenSemantics ? 0 : pendingFailedBeforePrintTotal(pendingResult);
+    const uncertainTickets = pendingUncertainTicketTotal(pendingResult);
+    const summaryFailures = preparationFailures + uncertainTickets;
+    const completionError = lastErrorMessage || (uncertainTickets > 0
+      ? UNCERTAIN_DELIVERY_MESSAGE
+      : preparationFailures > 0 ? pendingFailedBeforePrintReason(pendingResult) || "Document could not be prepared for printing" : undefined);
+    const result: KitchenPrintResult = {
+      successCount,
+      failedCount: failedCount + summaryFailures,
+      total: total + summaryFailures,
+      ...(hasPendingDelivery && failedCount + summaryFailures === 0 ? { pending: true } : {}),
+      ...(completionError ? { errorMessage: completionError } : {}),
+    };
+
     if (mustObservePrintJob(loginUuid, jobUuid)) {
       return waitForRemoteSharedPrintCompletion({
         input, jobUuid, loginUuid, observingActivePrint: true,
-        initialResult: { successCount, failedCount, total, ...(lastErrorMessage ? { errorMessage: lastErrorMessage } : {}) },
+        initialResult: result,
       });
     }
 
     input.onProgress?.({
-      total,
-      completed: total,
-      successCount,
-      failedCount,
+      total: result.total,
+      completed: result.total,
+      successCount: result.successCount,
+      failedCount: result.failedCount,
       phase: "done",
     });
 
-    return {
-      successCount,
-      failedCount,
-      total,
-      ...(hasPendingDelivery && failedCount === 0 ? { pending: true } : {}),
-      ...(lastErrorMessage
-        ? { errorMessage: lastErrorMessage }
-        : {}),
-    };
+    return result;
 
   }
 

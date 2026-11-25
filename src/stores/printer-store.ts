@@ -177,6 +177,17 @@ function textValue(value: unknown) {
   return String(value ?? "").trim();
 }
 
+function assertTestPrinterDestination(job: PrintJob, printer: Printer | undefined) {
+  if (!printer) return;
+  const destinationChanged = (["interface_value", "device_code", "agent_id"] as const).some((key) => {
+    const expected = textValue(printer[key]);
+    return expected && expected !== textValue(job[key]);
+  });
+  if (destinationChanged) {
+    throw new Error("Printer destination changed. Refresh the printer list before testing.");
+  }
+}
+
 function localSharedTcpTestJob(
   job: PrintJob,
   printer: Printer | undefined,
@@ -187,6 +198,7 @@ function localSharedTcpTestJob(
   if (
     printer?.is_shared !== true ||
     textValue(printer.connect_type).toLowerCase() !== "tcp" ||
+    !/^tcp:\/\//i.test(textValue(job.interface_value)) ||
     !agentId ||
     !deviceCode ||
     isBrowserPrinterAgentId(agentId)
@@ -863,6 +875,7 @@ export const usePrinterStore = create<PrinterState>((set, get) => ({
       if (input.print_config_uuid && job.print_config_uuid !== input.print_config_uuid) {
         throw new Error("Test print job does not match the selected printer");
       }
+      assertTestPrinterDestination(job, selectedPrinter);
       // The API prints the selected row even when routing sends real orders to
       // another config at the same address, and says so here.
       const routingWarning = result.data.routing_warning?.trim() || null;
@@ -993,6 +1006,7 @@ export const usePrinterStore = create<PrinterState>((set, get) => ({
       if (input.print_config_uuid && job.print_config_uuid !== input.print_config_uuid) {
         throw new Error("Cash drawer command does not match the selected printer");
       }
+      assertTestPrinterDestination(job, selectedPrinter);
       const localAgent = get().agent;
       const localTestJob = localSharedTcpTestJob(job, selectedPrinter, localAgent);
       if (localTestJob && localAgent) {

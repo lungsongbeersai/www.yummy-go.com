@@ -610,3 +610,164 @@ describe("an active print round owned by another browser execution", () => {
     expect([...records.keys()].some((key) => key.startsWith("yummy_printer_observation:"))).toBe(false);
   });
 });
+
+describe("batch completion with unavailable or uncertain companion sheets", () => {
+  const request = vi.fn();
+
+  beforeEach(() => {
+    vi.resetModules();
+    vi.resetAllMocks();
+    nativeMocks.native = false;
+    vi.doMock("@/lib/api", () => ({ apiRequest: request, ServiceError }));
+    transportMocks.getLocalAgentInfo.mockResolvedValue({ agent_id: "owner-agent", device_code: "owner-device" });
+    transportMocks.printBatchWithLocalAgent.mockResolvedValue(undefined);
+  });
+
+  afterEach(() => {
+    vi.doUnmock("@/lib/api");
+    vi.resetModules();
+    vi.unstubAllGlobals();
+  });
+
+  function fixture(jobUuid: string, summary: Record<string, unknown>, withPreparationFailure = false) {
+    const job = {
+      job_id: `${jobUuid}-food`, print_config_uuid: "kitchen", interface_value: "win:Kitchen",
+      agent_id: "owner-agent", device_code: "owner-device", ops: [],
+      meta: { print_job_item_uuids: ["rice", "pork"] },
+    };
+    const response = {
+      print_batch_payloads: [{
+        agent_id: job.agent_id, device_code: job.device_code, interface_value: job.interface_value,
+        print_config_uuid: job.print_config_uuid, jobs: [job],
+        // Two queue items share one physical sheet; a failed receipt is another
+        // sheet, so final totals must not count the item mappings as tickets.
+        print_job_item_uuids: ["rice", "pork"], job_total: 2,
+      }],
+      print_summary: summary,
+      ack_success_payload: { print_job_uuid: jobUuid, results: [
+        { print_job_item_uuid: "rice", status: "success" },
+        { print_job_item_uuid: "pork", status: "success" },
+      ] },
+      ack_failed_payload: { print_job_uuid: jobUuid, results: [
+        { print_job_item_uuid: "rice", status: "failed", reason: "Physical delivery failed" },
+        { print_job_item_uuid: "pork", status: "failed", reason: "Physical delivery failed" },
+        ...(withPreparationFailure ? [{ print_job_item_uuid: "receipt", status: "failed", reason: "Receipt printer unavailable" }] : []),
+      ] },
+    };
+    request.mockImplementation(async (method: string) => method === "get" ? response : {});
+    return {
+      response,
+      input: { pending_query: {
+        print_job_uuid: jobUuid, login_uuid_fk: "cashier", device_code: job.device_code, agent_id: job.agent_id,
+      } },
+      acknowledgements: () => request.mock.calls.filter(([method]) => method === "post"),
+    };
+  }
+
+  it.each(["invoice", "report"] as const)(
+    "does not report a complete %s when a grouped kitchen sheet prints but its receipt was not prepared",
+    async (kind) => {
+      const { input, acknowledgements } = fixture(`prepared-companion-${kind}`, { failed_before_print_total: 1 }, true);
+      const service = await import("./print-jobs");
+      const execute = kind === "invoice" ? service.executeInvoicePrintJobs : service.executeReportPrintJobs;
+      const onProgress = vi.fn();
+      await expect(execute({ ...input, onProgress })).resolves.toEqual({
+        successCount: 1, failedCount: 1, total: 2, errorMessage: "Receipt printer unavailable",
+      });
+      expect(transportMocks.printBatchWithLocalAgent).toHaveBeenCalledOnce();
+      expect(onProgress).toHaveBeenLastCalledWith({ total: 2, completed: 2, successCount: 1, failedCount: 1, phase: "done" });
+      expect(onProgress).not.toHaveBeenCalledWith(expect.objectContaining({ deliveryComplete: true }));
+      expect(acknowledgements()[0][2]?.data.results).toEqual([
+        expect.objectContaining({ print_job_item_uuid: "rice", status: "success", delivery_state: "printed" }),
+        expect.objectContaining({ print_job_item_uuid: "pork", status: "success", delivery_state: "printed" }),
+        expect.objectContaining({ print_job_item_uuid: "receipt", status: "failed", reason: "Receipt printer unavailable" }),
+      ]);
+    },
+  );
+
+  it.each(["invoice", "kitchen"] as const)("counts uncertain physical %s tickets without resending them", async (kind) => {
+    const { input, acknowledgements } = fixture(`uncertain-companion-${kind}`, {
+      uncertain_item_total: 1, has_uncertain_delivery: true,
+      reconciliation: { print_jobs_uncertain: 3 },
+    });
+    const service = await import("./print-jobs");
+    const execute = kind === "invoice" ? service.executeInvoicePrintJobs : service.executeKitchenPrintJobs;
+    const onProgress = vi.fn();
+    await expect(execute({ ...input, onProgress })).resolves.toEqual({
+      successCount: 1, failedCount: 3, total: 4,
+      errorMessage: "Printer delivery is uncertain. Automatic retry was stopped; use a new manual print request.",
+    });
+    expect(transportMocks.printBatchWithLocalAgent).toHaveBeenCalledOnce();
+    expect(acknowledgements()[0][2]?.data.results).toHaveLength(2);
+    expect(onProgress).toHaveBeenLastCalledWith({ total: 4, completed: 4, successCount: 1, failedCount: 3, phase: "done" });
+    expect(onProgress).not.toHaveBeenCalledWith(expect.objectContaining({ deliveryComplete: true }));
+  });
+
+  it("keeps the existing kitchen confirmation result for an unmapped companion", async () => {
+    const { input } = fixture("unmapped-kitchen-companion", { failed_before_print_total: 1 }, true);
+    const service = await import("./print-jobs");
+    await expect(service.executeKitchenPrintJobs(input)).resolves.toEqual({ successCount: 1, failedCount: 0, total: 1 });
+  });
+
+  it("preserves a confirmed group prefix while adding earlier uncertainty and a new transport failure", async () => {
+    const { input, response, acknowledgements } = fixture("partial-and-uncertain", {
+      uncertain_item_total: 1, has_uncertain_delivery: true,
+      reconciliation: { print_jobs_uncertain: 2 },
+    });
+    const batch = response.print_batch_payloads[0];
+    batch.jobs.push({ ...batch.jobs[0], job_id: "drinks", meta: { print_job_item_uuids: ["beer"] } });
+    batch.print_job_item_uuids.push("beer");
+    response.ack_success_payload.results.push({ print_job_item_uuid: "beer", status: "success" });
+    response.ack_failed_payload.results.push({ print_job_item_uuid: "beer", status: "failed", reason: "Physical delivery failed" });
+    transportMocks.printBatchWithLocalAgent.mockRejectedValueOnce(Object.assign(new Error("Drinks delivery is uncertain"), {
+      completed_jobs: 1, delivery_state: "unknown",
+    }));
+    const service = await import("./print-jobs");
+    await expect(service.executeInvoicePrintJobs(input)).resolves.toEqual({
+      successCount: 1, failedCount: 3, total: 4, errorMessage: "Drinks delivery is uncertain",
+    });
+    expect(transportMocks.printBatchWithLocalAgent).toHaveBeenCalledOnce();
+    expect(acknowledgements()[0][2]?.data.results).toEqual([
+      expect.objectContaining({ print_job_item_uuid: "rice", delivery_state: "printed" }),
+      expect.objectContaining({ print_job_item_uuid: "pork", delivery_state: "printed" }),
+      expect.objectContaining({ print_job_item_uuid: "beer", delivery_state: "unknown" }),
+    ]);
+  });
+
+  it("uses item uncertainty as a compatibility fallback when physical counts are absent", async () => {
+    const { input } = fixture("legacy-uncertain-companion", { uncertain_item_total: 2 });
+    const service = await import("./print-jobs");
+    await expect(service.executeInvoicePrintJobs(input)).resolves.toMatchObject({ successCount: 1, failedCount: 2, total: 3 });
+  });
+
+  it("does not signal native completion when only physical reconciliation reports unknown tickets", async () => {
+    const { input, response } = fixture("physical-only-uncertainty", {
+      uncertain_item_total: 0, reconciliation: { print_jobs_uncertain: 2 },
+    });
+    const interfaceValue = "tcp://192.168.1.20:9100";
+    const batch = response.print_batch_payloads[0];
+    Object.assign(batch, {
+      interface_value: interfaceValue, print_mode: "mobile_wifi",
+      mobile_escpos: { interface_value: interfaceValue, escpos_base64: "G0A=" },
+    });
+    batch.jobs[0].interface_value = interfaceValue;
+    const records = new Map<string, string>();
+    vi.stubGlobal("window", { localStorage: {
+      getItem: (key: string) => records.get(key) ?? null,
+      setItem: (key: string, value: string) => { records.set(key, value); },
+      removeItem: (key: string) => { records.delete(key); },
+    } });
+    nativeMocks.native = true;
+    nativeMocks.printTcp.mockImplementationOnce(async ({ on_ticket_delivered }: {
+      on_ticket_delivered?: (completed: number, total: number) => void;
+    }) => { on_ticket_delivered?.(1, 1); });
+    const service = await import("./print-jobs");
+    const onProgress = vi.fn();
+    await expect(service.executeInvoicePrintJobs({ ...input, onProgress })).resolves.toMatchObject({
+      successCount: 1, failedCount: 2, total: 3,
+    });
+    expect(nativeMocks.printTcp).toHaveBeenCalledOnce();
+    expect(transportMocks.printBatchWithLocalAgent).not.toHaveBeenCalled();
+    expect(onProgress).not.toHaveBeenCalledWith(expect.objectContaining({ deliveryComplete: true }));
+  });
+});

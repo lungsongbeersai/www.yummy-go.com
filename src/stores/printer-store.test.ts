@@ -861,6 +861,8 @@ describe("printer store", () => {
         printer: {},
         job: {
           print_config_uuid: "printer-1",
+          agent_id: "saved-agent",
+          device_code: "mac-laptop-web-owner",
           interface_value: "tcp://192.168.100.78:9100",
           lang: "la",
           ops: [],
@@ -1222,6 +1224,27 @@ describe("printer store", () => {
     await expect(usePrinterStore.getState().testDrawer(input)).rejects.toThrow("Confirm the printer is ready");
     expect(buildTestJobMock).not.toHaveBeenCalled();
     expect(dispatchCashDrawerMock).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    ["printer test", "tcp://192.168.1.20:9100", { interface_value: "win:Receipt" }],
+    ["printer test", "tcp://192.168.1.20:9100", { interface_value: "tcp://192.168.1.21:9100" }],
+    ["printer test", "win:Receipt", { device_code: "other-terminal", agent_id: "other-agent" }],
+    ["drawer test", "tcp://192.168.1.20:9100", { interface_value: "win:Receipt" }],
+    ["drawer test", "tcp://192.168.1.20:9100", { interface_value: "tcp://192.168.1.21:9100" }],
+    ["drawer test", "win:Receipt", { device_code: "other-terminal", agent_id: "other-agent" }],
+  ] as const)("stops a stale %s for %s when its destination changes to %j", async (kind, interfaceValue, changed) => {
+    const fixture = kind === "printer test"
+      ? printerTestFixture(interfaceValue)
+      : drawerFixture({ interface_value: interfaceValue, connect_type: interfaceValue.startsWith("tcp:") ? "tcp" : "usb" });
+    usePrinterStore.setState({ printers: [{ ...fixture.printer, is_shared: true }] });
+    buildTestJobMock.mockResolvedValueOnce({ data: { job: { ...fixture.job, ...changed }, printer: {} } });
+    const execute = kind === "printer test" ? usePrinterStore.getState().test : usePrinterStore.getState().testDrawer;
+    await expect(execute(fixture.input)).rejects.toThrow("destination changed");
+    expect(dispatchPrintJobMock).not.toHaveBeenCalled();
+    expect(dispatchCashDrawerMock).not.toHaveBeenCalled();
+    expect(renderMobileEscpos).not.toHaveBeenCalled();
+    expect(usePrinterStore.getState().printing).toBe(false);
   });
 
   it("does not send a drawer command built for the previous session", async () => {
