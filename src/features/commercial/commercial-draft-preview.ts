@@ -1,6 +1,6 @@
-import { commercialLineInput, commercialTotals, validCommercialDiscount, type CommercialDraftLine, type CommercialDiscountOptions } from "@/features/commercial/commercial-domain";
+import { commercialLineInput, commercialTotals, validCommercialAmount, validCommercialDiscount, type CommercialDraftLine, type CommercialDiscountOptions } from "@/features/commercial/commercial-domain";
 import { commercialPaymentPreview } from "@/features/commercial/commercial-payment";
-import type { CommercialDocument, CommercialDocumentItem, CommercialDocumentType, CommercialParty, CommercialPaymentDetails } from "@/services/commercial";
+import type { CommercialDocument, CommercialDocumentItem, CommercialDocumentType, CommercialParty, CommercialPaymentCurrency, CommercialPaymentDetails } from "@/services/commercial";
 
 export interface CommercialDraftPreviewInput {
   branchUuid: string;
@@ -13,6 +13,7 @@ export interface CommercialDraftPreviewInput {
   paymentMethod: string;
   showImages: boolean;
   paymentDetails?: CommercialPaymentDetails;
+  currency?: CommercialPaymentCurrency;
   taxRate: number;
   lines: CommercialDraftLine[];
   draftLabel: string;
@@ -29,15 +30,15 @@ export interface CommercialDraftPreviewDocument extends CommercialDocument {
 }
 
 const maxMoney = 9_000_000_000_000;
-const safeAmount = (value: number) => Number.isSafeInteger(value) && value >= 0 && value <= maxMoney;
+const safeAmount = (value: number) => Number.isFinite(value) && value >= 0 && value <= maxMoney;
 
-function previewLine(line: CommercialDraftLine) {
+function previewLine(line: CommercialDraftLine, currency?: string | null) {
   const input = commercialLineInput(line);
   const quantityValid = Number.isFinite(input.quantity) && input.quantity > 0 && input.quantity <= 999_999.999 &&
     /^\d+(?:\.\d{1,3})?$/.test(String(input.quantity));
-  const priceValid = Boolean(line.unit_price.trim()) && safeAmount(input.unit_price);
+  const priceValid = Boolean(line.unit_price.trim()) && validCommercialAmount(line.unit_price, currency);
   const normalized = { ...line, quantity: String(quantityValid ? input.quantity : 0), unit_price: String(priceValid ? input.unit_price : 0) };
-  const calculated = commercialTotals([normalized], 0).subtotal;
+  const calculated = commercialTotals([normalized], 0, {}, currency).subtotal;
   const amountValid = safeAmount(calculated);
   // Keep incomplete edits renderable without exposing an unsafe total. The
   // editor retains its original strings and still validates before issuing.
@@ -59,11 +60,11 @@ function previewLine(line: CommercialDraftLine) {
 }
 
 export function buildCommercialDraftPreview(input: CommercialDraftPreviewInput): CommercialDraftPreviewDocument {
-  const lines = input.lines.map(previewLine);
+  const lines = input.lines.map((line) => previewLine(line, input.currency));
   const taxRate = input.taxRate === 10 ? 10 : 0;
   const discount = { discountType: input.discountType, discountValue: input.discountValue };
-  const calculated = commercialTotals(lines.map((line) => line.normalized), taxRate, discount);
-  const discountValid = validCommercialDiscount(calculated.subtotal, discount);
+  const calculated = commercialTotals(lines.map((line) => line.normalized), taxRate, discount, input.currency);
+  const discountValid = validCommercialDiscount(calculated.subtotal, discount, input.currency);
   const totalsValid = Object.values(calculated).every(safeAmount) && discountValid;
   const totals = totalsValid ? calculated : { subtotal: 0, discountAmount: 0, taxAmount: 0, total: 0 };
   const receipt = input.documentType === "receipt";
@@ -82,6 +83,7 @@ export function buildCommercialDraftPreview(input: CommercialDraftPreviewInput):
     payment_method: receipt ? input.paymentMethod : "",
     show_images: input.showImages,
     payment_details: input.paymentDetails ? commercialPaymentPreview(input.paymentDetails) : undefined,
+    currency: input.currency ?? "LAK",
     tax_rate: taxRate,
     discount_type: discountValue > 0 ? input.discountType ?? "amount" : null,
     discount_value: discountValue,

@@ -81,3 +81,24 @@ describe("commercial LAK arithmetic", () => {
     expect(items[0].name).toBe("Original name");
   });
 });
+
+describe("document currency", () => {
+  const line = (quantity: string, unit_price: string) => ({ key: unit_price, name: "Item", description: "", unit: "", quantity, unit_price, show_image: false });
+
+  it("keeps THB/USD cents exact and matches server rounding", async () => {
+    const { commercialTotals, formatCommercialMoney, validCommercialAmount } = await import("./commercial-domain");
+    const totals = commercialTotals([line("3", "19.99"), line("0.5", "0.05")], 10, { discountType: "amount", discountValue: "1.25" }, "USD");
+    expect(totals).toEqual({ subtotal: 60, discountAmount: 1.25, taxAmount: 5.88, total: 64.63 });
+    expect(formatCommercialMoney(64.6, "USD")).toBe("64.60");
+    expect(validCommercialAmount("1.5", "LAK")).toBe(false);
+    expect(validCommercialAmount("1.555", "THB")).toBe(false);
+    expect(validCommercialAmount("1.55", "THB")).toBe(true);
+  });
+
+  it("reads amounts in Lao with the selected currency", async () => {
+    const { commercialAmountWords } = await import("./commercial-print");
+    expect(commercialAmountWords(1_250_000)).toBe("ໜຶ່ງລ້ານສອງແສນຫ້າໝື່ນກີບຖ້ວນ");
+    expect(commercialAmountWords(50, "USD")).toBe("ຫ້າສິບໂດລາສະຫະລັດຖ້ວນ");
+    expect(commercialAmountWords(92.49, "THB")).toBe("ເກົ້າສິບສອງບາດ ສີ່ສິບເກົ້າສະຕາງ");
+  });
+});

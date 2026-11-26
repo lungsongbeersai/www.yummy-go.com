@@ -1,4 +1,4 @@
-import { COMMERCIAL_MAX_MONEY, commercialTotals, validCommercialDate, validCommercialDiscount, validCommercialDocumentItems, type CommercialDraftLine } from "@/features/commercial/commercial-domain";
+import { COMMERCIAL_MAX_MONEY, commercialCurrencyDecimals, commercialTotals, validCommercialAmount, validCommercialDate, validCommercialDiscount, validCommercialDocumentItems, type CommercialDraftLine } from "@/features/commercial/commercial-domain";
 import { validCommercialPaymentDetails, validCommercialPaymentDraft, type CommercialPaymentDraft } from "@/features/commercial/commercial-payment";
 import type { CommercialParty, CreateCommercialDocumentInput } from "@/services/commercial";
 
@@ -27,15 +27,15 @@ export function firstInvalidCommercialField(input: CreateCommercialDocumentInput
     if ((item.description?.length ?? 0) > 3000) return `${key}-description`;
     if (line?.quantity.trim() === "" || !Number.isFinite(item.quantity) || item.quantity <= 0 || item.quantity > 999999.999 || !/^\d+(?:\.\d{1,3})?$/.test(String(item.quantity))) return `${key}-quantity`;
     if ((item.unit?.length ?? 0) > 60) return `${key}-unit`;
-    if (line?.unit_price.trim() === "" || !Number.isSafeInteger(item.unit_price) || item.unit_price < 0 || item.unit_price > COMMERCIAL_MAX_MONEY || !validCommercialDocumentItems([item])) return `${key}-price`;
+    if (line?.unit_price.trim() === "" || !validCommercialAmount(line?.unit_price ?? item.unit_price, input.currency) || !validCommercialDocumentItems([item], input.currency)) return `${key}-price`;
   }
-  if (!validCommercialDocumentItems(input.items)) return draftLines?.[0] ? `${draftLines[0].key}-price` : "commercial-add-line";
+  if (!validCommercialDocumentItems(input.items, input.currency)) return draftLines?.[0] ? `${draftLines[0].key}-price` : "commercial-add-line";
   if (!validCommercialPaymentDetails(input.payment_details, input.issuer.bank_details) || (payment && !validCommercialPaymentDraft(payment, input.issuer.bank_details))) return "commercial-payment-profile";
   const lines = draftLines ?? input.items.map((item, index) => ({ key: String(index), name: item.name, description: item.description ?? "", unit: item.unit ?? "", quantity: String(item.quantity), unit_price: String(item.unit_price), show_image: item.show_image ?? true }));
   const discount = { discountType: input.discount_type, discountValue: input.discount_value };
-  const totals = commercialTotals(lines, input.tax_rate, discount);
+  const totals = commercialTotals(lines, input.tax_rate, discount, input.currency);
   if ((input.notes?.length ?? 0) > 5000) return "commercial-notes";
-  if (!validCommercialDiscount(totals.subtotal, discount)) return "commercial-discount";
-  if (![0, 10].includes(input.tax_rate) || !Object.values(totals).every((amount) => Number.isSafeInteger(amount) && amount >= 0 && amount <= COMMERCIAL_MAX_MONEY)) return "commercial-tax";
+  if (!validCommercialDiscount(totals.subtotal, discount, input.currency)) return "commercial-discount";
+  if (![0, 10].includes(input.tax_rate) || !Object.values(totals).every((amount) => Number.isFinite(amount) && amount >= 0 && amount <= COMMERCIAL_MAX_MONEY && Number.isSafeInteger(Math.round(amount * 10 ** commercialCurrencyDecimals(input.currency))))) return "commercial-tax";
   return null;
 }

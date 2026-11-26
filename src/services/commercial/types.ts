@@ -124,6 +124,7 @@ export interface CommercialDocument extends ApiEntity {
   payment_method: string;
   show_images: boolean;
   payment_details?: CommercialPaymentDetails;
+  currency?: CommercialPaymentCurrency;
   tax_rate: 0 | 10;
   discount_type: CommercialDiscountType | null;
   discount_value: number;
@@ -154,6 +155,7 @@ export interface CreateCommercialDocumentInput extends ApiEntity {
   payment_method?: string;
   show_images: boolean;
   payment_details?: CommercialPaymentDetailsInput;
+  currency?: CommercialPaymentCurrency;
   tax_rate: 0 | 10;
   discount_type?: CommercialDiscountType | null;
   discount_value?: number;

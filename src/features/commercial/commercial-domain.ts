@@ -68,7 +68,37 @@ export interface CommercialDiscountOptions {
 
 export const COMMERCIAL_MAX_MONEY = 9_000_000_000_000;
 
-function discountForSubtotal(subtotal: bigint, options: CommercialDiscountOptions): bigint | null {
+export const COMMERCIAL_CURRENCIES = ["LAK", "THB", "USD"] as const;
+export type CommercialCurrency = (typeof COMMERCIAL_CURRENCIES)[number];
+
+/** LAK is whole kip; THB and USD allow two decimal places. */
+export function commercialCurrencyDecimals(currency: string | null | undefined) {
+  return currency === "THB" || currency === "USD" ? 2 : 0;
+}
+
+/** Locale key of the short currency label shown next to amounts. */
+export function commercialCurrencyLabelKey(currency: string | null | undefined): "lak" | "thb" | "usd" {
+  return currency === "THB" ? "thb" : currency === "USD" ? "usd" : "lak";
+}
+
+/** Exact integer minor units (kip, satang or cents), or null when invalid for the currency. */
+function minorUnits(value: string | number | null | undefined, decimals: number): bigint | null {
+  const text = typeof value === "number" ? (Number.isFinite(value) ? String(value) : "") : String(value ?? "").trim();
+  const match = (decimals ? /^(\d{1,13})(?:\.(\d{1,2}))?$/ : /^(\d{1,13})$/).exec(text);
+  if (!match) return null;
+  const unit = BigInt(10 ** decimals);
+  const amount = BigInt(match[1]) * unit + BigInt((match[2] ?? "").padEnd(decimals, "0") || "0");
+  return amount <= BigInt(COMMERCIAL_MAX_MONEY) * unit ? amount : null;
+}
+
+const majorUnits = (minor: bigint, decimals: number) => decimals ? Number(minor) / 10 ** decimals : Number(minor);
+
+/** Whether a price or amount is a valid non-negative value for the currency. */
+export function validCommercialAmount(value: string | number, currency?: string | null) {
+  return minorUnits(value, commercialCurrencyDecimals(currency)) !== null;
+}
+
+function discountForSubtotal(subtotal: bigint, options: CommercialDiscountOptions, decimals = 0): bigint | null {
   if (options.discountType != null && !["amount", "percent"].includes(options.discountType)) return null;
   const value = Number(options.discountValue ?? 0);
   if (!Number.isFinite(value) || value < 0) return null;
@@ -80,15 +110,17 @@ function discountForSubtotal(subtotal: bigint, options: CommercialDiscountOption
     const basisPoints = BigInt(match[1]) * BigInt(100) + BigInt((match[2] ?? "").padEnd(2, "0"));
     discount = (subtotal * basisPoints + BigInt(5000)) / BigInt(10000);
   } else {
-    if (!Number.isSafeInteger(value) || value > COMMERCIAL_MAX_MONEY) return null;
-    discount = BigInt(value);
+    const amount = minorUnits(value, decimals);
+    if (amount === null) return null;
+    discount = amount;
   }
   return discount <= subtotal ? discount : null;
 }
 
-export function validCommercialDiscount(subtotal: number, options: CommercialDiscountOptions = {}) {
-  return Number.isSafeInteger(subtotal) && subtotal >= 0 && subtotal <= COMMERCIAL_MAX_MONEY &&
-    discountForSubtotal(BigInt(subtotal), options) !== null;
+export function validCommercialDiscount(subtotal: number, options: CommercialDiscountOptions = {}, currency?: string | null) {
+  const decimals = commercialCurrencyDecimals(currency);
+  const minor = minorUnits(subtotal, decimals);
+  return minor !== null && discountForSubtotal(minor, options, decimals) !== null;
 }
 
 export function validCommercialItem(name: string, price: string) {
@@ -103,11 +135,12 @@ function quantityThousandths(value: string | number) {
   return BigInt(match[1]) * BigInt(1000) + BigInt((match[2] ?? "").padEnd(3, "0"));
 }
 
-function lineTotal(quantity: string | number, price: string | number) {
+/** Line total in minor units, rounded half up to a whole kip/satang/cent. */
+function lineTotal(quantity: string | number, price: string | number, decimals = 0) {
   const scaledQuantity = quantityThousandths(quantity);
-  const unitPrice = Number(price);
-  return scaledQuantity && Number.isSafeInteger(unitPrice) && unitPrice >= 0
-    ? (BigInt(unitPrice) * scaledQuantity + BigInt(500)) / BigInt(1000) : BigInt(0);
+  const unitPrice = minorUnits(price, decimals);
+  return scaledQuantity && unitPrice !== null
+    ? (unitPrice * scaledQuantity + BigInt(500)) / BigInt(1000) : BigInt(0);
 }
 
 export function validCommercialDate(value: string) {
@@ -116,35 +149,40 @@ export function validCommercialDate(value: string) {
   return Number.isFinite(date.getTime()) && date.toISOString().slice(0, 10) === value;
 }
 
-export function validCommercialDocumentItems(items: CommercialDocumentItemInput[]) {
-  const subtotal = items.reduce((sum, line) => sum + lineTotal(line.quantity, line.unit_price), BigInt(0));
+export function validCommercialDocumentItems(items: CommercialDocumentItemInput[], currency?: string | null) {
+  const decimals = commercialCurrencyDecimals(currency);
+  const subtotal = items.reduce((sum, line) => sum + lineTotal(line.quantity, line.unit_price, decimals), BigInt(0));
   return items.length > 0 && items.length <= 100 && items.every((line) =>
-    line.name.trim() && quantityThousandths(line.quantity) !== null &&
-    Number.isSafeInteger(line.unit_price) && line.unit_price >= 0 && line.unit_price <= COMMERCIAL_MAX_MONEY,
-  ) && subtotal <= BigInt(COMMERCIAL_MAX_MONEY);
+    line.name.trim() && quantityThousandths(line.quantity) !== null && minorUnits(line.unit_price, decimals) !== null,
+  ) && subtotal <= BigInt(COMMERCIAL_MAX_MONEY) * BigInt(10 ** decimals);
 }
 
 export function validCommercialDocument(input: CreateCommercialDocumentInput) {
   if (![0, 10].includes(input.tax_rate) || !validCommercialPaymentDetails(input.payment_details, input.issuer.bank_details)) return false;
-  const subtotal = input.items.reduce((sum, line) => sum + lineTotal(line.quantity, line.unit_price), BigInt(0));
-  const discount = discountForSubtotal(subtotal, { discountType: input.discount_type, discountValue: input.discount_value });
+  const decimals = commercialCurrencyDecimals(input.currency);
+  const subtotal = input.items.reduce((sum, line) => sum + lineTotal(line.quantity, line.unit_price, decimals), BigInt(0));
+  const discount = discountForSubtotal(subtotal, { discountType: input.discount_type, discountValue: input.discount_value }, decimals);
   if (discount === null) return false;
   const net = subtotal - discount;
   const total = net + (net * BigInt(input.tax_rate) + BigInt(50)) / BigInt(100);
   return Boolean(input.branch_uuid && input.customer.name.trim() && input.issuer.name.trim() &&
     validCommercialDate(input.issued_on) &&
     (!input.valid_until || (validCommercialDate(input.valid_until) && input.valid_until >= input.issued_on)) &&
-    validCommercialDocumentItems(input.items) && total <= BigInt(COMMERCIAL_MAX_MONEY));
+    validCommercialDocumentItems(input.items, input.currency) && total <= BigInt(COMMERCIAL_MAX_MONEY) * BigInt(10 ** decimals));
 }
 
-export function commercialTotals(lines: CommercialDraftLine[], taxRate: number, discount: CommercialDiscountOptions = {}) {
-  const subtotal = lines.reduce((sum, line) => sum + lineTotal(line.quantity, line.unit_price), BigInt(0));
-  const discountAmount = discountForSubtotal(subtotal, discount) ?? BigInt(0);
+export function commercialTotals(lines: CommercialDraftLine[], taxRate: number, discount: CommercialDiscountOptions = {}, currency?: string | null) {
+  const decimals = commercialCurrencyDecimals(currency);
+  const subtotal = lines.reduce((sum, line) => sum + lineTotal(line.quantity, line.unit_price, decimals), BigInt(0));
+  const discountAmount = discountForSubtotal(subtotal, discount, decimals) ?? BigInt(0);
   const net = subtotal - discountAmount;
   const taxAmount = (net * BigInt([0, 10].includes(taxRate) ? taxRate : 0) + BigInt(50)) / BigInt(100);
-  return { subtotal: Number(subtotal), discountAmount: Number(discountAmount), taxAmount: Number(taxAmount), total: Number(net + taxAmount) };
+  return { subtotal: majorUnits(subtotal, decimals), discountAmount: majorUnits(discountAmount, decimals),
+    taxAmount: majorUnits(taxAmount, decimals), total: majorUnits(net + taxAmount, decimals) };
 }
 
-export function formatCommercialMoney(value: number) {
-  return new Intl.NumberFormat("en-US", { maximumFractionDigits: 0 }).format(value);
+/** Amounts use the currency's fixed decimals: 1,250,000 kip or 64.63 USD. */
+export function formatCommercialMoney(value: number, currency?: string | null) {
+  const decimals = commercialCurrencyDecimals(currency);
+  return new Intl.NumberFormat("en-US", { minimumFractionDigits: decimals, maximumFractionDigits: decimals }).format(value);
 }

@@ -1,4 +1,4 @@
-import type { CatalogItem, CommercialDocument, CommercialParty } from "@/services/commercial";
+import type { CatalogItem, CommercialDocument, CommercialParty, CommercialPaymentCurrency } from "@/services/commercial";
 import { escapeHtml } from "@/services/printer/invoice-print-window";
 import type { LaoFont } from "@/stores/app-store";
 import { COMMERCIAL_PAPER } from "./commercial-paper";
@@ -34,16 +34,35 @@ function laoUnderMillion(amount: number): string {
   return result;
 }
 
-export function commercialAmountWords(amount: number): string {
-  if (!Number.isSafeInteger(amount) || amount < 0) return "";
-  const words = (value: number): string => value >= 1_000_000
-    ? words(Math.floor(value / 1_000_000)) + "ລ້ານ" + laoUnderMillion(value % 1_000_000)
-    : laoUnderMillion(value);
-  return `${amount === 0 ? digits[0] : words(amount)}ກີບຖ້ວນ`;
+const currencyWords: Record<CommercialPaymentCurrency, { major: string; minor: string }> = {
+  LAK: { major: "ກີບ", minor: "" },
+  THB: { major: "ບາດ", minor: "ສະຕາງ" },
+  USD: { major: "ໂດລາສະຫະລັດ", minor: "ເຊັນ" },
+};
+
+function laoNumberWords(value: number): string {
+  if (value === 0) return digits[0];
+  const words = (amount: number): string => amount >= 1_000_000
+    ? words(Math.floor(amount / 1_000_000)) + "ລ້ານ" + laoUnderMillion(amount % 1_000_000)
+    : laoUnderMillion(amount);
+  return words(value);
 }
 
-export function commercialMoney(value: number): string {
-  return new Intl.NumberFormat("en-US", { maximumFractionDigits: 0 }).format(value);
+/** Lao amount in words, e.g. ຫ້າສິບໂດລາສະຫະລັດຖ້ວນ or ຫ້າສິບໂດລາສະຫະລັດ ຫ້າສິບເຊັນ. */
+export function commercialAmountWords(amount: number, currency: CommercialPaymentCurrency = "LAK"): string {
+  const unit = currencyWords[currency] ?? currencyWords.LAK;
+  const scale = unit.minor ? 100 : 1;
+  const minor = Math.round(amount * scale);
+  if (!Number.isFinite(amount) || amount < 0 || !Number.isSafeInteger(minor)) return "";
+  const whole = Math.floor(minor / scale);
+  const fraction = minor % scale;
+  const major = `${laoNumberWords(whole)}${unit.major}`;
+  return fraction ? `${major} ${laoNumberWords(fraction)}${unit.minor}` : `${major}ຖ້ວນ`;
+}
+
+export function commercialMoney(value: number, currency?: string | null): string {
+  const decimals = currency === "THB" || currency === "USD" ? 2 : 0;
+  return new Intl.NumberFormat("en-US", { minimumFractionDigits: decimals, maximumFractionDigits: decimals }).format(value);
 }
 
 export function commercialImageUrl(value: string | null | undefined): string | null {
@@ -211,17 +230,18 @@ function htmlDocument(title: string, body: string, options: CommercialPrintOptio
 
 export function renderCommercialDocument(document: CommercialDocument, options: CommercialPrintOptions = {}): string {
   const receipt = document.document_type === "receipt";
+  const money = document.currency ?? "LAK";
   const title = receipt ? "ໃບຮັບເງິນ / RECEIPT" : "ໃບສະເໜີລາຄາ / QUOTATION";
   const showImages = options.showImages ?? document.show_images;
   const quantityFormat = new Intl.NumberFormat("en-US", { maximumFractionDigits: 3 });
   const wideQuantity = document.items.some(item => quantityFormat.format(item.quantity).length > 7);
   const logo = options.showLogo === false ? "" : imageHtml(document.issuer.logo_url, "logo", document.issuer.name);
   const discount = Number(document.discount_value) > 0 || Number(document.discount_amount) > 0
-    ? `<div class="total-row discount-row"><span>ສ່ວນຫຼຸດ${document.discount_type === "percent" ? ` (${new Intl.NumberFormat("en-US", { maximumFractionDigits: 2 }).format(document.discount_value)}%)` : ""}</span><span class="number">−${commercialMoney(document.discount_amount)}</span></div>` : "";
+    ? `<div class="total-row discount-row"><span>ສ່ວນຫຼຸດ${document.discount_type === "percent" ? ` (${new Intl.NumberFormat("en-US", { maximumFractionDigits: 2 }).format(document.discount_value)}%)` : ""}</span><span class="number">−${commercialMoney(document.discount_amount, money)}</span></div>` : "";
   const rows = document.items.map((item, index) => `<tr><td class="center">${index + 1}</td>
     <td><div class="item">${showImages && item.show_image ? imageHtml(item.image_url, "item-image", item.name) : ""}<div><p>${escapeHtml(item.name)}</p>${item.description ? `<p class="description">${escapeHtml(item.description)}</p>` : ""}</div></div></td>
     <td class="center">${escapeHtml(item.unit ?? "")}</td><td class="number center">${quantityFormat.format(item.quantity)}</td>
-    <td class="number">${commercialMoney(item.unit_price)}</td><td class="number">${commercialMoney(item.line_total)}</td></tr>`).join("");
+    <td class="number">${commercialMoney(item.unit_price, money)}</td><td class="number">${commercialMoney(item.line_total, money)}</td></tr>`).join("");
   const body = `<header class="heading">${logo}<h1>${title}</h1></header>
     <div class="parties">${partyHtml(document.issuer)}<div class="meta"><p>ເລກທີ: <strong>${escapeHtml(document.number)}</strong></p><p>ວັນທີ: ${escapeHtml(displayDate(document.issued_on))}</p>
     ${document.valid_until && !receipt ? `<p>ມີຜົນເຖິງ: ${escapeHtml(displayDate(document.valid_until))}</p>` : ""}
@@ -229,11 +249,11 @@ export function renderCommercialDocument(document: CommercialDocument, options: 
     <section class="customer">${partyHtml(document.customer, "ລູກຄ້າ / CUSTOMER")}</section>
     <table><colgroup><col style="width:7%" /><col style="width:${wideQuantity ? 31 : 35}%" /><col style="width:11%" /><col style="width:${wideQuantity ? 13 : 9}%" /><col style="width:18%" /><col style="width:20%" /></colgroup>
     <thead><tr><th>ລຳດັບ</th><th>ລາຍການ</th><th>ຫົວໜ່ວຍ</th><th>ຈຳນວນ</th><th>ລາຄາ</th><th>ລາຄາລວມ</th></tr></thead><tbody>${rows}</tbody></table>
-    <section class="totals"><div class="total-row"><span>ລວມທັງໝົດ</span><span class="number">${commercialMoney(document.subtotal)}</span></div>
+    <section class="totals"><div class="total-row"><span>ລວມທັງໝົດ</span><span class="number">${commercialMoney(document.subtotal, money)}</span></div>
     ${discount}
-    <div class="total-row"><span>ອາກອນ (${document.tax_rate}%)</span><span class="number">${commercialMoney(document.tax_amount)}</span></div>
-    <div class="total-row${commercialMoney(document.total).length > 12 ? " compact-total" : ""}"><span>${receipt ? "ຮັບເງິນທັງໝົດ" : "ລວມຍອດທັງໝົດ"}</span><span class="number total-amount"><span class="currency">LAK</span> <span class="total-value">${commercialMoney(document.total)}</span></span></div></section>
-    <p class="amount-words">( ${escapeHtml(commercialAmountWords(document.total))} )</p>
+    <div class="total-row"><span>ອາກອນ (${document.tax_rate}%)</span><span class="number">${commercialMoney(document.tax_amount, money)}</span></div>
+    <div class="total-row${commercialMoney(document.total, money).length > 12 ? " compact-total" : ""}"><span>${receipt ? "ຮັບເງິນທັງໝົດ" : "ລວມຍອດທັງໝົດ"}</span><span class="number total-amount"><span class="currency">${escapeHtml(document.currency ?? "LAK")}</span> <span class="total-value">${commercialMoney(document.total, money)}</span></span></div></section>
+    <p class="amount-words">( ${escapeHtml(commercialAmountWords(document.total, document.currency))} )</p>
     ${document.notes ? `<section class="notes"><p class="strong">ໝາຍເຫດ</p><p>${escapeHtml(document.notes)}</p></section>` : ""}
     ${paymentHtml(document, options)}
     <section class="signatures"><div class="signature"><p>${receipt ? "ຜູ້ຈ່າຍເງິນ" : "ຜູ້ຮັບໃບສະເໜີລາຄາ"}</p><p class="signature-line">ລາຍເຊັນ / ວັນທີ</p></div>
