@@ -4,21 +4,10 @@ import { useState } from "react";
 import {
   AlertTriangle,
   Ban,
-  Cable,
-  CheckCircle2,
-  ChefHat,
-  CupSoda,
-  FileBarChart,
-  Info,
   MapPinned,
   Printer,
-  ReceiptText,
   RefreshCw,
-  Route,
   Save,
-  QrCode,
-  ScrollText,
-  SlidersHorizontal,
   Tags,
   Usb,
   Wifi,
@@ -34,7 +23,6 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import {
@@ -53,7 +41,6 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Spinner } from "@/components/ui/spinner";
-import { cn } from "@/lib/utils";
 import type {
   SearchPrinterResult,
 } from "@/services/printer";
@@ -61,40 +48,17 @@ import { CheckboxOptionList } from "./printer-form-fields";
 import { ChoiceCards, FormSection } from "./printer-form-sections";
 import {
   formatIpInput,
-  printerRoleKind,
   sunmiBuiltinDiagnosticMessageKey,
   toggleAllValues,
   toggleValue,
   type ConnectType,
   type MappingTypeSelection,
-  type PrinterRoleKind,
 } from "./printer-form-utils";
-import type { LucideIcon } from "lucide-react";
 import { usePrinterForm } from "./use-printer-form";
 import { PrinterOutputSettings } from "./printer-output-settings";
 import { PrinterCategoryPrintRoles, PrinterPrintPermissions } from "./printer-print-permissions";
 import { PrinterSelfTestDialog } from "@/features/printer/printer-self-test-dialog";
 import { PrinterSupportPanel } from "@/features/printer/printer-support-panel";
-
-// Kitchen and bar share the mapping step's warning/info hues so the link between the two steps reads.
-const roleKindBadges: Record<PrinterRoleKind, { icon: LucideIcon; className: string }> = {
-  kitchen: { icon: ChefHat, className: "bg-warning/15 text-warning-text" },
-  bar: { icon: CupSoda, className: "bg-info/15 text-info-text" },
-  bill: { icon: ReceiptText, className: "bg-success/15 text-success-text" },
-  qr: { icon: QrCode, className: "bg-primary/15 text-primary-text" },
-  report: { icon: FileBarChart, className: "bg-destructive/10 text-destructive" },
-  other: { icon: Printer, className: "bg-muted text-muted-foreground" },
-};
-
-function RoleKindBadge({ roleCode }: { roleCode: string }) {
-  const badge = roleKindBadges[printerRoleKind(roleCode)];
-  const Icon = badge.icon;
-  return (
-    <span aria-hidden="true" className={cn("flex size-8 shrink-0 items-center justify-center rounded-lg", badge.className)}>
-      <Icon className="size-4" />
-    </span>
-  );
-}
 
 export function PrinterFormPage() {
   const form = usePrinterForm();
@@ -110,18 +74,12 @@ export function PrinterFormPage() {
     form.router.push("/printers");
   }
 
-  const connectionSummary =
-    form.connectType === "sunmi" ? t("printer.sunmiPrinter") : form.connectType === "usb"
-      ? t("printer.usbPrinter")
-      : form.ip
-        ? `${t("printer.tcpPrinter")} · ${form.ip}:${form.port}`
-        : t("printer.tcpPrinter");
   const builtinStatus = form.builtinDiagnostic.status;
   const builtinMessage = sunmiBuiltinDiagnosticMessageKey(form.builtinDiagnostic);
   const builtinFailure = !["idle", "checking", "available"].includes(builtinStatus);
 
   return (
-    <div data-sunmi-printer-form={form.connectType === "sunmi" ? "true" : undefined} className="flex w-full flex-col gap-5">
+    <div data-sunmi-printer-form={form.connectType === "sunmi" ? "true" : undefined} className="flex w-full flex-col gap-4">
       <BackButton
         fallbackHref="/printers"
         label={t("printer.title")}
@@ -137,51 +95,15 @@ export function PrinterFormPage() {
         </Alert>
       ) : null}
 
-      {/* Header: what this screen is for, and the printer's current connection at a glance. */}
-      <header className="relative isolate flex flex-col gap-4 overflow-hidden rounded-2xl bg-primary p-5 text-primary-foreground shadow-dash-plate sm:flex-row sm:items-center sm:p-6">
-        <span aria-hidden="true" className="pointer-events-none absolute -top-16 -right-16 -z-10 size-56 rounded-full bg-(--dash-sheen)" />
-        <span aria-hidden="true" className="flex size-14 shrink-0 items-center justify-center rounded-2xl bg-(--dash-shade)">
-          <Printer className="size-7" />
-        </span>
-        <div className="flex min-w-0 flex-1 flex-col gap-1">
-          <div className="flex flex-wrap items-center gap-2">
-            <h1 className="text-xl font-bold sm:text-2xl">
-              {form.isEditing ? t("printer.edit") : t("printer.add")}
-            </h1>
-            {form.isEditing ? (
-              <Badge className="h-auto border-transparent bg-(--dash-shade) py-0.5 text-2xs text-primary-foreground">
-                {t("actions.edit")}
-              </Badge>
-            ) : null}
-          </div>
-          <p className="text-sm">{t("printer.formHint")}</p>
-        </div>
-        <div className="flex flex-wrap gap-2 sm:flex-col sm:items-end">
-          <Badge className="h-auto gap-1.5 border-transparent bg-(--dash-shade) py-1 text-xs text-primary-foreground">
-            {form.connectType === "sunmi" ? <Printer data-icon="inline-start" /> : form.connectType === "usb" ? <Usb data-icon="inline-start" /> : <Wifi data-icon="inline-start" />}
-            {connectionSummary}
-          </Badge>
-          {form.displayName ? (
-            <Badge className="h-auto gap-1.5 border-transparent bg-(--dash-shade) py-1 text-xs text-primary-foreground">
-              <Printer data-icon="inline-start" />
-              {form.displayName}
-            </Badge>
-          ) : null}
-        </div>
-      </header>
+      <h1 className="text-xl font-semibold">
+        {form.isEditing ? t("printer.edit") : t("printer.add")}
+      </h1>
 
-      <form onSubmit={form.submit} className="flex flex-col gap-5">
-        <FormSection
-          step={1}
-          tone="info"
-          icon={Cable}
-          title={t("printer.connection")}
-          description={t("printer.connectionHint")}
-        >
+      <form onSubmit={form.submit} className="flex flex-col gap-4">
+        <FormSection title={t("printer.connection")}>
           <ChoiceCards
             legend={t("fields.connectType")}
             name="printer-connect-type"
-            tone="info"
             value={form.connectType}
             disabled={form.saving}
             onValueChange={(value) => form.setConnectType(value as ConnectType)}
@@ -368,27 +290,19 @@ export function PrinterFormPage() {
             )}
           </FieldGroup>
 
-          {/* Self-test: a printed proof that the connection above works, before saving. */}
-          <div className="flex flex-col gap-3 rounded-xl border border-info/40 bg-info/10 p-4 sm:flex-row sm:items-center sm:justify-between">
-            <div className="flex min-w-0 items-start gap-3">
-              <span aria-hidden="true" className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-info text-info-foreground">
-                <ScrollText className="size-4" />
-              </span>
-              <div className="flex min-w-0 flex-col gap-1">
-                <p className="text-sm font-bold text-info-text">{t(form.connectType === "sunmi" ? "printer.sunmiTestTitle" : "printer.selfTestTitle")}</p>
-                <p className="text-sm text-muted-foreground" id="printer-self-test-hint">
-                  {t(form.connectType === "sunmi" ? "printer.sunmiTestHint" : "printer.selfTestHint")}
-                </p>
-                <p className="text-sm text-muted-foreground" id="printer-self-test-connection-hint">
-                  {t(form.connectType === "sunmi" ? "printer.connectSunmiHint" : form.connectType === "usb" ? "printer.selfTestUsbHint" : "printer.selfTestTcpHint")}
-                </p>
-              </div>
+          <div className="flex flex-col gap-3 border-t border-border pt-4 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex min-w-0 flex-col gap-0.5">
+              <p className="text-sm font-medium">{t(form.connectType === "sunmi" ? "printer.sunmiTestTitle" : "printer.selfTestTitle")}</p>
+              <p className="text-xs text-muted-foreground" id="printer-self-test-hint">
+                {t(form.connectType === "sunmi" ? "printer.sunmiTestHint" : "printer.selfTestHint")}
+              </p>
             </div>
             <Button
               type="button"
-              className="min-h-11 w-full shrink-0 bg-info text-info-foreground hover:bg-info/90 sm:w-auto"
+              variant="outline"
+              className="min-h-11 w-full shrink-0 sm:w-auto"
               disabled={!form.canSelfTest}
-              aria-describedby="printer-self-test-hint printer-self-test-connection-hint"
+              aria-describedby="printer-self-test-hint"
               onClick={() => void form.printSelfTest()}
             >
               {form.printing ? <Spinner data-icon="inline-start" /> : <Printer data-icon="inline-start" />}
@@ -401,13 +315,7 @@ export function PrinterFormPage() {
           <PrinterSupportPanel printer={form.savedPrinter} dirty={form.isDirty} disabled={form.saving || form.loading} />
         ) : null}
 
-        <FormSection
-          step={2}
-          tone="primary"
-          icon={ReceiptText}
-          title={t("printer.roles")}
-          description={t("printer.rolesHint")}
-        >
+        <FormSection title={t("printer.roles")}>
           <CheckboxOptionList
             bare
             legend={t("printer.roles")}
@@ -418,7 +326,6 @@ export function PrinterFormPage() {
             required
             selectAllLabel={t("common.selectAll")}
             selected={form.selectedRoles}
-            renderOptionIcon={(option) => <RoleKindBadge roleCode={option.value} />}
             onToggle={(value) =>
               form.setSelectedRoles((current) => toggleValue(current, value))
             }
@@ -428,33 +335,18 @@ export function PrinterFormPage() {
               )
             }
           />
-          {/* บอกว่าขั้นที่ 3 หายไปเพราะอะไร — ไม่งั้นผู้ใช้ไม่รู้ว่าตั้งหมวดหมู่ได้ที่ไหน */}
           {form.zoneMappingRequired ? null : (
-            <p className="flex items-start gap-2 rounded-lg bg-info/10 p-3 text-sm text-info-text">
-              <Info aria-hidden="true" className="mt-0.5 size-4 shrink-0" />
-              {t("printer.mappingUnlockHint")}
-            </p>
+            <p className="text-sm text-muted-foreground">{t("printer.mappingUnlockHint")}</p>
           )}
         </FormSection>
 
         {/* หมวดหมู่/โซนใช้กับสถานีครัว/บาร์เท่านั้น — ไม่มี role พวกนี้ก็ไม่ต้องแสดงขั้นนี้ */}
         {form.zoneMappingRequired ? (
-          <FormSection
-            step={3}
-            tone="warning"
-            icon={Route}
-            title={t("printer.mappingType")}
-            description={
-              form.zoneMappingRequired
-                ? t("printer.mappingTypeZoneRequiredHint")
-                : t("printer.mappingTypeHint")
-            }
-          >
+          <FormSection title={t("printer.mappingType")}>
             <ChoiceCards
               className="sm:grid-cols-3"
               legend={t("printer.mappingType")}
               name="printer-mapping-type"
-              tone="warning"
               value={form.mappingType}
               disabled={form.saving}
               onValueChange={(value) => form.setMappingType(value as MappingTypeSelection)}
@@ -523,17 +415,12 @@ export function PrinterFormPage() {
           </FormSection>
         ) : null}
 
-        <FormSection
-          step={form.zoneMappingRequired ? 4 : 3}
-          tone="success"
-          icon={SlidersHorizontal}
-          title={t("printer.printSettingsTitle")}
-          description={t("printer.printSettingsHint")}
-        >
+        <FormSection title={t("printer.printSettingsTitle")}>
           <PrinterOutputSettings
             accessMode={form.accessMode}
             onAccessModeChange={form.setAccessMode}
             connectType={form.connectType}
+            canShareUsb={form.canShareUsb}
             saving={form.saving}
             internetSettings={form.internetSettings}
             loadingInternetSettings={form.loadingInternetSettings}
@@ -553,48 +440,28 @@ export function PrinterFormPage() {
           />
         </FormSection>
 
-        {/* Save bar: what is still missing (or that the form is complete), then the actions. */}
-        <div
-          className={cn(
-            "flex flex-col gap-3 rounded-2xl border-2 p-4 sm:flex-row sm:items-center sm:justify-between",
-            form.validationMessage ? "border-destructive/40 bg-destructive/5" : "border-success/40 bg-success/10",
-          )}
-        >
-          {/* สรุปเหตุผลที่ยังบันทึกไม่ได้ — ผู้ใช้ที่เลื่อนผ่าน badge สีแดงด้านบนไปแล้วจะได้รู้ว่าขาดอะไร
-              โดยไม่ต้องเลื่อนกลับไปหาทีละช่อง */}
-          <p
-            className={cn(
-              "flex items-start gap-2 text-sm font-medium",
-              form.validationMessage ? "text-destructive" : "text-success-text",
-            )}
-            aria-live="polite"
-          >
-            {form.validationMessage ? (
-              <AlertTriangle aria-hidden="true" className="mt-0.5 size-4 shrink-0" />
-            ) : (
-              <CheckCircle2 aria-hidden="true" className="mt-0.5 size-4 shrink-0" />
-            )}
-            {!form.saving && form.validationMessage ? form.validationMessage : t("printer.formReady")}
+        <div className="flex flex-col gap-3 border-t border-border pt-4 sm:flex-row sm:items-center sm:justify-between">
+          <p className="flex min-h-5 items-start gap-2 text-sm text-destructive" aria-live="polite">
+            {!form.saving && form.validationMessage ? (
+              <>
+                <AlertTriangle aria-hidden="true" className="mt-0.5 size-4 shrink-0" />
+                {form.validationMessage}
+              </>
+            ) : null}
           </p>
           <div className="flex flex-wrap items-center justify-end gap-2">
             <Button
               type="button"
               variant="outline"
-              className="min-h-10"
+              className="min-h-11"
               disabled={form.saving}
               onClick={handleCancel}
             >
               {t("actions.cancel")}
             </Button>
-            {/* กดได้เสมอแม้ยังกรอกไม่ครบ — validationMessage ด้านบนบอกเหตุผลอยู่แล้วตลอดเวลา
-                ปุ่ม submit ที่ถูก disable ล่วงหน้าทำให้ผู้ใช้งงว่าทำไมกดไม่ได้ (ดู submit() ที่ no-op
-                เองถ้ายัง !canSubmit) */}
-            <Button className="min-h-10 px-5" disabled={form.saving || form.loading || form.printing} type="submit">
-              {form.saving ? (
-                <Spinner data-icon="inline-start" />
-              ) : (
-                <Save data-icon="inline-start" />
-              )}
+            {/* Always clickable: the message beside it says what is missing. */}
+            <Button className="min-h-11 px-5" disabled={form.saving || form.loading || form.printing} type="submit">
+              {form.saving ? <Spinner data-icon="inline-start" /> : <Save data-icon="inline-start" />}
               {form.saving ? t("common.processing") : t("actions.save")}
             </Button>
           </div>

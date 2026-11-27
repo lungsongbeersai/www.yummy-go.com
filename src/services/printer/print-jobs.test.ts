@@ -117,6 +117,32 @@ describe("remote Shared print-result observation", () => {
     expect(vi.getTimerCount()).toBe(0);
   });
 
+  it("keeps a phone away from the shared Windows USB queue until its owner confirms completion", async () => {
+    nativeMocks.native = true;
+    transportMocks.resolvePrinterDeviceIdentity.mockResolvedValue({ ok: true, agent: { agent_id: "mobile", device_code: "PHONE" } });
+    const response = pendingResponse({ requested_job_status: "success", requested_job_success_total: 3 });
+    const get = vi.spyOn(apiClient, "get").mockResolvedValue({
+      ...response,
+      data: { ...response.data, print_batch_payloads: [{
+        interface_value: "win:POS80 Printer", connect_type: "usb", print_mode: "windows_agent",
+        agent_id: "allinone-agent", device_code: "ALLINONE-PC", jobs: [], job_total: 3,
+      }] },
+    });
+    const post = vi.spyOn(apiClient, "post");
+    await expect(executeInvoicePrintJobs({ pending_query: {
+      print_job_uuid: "shared-pos80-phone", login_uuid_fk: "staff",
+      agent_id: "allinone-agent", device_code: "ALLINONE-PC", print_mode: "windows_agent", remote_shared_print: true,
+    } })).resolves.toEqual({ successCount: 3, failedCount: 0, total: 3 });
+    expect(get).toHaveBeenCalledExactlyOnceWith("/api/v1/printer/jobs/pending", expect.objectContaining({
+      params: expect.objectContaining({ device_code: "PHONE", agent_id: "mobile", status_only: true }),
+    }));
+    expect(transportMocks.getLocalAgentInfo).not.toHaveBeenCalled();
+    expect(transportMocks.dispatchPrintJob).not.toHaveBeenCalled();
+    expect(transportMocks.printBatchWithLocalAgent).not.toHaveBeenCalled();
+    expect(nativeMocks.printTcp).not.toHaveBeenCalled();
+    expect(post).not.toHaveBeenCalled();
+  });
+
   it.each([
     ["native kitchen", true, executeKitchenPrintJobs],
     ["native invoice", true, executeInvoicePrintJobs],
@@ -408,6 +434,13 @@ describe("an active print round owned by another browser execution", () => {
     });
   }
 
+  function deferred<T>() {
+    let resolve!: (value: T) => void;
+    let reject!: (error: Error) => void;
+    const promise = new Promise<T>((done, fail) => { resolve = done; reject = fail; });
+    return { promise, resolve, reject };
+  }
+
   function activeFixture(jobUuid: string, kind = "batch", total = 1) {
     const itemUuids = Array.from({ length: total }, (_, index) => `item-${index + 1}`);
     const jobs = itemUuids.map((itemUuid, index) => ({
@@ -446,12 +479,66 @@ describe("an active print round owned by another browser execution", () => {
     });
     const original = sharedInput(jobUuid);
     return {
+      payload,
       input: { ...original, pending_query: { ...original.pending_query!, remote_shared_print: false } },
       setStatus(nextStatus: string, count = successCount) { status = nextStatus; successCount = count; },
       setFound(value: boolean) { found = value; },
       acknowledgements: () => request.mock.calls.filter(([method]) => method === "post"),
     };
   }
+
+  it("does not send or ACK a Windows USB batch after logout while pending preparation is held", async () => {
+    const fixture = activeFixture("session-held-pending");
+    const held = deferred<typeof fixture.payload>();
+    request.mockReturnValueOnce(held.promise);
+    const { executeInvoicePrintJobs: execute } = await import("./print-jobs");
+    const { resetSessionStores } = await import("@/stores/session-store-registry");
+    const execution = execute(fixture.input);
+    await vi.advanceTimersByTimeAsync(0);
+    resetSessionStores();
+    held.resolve(fixture.payload);
+    await expect(execution).resolves.toMatchObject({ successCount: 0, failedCount: 0, pending: true });
+    expect(transportMocks.printBatchWithLocalAgent).not.toHaveBeenCalled();
+    expect(transportMocks.dispatchPrintJob).not.toHaveBeenCalled();
+    expect(fixture.acknowledgements()).toEqual([]);
+  });
+
+  it.each(["resolved", "failed"])("does not send or ACK after the session changes during a %s Windows Agent read", async (result) => {
+    const fixture = activeFixture("session-held-identity");
+    const held = deferred<{ agent_id: string; device_code: string }>();
+    transportMocks.getLocalAgentInfo.mockReturnValueOnce(held.promise);
+    const { executeInvoicePrintJobs: execute } = await import("./print-jobs");
+    const { resetSessionStores } = await import("@/stores/session-store-registry");
+    const execution = execute(fixture.input);
+    await vi.advanceTimersByTimeAsync(0);
+    resetSessionStores();
+    if (result === "failed") held.reject(new Error("Old Agent read failed"));
+    else held.resolve({ agent_id: "owner-agent", device_code: "owner-device" });
+    await expect(execution).resolves.toMatchObject({ successCount: 0, failedCount: 0, pending: true });
+    expect(transportMocks.printBatchWithLocalAgent).not.toHaveBeenCalled();
+    expect(fixture.acknowledgements()).toEqual([]);
+  });
+
+  it("stops a stale queued USB send while preserving the started write's success and ACK", async () => {
+    const started = activeFixture("session-started-write");
+    const held = deferred<void>();
+    transportMocks.printBatchWithLocalAgent.mockReturnValueOnce(held.promise);
+    const { executeInvoicePrintJobs: execute } = await import("./print-jobs");
+    const { resetSessionStores } = await import("@/stores/session-store-registry");
+    const first = execute(started.input);
+    await vi.advanceTimersByTimeAsync(0);
+    expect(transportMocks.printBatchWithLocalAgent).toHaveBeenCalledOnce();
+    const queued = activeFixture("session-queued-write");
+    const second = execute(queued.input);
+    await vi.advanceTimersByTimeAsync(0);
+    expect(transportMocks.printBatchWithLocalAgent).toHaveBeenCalledOnce();
+    resetSessionStores(); held.resolve();
+    await expect(first).resolves.toMatchObject({ successCount: 1, failedCount: 0, total: 1 });
+    await expect(second).resolves.toMatchObject({ successCount: 0, failedCount: 0, pending: true });
+    expect(transportMocks.printBatchWithLocalAgent).toHaveBeenCalledOnce();
+    expect(queued.acknowledgements()).toHaveLength(1);
+    expect(queued.acknowledgements()[0][2].data.print_job_uuid).toBe("session-started-write");
+  });
 
   it("lets two independent browser realms observe one physical send without a premature failure ACK", async () => {
     const fixture = activeFixture("two-realms");

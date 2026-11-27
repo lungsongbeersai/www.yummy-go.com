@@ -28,6 +28,7 @@ import { PrinterDownloadsMenu } from "./printer-downloads-menu";
 import { PrinterListCards } from "./printer-list-cards";
 import { PrinterListTable } from "./printer-list-table";
 import {
+  isOwnedPrinter,
   OWNER_ALL,
   OWNER_MINE,
   OWNER_SHARED,
@@ -449,7 +450,7 @@ export function PrinterPage() {
         cancelLabel={t("actions.cancel")}
         confirmLabel={t("actions.delete")}
         confirmVariant="destructive"
-        description={t("printer.deleteConfirm")}
+        description={t(printer.deleteTarget && !isOwnedPrinter(printer.deleteTarget) ? "printer.deleteSharedConfirm" : "printer.deleteConfirm")}
         open={Boolean(printer.deleteTarget)}
         title={printer.deleteTarget ? `${t("actions.delete")} · ${printer.deleteTarget.printer_name}` : t("actions.delete")}
         onConfirm={() => {

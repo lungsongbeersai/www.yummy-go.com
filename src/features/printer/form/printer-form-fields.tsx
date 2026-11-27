@@ -74,7 +74,7 @@ export function CheckboxOptionList({
     <FieldSet className={cn("gap-4", !bare && "rounded-lg border border-border bg-card p-4")}>
       <div className="flex flex-wrap items-start justify-between gap-2">
         <div className={cn(bare && "min-w-0 flex-1")}>
-          <FieldLegend className={cn("mb-1 text-sm font-black", bare && "sr-only")}>
+          <FieldLegend className={cn("mb-1 text-sm font-medium", bare && "sr-only")}>
             {legend}
             {required ? <span className="text-destructive"> *</span> : null}
           </FieldLegend>
@@ -83,12 +83,8 @@ export function CheckboxOptionList({
         {options.length ? (
           <span
             className={cn(
-              "shrink-0 rounded-full px-2.5 py-1 text-xs font-semibold tabular-nums",
-              missingRequired
-                ? "bg-destructive/10 text-destructive"
-                : selectedCount > 0
-                  ? "bg-success/15 text-success-text"
-                  : "bg-muted text-muted-foreground",
+              "shrink-0 text-xs tabular-nums",
+              missingRequired ? "text-destructive" : "text-muted-foreground",
             )}
           >
             {t("printer.selectedCount", {
@@ -102,7 +98,7 @@ export function CheckboxOptionList({
         <div className="grid gap-2 sm:grid-cols-2">
           <Field
             orientation="horizontal"
-            className="rounded-md border border-border bg-muted/30 p-3 sm:col-span-2"
+            className="px-3 py-1 sm:col-span-2"
           >
             <IndeterminateCheckbox
               id={selectAllId}
@@ -111,7 +107,7 @@ export function CheckboxOptionList({
               indeterminate={someSelected}
               onCheckedChange={(checked) => onToggleAll(checked as boolean)}
             />
-            <FieldLabel htmlFor={selectAllId} className="font-black">
+            <FieldLabel htmlFor={selectAllId} className="font-medium">
               {selectAllLabel}
             </FieldLabel>
           </Field>
@@ -196,7 +192,7 @@ export function RadioOptionList({
 }: {
   autoFocusFirst?: boolean;
   className?: string;
-  description: string;
+  description?: string;
   disabled?: boolean;
   legend: string;
   name: string;
@@ -208,8 +204,8 @@ export function RadioOptionList({
   return (
     <FieldSet className={cn("gap-2", className)}>
       <div>
-        <FieldLegend className="mb-1 text-sm font-black">{legend}</FieldLegend>
-        <FieldDescription>{description}</FieldDescription>
+        <FieldLegend className="mb-1 text-sm font-medium">{legend}</FieldLegend>
+        {description ? <FieldDescription>{description}</FieldDescription> : null}
       </div>
       <RadioGroup
         value={value}

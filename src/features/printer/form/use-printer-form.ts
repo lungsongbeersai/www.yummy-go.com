@@ -40,6 +40,7 @@ import {
   assignedPrinterNamesByValue,
   buzzerOnCutOf,
   cashDrawerEnabledOf,
+  canShareWindowsUsbPrinter,
   categoryLabel,
   categoryPrintPermission,
   categoryPrintPermissionsEqual,
@@ -52,6 +53,9 @@ import {
   mappingTypeOf,
   mergeUsbPrinterOptions,
   printerFormValues,
+  printerAccessModeForConnection,
+  printerOwnerAgentUrl,
+  printerOwnerMatches,
   printerSelfTestTarget,
   requiresZoneMapping,
   selectCategoryForPrintPermission,
@@ -234,8 +238,7 @@ export function usePrinterForm() {
     initialForm.accessMode,
   );
   useResetOnDeps([connectType], () => {
-    if (connectType === "usb") setAccessMode("DIRECT");
-    if (connectType === "sunmi" && accessMode === "LAN") setAccessMode("DIRECT");
+    setAccessMode((current) => printerAccessModeForConnection(connectType, current));
   });
   const [selectedCategories, setSelectedCategories] = useState<string[]>(
     initialForm.selectedCategories,
@@ -492,6 +495,13 @@ export function usePrinterForm() {
     Boolean(agentId.trim()) &&
     Boolean(agentName.trim()) &&
     Boolean(deviceCode.trim());
+  const owner = { agent_id: agentId, device_code: deviceCode };
+  const usbPrintMode = printerOwnerMatches(owner, agent)
+    ? printerPrintModeForPlatform(agent?.platform, isCapacitorMobileApp()) || editing?.print_mode
+    : editing?.print_mode;
+  const canShareUsb = canShareWindowsUsbPrinter({
+    interface_value: interfaceValue, ...owner, print_mode: usbPrintMode,
+  });
   const recordMissing = isEditing && formDataLoaded && !loading && !editing;
   const selfTestTarget = printerSelfTestTarget({
     connectType,
@@ -573,6 +583,7 @@ export function usePrinterForm() {
   }
   if (connectType === "usb") {
     if (!interfaceValue.trim() || !hasAgentIdentity) missingFields.push(t("printer.validationUsbDevice"));
+    if (accessMode === "INTERNET" && !canShareUsb) missingFields.push(t("printer.validationUsbShareOwner"));
   } else if (connectType === "sunmi") {
     if ((!isEditing || baseline.connectType !== "sunmi") && !builtinAgent?.supports_sunmi_builtin) {
       missingFields.push(t(sunmiBuiltinDiagnosticMessageKey(builtinDiagnostic)));
@@ -713,6 +724,13 @@ export function usePrinterForm() {
         ].filter(Boolean).join(" · "));
       }
       const identity: AgentInfo = resolvedIdentity;
+      if (connectType === "usb" && shouldResolveCurrentIdentity && !printerOwnerMatches(owner, identity)) {
+        throw new Error(t("printer.usbOwnerChanged"));
+      }
+      if (connectType === "usb" && accessMode === "INTERNET" && !canShareWindowsUsbPrinter({
+        interface_value: interfaceValue, agent_id: identity.agent_id, device_code: identity.device_code ?? undefined,
+        print_mode: (shouldResolveCurrentIdentity ? printerPrintModeForPlatform(identity.platform, isCapacitorMobileApp()) : usbPrintMode) ?? undefined,
+      })) throw new Error(t("printer.validationUsbShareOwner"));
       if (
         shouldResolveCurrentIdentity &&
         isBrowserPrinterAgentId(identity.agent_id) &&
@@ -729,12 +747,7 @@ export function usePrinterForm() {
           ? tcpInterfaceValue(ip.trim(), nextPort)
           : interfaceValue.trim();
 
-      const nextAgentUrl = connectType === "sunmi" ? "" : isBrowserPrinterAgentId(nextAgentId)
-        ? BROWSER_PRINTER_AGENT_URL
-        : textValue(identity.agent_url) ||
-          textValue(agent?.agent_url) ||
-          agentUrl.trim() ||
-          AGENT_URL;
+      const nextAgentUrl = printerOwnerAgentUrl(identity, shouldResolveCurrentIdentity ? identity : agent, agentUrl);
 
       fillAgent(identity, nextAgentUrl);
 
@@ -771,7 +784,8 @@ export function usePrinterForm() {
         device_code: nextDeviceCode,
         // ชื่อ agent เป็นชื่อที่ผู้ใช้ตั้งเอง จึงเดา OS จาก agent_id ไม่ได้
         // ใช้ platform ที่ Agent รายงานมาเพื่อไม่ให้ Windows TCP ถูกบันทึกเป็น mobile_wifi
-        print_mode: connectType === "sunmi" ? SUNMI_PRINT_MODE : shouldResolveCurrentIdentity
+        print_mode: connectType === "sunmi" ? SUNMI_PRINT_MODE : connectType === "usb" && accessMode === "INTERNET"
+          ? "windows_agent" : shouldResolveCurrentIdentity
           ? printerPrintModeForPlatform(
               identity.platform,
               isCapacitorMobileApp(),
@@ -828,6 +842,7 @@ export function usePrinterForm() {
     setMappingType,
     zoneMappingRequired,
     accessMode,
+    canShareUsb,
     setAccessMode,
     internetSettings,
     loadingInternetSettings,

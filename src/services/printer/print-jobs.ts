@@ -1102,6 +1102,7 @@ async function executePrintJobs(
   }
 
   const pendingResult = await getPendingPrintJobs(pendingParams);
+  if (!isCurrentSession()) return { successCount: 0, failedCount: 0, total: 0, pending: true };
 
   // Cancellation wins over a stale cached payload. A cleared queue UUID must
   // never reach the transport or receive an ACK that could revive it.
@@ -1377,6 +1378,15 @@ async function executePrintJobs(
         }
 
         return runOnPrinterQueue(printerBatchQueueKey(batch), async () => {
+          const cancelledBeforeSend = (): BatchPrintOutcome => ({
+            acknowledge: false,
+            deliveryState: "not_sent",
+            itemUuids: batchPrintJobItemUuids(batch),
+            ledgerKey,
+            printConfigUuid,
+            success: false,
+          });
+          if (!isCurrentSession()) return cancelledBeforeSend();
           // A second request can reach this queue while the first is printing.
           const queuedStored = options.idempotent
             ? readStoredDelivery(ledgerKey, batch)
@@ -1395,9 +1405,11 @@ async function executePrintJobs(
             };
           }
 
+          let transportStarted = false;
           try {
             if (mobileBatch) {
               if (options.idempotent) reserveNativeDelivery(ledgerKey);
+              transportStarted = true;
               await printKitchenMobileBatch(
                 batch,
                 // Shared-owner execution has no UI observer. Keep confirmed
@@ -1420,9 +1432,14 @@ async function executePrintJobs(
                 isCurrentSession,
               );
             } else {
+              const localAgent = await sharedLocalAgent();
+              // A queued USB send may outlive the login that requested it.
+              // Once transport starts, retain its delivery evidence and ACK.
+              if (!isCurrentSession()) return cancelledBeforeSend();
+              transportStarted = true;
               await printKitchenBatchJob(
                 batch,
-                await sharedLocalAgent(),
+                localAgent,
                 // Recording native completion must not add Agent polling to
                 // background workers that have no screen observing progress.
                 printExecutionProgress.get(jobUuid)?.observers.size
@@ -1443,6 +1460,7 @@ async function executePrintJobs(
               success: true,
             };
           } catch (error) {
+            if (!transportStarted && !isCurrentSession()) return cancelledBeforeSend();
             if (isPrinterJobInProgress(error)) {
               markPrintJobForObservation(loginUuid, jobUuid);
               return {

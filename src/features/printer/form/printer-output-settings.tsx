@@ -17,6 +17,7 @@ interface PrinterOutputSettingsProps {
   buzzerOnCut: boolean;
   cutFeedLines: string;
   connectType: "usb" | "tcp" | "sunmi";
+  canShareUsb: boolean;
   saving: boolean;
   loadingInternetSettings: boolean;
   internetSettings: InternetPrintSettings | null;
@@ -36,8 +37,8 @@ export function PrinterOutputSettings(props: PrinterOutputSettingsProps) {
 
   return (
     <div className="flex min-w-0 flex-col gap-4 md:col-span-2">
-      <FieldSet className="gap-4 rounded-xl bg-muted/50 p-4">
-        <FieldLegend className="mb-0 text-base font-black text-success-text">{t("printer.outputSettings")}</FieldLegend>
+      <FieldSet className="gap-4">
+        <FieldLegend className="mb-0 text-sm font-semibold text-muted-foreground">{t("printer.outputSettings")}</FieldLegend>
         <div className="grid min-w-0 gap-4 lg:grid-cols-2">
           <div className="min-w-0 lg:col-span-2">
             <RadioOptionList
@@ -51,9 +52,10 @@ export function PrinterOutputSettings(props: PrinterOutputSettingsProps) {
               options={[
                 { value: "DIRECT", label: t("printer.accessDirect") },
                 { value: "LAN", label: t("printer.accessLan"), disabled: props.connectType !== "tcp" },
-                { value: "INTERNET", label: t("printer.accessInternet"), disabled: !canChooseInternet || props.connectType === "usb" },
+                { value: "INTERNET", label: t("printer.accessInternet"), disabled: !canChooseInternet || (props.connectType === "usb" && !props.canShareUsb) },
               ]}
             />
+            {props.connectType === "usb" ? <FieldDescription className="mt-2">{t("printer.accessUsbInternetHint")}</FieldDescription> : null}
             {props.accessMode === "INTERNET" ? (
               <div className="mt-2 flex flex-col gap-1.5">
                 <div className="flex flex-wrap gap-2">
@@ -63,7 +65,7 @@ export function PrinterOutputSettings(props: PrinterOutputSettingsProps) {
                     </Badge>
                   ))}
                 </div>
-                <FieldDescription>{t(props.connectType === "sunmi" ? "printer.sunmiSharedHint" : "printer.accessReceiverHint")}</FieldDescription>
+                {props.connectType !== "usb" ? <FieldDescription>{t(props.connectType === "sunmi" ? "printer.sunmiSharedHint" : "printer.accessReceiverHint")}</FieldDescription> : null}
               </div>
             ) : null}
           </div>
@@ -98,7 +100,6 @@ export function PrinterOutputSettings(props: PrinterOutputSettingsProps) {
           <RadioOptionList
             className="min-w-0 lg:col-span-2"
             legend={t("printer.documentLogoMode")}
-            description={t("printer.documentLogoModeHint")}
             name="printer-document-logo"
             value={props.printShowLogo ? "enabled" : "disabled"}
             disabled={props.saving}
@@ -110,13 +111,12 @@ export function PrinterOutputSettings(props: PrinterOutputSettingsProps) {
           />
         </div>
       </FieldSet>
-      <FieldSet className="gap-4 rounded-xl bg-muted/50 p-4">
-        <FieldLegend className="mb-0 text-base font-black text-success-text">{t("printer.hardwareSettings")}</FieldLegend>
+      <FieldSet className="gap-4 border-t border-border pt-4">
+        <FieldLegend className="mb-0 text-sm font-semibold text-muted-foreground">{t("printer.hardwareSettings")}</FieldLegend>
         <div className="grid min-w-0 gap-4 lg:grid-cols-2">
           <RadioOptionList
             className="min-w-0"
             legend={t("printer.cashDrawerMode")}
-            description={t("printer.cashDrawerModeHint")}
             name="printer-cash-drawer"
             value={props.cashDrawerEnabled ? "enabled" : "disabled"}
             disabled={props.saving}
@@ -141,8 +141,7 @@ export function PrinterOutputSettings(props: PrinterOutputSettingsProps) {
           />
           <Field className="min-w-0 lg:col-span-2">
             <FieldLabel htmlFor="printer-cut-feed-lines">{t("printer.cutFeedLines")}</FieldLabel>
-            <Input id="printer-cut-feed-lines" name="printer_cut_feed_lines" className="max-w-sm" value={props.cutFeedLines} disabled={props.saving} type="number" inputMode="numeric" min={1} onChange={(event) => props.onCutFeedLinesChange(event.target.value)} />
-            <FieldDescription>{t("printer.cutFeedLinesPlaceholder")}</FieldDescription>
+            <Input id="printer-cut-feed-lines" name="printer_cut_feed_lines" className="max-w-sm" placeholder={t("printer.cutFeedLinesPlaceholder")} value={props.cutFeedLines} disabled={props.saving} type="number" inputMode="numeric" min={1} onChange={(event) => props.onCutFeedLinesChange(event.target.value)} />
           </Field>
         </div>
       </FieldSet>

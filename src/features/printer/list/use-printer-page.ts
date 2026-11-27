@@ -351,7 +351,9 @@ export function usePrinterPage() {
     } catch (error) {
       showToast({
         title: t("settings.deleteFailed"),
-        description: error instanceof Error ? error.message : "",
+        description: error instanceof Error
+          ? error.message.includes("SHARED_PRINTER_OWNER_ONLINE") ? t("printer.deleteSharedOwnerOnline") : error.message
+          : "",
         tone: "error",
       });
     }

@@ -15,6 +15,10 @@ import {
   sunmiBuiltinDiagnosticMessageKey,
   sharingModeOf,
   accessModeOf,
+  canShareWindowsUsbPrinter,
+  printerAccessModeForConnection,
+  printerOwnerAgentUrl,
+  printerOwnerMatches,
   categoryPrintPermission,
   categoryPrintPermissionsEqual,
   categoryPrintPermissionsForCategories,
@@ -425,6 +429,67 @@ describe("new printer access default", () => {
   });
 });
 
+
+describe("Windows USB sharing through its owning computer", () => {
+  const owner = { agent_id: "allinone-agent", agent_name: "All-in-one", device_code: "ALLINONE-PC", platform: "win32", agent_url: "http://192.168.100.63:7777" };
+  const printer: Printer = {
+    print_config_uuid: "pos80-config", printer_name: "POS80 USB", connect_type: "usb", interface_value: "win:POS80 Printer",
+    paper_width_mm: 80, is_active: true, role_codes: ["b-001", "invoice", "receipt"], mapping_type: "ZONE",
+    cate_uuid_fk: ["drinks"], zone_uuid_fk: ["bar"], access_mode: "INTERNET", sharing_mode: "SHARED",
+    print_mode: "windows_agent", ...owner,
+  };
+
+  it("keeps an explicit Internet choice across USB selection while refusing unsupported LAN", () => {
+    expect(printerAccessModeForConnection("usb", "INTERNET")).toBe("INTERNET");
+    expect(printerAccessModeForConnection("usb", "DIRECT")).toBe("DIRECT");
+    expect(printerAccessModeForConnection("usb", "LAN")).toBe("DIRECT");
+    expect(printerAccessModeForConnection("sunmi", "LAN")).toBe("DIRECT");
+    expect(printerAccessModeForConnection("tcp", "LAN")).toBe("LAN");
+  });
+
+  it("restores the exact queue, owner, sharing choice and existing bar/document routing", () => {
+    expect(initialPrinterFormValues(printer, { ...owner, agent_id: "foreign-agent", device_code: "FOREIGN-PC" }, true)).toMatchObject({
+      connectType: "usb", interfaceValue: "win:POS80 Printer", selectedDevice: "win:POS80 Printer",
+      agentId: owner.agent_id, deviceCode: owner.device_code, agentUrl: owner.agent_url,
+      accessMode: "INTERNET", selectedRoles: ["b-001", "invoice", "receipt"],
+      mappingType: "ZONE", selectedCategories: ["drinks"], selectedZones: ["bar"],
+    });
+    expect(shouldResolveCurrentPrinterIdentity({
+      isEditing: true, savedIdentityComplete: true, connectType: "usb",
+      interfaceValue: printer.interface_value, savedInterfaceValue: printer.interface_value,
+    })).toBe(false);
+    expect(canShareWindowsUsbPrinter(printer)).toBe(true);
+  });
+
+  it.each([
+    { interface_value: "win:" }, { interface_value: "win:  " }, { interface_value: "cups:POS80" },
+    { interface_value: "tcp://192.168.100.63:9100" }, { interface_value: "win:POS80\nOther" },
+    { print_mode: "mobile_wifi" }, { print_mode: "mac_agent" }, { agent_id: "mobile" },
+    { agent_id: "desktop" }, { agent_id: "browser" }, { agent_id: "sunmi-native" },
+    { agent_id: "" }, { device_code: "" },
+  ])("does not offer sharing for a missing/unsupported Windows queue owner: %j", (change) => {
+    expect(canShareWindowsUsbPrinter({ ...printer, ...change })).toBe(false);
+  });
+
+  it("pins the selected USB queue to both the Agent and device before a fresh save", () => {
+    expect(printerOwnerMatches(owner, owner)).toBe(true);
+    expect(printerOwnerMatches(owner, { ...owner, device_code: "OTHER-PC" })).toBe(false);
+    expect(printerOwnerMatches(owner, { ...owner, agent_id: "other-agent" })).toBe(false);
+    expect(printerOwnerMatches(owner, null)).toBe(false);
+    expect(shouldResolveCurrentPrinterIdentity({
+      isEditing: true, savedIdentityComplete: true, connectType: "usb",
+      interfaceValue: "win:Another Printer", savedInterfaceValue: printer.interface_value,
+    })).toBe(true);
+  });
+
+  it("refreshes a matching owner's LAN address without borrowing another computer's URL", () => {
+    const oldOwner = { ...owner, agent_url: "http://192.168.100.104:7777" };
+    expect(printerOwnerAgentUrl(oldOwner, owner, oldOwner.agent_url)).toBe("http://192.168.100.63:7777");
+    expect(printerOwnerAgentUrl(oldOwner, { ...owner, device_code: "OTHER-PC", agent_url: "http://192.168.100.77:7777" }, oldOwner.agent_url))
+      .toBe(oldOwner.agent_url);
+    expect(printerOwnerAgentUrl(owner, owner, oldOwner.agent_url)).toBe(owner.agent_url);
+  });
+});
 
 describe("restoring printer mappings", () => {
   const printer = {

@@ -16,13 +16,10 @@ export function PrinterPrintPermissions({ form }: { form: PrinterFormWorkflow })
     <div className="flex flex-col gap-4 rounded-lg border border-border bg-card p-4">
       <Field orientation="horizontal" className="items-start">
         <div className="flex-1">
-          <FieldLabel htmlFor="printer-print-role-mode" className="mb-1 font-semibold">
+          <FieldLabel htmlFor="printer-print-role-mode" className="mb-1 font-medium">
             {t("printer.printRoleMode")}
           </FieldLabel>
           <FieldDescription id="printer-print-role-mode-description">{t("printer.printRoleModeHint")}</FieldDescription>
-          <p className="mt-2 text-sm font-medium" aria-live="polite">
-            {t(form.printRoleMode === 2 ? "printer.printRoleModeRestricted" : "printer.printRoleModeUnrestricted")}
-          </p>
         </div>
         <Switch
           id="printer-print-role-mode"

@@ -1,5 +1,14 @@
 # Decisions
 
+## Windows USB sharing uses the registered owner queue
+
+- **Date:** 2026-11-27.
+- **Authorization:** The owner requested that other devices print over Wi-Fi to the working POS80 USB printer attached to the shop All-in-one.
+- **Decision:** Permit an explicit `INTERNET` shared Windows USB queue with a stable registered owner, preserving the exact `win:<queue>`, Agent and device. Other authenticated devices in the branch observe the durable job while the owning POS and Printer Agent execute it. The owning computer, Agent and POS must remain online. USB LAN sharing, CUPS sharing, native-phone USB execution and a raw port-9100 bridge are outside this exception.
+- **Configuration:** New USB printers remain device-only by default; an explicitly chosen Internet mode survives queue selection and editing. The form preserves the existing printer UUID, document/station roles and mappings. A matching owner's fresh advertised URL can replace its old LAN address; another device's Agent cannot replace that owner or URL. A changed USB selection must still match the freshly resolved owner before saving.
+- **Dispatch boundary:** A session change while preparing a job, resolving its Agent or waiting on the printer queue prevents a new physical send and sends no failure ACK for unsent work. An already started write retains its delivery evidence and acknowledgement. Existing idempotency, complete-output checks, same-branch authorization, phone LAN proof and online-only behavior remain in force.
+- **Rollout:** Backend policy and an additive database constraint/migration update must be deployed before enabling this Frontend choice. Legacy migration replay must preserve the explicitly supported Windows USB exception.
+
 ## Print loading follows preparation and delivery instead of observation cleanup
 
 - **Date:** 2026-11-25.

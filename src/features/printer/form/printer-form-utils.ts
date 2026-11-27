@@ -1,5 +1,5 @@
-import { parseInterfaceValue, AGENT_URL } from "@/config/printer-agent";
-import { SUNMI_PRINTER_INTERFACE } from "@/config/sunmi-printer";
+import { parseInterfaceValue, AGENT_URL, BROWSER_PRINTER_AGENT_URL, isBrowserPrinterAgentId } from "@/config/printer-agent";
+import { SUNMI_PRINTER_INTERFACE, SUNMI_PRINTER_AGENT_ID } from "@/config/sunmi-printer";
 import type {
   AgentInfo,
   DefaultCategoryCategoryDetail,
@@ -21,6 +21,28 @@ import type { Zone } from "@/services/zone";
 import { cn } from "@/lib/utils";
 
 export type ConnectType = "usb" | "tcp" | "sunmi";
+
+export function printerAccessModeForConnection(connectType: ConnectType, accessMode: PrinterAccessMode): PrinterAccessMode {
+  return connectType !== "tcp" && accessMode === "LAN" ? "DIRECT" : accessMode;
+}
+
+export function canShareWindowsUsbPrinter(target: Pick<Printer, "interface_value" | "agent_id" | "device_code" | "print_mode">): boolean {
+  return /^win:[^\r\n\0]+$/.test(target.interface_value) && Boolean(target.interface_value.slice(4).trim()) &&
+    target.print_mode === "windows_agent" && Boolean(target.agent_id?.trim() && target.device_code?.trim()) &&
+    !["mobile", "desktop", "browser", SUNMI_PRINTER_AGENT_ID].includes(target.agent_id?.trim().toLowerCase() ?? "");
+}
+
+export function printerOwnerMatches(left: Pick<AgentInfo, "agent_id" | "device_code">, right: Pick<AgentInfo, "agent_id" | "device_code"> | null): boolean {
+  return Boolean(left.agent_id?.trim() && left.device_code?.trim()) &&
+    left.agent_id === right?.agent_id && left.device_code === right?.device_code;
+}
+
+export function printerOwnerAgentUrl(owner: AgentInfo, currentAgent: AgentInfo | null, savedAgentUrl: string): string {
+  if (owner.agent_id === SUNMI_PRINTER_AGENT_ID) return "";
+  if (isBrowserPrinterAgentId(owner.agent_id)) return BROWSER_PRINTER_AGENT_URL;
+  return (printerOwnerMatches(owner, currentAgent) ? textValue(currentAgent?.agent_url) : "") || textValue(owner.agent_url) ||
+    savedAgentUrl.trim() || AGENT_URL;
+}
 
 export function sunmiBuiltinDiagnosticMessageKey(
   diagnostic: Pick<SunmiBuiltinPrinterDiagnostic, "status" | "ready">,

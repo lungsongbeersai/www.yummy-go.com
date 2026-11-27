@@ -52,6 +52,28 @@ describe("printer configuration API", () => {
     expect(options.data).not.toHaveProperty("port");
   });
 
+  it("shares the existing Windows USB queue through its exact owner without converting the computer IP to a printer", async () => {
+    apiMocks.apiRequest.mockResolvedValueOnce({ data: { print_config_uuid: "pos80-existing" } });
+    await savePrinter({
+      ...input, print_config_uuid: "pos80-existing", connect_type: "usb", interface_value: "win:POS80 Printer",
+      print_mode: "windows_agent", access_mode: "INTERNET", sharing_mode: "SHARED",
+      agent_id: "allinone-agent", device_code: "ALLINONE-PC", agent_url: "http://192.168.100.63:7777",
+      role_codes: ["b-001", "invoice", "receipt", "qr_table", "report"],
+      mapping_type: "ZONE", cate_uuid_fk: ["drinks"], zone_uuid_fk: ["bar"],
+    });
+    const data = apiMocks.apiRequest.mock.calls[0][2].data;
+    expect(data).toMatchObject({
+      print_config_uuid: "pos80-existing", connect_type: "usb", interface_value: "win:POS80 Printer",
+      print_mode: "windows_agent", access_mode: "INTERNET", sharing_mode: "SHARED",
+      agent_id: "allinone-agent", device_code: "ALLINONE-PC", agent_url: "http://192.168.100.63:7777",
+      role_codes: ["b-001", "invoice", "receipt", "qr_table", "report"],
+      mapping_type: "ZONE", cate_uuid_fk: ["drinks"], zone_uuid_fk: ["bar"],
+    });
+    expect(data).not.toHaveProperty("ip");
+    expect(data).not.toHaveProperty("port");
+    expect(apiMocks.apiRequest).toHaveBeenCalledOnce();
+  });
+
   it("registers supported paper-out hardware without advertising it as a ready receiver", async () => {
     apiMocks.apiRequest.mockResolvedValueOnce({ data: { supported: true, ready: false } });
     await registerSunmiNativePrinterOwner("cashier", {

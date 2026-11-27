@@ -111,7 +111,8 @@ describe("native delivery recovery after WebView restart", () => {
     const { resetSessionStores } = await import("@/stores/session-store-registry");
     resetSessionStores();
     finish(setup.payload);
-    await expect(printing).resolves.toMatchObject({ successCount: 0, failedCount: 2 });
+    // The stale session stops before any transport or ACK; the jobs stay pending for the next session.
+    await expect(printing).resolves.toMatchObject({ successCount: 0, failedCount: 0, pending: true });
     expect(mocks.sunmiSend).not.toHaveBeenCalled();
     expect(mocks.send).not.toHaveBeenCalled();
   });
