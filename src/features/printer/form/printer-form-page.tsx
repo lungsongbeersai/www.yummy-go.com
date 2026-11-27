@@ -247,17 +247,23 @@ export function PrinterFormPage() {
               <FieldLabel htmlFor="printer-paper-width">
                 {t("fields.paperWidth")}
               </FieldLabel>
-              <Input
-                id="printer-paper-width"
+              <Select
                 name="printer_paper_width"
-                autoComplete="off"
                 value={form.paperWidth}
                 disabled={form.saving}
-                type="number"
-                inputMode="numeric"
                 required
-                onChange={(event) => form.setPaperWidth(event.target.value)}
-              />
+                onValueChange={form.setPaperWidth}
+              >
+                <SelectTrigger id="printer-paper-width" className="w-full">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent position="popper">
+                  <SelectGroup>
+                    <SelectItem value="80">80 mm</SelectItem>
+                    <SelectItem value="58">58 mm</SelectItem>
+                  </SelectGroup>
+                </SelectContent>
+              </Select>
             </Field>
 
             {form.connectType === "usb" ? (

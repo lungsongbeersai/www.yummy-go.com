@@ -492,7 +492,8 @@ export function printerFormValues(printer: Printer | null) {
       connectType === "sunmi" ? SUNMI_PRINTER_INTERFACE : connectType === "usb" ? (printer?.interface_value ?? "") : "",
     ip: connectType === "tcp" ? (parsed.ip ?? "") : "",
     port: String(connectType === "tcp" ? (parsed.port ?? 9100) : 9100),
-    paperWidth: String(printer?.paper_width_mm ?? 80),
+    // Backend renders only 58 mm (384 dots) or 80 mm (576 dots); anything else prints as 80.
+    paperWidth: Number(printer?.paper_width_mm) === 58 ? "58" : "80",
     kitchenCutMode: kitchenCutModeOf(printer),
     cashDrawerEnabled: cashDrawerEnabledOf(printer),
     queueTicketEnabled: printer?.queue_ticket_enabled !== false,
