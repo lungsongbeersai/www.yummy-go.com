@@ -13,6 +13,8 @@ const eslintConfig = [
       "node_modules/**",
       "out/**",
       "release/**",
+      // Local QA/Playwright output, not application source
+      "test-results/**",
       "next-env.d.ts",
       // สร้างจาก src/service-worker/sw.ts ตอน build (@serwist/next) — minified, ไม่ใช่ source ที่เขียนเอง
       "public/offline-sw.js"

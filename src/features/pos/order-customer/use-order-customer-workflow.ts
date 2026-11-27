@@ -105,7 +105,6 @@ export function useOrderCustomerWorkflow({
   const loadingMenu = usePosStore((state) => state.loadingMenu);
   const submittedSearch = usePosStore((state) => state.submittedSearch);
   const loadTables = usePosStore((state) => state.loadTables);
-  const refreshTablesStore = usePosStore((state) => state.refreshTables);
   const loadCartStore = usePosStore((state) => state.loadCart);
   const loadMenuStore = usePosStore((state) => state.loadMenu);
   const resetMenu = usePosStore((state) => state.resetMenu);

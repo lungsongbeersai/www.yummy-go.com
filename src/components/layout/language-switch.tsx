@@ -19,7 +19,6 @@ interface LanguageSwitchProps {
   /** ปุ่มเดี่ยวสลับภาษาไป-กลับ (เหมือน ThemeToggle) — ใช้เมื่อพื้นที่มีแค่ช่องไอคอนเดียว
    *  ต่างจากโหมดปกติที่เป็น ToggleGroup 2 ช่อง ซึ่งต้องการพื้นที่กว้างพอให้ทั้งสองธงแสดงพร้อมกัน */
   compact?: boolean;
-  contentAlign?: "start" | "center" | "end";
   showShort?: boolean;
   size?: ButtonProps["size"];
   variant?: ButtonProps["variant"];
@@ -36,7 +35,6 @@ function LanguageFlagImage({ src }: { src: string }) {
 export function LanguageSwitch({
   className,
   compact = false,
-  contentAlign: _contentAlign = "end",
   showShort = true,
   size = "sm",
   variant = "ghost"
