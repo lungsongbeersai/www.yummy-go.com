@@ -85,6 +85,7 @@ import { useAuthStore } from "@/stores/auth-store";
 import { canHostSunmiBuiltinPrinter } from "@/config/sunmi-printer";
 
 import { createPrinterSupportSlice, type PrinterSupportState } from "@/stores/printer-support";
+import { createPrinterMaintenanceSlice, type PrinterMaintenanceState } from "@/stores/printer-maintenance";
 
 type AgentStatus = "unchecked" | "connected" | "offline" | "unauthorized";
 export type PrinterSelfTestPhase = "idle" | "dispatching" | "restored" | "checking" | "manual" | "error" | "completing";
@@ -215,7 +216,7 @@ function localSharedTcpTestJob(
   };
 }
 
-interface PrinterState extends PrinterSupportState {
+interface PrinterState extends PrinterSupportState, PrinterMaintenanceState {
   internetPrintSettings: InternetPrintSettings | null;
   loadingInternetPrintSettings: boolean;
   internetPrintSettingsError: string | null;
@@ -291,6 +292,7 @@ interface PrinterState extends PrinterSupportState {
 
 export const usePrinterStore = create<PrinterState>((set, get) => ({
   ...createPrinterSupportSlice((patch) => set(patch), get),
+  ...createPrinterMaintenanceSlice((patch) => set(patch), get),
   internetPrintSettings: null,
   loadingInternetPrintSettings: false,
   internetPrintSettingsError: null,
@@ -1071,6 +1073,7 @@ export const usePrinterStore = create<PrinterState>((set, get) => ({
   submitReportPrint: (input) => printReport(input),
   reset: () => {
     get().clearPrinterSupport();
+    get().resetMaintenance();
     agentConnectionGeneration += 1;
     builtinIdentityGeneration += 1;
     diagnosticsGeneration += 1;

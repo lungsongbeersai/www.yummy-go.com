@@ -9,9 +9,12 @@ interface PrinterSupportRunnerOptions {
   onError: (error: unknown) => void;
 }
 
+function printerSupportOwnerConnected(agent: AgentInfo | null): agent is AgentInfo {
+  return Boolean(agent?.agent_id && agent.device_code && ["win32", "darwin", "linux"].includes(agent.platform ?? ""));
+}
+
 export function printerSupportOwnerCapable(agent: AgentInfo | null): agent is AgentInfo {
-  return Boolean(agent?.agent_id && agent.device_code && ["win32", "darwin", "linux"].includes(agent.platform ?? "") &&
-    agent.supports_printer_support === true && agent.printer_support_protocol_version === 1);
+  return printerSupportOwnerConnected(agent) && agent.supports_printer_support === true && agent.printer_support_protocol_version === 1;
 }
 
 // Support uses its own polling lock and deadline. An unavailable support
@@ -45,7 +48,7 @@ export function startPrinterSupportRunner(options: PrinterSupportRunnerOptions) 
     const task = Promise.resolve().then(async () => {
       if (!fresh()) return;
       const agent = await cancellable(options.resolveOwner(current.signal));
-      if (!fresh() || !printerSupportOwnerCapable(agent)) return;
+      if (!fresh() || !printerSupportOwnerConnected(agent)) return;
       const claim = await cancellable(options.claim(agent, current.signal));
       if (!fresh() || !claim.command || !claim.execution_token) return;
       const command = claim.command;
@@ -58,8 +61,14 @@ export function startPrinterSupportRunner(options: PrinterSupportRunnerOptions) 
       timers.add(executionTimer);
       try {
         let result: PrinterSupportExecution;
-        try { result = await cancellable(options.execute(claim, agent, current.signal)); }
-        catch { result = { status: "unknown", error_code: "SUPPORT_EXECUTION_UNCERTAIN" }; }
+        if (!printerSupportOwnerCapable(agent)) {
+          // Backend permits this owner-bound failure before Agent authorization,
+          // so offsite support can explain an old receiver instead of expiring.
+          result = { status: "failed", error_code: "AGENT_UPDATE_REQUIRED" };
+        } else {
+          try { result = await cancellable(options.execute(claim, agent, current.signal)); }
+          catch { result = { status: "unknown", error_code: "SUPPORT_EXECUTION_UNCERTAIN" }; }
+        }
         if (!active() || current.signal.aborted) return;
         // A failed ACK is reported, never used as a reason to execute again.
         await cancellable(options.acknowledge(claim, result, current.signal));

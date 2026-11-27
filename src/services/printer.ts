@@ -167,5 +167,5 @@ export {
   getPendingPrintJobs
 } from "@/services/printer/print-jobs";
 
-export { getPrinterSupportSummary, createPrinterSupportCommand, getPrinterSupportCommand, claimPrinterSupportCommand, executePrinterSupportCommand, acknowledgePrinterSupportCommand } from "@/services/printer/support";
-export type { PrinterSupportAction, PrinterSupportCommandStatus, PrinterSupportNeighbor, PrinterSupportResult, PrinterSupportCommand, PrinterSupportSummary, CreatePrinterSupportCommand, PrinterSupportClaim, PrinterSupportExecution } from "@/services/printer/types";
+export { getPrinterSupportSummary, createPrinterSupportCommand, getPrinterSupportCommand, claimPrinterSupportCommand, executePrinterSupportCommand, acknowledgePrinterSupportCommand, getPrinterMaintenanceQueue, updatePrinterConnection, clearPrinterMaintenanceQueue } from "@/services/printer/support";
+export type { PrinterSupportAction, PrinterSupportCommandStatus, PrinterSupportNeighbor, PrinterSupportResult, PrinterSupportCommand, PrinterSupportSummary, CreatePrinterSupportCommand, PrinterSupportClaim, PrinterSupportExecution, PrinterMaintenanceQueueJob, PrinterMaintenanceQueue, UpdatePrinterConnectionInput, PrinterConnectionUpdateResult, ClearPrinterQueueInput, PrinterQueueClearResult } from "@/services/printer/types";

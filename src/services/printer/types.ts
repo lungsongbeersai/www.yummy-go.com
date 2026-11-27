@@ -108,9 +108,47 @@ export interface PrinterSupportCommand {
   error_code: string | null;
 }
 export interface PrinterSupportSummary {
-  printer: Pick<Printer, "print_config_uuid" | "printer_name" | "interface_value" | "device_code" | "agent_id" | "agent_online">;
+  printer: Pick<Printer, "print_config_uuid" | "printer_name" | "interface_value" | "device_code" | "agent_id" | "agent_online"> & { configuration_version?: string };
   recent: { success: number; pending: number; failed: number; unknown: number; last_error: string | null; last_error_at: string | null };
   commands: PrinterSupportCommand[];
+  capabilities?: { connection_update: boolean; queue_management: boolean };
+}
+export interface PrinterMaintenanceQueueJob {
+  print_job_uuid: string;
+  source: string;
+  job_status: "pending" | "partial" | "failed";
+  item_count: number;
+  created_at: string;
+  updated_at: string;
+}
+export interface PrinterMaintenanceQueue {
+  print_config_uuid: string;
+  configuration_version: string;
+  queue_version: string;
+  clearable_jobs: PrinterMaintenanceQueueJob[];
+  clearable_job_count: number;
+  blocked_job_count: number;
+  pending_job_count: number;
+}
+export interface UpdatePrinterConnectionInput {
+  print_config_uuid: string;
+  configuration_version: string;
+  interface_value: string;
+}
+export interface PrinterConnectionUpdateResult {
+  printer: Pick<Printer, "print_config_uuid" | "interface_value"> & { configuration_version: string };
+  changed: boolean;
+}
+export interface ClearPrinterQueueInput {
+  request_uuid: string;
+  print_config_uuid: string;
+  configuration_version: string;
+  queue_version: string;
+}
+export interface PrinterQueueClearResult {
+  request_uuid: string;
+  cleared_jobs: number;
+  cleared_items: number;
 }
 export interface CreatePrinterSupportCommand {
   print_config_uuid: string;

@@ -33,13 +33,46 @@ describe("independent printer support receiver", () => {
     expect(printerSupportOwnerCapable({ ...agent, printer_support_protocol_version: undefined })).toBe(false);
     expect(printerSupportOwnerCapable({ ...agent, platform: "browser" })).toBe(false);
   });
-  it("never claims work through an old Agent or a missing local connection", async () => {
+  it.each([
+    { supports_printer_support: false },
+    { supports_printer_support: undefined },
+    { printer_support_protocol_version: undefined },
+    { printer_support_protocol_version: 2 },
+  ])("reports an incompatible desktop Agent once without starting OS work: %j", async (capability) => {
     const { runner, options } = start();
-    options.resolveOwner.mockResolvedValue({ ...agent, supports_printer_support: false });
+    const oldAgent = { ...agent, ...capability };
+    options.resolveOwner.mockResolvedValue(oldAgent);
+    await runner.poll();
+    expect(options.claim).toHaveBeenCalledWith(oldAgent, expect.any(AbortSignal));
+    expect(options.execute).not.toHaveBeenCalled();
+    expect(options.acknowledge).toHaveBeenCalledExactlyOnceWith(claim, { status: "failed", error_code: "AGENT_UPDATE_REQUIRED" }, expect.any(AbortSignal));
+    await runner.poll();
+    await vi.advanceTimersByTimeAsync(15000);
+    expect(options.acknowledge).toHaveBeenCalledTimes(1);
+    expect(options.execute).not.toHaveBeenCalled();
+  });
+  it.each([
+    null,
+    { ...agent, agent_id: "" },
+    { ...agent, device_code: null },
+    { ...agent, platform: "browser" },
+    { ...agent, platform: "android" },
+  ])("never claims without a connected desktop identity: %j", async (identity) => {
+    const { runner, options } = start();
+    options.resolveOwner.mockResolvedValue(identity);
     await runner.poll();
     expect(options.claim).not.toHaveBeenCalled();
-    options.resolveOwner.mockResolvedValue(null);
+    expect(options.execute).not.toHaveBeenCalled();
+    expect(options.acknowledge).not.toHaveBeenCalled();
+  });
+  it("does not replay an unsupported-Agent result after its ACK fails", async () => {
+    const { runner, options } = start();
+    options.resolveOwner.mockResolvedValue({ ...agent, supports_printer_support: false });
+    options.acknowledge.mockRejectedValue(new Error("ACK response lost"));
     await runner.poll();
+    expect(options.onError).toHaveBeenCalledTimes(1);
+    await runner.poll();
+    expect(options.acknowledge).toHaveBeenCalledTimes(1);
     expect(options.execute).not.toHaveBeenCalled();
   });
   it("coalesces wake/poll and never repeats OS work when ACK fails or Backend returns the same claim", async () => {
@@ -80,6 +113,27 @@ describe("independent printer support receiver", () => {
     runner.stop(); pending.resolve(claim); await poll;
     expect(options.execute).not.toHaveBeenCalled();
     expect(vi.getTimerCount()).toBe(0);
+  });
+  it("does not acknowledge an old-Agent claim after the receiver stops", async () => {
+    const { runner, options } = start();
+    options.resolveOwner.mockResolvedValue({ ...agent, supports_printer_support: false });
+    const pending = deferred<PrinterSupportClaim>(); options.claim.mockReturnValue(pending.promise);
+    const poll = runner.poll();
+    await vi.advanceTimersByTimeAsync(0);
+    runner.stop(); pending.resolve(claim); await poll;
+    expect(options.execute).not.toHaveBeenCalled();
+    expect(options.acknowledge).not.toHaveBeenCalled();
+    expect(vi.getTimerCount()).toBe(0);
+  });
+  it("does not acknowledge an old-Agent claim under a changed login scope", async () => {
+    const { runner, options } = start();
+    options.resolveOwner.mockResolvedValue({ ...agent, supports_printer_support: false });
+    const pending = deferred<PrinterSupportClaim>(); options.claim.mockReturnValue(pending.promise);
+    const poll = runner.poll(); await vi.advanceTimersByTimeAsync(0);
+    options.isCurrent.mockReturnValue(false);
+    pending.resolve(claim); await poll;
+    expect(options.execute).not.toHaveBeenCalled();
+    expect(options.acknowledge).not.toHaveBeenCalled();
   });
   it("does not acknowledge a Windows operation under a different login", async () => {
     const { runner, options } = start();
