@@ -38,6 +38,7 @@ public class SunmiPrinterPlugin extends Plugin {
   private static final long JOB_TIMEOUT_MS = 120_000;
   private static final int RAW_BLOCK_BYTES = 128 * 1024;
   private static final int MAX_JOINED_CALLS = 4;
+  private static final long USB_PERMISSION_WAIT_MS = 6_000;
 
   private final Handler main = new Handler(Looper.getMainLooper());
   private final Object bindingLock = new Object();
@@ -51,6 +52,7 @@ public class SunmiPrinterPlugin extends Plugin {
   private Job active;
   // Access only on the worker, including transaction-result callbacks.
   private SunmiPrintJournal journal;
+  private UsbBuiltinPrinter usb;
 
   private static final class Job {
     final String id;
@@ -63,6 +65,7 @@ public class SunmiPrinterPlugin extends Plugin {
     String key;
     String payloadHash;
     SunmiPrinterService printer;
+    UsbBuiltinPrinter.Target usbTarget;
     Runnable timeout;
     volatile boolean wrote;
     volatile boolean cancelled;
@@ -162,10 +165,16 @@ public class SunmiPrinterPlugin extends Plugin {
       job.blocks = SunmiEscposChunks.split(job.bytes, RAW_BLOCK_BYTES);
       job.printer = ensureService();
       if (job.printer == null || !InnerPrinterManager.getInstance().hasPrinter(job.printer)) {
-        rejectJob(job, "SUNMI_NOT_SENT", "No SUNMI inbuilt printer is available", false, true); return;
+        // Non-SUNMI terminals: the built-in printer sits on an internal USB port.
+        job.printer = null;
+        job.usbTarget = usb().find();
+        if (job.usbTarget == null || !usb().hasPermission(job.usbTarget)) {
+          rejectJob(job, "SUNMI_NOT_SENT", "No inbuilt printer is available", false, true); return;
+        }
+      } else {
+        int state = job.printer.updatePrinterState();
+        if (state != 1) { rejectJob(job, "SUNMI_NOT_SENT", statusMessage(state), false, true); return; }
       }
-      int state = job.printer.updatePrinterState();
-      if (state != 1) { rejectJob(job, "SUNMI_NOT_SENT", statusMessage(state), false, true); return; }
       // Recheck both lifecycle and owner after asynchronous binding/status calls.
       if (!canContinue(job)) return;
       if (!job.deviceCode.equals(deviceCode())) throw new IllegalStateException("The printer device identity changed");
@@ -179,6 +188,7 @@ public class SunmiPrinterPlugin extends Plugin {
       }
       job.reserved = true;
       if (!canContinue(job)) { journal().notSent(job.key, job.payloadHash); return; }
+      if (job.usbTarget != null) { writeUsbJob(job); return; }
       job.printer.enterPrinterBuffer(true);
       enqueueBufferedJob(job);
     } catch (Exception error) {
@@ -191,6 +201,30 @@ public class SunmiPrinterPlugin extends Plugin {
         unknown ? "The print result is unconfirmed; do not resend automatically" : "The inbuilt printer could not start the job",
         unknown, !job.wrote);
     }
+  }
+
+  /**
+   * USB has no transaction callback: a complete bulk transfer of every byte is
+   * the strongest confirmation available, the same contract as a raw TCP/9100
+   * send. A failure after the first byte stays uncertain and is never resent.
+   */
+  private void writeUsbJob(Job job) throws Exception {
+    usb().write(job.usbTarget, job.blocks, () -> canContinue(job), () -> {
+      synchronized (jobLock) {
+        if (destroyed || active != job || job.cancelled) return false;
+        job.wrote = true;
+        return true;
+      }
+    });
+    try { journal().printed(job.key, job.payloadHash); resolvePrinted(job, false); }
+    catch (RuntimeException storageFailure) {
+      rejectJob(job, "SUNMI_UNKNOWN", "The printer completed but its delivery record could not be saved", true, true);
+    }
+  }
+
+  private UsbBuiltinPrinter usb() {
+    if (usb == null) usb = new UsbBuiltinPrinter(getContext());
+    return usb;
   }
 
   private void enqueueBufferedJob(Job job) {
@@ -302,7 +336,7 @@ public class SunmiPrinterPlugin extends Plugin {
 
   private JSObject printerInfo() throws Exception {
     SunmiPrinterService printer = ensureService();
-    if (printer == null || !InnerPrinterManager.getInstance().hasPrinter(printer)) return unavailableInfo("SUNMI_UNAVAILABLE");
+    if (printer == null || !InnerPrinterManager.getInstance().hasPrinter(printer)) return usbPrinterInfo();
     JSObject result = baseInfo();
     int state = printer.updatePrinterState();
     boolean busy;
@@ -324,6 +358,30 @@ public class SunmiPrinterPlugin extends Plugin {
     try { result.put("printerModel", printer.getPrinterModal()); } catch (RemoteException unsupported) { /* Optional metadata. */ }
     try { result.put("serviceVersion", getContext().getPackageManager().getPackageInfo(SERVICE_PACKAGE, 0).versionName); }
     catch (PackageManager.NameNotFoundException unavailable) { /* Optional metadata. */ }
+    return result;
+  }
+
+  private JSObject usbPrinterInfo() throws InterruptedException {
+    UsbBuiltinPrinter.Target target = usb().find();
+    // The reason is shown verbatim in the printer form: list the hardware so a
+    // terminal without a recognised printer can be diagnosed remotely.
+    if (target == null) return unavailableInfo("SUNMI_UNAVAILABLE · " + usb().describe());
+    if (!usb().requestPermission(target, USB_PERMISSION_WAIT_MS)) {
+      return unavailableInfo("USB_PERMISSION_REQUIRED · " + target.label());
+    }
+    JSObject result = baseInfo();
+    boolean busy;
+    boolean paused;
+    synchronized (jobLock) {
+      busy = active != null;
+      paused = busy && active.responsesSettled;
+    }
+    result.put("supported", true); result.put("connected", true); result.put("busy", busy);
+    result.put("ready", SunmiPrintJobGuard.acceptsQueuedWork(1, busy, paused)); result.put("stateCode", 1);
+    result.put("statusMessage", paused ? "The inbuilt print result is unconfirmed; the queue is paused"
+      : "The inbuilt USB printer is connected (" + target.label() + ")");
+    result.put("paperWidthMm", JSObject.NULL);
+    result.put("printerModel", target.label());
     return result;
   }
 

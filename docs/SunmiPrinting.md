@@ -15,6 +15,14 @@ Keep Yummy Go open and connected on the owning SUNMI while it receives jobs. The
 
 If the built-in choice cannot be selected, read the status below the connection choices. It distinguishes a missing APK plugin, an unavailable native service, an unverified device identity, insufficient account permissions and failed server registration. The displayed version comes from the running APK when available. **Check SUNMI again** repeats discovery and registration without printing; a late service connection can recover without reinstalling the app. A detected printer or passing software tests alone do not confirm physical paper output.
 
+## Non-SUNMI terminals (internal USB fallback)
+
+Yummy Go Android 1.0.11 (build 12, `/downloads/android/yummy-go-1.0.11-builtin.apk`) keeps the same built-in contract on Android POS terminals without SUNMI's printer service, such as Rockchip `rk3566_r` all-in-ones. When `woyou.aidlservice.jiuiv5` is missing, the plugin looks for an internal USB printer: a USB printer-class (7) interface first, otherwise a single-interface vendor-specific device, each with a bulk OUT endpoint. Multi-interface vendor devices such as 4G modems are ignored.
+
+- **Check SUNMI again** asks Android for USB permission and waits up to 6 seconds. The manifest's printer-class `USB_DEVICE_ATTACHED` filter lets the dialog offer "always allow", so a reboot does not ask again.
+- When nothing matches, the diagnostic reason lists every USB device as `vid:pid[interface classes]` and every writable `/dev/ttyS*`/`ttyUSB*` node. Use it to decide whether the printer is wired over serial instead, which is not supported yet.
+- USB has no transaction callback. A complete bulk transfer of every byte resolves as printed, the same contract as raw TCP/9100; it does not prove paper output. A failure after the first byte stays `unknown` and is never resent automatically. The native journal and replay protections are unchanged.
+
 ## Delivery contract
 
 - The transport is explicit: `connect_type=sunmi`, `interface_value=sunmi://builtin`, `agent_id=sunmi-native`, `print_mode=sunmi_builtin`. The existing native mobile/TCP identity remains unchanged on the same terminal.
