@@ -79,25 +79,10 @@ interface PrinterListCardsProps {
   onToggle: (row: Printer) => void;
 }
 
-// สีเฉพาะที่แถบบน/ไอคอน — ตัวการ์ดคุมโทนกลางไว้ (เดิมทั้งใบเป็นพื้นแดง/เหลือง/ฟ้าอ่อนตามสถานะ
-// จนการ์ดที่ปิดใช้ตั้งใจดูเหมือน error และแยกไม่ออกว่าสีไหนแปลว่าอะไร)
-const HEALTH_EDGE: Record<PrinterHealth, string> = {
+const HEALTH_DOT: Record<PrinterHealth, string> = {
   ready: "bg-success",
-  disabled: "bg-border",
+  disabled: "bg-muted-foreground",
   unreachable: "bg-warning",
-};
-
-const HEALTH_ICON: Record<PrinterHealth, string> = {
-  ready: "bg-primary text-primary-foreground shadow-sm",
-  disabled: "bg-muted text-muted-foreground",
-  unreachable: "bg-warning text-warning-foreground shadow-sm",
-};
-
-// Connection type at a glance: WiFi in info blue (as in the printer form), USB in the pending orange.
-const CONNECTION_BADGE: Record<"tcp" | "usb" | "sunmi", string> = {
-  tcp: "border-info/40 bg-info/10 text-info-text",
-  usb: "border-pending/40 bg-pending/10 text-pending",
-  sunmi: "border-primary/40 bg-primary/10 text-primary-text",
 };
 
 function PrinterCard({
@@ -152,17 +137,12 @@ function PrinterCard({
   const ConnectionIcon = connectionType === "sunmi" ? PrinterIcon : connectionType === "usb" ? Usb : Wifi;
 
   return (
-    <article className="relative flex h-full flex-col overflow-hidden rounded-xl border border-border bg-card shadow-dash-card transition-shadow hover:shadow-md">
-      <span aria-hidden="true" className={cn("h-1.5 w-full shrink-0", HEALTH_EDGE[health])} />
-
-      <header className="flex min-w-0 items-start gap-3 p-4 pb-3">
-        <span className={cn("grid size-11 shrink-0 place-items-center rounded-xl", HEALTH_ICON[health])}>
-          <PrinterIcon className="size-5" />
-        </span>
-
+    <article className="flex h-full flex-col overflow-hidden rounded-xl border border-border bg-card">
+      <header className="flex min-w-0 items-start gap-3 p-3 pb-2">
         <div className="min-w-0 flex-1">
-          <p className={cn("truncate text-base font-black leading-6", health === "disabled" && "text-muted-foreground")}>
-            {row.printer_name}
+          <p className={cn("flex min-w-0 items-center gap-2 text-base font-semibold leading-6", health === "disabled" && "text-muted-foreground")}>
+            <span aria-hidden="true" className={cn("size-2 shrink-0 rounded-full", HEALTH_DOT[health])} />
+            <span className="truncate">{row.printer_name}</span>
           </p>
           <p className="truncate text-xs text-muted-foreground">{row.device_code || row.agent_name || "-"}</p>
         </div>
@@ -170,7 +150,7 @@ function PrinterCard({
         {/* สวิตช์เปิด/ปิดใช้แทนปุ่มไอคอน Power ที่อ่านไม่ออกว่ากดแล้วจะเปิดหรือปิด — เครื่องที่แก้ไม่ได้โชว์เป็น badge */}
         {editable ? (
           <div className="flex shrink-0 items-center gap-2">
-            <Label htmlFor={switchId} className="text-xs font-semibold text-muted-foreground">
+            <Label htmlFor={switchId} className="text-xs text-muted-foreground">
               {row.is_active ? statusLabels.active : statusLabels.inactive}
             </Label>
             {toggling ? <Spinner className="size-4" /> : null}
@@ -187,9 +167,9 @@ function PrinterCard({
         )}
       </header>
 
-      <div className="flex min-w-0 flex-1 flex-col gap-3 px-4 pb-4">
+      <div className="flex min-w-0 flex-1 flex-col gap-2.5 px-3 pb-3">
         <div className="flex min-w-0 flex-wrap items-center gap-1.5">
-          <Badge variant="outline" className={cn("gap-1 rounded-full font-bold", CONNECTION_BADGE[connectionType])}>
+          <Badge variant="outline" className="gap-1 text-muted-foreground">
             <ConnectionIcon className="size-3" />
             {t(connectionType === "sunmi" ? "printer.sunmiPrinter" : connectionType === "usb" ? "printer.usbPrinter" : "printer.tcpPrinter")}
           </Badge>
@@ -211,15 +191,14 @@ function PrinterCard({
           ) : null}
           <PrinterNetworkVisibilityBadge state={printerListNetworkState(row, networkVisibilityByPrinter)} />
           {row.access_mode === "INTERNET" ? (
-            <Badge variant="outline" className="border-info/30 bg-info/10 text-info-text" title={t("printer.accessInternet")}>
+            <Badge variant="outline" className="text-muted-foreground" title={t("printer.accessInternet")}>
               INTERNET
             </Badge>
           ) : null}
         </div>
 
-        <div className="min-w-0 rounded-lg border border-info/30 bg-info/10 px-3 py-2">
-          <p className="text-2xs font-semibold text-info-text">{t("fields.interfaceValue")}</p>
-          <p className="truncate font-mono text-sm font-semibold text-foreground" title={row.interface_value}>
+        <div className="min-w-0">
+          <p className="truncate font-mono text-sm text-foreground" title={`${t("fields.interfaceValue")}: ${row.interface_value || "-"}`}>
             {connectionType === "sunmi" ? t("printer.sunmiPrinter") : row.interface_value || "-"}
           </p>
           {row.endpoint_duplicate ? (
@@ -230,25 +209,22 @@ function PrinterCard({
           ) : null}
         </div>
 
-        <dl className="grid gap-2.5 text-sm">
+        <dl className="grid gap-2 text-sm">
           <div className="grid min-w-0 gap-1">
-            <dt className="text-xs font-semibold text-primary-text">{t("printer.roles")}</dt>
+            <dt className="text-xs text-muted-foreground">{t("printer.roles")}</dt>
             <dd>
-              <BadgeList tone="primary" emptyLabel={t("printer.noRoles")} items={roleItemsByPrinter.get(row.print_config_uuid) ?? []} />
+              <BadgeList emptyLabel={t("printer.noRoles")} items={roleItemsByPrinter.get(row.print_config_uuid) ?? []} />
             </dd>
           </div>
           <div className="grid min-w-0 gap-1">
-            <dt className="flex items-center gap-1.5 text-xs font-semibold text-warning-text">
-              {t("printer.printsFor")}
-              <Badge variant="outline" className="h-auto border-warning/40 px-1.5 py-0 text-2xs text-warning-text">
-                {zoneMapped ? t("printer.mappingTypeZone") : t("printer.mappingTypeCategory")}
-              </Badge>
+            <dt className="text-xs text-muted-foreground">
+              {zoneMapped ? t("printer.mappingTypeZone") : t("printer.mappingTypeCategory")}
             </dt>
             <dd className="flex flex-col gap-1.5">
-              {zoneMapped ? <BadgeList tone="warning" emptyLabel={t("printer.noZones")} items={targets} /> : null}
+              {zoneMapped ? <BadgeList emptyLabel={t("printer.noZones")} items={targets} /> : null}
               {/* บิล/ใบเสร็จ/รายงานไม่ผูกหมวดเมนู — เดิมขึ้น "ไม่มีหมวดหมู่" ซึ่งฟังเหมือนตั้งค่าไม่ครบ */}
               {categoryItems.length || zoneMapped ? (
-                <BadgeList tone="warning" emptyLabel={t("printer.noCategories")} items={categoryItems} />
+                <BadgeList emptyLabel={t("printer.noCategories")} items={categoryItems} />
               ) : (
                 <span className="text-xs text-muted-foreground">{t("printer.notMenuLinked")}</span>
               )}
@@ -259,8 +235,8 @@ function PrinterCard({
         {health !== "ready" || unverifiedLan ? (
           <p
             className={cn(
-              "flex items-start gap-1.5 rounded-md px-2.5 py-2 text-xs",
-              health === "unreachable" ? "bg-warning/10 text-warning-text" : "bg-muted text-muted-foreground",
+              "flex items-start gap-1.5 text-xs",
+              health === "unreachable" ? "text-warning-text" : "text-muted-foreground",
             )}
           >
             {health === "unreachable" ? (
@@ -273,14 +249,14 @@ function PrinterCard({
           </p>
         ) : null}
         {!unverifiedLan && manualTestUnavailable ? (
-          <p className="flex items-start gap-1.5 rounded-md bg-muted px-2.5 py-2 text-xs text-muted-foreground">
+          <p className="flex items-start gap-1.5 text-xs text-muted-foreground">
             <Info className="mt-px size-3.5 shrink-0" />
             {t(row.connect_type === "sunmi" ? "printer.sunmiTestOnOwner" : "printer.listVisibility.manualTestUnavailable")}
           </p>
         ) : null}
       </div>
 
-      <footer className="mt-auto flex flex-wrap items-center gap-2 border-t border-border bg-muted/20 px-4 py-3">
+      <footer className="mt-auto flex flex-wrap items-center gap-2 border-t border-border px-3 py-2.5">
         {/* ทดสอบพิมพ์คือสิ่งที่ทำบ่อยที่สุดในหน้านี้ — เป็นปุ่มมีข้อความเต็ม ส่วนคำสั่งอื่นรวมในเมนู ⋮ */}
         <Button type="button" className="h-10 flex-1" disabled={testDisabled} onClick={() => void onTest(row)}>
           {testing ? <Spinner data-icon="inline-start" /> : <PrinterIcon data-icon="inline-start" />}
@@ -346,7 +322,7 @@ function PrinterCard({
         <Button
           type="button"
           variant="outline"
-          className="min-h-10 w-full border-info/40 text-info-text hover:bg-info/10 hover:text-info-text"
+          className="min-h-10 w-full"
           disabled={selfTestDisabled}
           title={selfTestTargets.has(row.print_config_uuid) ? t("printer.selfTestHint") : t("printer.selfTestLocalConnectionHint")}
           onClick={() => void onSelfTest(row)}
