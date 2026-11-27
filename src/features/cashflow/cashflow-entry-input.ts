@@ -8,14 +8,17 @@ interface CompactCashflowEntryInput {
   branchUuid: string;
   entryUuid: string;
   editing: CashflowEntry | null;
-  category: CashflowCategory;
+  /** null files the entry under the branch's automatic general category. */
+  category: CashflowCategory | null;
+  /** Label used as the description when there is neither a note nor a category. */
+  generalLabel?: string;
   direction: CashflowDirection;
   date: string;
   amount: number;
   note: string;
 }
 
-export function compactCashflowEntryInput({ branchUuid, entryUuid, editing, category, direction, date, amount, note }: CompactCashflowEntryInput): SaveCashflowEntryInput {
+export function compactCashflowEntryInput({ branchUuid, entryUuid, editing, category, generalLabel = "General", direction, date, amount, note }: CompactCashflowEntryInput): SaveCashflowEntryInput {
   const trimmedNote = note.trim();
   const unchangedLegacyNote = editing && trimmedNote && trimmedNote === cashflowEntryNote(editing).trim();
   return {
@@ -24,10 +27,10 @@ export function compactCashflowEntryInput({ branchUuid, entryUuid, editing, cate
     ...(editing ? { version: editing.version } : {}),
     entry_date: date,
     direction,
-    category_uuid_fk: category.category_uuid,
+    ...(category ? { category_uuid_fk: category.category_uuid } : {}),
     amount,
     note: trimmedNote,
-    description: unchangedLegacyNote ? editing.description : trimmedNote.slice(0, 500) || category.name,
+    description: unchangedLegacyNote ? editing.description : trimmedNote.slice(0, 500) || category?.name || generalLabel,
     currency: editing?.currency ?? "LAK",
     expense_group: direction === "expense" ? editing?.expense_group ?? "shop" : null,
     payment_method: editing?.payment_method ?? "other",

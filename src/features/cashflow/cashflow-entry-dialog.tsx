@@ -45,12 +45,14 @@ export function CashflowEntryDialog({ branchUuid, branchLabel, editing, initialD
   const category = categories.find((row) => row.category_uuid === categoryUuid &&
     (row.is_active || row.category_uuid === editing?.category_uuid_fk) && (row.direction === "both" || row.direction === direction));
   const amountValue = cashflowAmountValue(amount);
-  const valid = Boolean(branchUuid && category && isCashflowDate(date) && amountValue !== null);
+  // Category is optional: without one the backend files the entry under "General".
+  const valid = Boolean(branchUuid && (!categoryUuid || category) && isCashflowDate(date) && amountValue !== null);
   const currency = editing?.currency ?? "LAK";
 
   function submit() {
-    if (!valid || saving || !category || amountValue === null) return;
-    void onSave(compactCashflowEntryInput({ branchUuid, entryUuid, editing, category, direction, date, amount: amountValue, note }));
+    if (!valid || saving || amountValue === null) return;
+    void onSave(compactCashflowEntryInput({ branchUuid, entryUuid, editing, category: category ?? null,
+      generalLabel: t("cashflow.generalCategory"), direction, date, amount: amountValue, note }));
   }
 
   return <Dialog open={open} onOpenChange={onOpenChange}>
@@ -68,7 +70,7 @@ export function CashflowEntryDialog({ branchUuid, branchLabel, editing, initialD
         <SettingsDialogBody className="flex flex-col gap-4 p-4 sm:p-5">
           {error ? <Alert variant="destructive"><AlertDescription>{error}</AlertDescription></Alert> : null}
           <Field className="gap-2"><FieldLabel htmlFor="cashflow-form-date">{t("cashflow.fields.date")}</FieldLabel><Input id="cashflow-form-date" className="min-h-11" type="date" required disabled={saving} value={date} onChange={(event) => setDate(event.target.value)} /></Field>
-          <Field className="gap-2"><FieldLabel>{t("cashflow.fields.category")}</FieldLabel><CashflowCategoryBadges categories={categories} direction={direction} selectedUuid={categoryUuid} onSelect={setCategoryUuid} retainedCategoryUuid={editing?.category_uuid_fk} disabled={saving} loading={categoriesLoading} /></Field>
+          <Field className="gap-2"><FieldLabel>{t("cashflow.fields.category")}</FieldLabel><CashflowCategoryBadges categories={categories} direction={direction} selectedUuid={categoryUuid} onSelect={(uuid) => setCategoryUuid((current) => current === uuid && !editing ? "" : uuid)} retainedCategoryUuid={editing?.category_uuid_fk} disabled={saving} loading={categoriesLoading} />{!editing ? <p className="text-xs text-muted-foreground">{t("cashflow.categoryOptionalHint")}</p> : null}</Field>
           <Field className="gap-2"><FieldLabel htmlFor="cashflow-form-amount">{t("cashflow.fields.amount")} ({currency})</FieldLabel><FormattedNumberInput id="cashflow-form-amount" className="min-h-11 text-lg font-semibold tabular-nums" decimal required disabled={saving} value={amount} onValueChange={setAmount} placeholder="0.00" aria-invalid={Boolean(amount && amountValue === null)} /></Field>
           <Field className="gap-2"><FieldLabel htmlFor="cashflow-form-note">{t("cashflow.fields.note")}</FieldLabel><Textarea id="cashflow-form-note" maxLength={2000} disabled={saving} value={note} onChange={(event) => setNote(event.target.value)} rows={2} className="min-h-16 resize-y" /></Field>
         </SettingsDialogBody>

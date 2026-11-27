@@ -61,7 +61,8 @@ export interface CashflowEntry extends ApiEntity {
 export interface SaveCashflowEntryInput extends ApiEntity, CashflowBranchScope {
   entry_uuid: string;
   version?: number;
-  category_uuid_fk: string;
+  /** Omit to file a quick entry under the branch's automatic general category. */
+  category_uuid_fk?: string;
   entry_date: string;
   direction: CashflowDirection;
   expense_group?: CashflowExpenseGroup | null;
@@ -89,8 +90,16 @@ export interface CashflowPagination {
   totalPages: number;
 }
 
+export interface CashflowEntriesSummary {
+  income: number;
+  expense: number;
+  balance: number;
+}
+
 export interface CashflowEntriesResponse extends ApiListResponse<CashflowEntry> {
   pagination: CashflowPagination;
+  /** Totals of every entry matching the filters (not just this page), in LAK. */
+  summary?: CashflowEntriesSummary | null;
 }
 
 export interface CashflowReportSummary {
@@ -197,7 +206,10 @@ export async function getCashflowEntries(params: FetchCashflowEntriesParams): Pr
   if (Object.values(pagination).some((value) => !Number.isFinite(value) || value < 0)) {
     throw new ServiceError("Invalid cashflow pagination", 502);
   }
-  return { ...response, data: response.data.map(normalizeEntry), pagination,
+  const raw = (response as { summary?: Partial<CashflowEntriesSummary> }).summary;
+  const summary = raw ? { income: money(raw.income, "income"), expense: money(raw.expense, "expense"),
+    balance: money(raw.balance, "balance") } : null;
+  return { ...response, data: response.data.map(normalizeEntry), pagination, summary,
     total: pagination.total, totalPages: pagination.totalPages, page: pagination.page };
 }
 
@@ -206,7 +218,7 @@ export async function saveCashflowEntry(input: SaveCashflowEntryInput) {
   const result = await saveEntity<CashflowEntry>("/api/v1/cashflow/entries/save", {
     branch_uuid: cashflowBranchUuid(input), entry_uuid: requiredText(input.entry_uuid, "entry_uuid"),
     ...(input.version !== undefined ? { version: input.version } : {}),
-    category_uuid_fk: requiredText(input.category_uuid_fk, "category_uuid_fk"),
+    ...(input.category_uuid_fk ? { category_uuid_fk: input.category_uuid_fk } : {}),
     entry_date: requiredText(input.entry_date, "entry_date"), direction: input.direction,
     expense_group: input.direction === "expense" ? input.expense_group : null,
     amount: input.amount, currency: input.currency, description: requiredText(input.description, "description"),

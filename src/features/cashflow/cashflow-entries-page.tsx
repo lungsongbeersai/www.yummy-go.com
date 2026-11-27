@@ -28,6 +28,7 @@ import { useToastStore } from "@/stores/toast-store";
 import type { CashflowBranchControls } from "./cashflow-categories-page";
 import { CashflowCategoryBadges } from "./cashflow-category-badges";
 import { CashflowEntryDialog } from "./cashflow-entry-dialog";
+import { CashflowQuickEntry } from "./cashflow-quick-entry";
 import { cashflowEntryNote } from "./cashflow-entry-input";
 import { formatCashflowAmount, formatCashflowDate, validCashflowDateRange } from "./cashflow-ui-utils";
 import { CashflowAccessDenied, CashflowSelectField, CashflowWorkspace } from "./cashflow-workspace";
@@ -73,6 +74,7 @@ function EntriesList({ branchUuid, branchLabel, branchOptions, branchLoading, br
   const entriesError = useCashflowStore((state) => state.entriesError);
   const total = useCashflowStore((state) => state.total);
   const totalPages = useCashflowStore((state) => state.totalPages);
+  const summary = useCashflowStore((state) => state.summary);
   const load = useCashflowStore((state) => state.loadEntries);
   const loadCategories = useCashflowStore((state) => state.loadCategories);
   const save = useCashflowStore((state) => state.saveEntry);
@@ -111,11 +113,11 @@ function EntriesList({ branchUuid, branchLabel, branchOptions, branchLoading, br
     setFilters((current) => ({ ...current, categoryUuid }));
   }
 
-  async function handleSave(input: SaveCashflowEntryInput) {
+  async function handleSave(input: SaveCashflowEntryInput): Promise<CashflowEntry | null> {
     const isSession = createSessionGuard();
     try {
       const saved = await save(input);
-      if (!mounted.current || !isSession()) return;
+      if (!mounted.current || !isSession()) return null;
       setDialogOpen(false);
       setPage(1);
       // Keep the saved row visible even when its date or category changed.
@@ -127,9 +129,13 @@ function EntriesList({ branchUuid, branchLabel, branchOptions, branchLoading, br
         categoryUuid: current.categoryUuid === "all" ? "all" : saved.category_uuid_fk,
       }));
       showToast({ title: t("cashflow.entrySaved", { defaultValue: "Entry saved" }), tone: "success" });
+      // A filter change reloads by itself; otherwise reload so the new row and totals show.
+      await Promise.allSettled([load({ ...request, page: 1 }), loadCategories({ branch_uuid_fk: branchUuid, include_inactive: true })]);
+      return saved;
     } catch (failure: unknown) {
       if (mounted.current && isSession()) showToast({ title: t("settings.saveFailed"),
         description: failure instanceof Error ? failure.message : t("toasts.pleaseTryAgain"), tone: "error" });
+      return null;
     }
   }
 
@@ -174,11 +180,11 @@ function EntriesList({ branchUuid, branchLabel, branchOptions, branchLoading, br
   return <CashflowWorkspace compact active="entries" title={t("cashflow.entriesTitle")} description="" branchLabel={branchLabel} branchUuid={branchUuid}
     actions={<>
       <Button id="cashflow-add-income" type="button" className="min-h-11" variant="outline"
-        aria-label={t("cashflow.addIncome")} disabled={!branchUuid || saving || categoriesLoading} onClick={() => openCreate("income")}>
+        aria-label={t("cashflow.addIncome")} disabled={!branchUuid || saving} onClick={() => openCreate("income")}>
         <CirclePlus className="size-4" aria-hidden />{t("cashflow.addIncome")}
       </Button>
       <Button id="cashflow-add-expense" type="button" className="min-h-11"
-        aria-label={t("cashflow.addExpense")} disabled={!branchUuid || saving || categoriesLoading} onClick={() => openCreate("expense")}>
+        aria-label={t("cashflow.addExpense")} disabled={!branchUuid || saving} onClick={() => openCreate("expense")}>
         <CirclePlus className="size-4" aria-hidden />{t("cashflow.addExpense")}
       </Button>
     </>}>
@@ -186,7 +192,9 @@ function EntriesList({ branchUuid, branchLabel, branchOptions, branchLoading, br
       <span>{branchError || error || entriesError || categoriesError}</span><Button type="button" variant="outline" size="sm" disabled={loading || !branchUuid} onClick={() => void refresh()}>{t("actions.tryAgain")}</Button>
     </AlertDescription></Alert> : null}
 
-    <div className="flex items-start gap-2 rounded-lg bg-info/10 px-3 py-2.5 text-sm text-muted-foreground"><Info className="mt-0.5 size-4 shrink-0 text-info" aria-hidden /><p>{t("cashflow.salesAutomaticHint")}</p></div>
+    <CashflowQuickEntry branchUuid={branchUuid} saving={saving || categoriesLoading} onSave={handleSave} />
+
+    <div className="flex items-start gap-2 rounded-lg bg-info/10 px-3 py-2 text-xs text-muted-foreground sm:text-sm"><Info className="mt-0.5 size-4 shrink-0 text-info" aria-hidden /><p>{t("cashflow.salesAutomaticHint")}</p></div>
 
     <section className="flex flex-col gap-4 rounded-xl border border-border bg-card p-3 sm:p-4" aria-label={t("report.filters.currentFilters")}>
       <div className="flex flex-wrap items-center justify-between gap-2">
@@ -213,6 +221,14 @@ function EntriesList({ branchUuid, branchLabel, branchOptions, branchLoading, br
       </div>
       <CashflowCategoryBadges categories={visibleCategories} direction={filters.direction}
         selectedUuid={filters.categoryUuid} onSelect={selectCategory} disabled={saving || !branchUuid} loading={categoriesLoading} allowAll />
+      <dl className="grid grid-cols-3 gap-2 border-t border-border pt-3" aria-label={t("cashflow.summaryBalance")}>
+        {([["income", summary?.income, "text-success"], ["expense", summary?.expense, "text-destructive"],
+          ["balance", summary?.balance, (summary?.balance ?? 0) < 0 ? "text-destructive" : "text-foreground"]] as const).map(([key, value, tone]) =>
+          <div key={key} className="flex min-w-0 flex-col gap-0.5 rounded-lg bg-muted/50 px-3 py-2">
+            <dt className="truncate text-xs text-muted-foreground">{t(`cashflow.summary${key[0].toUpperCase()}${key.slice(1)}`)}</dt>
+            <dd className={`truncate text-base font-bold tabular-nums sm:text-lg ${tone}`}>{loading || entriesBranchUuid !== branchUuid ? "…" : formatCashflowAmount(value ?? 0, "LAK")}</dd>
+          </div>)}
+      </dl>
     </section>
 
     {loading || entriesBranchUuid !== branchUuid ? <div className="flex flex-col gap-2" role="status" aria-label={t("common.loading")}>
@@ -235,7 +251,7 @@ function EntriesList({ branchUuid, branchLabel, branchOptions, branchLoading, br
 
     <CashflowEntryDialog key={`${editing?.entry_uuid ?? "new"}:${newDirection}:${dialogOpen}`} branchUuid={branchUuid} branchLabel={branchLabel}
       open={dialogOpen} saving={saving} editing={editing} initialDirection={newDirection} categories={visibleCategories}
-      categoriesLoading={categoriesLoading} error={error} onOpenChange={(open) => { if (!saving) setDialogOpen(open); }} onSave={handleSave} />
+      categoriesLoading={categoriesLoading} error={error} onOpenChange={(open) => { if (!saving) setDialogOpen(open); }} onSave={async (input) => { await handleSave(input); }} />
     <ConfirmDialog open={Boolean(deleteTarget)} onOpenChange={(open) => { if (!open && !saving) setDeleteTarget(null); }}
       title={t("cashflow.deleteEntry")} description={t("cashflow.deleteEntryHint")} cancelLabel={t("actions.cancel")}
       confirmLabel={t("actions.delete")} confirmPending={saving} onConfirm={() => void handleDelete()} />

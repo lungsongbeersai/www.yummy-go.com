@@ -1,5 +1,14 @@
 {
   "cashflow": {
+    "quickTitle": "Quick entry",
+    "quickHint": "Pick income or expense, enter the amount, then save.",
+    "quickNotePlaceholder": "Details, e.g. vegetables, water bill, electricity",
+    "quickSave": "Save",
+    "generalCategory": "General",
+    "categoryOptionalHint": "Category is optional — entries without one are saved as “General”.",
+    "summaryIncome": "Other income",
+    "summaryExpense": "Expenses",
+    "summaryBalance": "Balance",
     "compact": { "listCategories": "Category list" },
     "accessDenied": "Finance access is restricted",
     "accessDeniedHint": "Ask an administrator or accounting staff member to manage income and expenses.",
@@ -45,7 +54,7 @@
     "deleteEntryHint": "Delete this income or expense entry? It will no longer be included in reports.",
     "entryValidation": "Choose a valid date and category, enter a description and an amount greater than zero with up to two decimal places.",
     "chooseCategory": "Choose a category",
-    "categoryRequiredHint": "Add an active category for this entry type before recording an entry.",
+    "categoryRequiredHint": "No categories yet — you can still save; it will be filed as “General”.",
     "manageCategories": "Manage categories",
     "descriptionPlaceholder": "What was this income or expense for?",
     "positiveAmountHint": "Enter an amount greater than zero with up to two decimal places.",

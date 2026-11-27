@@ -35,3 +35,12 @@ describe("compact cashflow entry payload", () => {
     expect(changed.note).toBe("");
   });
 });
+
+describe("quick cashflow entry without a category", () => {
+  it("omits the category so the backend files it under the general category", () => {
+    const payload = compactCashflowEntryInput({ ...input, category: null, generalLabel: "ທົ່ວໄປ" });
+    expect(payload).not.toHaveProperty("category_uuid_fk");
+    expect(payload.description).toBe("ທົ່ວໄປ");
+    expect(compactCashflowEntryInput({ ...input, category: null, note: "ຄ່ານ້ຳ" }).description).toBe("ຄ່ານ້ຳ");
+  });
+});

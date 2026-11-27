@@ -2,7 +2,7 @@
 
 import { create } from "zustand";
 import * as cashflow from "@/services/cashflow";
-import type { CashflowCategory, CashflowEntry, CashflowReport, FetchCashflowCategoriesParams,
+import type { CashflowCategory, CashflowEntriesSummary, CashflowEntry, CashflowReport, FetchCashflowCategoriesParams,
   FetchCashflowEntriesParams, FetchCashflowReportParams, SaveCashflowCategoryInput, SaveCashflowEntryInput } from "@/services/cashflow";
 import { createSessionGuard, registerSessionStoreReset } from "@/stores/session-store-registry";
 import { errorMessage } from "@/stores/store-utils";
@@ -26,6 +26,7 @@ interface CashflowState {
   reportError: string | null;
   total: number;
   totalPages: number;
+  summary: CashflowEntriesSummary | null;
   loadCategories: (params: FetchCashflowCategoriesParams) => Promise<CashflowCategory[]>;
   saveCategory: (input: SaveCashflowCategoryInput) => Promise<CashflowCategory>;
   removeCategory: (categoryUuid: string, branchUuid: string) => Promise<void>;
@@ -41,7 +42,8 @@ const initial = { branchUuid: "", categoriesBranchUuid: "", entriesBranchUuid: "
   report: null as CashflowReport | null, reportParams: null as FetchCashflowReportParams | null,
   categoriesLoading: false, entriesLoading: false, reportLoading: false,
   saving: false, error: null as string | null, categoriesError: null as string | null,
-  entriesError: null as string | null, reportError: null as string | null, total: 0, totalPages: 1 };
+  entriesError: null as string | null, reportError: null as string | null, total: 0, totalPages: 1,
+  summary: null as CashflowEntriesSummary | null };
 
 let generation = 0;
 let categoryRequest = 0;
@@ -106,10 +108,10 @@ export const useCashflowStore = create<CashflowState>((set, get) => {
       try {
         const result = await cashflow.getCashflowEntries(params);
         if (current() && request === entriesRequest) set({ entries: result.data, total: result.pagination.total,
-          totalPages: result.pagination.totalPages, entriesLoading: false });
+          totalPages: result.pagination.totalPages, summary: result.summary ?? null, entriesLoading: false });
         return result.data;
       } catch (error) {
-        if (current() && request === entriesRequest) set({ entries: [], total: 0, totalPages: 1,
+        if (current() && request === entriesRequest) set({ entries: [], total: 0, totalPages: 1, summary: null,
           entriesLoading: false, entriesError: errorMessage(error), error: errorMessage(error) });
         throw error;
       }
