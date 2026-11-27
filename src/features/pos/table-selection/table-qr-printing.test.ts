@@ -4,6 +4,8 @@ import {
   createQrPrintRound,
   tableQrPrintAttemptResponse,
   tableQrPrintOutcome,
+  tableQrPrintProgress,
+  tableQrPrintProgressUpdate,
 } from "./table-qr-printing";
 
 describe("table QR printing", () => {
@@ -32,6 +34,44 @@ describe("table QR printing", () => {
     expect(tableQrPrintOutcome({ successCount: 21, failedCount: 0, total: 20 }, 20)).toBe("error");
   });
 
+  it("shows the requested QR copies before printer preparation without inventing confirmed output", () => {
+    expect(tableQrPrintProgress({}, 20)).toEqual({ printed: 0, total: 20 });
+    const sent = { successCount: 0, failedCount: 0, total: 20, completed: 20 };
+    expect(tableQrPrintProgress(sent, 20)).toEqual({ printed: 0, total: 20 });
+  });
+
+  it("shows confirmed physical sheets while retaining the full requested count", () => {
+    expect(tableQrPrintProgress({ successCount: 7, failedCount: 0, total: 20 }, 20)).toEqual({ printed: 7, total: 20 });
+    expect(tableQrPrintProgress({ successCount: 1, failedCount: 0, total: 1 }, 20)).toEqual({ printed: 1, total: 20 });
+    expect(tableQrPrintProgress({ successCount: 1, failedCount: 1, total: 2 }, 2)).toEqual({ printed: 1, total: 2 });
+  });
+
+  it("keeps QR progress counts finite and does not hide excess physical output", () => {
+    expect(tableQrPrintProgress({ successCount: Number.NaN, failedCount: Number.POSITIVE_INFINITY, total: -1 }, 20))
+      .toEqual({ printed: 0, total: 20 });
+    expect(tableQrPrintProgress({ successCount: -1, failedCount: 2.5, total: Number.NaN }))
+      .toEqual({ printed: 0, total: 1 });
+    expect(tableQrPrintProgress({ successCount: 21, failedCount: 0, total: 20 }, 20)).toEqual({ printed: 21, total: 21 });
+    expect(tableQrPrintOutcome({ successCount: 21, failedCount: 0, total: 20 }, 20)).toBe("error");
+  });
+
+  it("retains confirmed QR copies while observing the same pending job", () => {
+    const previous = { phase: "printing" as const, total: 20, completed: 7, successCount: 7, failedCount: 0 };
+    const fetching = { phase: "fetching" as const, total: 0, completed: 0, successCount: 0, failedCount: 0 };
+    expect(tableQrPrintProgressUpdate(previous, fetching, true)).toBe(previous);
+    expect(tableQrPrintProgressUpdate(previous, { ...fetching, phase: "printing", total: 13 }, true))
+      .toMatchObject({ phase: "printing", successCount: 7, total: 20 });
+    expect(tableQrPrintProgressUpdate(previous, { ...previous, successCount: 12, completed: 12 }, true))
+      .toMatchObject({ successCount: 12, total: 20 });
+  });
+
+  it("resets QR progress for a new explicit print round", () => {
+    const previous = { phase: "done" as const, total: 20, completed: 20, successCount: 20, failedCount: 0 };
+    const fetching = { phase: "fetching" as const, total: 0, completed: 0, successCount: 0, failedCount: 0 };
+    expect(tableQrPrintProgressUpdate(previous, fetching, false)).toBe(fetching);
+    expect(tableQrPrintProgressUpdate(null, fetching, true)).toBe(fetching);
+  });
+
   interface QueuedQr {
     pending_query?: {
       print_job_uuid: string;
@@ -46,18 +86,22 @@ describe("table QR printing", () => {
   it("locks repeated clicks synchronously and observes the original owner's pending job without enqueueing again", async () => {
     const createId = vi.fn().mockReturnValueOnce("operation-1").mockReturnValueOnce("operation-2");
     const print = createQrPrintRound<QueuedQr>(createId);
+    expect(print.isActive()).toBe(false);
     const response = { pending_query: {
       print_job_uuid: "original-shared-job", login_uuid_fk: "cashier",
       device_code: "SHARED-OWNER", agent_id: "shared-agent", remote_shared_print: true,
     } };
     const first = print.begin(20)!;
+    expect(print.isActive()).toBe(true);
     expect(print.begin(20)).toBeNull();
     first.remember(response);
     first.settle("pending");
     first.release();
+    expect(print.isActive()).toBe(false);
 
     // A later copy-control value must not mutate a pending print's contents.
     const observation = print.begin(1)!;
+    expect(print.isActive()).toBe(true);
     const requestQueue = vi.fn();
     expect(observation.operationUuid).toBe(first.operationUuid);
     expect(observation.copies).toBe(20);
@@ -67,6 +111,7 @@ describe("table QR printing", () => {
     expect(requestQueue).not.toHaveBeenCalled();
     observation.settle("success");
     observation.release();
+    expect(print.isActive()).toBe(false);
 
     const nextPrint = print.begin(1)!;
     expect(nextPrint.operationUuid).toBe("operation-2");

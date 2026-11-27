@@ -35,6 +35,8 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Progress } from "@/components/ui/progress";
+import { documentPrintFeedback } from "./queued-document-print";
 import { DocumentLogoCheckbox } from "@/features/printer/document-logo-checkbox";
 import {
   Command,
@@ -369,9 +371,11 @@ export function PaymentDialogContent({
     orderChannel,
     payment,
     processing,
+    printProgress,
     quickAmounts,
     receiptLabel,
     receiptOutcome,
+    receiptChecking,
     replaceActiveAmount,
     requestSubmit,
     selectedCurrency,
@@ -412,7 +416,9 @@ export function PaymentDialogContent({
   } = customers;
   const isCashTransfer = activeTab === "cash_transfer";
   const suppressSoftKeyboard = useSuppressSoftKeyboard();
-  const receiptBusy = receiptOutcome === "printing" || processing || invoicePrinting;
+  const printFeedback = documentPrintFeedback(printProgress, receiptOutcome === "pending");
+  const receiptBusy = receiptOutcome === "printing" || processing || invoicePrinting || receiptChecking;
+  const receiptPreparing = receiptOutcome === "printing" && printFeedback.preparing;
   const receiptFailed = receiptOutcome === "error" || receiptOutcome === "skipped";
   const dialogHeight = usePaymentDialogHeight(workflow.open);
   const dialogStyle = useMemo(
@@ -433,7 +439,7 @@ export function PaymentDialogContent({
       >
         <DialogContent
           data-pos-payment-dialog="true"
-          aria-busy={receiptOutcome !== null ? receiptBusy : processing}
+          aria-busy={receiptOutcome !== null ? receiptPreparing : processing}
           showCloseButton={false}
           className="!left-0 !top-0 grid h-[var(--pos-payment-dialog-height)] max-h-[var(--pos-payment-dialog-height)] w-full max-w-[100vw] !translate-x-0 !translate-y-0 grid-rows-[auto_minmax(0,1fr)] gap-0 overflow-hidden rounded-none border-0 bg-background p-0 duration-200 sm:!left-[50%] sm:!top-[50%] sm:h-[calc(100dvh-1rem)] sm:max-h-[calc(100dvh-1rem)] sm:max-w-[calc(100vw-1rem)] sm:!translate-x-[-50%] sm:!translate-y-[-50%] sm:rounded-lg sm:border xl:max-w-7xl"
           style={dialogStyle}
@@ -475,13 +481,22 @@ export function PaymentDialogContent({
                     size="icon"
                     aria-label={t("actions.close")}
                     className="size-11 shrink-0 rounded-full"
-                    disabled={processing || receiptOutcome !== null}
+                    disabled={processing || invoicePrinting || receiptOutcome !== null}
                   >
                     <X aria-hidden="true" />
                   </Button>
                 </DialogClose>
               </div>
             </div>
+            {receiptOutcome === null && invoicePrinting ? (
+              <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 font-lao text-xs text-muted-foreground sm:text-sm" role="status" aria-live="polite">
+                <Printer className="size-4" aria-hidden="true" />
+                <span>{t(printFeedback.preparing ? "pos.documentPrintPreparing" : "common.printing")}</span>
+                {printFeedback.total > 0 ? (
+                  <span className="tabular-nums">{t("pos.documentPrintProgress", { printed: printFeedback.confirmed, total: printFeedback.total })}</span>
+                ) : null}
+              </div>
+            ) : null}
           </DialogHeader>
 
           {receiptOutcome !== null ? (
@@ -494,17 +509,19 @@ export function PaymentDialogContent({
               <Card className="w-full max-w-lg gap-5 sm:gap-6">
                 <CardHeader className="justify-items-center gap-3 text-center">
                   <div className="flex size-14 items-center justify-center rounded-full bg-primary/10 text-primary">
-                    {receiptBusy ? (
+                    {receiptPreparing ? (
                       <Spinner className="size-7" aria-label={t("common.printing")} />
                     ) : receiptOutcome === "pending" ? (
                       <Clock3 className="size-7" aria-hidden="true" />
+                    ) : receiptOutcome === "printing" ? (
+                      <Printer className="size-7" aria-hidden="true" />
                     ) : (
                       <ReceiptText className="size-7" aria-hidden="true" />
                     )}
                   </div>
                   <CardTitle className="text-lg font-bold leading-relaxed sm:text-xl" aria-live="polite">
                     {t(receiptOutcome === "printing"
-                      ? "pos.paidReceiptPrinting"
+                      ? receiptPreparing ? "pos.paidReceiptPreparing" : "pos.paidReceiptPrinting"
                       : receiptOutcome === "pending"
                         ? "pos.paymentReceiptPrintQueued"
                         : receiptOutcome === "browser"
@@ -516,6 +533,14 @@ export function PaymentDialogContent({
                   {receiptLabel ? <p className="w-full text-sm leading-relaxed text-muted-foreground wrap-anywhere">{receiptLabel}</p> : null}
                 </CardHeader>
                 <CardContent className="grid gap-4 sm:gap-5">
+                  {printFeedback.total > 0 && receiptOutcome !== "browser" ? (
+                    <div className="grid gap-2" role="status" aria-live="polite">
+                      <p className="text-center text-sm font-semibold tabular-nums text-muted-foreground">
+                        {t("pos.documentPrintProgress", { printed: printFeedback.confirmed, total: printFeedback.total })}
+                      </p>
+                      <Progress value={printFeedback.value} aria-label={t("common.printing")} />
+                    </div>
+                  ) : null}
                   <PaymentStat
                     hero
                     label={t("pos.invoicePrintTotalAmount")}
@@ -548,7 +573,7 @@ export function PaymentDialogContent({
                     </div>
                   ) : receiptOutcome !== "printing" && receiptOutcome !== "success" ? (
                     <Button className="h-auto min-h-12 whitespace-normal py-3 text-base font-bold" disabled={receiptBusy} onClick={() => void handleReceiptRecovery()}>
-                      {receiptBusy ? <Spinner data-icon="inline-start" /> : <Printer data-icon="inline-start" aria-hidden="true" />}
+                      {receiptOutcome === "pending" ? <Clock3 data-icon="inline-start" aria-hidden="true" /> : <Printer data-icon="inline-start" aria-hidden="true" />}
                       {t(receiptOutcome === "pending" ? "pos.paidReceiptCheckStatus" : "pos.paidReceiptPrint")}
                     </Button>
                   ) : null}
@@ -1083,14 +1108,14 @@ export function PaymentDialogContent({
                     disabled={!canPrintInvoice}
                     onClick={() => void handlePrintInvoice()}
                   >
-                    {invoicePrinting ? <Spinner /> : <Printer />}
+                    {invoicePrinting && printFeedback.preparing ? <Spinner /> : <Printer />}
                     <span className="sr-only">{t("pos.printInvoice")}</span>
                   </Button>
                   <Button
                     type="button"
                     variant="destructive"
                     className="h-11 min-w-0 border-destructive/20 px-2"
-                    disabled={processing}
+                    disabled={processing || invoicePrinting}
                     onClick={() => onOpenChange(false)}
                   >
                     <X data-icon="inline-start" aria-hidden="true" />
@@ -1161,7 +1186,7 @@ export function PaymentDialogContent({
                       disabled={!canPrintInvoice}
                       onClick={() => void handlePrintInvoice()}
                     >
-                      {invoicePrinting ? (
+                      {invoicePrinting && printFeedback.preparing ? (
                         <Spinner data-icon="inline-start" />
                       ) : (
                         <Printer data-icon="inline-start" />
@@ -1173,7 +1198,7 @@ export function PaymentDialogContent({
                         type="button"
                         variant="destructive"
                         className="h-10 min-w-0 border-destructive/20 px-2 sm:h-12"
-                        disabled={processing}
+                        disabled={processing || invoicePrinting}
                         onClick={() => onOpenChange(false)}
                       >
                         <X data-icon="inline-start" aria-hidden="true" />

@@ -1338,6 +1338,10 @@ async function executePrintJobs(
               Math.max(0, Math.floor(outcome.deliveredJobs ?? 0)),
             );
             const remainingJobs = Math.max(0, batchTotal - deliveredJobs);
+            // A full-looking progress prefix cannot erase a failed final
+            // document response. Keep confirmed sheets without reporting the
+            // receipt complete while the authoritative result is an error.
+            if (!options.kitchenSemantics) lastErrorMessage = outcome.errorMessage || lastErrorMessage || "Printer batch failed";
             if (deliveredJobs > 0) {
               successCount += deliveredJobs;
               reportDeliveredTickets(deliveredJobs);

@@ -190,6 +190,7 @@ async function pollAgentBatchProgress({
           timeout: 2000,
         },
       );
+      if (requestSettled() || signal.aborted) return;
       if (data.ok) reportProgress(Number(data.completed || 0));
       if (data.status === "done" || data.status === "failed") return;
     } catch {
@@ -517,15 +518,17 @@ export async function printBatchWithLocalAgent(
     timeout: printerRequestTimeoutMs(jobs)
   });
   const progressController = new AbortController();
-  const progressPolling = progressId
-    ? pollAgentBatchProgress({
+  if (progressId) {
+    void pollAgentBatchProgress({
       localBase,
       progressId,
       reportProgress,
       requestSettled: () => requestSettled,
       signal: progressController.signal,
-    })
-    : Promise.resolve();
+    }).catch(() => {
+      // Progress is optional; only the print POST owns the final result.
+    });
+  }
 
   let requestError: unknown;
   try {
@@ -537,7 +540,8 @@ export async function printBatchWithLocalAgent(
   } finally {
     requestSettled = true;
     progressController.abort();
-    await progressPolling;
+    // An observation adapter can ignore abort or settle late. Its cleanup
+    // must not delay an authoritative print result or keep the UI busy.
   }
 
   if (requestError) {

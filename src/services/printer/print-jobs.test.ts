@@ -794,6 +794,42 @@ describe("batch completion with unavailable or uncertain companion sheets", () =
     ]);
   });
 
+  it.each(["invoice", "report"] as const)("preserves the final %s failure even when progress reported every sheet", async (kind) => {
+    const { input } = fixture(`full-prefix-final-failure-${kind}`, {});
+    transportMocks.printBatchWithLocalAgent.mockRejectedValueOnce(Object.assign(new Error("Final printer confirmation failed"), {
+      completed_jobs: 1, delivery_state: "unknown",
+    }));
+    const service = await import("./print-jobs");
+    const execute = kind === "invoice" ? service.executeInvoicePrintJobs : service.executeReportPrintJobs;
+    await expect(execute(input)).resolves.toEqual({
+      successCount: 1, failedCount: 0, total: 1, errorMessage: "Final printer confirmation failed",
+    });
+    await Promise.resolve();
+    await Promise.resolve();
+    await expect(execute(input)).resolves.toEqual({
+      successCount: 1, failedCount: 0, total: 1, errorMessage: "Final printer confirmation failed",
+    });
+    expect(request.mock.calls.filter(([method]) => method === "get")).toHaveLength(2);
+    expect(transportMocks.printBatchWithLocalAgent).toHaveBeenCalledOnce();
+  });
+
+  it("does not turn an older full-prefix unknown ledger without a message into document success", async () => {
+    const jobUuid = "older-full-unknown-prefix";
+    const { input } = fixture(jobUuid, {});
+    const key = `yummy_kitchen_printer_delivery:${jobUuid}:owner-agent|owner-device|win:kitchen:${jobUuid}-food`;
+    vi.stubGlobal("window", { localStorage: {
+      getItem: (storedKey: string) => storedKey === key ? JSON.stringify({
+        deliveryState: "unknown", deliveredJobs: 1, deliveredItemUuids: ["rice", "pork"],
+      }) : null,
+      setItem: vi.fn(), removeItem: vi.fn(),
+    } });
+    const service = await import("./print-jobs");
+    await expect(service.executeInvoicePrintJobs(input)).resolves.toEqual({
+      successCount: 1, failedCount: 0, total: 1, errorMessage: "Printer batch failed",
+    });
+    expect(transportMocks.printBatchWithLocalAgent).not.toHaveBeenCalled();
+  });
+
   it("uses item uncertainty as a compatibility fallback when physical counts are absent", async () => {
     const { input } = fixture("legacy-uncertain-companion", { uncertain_item_total: 2 });
     const service = await import("./print-jobs");

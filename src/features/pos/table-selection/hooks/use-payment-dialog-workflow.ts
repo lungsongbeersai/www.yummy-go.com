@@ -31,6 +31,7 @@ import type {
   SplitBillResponse,
 } from "@/services/pos";
 import type { Exchange } from "@/services/exchange";
+import type { PrintProgress } from "@/services/printer";
 import { canEditStoreBranch } from "@/lib/permissions";
 import type { Bank, SaveBranchAccountInput, BranchAccount } from "@/services/bank-account";
 import { useAppStore } from "@/stores/app-store";
@@ -119,6 +120,7 @@ interface QueuedDocumentContext {
   browserData?: InvoicePrintData;
   browserWindow?: LocalInvoicePrintWindowReservation | null;
   receiptRetryAttempted?: boolean;
+  progressToken?: symbol;
   canNotify: () => boolean;
 }
 
@@ -201,6 +203,8 @@ export function usePaymentDialogWorkflow({
   const [invoicePrinting, setInvoicePrinting] = useState(false);
   const [receiptOutcome, setReceiptOutcome] = useState<CommittedPaymentReceipt["outcome"] | null>(null);
   const [receiptLabel, setReceiptLabel] = useState("");
+  const [receiptChecking, setReceiptChecking] = useState(false);
+  const [printProgress, setPrintProgress] = useState<PrintProgress | null>(null);
   const committedReceiptRef = useRef<CommittedPaymentReceipt | null>(null);
   const isSplitPayment = paymentKind === "split";
   const totalAmount = summary.grandTotal;
@@ -440,6 +444,8 @@ export function usePaymentDialogWorkflow({
     committedReceiptRef.current = null;
     setReceiptOutcome(null);
     setReceiptLabel("");
+    setReceiptChecking(false);
+    setPrintProgress(null);
     setProcessing(false);
     setInvoicePrinting(false);
     if (!open) return;
@@ -470,12 +476,12 @@ export function usePaymentDialogWorkflow({
     if (receipt?.outcome === "pending") void handleReceiptRecovery();
   });
   useEffect(() => {
-    if (!open || receiptOutcome !== "pending" || processing || invoicePrinting) return;
+    if (!open || receiptOutcome !== "pending" || processing || invoicePrinting || receiptChecking) return;
     // Observe the original job again; never create a new receipt for a slow
     // shared printer whose first request is still completing.
     const timer = setTimeout(() => pollReceipt(), 1000);
     return () => clearTimeout(timer);
-  }, [open, receiptOutcome, processing, invoicePrinting]);
+  }, [open, receiptOutcome, processing, invoicePrinting, receiptChecking]);
 
   useEffect(() => {
     if (!open) return;
@@ -967,12 +973,17 @@ export function usePaymentDialogWorkflow({
     print: () => Promise<QueuedDocumentPrintOutcome>,
   ) {
     if (receipt.attempting || receipt.completed || !receipt.context.canNotify()) return;
+    const observing = receipt.outcome === "pending";
     receipt.attempting = true;
-    receipt.outcome = "printing";
+    if (!observing) receipt.outcome = "printing";
     const ownsReceiptView = () => currentCommittedReceipt() === receipt;
     if (ownsReceiptView()) {
-      setProcessing(true);
-      setReceiptOutcome("printing");
+      if (observing) setReceiptChecking(true);
+      else {
+        setProcessing(true);
+        setReceiptOutcome("printing");
+        setPrintProgress(null);
+      }
     }
     try {
       const result = await finishCommittedPayment({
@@ -996,7 +1007,10 @@ export function usePaymentDialogWorkflow({
       }
     } finally {
       receipt.attempting = false;
-      if (ownsReceiptView()) setProcessing(false);
+      if (ownsReceiptView()) {
+        if (observing) setReceiptChecking(false);
+        else setProcessing(false);
+      }
     }
   }
 
@@ -1184,7 +1198,10 @@ export function usePaymentDialogWorkflow({
     };
 
     showToast({ id: context.toastId, title: t("common.printing"), description: context.label, tone: "info" });
-    if (ownsView()) setInvoicePrinting(true);
+    if (ownsView()) {
+      setPrintProgress(null);
+      setInvoicePrinting(true);
+    }
     try {
       const response = isSplitPayment
         ? await splitBill({
@@ -1309,15 +1326,39 @@ export function usePaymentDialogWorkflow({
   ): Promise<QueuedDocumentPrintOutcome> {
     if (!context.canNotify()) return "pending";
     const ownsView = viewScope.capture();
+    const receipt = currentCommittedReceipt();
+    const observing = receipt?.context === context && receipt.outcome === "pending";
+    const progressToken = Symbol();
+    context.progressToken = progressToken;
+    if (receipt?.context === context && !observing &&
+        (response.pending_query?.remote_shared_print === true || response.print_job?.remote_shared_print === true)) {
+      receipt.outcome = "pending";
+      if (ownsView()) setReceiptOutcome("pending");
+    }
     const retry = context.receipt
       ? () => void retryCommittedReceipt(context, true)
       : context.retryDocument;
-    if (ownsView()) setInvoicePrinting(true);
+    if (ownsView() && !observing) setInvoicePrinting(true);
     try {
       const printResult = await executeInvoice({
         print_job: response.print_job,
         pending_query: response.pending_query,
         login_uuid_fk: context.loginUuid,
+        onProgress: (progress) => {
+          if (context.progressToken !== progressToken || !ownsView() || !context.canNotify()) return;
+          const activeReceipt = currentCommittedReceipt();
+          if (activeReceipt && activeReceipt.context !== context) return;
+          // A status check starts with an empty fetching update. Retain the
+          // already confirmed prefix while observing the same durable job.
+          if (observing && progress.phase === "fetching") return;
+          setPrintProgress((previous) => {
+            if (!observing || !previous) return progress;
+            const total = Math.max(previous.total, progress.total);
+            const successCount = Math.max(previous.successCount, progress.successCount);
+            const failedCount = Math.max(previous.failedCount, progress.failedCount);
+            return { ...progress, total, successCount, failedCount, completed: Math.min(total, successCount + failedCount) };
+          });
+        },
       });
       const outcome = queuedDocumentPrintOutcome(printResult);
       if (!context.canNotify()) return outcome;
@@ -1356,7 +1397,8 @@ export function usePaymentDialogWorkflow({
       );
       return "error";
     } finally {
-      if (ownsView()) setInvoicePrinting(false);
+      if (context.progressToken === progressToken) delete context.progressToken;
+      if (ownsView() && !observing) setInvoicePrinting(false);
     }
   }
 
@@ -1490,6 +1532,8 @@ export function usePaymentDialogWorkflow({
     processing,
     receiptOutcome,
     receiptLabel,
+    receiptChecking,
+    printProgress,
     quickAmounts,
     replaceActiveAmount,
     requestSubmit,

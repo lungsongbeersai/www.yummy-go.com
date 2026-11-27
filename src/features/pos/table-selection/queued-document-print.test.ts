@@ -4,6 +4,7 @@ import {
   committedReceiptOrderUuid,
   createCommittedReceiptRetry,
   documentPrinterFailureKind,
+  documentPrintFeedback,
   type QueuedDocumentPrintOutcome,
   finishCommittedPayment,
   isInvoicePrintPreparationError,
@@ -11,6 +12,28 @@ import {
   queuedDocumentPrintOutcome,
   queuedDocumentPrintFailureMessage,
 } from "./queued-document-print";
+
+describe("document print feedback", () => {
+  it("shows preparing only until real print progress or an existing pending job is known", () => {
+    expect(documentPrintFeedback().preparing).toBe(true);
+    expect(documentPrintFeedback(null, true)).toEqual({ preparing: false, confirmed: 0, total: 0, value: 0 });
+    expect(documentPrintFeedback({ phase: "printing", total: 20, completed: 0, successCount: 0, failedCount: 0 }).preparing).toBe(false);
+  });
+
+  it("counts only confirmed sheets and never turns failed or merely completed work into success", () => {
+    expect(documentPrintFeedback({ phase: "done", total: 20, completed: 20, successCount: 3, failedCount: 17 }))
+      .toEqual({ preparing: false, confirmed: 3, total: 20, value: 15 });
+    expect(documentPrintFeedback({ phase: "done", total: 1, completed: 1, successCount: 1, failedCount: 0, deliveryComplete: true }))
+      .toEqual({ preparing: false, confirmed: 1, total: 1, value: 99 });
+  });
+
+  it("keeps malformed counts bounded without inventing progress", () => {
+    expect(documentPrintFeedback({ phase: "printing", total: Infinity, completed: 20, successCount: NaN, failedCount: 0 }))
+      .toEqual({ preparing: false, confirmed: 0, total: 0, value: 0 });
+    expect(documentPrintFeedback({ phase: "printing", total: 2, completed: 30, successCount: 30, failedCount: 0 }))
+      .toEqual({ preparing: false, confirmed: 2, total: 2, value: 99 });
+  });
+});
 
 describe("document printer availability errors", () => {
   it.each([

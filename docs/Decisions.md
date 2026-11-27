@@ -1,5 +1,15 @@
 # Decisions
 
+## Print loading follows preparation and delivery instead of observation cleanup
+
+- **Date:** 2026-11-25.
+- **Authorization:** The owner requested shorter loading while retaining fast, accurate and complete printing, including the earlier requirement to close checkout only after receipt success.
+- **Evidence:** Local Agent batch completion awaited the optional progress GET even after the authoritative print POST had settled. An adapter ignoring abort could keep checkout busy indefinitely. Paid-receipt status checks also repeatedly changed an already pending job back to printing and raised the full busy flags. QR dialogs mounted an additional blocking loading dialog throughout the print round.
+- **Decision:** Abort and detach optional progress observation when the print POST settles, ignore late progress responses, and retain the POST's actual result and confirmed failure prefix. Preparing uses an inline spinner; known printing and pending states show a stable status with confirmed sheet counts. Pending receipt observation keeps the same job and the pending screen, with its own synchronous attempt lock. QR retains its own active-round close/copy locks while removing the second loading modal.
+- **Completion:** Progress, its `done` phase and an observed full count cannot complete payment. Only the authoritative successful result releases the paid modal and parent navigation; failed or unknown results retain their recovery path. No artificial minimum display time, elapsed-time success, new enqueue on a status check or financial retry is introduced.
+- **Validation (2026-11-27):** An isolated snapshot of `2195404d` plus only this change passed typecheck, lint, all 4,090 tests in 312 files, twelve deployment fixtures and the webpack production build. Lint retains two existing source warnings. Unrelated printer-maintenance work was excluded from the release snapshot.
+- **Browser verification:** Nineteen paid-receipt and eleven QR scenarios verified preparation, confirmed counts, quiet polling, authoritative completion, stale callbacks and recovery with synthetic stores. The QR matrix was repeated on the latest code at 390×844 and 1440×900, including a pending 0/0 response retaining the earlier confirmed prefix. No external network or physical printing was used.
+
 ## QR printing retains the requested copies and its original operation
 
 - **Date:** 2026-11-25.

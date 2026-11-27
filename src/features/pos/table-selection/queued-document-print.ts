@@ -1,7 +1,21 @@
-import type { KitchenPrintResult } from "@/services/printer";
+import type { KitchenPrintResult, PrintProgress } from "@/services/printer";
 import type { ConfirmToKitchenPendingQuery, PaymentResponse, ReprintReceiptRequest } from "@/services/pos";
 
 export type QueuedDocumentPrintOutcome = "success" | "pending" | "error" | "skipped" | "browser";
+
+export function documentPrintFeedback(progress?: PrintProgress | null, waiting = false) {
+  const count = (value: number | undefined) => Number.isFinite(value) ? Math.max(0, Math.floor(value ?? 0)) : 0;
+  const total = count(progress?.total);
+  const confirmed = Math.min(total, count(progress?.successCount));
+  return {
+    preparing: !waiting && (!progress || progress.phase === "fetching"),
+    total,
+    confirmed,
+    // Progress is feedback, never completion proof. Only the final print
+    // result can close checkout, even when every observed ticket is confirmed.
+    value: total > 0 ? Math.min(99, confirmed / total * 100) : 0,
+  };
+}
 
 export function isReceiptPrintSkipped(
   response: Pick<PaymentResponse, "print_job" | "pending_query" | "print_queue_error" | "fallback_print"> & {

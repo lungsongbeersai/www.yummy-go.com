@@ -1,4 +1,5 @@
 import { optionalString } from "./utils";
+import type { PrintProgress } from "@/services/printer";
 import { createMutationUuid } from "@/lib/pos/mutation-identity";
 import {
   WINDOW_OPEN_FONT_CLASS_NAME,
@@ -19,6 +20,7 @@ export function createQrPrintRound<T extends QrQueueResponse>(
   let round: { operationUuid: string; response: T | null; terminal: boolean; copies: number } | null = null;
 
   return {
+    isActive: () => active,
     begin(copies = 1) {
       if (active || !isCurrent()) return null;
       if (!round || round.terminal) {
@@ -64,6 +66,32 @@ export function tableQrPrintOutcome(result: {
   const total = result.total ?? expectedCopies;
   if (total === expectedCopies && result.successCount === expectedCopies) return "success" as const;
   return "error" as const;
+}
+
+export function tableQrPrintProgress(result: {
+  successCount?: number;
+  failedCount?: number;
+  total?: number;
+}, expectedCopies = 1) {
+  const count = (value: number | undefined) => typeof value === "number" &&
+    Number.isSafeInteger(value) && value > 0 ? value : 0;
+  const printed = count(result.successCount);
+  return {
+    printed,
+    // Keep requested sheets visible before preparation returns a total. Never
+    // infer delivery from a queue count, a phase, or elapsed time.
+    total: Math.max(1, count(expectedCopies), count(result.total), printed + count(result.failedCount)),
+  };
+}
+
+export function tableQrPrintProgressUpdate(previous: PrintProgress | null, progress: PrintProgress, observing: boolean) {
+  if (!observing || !previous) return progress;
+  if (progress.phase === "fetching") return previous;
+  return {
+    ...progress,
+    total: Math.max(previous.total, progress.total),
+    successCount: Math.max(previous.successCount, progress.successCount),
+  };
 }
 
 export async function tableQrPrintAttemptResponse<T>({

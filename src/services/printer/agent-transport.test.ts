@@ -5,11 +5,13 @@ import {
   checkPrinterAgentConnection,
   dispatchPrintJob,
   getLocalAgentInfo,
+  printBatchWithLocalAgent,
   printWithLocalAgent,
   resolvePrinterDeviceIdentity,
 } from "./agent-transport";
 import { getPrinterDeliveryState } from "./helpers";
 import { resetSessionStores } from "@/stores/session-store-registry";
+import type { PrintJob } from "./types";
 
 const mocks = vi.hoisted(() => ({
   get: vi.fn(), post: vi.fn(), apiRequest: vi.fn(),
@@ -24,6 +26,128 @@ const agent = {
   device_code: "front-pos-device",
   platform: "win32",
 };
+
+function deferredValue<T>() {
+  let resolve!: (value: T) => void;
+  let reject!: (error: unknown) => void;
+  const promise = new Promise<T>((resolvePromise, rejectPromise) => {
+    resolve = resolvePromise;
+    reject = rejectPromise;
+  });
+  return { promise, resolve, reject };
+}
+
+describe("Agent batch progress observer cleanup", () => {
+  const jobsFor = (shared = false): PrintJob[] => Array.from({ length: 3 }, (_, index) => ({
+    job_id: `receipt-${index + 1}`, print_config_uuid: "receipt-printer",
+    agent_id: shared ? "owner-agent" : agent.agent_id,
+    device_code: shared ? "owner-device" : agent.device_code,
+    interface_value: "tcp://192.0.2.10:9100", printer_type: "epson",
+    lang: "eng", paper_width_mm: 80, ops: [],
+  }));
+  beforeEach(() => {
+    vi.useFakeTimers();
+    vi.clearAllMocks();
+    mocks.get.mockReset();
+    mocks.post.mockReset();
+    mocks.native = false;
+  });
+  afterEach(() => { vi.useRealTimers(); });
+
+  it.each([false, true])("returns an authoritative %s batch success without waiting for an abort-ignoring progress GET", async (shared) => {
+    const progress = deferredValue<{ data: { ok: boolean; completed: number; status: string } }>();
+    const post = deferredValue<{ data: { ok: boolean } }>();
+    mocks.get.mockReturnValueOnce(progress.promise);
+    mocks.post.mockReturnValueOnce(post.promise);
+    const jobs = jobsFor(shared);
+    const onProgress = vi.fn();
+    const settled = vi.fn();
+    const printing = printBatchWithLocalAgent(jobs, agent, "per_ticket", onProgress).then(settled);
+    await vi.advanceTimersByTimeAsync(0);
+    expect(settled).not.toHaveBeenCalled();
+    post.resolve({ data: { ok: true } });
+    await vi.advanceTimersByTimeAsync(0);
+    expect(settled).toHaveBeenCalledOnce();
+    await printing;
+    expect(onProgress).toHaveBeenCalledExactlyOnceWith(3, 3);
+    const signal: AbortSignal = mocks.get.mock.calls[0][1].signal;
+    expect(signal.aborted).toBe(true);
+    expect(mocks.post).toHaveBeenCalledExactlyOnceWith(
+      `http://127.0.0.1:7777/print-ops-batch${shared ? "-relay" : ""}`,
+      { jobs, cut_mode: "per_ticket", progress_id: expect.any(String) },
+      expect.objectContaining({ timeout: 75000 }),
+    );
+    expect(mocks.post.mock.calls[0][2].signal).toBeUndefined();
+    progress.resolve({ data: { ok: true, completed: 1, status: "printing" } });
+    await vi.advanceTimersByTimeAsync(4000);
+    expect(onProgress).toHaveBeenCalledOnce();
+    expect(mocks.get).toHaveBeenCalledOnce();
+    expect(vi.getTimerCount()).toBe(0);
+  });
+
+  it.each([
+    { observed: 1, response: 2 }, { observed: 2, response: 1 },
+  ])("returns POST failure promptly with its known prefix when progress observed $observed and POST reported $response", async ({ observed, response }) => {
+    const progress = deferredValue<{ data: { ok: boolean; completed: number; status: string } }>();
+    const post = deferredValue<{ data: { ok: boolean } }>();
+    mocks.get.mockResolvedValueOnce({ data: { ok: true, completed: observed, status: "printing" } })
+      .mockReturnValueOnce(progress.promise);
+    mocks.post.mockReturnValueOnce(post.promise);
+    const onProgress = vi.fn();
+    const settled = vi.fn();
+    const printing = printBatchWithLocalAgent(jobsFor(), agent, "per_ticket", onProgress)
+      .catch((error: unknown) => { settled(error); return error; });
+    await vi.advanceTimersByTimeAsync(200);
+    expect(mocks.get).toHaveBeenCalledTimes(2);
+    const failure = Object.assign(new AxiosError("Printer disconnected", "ECONNRESET"), {
+      response: { status: 500, data: { ok: false, completed: response, delivery_state: "unknown" } },
+    });
+    post.reject(failure);
+    await vi.advanceTimersByTimeAsync(0);
+    expect(settled).toHaveBeenCalledExactlyOnceWith(failure);
+    const error = await printing;
+    expect(error).toBe(failure);
+    expect(error).toMatchObject({ completed_jobs: 2, jobs_total: 3 });
+    expect(getPrinterDeliveryState(error)).toBe("unknown");
+    progress.resolve({ data: { ok: true, completed: 3, status: "done" } });
+    await vi.advanceTimersByTimeAsync(0);
+    expect(onProgress).toHaveBeenCalledExactlyOnceWith(observed, 3);
+    expect(mocks.post).toHaveBeenCalledOnce();
+    expect(vi.getTimerCount()).toBe(0);
+  });
+
+  it("does not treat a completed progress observation as success before the authoritative POST settles", async () => {
+    const post = deferredValue<{ data: { ok: boolean } }>();
+    mocks.get.mockResolvedValueOnce({ data: { ok: true, completed: 3, status: "done" } });
+    mocks.post.mockReturnValueOnce(post.promise);
+    const settled = vi.fn();
+    const printing = printBatchWithLocalAgent(jobsFor(), agent, "per_ticket", vi.fn())
+      .then(() => settled("success"), (error: unknown) => { settled(error); return error; });
+    await vi.advanceTimersByTimeAsync(0);
+    expect(settled).not.toHaveBeenCalled();
+    const failure = Object.assign(new AxiosError("Response lost", "ECONNABORTED"), { delivery_state: "unknown" });
+    post.reject(failure);
+    await expect(printing).resolves.toBe(failure);
+    expect(settled).toHaveBeenCalledExactlyOnceWith(failure);
+    expect(failure).toMatchObject({ completed_jobs: 3, jobs_total: 3, delivery_state: "unknown" });
+    expect(mocks.post).toHaveBeenCalledOnce();
+  });
+
+  it("cancels the progress interval immediately after a successful POST even when progress is unavailable", async () => {
+    const post = deferredValue<{ data: { ok: boolean } }>();
+    mocks.get.mockRejectedValueOnce(new Error("Older Agent has no progress endpoint"));
+    mocks.post.mockReturnValueOnce(post.promise);
+    const printing = printBatchWithLocalAgent(jobsFor(), agent, "per_ticket", vi.fn());
+    await vi.advanceTimersByTimeAsync(0);
+    expect(vi.getTimerCount()).toBe(1);
+    post.resolve({ data: { ok: true } });
+    await printing;
+    expect(vi.getTimerCount()).toBe(0);
+    await vi.advanceTimersByTimeAsync(2000);
+    expect(mocks.get).toHaveBeenCalledOnce();
+    expect(mocks.post).toHaveBeenCalledOnce();
+  });
+});
 
 vi.mock("axios", async (importOriginal) => {
   const actual = await importOriginal<typeof import("axios")>();

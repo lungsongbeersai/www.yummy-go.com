@@ -2,9 +2,9 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import QRCode from "qrcode";
-import { Copy, Download, ExternalLink, Minus, Plus, Printer } from "lucide-react";
+import { Clock3, Copy, Download, ExternalLink, Minus, Plus, Printer } from "lucide-react";
 import { useTranslation } from "react-i18next";
-import { PrintLoadingDialog } from "@/components/common/print-loading-dialog";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { ButtonGroup, ButtonGroupText } from "@/components/ui/button-group";
@@ -20,12 +20,13 @@ import { saveExportFile } from "@/lib/export/file-output";
 import { pngDataUrlFile } from "@/lib/export/image-file";
 import { optionalString } from "@/lib/values";
 import type { BranchMenuQRResponse } from "@/services/pos";
+import type { PrintProgress } from "@/services/printer";
 import { useAppStore } from "@/stores/app-store";
 import { useAuthStore } from "@/stores/auth-store";
 import { usePosStore } from "@/stores/pos-store";
 import { usePrinterStore } from "@/stores/printer-store";
 import { useToastStore } from "@/stores/toast-store";
-import { createQrPrintRound, tableQrPrintAttemptResponse, tableQrPrintOutcome } from "./table-qr-printing";
+import { createQrPrintRound, tableQrPrintAttemptResponse, tableQrPrintOutcome, tableQrPrintProgress, tableQrPrintProgressUpdate } from "./table-qr-printing";
 import { QrPrintPreview } from "./qr-print-preview";
 
 const MIN_PRINT_COPIES = 1;
@@ -53,7 +54,9 @@ export function BranchMenuQrDialog({
   const [response, setResponse] = useState<BranchMenuQRResponse | null>(null);
   const [qrDataUrl, setQrDataUrl] = useState("");
   const [printing, setPrinting] = useState(false);
+  const [printChecking, setPrintChecking] = useState(false);
   const [printPending, setPrintPending] = useState(false);
+  const [printProgress, setPrintProgress] = useState<PrintProgress | null>(null);
   const [downloading, setDownloading] = useState(false);
   const [printCopies, setPrintCopies] = useState(MIN_PRINT_COPIES);
   const targetUrl = response?.qr_url ?? null;
@@ -63,6 +66,11 @@ export function BranchMenuQrDialog({
   const exportCurrent = useExportCurrent(JSON.stringify([open, targetUrl, qrDataUrl]));
   const printCurrent = useExportCurrent(JSON.stringify([open, language, loginUuid]));
   const printRound = useMemo(() => createQrPrintRound<BranchMenuQRResponse>(undefined, printCurrent), [printCurrent]);
+  const printPreparing = printing && !printChecking && (!printProgress || printProgress.phase === "fetching");
+  const confirmedPrint = tableQrPrintProgress(printProgress ?? {}, printCopies);
+  const printActionKey = printChecking ? "pos.paidReceiptCheckStatus" : printing
+    ? printPreparing ? "pos.qrPrintPreparing" : "common.printing"
+    : printPending ? "pos.paidReceiptCheckStatus" : "pos.printQr";
 
   const requestQr = useCallback(async (copies: number, isCurrent: () => boolean = () => true, operationUuid?: string) => {
     if (!loginUuid) throw new Error("login_uuid_fk is required");
@@ -82,7 +90,9 @@ export function BranchMenuQrDialog({
 
   useResetOnChange(printCurrent, () => {
     setPrinting(false);
+    setPrintChecking(false);
     setPrintPending(false);
+    setPrintProgress(null);
   });
 
   // เปิด dialog = ล้างผลเดิม แล้วค่อยขอ token ใหม่ (ไม่มี qr_ver ให้ revoke จึง
@@ -195,8 +205,12 @@ export function BranchMenuQrDialog({
     const attempt = printRound.begin(printCopies);
     if (!attempt) return;
 
+    let attemptActive = true;
+    const observing = Boolean(attempt.response);
     setPrinting(true);
+    setPrintChecking(observing);
     setPrintPending(true);
+    if (!observing) setPrintProgress({ phase: "fetching", total: attempt.copies, completed: 0, successCount: 0, failedCount: 0 });
     try {
       const printResponse = await tableQrPrintAttemptResponse({
         refreshQueue: !attempt.response,
@@ -225,9 +239,15 @@ export function BranchMenuQrDialog({
         print_job: printResponse?.print_job ?? undefined,
         pending_query: printResponse?.pending_query,
         login_uuid_fk: loginUuid,
+        onProgress: (progress) => {
+          if (attemptActive && isCurrent()) setPrintProgress((previous) => tableQrPrintProgressUpdate(previous, progress, observing));
+        },
       });
       if (!isCurrent()) return;
 
+      setPrintProgress((previous) => tableQrPrintProgressUpdate(previous, {
+        ...printResult, completed: printResult.successCount + printResult.failedCount, phase: printResult.pending ? "printing" : "done",
+      }, observing && printResult.pending === true));
       const printOutcome = tableQrPrintOutcome(printResult, attempt.copies);
       attempt.settle(printOutcome);
       setPrintPending(printOutcome === "pending");
@@ -269,15 +289,19 @@ export function BranchMenuQrDialog({
         },
       });
     } finally {
+      attemptActive = false;
       attempt.release();
-      if (isCurrent()) setPrinting(false);
+      if (isCurrent()) {
+        setPrinting(false);
+        setPrintChecking(false);
+      }
     }
   }
 
   return (
     <>
-      <Dialog open={open} onOpenChange={onOpenChange}>
-        <DialogContent className="max-h-[calc(100dvh-2rem-env(safe-area-inset-top,0px)-env(safe-area-inset-bottom,0px))] grid-rows-[auto_minmax(0,1fr)_auto] gap-0 overflow-hidden p-0 duration-200 sm:max-w-130">
+      <Dialog open={open} onOpenChange={(nextOpen) => { if (nextOpen || !printRound.isActive()) onOpenChange(nextOpen); }}>
+        <DialogContent showCloseButton={!printing} className="max-h-[calc(100dvh-2rem-env(safe-area-inset-top,0px)-env(safe-area-inset-bottom,0px))] grid-rows-[auto_minmax(0,1fr)_auto] gap-0 overflow-hidden p-0 duration-200 sm:max-w-130">
         <DialogHeader className="gap-2 px-5 pb-5 pt-5 pr-12 text-left">
           <DialogTitle className="text-xl font-bold leading-6">{t("pos.createBranchMenuQr")}</DialogTitle>
           <DialogDescription>{t("pos.branchMenuQrDescription")}</DialogDescription>
@@ -355,19 +379,25 @@ export function BranchMenuQrDialog({
         </div>
 
         {/* งานหลักคือพิมพ์ QR ไปวางหน้าร้าน/โต๊ะ — ปุ่มหลักจึงเป็นพิมพ์ ดาวน์โหลดเป็นทางเลือกรอง */}
-        <DialogFooter className="grid grid-cols-2 gap-2 border-t border-border p-4 sm:flex sm:justify-end">
+        <DialogFooter className="grid grid-cols-2 gap-2 border-t border-border p-4 sm:flex sm:flex-wrap sm:justify-end">
+          {printing || printPending ? (
+            <Alert role="status" aria-live="polite" aria-atomic="true" className="col-span-2 basis-full" data-qr-print-status="true">
+              {printPreparing ? <Spinner aria-hidden="true" /> : printing && !printChecking ? <Printer aria-hidden="true" /> : <Clock3 aria-hidden="true" />}
+              <AlertTitle>{t(printActionKey)}</AlertTitle>
+              <AlertDescription>{t("pos.qrPrintProgress", confirmedPrint)}</AlertDescription>
+            </Alert>
+          ) : null}
           <Button type="button" size="lg" variant="outline" disabled={!canDownload || pending || downloading} onClick={() => void downloadQr()}>
             <Download data-icon="inline-start" />
             {t("pos.downloadQr")}
           </Button>
           <Button type="button" size="lg" className="h-auto min-h-11 min-w-0 whitespace-normal" disabled={!canPrint || pending || printing} onClick={() => void printQr()}>
-            {printing ? <Spinner data-icon="inline-start" /> : <Printer data-icon="inline-start" />}
-            {t(printPending ? "pos.paidReceiptCheckStatus" : "pos.printQr")}
+            <Printer data-icon="inline-start" />
+            {t(printActionKey)}
           </Button>
         </DialogFooter>
         </DialogContent>
       </Dialog>
-      <PrintLoadingDialog open={printing} />
     </>
   );
 }
